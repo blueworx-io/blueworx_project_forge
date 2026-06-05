@@ -161,7 +161,7 @@ export default function App() {
       </header>
 
       {/* ── Main content ───────────────────────────────────────── */}
-      <main style={{ flex: 1, overflow: isCalendar || currentView === 'settings' ? 'visible' : 'hidden' }}>
+      <main style={{ flex: 1, overflow: isCalendar ? 'visible' : 'hidden' }}>
         { currentView === 'settings' ? (
           <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } />
         ) : currentView === 'kanban' ? (
