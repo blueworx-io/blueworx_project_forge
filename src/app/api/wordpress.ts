@@ -26,6 +26,10 @@ export function isAdmin(): boolean {
   return getConfig().isAdmin;
 }
 
+export function getLoginUrl(): string {
+  return `${ getConfig().siteUrl }/admin_login`;
+}
+
 async function apiFetch<T>( path: string, options: RequestInit = {} ): Promise<T> {
   const { apiUrl, nonce } = getConfig();
   const url = `${ apiUrl }${ path }`;
