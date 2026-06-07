@@ -1,8 +1,8 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, Loader2 } from 'lucide-react';
+import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, LogIn, Loader2 } from 'lucide-react';
 import { AppSettings, BrandConfig } from './types';
 import { Feature, SubItem, Bug, Feedback, Release, CompanyDate } from './types';
-import { isAdmin, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
+import { isAdmin, getLoginUrl, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
 import { useDataStore } from './store/useDataStore';
 import { useUIStore } from './store/useUIStore';
 
@@ -135,12 +135,18 @@ export default function App() {
                 );
               } ) }
             </div>
-            { adminMode && (
+            { adminMode ? (
               <button onClick={ currentView === 'settings' ? closeSettings : openSettings }
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #e2e8f0', backgroundColor: currentView === 'settings' ? '#2563eb' : '#ffffff', color: currentView === 'settings' ? '#ffffff' : '#1a1f36', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}>
                 <SettingsIcon size={ 15 } />
                 <span className="hidden sm:inline">Settings</span>
               </button>
+            ) : (
+              <a href={ getLoginUrl() }
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', color: '#1a1f36', textDecoration: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}>
+                <LogIn size={ 15 } />
+                <span className="hidden sm:inline">Login</span>
+              </a>
             ) }
           </div>
         </div>
