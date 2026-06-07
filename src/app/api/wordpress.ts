@@ -1,4 +1,5 @@
-import { Item, CompanyDate, AppSettings, ArchivedItem } from '../types';
+import { Item, Feature, SubItem, Bug, Feedback, Release, CompanyDate, AppSettings, ArchivedItem, WorkflowStatus, BrandConfig } from '../types';
+import { logNetworkError } from './errorLogger';
 
 declare global {
   interface Window {
@@ -27,27 +28,39 @@ export function isAdmin(): boolean {
 
 async function apiFetch<T>( path: string, options: RequestInit = {} ): Promise<T> {
   const { apiUrl, nonce } = getConfig();
-  const res = await fetch( `${ apiUrl }${ path }`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-WP-Nonce': nonce,
-      ...( options.headers ?? {} ),
-    },
-  } );
+  const url = `${ apiUrl }${ path }`;
+
+  let res: Response;
+  try {
+    res = await fetch( url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-WP-Nonce': nonce,
+        ...( options.headers ?? {} ),
+      },
+    } );
+  } catch ( e ) {
+    // Network-level failure (offline, DNS, CORS, aborted, etc.)
+    logNetworkError( url, 0, e instanceof Error ? e.message : 'Network request failed' );
+    throw e;
+  }
+
   if ( ! res.ok ) {
     const err = await res.json().catch( () => ( {} ) );
-    throw new Error( ( err as any ).message ?? `HTTP ${ res.status }` );
+    const message = ( err as { message?: string } ).message ?? `HTTP ${ res.status }`;
+    logNetworkError( url, res.status, message );
+    throw new Error( message );
   }
   return res.json();
 }
 
 export interface AllItems {
-  features: any[];
-  subitems: any[];
-  bugs: any[];
-  feedback: any[];
-  releases: any[];
+  features: Feature[];
+  subitems: SubItem[];
+  bugs: Bug[];
+  feedback: Feedback[];
+  releases: Release[];
   companyDates: CompanyDate[];
 }
 
@@ -55,11 +68,26 @@ export function fetchAllItems(): Promise<AllItems> {
   return apiFetch<AllItems>( '/items' );
 }
 
-export function updateItem( type: string, id: string, data: Partial<Item> ): Promise<{ success: boolean }> {
+export function updateItem( type: string, id: string, data: Partial<Item> ): Promise<{ success: boolean; id: string; item?: Item }> {
   return apiFetch( `/items/${ type }/${ id }`, {
     method: 'PUT',
     body: JSON.stringify( data ),
   } );
+}
+
+export function fetchItem( type: string, id: string ): Promise<Item> {
+  return apiFetch( `/items/${ type }/${ id }` );
+}
+
+export function createItem( type: string, data: Record<string, unknown> ): Promise<{ success: boolean; id: string }> {
+  return apiFetch( `/items/${ type }`, {
+    method: 'POST',
+    body: JSON.stringify( data ),
+  } );
+}
+
+export function deleteItem( type: string, id: string ): Promise<{ success: boolean }> {
+  return apiFetch( `/items/${ type }/${ id }`, { method: 'DELETE' } );
 }
 
 export function updateStage( type: string, id: string, workflowStage: string ): Promise<{ success: boolean }> {
@@ -72,6 +100,13 @@ export function updateStage( type: string, id: string, workflowStage: string ): 
 export function createCompanyDate( data: { title: string; date: string; description: string; tracked: boolean } ): Promise<CompanyDate> {
   return apiFetch<CompanyDate>( '/company-dates', {
     method: 'POST',
+    body: JSON.stringify( data ),
+  } );
+}
+
+export function updateCompanyDate( id: string, data: Partial<CompanyDate> ): Promise<{ success: boolean }> {
+  return apiFetch( `/items/company_date/${ id }`, {
+    method: 'PUT',
     body: JSON.stringify( data ),
   } );
 }
@@ -103,16 +138,46 @@ export function restoreItem( type: string, id: string ): Promise<{ success: bool
   return apiFetch( `/items/${ type }/${ id }/restore`, { method: 'POST' } );
 }
 
-// Seed settings in dev mode (no WordPress)
+// ── Default statuses ────────────────────────────────────────────────────────
+
+export const DEFAULT_STATUSES: WorkflowStatus[] = [
+  { id: 'bug-tracking',        label: 'Bug Tracking' },
+  { id: 'future-idea',         label: 'Future Idea' },
+  { id: 'triage',              label: 'Triage' },
+  { id: 'documentation-period',label: 'Documentation Period' },
+  { id: 'technical-audit',     label: 'Technical Audit' },
+  { id: 'design-period',       label: 'Design Period' },
+  { id: 'up-next',             label: 'Up Next (Assign Hours)' },
+  { id: 'in-development',      label: 'In Development' },
+  { id: 'in-review',           label: 'In Review' },
+  { id: 'deployed',            label: 'Deployed' },
+];
+
+function normalizeBrands( brands: (string | BrandConfig)[] ): BrandConfig[] {
+  return brands.map( b => typeof b === 'string' ? { name: b, logo: '' } : b );
+}
+
 export function getInitialSettings(): AppSettings {
-  return window.forgePMData?.settings ?? {
+  const raw = window.forgePMData?.settings;
+  if ( raw ) {
+    if ( Array.isArray( raw.brands ) ) raw.brands = normalizeBrands( raw.brands as (string | BrandConfig)[] );
+    return raw;
+  }
+  return {
     parentBrand: '',
     teamMonthlyHours: 160,
-    brands: [ 'SwingU', '18Birdies', 'TheGrint', 'Hole19', 'Golf Pad' ],
+    brands: [
+      { name: 'SwingU',    logo: '' },
+      { name: '18Birdies', logo: '' },
+      { name: 'TheGrint',  logo: '' },
+      { name: 'Hole19',    logo: '' },
+      { name: 'Golf Pad',  logo: '' },
+    ],
     categories: [
       'GPS & Shot Tracking', 'Training & Coaching', 'Scoring & Stats',
       'Games & Leaderboards', 'Gamification', 'Handicap Options',
       'Premium Perks', 'External Hardware', 'App Tools',
     ],
+    statuses: DEFAULT_STATUSES,
   };
 }

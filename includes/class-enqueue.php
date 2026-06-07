@@ -3,8 +3,12 @@ defined( 'ABSPATH' ) || exit;
 
 class Forge_PM_Enqueue {
 
-	// Styles that must never be removed — admin bar, dashicons, block styles
-	const PRESERVE_STYLES = [ 'admin-bar', 'dashicons', 'wp-block-library' ];
+	// Styles that must never be removed — admin bar, dashicons, block styles, WP media uploader
+	const PRESERVE_STYLES = [
+		'admin-bar', 'dashicons', 'wp-block-library',
+		// WP media library modal (wp_enqueue_media)
+		'media-views', 'thickbox', 'wp-color-picker', 'imgareaselect',
+	];
 
 	public static function enqueue() {
 		if ( ! self::is_forge_page() ) return;
@@ -24,12 +28,17 @@ class Forge_PM_Enqueue {
 			wp_enqueue_style( 'forge-pm-app', FORGE_PM_URL . 'assets/css/forge-app.css', [], $css_ver );
 		}
 
+		// Load WP media uploader for users who can access the media library
+		if ( current_user_can( 'upload_files' ) ) {
+			wp_enqueue_media();
+		}
+
 		wp_enqueue_script( 'forge-pm-app', FORGE_PM_URL . 'assets/js/forge-app.js', [], $js_ver, true );
 
 		wp_localize_script( 'forge-pm-app', 'forgePMData', [
 			'apiUrl'   => rest_url( 'forge/v1' ),
 			'nonce'    => wp_create_nonce( 'wp_rest' ),
-			'isAdmin'  => current_user_can( 'manage_options' ),
+			'isAdmin'  => current_user_can( 'edit_posts' ),
 			'siteUrl'  => get_site_url(),
 			'settings' => Forge_PM_Settings::get(),
 		] );

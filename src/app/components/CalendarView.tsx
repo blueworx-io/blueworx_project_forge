@@ -1,9 +1,17 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Target, Plus, X } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { Item } from '../types';
-import { AppData } from '../App';
-import { createCompanyDate } from '../api/wordpress';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CalendarRange, CalendarDays, Target, Plus, X, List, LayoutGrid } from 'lucide-react';
+import {
+  format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
+  startOfMonth, endOfMonth, eachDayOfInterval,
+  isSameMonth, isSameDay, isToday,
+  startOfWeek, endOfWeek,
+  parseISO, isWithinInterval, startOfDay, endOfDay,
+} from 'date-fns';
+import { CompanyDate, Release } from '../types';
+import { createCompanyDate, updateCompanyDate, isAdmin } from '../api/wordpress';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useDataStore } from '../store/useDataStore';
+import { useUIStore } from '../store/useUIStore';
 
 // Design tokens
 const C = {
@@ -12,28 +20,101 @@ const C = {
   primary: '#2563eb', primaryFg: '#ffffff',
 };
 
-// Explicit button style helpers
-const btnPrimary: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: C.primary, color: C.primaryFg, border: 'none', borderRadius: 6, cursor: 'pointer', boxShadow: '0 1px 3px rgba(37,99,235,0.35)' };
-const btnSecondary: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: C.white, color: C.fg, border: `1px solid ${ C.border }`, borderRadius: 6, cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' };
-const btnIcon: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 7, backgroundColor: C.white, color: C.mutedFg, border: `1px solid ${ C.border }`, cursor: 'pointer' };
+const btnPrimary: React.CSSProperties    = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: C.primary, color: C.primaryFg, border: 'none', borderRadius: 6, cursor: 'pointer', boxShadow: '0 1px 3px rgba(37,99,235,0.35)' };
+const btnSecondary: React.CSSProperties  = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: C.white, color: C.fg, border: `1px solid ${ C.border }`, borderRadius: 6, cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' };
+const btnIcon: React.CSSProperties       = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 7, backgroundColor: C.white, color: C.mutedFg, border: `1px solid ${ C.border }`, cursor: 'pointer' };
 
-interface CalendarViewProps {
-  data: AppData;
-  onItemClick: ( item: Item ) => void;
-  isAdmin: boolean;
-  onDataChange: () => void;
-}
+type CalViewMode = 'month' | 'week' | 'day' | 'list';
 
-export function CalendarView( { data, onItemClick, isAdmin, onDataChange }: CalendarViewProps ) {
-  const [currentDate, setCurrentDate] = useState( new Date( 2026, 5, 1 ) );
+export function CalendarView() {
+  const releases     = useDataStore( s => s.releases );
+  const companyDates = useDataStore( s => s.companyDates );
+  const triggerRefresh = useDataStore( s => s.triggerRefresh );
+  const openModal    = useUIStore( s => s.openModal );
+  const adminMode    = isAdmin();
+  const isMobile = useIsMobile( 640 );
+  const [currentDate, setCurrentDate] = useState( () => new Date() );
+  const [viewMode,    setViewMode]    = useState<CalViewMode>( () => isMobile ? 'list' : 'month' );
   const [isAddingEvent, setIsAddingEvent] = useState( false );
-  const [isSaving, setIsSaving] = useState( false );
-  const [newEvent, setNewEvent] = useState( { title: '', date: format( new Date(), 'yyyy-MM-dd' ), description: '', tracked: false } );
+  const [isSaving,      setIsSaving]      = useState( false );
+  const [newEvent,      setNewEvent]      = useState( { title: '', date: format( new Date(), 'yyyy-MM-dd' ), description: '', tracked: false } );
+  const [editingDate,   setEditingDate]   = useState<CompanyDate | null>( null );
+  const [isEditSaving,  setIsEditSaving]  = useState( false );
 
-  const monthStart = startOfMonth( currentDate );
-  const monthEnd   = endOfMonth( monthStart );
-  const days       = eachDayOfInterval( { start: startOfWeek( monthStart ), end: endOfWeek( monthEnd ) } );
+  // Measure header heights for sticky offsets
+  const appHeaderH   = useHeaderHeight( 'header' );
+  const calHeaderRef = useRef<HTMLDivElement>( null );
+  const [calHeaderH, setCalHeaderH] = useState( 57 );
+  useEffect( () => {
+    if ( !calHeaderRef.current ) return;
+    const obs = new ResizeObserver( () => {
+      if ( calHeaderRef.current ) setCalHeaderH( calHeaderRef.current.offsetHeight );
+    } );
+    obs.observe( calHeaderRef.current );
+    return () => obs.disconnect();
+  }, [] );
 
+  // ── Navigation ───────────────────────────────────────────────────────────
+  const navPrev = () => {
+    if ( viewMode === 'month' ) setCurrentDate( d => subMonths( d, 1 ) );
+    else if ( viewMode === 'week' )  setCurrentDate( d => subWeeks( d, 1 ) );
+    else if ( viewMode === 'day' )   setCurrentDate( d => subDays( d, 1 ) );
+  };
+  const navNext = () => {
+    if ( viewMode === 'month' ) setCurrentDate( d => addMonths( d, 1 ) );
+    else if ( viewMode === 'week' )  setCurrentDate( d => addWeeks( d, 1 ) );
+    else if ( viewMode === 'day' )   setCurrentDate( d => addDays( d, 1 ) );
+  };
+  const navToday = () => setCurrentDate( new Date() );
+
+  // ── Title ────────────────────────────────────────────────────────────────
+  const navTitle = useMemo( () => {
+    if ( viewMode === 'month' ) return format( currentDate, isMobile ? 'MMM yyyy' : 'MMMM yyyy' );
+    if ( viewMode === 'week' ) {
+      const ws = startOfWeek( currentDate );
+      const we = endOfWeek( currentDate );
+      return isMobile
+        ? `${ format( ws, 'MMM d' ) } – ${ format( we, 'd' ) }`
+        : `${ format( ws, 'MMM d' ) } – ${ format( we, 'MMM d, yyyy' ) }`;
+    }
+    if ( viewMode === 'day' ) return format( currentDate, isMobile ? 'EEE, MMM d' : 'EEEE, MMMM d, yyyy' );
+    return 'Schedule';
+  }, [ viewMode, currentDate, isMobile ] );
+
+  // ── Month view data ──────────────────────────────────────────────────────
+  const monthDays = useMemo( () => {
+    const ms = startOfMonth( currentDate );
+    return eachDayOfInterval( { start: startOfWeek( ms ), end: endOfWeek( endOfMonth( ms ) ) } );
+  }, [ currentDate ] );
+
+  // ── Week view data ───────────────────────────────────────────────────────
+  const weekDays = useMemo( () =>
+    eachDayOfInterval( { start: startOfWeek( currentDate ), end: endOfWeek( currentDate ) } ),
+  [ currentDate ] );
+
+  // ── Day view data ────────────────────────────────────────────────────────
+  const { dayReleases, dayCompanyDates } = useMemo( () => ( {
+    dayReleases: releases.filter( r =>
+      r.startWeek && r.endWeek &&
+      isWithinInterval( currentDate, { start: startOfDay( parseISO( r.startWeek ) ), end: endOfDay( parseISO( r.endWeek ) ) } )
+    ),
+    dayCompanyDates: companyDates.filter( cd => cd.date && isSameDay( parseISO( cd.date ), currentDate ) ),
+  } ), [ currentDate, releases, companyDates ] );
+
+  // ── List view data ───────────────────────────────────────────────────────
+  const listItems = useMemo( () => {
+    const rows: { date: string; kind: 'release-start' | 'release-end' | 'date'; label: string; id: string; itemRef: Release | CompanyDate }[] = [];
+    releases.forEach( r => {
+      if ( r.startWeek ) rows.push( { date: r.startWeek, kind: 'release-start', label: r.name, id: r.id,          itemRef: r } );
+      if ( r.endWeek )   rows.push( { date: r.endWeek,   kind: 'release-end',   label: r.name, id: `${ r.id }-end`, itemRef: r } );
+    } );
+    companyDates.forEach( cd => {
+      rows.push( { date: cd.date, kind: 'date', label: cd.title, id: cd.id, itemRef: cd } );
+    } );
+    return rows.sort( ( a, b ) => a.date.localeCompare( b.date ) );
+  }, [ releases, companyDates ] );
+
+  // ── Add / edit event handlers ────────────────────────────────────────────
   const handleAddEvent = async ( e: React.FormEvent ) => {
     e.preventDefault();
     if ( !newEvent.title || !newEvent.date ) return;
@@ -41,9 +122,7 @@ export function CalendarView( { data, onItemClick, isAdmin, onDataChange }: Cale
     try {
       if ( window.forgePMData ) {
         await createCompanyDate( newEvent );
-        onDataChange();
-      } else {
-        data.companyDates.push( { id: `cd-${ Date.now() }`, ...newEvent } );
+        triggerRefresh();
       }
     } finally {
       setIsSaving( false );
@@ -52,136 +131,472 @@ export function CalendarView( { data, onItemClick, isAdmin, onDataChange }: Cale
     }
   };
 
-  const getEventsForDay = ( day: Date ) => {
-    // Releases come FIRST — ensures continuous bars stay at the same vertical position across all cells in a week row
-    const dayReleases = data.releases.filter( release =>
-      isWithinInterval( day, { start: startOfDay( parseISO( release.startWeek ) ), end: endOfDay( parseISO( release.endWeek ) ) } )
-    );
-    const dayCompanyDates = data.companyDates.filter( cd => isSameDay( parseISO( cd.date ), day ) );
-    return { dayReleases, dayCompanyDates };
+  const handleEditDate = async ( e: React.FormEvent ) => {
+    e.preventDefault();
+    if ( !editingDate ) return;
+    setIsEditSaving( true );
+    try {
+      if ( window.forgePMData ) {
+        await updateCompanyDate( editingDate.id, { title: editingDate.title, date: editingDate.date, description: editingDate.description, tracked: !! editingDate.tracked } );
+        triggerRefresh();
+      }
+    } finally {
+      setIsEditSaving( false );
+      setEditingDate( null );
+    }
   };
+
+  // Helper: events for a single day (used by month + week views)
+  const getEventsForDay = ( day: Date ) => {
+    const dayRels = releases.filter( r =>
+      r.startWeek && r.endWeek &&
+      isWithinInterval( day, { start: startOfDay( parseISO( r.startWeek ) ), end: endOfDay( parseISO( r.endWeek ) ) } )
+    );
+    const dayCDs = companyDates.filter( cd => cd.date && isSameDay( parseISO( cd.date ), day ) );
+    return { dayReleases: dayRels, dayCompanyDates: dayCDs };
+  };
+
+  const px = isMobile ? '12px 14px' : '12px 24px';
+  const showNav = viewMode !== 'list';
+
+  // ── View switcher items ──────────────────────────────────────────────────
+  const VIEW_TABS: { mode: CalViewMode; label: string; shortLabel: string; Icon: React.ElementType }[] = [
+    { mode: 'month', label: 'Month', shortLabel: 'Mo', Icon: LayoutGrid },
+    { mode: 'week',  label: 'Week',  shortLabel: 'Wk', Icon: CalendarRange },
+    { mode: 'day',   label: 'Day',   shortLabel: 'Dy', Icon: CalendarDays },
+    { mode: 'list',  label: 'List',  shortLabel: 'Li', Icon: List },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: C.bg }}>
 
-      {/* ── Calendar header — sticky below the app header (57px) ─── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', borderBottom: `1px solid ${ C.border }`, backgroundColor: C.white, position: 'sticky', top: 57, zIndex: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {/* ── Calendar header — sticky below app header ─────────── */}
+      <div
+        ref={ calHeaderRef }
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 8,
+          padding: px,
+          borderBottom: `1px solid ${ C.border }`,
+          backgroundColor: C.white,
+          position: 'sticky', top: appHeaderH, zIndex: 40,
+        }}
+      >
+        {/* Left: icon + title + nav arrows */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
           <div style={{ padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: C.primary, display: 'flex' }}>
-            <CalendarIcon size={ 20 } />
+            <CalendarIcon size={ isMobile ? 16 : 20 } />
           </div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: C.fg, margin: 0 }}>{ format( currentDate, 'MMMM yyyy' ) }</h2>
+          <h2 style={{ fontSize: isMobile ? 15 : 20, fontWeight: 700, color: C.fg, margin: 0 }}>{ navTitle }</h2>
+          { showNav && (
+            <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+              <button onClick={ navPrev } style={{ ...btnIcon, borderRight: `1px solid ${ C.border }` }}>
+                <ChevronLeft size={ 16 } />
+              </button>
+              <button onClick={ navNext } style={ btnIcon }>
+                <ChevronRight size={ 16 } />
+              </button>
+            </div>
+          ) }
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          { isAdmin && (
-            <button onClick={ () => setIsAddingEvent( true ) } style={ btnPrimary }>
-              <Plus size={ 16 } /><span>Add Date</span>
+
+        {/* Right: controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+          { adminMode && (
+            <button onClick={ () => setIsAddingEvent( true ) } style={{ ...btnPrimary, padding: isMobile ? '7px 10px' : '7px 14px' }}>
+              <Plus size={ 16 } />
+              { !isMobile && <span>Add Date</span> }
             </button>
           ) }
+          { showNav && (
+            <button onClick={ navToday } style={ btnSecondary }>Today</button>
+          ) }
           <div style={{ width: 1, height: 24, backgroundColor: C.border }} />
-          <button onClick={ () => setCurrentDate( new Date( 2026, 5, 1 ) ) } style={ btnSecondary }>Today</button>
+          {/* View switcher */}
           <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            <button onClick={ () => setCurrentDate( subMonths( currentDate, 1 ) ) } style={{ ...btnIcon, borderRight: `1px solid ${ C.border }` }}>
-              <ChevronLeft size={ 16 } />
-            </button>
-            <button onClick={ () => setCurrentDate( addMonths( currentDate, 1 ) ) } style={ btnIcon }>
-              <ChevronRight size={ 16 } />
-            </button>
+            { VIEW_TABS.map( ( { mode, label, shortLabel, Icon }, i ) => (
+              <button
+                key={ mode }
+                onClick={ () => setViewMode( mode ) }
+                title={ `${ label } view` }
+                style={{
+                  ...btnIcon,
+                  borderRight: i < VIEW_TABS.length - 1 ? `1px solid ${ C.border }` : undefined,
+                  backgroundColor: viewMode === mode ? C.primary : C.white,
+                  color:           viewMode === mode ? '#fff' : C.mutedFg,
+                  gap: 4,
+                  padding: isMobile ? '6px 8px' : '7px 10px',
+                  fontSize: 11, fontWeight: 600,
+                }}
+              >
+                { isMobile ? <span>{ shortLabel }</span> : <><Icon size={ 14 } /><span>{ label }</span></> }
+              </button>
+            ) ) }
           </div>
         </div>
       </div>
 
-      {/* ── Calendar grid — no internal scroll, browser handles it ─── */}
-      <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      {/* ═══════════════════════════════════════════════════════════
+          MONTH VIEW
+      ════════════════════════════════════════════════════════════ */}
+      { viewMode === 'month' && (
+        <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
 
-        {/* Day-of-week header — sticks below the app header (57px) + calendar month header (~57px) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: `1px solid ${ C.border }`, backgroundColor: C.white, position: 'sticky', top: 114, zIndex: 10 }}>
-          { ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map( d => (
-            <div key={ d } style={{ padding: '10px 0', textAlign: 'center', fontSize: 13, fontWeight: 600, color: C.mutedFg }}>{ d }</div>
-          ) ) }
-        </div>
+          {/* Day-of-week header */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+            borderBottom: `1px solid ${ C.border }`, backgroundColor: C.white,
+            position: 'sticky', top: appHeaderH + calHeaderH, zIndex: 10,
+          }}>
+            { ( isMobile ? ['S','M','T','W','T','F','S'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] ).map( ( d, i ) => (
+              <div key={ i } style={{ padding: isMobile ? '8px 0' : '10px 0', textAlign: 'center', fontSize: isMobile ? 11 : 13, fontWeight: 600, color: C.mutedFg }}>{ d }</div>
+            ) ) }
+          </div>
 
-        {/* Days grid */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(120px, 1fr)' }}>
-          { days.map( ( day, idx ) => {
-            const isCurrentMonth = isSameMonth( day, monthStart );
-            const isToday = isSameDay( day, new Date( 2026, 5, 15 ) );
-            const { dayReleases, dayCompanyDates } = getEventsForDay( day );
-
-            return (
-              <div key={ day.toString() } style={{
-                minHeight: 120, paddingBottom: 8,
-                borderBottom: `1px solid ${ C.border }`,
-                borderRight: `1px solid ${ C.border }`,
-                borderLeft: idx % 7 === 0 ? `1px solid ${ C.border }` : 'none',
-                display: 'flex', flexDirection: 'column',
-                backgroundColor: isCurrentMonth ? C.white : '#f8fafc',
-              }}>
-                {/* Day number */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px 4px' }}>
-                  <span style={{
-                    fontSize: 13, fontWeight: 500,
-                    width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
-                    backgroundColor: isToday ? C.primary : 'transparent',
-                    color: isToday ? '#fff' : isCurrentMonth ? C.fg : C.mutedFg,
-                  }}>
-                    { format( day, 'd' ) }
-                  </span>
-                </div>
-
-                {/* Events — releases first, then company dates, ensuring bar continuity */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' }}>
-
-                  {/* Releases — rendered FIRST so they stay at the same vertical slot across all days in the row */}
-                  { dayReleases.map( release => {
-                    const isStart = isSameDay( day, parseISO( release.startWeek ) );
-                    const isEnd   = isSameDay( day, parseISO( release.endWeek ) );
-                    return (
-                      <div
-                        key={ `rel-${ release.id }` }
-                        onClick={ () => onItemClick( release ) }
-                        style={{
-                          cursor: 'pointer', padding: '3px 8px',
-                          fontSize: 11, fontWeight: 500,
+          {/* Days grid */}
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: `minmax(${ isMobile ? 72 : 120 }px, 1fr)` }}>
+            { monthDays.map( ( day, idx ) => {
+              const isCurrentMonth = isSameMonth( day, currentDate );
+              const isDayToday     = isToday( day );
+              const { dayReleases: rels, dayCompanyDates: cds } = getEventsForDay( day );
+              return (
+                <div key={ day.toString() } style={{
+                  minHeight: isMobile ? 72 : 120, paddingBottom: isMobile ? 4 : 8,
+                  borderBottom: `1px solid ${ C.border }`,
+                  borderRight: `1px solid ${ C.border }`,
+                  borderLeft: idx % 7 === 0 ? `1px solid ${ C.border }` : 'none',
+                  display: 'flex', flexDirection: 'column',
+                  backgroundColor: isCurrentMonth ? C.white : '#f8fafc',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '4px 4px 2px' : '6px 8px 4px' }}>
+                    <span style={{
+                      fontSize: isMobile ? 11 : 13, fontWeight: 500,
+                      width: isMobile ? 22 : 28, height: isMobile ? 22 : 28,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+                      backgroundColor: isDayToday ? C.primary : 'transparent',
+                      color: isDayToday ? '#fff' : isCurrentMonth ? C.fg : C.mutedFg,
+                    }}>
+                      { format( day, 'd' ) }
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 3, overflow: 'hidden' }}>
+                    { rels.map( release => {
+                      const isStart = isSameDay( day, parseISO( release.startWeek ) );
+                      const isEnd   = isSameDay( day, parseISO( release.endWeek ) );
+                      return (
+                        <div key={ `rel-${ release.id }` } onClick={ () => openModal(release ) } style={{
+                          cursor: 'pointer', padding: isMobile ? '2px 4px' : '3px 8px',
+                          fontSize: isMobile ? 9 : 11, fontWeight: 500,
                           backgroundColor: '#f0fdf4', color: '#065f46',
                           borderTop: '1px solid #a7f3d0', borderBottom: '1px solid #a7f3d0',
                           borderLeft: isStart ? '1px solid #a7f3d0' : 'none',
                           borderRight: isEnd ? '1px solid #a7f3d0' : 'none',
                           borderRadius: isStart && isEnd ? 4 : isStart ? '4px 0 0 4px' : isEnd ? '0 4px 4px 0' : 0,
-                          marginLeft: isStart ? 8 : 0,
-                          marginRight: isEnd ? 8 : 0,
-                          display: 'flex', alignItems: 'center', gap: 4, minHeight: 20,
+                          marginLeft: isStart ? ( isMobile ? 4 : 8 ) : 0,
+                          marginRight: isEnd ? ( isMobile ? 4 : 8 ) : 0,
+                          display: 'flex', alignItems: 'center', gap: 3, minHeight: isMobile ? 16 : 20,
+                        }}>
+                          { isStart && <div style={{ width: isMobile ? 5 : 6, height: isMobile ? 5 : 6, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} /> }
+                          { !isMobile && (
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: ( !isStart && day.getDay() !== 0 ) ? 0.5 : 1 }}>
+                              { release.name }
+                            </span>
+                          ) }
+                        </div>
+                      );
+                    } ) }
+                    { cds.map( cd => (
+                      <div key={ `cd-${ cd.id }` }
+                        onClick={ adminMode ? () => setEditingDate( { ...cd } ) : undefined }
+                        style={{
+                          margin: `0 ${ isMobile ? 4 : 8 }px`,
+                          padding: isMobile ? '3px 4px' : '4px 8px',
+                          fontSize: isMobile ? 9 : 11, fontWeight: 600,
+                          backgroundColor: '#fef3c7', color: '#92400e',
+                          border: '1px solid #fcd34d', borderRadius: 4,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                          cursor: adminMode ? 'pointer' : 'default',
                         }}
+                        title={ adminMode ? 'Click to edit' : cd.description }
                       >
-                        { isStart && <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} /> }
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: ( !isStart && day.getDay() !== 0 ) ? 0.5 : 1 }}>
-                          { release.name }
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 1 }}>
+                          <Target size={ isMobile ? 8 : 10 } />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ cd.title }</span>
+                        </div>
+                        { cd.description && !isMobile && <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.75, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ cd.description }</div> }
+                      </div>
+                    ) ) }
+                  </div>
+                </div>
+              );
+            } ) }
+          </div>
+        </div>
+      ) }
+
+      {/* ═══════════════════════════════════════════════════════════
+          WEEK VIEW
+      ════════════════════════════════════════════════════════════ */}
+      { viewMode === 'week' && (
+        <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+
+          {/* Day-of-week header */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+            borderBottom: `1px solid ${ C.border }`, backgroundColor: C.white,
+            position: 'sticky', top: appHeaderH + calHeaderH, zIndex: 10,
+          }}>
+            { weekDays.map( ( day, i ) => {
+              const isDayToday = isToday( day );
+              return (
+                <div key={ i } style={{ padding: isMobile ? '8px 4px' : '10px 8px', textAlign: 'center', borderRight: i < 6 ? `1px solid ${ C.border }` : 'none' }}>
+                  <div style={{ fontSize: isMobile ? 10 : 12, fontWeight: 600, color: isDayToday ? C.primary : C.mutedFg, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    { format( day, isMobile ? 'EEE' : 'EEEE' ) }
+                  </div>
+                  <div style={{
+                    fontSize: isMobile ? 14 : 20, fontWeight: 700,
+                    width: isMobile ? 28 : 36, height: isMobile ? 28 : 36,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '50%',
+                    backgroundColor: isDayToday ? C.primary : 'transparent',
+                    color: isDayToday ? '#fff' : C.fg,
+                    marginTop: 2,
+                  }}>
+                    { format( day, 'd' ) }
+                  </div>
+                </div>
+              );
+            } ) }
+          </div>
+
+          {/* Week cells */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+            { weekDays.map( ( day, idx ) => {
+              const isDayToday = isToday( day );
+              const { dayReleases: rels, dayCompanyDates: cds } = getEventsForDay( day );
+              return (
+                <div key={ day.toString() } style={{
+                  minHeight: isMobile ? 120 : 200,
+                  padding: isMobile ? '6px 4px' : '8px 6px',
+                  borderRight: idx < 6 ? `1px solid ${ C.border }` : 'none',
+                  borderBottom: `1px solid ${ C.border }`,
+                  backgroundColor: isDayToday ? '#eff6ff' : C.white,
+                  display: 'flex', flexDirection: 'column', gap: 4,
+                }}>
+                  { rels.map( release => {
+                    const isStart = isSameDay( day, parseISO( release.startWeek ) );
+                    const isEnd   = isSameDay( day, parseISO( release.endWeek ) );
+                    return (
+                      <div key={ `rel-${ release.id }` } onClick={ () => openModal(release ) } style={{
+                        cursor: 'pointer', padding: isMobile ? '4px 6px' : '5px 8px',
+                        fontSize: isMobile ? 10 : 12, fontWeight: 500,
+                        backgroundColor: '#f0fdf4', color: '#065f46',
+                        borderTop: '1px solid #a7f3d0', borderBottom: '1px solid #a7f3d0',
+                        borderLeft: isStart ? '3px solid #10b981' : 'none',
+                        borderRight: isEnd ? '1px solid #a7f3d0' : 'none',
+                        borderRadius: isStart ? '4px 0 0 4px' : isEnd ? '0 4px 4px 0' : 0,
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ release.name }</span>
                       </div>
                     );
                   } ) }
-
-                  {/* Company dates */}
-                  { dayCompanyDates.map( cd => (
-                    <div key={ `cd-${ cd.id }` } style={{ margin: '0 8px', padding: '4px 8px', fontSize: 11, fontWeight: 600, backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: 4, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }} title={ cd.description }>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
-                        <Target size={ 10 } />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ cd.title }</span>
-                      </div>
-                      { cd.description && <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.75, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ cd.description }</div> }
+                  { cds.map( cd => (
+                    <div key={ `cd-${ cd.id }` }
+                      onClick={ adminMode ? () => setEditingDate( { ...cd } ) : undefined }
+                      style={{
+                        padding: isMobile ? '4px 6px' : '5px 8px',
+                        fontSize: isMobile ? 10 : 12, fontWeight: 600,
+                        backgroundColor: '#fef3c7', color: '#92400e',
+                        border: '1px solid #fcd34d', borderRadius: 4,
+                        cursor: adminMode ? 'pointer' : 'default',
+                        display: 'flex', alignItems: 'flex-start', gap: 4,
+                      }}
+                    >
+                      <Target size={ 10 } style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ whiteSpace: 'nowrap', display: 'block' }}>{ cd.title }</span>
+                        { cd.description && !isMobile && <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.75 }}>{ cd.description }</span> }
+                      </span>
                     </div>
                   ) ) }
+                  { rels.length === 0 && cds.length === 0 && (
+                    <div style={{ fontSize: 11, color: '#cbd5e1', textAlign: 'center', paddingTop: 8 }}>—</div>
+                  ) }
                 </div>
-              </div>
-            );
-          } ) }
+              );
+            } ) }
+          </div>
         </div>
-      </div>
+      ) }
+
+      {/* ═══════════════════════════════════════════════════════════
+          DAY VIEW
+      ════════════════════════════════════════════════════════════ */}
+      { viewMode === 'day' && (
+        <div style={{ padding: isMobile ? '16px 14px 40px' : '24px 24px 40px', maxWidth: 640 }}>
+          { dayReleases.length === 0 && dayCompanyDates.length === 0 ? (
+            <div style={{ padding: '48px 0', textAlign: 'center', color: C.mutedFg, fontSize: 14 }}>
+              Nothing scheduled on { format( currentDate, 'MMMM d, yyyy' ) }.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              { dayReleases.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedFg, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Active Releases</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    { dayReleases.map( r => {
+                      const isStart = isSameDay( currentDate, parseISO( r.startWeek ) );
+                      const isEnd   = isSameDay( currentDate, parseISO( r.endWeek ) );
+                      return (
+                        <div key={ r.id } onClick={ () => openModal(r ) } style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '12px 16px', borderRadius: 8,
+                          backgroundColor: '#f0fdf4', border: '1px solid #a7f3d0',
+                          cursor: 'pointer',
+                        }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: C.fg }}>{ r.name }</div>
+                            <div style={{ fontSize: 12, color: C.mutedFg, marginTop: 2 }}>{ r.startWeek } – { r.endWeek }</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            { isStart && <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }}>Starts today</span> }
+                            { isEnd   && <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700, backgroundColor: '#fef3c7', color: '#92400e' }}>Ends today</span> }
+                            { !isStart && !isEnd && <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 600, backgroundColor: '#f0fdf4', color: '#16a34a' }}>In progress</span> }
+                          </div>
+                        </div>
+                      );
+                    } ) }
+                  </div>
+                </div>
+              ) }
+
+              { dayCompanyDates.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: C.mutedFg, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Events</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    { dayCompanyDates.map( cd => (
+                      <div key={ cd.id }
+                        onClick={ adminMode ? () => setEditingDate( { ...cd } ) : undefined }
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: 12,
+                          padding: '12px 16px', borderRadius: 8,
+                          backgroundColor: '#fef3c7', border: '1px solid #fcd34d',
+                          cursor: adminMode ? 'pointer' : 'default',
+                        }}
+                      >
+                        <Target size={ 16 } style={{ color: '#d97706', flexShrink: 0, marginTop: 1 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: C.fg }}>{ cd.title }</div>
+                          { cd.description && <div style={{ fontSize: 12, color: C.mutedFg, marginTop: 4, lineHeight: 1.5 }}>{ cd.description }</div> }
+                        </div>
+                        { adminMode && <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>Edit</span> }
+                      </div>
+                    ) ) }
+                  </div>
+                </div>
+              ) }
+            </div>
+          ) }
+        </div>
+      ) }
+
+      {/* ═══════════════════════════════════════════════════════════
+          LIST VIEW
+      ════════════════════════════════════════════════════════════ */}
+      { viewMode === 'list' && (
+        <div style={{ padding: isMobile ? '0 14px 40px' : '0 24px 40px' }}>
+          { listItems.length === 0 ? (
+            <div style={{ padding: '64px 0', textAlign: 'center', color: C.mutedFg, fontSize: 14 }}>No scheduled items</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: isMobile ? 13 : 14 }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${ C.border }` }}>
+                  { !isMobile && <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.mutedFg, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</th> }
+                  <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.mutedFg, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Type</th>
+                  <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.mutedFg, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                { listItems.map( row => (
+                  <tr
+                    key={ row.id }
+                    onClick={ () => {
+                      if ( row.kind === 'date' ) { if ( adminMode ) setEditingDate( { ...row.itemRef } ); }
+                      else openModal(row.itemRef );
+                    } }
+                    style={{ borderBottom: `1px solid ${ C.border }`, cursor: 'pointer', transition: 'background 0.1s' }}
+                    onMouseEnter={ e => { ( e.currentTarget as HTMLTableRowElement ).style.background = C.muted; } }
+                    onMouseLeave={ e => { ( e.currentTarget as HTMLTableRowElement ).style.background = 'transparent'; } }
+                  >
+                    { !isMobile && <td style={{ padding: '10px 12px', color: C.fg, whiteSpace: 'nowrap' }}>{ row.date }</td> }
+                    <td style={{ padding: '10px 8px' }}>
+                      { row.kind === 'release-start' && <span style={{ padding: '2px 7px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#f0fdf4', color: '#16a34a', border: '1px solid #a7f3d0', whiteSpace: 'nowrap' }}>{ isMobile ? 'Start' : 'Release start' }</span> }
+                      { row.kind === 'release-end'   && <span style={{ padding: '2px 7px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#f0fdf4', color: '#16a34a', border: '1px solid #a7f3d0', whiteSpace: 'nowrap' }}>{ isMobile ? 'End' : 'Release end' }</span> }
+                      { row.kind === 'date'           && <span style={{ padding: '2px 7px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', whiteSpace: 'nowrap' }}>{ isMobile ? 'Event' : 'Company date' }</span> }
+                    </td>
+                    <td style={{ padding: '10px 8px', color: C.fg }}>
+                      <div style={{ fontWeight: 500 }}>{ row.label }</div>
+                      { isMobile && <div style={{ fontSize: 11, color: C.mutedFg, marginTop: 2 }}>{ row.date }</div> }
+                    </td>
+                  </tr>
+                ) ) }
+              </tbody>
+            </table>
+          ) }
+        </div>
+      ) }
+
+      {/* ── Edit Date modal ─────────────────────────────────────── */}
+      { editingDate && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 440, overflow: 'hidden', border: `1px solid ${ C.border }` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: C.fg, margin: 0 }}>Edit Company Date</h3>
+              <button onClick={ () => setEditingDate( null ) } style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedFg, display: 'flex' }}><X size={ 20 } /></button>
+            </div>
+            <form onSubmit={ handleEditDate } style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: C.fg, marginBottom: 6 }}>Title</label>
+                <input autoFocus type="text" required value={ editingDate.title }
+                  onChange={ e => setEditingDate( { ...editingDate, title: e.target.value } ) }
+                  style={{ width: '100%', fontSize: 13, color: C.fg, padding: '8px 12px', border: `1px solid ${ C.border }`, borderRadius: 6, outline: 'none', backgroundColor: C.white, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: C.fg, marginBottom: 6 }}>Date</label>
+                <input type="date" required value={ editingDate.date }
+                  onChange={ e => setEditingDate( { ...editingDate, date: e.target.value } ) }
+                  style={{ width: '100%', fontSize: 13, color: C.fg, padding: '8px 12px', border: `1px solid ${ C.border }`, borderRadius: 6, outline: 'none', backgroundColor: C.white, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: C.fg, marginBottom: 6 }}>Description (optional)</label>
+                <textarea value={ editingDate.description ?? '' }
+                  onChange={ e => setEditingDate( { ...editingDate, description: e.target.value } ) }
+                  style={{ width: '100%', fontSize: 13, color: C.fg, padding: '8px 12px', border: `1px solid ${ C.border }`, borderRadius: 6, outline: 'none', minHeight: 80, resize: 'vertical', backgroundColor: C.white, boxSizing: 'border-box' }} />
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={ !! editingDate.tracked }
+                  onChange={ e => setEditingDate( { ...editingDate, tracked: e.target.checked } ) }
+                  style={{ width: 16, height: 16, accentColor: C.primary }} />
+                <span style={{ fontSize: 13, fontWeight: 500, color: C.fg }}>Track on Timeline</span>
+              </label>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="button" onClick={ () => setEditingDate( null ) } style={ btnSecondary }>Cancel</button>
+                <button type="submit" disabled={ isEditSaving } style={{ ...btnPrimary, opacity: isEditSaving ? 0.6 : 1 }}>
+                  { isEditSaving ? 'Saving...' : 'Save Changes' }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) }
 
       {/* ── Add Date modal ───────────────────────────────────────── */}
       { isAddingEvent && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ backgroundColor: C.white, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 440, overflow: 'hidden', border: `1px solid ${ C.border }` }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 440, overflow: 'hidden', border: `1px solid ${ C.border }` }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: C.fg, margin: 0 }}>Add Company Date</h3>
               <button onClick={ () => setIsAddingEvent( false ) } style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedFg, display: 'flex' }}><X size={ 20 } /></button>
@@ -220,4 +635,19 @@ export function CalendarView( { data, onItemClick, isAdmin, onDataChange }: Cale
       ) }
     </div>
   );
+}
+
+function useHeaderHeight( selector: string ) {
+  const [height, setHeight] = useState( () => {
+    if ( typeof document === 'undefined' ) return 57;
+    return document.querySelector( selector )?.clientHeight ?? 57;
+  } );
+  useEffect( () => {
+    const el = document.querySelector( selector );
+    if ( !el ) return;
+    const obs = new ResizeObserver( () => setHeight( ( el as HTMLElement ).offsetHeight ) );
+    obs.observe( el );
+    return () => obs.disconnect();
+  }, [selector] );
+  return height;
 }

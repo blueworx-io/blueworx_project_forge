@@ -1,13 +1,7 @@
 export type ItemType = 'feature' | 'subitem' | 'bug' | 'feedback' | 'release';
 
-export type WorkflowStage =
-  | 'bug-tracking'
-  | 'scoping'
-  | 'future-idea'
-  | 'up-next'
-  | 'in-development'
-  | 'staging-features'
-  | 'active-features';
+// Stages are user-configurable strings, no longer a fixed union
+export type WorkflowStage = string;
 
 export type FeaturePrice = 'scoping' | 'premium' | 'teaser' | 'free';
 export type BugStatus = 'open' | 'in-progress' | 'resolved';
@@ -29,6 +23,9 @@ export interface Feature {
   isTrackedAsStat: boolean;
   createdDate: string;
   images?: string[];
+  brands?: string[];
+  stageDates?: Record<string, string>;
+  changeLog?: string;
 }
 
 export interface SubItem {
@@ -42,6 +39,8 @@ export interface SubItem {
   featurePrice: FeaturePrice;
   timeEstimate: number;
   releaseId?: string;
+  images?: string[];
+  brands?: string[];
 }
 
 export interface Bug {
@@ -83,6 +82,8 @@ export interface Release {
   id: string;
   type: 'release';
   name: string;
+  versionNumber?: string;
+  versionType?: string;
   quarter: string;
   startWeek: string;
   endWeek: string;
@@ -105,11 +106,24 @@ export interface CompanyDate {
 
 export type Item = Feature | SubItem | Bug | Feedback | Release;
 
+export interface WorkflowStatus {
+  id: string;
+  label: string;
+}
+
+// Brand with optional logo URL
+export interface BrandConfig {
+  name: string;
+  logo?: string;
+}
+
 export interface AppSettings {
+  projectName?: string;
   parentBrand: string;
   teamMonthlyHours: number;
-  brands: string[];
+  brands: BrandConfig[];
   categories: string[];
+  statuses: WorkflowStatus[];
 }
 
 export interface ArchivedItem {

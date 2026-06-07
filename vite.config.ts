@@ -10,11 +10,13 @@ export default defineConfig({
   },
   build: {
     outDir: 'assets',
+    emptyOutDir: true,
     rollupOptions: {
       input: 'index.html',
       output: {
+        format: 'iife',
+        inlineDynamicImports: true,
         entryFileNames: 'js/forge-app.js',
-        chunkFileNames: 'js/forge-app-[hash].js',
         assetFileNames: ( info ) => {
           if ( info.name?.endsWith( '.css' ) ) return 'css/forge-app.css';
           return 'img/[name][extname]';

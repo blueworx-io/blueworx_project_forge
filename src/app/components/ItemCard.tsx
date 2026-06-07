@@ -1,12 +1,11 @@
 import { GripVertical, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle } from 'lucide-react';
 import { Item, Feature, SubItem, Bug, Feedback, Release } from '../types';
-import { AppData } from '../App';
+import { useDataStore } from '../store/useDataStore';
 
 interface ItemCardProps {
   item: Item;
   onClick: () => void;
   showDragHandle?: boolean;
-  data: AppData;
 }
 
 const TYPE_STYLES = {
@@ -30,10 +29,11 @@ const PRIORITY_STYLES = {
   low:    'bg-slate-100 text-slate-700 border-slate-300',
 };
 
-export function ItemCard( { item, onClick, showDragHandle = false, data }: ItemCardProps ) {
+export function ItemCard( { item, onClick, showDragHandle = false }: ItemCardProps ) {
+  const releases = useDataStore( s => s.releases );
   const typeStyle = TYPE_STYLES[item.type];
   const releaseName = 'releaseId' in item && item.releaseId
-    ? data.releases.find( ( r ) => r.id === item.releaseId )?.name
+    ? releases.find( ( r ) => r.id === item.releaseId )?.name
     : undefined;
 
   const renderFeatureCard = ( feature: Feature ) => (
@@ -42,7 +42,7 @@ export function ItemCard( { item, onClick, showDragHandle = false, data }: ItemC
         <span className={ `px-2 py-0.5 text-xs font-semibold rounded border ${ typeStyle.bg } ${ typeStyle.text } ${ typeStyle.border }` }>Feature</span>
         <span className={ `px-2 py-0.5 text-xs font-medium rounded border ${ FEATURE_PRICE_STYLES[feature.featurePrice] }` }>{ feature.featurePrice }</span>
         { feature.isEnabled && <span className="px-2 py-0.5 text-xs font-medium rounded border bg-green-100 text-green-700 border-green-300">Enabled</span> }
-        { feature.isTrackedAsStat && <BarChart3 className="w-3.5 h-3.5 text-blue-600" title="Tracked as stat" /> }
+        { feature.isTrackedAsStat && <span title="Tracked as stat" className="flex"><BarChart3 className="w-3.5 h-3.5 text-blue-600" /></span> }
       </div>
       <h4 className="text-sm font-semibold text-foreground mb-2 line-clamp-2">{ feature.name }</h4>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
@@ -142,7 +142,7 @@ export function ItemCard( { item, onClick, showDragHandle = false, data }: ItemC
   };
 
   return (
-    <div onClick={ onClick } className={ `group bg-card border-l-4 border-r border-t border-b rounded-lg p-3.5 hover:shadow-lg hover:shadow-black/5 transition-all cursor-pointer ${ typeStyle.borderLeft }` }>
+    <div onClick={ onClick } style={{ touchAction: 'manipulation' }} className={ `group bg-card border-l-4 border-r border-t border-b rounded-lg p-3.5 hover:shadow-lg hover:shadow-black/5 transition-all cursor-pointer ${ typeStyle.borderLeft }` }>
       <div className="flex items-start gap-2.5">
         { showDragHandle && (
           <div className="flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">

@@ -1,83 +1,99 @@
-import { useState, useEffect } from 'react';
-import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon } from 'lucide-react';
-import { KanbanBoard } from './components/KanbanBoard';
-import { GanttTimeline } from './components/GanttTimeline';
-import { CalendarView } from './components/CalendarView';
-import { DetailModal } from './components/DetailModal';
-import { Settings } from './components/Settings';
-import { Item, Feature, SubItem, Bug, Feedback, Release, CompanyDate, AppSettings } from './types';
-import { fetchAllItems, isAdmin, getInitialSettings } from './api/wordpress';
-import {
-  sampleFeatures, sampleSubItems, sampleBugs,
-  sampleFeedback, sampleReleases, sampleCompanyDates,
-} from './data/sampleData';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, Loader2 } from 'lucide-react';
+import { AppSettings, BrandConfig } from './types';
+import { Feature, SubItem, Bug, Feedback, Release, CompanyDate } from './types';
+import { isAdmin, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
+import { useDataStore } from './store/useDataStore';
+import { useUIStore } from './store/useUIStore';
+
+// Heavy view components — loaded only when first accessed
+const KanbanBoard   = lazy( () => import('./components/KanbanBoard').then(   m => ( { default: m.KanbanBoard } ) ) );
+const GanttTimeline = lazy( () => import('./components/GanttTimeline').then( m => ( { default: m.GanttTimeline } ) ) );
+const CalendarView  = lazy( () => import('./components/CalendarView').then(  m => ( { default: m.CalendarView } ) ) );
+const Settings      = lazy( () => import('./components/Settings').then(      m => ( { default: m.Settings } ) ) );
+const DetailModal   = lazy( () => import('./components/DetailModal').then(   m => ( { default: m.DetailModal } ) ) );
 
 type View = 'kanban' | 'gantt' | 'calendar' | 'settings';
 
-export interface AppData {
-  features: Feature[];
-  subitems: SubItem[];
-  bugs: Bug[];
-  feedback: Feedback[];
-  releases: Release[];
-  companyDates: CompanyDate[];
-  allItems: Item[];
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+  static getDerivedStateFromError( e: Error ) { return { error: e }; }
+  render() {
+    if ( this.state.error ) {
+      return (
+        <div style={{ padding: 32, color: '#dc2626' }}>
+          <strong>Something went wrong loading this view.</strong>
+          <pre style={{ marginTop: 8, fontSize: 12, whiteSpace: 'pre-wrap' }}>{ ( this.state.error as Error ).message }</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
-function buildAllItems( data: Omit<AppData, 'allItems'> ): Item[] {
-  return [ ...data.features, ...data.subitems, ...data.bugs, ...data.feedback, ...data.releases ];
+function ChunkLoader() {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Loader2 size={ 24 } style={{ color: '#2563eb', animation: 'spin 1s linear infinite' }} />
+    </div>
+  );
 }
-
-const FALLBACK: AppData = {
-  features:     sampleFeatures,
-  subitems:     sampleSubItems,
-  bugs:         sampleBugs,
-  feedback:     sampleFeedback,
-  releases:     sampleReleases,
-  companyDates: sampleCompanyDates,
-  allItems:     [ ...sampleFeatures, ...sampleSubItems, ...sampleBugs, ...sampleFeedback, ...sampleReleases ],
-};
 
 export default function App() {
-  const [currentView,  setCurrentView]  = useState<View>( 'gantt' );
-  const [prevView,     setPrevView]     = useState<View>( 'gantt' );
-  const [selectedItem, setSelectedItem] = useState<Item | null>( null );
-  const [isModalOpen,  setIsModalOpen]  = useState( false );
-  const [data,         setData]         = useState<AppData>( FALLBACK );
-  const [settings,     setSettings]     = useState<AppSettings>( getInitialSettings() );
-  const [refreshKey,   setRefreshKey]   = useState( 0 );
+  const [settings, setSettings] = useState<AppSettings>( getInitialSettings() );
+  const [visited, setVisited]   = useState<Set<string>>( () => new Set( ['gantt'] ) );
 
-  const adminMode = isAdmin();
+  // Store reads
+  const isLoading    = useDataStore( s => s.isLoading );
+  const refreshKey   = useDataStore( s => s.refreshKey );
+  const setAllData   = useDataStore( s => s.setAllData );
+  const setLoading   = useDataStore( s => s.setLoading );
+
+  const currentView   = useUIStore( s => s.currentView );
+  const openSettings  = useUIStore( s => s.openSettings );
+  const closeSettings = useUIStore( s => s.closeSettings );
+  const switchView    = useUIStore( s => s.switchView );
+
+  const adminMode  = isAdmin();
   const isCalendar = currentView === 'calendar';
+
+  // Track which views have been visited so we only mount them on first access
+  useEffect( () => {
+    setVisited( prev => {
+      if ( prev.has( currentView ) ) return prev;
+      const next = new Set( prev );
+      next.add( currentView );
+      return next;
+    } );
+  }, [currentView] );
 
   useEffect( () => {
     if ( ! window.forgePMData ) return;
-    fetchAllItems()
-      .then( raw => {
-        const next = {
+    setLoading( true );
+    Promise.all( [
+      fetchAllItems().then( raw => {
+        setAllData( {
           features:     raw.features     as Feature[],
           subitems:     raw.subitems     as SubItem[],
           bugs:         raw.bugs         as Bug[],
           feedback:     raw.feedback     as Feedback[],
           releases:     raw.releases     as Release[],
           companyDates: raw.companyDates as CompanyDate[],
-        };
-        setData( { ...next, allItems: buildAllItems( next ) } );
-      } )
-      .catch( () => {} );
-  }, [refreshKey] );
+        } );
+      } ),
+      fetchSettings().then( s => {
+        if ( Array.isArray( s.brands ) ) {
+          s.brands = ( s.brands as (string | BrandConfig)[] ).map( ( b ) => typeof b === 'string' ? { name: b, logo: '' } : b );
+        }
+        setSettings( s );
+      } ),
+    ] ).catch( ( err ) => console.error( '[Forge PM] fetch error:', err ) ).finally( () => setLoading( false ) );
+  }, [refreshKey] ); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleItemClick = ( item: Item ) => { setSelectedItem( item ); setIsModalOpen( true ); };
-  const handleUpdateItem = () => setRefreshKey( k => k + 1 );
-
-  const openSettings = () => {
-    if ( currentView !== 'settings' ) setPrevView( currentView );
-    setCurrentView( 'settings' );
-  };
-
-  const closeSettings = () => setCurrentView( prevView );
-
-  const TAB_VIEWS: { view: Exclude<View, 'settings'>; label: string; Icon: any }[] = [
+  const TAB_VIEWS: { view: Exclude<View, 'settings'>; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
     { view: 'gantt',    label: 'Timeline', Icon: BarChart3 },
     { view: 'kanban',   label: 'Kanban',   Icon: LayoutGrid },
     { view: 'calendar', label: 'Calendar', Icon: Calendar },
@@ -85,11 +101,10 @@ export default function App() {
 
   return (
     <div
-      key={ refreshKey }
       style={{
         display: 'flex', flexDirection: 'column',
-        height:     isCalendar ? undefined : '100vh',
-        minHeight:  isCalendar ? '100vh'   : undefined,
+        height:     isCalendar ? undefined : '100dvh',
+        minHeight:  isCalendar ? '100dvh'  : undefined,
         backgroundColor: '#fafbfc', color: '#1a1f36',
       }}
     >
@@ -97,61 +112,32 @@ export default function App() {
       <header style={{
         borderBottom: '1px solid #e2e8f0',
         backgroundColor: '#ffffff',
-        position: isCalendar ? 'sticky' : 'static',
-        top: 0, zIndex: isCalendar ? 50 : 'auto' as any,
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        flexShrink: 0,
       }}>
         <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-
-          {/* Title */}
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Forge Project Management</h1>
+          <div style={{ minWidth: 0, flex: '1 1 0' }}>
+            <h1 style={{ fontSize: 'clamp(15px, 4vw, 20px)', fontWeight: 700, color: '#1a1f36', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ settings.projectName || 'Forge Project Management' }</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0 }} className="hidden sm:block">Product planning &amp; release management</p>
           </div>
-
-          {/* Right side: tabs + settings (separate containers) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-
-            {/* Tab group */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 4, backgroundColor: '#f1f5f9', borderRadius: 8 }}>
               { TAB_VIEWS.map( ( { view, label, Icon } ) => {
                 const isActive = currentView === view;
                 return (
-                  <button
-                    key={ view }
-                    onClick={ () => setCurrentView( view ) }
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '6px 12px', borderRadius: 6,
-                      fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                      border: 'none',
-                      backgroundColor: isActive ? '#ffffff' : 'transparent',
-                      color:           isActive ? '#1a1f36' : '#64748b',
-                      boxShadow:       isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                      transition: 'all 0.15s',
-                    }}
-                  >
+                  <button key={ view } onClick={ () => switchView( view ) }
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', backgroundColor: isActive ? '#ffffff' : 'transparent', color: isActive ? '#1a1f36' : '#64748b', boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.15s' }}>
                     <Icon size={ 15 } />
                     <span className="hidden sm:inline">{ label }</span>
                   </button>
                 );
               } ) }
             </div>
-
-            {/* Settings — separate container, admin only */}
             { adminMode && (
-              <button
-                onClick={ currentView === 'settings' ? closeSettings : openSettings }
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '6px 12px', borderRadius: 8,
-                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: currentView === 'settings' ? '#2563eb' : '#ffffff',
-                  color:           currentView === 'settings' ? '#ffffff'  : '#1a1f36',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  transition: 'all 0.15s',
-                }}
-              >
+              <button onClick={ currentView === 'settings' ? closeSettings : openSettings }
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #e2e8f0', backgroundColor: currentView === 'settings' ? '#2563eb' : '#ffffff', color: currentView === 'settings' ? '#ffffff' : '#1a1f36', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}>
                 <SettingsIcon size={ 15 } />
                 <span className="hidden sm:inline">Settings</span>
               </button>
@@ -161,28 +147,62 @@ export default function App() {
       </header>
 
       {/* ── Main content ───────────────────────────────────────── */}
-      <main style={{ flex: 1, overflow: isCalendar ? 'visible' : 'hidden' }}>
-        { currentView === 'settings' ? (
-          <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } />
-        ) : currentView === 'kanban' ? (
-          <KanbanBoard data={ data } onItemClick={ handleItemClick } isAdmin={ adminMode } onDataChange={ handleUpdateItem } />
-        ) : currentView === 'gantt' ? (
-          <GanttTimeline data={ data } onItemClick={ handleItemClick } />
+      <main style={{ flex: 1, overflow: isCalendar ? 'visible' : 'hidden', minHeight: 0 }}>
+        { isLoading ? (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafbfc', gap: 12, color: '#64748b' }}>
+            <Loader2 size={ 36 } style={{ color: '#2563eb', animation: 'spin 1s linear infinite' }} />
+            <p style={{ fontSize: 14, margin: 0 }}>Loading…</p>
+            <style>{ `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }` }</style>
+          </div>
         ) : (
-          <CalendarView data={ data } onItemClick={ handleItemClick } isAdmin={ adminMode } onDataChange={ handleUpdateItem } />
+          <>
+            { currentView === 'settings' && (
+              <ErrorBoundary>
+                <Suspense fallback={ <ChunkLoader /> }>
+                  <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } />
+                </Suspense>
+              </ErrorBoundary>
+            ) }
+
+            { currentView === 'calendar' && (
+              <ErrorBoundary>
+                <Suspense fallback={ <ChunkLoader /> }>
+                  <CalendarView />
+                </Suspense>
+              </ErrorBoundary>
+            ) }
+
+            {/* Gantt and Kanban stay mounted after first visit — switching is instant, no remount cost */}
+            { visited.has( 'gantt' ) && (
+              <ErrorBoundary>
+                <Suspense fallback={ <ChunkLoader /> }>
+                  <div style={{ display: currentView === 'gantt' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+                    <GanttTimeline settings={ settings } />
+                  </div>
+                </Suspense>
+              </ErrorBoundary>
+            ) }
+
+            { visited.has( 'kanban' ) && (
+              <ErrorBoundary>
+                <Suspense fallback={ <ChunkLoader /> }>
+                  <div style={{ display: currentView === 'kanban' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+                    <KanbanBoard settings={ settings } />
+                  </div>
+                </Suspense>
+              </ErrorBoundary>
+            ) }
+          </>
         ) }
       </main>
 
       {/* Detail modal — not shown when settings is open */}
       { currentView !== 'settings' && (
-        <DetailModal
-          item={ selectedItem }
-          data={ data }
-          isOpen={ isModalOpen }
-          onClose={ () => setIsModalOpen( false ) }
-          onUpdate={ handleUpdateItem }
-          isAdmin={ adminMode }
-        />
+        <ErrorBoundary>
+          <Suspense fallback={ null }>
+            <DetailModal settings={ settings } />
+          </Suspense>
+        </ErrorBoundary>
       ) }
     </div>
   );

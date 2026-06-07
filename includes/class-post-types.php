@@ -29,7 +29,7 @@ class Forge_PM_Post_Types {
 				],
 				'public'              => false,
 				'show_ui'             => true,
-				'show_in_menu'        => 'forge-project-management',
+				'show_in_menu'        => false,
 				'show_in_rest'        => false,
 				'supports'            => [ 'title', 'editor' ],
 				'capability_type'     => 'post',
@@ -50,31 +50,83 @@ class Forge_PM_Post_Types {
 			__( 'Forge PM', 'forge-pm' ),
 			'edit_posts',
 			'forge-project-management',
-			[ __CLASS__, 'render_dashboard' ],
+			[ __CLASS__, 'render_overview' ],
 			'dashicons-chart-bar',
 			25
 		);
 
-		// Logical order: planning → features → sub-tasks → issues → input → calendar
-		add_submenu_page( 'forge-project-management', __( 'Releases',       'forge-pm' ), __( 'Releases',       'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_release' );
-		add_submenu_page( 'forge-project-management', __( 'Features',       'forge-pm' ), __( 'Features',       'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_feature' );
-		add_submenu_page( 'forge-project-management', __( 'Sub-Items',      'forge-pm' ), __( 'Sub-Items',      'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_subitem' );
-		add_submenu_page( 'forge-project-management', __( 'Bugs',           'forge-pm' ), __( 'Bugs',           'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_bug' );
-		add_submenu_page( 'forge-project-management', __( 'Feedback',       'forge-pm' ), __( 'Feedback',       'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_feedback' );
-		add_submenu_page( 'forge-project-management', __( 'Company Dates',  'forge-pm' ), __( 'Company Dates',  'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_company_date' );
+		// Overview replaces the auto-generated duplicate submenu entry
+		add_submenu_page( 'forge-project-management', __( 'Overview',      'forge-pm' ), __( 'Overview',      'forge-pm' ), 'edit_posts', 'forge-project-management' );
+
+		// Remaining entries in alphabetical order
+		add_submenu_page( 'forge-project-management', __( 'Bugs',          'forge-pm' ), __( 'Bugs',          'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_bug' );
+		add_submenu_page( 'forge-project-management', __( 'Company Dates', 'forge-pm' ), __( 'Company Dates', 'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_company_date' );
+		add_submenu_page( 'forge-project-management', __( 'Features',      'forge-pm' ), __( 'Features',      'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_feature' );
+		add_submenu_page( 'forge-project-management', __( 'Feedback',      'forge-pm' ), __( 'Feedback',      'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_feedback' );
+		add_submenu_page( 'forge-project-management', __( 'Releases',      'forge-pm' ), __( 'Releases',      'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_release' );
+		add_submenu_page( 'forge-project-management', __( 'Sub-Items',     'forge-pm' ), __( 'Sub-Items',     'forge-pm' ), 'edit_posts', 'edit.php?post_type=forge_subitem' );
+
+		Forge_PM_Status::register_menu();
 	}
 
-	public static function render_dashboard() {
+	public static function render_overview() {
 		$page_id = get_option( 'forge_pm_page_id' );
-		$url     = $page_id ? get_permalink( $page_id ) : '';
-		echo '<div class="wrap"><h1>' . esc_html__( 'Forge Project Management', 'forge-pm' ) . '</h1>';
-		if ( $url ) {
-			echo '<p>' . sprintf(
-				wp_kses( __( '<a href="%s" target="_blank">View the project management page &rarr;</a>', 'forge-pm' ), [ 'a' => [ 'href' => [], 'target' => [] ] ] ),
-				esc_url( $url )
-			) . '</p>';
-		}
-		echo '</div>';
+		$app_url = $page_id ? get_permalink( $page_id ) : '';
+
+		$stats = [
+			[ 'label' => 'Features',      'cpt' => 'forge_feature',      'color' => '#2563eb', 'icon' => 'dashicons-star-filled',   'slug' => 'forge_feature' ],
+			[ 'label' => 'Releases',      'cpt' => 'forge_release',      'color' => '#16a34a', 'icon' => 'dashicons-tag',           'slug' => 'forge_release' ],
+			[ 'label' => 'Bugs',          'cpt' => 'forge_bug',          'color' => '#dc2626', 'icon' => 'dashicons-warning',       'slug' => 'forge_bug' ],
+			[ 'label' => 'Feedback',      'cpt' => 'forge_feedback',     'color' => '#9333ea', 'icon' => 'dashicons-format-chat',   'slug' => 'forge_feedback' ],
+			[ 'label' => 'Company Dates', 'cpt' => 'forge_company_date', 'color' => '#d97706', 'icon' => 'dashicons-calendar-alt',  'slug' => 'forge_company_date' ],
+		];
+
+		?>
+		<div class="wrap">
+			<h1 style="display:flex;align-items:center;gap:10px">
+				<span class="dashicons dashicons-chart-bar" style="font-size:28px;width:28px;height:28px;color:#2563eb"></span>
+				<?php esc_html_e( 'Forge Project Management', 'forge-pm' ); ?>
+				<span style="font-size:13px;font-weight:400;color:#646970;margin-left:4px">v<?php echo esc_html( FORGE_PM_VERSION ); ?></span>
+			</h1>
+
+			<?php if ( $app_url ) : ?>
+			<div class="notice notice-info inline" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;margin:16px 0 24px">
+				<span><?php esc_html_e( 'The project management app runs on the front end.', 'forge-pm' ); ?></span>
+				<a href="<?php echo esc_url( $app_url ); ?>" target="_blank" class="button button-primary">
+					<?php esc_html_e( 'Open App', 'forge-pm' ); ?> &rarr;
+				</a>
+			</div>
+			<?php endif; ?>
+
+			<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;max-width:900px;margin-bottom:32px">
+				<?php foreach ( $stats as $s ) :
+					$count = wp_count_posts( $s['cpt'] )->publish ?? 0;
+					$url   = admin_url( 'edit.php?post_type=' . $s['slug'] );
+				?>
+				<a href="<?php echo esc_url( $url ); ?>" style="text-decoration:none;color:inherit">
+					<div class="card" style="text-align:center;padding:20px 12px;border-top:4px solid <?php echo esc_attr( $s['color'] ); ?>;cursor:pointer;transition:box-shadow 0.15s">
+						<span class="dashicons <?php echo esc_attr( $s['icon'] ); ?>" style="font-size:28px;width:28px;height:28px;color:<?php echo esc_attr( $s['color'] ); ?>"></span>
+						<div style="font-size:34px;font-weight:700;color:#1d2327;margin:10px 0 4px;line-height:1"><?php echo intval( $count ); ?></div>
+						<div style="font-size:12px;color:#646970;font-weight:500"><?php echo esc_html( $s['label'] ); ?></div>
+					</div>
+				</a>
+				<?php endforeach; ?>
+			</div>
+
+			<h2 style="font-size:14px;color:#646970;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">
+				<?php esc_html_e( 'Quick Links', 'forge-pm' ); ?>
+			</h2>
+			<ul style="margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px">
+				<?php foreach ( $stats as $s ) : ?>
+				<li>
+					<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=' . $s['slug'] ) ); ?>" class="button">
+						+ <?php echo esc_html( $s['label'] ); ?>
+					</a>
+				</li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
+		<?php
 	}
 
 	public static function register_meta_boxes() {
@@ -144,7 +196,7 @@ class Forge_PM_Post_Types {
 	}
 
 	private static function feature_price_options() {
-		return [ 'scoping' => 'Scoping', 'premium' => 'Premium', 'teaser' => 'Teaser', 'free' => 'Free' ];
+		return [ 'scoping' => 'Scoping', 'free' => 'Free', 'teaser' => 'Teaser', 'premium' => 'Premium' ];
 	}
 
 	private static function release_select( $post_id, $key = '_forge_release_id' ) {

@@ -1,36 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Save, Check, AlertCircle, X } from 'lucide-react';
+import { Save, Check, AlertCircle, X, Plus, GripVertical } from 'lucide-react';
 import { ItemCard } from './ItemCard';
-import { WorkflowStage, Item } from '../types';
+import { WorkflowStage, Item, AppSettings, Release } from '../types';
 import { useDragScroll } from '../hooks/useDragScroll';
-import { updateStage } from '../api/wordpress';
-import { AppData } from '../App';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { updateStage, isAdmin } from '../api/wordpress';
+import { AddItemModal } from './AddItemModal';
+import { useDataStore, selectAllItems } from '../store/useDataStore';
+import { useUIStore } from '../store/useUIStore';
 
 interface KanbanBoardProps {
-  data: AppData;
-  onItemClick: ( item: Item ) => void;
-  isAdmin: boolean;
-  onDataChange: () => void;
+  settings: AppSettings;
 }
 
-const WORKFLOW_COLUMNS: { stage: WorkflowStage; label: string }[] = [
-  { stage: 'bug-tracking',     label: 'Bug Tracking' },
-  { stage: 'scoping',          label: 'Scoping' },
-  { stage: 'future-idea',      label: 'Future Idea' },
-  { stage: 'up-next',          label: 'Up Next' },
-  { stage: 'in-development',   label: 'In Development' },
-  { stage: 'staging-features', label: 'Staging Features' },
-  { stage: 'active-features',  label: 'Active Features' },
-];
+// ── Drag item shapes ──────────────────────────────────────────────────────────
+type ItemDragPayload = { kind: 'ITEM'; id: string; type: string; workflowStage?: WorkflowStage };
+type GroupDragPayload = { kind: 'RELEASE_GROUP'; releaseId: string; stage: WorkflowStage; items: { id: string; type: string }[] };
+type AnyDragPayload = ItemDragPayload | GroupDragPayload;
 
-function DraggableCard( { item, isEditMode, onClick, data }: { item: Item; isEditMode: boolean; onClick: () => void; data: AppData } ) {
-  const [{ isDragging }, drag] = useDrag( {
+// ── DraggableCard ─────────────────────────────────────────────────────────────
+function DraggableCard( { item, isEditMode, onClick }: { item: Item; isEditMode: boolean; onClick: () => void } ) {
+  const [{ isDragging }, drag] = useDrag<ItemDragPayload, unknown, { isDragging: boolean }>( {
     type: 'ITEM',
     item: () => {
       const workflowStage = 'workflowStage' in item ? item.workflowStage : undefined;
-      return { id: item.id, type: item.type, workflowStage };
+      return { kind: 'ITEM', id: item.id, type: item.type, workflowStage };
     },
     canDrag: isEditMode,
     collect: ( monitor ) => ( { isDragging: monitor.isDragging() } ),
@@ -38,11 +35,66 @@ function DraggableCard( { item, isEditMode, onClick, data }: { item: Item; isEdi
 
   return (
     <div ref={ drag } style={ { opacity: isDragging ? 0.5 : 1 } } className={ isEditMode ? 'cursor-grab active:cursor-grabbing' : '' }>
-      <ItemCard item={ item } onClick={ onClick } showDragHandle={ isEditMode } data={ data } />
+      <ItemCard item={ item } onClick={ onClick } showDragHandle={ isEditMode } />
     </div>
   );
 }
 
+// ── DraggableReleaseGroup ─────────────────────────────────────────────────────
+interface ReleaseGroupProps {
+  rId: string;
+  releaseName: string;
+  groupItems: Item[];
+  nestedChildren: Record<string, Item[]>;
+  isEditMode: boolean;
+  onItemClick: ( item: Item ) => void;
+  currentStage: WorkflowStage;
+}
+
+function DraggableReleaseGroup( { rId, releaseName, groupItems, nestedChildren, isEditMode, onItemClick, currentStage }: ReleaseGroupProps ) {
+  const canDragGroup = isEditMode && rId !== 'unassigned';
+
+  const [{ isDragging }, drag] = useDrag<GroupDragPayload, unknown, { isDragging: boolean }>( {
+    type: 'RELEASE_GROUP',
+    item: () => ( { kind: 'RELEASE_GROUP', releaseId: rId, stage: currentStage, items: groupItems.map( i => ( { id: i.id, type: i.type } ) ) } ),
+    canDrag: canDragGroup,
+    collect: ( monitor ) => ( { isDragging: monitor.isDragging() } ),
+  } );
+
+  return (
+    <div
+      ref={ drag }
+      style={ { opacity: isDragging ? 0.45 : 1 } }
+      className="flex flex-col rounded-xl border border-border shadow-sm bg-background/50 overflow-hidden"
+    >
+      <div
+        className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30"
+        style={ { cursor: canDragGroup ? 'grab' : 'default' } }
+        title={ canDragGroup ? 'Drag to move entire release group to another column' : undefined }
+      >
+        { canDragGroup && <GripVertical size={ 13 } className="text-muted-foreground/50 flex-shrink-0" /> }
+        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex-1">{ releaseName }</span>
+        <span className="text-[10px] text-muted-foreground/60">{ groupItems.length } item{ groupItems.length !== 1 ? 's' : '' }</span>
+      </div>
+      <div className="flex flex-col gap-3 p-2 bg-muted/10">
+        { groupItems.map( ( item ) => (
+          <div key={ item.id } className="relative">
+            <DraggableCard item={ item } isEditMode={ isEditMode } onClick={ () => onItemClick( item ) } />
+            { nestedChildren[item.id] && nestedChildren[item.id].length > 0 && (
+              <div className="mt-2 ml-4 pl-3 border-l-2 border-primary/20 flex flex-col gap-2">
+                { nestedChildren[item.id].map( ( child ) => (
+                  <DraggableCard key={ child.id } item={ child } isEditMode={ isEditMode } onClick={ () => onItemClick( child ) } />
+                ) ) }
+              </div>
+            ) }
+          </div>
+        ) ) }
+      </div>
+    </div>
+  );
+}
+
+// ── KanbanColumn ──────────────────────────────────────────────────────────────
 interface ColumnProps {
   stage: WorkflowStage;
   label: string;
@@ -50,14 +102,22 @@ interface ColumnProps {
   isEditMode: boolean;
   onItemClick: ( item: Item ) => void;
   onDrop: ( itemId: string, itemType: string, newStage: WorkflowStage ) => void;
-  data: AppData;
+  onGroupDrop: ( items: { id: string; type: string }[], newStage: WorkflowStage ) => void;
+  releases: Release[];
+  isMobile?: boolean;
 }
 
-function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, data }: ColumnProps ) {
-  const [{ isOver }, drop] = useDrop( {
-    accept: 'ITEM',
-    drop: ( dragged: { id: string; type: string; workflowStage?: WorkflowStage } ) => {
-      if ( dragged.workflowStage !== stage ) onDrop( dragged.id, dragged.type, stage );
+function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, onGroupDrop, releases, isMobile }: ColumnProps ) {
+  const isBugTrack = stage === 'bug-tracking';
+
+  const [{ isOver }, drop] = useDrop<AnyDragPayload, unknown, { isOver: boolean }>( {
+    accept: ['ITEM', 'RELEASE_GROUP'],
+    drop: ( dragged ) => {
+      if ( dragged.kind === 'RELEASE_GROUP' ) {
+        if ( dragged.stage !== stage ) onGroupDrop( dragged.items, stage );
+      } else {
+        if ( dragged.workflowStage !== stage ) onDrop( dragged.id, dragged.type, stage );
+      }
     },
     collect: ( monitor ) => ( { isOver: monitor.isOver() } ),
   } );
@@ -80,9 +140,12 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, d
     }
   } );
 
+  // Group by release — treat items whose release no longer exists as unassigned
   const itemsByRelease: Record<string, Item[]> = {};
   topLevelItems.forEach( ( item ) => {
-    const rId = ( 'releaseId' in item && item.releaseId ) ? item.releaseId : 'unassigned';
+    const rawId = 'releaseId' in item ? item.releaseId : null;
+    const exists = rawId && releases.find( ( r ) => r.id === rawId );
+    const rId = exists ? rawId! : 'unassigned';
     if ( ! itemsByRelease[rId] ) itemsByRelease[rId] = [];
     itemsByRelease[rId].push( item );
   } );
@@ -94,14 +157,42 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, d
   } );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: 340, minWidth: 340, flexShrink: 0, backgroundColor: '#ffffff', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.07)', border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '2px solid #e2e8f0', background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)', borderRadius: '8px 8px 0 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: '#1a1f36', margin: 0 }}>{ label }</h3>
-          <span style={{ padding: '2px 10px', fontSize: 11, fontWeight: 700, borderRadius: 99, backgroundColor: '#2563eb', color: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>{ items.length }</span>
+    <div style={ {
+      display: 'flex', flexDirection: 'column',
+      width: isMobile ? '100%' : 340, minWidth: isMobile ? 0 : 340, flexShrink: 0,
+      backgroundColor: '#ffffff',
+      borderRadius: 8,
+      boxShadow: isBugTrack ? '0 1px 3px rgba(239,68,68,0.15)' : '0 1px 3px rgba(0,0,0,0.07)',
+      border: isBugTrack ? '2px solid #fca5a5' : '1px solid #e2e8f0',
+    } }>
+      {/* Column header */}
+      <div style={ {
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 16px',
+        borderBottom: isBugTrack ? '2px solid #ef4444' : '2px solid #e2e8f0',
+        background: isBugTrack ? 'linear-gradient(to bottom, #fff1f2, #ffe4e6)' : 'linear-gradient(to bottom, #f8fafc, #f1f5f9)',
+        borderRadius: '8px 8px 0 0',
+        flexShrink: 0,
+        position: 'sticky', top: 0, zIndex: 2,
+      } }>
+        <div style={ { display: 'flex', alignItems: 'center', gap: 10 } }>
+          <h3 style={ { fontSize: 13, fontWeight: 700, color: '#1a1f36', margin: 0 } }>{ label }</h3>
+          <span style={ { padding: '2px 10px', fontSize: 11, fontWeight: 700, borderRadius: 99, backgroundColor: '#2563eb', color: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' } }>{ items.length }</span>
         </div>
       </div>
-      <div ref={ drop } style={{ flex: 1, padding: 12, transition: 'background-color 0.15s', backgroundColor: isOver && isEditMode ? '#eff6ff' : '#f8fafc', boxShadow: isOver && isEditMode ? 'inset 0 0 0 2px rgba(37,99,235,0.2)' : 'none' }}>
+
+      {/* Column body — no per-column scroll; board scrolls as unit */}
+      <div
+        ref={ drop }
+        style={ {
+          flex: 1,
+          minHeight: isMobile ? 'auto' : 'calc(200vh - 160px)',
+          padding: 12,
+          transition: 'background-color 0.15s',
+          backgroundColor: isOver && isEditMode ? '#eff6ff' : '#f8fafc',
+          boxShadow: isOver && isEditMode ? 'inset 0 0 0 2px rgba(37,99,235,0.2)' : 'none',
+        } }
+      >
         { items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
             <div className="w-20 h-20 rounded-2xl bg-muted/70 flex items-center justify-center mb-4">
@@ -116,27 +207,18 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, d
           <div className="flex flex-col gap-5">
             { releaseGroups.map( ( rId ) => {
               const groupItems = itemsByRelease[rId];
-              const releaseName = rId === 'unassigned' ? 'Unassigned' : data.releases.find( ( r ) => r.id === rId )?.name || 'Unknown Release';
+              const releaseName = rId === 'unassigned' ? 'Unassigned' : releases.find( ( r ) => r.id === rId )?.name ?? 'Unassigned';
               return (
-                <div key={ rId } className="flex flex-col rounded-xl border border-border shadow-sm bg-background/50 overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
-                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{ releaseName }</span>
-                  </div>
-                  <div className="flex flex-col gap-3 p-2 bg-muted/10">
-                    { groupItems.map( ( item ) => (
-                      <div key={ item.id } className="relative">
-                        <DraggableCard item={ item } isEditMode={ isEditMode } onClick={ () => onItemClick( item ) } data={ data } />
-                        { nestedChildren[item.id] && nestedChildren[item.id].length > 0 && (
-                          <div className="mt-2 ml-4 pl-3 border-l-2 border-primary/20 flex flex-col gap-2">
-                            { nestedChildren[item.id].map( ( child ) => (
-                              <DraggableCard key={ child.id } item={ child } isEditMode={ isEditMode } onClick={ () => onItemClick( child ) } data={ data } />
-                            ) ) }
-                          </div>
-                        ) }
-                      </div>
-                    ) ) }
-                  </div>
-                </div>
+                <DraggableReleaseGroup
+                  key={ rId }
+                  rId={ rId }
+                  releaseName={ releaseName }
+                  groupItems={ groupItems }
+                  nestedChildren={ nestedChildren }
+                  isEditMode={ isEditMode }
+                  onItemClick={ onItemClick }
+                  currentStage={ stage }
+                />
               );
             } ) }
           </div>
@@ -146,25 +228,124 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, d
   );
 }
 
-export function KanbanBoard( { data, onItemClick, isAdmin, onDataChange }: KanbanBoardProps ) {
-  const scrollRef = useDragScroll<HTMLDivElement>();
-  const [localItems, setLocalItems] = useState<Item[]>( data.allItems );
+// ── MobileKanbanColumn ────────────────────────────────────────────────────────
+// Renders one column without any DnD hooks — safe outside a DndProvider.
+function MobileKanbanColumn( { items, onItemClick, releases }: {
+  items: Item[];
+  onItemClick: ( item: Item ) => void;
+  releases: Release[];
+} ) {
+  const nestedChildren: Record<string, Item[]> = {};
+  const topLevelItems: Item[] = [];
+
+  items.forEach( ( item ) => {
+    let parentId: string | null = null;
+    if ( item.type === 'subitem' ) parentId = item.parentFeatureId;
+    else if ( item.type === 'bug'      && item.linkedFeatureId ) parentId = item.linkedFeatureId;
+    else if ( item.type === 'feedback' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
+    if ( parentId && items.find( ( i ) => i.id === parentId ) ) {
+      if ( ! nestedChildren[parentId] ) nestedChildren[parentId] = [];
+      nestedChildren[parentId].push( item );
+    } else {
+      topLevelItems.push( item );
+    }
+  } );
+
+  const itemsByRelease: Record<string, Item[]> = {};
+  topLevelItems.forEach( ( item ) => {
+    const rawId = 'releaseId' in item ? item.releaseId : null;
+    const exists = rawId && releases.find( ( r ) => r.id === rawId );
+    const rId = exists ? rawId! : 'unassigned';
+    if ( ! itemsByRelease[rId] ) itemsByRelease[rId] = [];
+    itemsByRelease[rId].push( item );
+  } );
+
+  const releaseGroups = Object.keys( itemsByRelease ).sort( ( a, b ) => {
+    if ( a === 'unassigned' ) return 1;
+    if ( b === 'unassigned' ) return -1;
+    return a.localeCompare( b );
+  } );
+
+  if ( items.length === 0 ) {
+    return (
+      <div style={ { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', textAlign: 'center' } }>
+        <p style={ { fontSize: 14, fontWeight: 500, color: '#64748b', margin: 0 } }>No items</p>
+        <p style={ { fontSize: 12, color: '#94a3b8', marginTop: 6, maxWidth: 200 } }>Items will appear here as they move through the workflow</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={ { flex: 1, overflow: 'auto', padding: 12 } }>
+      <div className="flex flex-col gap-5">
+        { releaseGroups.map( ( rId ) => {
+          const groupItems = itemsByRelease[rId];
+          const releaseName = rId === 'unassigned' ? 'Unassigned' : releases.find( ( r ) => r.id === rId )?.name ?? 'Unassigned';
+          return (
+            <div key={ rId } className="flex flex-col rounded-xl border border-border shadow-sm bg-background/50 overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex-1">{ releaseName }</span>
+                <span className="text-[10px] text-muted-foreground/60">{ groupItems.length } item{ groupItems.length !== 1 ? 's' : '' }</span>
+              </div>
+              <div className="flex flex-col gap-3 p-2 bg-muted/10">
+                { groupItems.map( ( item ) => (
+                  <div key={ item.id } className="relative">
+                    <ItemCard item={ item } onClick={ () => onItemClick( item ) } />
+                    { nestedChildren[item.id] && nestedChildren[item.id].length > 0 && (
+                      <div className="mt-2 ml-4 pl-3 border-l-2 border-primary/20 flex flex-col gap-2">
+                        { nestedChildren[item.id].map( ( child ) => (
+                          <ItemCard key={ child.id } item={ child } onClick={ () => onItemClick( child ) } />
+                        ) ) }
+                      </div>
+                    ) }
+                  </div>
+                ) ) }
+              </div>
+            </div>
+          );
+        } ) }
+      </div>
+    </div>
+  );
+}
+
+// ── KanbanBoard ───────────────────────────────────────────────────────────────
+export function KanbanBoard( { settings }: KanbanBoardProps ) {
+  const storeAllItems  = useDataStore( useShallow( selectAllItems ) );
+  const releases       = useDataStore( s => s.releases );
+  const triggerRefresh = useDataStore( s => s.triggerRefresh );
+  const openModal      = useUIStore( s => s.openModal );
+  const adminMode      = isAdmin();
+  const isMobile = useIsMobile( 768 );
+  const scrollRef = useDragScroll<HTMLDivElement>( { axis: 'x' } );
   const [isEditMode, setIsEditMode] = useState( false );
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>( 'idle' );
   const [pendingStages, setPendingStages] = useState<{ id: string; type: string; stage: WorkflowStage }[]>( [] );
+  const [addItemOpen, setAddItemOpen] = useState( false );
+  const [activeColIdx, setActiveColIdx] = useState( 0 );
 
-  // Sync when data refreshes from parent
-  useEffect( () => { setLocalItems( data.allItems ); }, [data.allItems] );
+  const localItems = useMemo( () => {
+    if ( pendingStages.length === 0 ) return storeAllItems;
+    return storeAllItems.map( item => {
+      const pending = pendingStages.find( p => p.id === item.id );
+      if ( pending && 'workflowStage' in item ) return { ...item, workflowStage: pending.stage };
+      return item;
+    } );
+  }, [storeAllItems, pendingStages] );
 
   const handleDrop = ( itemId: string, itemType: string, newStage: WorkflowStage ) => {
-    setLocalItems( ( prev ) =>
-      prev.map( ( item ) =>
-        item.id === itemId && 'workflowStage' in item ? { ...item, workflowStage: newStage } : item
-      )
-    );
     setPendingStages( ( prev ) => {
       const filtered = prev.filter( ( p ) => p.id !== itemId );
       return [...filtered, { id: itemId, type: itemType, stage: newStage }];
+    } );
+  };
+
+  const handleGroupDrop = ( draggedItems: { id: string; type: string }[], newStage: WorkflowStage ) => {
+    const ids = new Set( draggedItems.map( i => i.id ) );
+    setPendingStages( ( prev ) => {
+      const filtered = prev.filter( ( p ) => !ids.has( p.id ) );
+      const added = draggedItems.map( ( { id, type } ) => ( { id, type, stage: newStage } ) );
+      return [...filtered, ...added];
     } );
   };
 
@@ -179,7 +360,7 @@ export function KanbanBoard( { data, onItemClick, isAdmin, onDataChange }: Kanba
       setTimeout( () => {
         setSaveState( 'idle' );
         setIsEditMode( false );
-        onDataChange();
+        triggerRefresh();
       }, 1500 );
     } catch {
       setSaveState( 'error' );
@@ -190,18 +371,91 @@ export function KanbanBoard( { data, onItemClick, isAdmin, onDataChange }: Kanba
     setIsEditMode( false );
     setSaveState( 'idle' );
     setPendingStages( [] );
-    setLocalItems( data.allItems );
   };
 
   const itemsWithWorkflow = localItems.filter( ( item ) => 'workflowStage' in item );
+  const columns = settings.statuses.length > 0 ? settings.statuses : [
+    { id: 'bug-tracking', label: 'Bug Tracking' }, { id: 'future-idea', label: 'Future Idea' },
+    { id: 'up-next', label: 'Up Next' }, { id: 'in-development', label: 'In Development' },
+  ];
 
-  // Build a merged data object so columns can resolve release names
-  const mergedData: AppData = { ...data, allItems: localItems };
+  // ── Mobile: single-column tab view, no DnD ──────────────────────────────────
+  if ( isMobile ) {
+    const safeIdx = Math.min( activeColIdx, columns.length - 1 );
+    const col = columns[safeIdx];
+    const colItems = itemsWithWorkflow.filter(
+      ( item ) => 'workflowStage' in item && item.workflowStage === col.id
+    );
 
+    return (
+      <>
+        <div style={ { display: 'flex', flexDirection: 'column', height: '100%' } }>
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background flex-shrink-0">
+            <h2 className="text-base font-semibold">Kanban Board</h2>
+            { adminMode && (
+              <button
+                onClick={ () => setAddItemOpen( true ) }
+                style={ { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, cursor: 'pointer', touchAction: 'manipulation' } }
+              >
+                <Plus size={ 15 } />Add Item
+              </button>
+            ) }
+          </div>
+
+          {/* Scrollable column tabs */}
+          <div
+            className="scrollbar-hide flex-shrink-0"
+            style={ { display: 'flex', alignItems: 'stretch', overflowX: 'auto', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff' } }
+          >
+            { columns.map( ( c, idx ) => {
+              const count = itemsWithWorkflow.filter( i => 'workflowStage' in i && i.workflowStage === c.id ).length;
+              const isActive = idx === safeIdx;
+              return (
+                <button
+                  key={ c.id }
+                  onClick={ () => setActiveColIdx( idx ) }
+                  style={ {
+                    flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '10px 14px', fontSize: 12, fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#2563eb' : '#64748b', background: 'none',
+                    borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                    borderBottom: isActive ? '2px solid #2563eb' : '2px solid transparent',
+                    cursor: 'pointer', whiteSpace: 'nowrap', touchAction: 'manipulation',
+                  } }
+                >
+                  { c.label }
+                  <span style={ {
+                    padding: '1px 6px', fontSize: 10, fontWeight: 700, borderRadius: 99,
+                    backgroundColor: isActive ? '#dbeafe' : '#f1f5f9',
+                    color: isActive ? '#2563eb' : '#94a3b8',
+                  } }>{ count }</span>
+                </button>
+              );
+            } ) }
+          </div>
+
+          {/* Active column content */}
+          <MobileKanbanColumn items={ colItems } onItemClick={ openModal } releases={ releases } />
+        </div>
+
+        <AddItemModal
+          isOpen={ addItemOpen }
+          onClose={ () => setAddItemOpen( false ) }
+          onSuccess={ () => { setAddItemOpen( false ); triggerRefresh(); } }
+          settings={ settings }
+
+        />
+      </>
+    );
+  }
+
+  // ── Desktop: full DnD board ──────────────────────────────────────────────────
   return (
     <DndProvider backend={ HTML5Backend }>
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-background">
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-background flex-shrink-0">
           <div>
             <h2 className="text-base sm:text-lg font-semibold">Kanban Board</h2>
             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage your workflow across all stages</p>
@@ -223,42 +477,67 @@ export function KanbanBoard( { data, onItemClick, isAdmin, onDataChange }: Kanba
                 <AlertCircle className="w-4 h-4" />Failed to save
               </div>
             ) }
-            { isAdmin && (
-              isEditMode ? (
-                <>
-                  <button onClick={ handleCancel } style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f1f5f9', color: '#1a1f36', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer' }}>
-                    <X className="w-4 h-4" /><span>Cancel</span>
-                  </button>
-                  <button onClick={ handleSave } style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: 8, cursor: 'pointer', boxShadow: '0 1px 3px rgba(37,99,235,0.4)' }}>
-                    <Save className="w-4 h-4" />Save Changes
-                  </button>
-                </>
-              ) : (
-                <button onClick={ () => setIsEditMode( true ) } style={{ padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: 8, cursor: 'pointer', boxShadow: '0 1px 3px rgba(37,99,235,0.4)' }}>
-                  Edit Board
+            { adminMode && (
+              <>
+                <button
+                  onClick={ () => setAddItemOpen( true ) }
+                  style={ { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, cursor: 'pointer' } }
+                >
+                  <Plus size={ 15 } /><span className="hidden sm:inline">Add Item</span>
                 </button>
-              )
+                { isEditMode ? (
+                  <>
+                    <button onClick={ handleCancel } style={ { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f1f5f9', color: '#1a1f36', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer' } }>
+                      <X className="w-4 h-4" /><span>Cancel</span>
+                    </button>
+                    <button onClick={ handleSave } style={ { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: 8, cursor: 'pointer', boxShadow: '0 1px 3px rgba(37,99,235,0.4)' } }>
+                      <Save className="w-4 h-4" />Save Changes
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={ () => setIsEditMode( true ) } style={ { padding: '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: 8, cursor: 'pointer', boxShadow: '0 1px 3px rgba(37,99,235,0.4)' } }>
+                    Edit Board
+                  </button>
+                ) }
+              </>
             ) }
           </div>
         </div>
 
-        <div ref={ scrollRef } className="flex-1 overflow-auto bg-muted/30 cursor-grab scrollbar-hide">
-          <div className="flex min-h-full gap-4 p-4 min-w-max">
-            { WORKFLOW_COLUMNS.map( ( column ) => (
+        {/* Columns — horizontal scroll on desktop; stacked vertically on mobile */}
+        <div
+          ref={ isMobile ? undefined : scrollRef }
+          className={ `flex-1 bg-muted/30 scrollbar-hide ${ isMobile ? '' : 'cursor-grab' }` }
+          style={ { overflow: 'auto' } }
+        >
+          <div style={ isMobile
+            ? { display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }
+            : { display: 'flex', alignItems: 'stretch', gap: 16, padding: 16, minWidth: 'max-content' }
+          }>
+            { columns.map( ( col ) => (
               <KanbanColumn
-                key={ column.stage }
-                stage={ column.stage }
-                label={ column.label }
-                items={ itemsWithWorkflow.filter( ( item ) => 'workflowStage' in item && item.workflowStage === column.stage ) }
+                key={ col.id }
+                stage={ col.id }
+                label={ col.label }
+                items={ itemsWithWorkflow.filter( ( item ) => 'workflowStage' in item && item.workflowStage === col.id ) }
                 isEditMode={ isEditMode }
-                onItemClick={ onItemClick }
+                onItemClick={ openModal }
                 onDrop={ handleDrop }
-                data={ mergedData }
+                onGroupDrop={ handleGroupDrop }
+                releases={ releases }
+                isMobile={ isMobile }
               />
             ) ) }
           </div>
         </div>
       </div>
+
+      <AddItemModal
+        isOpen={ addItemOpen }
+        onClose={ () => setAddItemOpen( false ) }
+        onSuccess={ () => { setAddItemOpen( false ); triggerRefresh(); } }
+        settings={ settings }
+      />
     </DndProvider>
   );
 }
