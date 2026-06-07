@@ -20,16 +20,17 @@ GitHub Issues are the source of truth for all work. Follow this Issue → Implem
    - `npm run build`
 7. **Review your own changes** before committing.
 8. **Confirm acceptance criteria.** Verify the implementation matches the issue's acceptance criteria.
-9. **Commit** with a clear message that references the issue number (e.g. `Fix sidebar overflow (#42)`).
-10. **Open a draft pull request** linked to the issue.
-11. **PR description must include:**
+9. **Visual confirmation.** Before committing, pushing the branch, or opening the PR, run `npm run dev` and let the user visually confirm the change in the browser. Wait for their confirmation before proceeding.
+10. **Commit** with a clear message that references the issue number (e.g. `Fix sidebar overflow (#42)`).
+11. **Open a draft pull request** linked to the issue.
+12. **PR description must include:**
     - issue link
     - summary of changes
     - files changed
     - test results
     - review notes
     - anything still requiring human review
-12. **Leave the PR for human review.** Mark it as a draft / ready for the user to review and action — never auto-merge.
+13. **Leave the PR for human review.** Mark it as a draft / ready for the user to review and action — never auto-merge.
 
 ## Token Efficiency
 
