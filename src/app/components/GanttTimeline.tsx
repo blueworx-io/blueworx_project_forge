@@ -552,7 +552,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
         onScroll={ syncHeader }
         style={{ flex: 1, overflow: 'auto', backgroundColor: '#f8fafc', cursor: 'grab' }}
       >
-        <div style={{ minWidth: 'max-content', position: 'relative' }}>
+        <div style={{ minWidth: 'max-content', position: 'relative', minHeight: '100%' }}>
 
           {/* Company date markers */}
           { companyDates.filter( cd => cd.tracked ).map( cd => {

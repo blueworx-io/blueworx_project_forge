@@ -168,7 +168,7 @@ export function CalendarView() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: C.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: C.bg, flex: 1, minHeight: `calc(100dvh - ${ appHeaderH }px)` }}>
 
       {/* ── Calendar header — sticky below app header ─────────── */}
       <div
@@ -240,7 +240,7 @@ export function CalendarView() {
           MONTH VIEW
       ════════════════════════════════════════════════════════════ */}
       { viewMode === 'month' && (
-        <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', flex: 1 }}>
 
           {/* Day-of-week header */}
           <div style={{
@@ -338,7 +338,7 @@ export function CalendarView() {
           WEEK VIEW
       ════════════════════════════════════════════════════════════ */}
       { viewMode === 'week' && (
-        <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', flex: 1 }}>
 
           {/* Day-of-week header */}
           <div style={{
@@ -370,7 +370,7 @@ export function CalendarView() {
           </div>
 
           {/* Week cells */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: `minmax(${ isMobile ? 120 : 200 }px, 1fr)`, flex: 1 }}>
             { weekDays.map( ( day, idx ) => {
               const isDayToday = isToday( day );
               const { dayReleases: rels, dayCompanyDates: cds } = getEventsForDay( day );
@@ -435,7 +435,7 @@ export function CalendarView() {
           DAY VIEW
       ════════════════════════════════════════════════════════════ */}
       { viewMode === 'day' && (
-        <div style={{ padding: isMobile ? '16px 14px 40px' : '24px 24px 40px', maxWidth: 640 }}>
+        <div style={{ padding: isMobile ? '16px 14px 40px' : '24px 24px 40px', maxWidth: 640, flex: 1 }}>
           { dayReleases.length === 0 && dayCompanyDates.length === 0 ? (
             <div style={{ padding: '48px 0', textAlign: 'center', color: C.mutedFg, fontSize: 14 }}>
               Nothing scheduled on { format( currentDate, 'MMMM d, yyyy' ) }.
@@ -507,7 +507,7 @@ export function CalendarView() {
           LIST VIEW
       ════════════════════════════════════════════════════════════ */}
       { viewMode === 'list' && (
-        <div style={{ padding: isMobile ? '0 14px 40px' : '0 24px 40px' }}>
+        <div style={{ padding: isMobile ? '0 14px 40px' : '0 24px 40px', flex: 1 }}>
           { listItems.length === 0 ? (
             <div style={{ padding: '64px 0', textAlign: 'center', color: C.mutedFg, fontSize: 14 }}>No scheduled items</div>
           ) : (
