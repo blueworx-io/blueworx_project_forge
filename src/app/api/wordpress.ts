@@ -26,6 +26,10 @@ export function isAdmin(): boolean {
   return getConfig().isAdmin;
 }
 
+export function getSiteUrl(): string {
+  return getConfig().siteUrl || '';
+}
+
 async function apiFetch<T>( path: string, options: RequestInit = {} ): Promise<T> {
   const { apiUrl, nonce } = getConfig();
   const url = `${ apiUrl }${ path }`;

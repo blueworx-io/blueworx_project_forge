@@ -5,6 +5,8 @@ import { Feature, SubItem, Bug, Feedback, Release, CompanyDate } from './types';
 import { isAdmin, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
 import { useDataStore } from './store/useDataStore';
 import { useUIStore } from './store/useUIStore';
+import { useIsMobile } from './hooks/useIsMobile';
+import { MobileNav, BOTTOM_BAR_HEIGHT } from './components/MobileNav';
 
 // Heavy view components — loaded only when first accessed
 const KanbanBoard   = lazy( () => import('./components/KanbanBoard').then(   m => ( { default: m.KanbanBoard } ) ) );
@@ -43,8 +45,10 @@ function ChunkLoader() {
 }
 
 export default function App() {
-  const [settings, setSettings] = useState<AppSettings>( getInitialSettings() );
-  const [visited, setVisited]   = useState<Set<string>>( () => new Set( ['gantt'] ) );
+  const [settings, setSettings]     = useState<AppSettings>( getInitialSettings() );
+  const [visited, setVisited]       = useState<Set<string>>( () => new Set( ['gantt'] ) );
+  const [drawerOpen, setDrawerOpen] = useState( false );
+  const isMobile = useIsMobile();
 
   // Store reads
   const isLoading    = useDataStore( s => s.isLoading );
@@ -105,6 +109,7 @@ export default function App() {
         display: 'flex', flexDirection: 'column',
         height:     isCalendar ? undefined : '100dvh',
         minHeight:  isCalendar ? '100dvh'  : undefined,
+        paddingBottom: isMobile ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : undefined,
         backgroundColor: '#fafbfc', color: '#1a1f36',
       }}
     >
@@ -122,6 +127,7 @@ export default function App() {
             <h1 style={{ fontSize: 'clamp(15px, 4vw, 20px)', fontWeight: 700, color: '#1a1f36', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ settings.projectName || 'Forge Project Management' }</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0 }} className="hidden sm:block">Product planning &amp; release management</p>
           </div>
+          { ! isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 4, backgroundColor: '#f1f5f9', borderRadius: 8 }}>
               { TAB_VIEWS.map( ( { view, label, Icon } ) => {
@@ -143,6 +149,7 @@ export default function App() {
               </button>
             ) }
           </div>
+          ) }
         </div>
       </header>
 
@@ -195,6 +202,19 @@ export default function App() {
           </>
         ) }
       </main>
+
+      {/* Mobile navigation — bottom bar + left drawer (below the sm breakpoint) */}
+      { isMobile && (
+        <MobileNav
+          currentView={ currentView }
+          switchView={ switchView }
+          openSettings={ openSettings }
+          adminMode={ adminMode }
+          settings={ settings }
+          drawerOpen={ drawerOpen }
+          setDrawerOpen={ setDrawerOpen }
+        />
+      ) }
 
       {/* Detail modal — not shown when settings is open */}
       { currentView !== 'settings' && (
