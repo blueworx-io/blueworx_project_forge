@@ -1,0 +1,80 @@
+<h2>Mobile navigation — which pattern?</h2>
+<p class="subtitle">You have 4 destinations: Timeline, Kanban, Calendar, Settings. Below are three common mobile patterns. Each phone frame shows the idea (animation noted under each).</p>
+
+<style>
+  .phones { display:flex; gap:20px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
+  .phone-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; max-width:240px; }
+  .phone { width:200px; height:360px; border:3px solid #1a1f36; border-radius:26px; background:#fafbfc; position:relative; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.12); }
+  .ph-header { height:44px; background:#fff; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; padding:0 12px; font-size:12px; font-weight:700; color:#1a1f36; }
+  .ph-burger { display:flex; flex-direction:column; gap:3px; }
+  .ph-burger span { width:16px; height:2px; background:#1a1f36; border-radius:2px; }
+  .ph-body { padding:12px; font-size:10px; color:#94a3b8; }
+  .ph-card { background:#fff; border:1px solid #e2e8f0; border-radius:6px; height:34px; margin-bottom:8px; }
+  /* drawer */
+  .drawer { position:absolute; top:0; right:0; bottom:0; width:62%; background:#fff; box-shadow:-6px 0 16px rgba(0,0,0,0.15); padding:14px 12px; display:flex; flex-direction:column; gap:8px; }
+  .scrim { position:absolute; inset:0; background:rgba(0,0,0,0.35); }
+  .nav-item { font-size:11px; font-weight:600; color:#1a1f36; padding:8px 10px; border-radius:8px; display:flex; align-items:center; gap:8px; }
+  .nav-item.active { background:#2563eb; color:#fff; }
+  .dot { width:14px; height:14px; border-radius:4px; background:#cbd5e1; }
+  .nav-item.active .dot { background:#fff; }
+  /* bottom bar */
+  .bottombar { position:absolute; left:0; right:0; bottom:0; height:54px; background:#fff; border-top:1px solid #e2e8f0; display:flex; }
+  .bb-tab { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:8px; color:#94a3b8; }
+  .bb-tab.active { color:#2563eb; }
+  .bb-ico { width:18px; height:18px; border-radius:5px; background:#cbd5e1; }
+  .bb-tab.active .bb-ico { background:#2563eb; }
+  /* dropdown */
+  .dropdown { position:absolute; top:44px; left:8px; right:8px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.12); padding:8px; display:flex; flex-direction:column; gap:6px; }
+  .anim-note { font-size:11px; color:#64748b; text-align:center; }
+</style>
+
+<div class="phones">
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="ph-header"><span>Forge PM</span><div class="ph-burger"><span></span><span></span><span></span></div></div>
+      <div class="ph-body"><div class="ph-card"></div><div class="ph-card"></div></div>
+      <div class="scrim"></div>
+      <div class="drawer">
+        <div class="nav-item active"><div class="dot"></div>Timeline</div>
+        <div class="nav-item"><div class="dot"></div>Kanban</div>
+        <div class="nav-item"><div class="dot"></div>Calendar</div>
+        <div class="nav-item"><div class="dot"></div>Settings</div>
+      </div>
+    </div>
+    <div class="anim-note"><strong>A · Slide-in drawer</strong><br>Panel slides from the right, scrim fades in, items stagger in. Most room for "fun" animation.</div>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="ph-header"><span>Forge PM</span></div>
+      <div class="ph-body"><div class="ph-card"></div><div class="ph-card"></div><div class="ph-card"></div></div>
+      <div class="bottombar">
+        <div class="bb-tab active"><div class="bb-ico"></div>Timeline</div>
+        <div class="bb-tab"><div class="bb-ico"></div>Kanban</div>
+        <div class="bb-tab"><div class="bb-ico"></div>Calendar</div>
+        <div class="bb-tab"><div class="bb-ico"></div>Settings</div>
+      </div>
+    </div>
+    <div class="anim-note"><strong>B · Bottom tab bar</strong><br>Always-visible tabs at the bottom. Active indicator slides between tabs. App-like, one-tap access.</div>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="ph-header"><span>Forge PM</span><div class="ph-burger"><span></span><span></span><span></span></div></div>
+      <div class="ph-body"><div class="ph-card"></div><div class="ph-card"></div></div>
+      <div class="dropdown">
+        <div class="nav-item active"><div class="dot"></div>Timeline</div>
+        <div class="nav-item"><div class="dot"></div>Kanban</div>
+        <div class="nav-item"><div class="dot"></div>Calendar</div>
+        <div class="nav-item"><div class="dot"></div>Settings</div>
+      </div>
+    </div>
+    <div class="anim-note"><strong>C · Dropdown sheet</strong><br>Menu drops down from the header. Simplest; expands/collapses in place.</div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:8px">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)"><div class="letter">A</div><div class="content"><h3>Slide-in drawer (recommended)</h3><p>Best fit for "transition animations for fun" — slide + scrim fade + staggered items.</p></div></div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)"><div class="letter">B</div><div class="content"><h3>Bottom tab bar</h3><p>Native-app feel, all destinations one tap away, animated active indicator.</p></div></div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)"><div class="letter">C</div><div class="content"><h3>Dropdown sheet</h3><p>Simplest to build; least room for animation flair.</p></div></div>
+</div>

@@ -10,7 +10,10 @@ $slug        = 'forge-project-management'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $staging     = Join-Path $projectRoot 'dist-zip'
 $pluginDir   = Join-Path $staging $slug
-$zipPath     = Join-Path $projectRoot "$slug.zip"
+# The zip is written one level ABOVE the project folder (beside it), so it never
+# lives inside the repo and is trivial to grab without digging into the project.
+$outputDir   = Split-Path -Parent $projectRoot
+$zipPath     = Join-Path $outputDir "$slug.zip"
 
 # Only these items are shipped to WordPress.
 $runtimeItems = @(
