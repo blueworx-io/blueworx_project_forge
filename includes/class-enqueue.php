@@ -35,12 +35,20 @@ class Forge_PM_Enqueue {
 
 		wp_enqueue_script( 'forge-pm-app', FORGE_PM_URL . 'assets/js/forge-app.js', [], $js_ver, true );
 
+		$redirect = get_permalink();
+		if ( ! $redirect ) {
+			$redirect = home_url( '/' );
+		}
+
 		wp_localize_script( 'forge-pm-app', 'forgePMData', [
-			'apiUrl'   => rest_url( 'forge/v1' ),
-			'nonce'    => wp_create_nonce( 'wp_rest' ),
-			'isAdmin'  => current_user_can( 'edit_posts' ),
-			'siteUrl'  => get_site_url(),
-			'settings' => Forge_PM_Settings::get(),
+			'apiUrl'      => rest_url( 'forge/v1' ),
+			'nonce'       => wp_create_nonce( 'wp_rest' ),
+			'isAdmin'     => current_user_can( 'edit_posts' ),
+			'isLoggedIn'  => is_user_logged_in(),
+			'siteUrl'     => get_site_url(),
+			'loginUrl'    => wp_login_url( $redirect ),
+			'logoutUrl'   => wp_logout_url( $redirect ),
+			'settings'    => Forge_PM_Settings::get(),
 		] );
 	}
 

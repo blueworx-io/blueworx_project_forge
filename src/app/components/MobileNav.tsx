@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
-import { BarChart3, LayoutGrid, Calendar, Menu, Settings as SettingsIcon, X, LogIn, AlertTriangle, CalendarClock, ChevronRight } from 'lucide-react';
+import { BarChart3, LayoutGrid, Calendar, Menu, Settings as SettingsIcon, X, LogIn, LogOut, AlertTriangle, CalendarClock, ChevronRight } from 'lucide-react';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
 import { AppSettings, Item } from '../types';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
-import { getSiteUrl } from '../api/wordpress';
+import { isLoggedIn, getLoginUrl, getLogoutUrl } from '../api/wordpress';
 
 type View = 'kanban' | 'gantt' | 'calendar' | 'settings';
 
@@ -112,7 +112,14 @@ export function MobileNav( {
     transitionDelay: drawerOpen ? `${ 80 + i * 50 }ms` : '0ms',
   } );
 
-  const loginHref = `${ getSiteUrl() }/wp-login.php`;
+  const loggedIn = isLoggedIn();
+
+  const authLinkStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 10,
+    padding: '12px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
+    fontSize: 15, fontWeight: 600, textAlign: 'left',
+    backgroundColor: '#f1f5f9', color: C.fg, textDecoration: 'none',
+  };
 
   return (
     <>
@@ -212,17 +219,22 @@ export function MobileNav( {
             ) }
           </div>
 
-          {/* Footer — Settings (admin) or Log in (everyone else) */}
-          <div style={{ flexShrink: 0, padding: 12, borderTop: `1px solid ${ C.border }`, ...stagger( 3 ) }}>
-            { adminMode ? (
+          {/* Footer — Settings (admin only) + Log in / Log out by auth state */}
+          <div style={{ flexShrink: 0, padding: 12, borderTop: `1px solid ${ C.border }`, display: 'flex', flexDirection: 'column', gap: 8, ...stagger( 3 ) }}>
+            { adminMode && (
               <button onClick={ handleSettings }
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600, textAlign: 'left', backgroundColor: currentView === 'settings' ? C.primary : '#f1f5f9', color: currentView === 'settings' ? C.white : C.fg }}>
+                style={{ ...authLinkStyle, cursor: 'pointer', backgroundColor: currentView === 'settings' ? C.primary : '#f1f5f9', color: currentView === 'settings' ? C.white : C.fg }}>
                 <SettingsIcon size={ 18 } />
                 Settings
               </button>
+            ) }
+            { loggedIn ? (
+              <a href={ getLogoutUrl() } style={ authLinkStyle }>
+                <LogOut size={ 18 } />
+                Log out
+              </a>
             ) : (
-              <a href={ loginHref }
-                style={{ width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600, textAlign: 'left', backgroundColor: '#f1f5f9', color: C.fg, textDecoration: 'none' }}>
+              <a href={ getLoginUrl() } style={ authLinkStyle }>
                 <LogIn size={ 18 } />
                 Log in
               </a>

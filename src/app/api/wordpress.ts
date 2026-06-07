@@ -7,7 +7,10 @@ declare global {
       apiUrl: string;
       nonce: string;
       isAdmin: boolean;
+      isLoggedIn?: boolean;
       siteUrl: string;
+      loginUrl?: string;
+      logoutUrl?: string;
       settings?: AppSettings;
     };
   }
@@ -26,8 +29,16 @@ export function isAdmin(): boolean {
   return getConfig().isAdmin;
 }
 
-export function getSiteUrl(): string {
-  return getConfig().siteUrl || '';
+export function isLoggedIn(): boolean {
+  return getConfig().isLoggedIn ?? false;
+}
+
+export function getLoginUrl(): string {
+  return getConfig().loginUrl || '/wp-login.php';
+}
+
+export function getLogoutUrl(): string {
+  return getConfig().logoutUrl || '/wp-login.php?action=logout';
 }
 
 async function apiFetch<T>( path: string, options: RequestInit = {} ): Promise<T> {
