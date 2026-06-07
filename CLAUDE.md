@@ -6,6 +6,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Build an app from a Figma Make design.
 
+## GitHub Issue Workflow (source of truth)
+
+GitHub Issues are the source of truth for all work. Follow this Issue → Implementation → Review → Pull Request flow for every assigned issue:
+
+1. **Read the issue first.** Read the assigned GitHub Issue before making any changes.
+2. **Confirm understanding.** Confirm the issue goal, scope, acceptance criteria, and out-of-scope items.
+3. **Branch.** Create a new branch for the issue.
+4. **Implement only the requested scope.** Build exactly what the issue asks for — nothing more.
+5. **No unrelated changes.** Avoid unrelated refactors, styling changes, or cleanup.
+6. **Run required checks** before committing:
+   - `npm run lint`
+   - `npm run build`
+7. **Review your own changes** before committing.
+8. **Confirm acceptance criteria.** Verify the implementation matches the issue's acceptance criteria.
+9. **Commit** with a clear message that references the issue number (e.g. `Fix sidebar overflow (#42)`).
+10. **Open a draft pull request** linked to the issue.
+11. **PR description must include:**
+    - issue link
+    - summary of changes
+    - files changed
+    - test results
+    - review notes
+    - anything still requiring human review
+12. **Leave the PR for human review.** Mark it as a draft / ready for the user to review and action — never auto-merge.
+
+## Token Efficiency
+
+- Do not paste large files unless necessary.
+- Prefer reading only the relevant files.
+- Use diffs and summaries where possible.
+- Keep status updates concise.
+- Ask before expanding scope.
+- Do not re-read unchanged files unnecessarily.
+
 ## Rules
 
 - Use the `frontend-design` skill for all UI work.
