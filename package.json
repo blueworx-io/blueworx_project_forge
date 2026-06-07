@@ -1,13 +1,14 @@
 {
   "name": "forge-project-management",
   "private": true,
-  "version": "1.20.1",
+  "version": "1.20.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "zip": "vite build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/zip-plugin.ps1"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.6",

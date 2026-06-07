@@ -53,7 +53,16 @@ GitHub Issues are the source of truth for all work. Follow this Issue → Implem
 
 ## Plugin Deployment
 
-Follow the global deployment instructions in `~/.claude/CLAUDE.md` — `npm install`, `npm run build`, then remove `node_modules` to leave the folder ready for manual zipping.
+This repo **overrides** the global "remove `node_modules`" rule in `~/.claude/CLAUDE.md`. Keep `node_modules` in place — it is intentionally retained so `npm run dev` (localhost) and `npm run zip` stay instant with no reinstall.
+
+To produce the installable plugin zip:
+
+1. `npm install` (first time / after dependency changes only)
+2. `npm run zip` — builds fresh assets, then stages **only** the runtime files (`forge-project-management.php`, `includes/`, `templates/`, `assets/`) into `dist-zip/` and compresses them to `forge-project-management.zip` at the repo root.
+
+The zip never contains `node_modules`, `src/`, or build/lint configs — those are physically never staged (see `scripts/zip-plugin.ps1`). The zip wraps the plugin in a `forge-project-management/` folder so it unzips straight into `wp-content/plugins/`. Both `dist-zip/` and the zip are git-ignored.
+
+Local dev runs standalone: `npm run dev` serves the app at `localhost:5173` with sample data (no WordPress needed).
 
 ## Version Bumping
 

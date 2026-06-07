@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-zip/
+forge-project-management.zip
 *.log
 .DS_Store
 Thumbs.db
