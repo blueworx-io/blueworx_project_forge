@@ -698,7 +698,6 @@ class Forge_PM_REST_API {
 			'linkedBugIds'        => '_forge_linked_bug_ids',
 			'linkedFeedbackIds'   => '_forge_linked_feedback_ids',
 			'images'              => '_forge_image_urls',
-			'urls'                => '_forge_urls',
 			'brands'              => '_forge_brands',
 		];
 		foreach ( $array_meta as $js_key => $meta_key ) {
