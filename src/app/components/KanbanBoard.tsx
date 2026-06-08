@@ -11,6 +11,7 @@ import { updateStage, isAdmin } from '../api/wordpress';
 import { AddItemModal } from './AddItemModal';
 import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
+import { getNestingParentId } from '../utils/nesting';
 
 interface KanbanBoardProps {
   settings: AppSettings;
@@ -127,14 +128,14 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, o
   const topLevelItems: Item[] = [];
 
   items.forEach( ( item ) => {
-    let parentId: string | null = null;
-    if ( item.type === 'subitem' ) parentId = item.parentFeatureId;
-    else if ( item.type === 'bug' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-    else if ( item.type === 'feedback' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-
-    if ( parentId && items.find( ( i ) => i.id === parentId ) ) {
-      if ( ! nestedChildren[parentId] ) nestedChildren[parentId] = [];
-      nestedChildren[parentId].push( item );
+    const parentId = getNestingParentId( item );
+    const parent = parentId ? items.find( ( i ) => i.id === parentId ) : undefined;
+    const sameRelease = parent
+      && ( 'releaseId' in item ? item.releaseId : undefined )
+        === ( 'releaseId' in parent ? parent.releaseId : undefined );
+    if ( parent && sameRelease ) {
+      if ( ! nestedChildren[parentId!] ) nestedChildren[parentId!] = [];
+      nestedChildren[parentId!].push( item );
     } else {
       topLevelItems.push( item );
     }
@@ -239,13 +240,14 @@ function MobileKanbanColumn( { items, onItemClick, releases }: {
   const topLevelItems: Item[] = [];
 
   items.forEach( ( item ) => {
-    let parentId: string | null = null;
-    if ( item.type === 'subitem' ) parentId = item.parentFeatureId;
-    else if ( item.type === 'bug'      && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-    else if ( item.type === 'feedback' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-    if ( parentId && items.find( ( i ) => i.id === parentId ) ) {
-      if ( ! nestedChildren[parentId] ) nestedChildren[parentId] = [];
-      nestedChildren[parentId].push( item );
+    const parentId = getNestingParentId( item );
+    const parent = parentId ? items.find( ( i ) => i.id === parentId ) : undefined;
+    const sameRelease = parent
+      && ( 'releaseId' in item ? item.releaseId : undefined )
+        === ( 'releaseId' in parent ? parent.releaseId : undefined );
+    if ( parent && sameRelease ) {
+      if ( ! nestedChildren[parentId!] ) nestedChildren[parentId!] = [];
+      nestedChildren[parentId!].push( item );
     } else {
       topLevelItems.push( item );
     }
