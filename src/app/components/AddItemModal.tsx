@@ -5,6 +5,7 @@ import { AppSettings, WorkflowStatus, ItemLink } from '../types';
 import { createItem } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
 import { LinksEditor } from './LinksField';
+import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
 
 interface WPMediaFrame {
   on: ( event: string, callback: () => void ) => void;
@@ -322,12 +323,11 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
                 </select>
               ) : (
                 <select
-                  value={ linkedSubItemId ? `s:${ linkedSubItemId }` : linkedFeatureId ? `f:${ linkedFeatureId }` : '' }
+                  value={ encodeParentValue( linkedFeatureId, linkedSubItemId ) }
                   onChange={ e => {
-                    const v = e.target.value;
-                    if ( v.startsWith( 's:' ) ) { setLinkedSubItemId( v.slice( 2 ) ); setLinkedFeatureId( '' ); }
-                    else if ( v.startsWith( 'f:' ) ) { setLinkedFeatureId( v.slice( 2 ) ); setLinkedSubItemId( '' ); }
-                    else { setLinkedFeatureId( '' ); setLinkedSubItemId( '' ); }
+                    const { linkedFeatureId: f, linkedSubItemId: s } = decodeParentValue( e.target.value );
+                    setLinkedFeatureId( f );
+                    setLinkedSubItemId( s );
                   } }
                   style={ inputStyle }>
                   <option value="">— None —</option>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, ItemLink } from '../types';
 import { ImageLightbox } from './ImageLightbox';
 import { LinksEditor, LinksDisplay } from './LinksField';
+import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
 import { updateItem, archiveItem, isAdmin } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
@@ -294,7 +295,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
     if ( isEditing ) {
       return (
         <Section title={ <><ExternalLink className="w-4 h-4" /> Links</> }>
-          <LinksEditor links={ current } onChange={ next => setEditForm( { ...editForm, links: next } ) } />
+          <LinksEditor key={ item?.id } links={ current } onChange={ next => setEditForm( { ...editForm, links: next } ) } />
         </Section>
       );
     }
@@ -605,13 +606,8 @@ export function DetailModal( { settings }: DetailModalProps ) {
         { isEditing && (
           <Section title={ <><Link2 className="w-4 h-4" /> Links up to</> }>
             <select
-              value={ editForm.linkedSubItemId ? `s:${ editForm.linkedSubItemId }` : editForm.linkedFeatureId ? `f:${ editForm.linkedFeatureId }` : '' }
-              onChange={ e => {
-                const v = e.target.value;
-                if ( v.startsWith( 's:' ) ) setEditForm( { ...editForm, linkedSubItemId: v.slice( 2 ), linkedFeatureId: '' } );
-                else if ( v.startsWith( 'f:' ) ) setEditForm( { ...editForm, linkedFeatureId: v.slice( 2 ), linkedSubItemId: '' } );
-                else setEditForm( { ...editForm, linkedFeatureId: '', linkedSubItemId: '' } );
-              } }
+              value={ encodeParentValue( editForm.linkedFeatureId, editForm.linkedSubItemId ) }
+              onChange={ e => setEditForm( { ...editForm, ...decodeParentValue( e.target.value ) } ) }
               className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background">
               <option value="">— None —</option>
               <optgroup label="Features">
@@ -661,13 +657,8 @@ export function DetailModal( { settings }: DetailModalProps ) {
         { isEditing && (
           <Section title={ <><Link2 className="w-4 h-4" /> Links up to</> }>
             <select
-              value={ editForm.linkedSubItemId ? `s:${ editForm.linkedSubItemId }` : editForm.linkedFeatureId ? `f:${ editForm.linkedFeatureId }` : '' }
-              onChange={ e => {
-                const v = e.target.value;
-                if ( v.startsWith( 's:' ) ) setEditForm( { ...editForm, linkedSubItemId: v.slice( 2 ), linkedFeatureId: '' } );
-                else if ( v.startsWith( 'f:' ) ) setEditForm( { ...editForm, linkedFeatureId: v.slice( 2 ), linkedSubItemId: '' } );
-                else setEditForm( { ...editForm, linkedFeatureId: '', linkedSubItemId: '' } );
-              } }
+              value={ encodeParentValue( editForm.linkedFeatureId, editForm.linkedSubItemId ) }
+              onChange={ e => setEditForm( { ...editForm, ...decodeParentValue( e.target.value ) } ) }
               className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background">
               <option value="">— None —</option>
               <optgroup label="Features">
