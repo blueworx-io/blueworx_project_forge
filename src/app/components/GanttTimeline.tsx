@@ -1,6 +1,6 @@
 import { useState, useRef, Fragment, useEffect, useCallback, useMemo, memo } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2, BarChart3 } from 'lucide-react';
 import { format, startOfWeek, addWeeks, eachWeekOfInterval, startOfQuarter, parseISO, addDays, getISOWeek } from 'date-fns';
 import { Item, Release, Feature, Bug, Feedback, SubItem, AppSettings, CompanyDate } from '../types';
 import { AddItemModal } from './AddItemModal';
@@ -77,6 +77,7 @@ interface ReleaseGroupProps {
   totalDays: number;
   timelineWidth: number;
   onItemClick: ( item: Item ) => void;
+  onNavigate: ( leftPct: number ) => void;
   isSidebarOpen: boolean;
   features: Feature[];
   subitems: SubItem[];
@@ -86,7 +87,7 @@ interface ReleaseGroupProps {
 }
 
 const ReleaseGroup = memo( function ReleaseGroup( {
-  release, viewStart, totalDays, timelineWidth, onItemClick, isSidebarOpen, features, subitems, bugs, feedback, today
+  release, viewStart, totalDays, timelineWidth, onItemClick, onNavigate, isSidebarOpen, features, subitems, bugs, feedback, today
 }: ReleaseGroupProps ) {
   const [isExpanded, setIsExpanded] = useState( true );
   const isOver = release.totalTimeEstimate > release.capacity;
@@ -146,7 +147,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
           </button>
           { isSidebarOpen && (
             <>
-              <button onClick={ () => onItemClick( release ) } style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', justifyContent: 'flex-start', minWidth: 0, cursor: 'pointer', background: 'none', border: 'none' }}>
+              <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', justifyContent: 'flex-start', minWidth: 0, cursor: 'pointer', background: 'none', border: 'none' }}>
                 <span style={{ padding: '2px 8px', fontSize: 11, fontWeight: 700, borderRadius: 4, backgroundColor: C.release.bg, color: C.release.text, border: `1px solid ${ C.release.border }`, flexShrink: 0 }}>release</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{ release.name }</span>
               </button>
@@ -195,7 +196,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                   style={{ ...indentStyle, paddingLeft: isSidebarOpen ? 56 : undefined }}>
                   { isSidebarOpen ? (
                     <>
-                      <button onClick={ () => onItemClick( feature ) } style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+                      <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
                         <span style={{ fontSize: 13, color: C.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ feature.name }</span>
                       </button>
                       <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ feature.timeEstimate }h</span>
@@ -216,7 +217,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                       { isSidebarOpen ? (
                         <>
                           <CornerDownRight size={ 12 } style={{ color: C.mutedFg, opacity: 0.5, flexShrink: 0 }} />
-                          <button onClick={ () => onItemClick( si ) } style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+                          <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
                             <span style={{ fontSize: 13, color: C.mutedFg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ si.name }</span>
                           </button>
                           <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ si.timeEstimate }h</span>
@@ -238,7 +239,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                 style={{ ...indentStyle, paddingLeft: isSidebarOpen ? 56 : undefined }}>
                 { isSidebarOpen ? (
                   <>
-                    <button onClick={ () => onItemClick( bug ) } style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+                    <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
                       <span style={{ fontSize: 13, color: C.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ bug.title }</span>
                     </button>
                     <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ bug.timeEstimate }h</span>
@@ -257,7 +258,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                 style={{ ...indentStyle, paddingLeft: isSidebarOpen ? 56 : undefined }}>
                 { isSidebarOpen ? (
                   <>
-                    <button onClick={ () => onItemClick( fb ) } style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+                    <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
                       <span style={{ fontSize: 13, color: C.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ fb.title }</span>
                     </button>
                     <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ fb.timeEstimate }h</span>
@@ -437,6 +438,18 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
     if ( headerRef.current ) headerRef.current.scrollLeft = target;
   }, [ sidebarW, todayPct, timelineWidth ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Bring a release's bar into view (left-column items navigate instead of opening the modal)
+  const scrollToPct = useCallback( ( leftPct: number ) => {
+    const body = bodyRef.current;
+    if ( !body ) return;
+    const barPx     = timelineWidth * ( leftPct / 100 );
+    const available = body.clientWidth - sidebarW;
+    // Place the bar's start ~20% in from the left edge so it sits comfortably in view
+    const target    = Math.max( 0, Math.min( barPx - available * 0.2, body.scrollWidth - body.clientWidth ) );
+    // onScroll keeps the column header in sync during the smooth animation
+    body.scrollTo( { left: target, behavior: 'smooth' } );
+  }, [ sidebarW, timelineWidth ] ); // eslint-disable-line react-hooks/exhaustive-deps
+
   const scrollToTodayRef = useRef( scrollToToday );
   scrollToTodayRef.current = scrollToToday;
 
@@ -461,17 +474,23 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
     <>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* ── Sub-header — always visible, never scrolls ───────────── */}
+      {/* ── Sub-header — always visible, never scrolls (shared spec, issue #16) ── */}
       <div style={{
-        padding: isMobile ? '10px 14px' : '12px 24px',
+        minHeight: 56,
+        padding: isMobile ? '0 16px' : '0 24px',
         borderBottom: `1px solid ${ C.border }`,
         backgroundColor: C.white,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
         flexShrink: 0,
       }}>
-        <div style={{ minWidth: 0 }}>
-          <h2 style={{ fontSize: isMobile ? 15 : 18, fontWeight: 600, color: C.fg, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Release Timeline</h2>
-          { !isMobile && <p style={{ fontSize: 13, color: C.mutedFg, margin: 0 }}>Track releases and linked items by week</p> }
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, minWidth: 0 }}>
+          <div style={{ padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: C.primary, display: 'flex', flexShrink: 0 }}>
+            <BarChart3 size={ isMobile ? 16 : 20 } />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 18, fontWeight: 600, color: C.fg, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Release Timeline</h2>
+            { !isMobile && <p style={{ fontSize: 13, color: C.mutedFg, margin: 0 }}>Track releases and linked items by week</p> }
+          </div>
         </div>
         { adminMode && (
           <button onClick={ () => setAddItemOpen( true ) }
@@ -596,6 +615,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
                 totalDays={ totalDays }
                 timelineWidth={ timelineWidth }
                 onItemClick={ openModal }
+                onNavigate={ scrollToPct }
                 isSidebarOpen={ isSidebarOpen }
                 features={ features }
                 subitems={ subitems }
