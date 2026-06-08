@@ -146,15 +146,19 @@ const ReleaseGroup = memo( function ReleaseGroup( {
   const sidebarCls  = isSidebarOpen
     ? 'border-r flex items-center gap-2 px-4 sticky left-0 z-10 transition-all overflow-hidden'
     : 'border-r flex items-center justify-center px-1 sticky left-0 z-10';
+  // zIndex keeps the sticky left column pinned above the scrolled-past timeline
+  // markers and bars so it never appears to detach while scrolling. (#18)
   const sidebarStyle: React.CSSProperties = {
     width: sidebarW, minWidth: sidebarW, flexShrink: 0,
     borderColor: C.border, backgroundColor: C.sidebarBg,
     paddingRight: isSidebarOpen ? 10 : undefined,
+    zIndex: 20,
   };
   const indentStyle: React.CSSProperties = {
     width: sidebarW, minWidth: sidebarW, flexShrink: 0,
     borderColor: C.border, backgroundColor: C.sidebarBg,
     paddingRight: isSidebarOpen ? 10 : undefined,
+    zIndex: 20,
   };
   const rowStyle: React.CSSProperties       = { display: 'flex', borderBottom: `1px solid ${ C.border }`, minHeight: 56 };
   const childRowStyle: React.CSSProperties  = { display: 'flex', borderBottom: `1px solid ${ C.border }`, minHeight: 48 };
@@ -283,7 +287,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                 { isSidebarOpen ? (
                   <>
                     <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
-                      <span style={{ fontSize: 13, color: C.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ bug.title }</span>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: C.bug.bar, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ bug.title }</span>
                     </button>
                     <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ bug.timeEstimate }h</span>
                   </>
@@ -302,7 +306,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                 { isSidebarOpen ? (
                   <>
                     <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
-                      <span style={{ fontSize: 13, color: C.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ fb.title }</span>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: C.feedback.bar, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ fb.title }</span>
                     </button>
                     <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ fb.timeEstimate }h</span>
                   </>

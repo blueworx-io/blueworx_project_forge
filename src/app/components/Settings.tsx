@@ -84,15 +84,17 @@ const inputStyle: React.CSSProperties = {
 function ConfigSection( { settings, persist }: { settings: AppSettings; persist: ( s: AppSettings ) => Promise<AppSettings> } ) {
   const [ projectName, setProjectName ] = useState( settings.projectName ?? '' );
   const [ hours,       setHours       ] = useState( settings.teamMonthlyHours );
+  const [ releaseDay,  setReleaseDay  ] = useState( settings.releaseDay ?? 1 );
   const fb = useFeedback();
   useEffect( () => {
     setProjectName( settings.projectName ?? '' );
     setHours( settings.teamMonthlyHours );
-  }, [ settings.projectName, settings.teamMonthlyHours ] );
+    setReleaseDay( settings.releaseDay ?? 1 );
+  }, [ settings.projectName, settings.teamMonthlyHours, settings.releaseDay ] );
 
   async function handleSave() {
     fb.start();
-    try { await persist( { ...settings, projectName, teamMonthlyHours: hours } ); fb.ok(); }
+    try { await persist( { ...settings, projectName, teamMonthlyHours: hours, releaseDay } ); fb.ok(); }
     catch { fb.fail(); }
   }
 
@@ -118,6 +120,15 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
           onChange={ e => setHours( Number(e.target.value) ) }
           style={{ ...inputStyle, width:160 }}
         />
+      </label>
+
+      <label style={{ display:'flex', flexDirection:'column', gap:5, marginBottom:18 }}>
+        <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Release day</span>
+        <span style={{ fontSize:12, color:'#64748b' }}>The day each release week starts and ends on. Week selections run from this day to this day (e.g. Tuesday → Tuesday).</span>
+        <select value={releaseDay} onChange={ e => setReleaseDay( Number(e.target.value) ) }
+          style={{ ...inputStyle, width:200 }}>
+          { DAY_NAMES.map( ( label, idx ) => <option key={idx} value={idx}>{ label }</option> ) }
+        </select>
       </label>
 
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -469,6 +480,8 @@ function CategoriesSection( { settings, persist }: { settings: AppSettings; pers
   );
 }
 
+const DAY_NAMES = [ 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' ];
+
 // ── ISO week helpers ─────────────────────────────────────────────────────────
 function isoWeekToDate( weekStr: string ): string {
   if ( ! weekStr ) return '';
@@ -496,6 +509,36 @@ function dateToIsoWeek( dateStr: string ): string {
   return `${ year }-W${ String( week ).padStart( 2, '0' ) }`;
 }
 
+// Convert a picked ISO week to a date landing on the configured release day,
+// so release ranges run release-day → release-day (e.g. Tuesday → Tuesday). (#20)
+function isoWeekToReleaseDate( weekStr: string, releaseDay: number ): string {
+  const monday = isoWeekToDate( weekStr );
+  if ( ! monday ) return '';
+  const offset = releaseDay === 0 ? 6 : releaseDay - 1; // days from Monday to release day
+  const d = new Date( monday + 'T00:00:00' );
+  d.setDate( d.getDate() + offset );
+  return d.toISOString().split( 'T' )[0];
+}
+
+// ISO week number (1–53) for a date string, used in the auto release name.
+function isoWeekNumber( dateStr: string ): number | null {
+  const iso = dateToIsoWeek( dateStr );
+  if ( ! iso ) return null;
+  return parseInt( iso.split( '-W' )[1], 10 );
+}
+
+// Compose the release display name from its parts. (#19)
+// Example: "v10.9.3 | Q2: User Management System (Weeks 28 -> 29)"
+function composeReleaseName( f: { versionNumber: string; quarter: string; releaseName: string; startWeek: string; endWeek: string } ): string {
+  const version = f.versionNumber ? `v${ f.versionNumber } | ` : '';
+  const quarter = ( f.quarter.match( /Q[1-4]/ )?.[0] ) ?? f.quarter;
+  const sw = isoWeekNumber( f.startWeek );
+  const ew = isoWeekNumber( f.endWeek );
+  const weeks = sw && ew ? ` (Weeks ${ sw } -> ${ ew })` : '';
+  const head = [ quarter && `${ quarter }:`, f.releaseName ].filter( Boolean ).join( ' ' );
+  return `${ version }${ head }${ weeks }`.trim();
+}
+
 // ── Releases section ─────────────────────────────────────────────────────────
 const VERSION_TYPES = [
   'Major Release', 'Minor Update', 'Patch', 'Bug Fix',
@@ -511,13 +554,13 @@ const VERSION_NUMBERS = [
 ];
 
 interface ReleaseForm {
-  name: string; versionNumber: string; versionType: string;
+  name: string; releaseName: string; versionNumber: string; versionType: string;
   quarter: string; startWeek: string; endWeek: string;
   status: string; capacity: number; isBigWedgeCampaign: boolean;
 }
 
 const emptyReleaseForm: ReleaseForm = {
-  name: '', versionNumber: '', versionType: 'Major Release',
+  name: '', releaseName: '', versionNumber: '', versionType: 'Major Release',
   quarter: '', startWeek: '', endWeek: '',
   status: 'planned', capacity: 0, isBigWedgeCampaign: false,
 };
@@ -534,29 +577,38 @@ function autoCapacity( start: string, end: string, monthlyHours: number ): numbe
   return Math.round( monthlyHours * days / 30.44 );
 }
 
-function ReleaseModal( { release, teamMonthlyHours, onSave, onClose, isSaving }: {
-  release: ReleaseForm; teamMonthlyHours: number;
+function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose, isSaving }: {
+  release: ReleaseForm; teamMonthlyHours: number; releaseDay: number;
   onSave: ( f: ReleaseForm ) => void; onClose: () => void; isSaving: boolean;
 } ) {
   const [ form, setForm ] = useState<ReleaseForm>( release );
 
+  // Merge a structured change and re-derive the composed display name. The name
+  // field stays editable as a manual override (see the input below). (#19)
+  function apply( patch: Partial<ReleaseForm> ) {
+    setForm( f => {
+      const next = { ...f, ...patch };
+      return { ...next, name: composeReleaseName( next ) };
+    } );
+  }
+
   function updateVersion( num: string, type: string ) {
-    const name = num
-      ? `v${ num }${ type ? ` - ${ type }` : '' }`
-      : type;
-    setForm( f => ({ ...f, versionNumber: num, versionType: type, name }) );
+    apply( { versionNumber: num, versionType: type } );
+  }
+
+  function updateReleaseName( rn: string ) {
+    apply( { releaseName: rn } );
   }
 
   function updateDates( startIsoWeek: string, endIsoWeek: string ) {
-    const startDate = isoWeekToDate( startIsoWeek );
-    const endDate   = isoWeekToDate( endIsoWeek );
-    setForm( f => ({
-      ...f,
+    const startDate = isoWeekToReleaseDate( startIsoWeek, releaseDay );
+    const endDate   = isoWeekToReleaseDate( endIsoWeek, releaseDay );
+    apply( {
       startWeek: startDate,
       endWeek:   endDate,
-      quarter:   autoQuarter( startDate ) || f.quarter,
+      quarter:   autoQuarter( startDate ) || form.quarter,
       capacity:  autoCapacity( startDate, endDate, teamMonthlyHours ),
-    }) );
+    } );
   }
 
   return (
@@ -585,13 +637,22 @@ function ReleaseModal( { release, teamMonthlyHours, onSave, onClose, isSaving }:
             </label>
           </div>
 
-          {/* Release name (editable override) */}
+          {/* Descriptive release name (feeds the auto-composed display name) */}
           <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
             <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Release name</span>
-            <span style={{ fontSize:12, color:'#64748b' }}>Auto-generated from version. Edit to override.</span>
+            <span style={{ fontSize:12, color:'#64748b' }}>A short descriptive name for this release.</span>
+            <input type="text" value={form.releaseName}
+              onChange={ e => updateReleaseName( e.target.value ) }
+              style={inputStyle} placeholder="e.g. User Management System" />
+          </label>
+
+          {/* Full display name (auto-composed, editable override) */}
+          <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Display name <span style={{ fontSize:11, color:'#94a3b8' }}>auto</span></span>
+            <span style={{ fontSize:12, color:'#64748b' }}>Built from version, quarter, name, and weeks. Edit to override.</span>
             <input type="text" required value={form.name}
               onChange={ e => setForm( f => ({ ...f, name: e.target.value }) ) }
-              style={inputStyle} placeholder="e.g. v2.0.0 - Major Release" />
+              style={inputStyle} placeholder="e.g. v10.9.3 | Q2: User Management System (Weeks 28 -> 29)" />
           </label>
 
           {/* Week selectors */}
@@ -721,7 +782,7 @@ function ReleasesSection( { settings }: { settings: AppSettings } ) {
                   </div>
                 </div>
                 <button
-                  onClick={ () => setModal({ mode:'edit', id:r.id, release:{ name:r.name, versionNumber:r.versionNumber||'', versionType:r.versionType||'Major Release', quarter:r.quarter, startWeek:r.startWeek, endWeek:r.endWeek, status:r.status, capacity:r.capacity, isBigWedgeCampaign:r.isBigWedgeCampaign } }) }
+                  onClick={ () => setModal({ mode:'edit', id:r.id, release:{ name:r.name, releaseName:r.releaseName||'', versionNumber:r.versionNumber||'', versionType:r.versionType||'Major Release', quarter:r.quarter, startWeek:r.startWeek, endWeek:r.endWeek, status:r.status, capacity:r.capacity, isBigWedgeCampaign:r.isBigWedgeCampaign } }) }
                   style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:6, fontSize:12, fontWeight:500, border:'1px solid #e2e8f0', background:'#fff', color:'#374151', cursor:'pointer' }}>
                   <Pencil size={11} /> Edit
                 </button>
@@ -743,6 +804,7 @@ function ReleasesSection( { settings }: { settings: AppSettings } ) {
         <ReleaseModal
           release={ modal.release }
           teamMonthlyHours={ settings.teamMonthlyHours }
+          releaseDay={ settings.releaseDay ?? 1 }
           onSave={ handleSave }
           onClose={ () => setModal(null) }
           isSaving={ saving }

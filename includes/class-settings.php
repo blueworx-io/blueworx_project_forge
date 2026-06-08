@@ -10,6 +10,7 @@ class Forge_PM_Settings {
 			'projectName'      => '',
 			'parentBrand'      => '',
 			'teamMonthlyHours' => 160,
+			'releaseDay'       => 1,
 			'brands'           => [
 				[ 'name' => 'SwingU',    'logo' => '' ],
 				[ 'name' => '18Birdies', 'logo' => '' ],
@@ -121,13 +122,16 @@ class Forge_PM_Settings {
 		}
 
 		$saved   = self::get();
-		$allowed = [ 'projectName', 'parentBrand', 'teamMonthlyHours', 'brands', 'categories', 'statuses' ];
+		$allowed = [ 'projectName', 'parentBrand', 'teamMonthlyHours', 'releaseDay', 'brands', 'categories', 'statuses' ];
 
 		foreach ( $allowed as $key ) {
 			if ( ! array_key_exists( $key, $data ) ) continue;
 
 			if ( $key === 'teamMonthlyHours' ) {
 				$saved[ $key ] = absint( $data[ $key ] );
+
+			} elseif ( $key === 'releaseDay' ) {
+				$saved[ $key ] = max( 0, min( 6, absint( $data[ $key ] ) ) );
 
 			} elseif ( $key === 'statuses' && is_array( $data[ $key ] ) ) {
 				$saved[ $key ] = array_values( array_filter(
