@@ -112,7 +112,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
   // Only features host nested bug/feedback rows in the Gantt's feature-grouped
   // layout. Bugs/feedback linked to a sub-item fall through to release level
   // (see topLevelBugs/Feedback) — matching the spec's "else sit at release level".
-  const inReleaseParentIds = useMemo( () => {
+  const inReleaseFeatureIds = useMemo( () => {
     const ids = new Set<string>();
     linkedFeatures.forEach( f => ids.add( f.id ) );
     return ids;
@@ -122,15 +122,15 @@ const ReleaseGroup = memo( function ReleaseGroup( {
     const map: Record<string, ( Bug | Feedback )[]> = {};
     [ ...linkedBugs, ...linkedFeedback ].forEach( item => {
       const pid = getNestingParentId( item );
-      if ( pid && inReleaseParentIds.has( pid ) ) {
+      if ( pid && inReleaseFeatureIds.has( pid ) ) {
         ( map[pid] ||= [] ).push( item );
       }
     } );
     return map;
-  }, [ linkedBugs, linkedFeedback, inReleaseParentIds ] );
+  }, [ linkedBugs, linkedFeedback, inReleaseFeatureIds ] );
 
-  const topLevelBugs     = useMemo( () => linkedBugs.filter(     b => { const p = getNestingParentId( b ); return ! ( p && inReleaseParentIds.has( p ) ); } ), [ linkedBugs, inReleaseParentIds ] );
-  const topLevelFeedback = useMemo( () => linkedFeedback.filter( f => { const p = getNestingParentId( f ); return ! ( p && inReleaseParentIds.has( p ) ); } ), [ linkedFeedback, inReleaseParentIds ] );
+  const topLevelBugs     = useMemo( () => linkedBugs.filter(     b => { const p = getNestingParentId( b ); return ! ( p && inReleaseFeatureIds.has( p ) ); } ), [ linkedBugs, inReleaseFeatureIds ] );
+  const topLevelFeedback = useMemo( () => linkedFeedback.filter( f => { const p = getNestingParentId( f ); return ! ( p && inReleaseFeatureIds.has( p ) ); } ), [ linkedFeedback, inReleaseFeatureIds ] );
 
   const { leftPct, widthPct, timeProgress, rStart, rEnd } = useMemo( () => {
     const rs = resolveReleaseDate( release.startWeek, today );
