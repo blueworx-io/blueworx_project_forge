@@ -369,7 +369,7 @@ export function CalendarView() {
 
           {/* Day-of-week header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             borderBottom: `1px solid ${ C.border }`, backgroundColor: C.white,
             position: 'sticky', top: appHeaderH + calHeaderH, zIndex: 10,
           }}>
@@ -397,7 +397,7 @@ export function CalendarView() {
           </div>
 
           {/* Week cells */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: `minmax(${ isMobile ? 120 : 200 }px, 1fr)`, flex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gridAutoRows: `minmax(${ isMobile ? 120 : 200 }px, 1fr)`, flex: 1 }}>
             { weekDays.map( ( day, idx ) => {
               const isDayToday = isToday( day );
               const { dayReleases: rels, dayCompanyDates: cds } = getEventsForDay( day );
@@ -425,7 +425,7 @@ export function CalendarView() {
                         display: 'flex', alignItems: 'center', gap: 4,
                       }}>
                         <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ release.name }</span>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ release.name }</span>
                       </div>
                     );
                   } ) }
@@ -442,8 +442,8 @@ export function CalendarView() {
                       }}
                     >
                       <Target size={ 10 } style={{ flexShrink: 0, marginTop: 1 }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <span style={{ whiteSpace: 'nowrap', display: 'block' }}>{ cd.title }</span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ cd.title }</span>
                         { cd.description && !isMobile && <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.75 }}>{ cd.description }</span> }
                       </span>
                     </div>
