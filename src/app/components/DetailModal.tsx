@@ -7,6 +7,8 @@ import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
 import { updateItem, archiveItem, isAdmin } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 
 interface WPMediaFrame {
   on: ( event: string, callback: () => void ) => void;
@@ -74,6 +76,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const patchItem      = useDataStore( s => s.patchItem );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const adminMode = isAdmin();
+  const isMobile  = useIsMobile();
   const [lightboxOpen,    setLightboxOpen]    = useState( false );
   const [lightboxIndex,   setLightboxIndex]   = useState( 0 );
   const [isEditing,       setIsEditing]       = useState( false );
@@ -772,7 +775,10 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const itemTitle = 'name' in item ? item.name : ( item as Bug | Feedback ).title;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 md:p-6 lg:p-8">
+    <div
+      className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center sm:p-4 md:p-6 lg:p-8"
+      style={ isMobile ? { bottom: `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` } : undefined }
+    >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={ closeModal } />
       <div className="relative bg-background rounded-t-xl sm:rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-border">
         {/* Header */}

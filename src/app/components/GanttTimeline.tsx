@@ -9,6 +9,7 @@ import { useDragScroll } from '../hooks/useDragScroll';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { getNestingParentId } from '../utils/nesting';
+import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -325,6 +326,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
 
 // ── Week popup ───────────────────────────────────────────────────────────────
 function WeekPopup( { week, releases, companyDates, onClose }: { week: Date; releases: Release[]; companyDates: CompanyDate[]; onClose: () => void } ) {
+  const navVisible = useIsMobile();
   const weekEnd = addDays( week, 6 );
   const weekNum = getISOWeek( week );
   const year    = week.getFullYear();
@@ -343,8 +345,8 @@ function WeekPopup( { week, releases, companyDates, onClose }: { week: Date; rel
   } );
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ backgroundColor: C.white, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 420, border: `1px solid ${ C.border }` }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, bottom: navVisible ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+      <div style={{ backgroundColor: C.white, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 420, maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${ C.border }` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: C.fg, margin: 0 }}>Week { weekNum }, { year }</h3>
@@ -409,6 +411,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const openModal     = useUIStore( s => s.openModal );
   const adminMode     = isAdmin();
   const isMobile = useIsMobile( 768 );
+  const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
   const [density,       setDensity]       = useState<'normal' | 'compact'>( () => window.innerWidth < 768 ? 'compact' : 'normal' );
   const [isSidebarOpen, setIsSidebarOpen] = useState( () => window.innerWidth >= 768 );
   const [addItemOpen,   setAddItemOpen]   = useState( false );
@@ -685,8 +688,8 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
     ) }
 
     { datePopup && dateForm && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 60, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div style={{ backgroundColor: C.white, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 440, border: `1px solid ${ C.border }` }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, bottom: navVisible ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+        <div style={{ backgroundColor: C.white, borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${ C.border }` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: C.fg, margin: 0 }}>{ dateEditing ? 'Edit Date' : datePopup.title }</h3>
             <button onClick={ () => { setDatePopup( null ); setDateEditing( false ); } } style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedFg, display: 'flex' }}><X size={ 20 } /></button>
