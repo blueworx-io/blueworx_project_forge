@@ -82,6 +82,7 @@ export interface Release {
   id: string;
   type: 'release';
   name: string;
+  releaseName?: string;
   versionNumber?: string;
   versionType?: string;
   quarter: string;
@@ -121,6 +122,8 @@ export interface AppSettings {
   projectName?: string;
   parentBrand: string;
   teamMonthlyHours: number;
+  /** Day of week releases start/end on (0=Sunday … 6=Saturday). Default 1 (Monday). */
+  releaseDay?: number;
   brands: BrandConfig[];
   categories: string[];
   statuses: WorkflowStatus[];

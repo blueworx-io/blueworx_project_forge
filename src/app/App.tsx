@@ -48,6 +48,10 @@ export default function App() {
   const [settings, setSettings]     = useState<AppSettings>( getInitialSettings() );
   const [visited, setVisited]       = useState<Set<string>>( () => new Set( ['gantt'] ) );
   const [drawerOpen, setDrawerOpen] = useState( false );
+  // Block the UI with the full-screen loader only on the very first fetch.
+  // Later refreshes (e.g. saving a release in Settings) load in the background
+  // so the current view stays mounted and the user keeps their place. (#2)
+  const [hasLoaded, setHasLoaded]   = useState( () => ! window.forgePMData );
   const isMobile = useIsMobile();
 
   // Store reads
@@ -94,7 +98,7 @@ export default function App() {
         }
         setSettings( s );
       } ),
-    ] ).catch( ( err ) => console.error( '[Forge PM] fetch error:', err ) ).finally( () => setLoading( false ) );
+    ] ).catch( ( err ) => console.error( '[Forge PM] fetch error:', err ) ).finally( () => { setLoading( false ); setHasLoaded( true ); } );
   }, [refreshKey] ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const TAB_VIEWS: { view: Exclude<View, 'settings'>; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
@@ -161,7 +165,7 @@ export default function App() {
 
       {/* ── Main content ───────────────────────────────────────── */}
       <main style={{ flex: 1, overflow: isCalendar ? 'visible' : 'hidden', minHeight: 0 }}>
-        { isLoading ? (
+        { isLoading && ! hasLoaded ? (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafbfc', gap: 12, color: '#64748b' }}>
             <Loader2 size={ 36 } style={{ color: '#2563eb', animation: 'spin 1s linear infinite' }} />
             <p style={{ fontSize: 14, margin: 0 }}>Loading…</p>

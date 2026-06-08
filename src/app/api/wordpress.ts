@@ -20,7 +20,10 @@ function getConfig() {
   return window.forgePMData ?? {
     apiUrl: '/wp-json/forge/v1',
     nonce: '',
-    isAdmin: false,
+    // Standalone dev only (no WordPress): grant admin so editing UI is testable.
+    // import.meta.env.DEV is false in any production build, and live WordPress
+    // always injects window.forgePMData, so this never affects live data.
+    isAdmin: import.meta.env.DEV,
     siteUrl: '',
   };
 }
@@ -181,6 +184,7 @@ export function getInitialSettings(): AppSettings {
   return {
     parentBrand: '',
     teamMonthlyHours: 160,
+    releaseDay: 1,
     brands: [
       { name: 'SwingU',    logo: '' },
       { name: '18Birdies', logo: '' },

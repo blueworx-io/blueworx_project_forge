@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -323,6 +323,31 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   const [pendingStages, setPendingStages] = useState<{ id: string; type: string; stage: WorkflowStage }[]>( [] );
   const [addItemOpen, setAddItemOpen] = useState( false );
   const [activeColIdx, setActiveColIdx] = useState( 0 );
+  // Mobile: swipeable column carousel kept in sync with the tab strip (#15).
+  // useDragScroll adds click-and-drag (mouse) on top of native touch/snap.
+  const mobileScrollRef = useDragScroll<HTMLDivElement>( { axis: 'x' } );
+  const tabStripRef     = useRef<HTMLDivElement>( null );
+
+  // Swiping the columns updates the active tab…
+  const handleMobileScroll = () => {
+    const el = mobileScrollRef.current;
+    if ( ! el || el.clientWidth === 0 ) return;
+    const idx = Math.round( el.scrollLeft / el.clientWidth );
+    setActiveColIdx( prev => prev === idx ? prev : idx );
+  };
+
+  // …and tapping a tab scrolls the columns to match.
+  const goToColumn = ( idx: number ) => {
+    setActiveColIdx( idx );
+    const el = mobileScrollRef.current;
+    if ( el ) el.scrollTo( { left: idx * el.clientWidth, behavior: 'smooth' } );
+  };
+
+  // Keep the active tab visible in the strip as the carousel moves.
+  useEffect( () => {
+    const btn = tabStripRef.current?.children[ activeColIdx ] as HTMLElement | undefined;
+    btn?.scrollIntoView( { inline: 'center', block: 'nearest', behavior: 'smooth' } );
+  }, [ activeColIdx ] );
 
   const localItems = useMemo( () => {
     if ( pendingStages.length === 0 ) return storeAllItems;
@@ -382,10 +407,6 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   // ── Mobile: single-column tab view, no DnD ──────────────────────────────────
   if ( isMobile ) {
     const safeIdx = Math.min( activeColIdx, columns.length - 1 );
-    const col = columns[safeIdx];
-    const colItems = itemsWithWorkflow.filter(
-      ( item ) => 'workflowStage' in item && item.workflowStage === col.id
-    );
 
     return (
       <>
@@ -408,8 +429,9 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
             ) }
           </div>
 
-          {/* Scrollable column tabs */}
+          {/* Scrollable column tabs — synced with the column carousel below */}
           <div
+            ref={ tabStripRef }
             className="scrollbar-hide flex-shrink-0"
             style={ { display: 'flex', alignItems: 'stretch', overflowX: 'auto', borderBottom: '1px solid #e2e8f0', backgroundColor: '#fff' } }
           >
@@ -419,7 +441,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
               return (
                 <button
                   key={ c.id }
-                  onClick={ () => setActiveColIdx( idx ) }
+                  onClick={ () => goToColumn( idx ) }
                   style={ {
                     flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '10px 14px', fontSize: 12, fontWeight: isActive ? 700 : 500,
@@ -440,8 +462,22 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
             } ) }
           </div>
 
-          {/* Active column content */}
-          <MobileKanbanColumn items={ colItems } onItemClick={ openModal } releases={ releases } />
+          {/* Swipeable column carousel — one stage per page, snaps left/right */}
+          <div
+            ref={ mobileScrollRef }
+            onScroll={ handleMobileScroll }
+            className="scrollbar-hide"
+            style={ { flex: 1, display: 'flex', overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', cursor: 'grab' } }
+          >
+            { columns.map( ( c ) => {
+              const colItems = itemsWithWorkflow.filter( i => 'workflowStage' in i && i.workflowStage === c.id );
+              return (
+                <div key={ c.id } style={ { flex: '0 0 100%', width: '100%', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }>
+                  <MobileKanbanColumn items={ colItems } onItemClick={ openModal } releases={ releases } />
+                </div>
+              );
+            } ) }
+          </div>
         </div>
 
         <AddItemModal
