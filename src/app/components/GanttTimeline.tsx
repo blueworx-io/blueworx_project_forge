@@ -109,12 +109,14 @@ const ReleaseGroup = memo( function ReleaseGroup( {
     return Array.from( ids ).map( id => feedback.find( f => f.id === id ) ).filter( Boolean ) as Feedback[];
   }, [ release.linkedFeedbackIds, release.id, feedback ] );
 
+  // Only features host nested bug/feedback rows in the Gantt's feature-grouped
+  // layout. Bugs/feedback linked to a sub-item fall through to release level
+  // (see topLevelBugs/Feedback) — matching the spec's "else sit at release level".
   const inReleaseParentIds = useMemo( () => {
     const ids = new Set<string>();
     linkedFeatures.forEach( f => ids.add( f.id ) );
-    subitems.forEach( s => { if ( s.releaseId === release.id ) ids.add( s.id ); } );
     return ids;
-  }, [ linkedFeatures, subitems, release.id ] );
+  }, [ linkedFeatures ] );
 
   const nestedChildren = useMemo( () => {
     const map: Record<string, ( Bug | Feedback )[]> = {};
