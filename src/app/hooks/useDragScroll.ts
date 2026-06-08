@@ -28,10 +28,12 @@ export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions
     let lastTime = 0;
     let rafId: number | null = null;
 
-    const FRICTION       = 0.88;
+    const FRICTION       = 0.84;  // lower = momentum decays faster (less coasting)
     const MIN_VEL        = 0.3;
     const MOVE_THRESHOLD = 5;   // px before scroll activates (prevents click jitter)
     const AXIS_THRESHOLD = 5;   // px to determine primary axis in 'both' mode
+    const MOMENTUM_SCALE = 0.5;  // dampens fling speed when the drag is released
+    const MAX_VEL        = 28;   // caps a single frame's coast distance (px)
 
     const stopMomentum = () => {
       if ( rafId !== null ) { cancelAnimationFrame( rafId ); rafId = null; }
@@ -119,8 +121,10 @@ export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions
       isDown = false;
       el.style.cursor     = 'grab';
       el.style.userSelect = '';
-      velX = -velX;
-      velY = -velY;
+      // Invert (drag direction → scroll direction), dampen, and cap the fling speed
+      const clamp = ( v: number ) => Math.max( -MAX_VEL, Math.min( MAX_VEL, v ) );
+      velX = clamp( -velX * MOMENTUM_SCALE );
+      velY = clamp( -velY * MOMENTUM_SCALE );
       if ( Math.abs( velX ) > MIN_VEL || Math.abs( velY ) > MIN_VEL ) {
         rafId = requestAnimationFrame( momentum );
       }
