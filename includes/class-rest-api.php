@@ -196,8 +196,13 @@ class Forge_PM_REST_API {
 					$decoded
 				) ) );
 			}
+			// Stored a non-empty value that decoded to a non-array (valid JSON
+			// scalar/object, or corrupt data → null). Treat as "no links" rather
+			// than silently surfacing the legacy migration fallback below.
+			return [];
 		}
-		// Migration fallback: legacy plain URLs become labeled links.
+		// Migration fallback (only meaningful for bug/feedback, the item types
+		// that ever persisted _forge_urls): legacy plain URLs become labeled links.
 		$urls = self::meta_array( $post_id, '_forge_urls' );
 		return array_map( fn( $u ) => [ 'label' => (string) $u, 'url' => (string) $u ], $urls );
 	}
