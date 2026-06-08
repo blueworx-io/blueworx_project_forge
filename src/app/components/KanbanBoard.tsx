@@ -11,6 +11,7 @@ import { updateStage, isAdmin } from '../api/wordpress';
 import { AddItemModal } from './AddItemModal';
 import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
+import { buildNestedGroups } from '../utils/nesting';
 
 interface KanbanBoardProps {
   settings: AppSettings;
@@ -123,22 +124,7 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, o
   } );
 
   // Build nested structure
-  const nestedChildren: Record<string, Item[]> = {};
-  const topLevelItems: Item[] = [];
-
-  items.forEach( ( item ) => {
-    let parentId: string | null = null;
-    if ( item.type === 'subitem' ) parentId = item.parentFeatureId;
-    else if ( item.type === 'bug' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-    else if ( item.type === 'feedback' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-
-    if ( parentId && items.find( ( i ) => i.id === parentId ) ) {
-      if ( ! nestedChildren[parentId] ) nestedChildren[parentId] = [];
-      nestedChildren[parentId].push( item );
-    } else {
-      topLevelItems.push( item );
-    }
-  } );
+  const { nestedChildren, topLevelItems } = buildNestedGroups( items );
 
   // Group by release — treat items whose release no longer exists as unassigned
   const itemsByRelease: Record<string, Item[]> = {};
@@ -235,21 +221,7 @@ function MobileKanbanColumn( { items, onItemClick, releases }: {
   onItemClick: ( item: Item ) => void;
   releases: Release[];
 } ) {
-  const nestedChildren: Record<string, Item[]> = {};
-  const topLevelItems: Item[] = [];
-
-  items.forEach( ( item ) => {
-    let parentId: string | null = null;
-    if ( item.type === 'subitem' ) parentId = item.parentFeatureId;
-    else if ( item.type === 'bug'      && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-    else if ( item.type === 'feedback' && item.linkedFeatureId ) parentId = item.linkedFeatureId;
-    if ( parentId && items.find( ( i ) => i.id === parentId ) ) {
-      if ( ! nestedChildren[parentId] ) nestedChildren[parentId] = [];
-      nestedChildren[parentId].push( item );
-    } else {
-      topLevelItems.push( item );
-    }
-  } );
+  const { nestedChildren, topLevelItems } = buildNestedGroups( items );
 
   const itemsByRelease: Record<string, Item[]> = {};
   topLevelItems.forEach( ( item ) => {

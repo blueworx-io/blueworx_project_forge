@@ -1,7 +1,9 @@
 import { X, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, Image as ImageIcon, ExternalLink, CheckCircle, Circle, Tag, History, ScrollText, Trash2, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig } from '../types';
+import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, ItemLink } from '../types';
 import { ImageLightbox } from './ImageLightbox';
+import { LinksEditor, LinksDisplay } from './LinksField';
+import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
 import { updateItem, archiveItem, isAdmin } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
@@ -26,6 +28,9 @@ interface EditFormState {
   brands?: string[]; images?: string[]; urls?: string[];
   timeEstimate?: number; workflowStage?: string;
   linkedFeatureIds?: string[]; linkedBugIds?: string[]; linkedFeedbackIds?: string[];
+  links?: ItemLink[];
+  linkedSubItemId?: string;
+  linkedFeatureId?: string;
   [key: string]: unknown;
 }
 
@@ -285,6 +290,23 @@ export function DetailModal( { settings }: DetailModalProps ) {
     );
   };
 
+  const renderLinksSection = () => {
+    const current: ItemLink[] = ( editForm.links as ItemLink[] | undefined ) ?? ( ( item as { links?: ItemLink[] } ).links ) ?? [];
+    if ( isEditing ) {
+      return (
+        <Section title={ <><ExternalLink className="w-4 h-4" /> Links</> }>
+          <LinksEditor key={ item?.id } links={ current } onChange={ next => setEditForm( { ...editForm, links: next } ) } />
+        </Section>
+      );
+    }
+    if ( current.length === 0 ) return null;
+    return (
+      <Section title={ <><ExternalLink className="w-4 h-4" /> Links ({ current.length })</> }>
+        <LinksDisplay links={ current } />
+      </Section>
+    );
+  };
+
   const linkedBadge = ( colorBase: string, typeLabel: string, text: string ) => (
     <div className={ `flex items-center gap-3 p-3 bg-${ colorBase }-50/50 rounded-lg border border-${ colorBase }-200/50` }>
       <span className={ `px-2 py-0.5 text-xs font-semibold rounded border bg-${ colorBase }-50 text-${ colorBase }-700 border-${ colorBase }-200` }>{ typeLabel }</span>
@@ -468,6 +490,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
         <Section title="Description">{ descField( 'description' ) }</Section>
 
         { renderImagesSection( 'images', 'Attachments' ) }
+        { renderLinksSection() }
         { subItems.length > 0 && (
           <Section title={ `Sub-Items (${ subItems.length })` }>
             <div className="space-y-2">
@@ -557,12 +580,14 @@ export function DetailModal( { settings }: DetailModalProps ) {
         ) }
         <Section title="Description">{ descField( 'description' ) }</Section>
         { renderImagesSection( 'images', 'Attachments' ) }
+        { renderLinksSection() }
       </>
     );
   };
 
   const renderBugDetails = ( bug: Bug ) => {
-    const linkedFeature = bug.linkedFeatureId ? getItemById( bug.linkedFeatureId ) as Feature | undefined : undefined;
+    const linkedFeature  = bug.linkedFeatureId  ? getItemById( bug.linkedFeatureId )  as Feature | undefined  : undefined;
+    const linkedSubItem  = bug.linkedSubItemId  ? getItemById( bug.linkedSubItemId )  as SubItem | undefined  : undefined;
     const release = bug.releaseId ? getItemById( bug.releaseId ) as Release | undefined : undefined;
     const priBg = bug.priority === 'high' ? 'bg-orange-100' : bug.priority === 'medium' ? 'bg-yellow-100' : 'bg-slate-100';
     const priColor = bug.priority === 'high' ? 'bg-orange-600' : bug.priority === 'medium' ? 'bg-yellow-600' : 'bg-slate-600';
@@ -577,23 +602,32 @@ export function DetailModal( { settings }: DetailModalProps ) {
         <Section title="Description">{ descField( 'description' ) }</Section>
         { bug.notes && <Section title="Notes"><p className="text-sm text-muted-foreground leading-relaxed">{ bug.notes }</p></Section> }
         { renderImagesSection( 'images', 'Screenshots' ) }
-        { bug.urls && bug.urls.length > 0 && (
-          <Section title={ <><ExternalLink className="w-4 h-4" /> Related URLs</> }>
-            <div className="space-y-2">
-              { bug.urls.map( ( url, i ) => (
-                <a key={ i } href={ url } target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg border border-border hover:border-primary/40 transition-colors text-sm text-primary hover:text-primary/80">
-                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate">{ url }</span>
-                </a>
-              ) ) }
-            </div>
+        { renderLinksSection() }
+        { isEditing && (
+          <Section title={ <><Link2 className="w-4 h-4" /> Links up to</> }>
+            <select
+              value={ encodeParentValue( editForm.linkedFeatureId, editForm.linkedSubItemId ) }
+              onChange={ e => setEditForm( { ...editForm, ...decodeParentValue( e.target.value ) } ) }
+              className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background">
+              <option value="">— None —</option>
+              <optgroup label="Features">
+                { [ ...features ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( f => <option key={ f.id } value={ `f:${ f.id }` }>{ f.name }</option> ) }
+              </optgroup>
+              { subitems.length > 0 && (
+                <optgroup label="Sub-Items">
+                  { [ ...subitems ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( s => <option key={ s.id } value={ `s:${ s.id }` }>{ s.name }</option> ) }
+                </optgroup>
+              ) }
+            </select>
           </Section>
         ) }
         { isEditing && renderReleasePicker() }
-        { ! isEditing && ( linkedFeature || release ) && (
+        { ! isEditing && ( linkedFeature || linkedSubItem || release ) && (
           <Section title={ <><Link2 className="w-4 h-4" /> Linked Items</> }>
             <div className="space-y-2">
-              { linkedFeature && linkedBadge( 'blue', 'feature', linkedFeature.name ) }
-              { release && linkedBadge( 'green', 'release', release.name ) }
+              { linkedFeature  && linkedBadge( 'blue',  'feature',  linkedFeature.name ) }
+              { linkedSubItem  && linkedBadge( 'cyan',  'sub-item', linkedSubItem.name ) }
+              { release        && linkedBadge( 'green', 'release',  release.name ) }
             </div>
           </Section>
         ) }
@@ -603,6 +637,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
 
   const renderFeedbackDetails = ( feedback: Feedback ) => {
     const linkedFeature = feedback.linkedFeatureId ? getItemById( feedback.linkedFeatureId ) as Feature | undefined : undefined;
+    const linkedSubItem = feedback.linkedSubItemId ? getItemById( feedback.linkedSubItemId ) as SubItem | undefined : undefined;
     const linkedBug     = feedback.linkedBugId     ? getItemById( feedback.linkedBugId )     as Bug     | undefined : undefined;
     const release       = feedback.releaseId       ? getItemById( feedback.releaseId )       as Release | undefined : undefined;
     const priBg = feedback.priority === 'high' ? 'bg-orange-100' : feedback.priority === 'medium' ? 'bg-yellow-100' : 'bg-slate-100';
@@ -618,13 +653,33 @@ export function DetailModal( { settings }: DetailModalProps ) {
         <Section title="Description">{ descField( 'description' ) }</Section>
         { feedback.notes && <Section title="Notes"><p className="text-sm text-muted-foreground leading-relaxed">{ feedback.notes }</p></Section> }
         { renderImagesSection( 'images', 'Attachments' ) }
+        { renderLinksSection() }
+        { isEditing && (
+          <Section title={ <><Link2 className="w-4 h-4" /> Links up to</> }>
+            <select
+              value={ encodeParentValue( editForm.linkedFeatureId, editForm.linkedSubItemId ) }
+              onChange={ e => setEditForm( { ...editForm, ...decodeParentValue( e.target.value ) } ) }
+              className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background">
+              <option value="">— None —</option>
+              <optgroup label="Features">
+                { [ ...features ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( f => <option key={ f.id } value={ `f:${ f.id }` }>{ f.name }</option> ) }
+              </optgroup>
+              { subitems.length > 0 && (
+                <optgroup label="Sub-Items">
+                  { [ ...subitems ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( s => <option key={ s.id } value={ `s:${ s.id }` }>{ s.name }</option> ) }
+                </optgroup>
+              ) }
+            </select>
+          </Section>
+        ) }
         { isEditing && renderReleasePicker() }
-        { ! isEditing && ( linkedFeature || linkedBug || release ) && (
+        { ! isEditing && ( linkedFeature || linkedSubItem || linkedBug || release ) && (
           <Section title={ <><Link2 className="w-4 h-4" /> Linked Items</> }>
             <div className="space-y-2">
-              { linkedFeature && linkedBadge( 'blue', 'feature', linkedFeature.name ) }
-              { linkedBug     && linkedBadge( 'red',  'bug',     linkedBug.title ) }
-              { release       && linkedBadge( 'green', 'release', release.name ) }
+              { linkedFeature  && linkedBadge( 'blue',  'feature',  linkedFeature.name ) }
+              { linkedSubItem  && linkedBadge( 'cyan',  'sub-item', linkedSubItem.name ) }
+              { linkedBug      && linkedBadge( 'red',   'bug',      linkedBug.title ) }
+              { release        && linkedBadge( 'green', 'release',  release.name ) }
             </div>
           </Section>
         ) }
@@ -709,6 +764,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             ) }
           </>
         ) }
+        { renderLinksSection() }
       </>
     );
   };

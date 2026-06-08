@@ -8,6 +8,7 @@ import { updateCompanyDate, isAdmin } from '../api/wordpress';
 import { useDragScroll } from '../hooks/useDragScroll';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
+import { getNestingParentId } from '../utils/nesting';
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -107,6 +108,29 @@ const ReleaseGroup = memo( function ReleaseGroup( {
     const ids = new Set( [ ...release.linkedFeedbackIds, ...feedback.filter( f => f.releaseId === release.id ).map( f => f.id ) ] );
     return Array.from( ids ).map( id => feedback.find( f => f.id === id ) ).filter( Boolean ) as Feedback[];
   }, [ release.linkedFeedbackIds, release.id, feedback ] );
+
+  // Only features host nested bug/feedback rows in the Gantt's feature-grouped
+  // layout. Bugs/feedback linked to a sub-item fall through to release level
+  // (see topLevelBugs/Feedback) — matching the spec's "else sit at release level".
+  const inReleaseFeatureIds = useMemo( () => {
+    const ids = new Set<string>();
+    linkedFeatures.forEach( f => ids.add( f.id ) );
+    return ids;
+  }, [ linkedFeatures ] );
+
+  const nestedChildren = useMemo( () => {
+    const map: Record<string, ( Bug | Feedback )[]> = {};
+    [ ...linkedBugs, ...linkedFeedback ].forEach( item => {
+      const pid = getNestingParentId( item );
+      if ( pid && inReleaseFeatureIds.has( pid ) ) {
+        ( map[pid] ||= [] ).push( item );
+      }
+    } );
+    return map;
+  }, [ linkedBugs, linkedFeedback, inReleaseFeatureIds ] );
+
+  const topLevelBugs     = useMemo( () => linkedBugs.filter(     b => { const p = getNestingParentId( b ); return ! ( p && inReleaseFeatureIds.has( p ) ); } ), [ linkedBugs, inReleaseFeatureIds ] );
+  const topLevelFeedback = useMemo( () => linkedFeedback.filter( f => { const p = getNestingParentId( f ); return ! ( p && inReleaseFeatureIds.has( p ) ); } ), [ linkedFeedback, inReleaseFeatureIds ] );
 
   const { leftPct, widthPct, timeProgress, rStart, rEnd } = useMemo( () => {
     const rs = resolveReleaseDate( release.startWeek, today );
@@ -213,7 +237,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
               </div>
               { ( feature.subItemIds || [] ).map( subItemId => {
                 const si = subitems.find( s => s.id === subItemId ) as SubItem | undefined;
-                if ( !si ) return null;
+                if ( !si || si.releaseId !== release.id ) return null;
                 return (
                   <div key={ si.id } style={ childRowStyle }>
                     <div className={ isSidebarOpen ? 'border-r flex items-center gap-2 sticky left-0 z-10 overflow-hidden relative' : 'border-r flex items-center justify-center px-1 sticky left-0 z-10' }
@@ -234,10 +258,29 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                   </div>
                 );
               } ) }
+              { ( nestedChildren[feature.id] || [] ).map( child => (
+                <div key={ child.id } style={ childRowStyle }>
+                  <div className={ isSidebarOpen ? 'border-r flex items-center gap-2 sticky left-0 z-10 overflow-hidden relative' : 'border-r flex items-center justify-center px-1 sticky left-0 z-10' }
+                    style={{ ...indentStyle, paddingLeft: isSidebarOpen ? 80 : undefined }}>
+                    { isSidebarOpen ? (
+                      <>
+                        <CornerDownRight size={ 12 } style={{ color: C.mutedFg, opacity: 0.5, flexShrink: 0 }} />
+                        <button onClick={ () => onNavigate( leftPct ) } title="Jump to this item on the timeline" style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', minWidth: 0 }}>
+                          <span style={{ fontSize: 13, color: C.mutedFg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{ ( child as Bug ).title }</span>
+                        </button>
+                        <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ child.timeEstimate }h</span>
+                      </>
+                    ) : <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: child.type === 'bug' ? C.bug.bar : C.feedback.bar }} title={ ( child as Bug ).title } /> }
+                  </div>
+                  <div style={{ ...barArea, backgroundColor: child.type === 'bug' ? '#fff1f21a' : '#faf5ff1a' }}>
+                    <InlineBar label={ ( child as Bug ).title } hours={ child.timeEstimate } color={ child.type === 'bug' ? C.bug : C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( child ) } isNested />
+                  </div>
+                </div>
+              ) ) }
             </Fragment>
           ) ) }
 
-          { linkedBugs.map( bug => (
+          { topLevelBugs.map( bug => (
             <div key={ bug.id } style={ childRowStyle }>
               <div className={ isSidebarOpen ? 'border-r flex items-center gap-2 sticky left-0 z-10 overflow-hidden' : 'border-r flex items-center justify-center px-1 sticky left-0 z-10' }
                 style={{ ...indentStyle, paddingLeft: isSidebarOpen ? 56 : undefined }}>
@@ -256,7 +299,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
             </div>
           ) ) }
 
-          { linkedFeedback.map( fb => (
+          { topLevelFeedback.map( fb => (
             <div key={ fb.id } style={ childRowStyle }>
               <div className={ isSidebarOpen ? 'border-r flex items-center gap-2 sticky left-0 z-10 overflow-hidden' : 'border-r flex items-center justify-center px-1 sticky left-0 z-10' }
                 style={{ ...indentStyle, paddingLeft: isSidebarOpen ? 56 : undefined }}>
