@@ -1,4 +1,4 @@
-import { X, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, Image as ImageIcon, ExternalLink, CheckCircle, Circle, Tag, History, ScrollText, Trash2, Plus } from 'lucide-react';
+import { X, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, Image as ImageIcon, ExternalLink, CheckCircle, Circle, Tag, History, ScrollText, Trash2, Plus, Share2, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, ItemLink } from '../types';
 import { ImageLightbox } from './ImageLightbox';
@@ -9,6 +9,8 @@ import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
+import { sortItemsByName } from '../utils/sortItems';
+import { buildShareUrl } from '../utils/urlState';
 
 interface WPMediaFrame {
   on: ( event: string, callback: () => void ) => void;
@@ -68,6 +70,8 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const item      = useUIStore( s => s.selectedItem );
   const isOpen    = useUIStore( s => s.isModalOpen );
   const closeModal = useUIStore( s => s.closeModal );
+  const currentView = useUIStore( s => s.currentView );
+  const filters     = useUIStore( s => s.filters );
   const features  = useDataStore( s => s.features );
   const subitems  = useDataStore( s => s.subitems );
   const bugs_     = useDataStore( s => s.bugs );
@@ -92,6 +96,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const [editLinkedFeedbackIds, setEditLinkedFeedbackIds] = useState<string[]>( [] );
   const [itemSearch,    setItemSearch]    = useState( '' );
   const [releaseSearch, setReleaseSearch] = useState( '' );
+  const [linkCopied,    setLinkCopied]    = useState( false );
 
   useEffect( () => {
     if ( item ) {
@@ -122,6 +127,18 @@ export function DetailModal( { settings }: DetailModalProps ) {
 
   const allItems = [ ...features, ...subitems, ...bugs_, ...feedback_, ...releases ];
   const getItemById  = ( id: string ) => allItems.find( ( i ) => i.id === id );
+
+  const handleShareItem = async () => {
+    const url = buildShareUrl( { view: currentView, filters, itemId: item.id } );
+    try {
+      await navigator.clipboard.writeText( url );
+      setLinkCopied( true );
+      setTimeout( () => setLinkCopied( false ), 2000 );
+    } catch {
+      window.prompt( 'Copy this link:', url );
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving( true );
     try {
@@ -469,7 +486,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
 
   const renderFeatureDetails = ( feature: Feature ) => {
     const release  = feature.releaseId ? getItemById( feature.releaseId ) as Release | undefined : undefined;
-    const subItems = ( feature.subItemIds || [] ).map( ( id ) => getItemById( id ) ).filter( ( si ): si is SubItem => si?.type === 'subitem' );
+    const subItems = sortItemsByName( ( feature.subItemIds || [] ).map( ( id ) => getItemById( id ) ).filter( ( si ): si is SubItem => si?.type === 'subitem' ) );
     const sortedStageDates = feature.stageDates
       ? Object.entries( feature.stageDates ).sort( ( [, a], [, b] ) => a.localeCompare( b ) )
       : [];
@@ -803,9 +820,16 @@ export function DetailModal( { settings }: DetailModalProps ) {
               <h2 className="text-lg sm:text-xl font-bold text-foreground">{ itemTitle }</h2>
             ) }
           </div>
-          <button onClick={ closeModal } className="p-2 hover:bg-accent rounded-lg transition-colors flex-shrink-0">
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={ handleShareItem } title="Copy a shareable link to this item"
+              className={ `inline-flex items-center gap-1.5 px-2.5 py-2 text-sm font-medium rounded-lg transition-colors ${ linkCopied ? 'text-emerald-600' : 'text-muted-foreground hover:bg-accent' }` }>
+              { linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" /> }
+              <span className="hidden sm:inline">{ linkCopied ? 'Copied' : 'Share' }</span>
+            </button>
+            <button onClick={ closeModal } className="p-2 hover:bg-accent rounded-lg transition-colors">
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}

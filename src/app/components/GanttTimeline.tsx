@@ -1,6 +1,6 @@
 import { useState, useRef, Fragment, useEffect, useCallback, useMemo, memo } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2, BarChart3 } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2 } from 'lucide-react';
 import { format, startOfWeek, addWeeks, eachWeekOfInterval, startOfQuarter, parseISO, addDays, getISOWeek } from 'date-fns';
 import { Item, Release, Feature, Bug, Feedback, SubItem, AppSettings, CompanyDate } from '../types';
 import { AddItemModal } from './AddItemModal';
@@ -9,6 +9,9 @@ import { useDragScroll } from '../hooks/useDragScroll';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { getNestingParentId } from '../utils/nesting';
+import { sortItemsByName } from '../utils/sortItems';
+import { matchesFilters } from '../utils/filters';
+import { FilterButton, ShareButton } from './ViewActions';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 
 // ── Design tokens ────────────────────────────────────────────────────────────
@@ -97,7 +100,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
 
   const linkedFeatures = useMemo( () => {
     const ids = new Set( [ ...release.linkedFeatureIds, ...features.filter( f => f.releaseId === release.id ).map( f => f.id ) ] );
-    return Array.from( ids ).map( id => features.find( f => f.id === id ) ).filter( Boolean ) as Feature[];
+    return sortItemsByName( Array.from( ids ).map( id => features.find( f => f.id === id ) ).filter( Boolean ) as Feature[] );
   }, [ release.linkedFeatureIds, release.id, features ] );
 
   const linkedBugs = useMemo( () => {
@@ -127,6 +130,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
         ( map[pid] ||= [] ).push( item );
       }
     } );
+    Object.keys( map ).forEach( pid => { map[pid] = sortItemsByName( map[pid] ); } );
     return map;
   }, [ linkedBugs, linkedFeedback, inReleaseFeatureIds ] );
 
@@ -236,9 +240,11 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                   <InlineBar label={ feature.name } hours={ feature.timeEstimate } color={ C.feature } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( feature ) } />
                 </div>
               </div>
-              { ( feature.subItemIds || [] ).map( subItemId => {
-                const si = subitems.find( s => s.id === subItemId ) as SubItem | undefined;
-                if ( !si || si.releaseId !== release.id ) return null;
+              { sortItemsByName(
+                ( feature.subItemIds || [] )
+                  .map( subItemId => subitems.find( s => s.id === subItemId ) )
+                  .filter( ( s ): s is SubItem => !! s && s.releaseId === release.id )
+              ).map( si => {
                 return (
                   <div key={ si.id } style={ childRowStyle }>
                     <div className={ isSidebarOpen ? 'border-r flex items-center gap-2 sticky left-0 z-10 overflow-hidden relative' : 'border-r flex items-center justify-center px-1 sticky left-0 z-10' }
@@ -409,6 +415,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const storeReleases = useDataStore( s => s.releases );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const openModal     = useUIStore( s => s.openModal );
+  const filters       = useUIStore( s => s.filters );
   const adminMode     = isAdmin();
   const isMobile = useIsMobile( 768 );
   const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
@@ -427,12 +434,21 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
 
   const today     = useMemo( () => new Date(), [] );
   const sidebarW  = isSidebarOpen ? 320 : 48;
-  const weekW     = density === 'compact' ? 64 : 128;
+  const weekW     = density === 'compact' ? 64 : 192;
 
-  const releases = useMemo( () =>
-    [ ...storeReleases ].sort( ( a, b ) =>
+  // Global view filters (#35) — narrow items inside each release; the release
+  // filter additionally limits which releases (and the timeline range) show.
+  const fFeatures = useMemo( () => features.filter( f => matchesFilters( f, filters ) ), [ features, filters ] );
+  const fSubitems = useMemo( () => subitems.filter( s => matchesFilters( s, filters ) ), [ subitems, filters ] );
+  const fBugs     = useMemo( () => bugs.filter(     b => matchesFilters( b, filters ) ), [ bugs, filters ] );
+  const fFeedback = useMemo( () => feedback.filter( f => matchesFilters( f, filters ) ), [ feedback, filters ] );
+
+  const releases = useMemo( () => {
+    const base = filters.release === 'all' ? storeReleases : storeReleases.filter( r => r.id === filters.release );
+    return [ ...base ].sort( ( a, b ) =>
       resolveReleaseDate( a.startWeek, today ).getTime() - resolveReleaseDate( b.startWeek, today ).getTime()
-    ), [ storeReleases, today ] );
+    );
+  }, [ storeReleases, today, filters.release ] );
 
   const { viewStart, totalDays, weeks } = useMemo( () => {
     const resolvedTimes = releases
@@ -533,14 +549,9 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, minWidth: 0 }}>
-          <div style={{ padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: C.primary, display: 'flex', flexShrink: 0 }}>
-            <BarChart3 size={ isMobile ? 16 : 20 } />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontSize: isMobile ? 15 : 18, fontWeight: 600, color: C.fg, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Release Timeline</h2>
-            { !isMobile && <p style={{ fontSize: 13, color: C.mutedFg, margin: 0 }}>Track releases and linked items by week</p> }
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <FilterButton />
+          <ShareButton />
         </div>
         { adminMode && (
           <button onClick={ () => setAddItemOpen( true ) }
@@ -667,10 +678,10 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
                 onItemClick={ openModal }
                 onNavigate={ scrollToPct }
                 isSidebarOpen={ isSidebarOpen }
-                features={ features }
-                subitems={ subitems }
-                bugs={ bugs }
-                feedback={ feedback }
+                features={ fFeatures }
+                subitems={ fSubitems }
+                bugs={ fBugs }
+                feedback={ fFeedback }
                 today={ today }
               />
             ) )

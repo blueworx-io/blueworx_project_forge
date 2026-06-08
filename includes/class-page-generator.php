@@ -42,6 +42,34 @@ class Forge_PM_Page_Generator {
 		return $template;
 	}
 
+	/**
+	 * URL of the generated Forge PM page, falling back to the site home.
+	 */
+	public static function page_url() {
+		$page_id = (int) get_option( 'forge_pm_page_id' );
+		$url     = $page_id ? get_permalink( $page_id ) : '';
+		return $url ?: home_url( '/' );
+	}
+
+	/**
+	 * Send users to the Forge PM app page after logging in instead of wp-admin (#27).
+	 * Honours an explicit redirect_to only when it points somewhere other than the
+	 * WordPress backend, so deep links into the app still work.
+	 */
+	public static function login_redirect( $redirect_to, $requested_redirect_to, $user ) {
+		// Login failures pass a WP_Error here — leave those untouched.
+		if ( ! is_a( $user, 'WP_User' ) ) {
+			return $redirect_to;
+		}
+
+		$requested = is_string( $requested_redirect_to ) ? $requested_redirect_to : '';
+		if ( $requested && false === strpos( $requested, '/wp-admin' ) ) {
+			return $requested;
+		}
+
+		return self::page_url();
+	}
+
 	private static function create_page() {
 		$page_id = get_option( 'forge_pm_page_id' );
 

@@ -78,6 +78,25 @@
     touch-action: manipulation;
   }
 
+  /* ── Pointer cursor on every interactive element ─────────────── */
+  #forge-pm-app a,
+  #forge-pm-app button,
+  #forge-pm-app select,
+  #forge-pm-app summary,
+  #forge-pm-app label[for],
+  #forge-pm-app [role="button"],
+  #forge-pm-app [role="tab"],
+  #forge-pm-app [role="link"] {
+    cursor: pointer;
+  }
+
+  /* Disabled controls should never look clickable */
+  #forge-pm-app button:disabled,
+  #forge-pm-app button[disabled],
+  #forge-pm-app [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
   /* ── Scrollbar utilities ─────────────────────────────────────── */
   #forge-pm-app .scrollbar-hide,
   #forge-pm-app .no-scrollbar {
