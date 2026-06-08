@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { X, Loader2, ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { AppSettings, WorkflowStatus } from '../types';
+import { AppSettings, WorkflowStatus, ItemLink } from '../types';
 import { createItem } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
+import { LinksEditor } from './LinksField';
+import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
 
 interface WPMediaFrame {
   on: ( event: string, callback: () => void ) => void;
@@ -70,6 +72,7 @@ function openMediaPicker( onSelect: ( urls: string[] ) => void ) {
 export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemModalProps ) {
   const features = useDataStore( s => s.features );
   const releases = useDataStore( s => s.releases );
+  const subitems = useDataStore( s => s.subitems );
   const isMobile = useIsMobile( 640 );
   const [itemType,         setItemType]        = useState( 'feature' );
   const [name,             setName]            = useState( '' );
@@ -81,6 +84,8 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
   const [releaseId,        setReleaseId]       = useState( '' );
   const [category,         setCategory]        = useState( '' );
   const [linkedFeatureId,  setLinkedFeatureId] = useState( '' );
+  const [linkedSubItemId,  setLinkedSubItemId] = useState( '' );
+  const [links,            setLinks]           = useState<ItemLink[]>( [] );
   const [imageUrls,        setImageUrls]       = useState<string[]>( [] );
   const [saving,           setSaving]          = useState( false );
   const [error,            setError]           = useState( '' );
@@ -104,6 +109,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
     // Reset category and linked feature when switching types
     setCategory( '' );
     setLinkedFeatureId( '' );
+    setLinkedSubItemId( '' );
   }
 
   function handleParentFeatureChange( featureId: string ) {
@@ -158,6 +164,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
       payload.bugStatus    = 'open';
       payload.reportedDate = new Date().toISOString().slice( 0, 10 );
       if ( linkedFeatureId ) payload.linkedFeatureId = linkedFeatureId;
+      if ( linkedSubItemId ) payload.linkedSubItemId = linkedSubItemId;
       if ( imageUrls.length ) payload.images = imageUrls;
     } else if ( isFeedback ) {
       payload.title        = name.trim();
@@ -165,8 +172,11 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
       payload.status       = 'open';
       payload.reportedDate = new Date().toISOString().slice( 0, 10 );
       if ( linkedFeatureId ) payload.linkedFeatureId = linkedFeatureId;
+      if ( linkedSubItemId ) payload.linkedSubItemId = linkedSubItemId;
       if ( imageUrls.length ) payload.images = imageUrls;
     }
+
+    if ( links.length ) payload.links = links.filter( l => l.url.trim() );
 
     try {
       if ( window.forgePMData ) await createItem( itemType, payload );
@@ -184,7 +194,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
     setStage( getDefaultStage( 'feature', settings.statuses ) );
     setPriority( 'medium' ); setFeaturePrice( 'scoping' );
     setTimeEst( 0 ); setReleaseId( '' ); setCategory( '' );
-    setLinkedFeatureId( '' ); setImageUrls( [] );
+    setLinkedFeatureId( '' ); setLinkedSubItemId( '' ); setLinks( [] ); setImageUrls( [] );
     setError( '' ); setItemType( 'feature' );
     onClose();
   }
@@ -293,23 +303,48 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
           ) }
 
           {/* Parent feature — required for sub-items, optional for bugs/feedback */}
-          { hasLinkedFeature && features.length > 0 && (
+          { hasLinkedFeature && ( features.length > 0 || subitems.length > 0 ) && (
             <div>
               <label style={ labelStyle }>
-                { isSubitem ? 'Parent feature' : 'Linked feature' }
+                { isSubitem ? 'Parent feature' : 'Links up to' }
                 { ! isSubitem && <span style={{ fontSize: 12, fontWeight: 400, color: C.mutedFg }}> (optional)</span> }
                 { isSubitem && <span style={{ fontSize: 12, fontWeight: 400, color: '#ef4444' }}> *</span> }
               </label>
-              <select
-                value={ linkedFeatureId }
-                onChange={ e => handleParentFeatureChange( e.target.value ) }
-                required={ isSubitem }
-                style={{ ...inputStyle, borderColor: isSubitem && ! linkedFeatureId ? '#fca5a5' : C.border }}>
-                <option value="">— { isSubitem ? 'Select a parent feature' : 'None' } —</option>
-                { [ ...features ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( f => (
-                  <option key={ f.id } value={ f.id }>{ f.name }</option>
-                ) ) }
-              </select>
+              { isSubitem ? (
+                <select
+                  value={ linkedFeatureId }
+                  onChange={ e => handleParentFeatureChange( e.target.value ) }
+                  required
+                  style={{ ...inputStyle, borderColor: ! linkedFeatureId ? '#fca5a5' : C.border }}>
+                  <option value="">— Select a parent feature —</option>
+                  { [ ...features ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( f => (
+                    <option key={ f.id } value={ f.id }>{ f.name }</option>
+                  ) ) }
+                </select>
+              ) : (
+                <select
+                  value={ encodeParentValue( linkedFeatureId, linkedSubItemId ) }
+                  onChange={ e => {
+                    const { linkedFeatureId: f, linkedSubItemId: s } = decodeParentValue( e.target.value );
+                    setLinkedFeatureId( f );
+                    setLinkedSubItemId( s );
+                  } }
+                  style={ inputStyle }>
+                  <option value="">— None —</option>
+                  <optgroup label="Features">
+                    { [ ...features ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( f => (
+                      <option key={ f.id } value={ `f:${ f.id }` }>{ f.name }</option>
+                    ) ) }
+                  </optgroup>
+                  { subitems.length > 0 && (
+                    <optgroup label="Sub-Items">
+                      { [ ...subitems ].sort( ( a, b ) => a.name.localeCompare( b.name ) ).map( s => (
+                        <option key={ s.id } value={ `s:${ s.id }` }>{ s.name }</option>
+                      ) ) }
+                    </optgroup>
+                  ) }
+                </select>
+              ) }
               { isSubitem && ! linkedFeatureId && (
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: '#ef4444' }}>A parent feature is required for sub-items.</p>
               ) }
@@ -355,6 +390,12 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
             <label style={ labelStyle }>Time estimate (hours)</label>
             <input type="number" min={ 0 } value={ timeEst } onChange={ e => setTimeEst( Number( e.target.value ) ) }
               style={{ ...inputStyle, width: 120 }} />
+          </div>
+
+          {/* Links — all item types */}
+          <div>
+            <label style={ labelStyle }>Links <span style={{ fontSize: 12, fontWeight: 400, color: C.mutedFg }}>(optional)</span></label>
+            <LinksEditor links={ links } onChange={ setLinks } />
           </div>
 
           {/* Images — all item types, WP media picker */}
