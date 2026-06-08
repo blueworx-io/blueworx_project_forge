@@ -8,6 +8,11 @@ export type BugStatus = 'open' | 'in-progress' | 'resolved';
 export type FeedbackStatus = 'open' | 'in-progress' | 'resolved';
 export type Priority = 'low' | 'medium' | 'high';
 
+export interface ItemLink {
+  label: string;
+  url: string;
+}
+
 export interface Feature {
   id: string;
   type: 'feature';
@@ -26,6 +31,7 @@ export interface Feature {
   brands?: string[];
   stageDates?: Record<string, string>;
   changeLog?: string;
+  links?: ItemLink[];
 }
 
 export interface SubItem {
@@ -41,6 +47,7 @@ export interface SubItem {
   releaseId?: string;
   images?: string[];
   brands?: string[];
+  links?: ItemLink[];
 }
 
 export interface Bug {
@@ -58,6 +65,8 @@ export interface Bug {
   notes?: string;
   images?: string[];
   urls?: string[];
+  linkedSubItemId?: string;
+  links?: ItemLink[];
 }
 
 export interface Feedback {
@@ -76,6 +85,8 @@ export interface Feedback {
   notes?: string;
   images?: string[];
   urls?: string[];
+  linkedSubItemId?: string;
+  links?: ItemLink[];
 }
 
 export interface Release {
@@ -94,6 +105,7 @@ export interface Release {
   linkedFeatureIds: string[];
   linkedBugIds: string[];
   linkedFeedbackIds: string[];
+  links?: ItemLink[];
 }
 
 export interface CompanyDate {

@@ -180,6 +180,28 @@ class Forge_PM_REST_API {
 		return is_array( $v ) ? $v : [];
 	}
 
+	/**
+	 * Read labeled links from _forge_links (JSON). If empty, migrate legacy
+	 * scalar _forge_urls entries into { label: url, url } shape.
+	 */
+	private static function meta_links( int $post_id ): array {
+		$raw = get_post_meta( $post_id, '_forge_links', true );
+		if ( is_string( $raw ) && $raw !== '' ) {
+			$decoded = json_decode( $raw, true );
+			if ( is_array( $decoded ) ) {
+				return array_values( array_filter( array_map(
+					fn( $l ) => is_array( $l ) && isset( $l['url'] )
+						? [ 'label' => (string) ( $l['label'] ?? '' ), 'url' => (string) $l['url'] ]
+						: null,
+					$decoded
+				) ) );
+			}
+		}
+		// Migration fallback: legacy plain URLs become labeled links.
+		$urls = self::meta_array( $post_id, '_forge_urls' );
+		return array_map( fn( $u ) => [ 'label' => (string) $u, 'url' => (string) $u ], $urls );
+	}
+
 	private static function get_stage_dates( $post_id ) {
 		$raw = get_post_meta( $post_id, '_forge_stage_dates', true );
 		if ( ! $raw ) return (object) [];
@@ -208,6 +230,7 @@ class Forge_PM_REST_API {
 			'brands'          => self::meta_array( $p->ID, '_forge_brands' ),
 			'stageDates'      => self::get_stage_dates( $p->ID ),
 			'changeLog'       => self::meta( $p->ID, '_forge_change_log' ) ?: null,
+			'links'           => self::meta_links( $p->ID ),
 		];
 	}
 
@@ -225,6 +248,7 @@ class Forge_PM_REST_API {
 			'releaseId'       => self::meta( $p->ID, '_forge_release_id' ) ?: null,
 			'images'          => self::meta_array( $p->ID, '_forge_image_urls' ),
 			'brands'          => self::meta_array( $p->ID, '_forge_brands' ),
+			'links'           => self::meta_links( $p->ID ),
 		];
 	}
 
@@ -244,6 +268,8 @@ class Forge_PM_REST_API {
 			'notes'           => self::meta( $p->ID, '_forge_notes' ) ?: null,
 			'images'          => self::meta_array( $p->ID, '_forge_image_urls' ),
 			'urls'            => self::meta_array( $p->ID, '_forge_urls' ),
+			'links'           => self::meta_links( $p->ID ),
+			'linkedSubItemId' => self::meta( $p->ID, '_forge_linked_subitem_id' ) ?: null,
 		];
 	}
 
@@ -264,6 +290,8 @@ class Forge_PM_REST_API {
 			'notes'           => self::meta( $p->ID, '_forge_notes' ) ?: null,
 			'images'          => self::meta_array( $p->ID, '_forge_image_urls' ),
 			'urls'            => self::meta_array( $p->ID, '_forge_urls' ),
+			'links'           => self::meta_links( $p->ID ),
+			'linkedSubItemId' => self::meta( $p->ID, '_forge_linked_subitem_id' ) ?: null,
 		];
 	}
 
@@ -284,6 +312,7 @@ class Forge_PM_REST_API {
 			'linkedFeatureIds'   => self::meta_array( $p->ID, '_forge_linked_feature_ids' ),
 			'linkedBugIds'       => self::meta_array( $p->ID, '_forge_linked_bug_ids' ),
 			'linkedFeedbackIds'  => self::meta_array( $p->ID, '_forge_linked_feedback_ids' ),
+			'links'              => self::meta_links( $p->ID ),
 		];
 	}
 
@@ -396,6 +425,7 @@ class Forge_PM_REST_API {
 			'parentFeatureId'   => '_forge_parent_feature_id',
 			'linkedFeatureId'   => '_forge_linked_feature_id',
 			'linkedBugId'       => '_forge_linked_bug_id',
+			'linkedSubItemId'   => '_forge_linked_subitem_id',
 			'bugStatus'         => '_forge_bug_status',
 			'status'            => '_forge_status',
 			'priority'          => '_forge_priority',
@@ -449,6 +479,18 @@ class Forge_PM_REST_API {
 				$clean[ sanitize_key( $stage_id ) ] = sanitize_text_field( $date );
 			}
 			update_post_meta( $post_id, '_forge_stage_dates', wp_json_encode( $clean ) );
+		}
+
+		if ( array_key_exists( 'links', $data ) && is_array( $data['links'] ) ) {
+			$clean = [];
+			foreach ( $data['links'] as $link ) {
+				if ( ! is_array( $link ) || empty( $link['url'] ) ) continue;
+				$clean[] = [
+					'label' => sanitize_text_field( $link['label'] ?? '' ),
+					'url'   => esc_url_raw( $link['url'] ),
+				];
+			}
+			update_post_meta( $post_id, '_forge_links', wp_json_encode( $clean ) );
 		}
 
 		// Auto-generate initial changelog entry
@@ -598,6 +640,7 @@ class Forge_PM_REST_API {
 			'parentFeatureId'   => '_forge_parent_feature_id',
 			'linkedFeatureId'   => '_forge_linked_feature_id',
 			'linkedBugId'       => '_forge_linked_bug_id',
+			'linkedSubItemId'   => '_forge_linked_subitem_id',
 			'bugStatus'         => '_forge_bug_status',
 			'status'            => '_forge_status',
 			'priority'          => '_forge_priority',
@@ -666,6 +709,18 @@ class Forge_PM_REST_API {
 				$clean[ sanitize_key( $stage_id ) ] = sanitize_text_field( $date );
 			}
 			update_post_meta( $post_id, '_forge_stage_dates', wp_json_encode( $clean ) );
+		}
+
+		if ( array_key_exists( 'links', $data ) && is_array( $data['links'] ) ) {
+			$clean = [];
+			foreach ( $data['links'] as $link ) {
+				if ( ! is_array( $link ) || empty( $link['url'] ) ) continue;
+				$clean[] = [
+					'label' => sanitize_text_field( $link['label'] ?? '' ),
+					'url'   => esc_url_raw( $link['url'] ),
+				];
+			}
+			update_post_meta( $post_id, '_forge_links', wp_json_encode( $clean ) );
 		}
 
 		self::bust_cache();
