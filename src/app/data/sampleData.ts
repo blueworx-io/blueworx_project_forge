@@ -365,12 +365,113 @@ export const sampleSubItems: SubItem[] = [
   },
 ];
 
-// ── Empty scaffolding for other item types ────────────────────────────────────
+// ── Bugs ───────────────────────────────────────────────────────────────────────
 
-export const sampleBugs: Bug[] = [];
-export const sampleFeedback: Feedback[] = [];
-export const sampleReleases: Release[] = [];
-export const sampleCompanyDates: CompanyDate[] = [];
+export const sampleBugs: Bug[] = [
+  {
+    id: 'b1', type: 'bug',
+    title: 'Map tiles fail to load on slow connections',
+    description: 'On 3G the course map renders blank until the user backgrounds and reopens the app.',
+    linkedFeatureId: 'f7', releaseId: 'r2',
+    bugStatus: 'open', workflowStage: 'bug-tracking', priority: 'high',
+    timeEstimate: 8, reportedDate: '2026-06-02',
+  },
+  {
+    id: 'b2', type: 'bug',
+    title: 'Score sync duplicates entries',
+    description: 'Editing a round offline then syncing creates a duplicate scorecard.',
+    linkedFeatureId: 'f2', releaseId: 'r1',
+    bugStatus: 'in-progress', workflowStage: 'bug-tracking', priority: 'high',
+    timeEstimate: 12, reportedDate: '2026-05-22',
+  },
+  {
+    id: 'b3', type: 'bug',
+    title: 'Crash on rangefinder pairing',
+    description: 'Pairing a Bluetooth rangefinder twice in one session crashes on Android 14.',
+    linkedFeatureId: 'f24', releaseId: 'r3',
+    bugStatus: 'open', workflowStage: 'bug-tracking', priority: 'medium',
+    timeEstimate: 6, reportedDate: '2026-06-05',
+  },
+];
+
+// ── Feedback ─────────────────────────────────────────────────────────────────
+
+export const sampleFeedback: Feedback[] = [
+  {
+    id: 'fb1', type: 'feedback',
+    title: 'Users want larger tap targets',
+    description: 'Several testers with gloves on report the scorecard buttons are too small.',
+    linkedFeatureId: 'f16', releaseId: 'r2',
+    status: 'open', workflowStage: 'up-next', priority: 'medium',
+    timeEstimate: 4, reportedDate: '2026-05-30',
+  },
+  {
+    id: 'fb2', type: 'feedback',
+    title: 'Request: dark mode for night rounds',
+    description: 'Members playing twilight rounds want a darker theme to reduce glare.',
+    releaseId: 'r1',
+    status: 'in-progress', workflowStage: 'up-next', priority: 'low',
+    timeEstimate: 10, reportedDate: '2026-05-19',
+  },
+];
+
+// ── Releases ─────────────────────────────────────────────────────────────────
+// NOTE: intentionally NOT in chronological order — exercises the soonest→latest
+// auto-ordering on the Timeline and Settings (issue #3).
+
+export const sampleReleases: Release[] = [
+  {
+    id: 'r3', type: 'release',
+    name: 'v3.0 – Fall Launch',
+    versionNumber: '3.0', versionType: 'Major Release', quarter: 'Q3 2026',
+    startWeek: '2026-09-07', endWeek: '2026-10-12', status: 'planned',
+    totalTimeEstimate: 90, capacity: 160, isBigWedgeCampaign: true,
+    linkedFeatureIds: ['f27', 'f13'], linkedBugIds: ['b3'], linkedFeedbackIds: [],
+  },
+  {
+    id: 'r1', type: 'release',
+    name: 'v1.5 – Spring Polish',
+    versionNumber: '1.5', versionType: 'Minor Release', quarter: 'Q2 2026',
+    startWeek: '2026-05-04', endWeek: '2026-06-01', status: 'complete',
+    totalTimeEstimate: 70, capacity: 120, isBigWedgeCampaign: false,
+    linkedFeatureIds: ['f4', 'f16'], linkedBugIds: ['b2'], linkedFeedbackIds: ['fb2'],
+  },
+  {
+    id: 'r5', type: 'release',
+    name: 'v2.5 – Hardware Beta',
+    versionNumber: '2.5', versionType: 'Minor Release', quarter: 'Q3 2026',
+    startWeek: '2026-08-03', endWeek: '2026-08-31', status: 'planned',
+    totalTimeEstimate: 130, capacity: 100, isBigWedgeCampaign: false,
+    linkedFeatureIds: ['f11', 'f9'], linkedBugIds: [], linkedFeedbackIds: [],
+  },
+  {
+    id: 'r2', type: 'release',
+    name: 'v2.0 – Summer Release',
+    versionNumber: '2.0', versionType: 'Major Release', quarter: 'Q3 2026',
+    startWeek: '2026-06-15', endWeek: '2026-07-20', status: 'active',
+    totalTimeEstimate: 85, capacity: 140, isBigWedgeCampaign: false,
+    linkedFeatureIds: ['f6', 'f8', 'f24'], linkedBugIds: ['b1'], linkedFeedbackIds: ['fb1'],
+  },
+  {
+    id: 'r4', type: 'release',
+    name: 'v1.0 – Foundation',
+    versionNumber: '1.0', versionType: 'Major Release', quarter: 'Q2 2026',
+    startWeek: '2026-03-30', endWeek: '2026-04-27', status: 'complete',
+    totalTimeEstimate: 60, capacity: 120, isBigWedgeCampaign: false,
+    linkedFeatureIds: ['f1', 'f2'], linkedBugIds: [], linkedFeedbackIds: [],
+  },
+];
+
+// ── Company dates ─────────────────────────────────────────────────────────────
+// Also intentionally out of order (issue #3).
+
+export const sampleCompanyDates: CompanyDate[] = [
+  { id: 'cd1', title: 'Investor Demo',    date: '2026-07-01', description: 'Quarterly product demo to investors.', tracked: true },
+  { id: 'cd2', title: 'Team Offsite',     date: '2026-05-20', description: 'Two-day planning offsite.',           tracked: true },
+  { id: 'cd3', title: 'Conference Booth', date: '2026-09-15', description: 'Trade show launch moment.',           tracked: true },
+  { id: 'cd4', title: 'Code Freeze',      date: '2026-06-12', description: 'Freeze for the Summer release.',       tracked: true },
+  { id: 'cd5', title: 'Company Holiday',  date: '2026-08-14', description: 'Office closed.',                       tracked: false },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

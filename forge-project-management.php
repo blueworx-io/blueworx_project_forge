@@ -3,7 +3,7 @@
  * Plugin Name: Forge Project Management
  * Plugin URI:  https://github.com/blueworx-io/forge-project-management
  * Description: Product planning and release management for WordPress.
- * Version:     1.23.0
+ * Version:     1.24.0
  * Author:      Blueworx
  * License:     GPL-2.0-or-later
  * Text Domain: forge-pm
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'FORGE_PM_VERSION',  '1.23.0' );
+define( 'FORGE_PM_VERSION',  '1.24.0' );
 define( 'FORGE_PM_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'FORGE_PM_URL',      plugin_dir_url( __FILE__ ) );
 define( 'FORGE_PM_BASENAME', plugin_basename( __FILE__ ) );
