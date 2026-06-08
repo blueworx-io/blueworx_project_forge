@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { AppSettings, ArchivedItem, WorkflowStatus, BrandConfig, Release } from '../types';
 import { useDataStore } from '../store/useDataStore';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import {
   saveSettings, fetchArchived, restoreItem,
   createItem, archiveItem, updateItem,
@@ -582,6 +584,7 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
   onSave: ( f: ReleaseForm ) => void; onClose: () => void; isSaving: boolean;
 } ) {
   const [ form, setForm ] = useState<ReleaseForm>( release );
+  const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
 
   // Merge a structured change and re-derive the composed display name. The name
   // field stays editable as a manual override (see the input below). (#19)
@@ -612,8 +615,8 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
   }
 
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:70, backgroundColor:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-      <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 20px 60px rgba(0,0,0,0.2)', width:'100%', maxWidth:520, border:'1px solid #e2e8f0' }}>
+    <div style={{ position:'fixed', inset:0, zIndex:55, backgroundColor:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16, bottom: navVisible ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+      <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 20px 60px rgba(0,0,0,0.2)', width:'100%', maxWidth:520, maxHeight:'90vh', overflowY:'auto', border:'1px solid #e2e8f0' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #e2e8f0' }}>
           <h3 style={{ fontSize:16, fontWeight:600, color:'#1a1f36', margin:0 }}>{ form.name || 'New Release' }</h3>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#64748b', display:'flex' }}><X size={20} /></button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Loader2, ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import { AppSettings, WorkflowStatus, ItemLink } from '../types';
 import { createItem } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
@@ -211,7 +212,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
     && ( ! needsCategory || !! category );
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16, bottom: isMobile ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
       <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 520, maxHeight: '90vh', display: 'flex', flexDirection: 'column', border: `1px solid ${ C.border }` }}>
 
         {/* Header */}

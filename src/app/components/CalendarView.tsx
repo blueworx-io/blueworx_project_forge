@@ -10,6 +10,7 @@ import {
 import { CompanyDate, Release } from '../types';
 import { createCompanyDate, updateCompanyDate, isAdmin } from '../api/wordpress';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 
@@ -578,8 +579,8 @@ export function CalendarView() {
 
       {/* ── Edit Date modal ─────────────────────────────────────── */}
       { editingDate && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}>
-          <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 440, overflow: 'hidden', border: `1px solid ${ C.border }` }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16, bottom: isMobile ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 440, maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${ C.border }` }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: C.fg, margin: 0 }}>Edit Company Date</h3>
               <button onClick={ () => setEditingDate( null ) } style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedFg, display: 'flex' }}><X size={ 20 } /></button>
@@ -622,8 +623,8 @@ export function CalendarView() {
 
       {/* ── Add Date modal ───────────────────────────────────────── */}
       { isAddingEvent && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}>
-          <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 440, overflow: 'hidden', border: `1px solid ${ C.border }` }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16, bottom: isMobile ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 440, maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${ C.border }` }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, color: C.fg, margin: 0 }}>Add Company Date</h3>
               <button onClick={ () => setIsAddingEvent( false ) } style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedFg, display: 'flex' }}><X size={ 20 } /></button>
