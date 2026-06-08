@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Save, Check, AlertCircle, X, Plus, GripVertical, LayoutGrid } from 'lucide-react';
+import { Save, Check, AlertCircle, X, Plus, GripVertical } from 'lucide-react';
 import { ItemCard } from './ItemCard';
 import { WorkflowStage, Item, AppSettings, Release } from '../types';
 import { useDragScroll } from '../hooks/useDragScroll';
@@ -12,6 +12,9 @@ import { AddItemModal } from './AddItemModal';
 import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { buildNestedGroups } from '../utils/nesting';
+import { sortItemsByName } from '../utils/sortItems';
+import { matchesFilters } from '../utils/filters';
+import { FilterButton, ShareButton } from './ViewActions';
 
 interface KanbanBoardProps {
   settings: AppSettings;
@@ -135,6 +138,8 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, o
     if ( ! itemsByRelease[rId] ) itemsByRelease[rId] = [];
     itemsByRelease[rId].push( item );
   } );
+  // Order items alphabetically within each release group (#28)
+  Object.keys( itemsByRelease ).forEach( id => { itemsByRelease[id] = sortItemsByName( itemsByRelease[id] ); } );
 
   const releaseGroups = Object.keys( itemsByRelease ).sort( ( a, b ) => {
     if ( a === 'unassigned' ) return 1;
@@ -231,6 +236,8 @@ function MobileKanbanColumn( { items, onItemClick, releases }: {
     if ( ! itemsByRelease[rId] ) itemsByRelease[rId] = [];
     itemsByRelease[rId].push( item );
   } );
+  // Order items alphabetically within each release group (#28)
+  Object.keys( itemsByRelease ).forEach( id => { itemsByRelease[id] = sortItemsByName( itemsByRelease[id] ); } );
 
   const releaseGroups = Object.keys( itemsByRelease ).sort( ( a, b ) => {
     if ( a === 'unassigned' ) return 1;
@@ -287,6 +294,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   const releases       = useDataStore( s => s.releases );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const openModal      = useUIStore( s => s.openModal );
+  const filters        = useUIStore( s => s.filters );
   const adminMode      = isAdmin();
   const isMobile = useIsMobile( 768 );
   const scrollRef = useDragScroll<HTMLDivElement>( { axis: 'x' } );
@@ -370,7 +378,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
     setPendingStages( [] );
   };
 
-  const itemsWithWorkflow = localItems.filter( ( item ) => 'workflowStage' in item );
+  const itemsWithWorkflow = localItems.filter( ( item ) => 'workflowStage' in item && matchesFilters( item, filters ) );
   const columns = settings.statuses.length > 0 ? settings.statuses : [
     { id: 'bug-tracking', label: 'Bug Tracking' }, { id: 'future-idea', label: 'Future Idea' },
     { id: 'up-next', label: 'Up Next' }, { id: 'in-development', label: 'In Development' },
@@ -386,10 +394,8 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
           {/* Top bar — shared header spec (issue #16) */}
           <div className="flex items-center justify-between gap-2 px-4 border-b border-border flex-shrink-0" style={ { minHeight: 56, backgroundColor: '#ffffff' } }>
             <div className="flex items-center gap-2 min-w-0">
-              <div style={ { padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: '#2563eb', display: 'flex', flexShrink: 0 } }>
-                <LayoutGrid size={ 16 } />
-              </div>
-              <h2 className="text-base font-semibold">Kanban Board</h2>
+              <FilterButton />
+              <ShareButton />
             </div>
             { adminMode && (
               <button
@@ -469,14 +475,9 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
       <div className="flex flex-col h-full">
         {/* Top bar — shared header spec (issue #16) */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-border flex-shrink-0" style={ { minHeight: 56, backgroundColor: '#ffffff' } }>
-          <div className="flex items-center gap-3 min-w-0">
-            <div style={ { padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: '#2563eb', display: 'flex', flexShrink: 0 } }>
-              <LayoutGrid size={ 20 } />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold">Kanban Board</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage your workflow across all stages</p>
-            </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <FilterButton />
+            <ShareButton />
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             { saveState === 'saving' && (

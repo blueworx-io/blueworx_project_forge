@@ -1,12 +1,14 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, LogIn, Loader2 } from 'lucide-react';
 import { AppSettings, BrandConfig } from './types';
 import { Feature, SubItem, Bug, Feedback, Release, CompanyDate } from './types';
 import { isAdmin, getLoginUrl, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
-import { useDataStore } from './store/useDataStore';
+import { useDataStore, selectAllItems } from './store/useDataStore';
 import { useUIStore } from './store/useUIStore';
 import { useIsMobile } from './hooks/useIsMobile';
 import { MobileNav, BOTTOM_BAR_HEIGHT } from './components/MobileNav';
+import { FilterPanel } from './components/FilterPanel';
+import { parseUrlState, writeUrlState } from './utils/urlState';
 
 // Heavy view components — loaded only when first accessed
 const KanbanBoard   = lazy( () => import('./components/KanbanBoard').then(   m => ( { default: m.KanbanBoard } ) ) );
@@ -48,6 +50,10 @@ export default function App() {
   const [settings, setSettings]     = useState<AppSettings>( getInitialSettings() );
   const [visited, setVisited]       = useState<Set<string>>( () => new Set( ['gantt'] ) );
   const [drawerOpen, setDrawerOpen] = useState( false );
+  // Captured once on mount so the URL→state sync effect can't clobber a deep
+  // link before we resolve the referenced item (#25).
+  const [deepLink] = useState( () => parseUrlState() );
+  const didDeepLink = useRef( false );
   // Block the UI with the full-screen loader only on the very first fetch.
   // Later refreshes (e.g. saving a release in Settings) load in the background
   // so the current view stays mounted and the user keeps their place. (#2)
@@ -64,6 +70,10 @@ export default function App() {
   const openSettings  = useUIStore( s => s.openSettings );
   const closeSettings = useUIStore( s => s.closeSettings );
   const switchView    = useUIStore( s => s.switchView );
+  const filters       = useUIStore( s => s.filters );
+  const selectedItem  = useUIStore( s => s.selectedItem );
+  const isModalOpen   = useUIStore( s => s.isModalOpen );
+  const openModal     = useUIStore( s => s.openModal );
 
   const adminMode  = isAdmin();
   const isCalendar = currentView === 'calendar';
@@ -100,6 +110,29 @@ export default function App() {
       } ),
     ] ).catch( ( err ) => console.error( '[Forge PM] fetch error:', err ) ).finally( () => { setLoading( false ); setHasLoaded( true ); } );
   }, [refreshKey] ); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the address bar in sync with view + filters + open item so the browser
+  // URL is always a shareable deep link (#25).
+  useEffect( () => {
+    writeUrlState( {
+      view:    currentView,
+      filters,
+      itemId:  isModalOpen && selectedItem ? selectedItem.id : undefined,
+    } );
+  }, [ currentView, filters, isModalOpen, selectedItem ] );
+
+  // Open the item referenced by a shared link, once data has loaded (#25).
+  useEffect( () => {
+    if ( didDeepLink.current || ! hasLoaded || ! deepLink.itemId ) return;
+    didDeepLink.current = true;
+    const item = selectAllItems( useDataStore.getState() ).find( i => i.id === deepLink.itemId );
+    if ( item ) openModal( item );
+  }, [ hasLoaded, deepLink.itemId, openModal ] );
+
+  // A shared settings link is admin-only — bounce everyone else to the home view (#25).
+  useEffect( () => {
+    if ( currentView === 'settings' && ! adminMode ) switchView( 'gantt' );
+  }, [ currentView, adminMode, switchView ] );
 
   const TAB_VIEWS: { view: Exclude<View, 'settings'>; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
     { view: 'gantt',    label: 'Timeline', Icon: BarChart3 },
@@ -173,7 +206,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            { currentView === 'settings' && (
+            { currentView === 'settings' && adminMode && (
               <ErrorBoundary>
                 <Suspense fallback={ <ChunkLoader /> }>
                   <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } />
@@ -225,6 +258,9 @@ export default function App() {
           setDrawerOpen={ setDrawerOpen }
         />
       ) }
+
+      {/* Global filter side panel — overlays the view pages (Kanban / Gantt / Calendar) */}
+      { currentView !== 'settings' && <FilterPanel settings={ settings } /> }
 
       {/* Detail modal — not shown when settings is open */}
       { currentView !== 'settings' && (

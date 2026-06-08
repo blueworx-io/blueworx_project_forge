@@ -1,4 +1,5 @@
 import { Item } from '../types';
+import { sortItemsByName } from './sortItems';
 
 /**
  * The id of the item this item should nest under, or null if top-level.
@@ -38,6 +39,11 @@ export function buildNestedGroups( items: Item[] ): {
     } else {
       topLevelItems.push( item );
     }
+  } );
+
+  // Order nested children alphabetically (#28)
+  Object.keys( nestedChildren ).forEach( id => {
+    nestedChildren[id] = sortItemsByName( nestedChildren[id] );
   } );
 
   return { nestedChildren, topLevelItems };

@@ -13,6 +13,8 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
+import { matchesFilters } from '../utils/filters';
+import { FilterButton, ShareButton } from './ViewActions';
 
 // Design tokens
 const C = {
@@ -28,14 +30,35 @@ const btnIcon: React.CSSProperties       = { display: 'inline-flex', alignItems:
 type CalViewMode = 'month' | 'week' | 'day' | 'list';
 
 export function CalendarView() {
-  const releases     = useDataStore( s => s.releases );
+  const storeReleases = useDataStore( s => s.releases );
+  const features      = useDataStore( s => s.features );
+  const subitems      = useDataStore( s => s.subitems );
+  const bugs          = useDataStore( s => s.bugs );
+  const feedbackItems = useDataStore( s => s.feedback );
   const companyDates = useDataStore( s => s.companyDates );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const openModal    = useUIStore( s => s.openModal );
+  const filters      = useUIStore( s => s.filters );
+
+  // Global view filters (#35). Company dates always show; releases are limited
+  // to the chosen release, and (when stage/category/brand are set) to releases
+  // that contain at least one matching item.
+  const releases = useMemo( () => {
+    let rs = filters.release === 'all' ? storeReleases : storeReleases.filter( r => r.id === filters.release );
+    const itemFilterActive = filters.stage !== 'all' || filters.category !== 'all' || filters.brand !== 'all';
+    if ( itemFilterActive ) {
+      const matchingReleaseIds = new Set<string>();
+      [ ...features, ...subitems, ...bugs, ...feedbackItems ].forEach( it => {
+        if ( matchesFilters( it, filters ) && 'releaseId' in it && it.releaseId ) matchingReleaseIds.add( it.releaseId );
+      } );
+      rs = rs.filter( r => matchingReleaseIds.has( r.id ) );
+    }
+    return rs;
+  }, [ storeReleases, features, subitems, bugs, feedbackItems, filters ] );
   const adminMode    = isAdmin();
   const isMobile = useIsMobile( 640 );
   const [currentDate, setCurrentDate] = useState( () => new Date() );
-  const [viewMode,    setViewMode]    = useState<CalViewMode>( () => isMobile ? 'list' : 'month' );
+  const [viewMode,    setViewMode]    = useState<CalViewMode>( 'month' );
   const [isAddingEvent, setIsAddingEvent] = useState( false );
   const [isSaving,      setIsSaving]      = useState( false );
   const [newEvent,      setNewEvent]      = useState( { title: '', date: format( new Date(), 'yyyy-MM-dd' ), description: '', tracked: false } );
@@ -238,7 +261,11 @@ export function CalendarView() {
           {/* Primary row — matches the shared header height of every view */}
           <div style={ headerRow }>
             { iconTitle }
-            { addButton }
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FilterButton />
+              <ShareButton />
+              { addButton }
+            </div>
           </div>
           {/* Extra layer — calendar-only second row for nav + view switcher */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, padding: '0 16px', borderTop: `1px solid ${ C.border }` }}>
@@ -256,6 +283,8 @@ export function CalendarView() {
             { navArrows }
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+            <FilterButton />
+            <ShareButton />
             { addButton }
             { todayButton }
             <div style={{ width: 1, height: 24, backgroundColor: C.border }} />
