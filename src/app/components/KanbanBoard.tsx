@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Save, Check, AlertCircle, X, Plus, GripVertical } from 'lucide-react';
+import { Save, Check, AlertCircle, X, Plus, GripVertical, LayoutGrid } from 'lucide-react';
 import { ItemCard } from './ItemCard';
 import { WorkflowStage, Item, AppSettings, Release } from '../types';
 import { useDragScroll } from '../hooks/useDragScroll';
@@ -390,9 +390,14 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
     return (
       <>
         <div style={ { display: 'flex', flexDirection: 'column', height: '100%' } }>
-          {/* Top bar */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background flex-shrink-0">
-            <h2 className="text-base font-semibold">Kanban Board</h2>
+          {/* Top bar — shared header spec (issue #16) */}
+          <div className="flex items-center justify-between gap-2 px-4 border-b border-border flex-shrink-0" style={ { minHeight: 56, backgroundColor: '#ffffff' } }>
+            <div className="flex items-center gap-2 min-w-0">
+              <div style={ { padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: '#2563eb', display: 'flex', flexShrink: 0 } }>
+                <LayoutGrid size={ 16 } />
+              </div>
+              <h2 className="text-base font-semibold">Kanban Board</h2>
+            </div>
             { adminMode && (
               <button
                 onClick={ () => setAddItemOpen( true ) }
@@ -454,11 +459,16 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   return (
     <DndProvider backend={ HTML5Backend }>
       <div className="flex flex-col h-full">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-background flex-shrink-0">
-          <div>
-            <h2 className="text-base sm:text-lg font-semibold">Kanban Board</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage your workflow across all stages</p>
+        {/* Top bar — shared header spec (issue #16) */}
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-border flex-shrink-0" style={ { minHeight: 56, backgroundColor: '#ffffff' } }>
+          <div className="flex items-center gap-3 min-w-0">
+            <div style={ { padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: '#2563eb', display: 'flex', flexShrink: 0 } }>
+              <LayoutGrid size={ 20 } />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-semibold">Kanban Board</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage your workflow across all stages</p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             { saveState === 'saving' && (

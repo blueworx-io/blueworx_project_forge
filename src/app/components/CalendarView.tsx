@@ -156,7 +156,6 @@ export function CalendarView() {
     return { dayReleases: dayRels, dayCompanyDates: dayCDs };
   };
 
-  const px = isMobile ? '12px 14px' : '12px 24px';
   const showNav = viewMode !== 'list';
 
   // ── View switcher items ──────────────────────────────────────────────────
@@ -167,74 +166,102 @@ export function CalendarView() {
     { mode: 'list',  label: 'List',  shortLabel: 'Li', Icon: List },
   ];
 
+  // ── Shared header building blocks (unified across views — see issue #16) ──
+  const iconTitle = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, minWidth: 0 }}>
+      <div style={{ padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: C.primary, display: 'flex', flexShrink: 0 }}>
+        <CalendarIcon size={ isMobile ? 16 : 20 } />
+      </div>
+      <h2 style={{ fontSize: isMobile ? 15 : 20, fontWeight: 700, color: C.fg, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ navTitle }</h2>
+    </div>
+  );
+
+  const navArrows = showNav && (
+    <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+      <button onClick={ navPrev } style={{ ...btnIcon, borderRight: `1px solid ${ C.border }` }}>
+        <ChevronLeft size={ 16 } />
+      </button>
+      <button onClick={ navNext } style={ btnIcon }>
+        <ChevronRight size={ 16 } />
+      </button>
+    </div>
+  );
+
+  const addButton = adminMode && (
+    <button onClick={ () => setIsAddingEvent( true ) } style={{ ...btnPrimary, padding: isMobile ? '7px 10px' : '7px 14px' }}>
+      <Plus size={ 16 } />
+      { !isMobile && <span>Add Date</span> }
+    </button>
+  );
+
+  const todayButton = showNav && (
+    <button onClick={ navToday } style={ btnSecondary }>Today</button>
+  );
+
+  const viewSwitcher = (
+    <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+      { VIEW_TABS.map( ( { mode, label, shortLabel, Icon }, i ) => (
+        <button
+          key={ mode }
+          onClick={ () => setViewMode( mode ) }
+          title={ `${ label } view` }
+          style={{
+            ...btnIcon,
+            borderRight: i < VIEW_TABS.length - 1 ? `1px solid ${ C.border }` : undefined,
+            backgroundColor: viewMode === mode ? C.primary : C.white,
+            color:           viewMode === mode ? '#fff' : C.mutedFg,
+            gap: 4,
+            padding: isMobile ? '6px 8px' : '7px 10px',
+            fontSize: 11, fontWeight: 600,
+          }}
+        >
+          { isMobile ? <span>{ shortLabel }</span> : <><Icon size={ 14 } /><span>{ label }</span></> }
+        </button>
+      ) ) }
+    </div>
+  );
+
+  // Canonical sub-header row: 56px tall, white, title-left / actions-right
+  const headerRow: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 8, minHeight: 56, padding: isMobile ? '0 16px' : '0 24px',
+    backgroundColor: C.white,
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: C.bg, flex: 1, minHeight: `calc(100dvh - ${ appHeaderH }px)` }}>
 
       {/* ── Calendar header — sticky below app header ─────────── */}
-      <div
-        ref={ calHeaderRef }
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexWrap: 'wrap', gap: 8,
-          padding: px,
-          borderBottom: `1px solid ${ C.border }`,
-          backgroundColor: C.white,
-          position: 'sticky', top: appHeaderH, zIndex: 40,
-        }}
-      >
-        {/* Left: icon + title + nav arrows */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-          <div style={{ padding: 8, backgroundColor: '#dbeafe', borderRadius: 8, color: C.primary, display: 'flex' }}>
-            <CalendarIcon size={ isMobile ? 16 : 20 } />
+      { isMobile ? (
+        <div ref={ calHeaderRef } style={{ position: 'sticky', top: appHeaderH, zIndex: 40, backgroundColor: C.white, borderBottom: `1px solid ${ C.border }` }}>
+          {/* Primary row — matches the shared header height of every view */}
+          <div style={ headerRow }>
+            { iconTitle }
+            { addButton }
           </div>
-          <h2 style={{ fontSize: isMobile ? 15 : 20, fontWeight: 700, color: C.fg, margin: 0 }}>{ navTitle }</h2>
-          { showNav && (
-            <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-              <button onClick={ navPrev } style={{ ...btnIcon, borderRight: `1px solid ${ C.border }` }}>
-                <ChevronLeft size={ 16 } />
-              </button>
-              <button onClick={ navNext } style={ btnIcon }>
-                <ChevronRight size={ 16 } />
-              </button>
+          {/* Extra layer — calendar-only second row for nav + view switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, padding: '0 16px', borderTop: `1px solid ${ C.border }` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              { navArrows }
+              { todayButton }
             </div>
-          ) }
-        </div>
-
-        {/* Right: controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
-          { adminMode && (
-            <button onClick={ () => setIsAddingEvent( true ) } style={{ ...btnPrimary, padding: isMobile ? '7px 10px' : '7px 14px' }}>
-              <Plus size={ 16 } />
-              { !isMobile && <span>Add Date</span> }
-            </button>
-          ) }
-          { showNav && (
-            <button onClick={ navToday } style={ btnSecondary }>Today</button>
-          ) }
-          <div style={{ width: 1, height: 24, backgroundColor: C.border }} />
-          {/* View switcher */}
-          <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            { VIEW_TABS.map( ( { mode, label, shortLabel, Icon }, i ) => (
-              <button
-                key={ mode }
-                onClick={ () => setViewMode( mode ) }
-                title={ `${ label } view` }
-                style={{
-                  ...btnIcon,
-                  borderRight: i < VIEW_TABS.length - 1 ? `1px solid ${ C.border }` : undefined,
-                  backgroundColor: viewMode === mode ? C.primary : C.white,
-                  color:           viewMode === mode ? '#fff' : C.mutedFg,
-                  gap: 4,
-                  padding: isMobile ? '6px 8px' : '7px 10px',
-                  fontSize: 11, fontWeight: 600,
-                }}
-              >
-                { isMobile ? <span>{ shortLabel }</span> : <><Icon size={ 14 } /><span>{ label }</span></> }
-              </button>
-            ) ) }
+            { viewSwitcher }
           </div>
         </div>
-      </div>
+      ) : (
+        <div ref={ calHeaderRef } style={{ ...headerRow, borderBottom: `1px solid ${ C.border }`, position: 'sticky', top: appHeaderH, zIndex: 40 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            { iconTitle }
+            { navArrows }
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+            { addButton }
+            { todayButton }
+            <div style={{ width: 1, height: 24, backgroundColor: C.border }} />
+            { viewSwitcher }
+          </div>
+        </div>
+      ) }
 
       {/* ═══════════════════════════════════════════════════════════
           MONTH VIEW
