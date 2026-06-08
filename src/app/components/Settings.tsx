@@ -656,6 +656,10 @@ function ReleaseModal( { release, teamMonthlyHours, onSave, onClose, isSaving }:
 function ReleasesSection( { settings }: { settings: AppSettings } ) {
   const data_releases = useDataStore( s => s.releases );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
+  // Order releases soonest → latest by start date; undated releases sink to the bottom
+  const sortedReleases = [ ...data_releases ].sort( ( a, b ) =>
+    ( a.startWeek || '￿' ).localeCompare( b.startWeek || '￿' )
+  );
   const [ modal, setModal ]     = useState<{ mode: 'add' | 'edit'; release: ReleaseForm; id?: string } | null>( null );
   const [ saving, setSaving ]   = useState( false );
   const [ deleting, setDeleting ] = useState<string | null>( null );
@@ -706,7 +710,7 @@ function ReleasesSection( { settings }: { settings: AppSettings } ) {
           <p style={{ fontSize:14, color:'#64748b', margin:0 }}>No releases yet.</p>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-            { data_releases.map( r => (
+            { sortedReleases.map( r => (
               <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', borderRadius:6, background:'#fafbfc', border:'1px solid #e2e8f0' }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:14, fontWeight:500, color:'#1a1f36' }}>{ r.name }</div>
