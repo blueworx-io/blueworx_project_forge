@@ -26,6 +26,13 @@ class Forge_PM_Enqueue {
 
 		if ( file_exists( $css_file ) ) {
 			wp_enqueue_style( 'forge-pm-app', FORGE_PM_URL . 'assets/css/forge-app.css', [], $css_ver );
+			// Hide WP admin bar on Forge pages — CSS override avoids early-hook timing issues
+			wp_add_inline_style( 'forge-pm-app', '#wpadminbar{display:none!important}html.admin-bar,html.admin-bar body{margin-top:0!important;padding-top:0!important}' );
+		} else {
+			// No built CSS yet — register a minimal handle so the inline style can still be added
+			wp_register_style( 'forge-pm-adminbar', false, [], FORGE_PM_VERSION );
+			wp_enqueue_style( 'forge-pm-adminbar' );
+			wp_add_inline_style( 'forge-pm-adminbar', '#wpadminbar{display:none!important}html.admin-bar,html.admin-bar body{margin-top:0!important;padding-top:0!important}' );
 		}
 
 		// Load WP media uploader for users who can access the media library
@@ -43,7 +50,10 @@ class Forge_PM_Enqueue {
 		wp_localize_script( 'forge-pm-app', 'forgePMData', [
 			'apiUrl'      => rest_url( 'forge/v1' ),
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
-			'isAdmin'     => current_user_can( 'edit_posts' ),
+			'isAdmin'     => current_user_can( 'manage_options' ),
+			'canEdit'     => current_user_can( 'edit_posts' ),
+			'userRole'    => Forge_PM_Roles::get_user_role(),
+			'adminUrl'    => admin_url(),
 			'isLoggedIn'  => is_user_logged_in(),
 			'siteUrl'     => get_site_url(),
 			'loginUrl'    => wp_login_url( $redirect ),

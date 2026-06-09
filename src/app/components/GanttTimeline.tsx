@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerD
 import { format, startOfWeek, addWeeks, eachWeekOfInterval, startOfQuarter, parseISO, addDays, getISOWeek } from 'date-fns';
 import { Item, Release, Feature, Bug, Feedback, SubItem, AppSettings, CompanyDate } from '../types';
 import { AddItemModal } from './AddItemModal';
-import { updateCompanyDate, isAdmin } from '../api/wordpress';
+import { updateCompanyDate, isAdmin, canEdit } from '../api/wordpress';
 import { useDragScroll } from '../hooks/useDragScroll';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
@@ -417,6 +417,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const openModal     = useUIStore( s => s.openModal );
   const filters       = useUIStore( s => s.filters );
   const adminMode     = isAdmin();
+  const editMode      = canEdit();
   const isMobile = useIsMobile( 768 );
   const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
   const [density,       setDensity]       = useState<'normal' | 'compact'>( () => window.innerWidth < 768 ? 'compact' : 'normal' );
@@ -429,7 +430,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const [weekPopup,     setWeekPopup]     = useState<Date | null>( null );
 
   // bodyRef drives drag-scroll; headerRef is synced on scroll for fixed column headers
-  const bodyRef   = useDragScroll<HTMLDivElement>();
+  const bodyRef   = useDragScroll<HTMLDivElement>( { axis: 'x' } );
   const headerRef = useRef<HTMLDivElement>( null );
 
   const today     = useMemo( () => new Date(), [] );
@@ -553,7 +554,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
           <FilterButton />
           <ShareButton />
         </div>
-        { adminMode && (
+        { editMode && (
           <button onClick={ () => setAddItemOpen( true ) }
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>
             <Plus size={ 15 } />{ !isMobile && <span>Add Item</span> }
@@ -630,7 +631,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
         data-scroll
         className="scrollbar-hide"
         onScroll={ syncHeader }
-        style={{ flex: 1, overflow: 'auto', backgroundColor: '#f8fafc', cursor: 'grab' }}
+        style={{ flex: 1, overflow: 'auto', backgroundColor: '#f8fafc', cursor: 'grab', overscrollBehavior: 'none' }}
       >
         <div style={{ minWidth: 'max-content', position: 'relative', minHeight: '100%' }}>
 
@@ -690,7 +691,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
       </div>
     </div>
 
-    { adminMode && settings && (
+    { editMode && settings && (
       <AddItemModal isOpen={ addItemOpen } onClose={ () => setAddItemOpen( false ) } onSuccess={ () => { setAddItemOpen( false ); triggerRefresh(); } } settings={ settings } />
     ) }
 

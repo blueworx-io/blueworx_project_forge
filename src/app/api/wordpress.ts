@@ -7,6 +7,9 @@ declare global {
       apiUrl: string;
       nonce: string;
       isAdmin: boolean;
+      canEdit?: boolean;
+      userRole?: string;
+      adminUrl?: string;
       isLoggedIn?: boolean;
       siteUrl: string;
       loginUrl?: string;
@@ -24,12 +27,30 @@ function getConfig() {
     // import.meta.env.DEV is false in any production build, and live WordPress
     // always injects window.forgePMData, so this never affects live data.
     isAdmin: import.meta.env.DEV,
+    canEdit: import.meta.env.DEV,
+    userRole: import.meta.env.DEV ? 'admin' : 'visitor',
+    adminUrl: '',
     siteUrl: '',
   };
 }
 
+/** True only for WP administrators (manage_options). */
 export function isAdmin(): boolean {
   return getConfig().isAdmin;
+}
+
+/** True for admins and Forge Managers — anyone who can create/edit/delete items. */
+export function canEdit(): boolean {
+  return getConfig().canEdit ?? getConfig().isAdmin;
+}
+
+/** True for Forge Managers (edit_posts but not manage_options). */
+export function isManager(): boolean {
+  return getConfig().userRole === 'manager';
+}
+
+export function getUserRole(): string {
+  return getConfig().userRole ?? 'visitor';
 }
 
 export function isLoggedIn(): boolean {
@@ -42,6 +63,10 @@ export function getLoginUrl(): string {
 
 export function getLogoutUrl(): string {
   return getConfig().logoutUrl || '/wp-login.php?action=logout';
+}
+
+export function getAdminUrl(): string {
+  return getConfig().adminUrl || '/wp-admin/';
 }
 
 async function apiFetch<T>( path: string, options: RequestInit = {} ): Promise<T> {
