@@ -1061,6 +1061,7 @@ const MANAGER_SECTIONS: Section[] = [ 'brands', 'categories', 'releases' ];
 // ── Main Settings component ──────────────────────────────────────────────────
 export function Settings( { settings, onSettingsChange }: SettingsProps ) {
   const wpAdmin = isAdmin();
+  const isMobile = useIsMobile();
   const visibleSections = wpAdmin ? SECTION_NAV : SECTION_NAV.filter( s => MANAGER_SECTIONS.includes( s.id ) );
   const defaultSection: Section = wpAdmin ? 'config' : 'brands';
   const [ activeSection, setActiveSection ] = useState<Section>( defaultSection );
@@ -1068,28 +1069,35 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
 
   return (
     <>
-      <style>{ `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }` }</style>
+      <style>{ `
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .settings-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+        .settings-nav-scroll::-webkit-scrollbar { display: none; }
+      ` }</style>
       <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
 
         {/* Mobile tab strip */}
-        <div className="flex sm:hidden" style={{ borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', flexShrink:0 }}>
-          { visibleSections.map( ({ id, label, Icon }) => {
-            const active = activeSection === id;
-            return (
-              <button key={id} onClick={ () => setActiveSection(id) }
-                style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 16px', fontSize:13, fontWeight:500, border:'none', borderBottom: active?'2px solid #2563eb':'2px solid transparent', marginBottom:-1, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background:'transparent', color: active?'#2563eb':'#64748b' }}>
-                <Icon size={13} />{ label }
-              </button>
-            );
-          } ) }
-        </div>
+        { isMobile && (
+          <div className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', flexShrink:0 }}>
+            { visibleSections.map( ({ id, label, Icon }) => {
+              const active = activeSection === id;
+              return (
+                <button key={id} onClick={ () => setActiveSection(id) }
+                  style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 16px', fontSize:13, fontWeight:500, border:'none', borderBottom: active?'2px solid #2563eb':'2px solid transparent', marginBottom:-1, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background:'transparent', color: active?'#2563eb':'#64748b' }}>
+                  <Icon size={13} />{ label }
+                </button>
+              );
+            } ) }
+          </div>
+        ) }
 
         {/* Desktop row */}
         <div style={{ display:'flex', flex:1, minHeight:0 }}>
 
           {/* Sidebar */}
-          <nav className="hidden sm:flex"
-            style={{ flexShrink:0, width:200, borderRight:'1px solid #e2e8f0', background:'#fff', padding:'20px 12px', flexDirection:'column', gap:2, overflowY:'auto' }}>
+          { !isMobile && (
+          <nav className="settings-nav-scroll"
+            style={{ flexShrink:0, width:200, borderRight:'1px solid #e2e8f0', background:'#fff', padding:'20px 12px', display:'flex', flexDirection:'column', gap:2, overflowY:'auto' }}>
             <p style={{ fontSize:11, fontWeight:600, color:'#94a3b8', letterSpacing:'0.07em', textTransform:'uppercase', margin:'0 4px 10px' }}>Settings</p>
             { visibleSections.map( ({ id, label, Icon }) => {
               const active = activeSection === id;
@@ -1101,6 +1109,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
               );
             } ) }
           </nav>
+          ) }
 
           {/* Content */}
           <div style={{ flex:1, overflowY:'auto', padding:24 }}>

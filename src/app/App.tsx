@@ -184,7 +184,7 @@ export default function App() {
               <button onClick={ currentView === 'settings' ? closeSettings : openSettings }
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #e2e8f0', backgroundColor: currentView === 'settings' ? '#2563eb' : '#ffffff', color: currentView === 'settings' ? '#ffffff' : '#1a1f36', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}>
                 <SettingsIcon size={ 15 } />
-                <span className="hidden sm:inline">Settings</span>
+                { !isMobile && <span>Settings</span> }
               </button>
             ) : (
               <a href={ getLoginUrl() }
