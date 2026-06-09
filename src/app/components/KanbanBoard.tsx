@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { DndProvider, useDrag, useDrop, useDragLayer } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Save, Check, AlertCircle, X, Plus, GripVertical } from 'lucide-react';
 import { ItemCard } from './ItemCard';
@@ -288,6 +288,42 @@ function MobileKanbanColumn( { items, onItemClick, releases }: {
   );
 }
 
+// ── KanbanDragAutoScroll ──────────────────────────────────────────────────────
+// Auto-scrolls the board container horizontally when dragging near left/right edges (#43).
+function KanbanDragAutoScroll( { scrollRef }: { scrollRef: React.RefObject<HTMLDivElement> } ) {
+  const { isDragging, clientOffset } = useDragLayer( monitor => ( {
+    isDragging:   monitor.isDragging(),
+    clientOffset: monitor.getClientOffset(),
+  } ) );
+
+  const offsetRef = useRef( clientOffset );
+
+  // Keep ref in sync with latest drag position after each render
+  useEffect( () => { offsetRef.current = clientOffset; } );
+
+  useEffect( () => {
+    if ( ! isDragging || ! scrollRef.current ) return;
+    const el    = scrollRef.current;
+    const EDGE  = 120;
+    const SPEED = 18;
+    let rafId: number;
+
+    const tick = () => {
+      const off = offsetRef.current;
+      if ( off ) {
+        const { left, right } = el.getBoundingClientRect();
+        if ( off.x < left + EDGE )  el.scrollLeft -= ( ( left + EDGE - off.x ) / EDGE ) * SPEED;
+        if ( off.x > right - EDGE ) el.scrollLeft += ( ( off.x - ( right - EDGE ) ) / EDGE ) * SPEED;
+      }
+      rafId = requestAnimationFrame( tick );
+    };
+    rafId = requestAnimationFrame( tick );
+    return () => cancelAnimationFrame( rafId );
+  }, [isDragging, scrollRef] );
+
+  return null;
+}
+
 // ── KanbanBoard ───────────────────────────────────────────────────────────────
 export function KanbanBoard( { settings }: KanbanBoardProps ) {
   const storeAllItems  = useDataStore( useShallow( selectAllItems ) );
@@ -472,6 +508,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   // ── Desktop: full DnD board ──────────────────────────────────────────────────
   return (
     <DndProvider backend={ HTML5Backend }>
+      <KanbanDragAutoScroll scrollRef={ scrollRef } />
       <div className="flex flex-col h-full">
         {/* Top bar — shared header spec (issue #16) */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 border-b border-border flex-shrink-0" style={ { minHeight: 56, backgroundColor: '#ffffff' } }>

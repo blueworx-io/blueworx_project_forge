@@ -5,24 +5,26 @@ import { Item } from '../types';
  * Each dimension is either 'all' (no filtering) or a specific value.
  */
 export interface ViewFilters {
-  release:  string; // 'all' or a release id
-  stage:    string; // 'all' or a workflow-stage id
-  category: string; // 'all' or a category name
-  brand:    string; // 'all' or a brand name
+  release:     string; // 'all' or a release id
+  stage:       string; // 'all' or a workflow-stage id
+  category:    string; // 'all' or a category name
+  brand:       string; // 'all' or a brand name
+  statTracking: string; // 'all' | 'tracked' | 'not-tracked'
 }
 
 export const EMPTY_FILTERS: ViewFilters = {
-  release:  'all',
-  stage:    'all',
-  category: 'all',
-  brand:    'all',
+  release:     'all',
+  stage:       'all',
+  category:    'all',
+  brand:       'all',
+  statTracking: 'all',
 };
 
 export type FilterKey = keyof ViewFilters;
 
 /** True when any filter is narrowing the result set. */
 export function hasActiveFilters( f: ViewFilters ): boolean {
-  return f.release !== 'all' || f.stage !== 'all' || f.category !== 'all' || f.brand !== 'all';
+  return f.release !== 'all' || f.stage !== 'all' || f.category !== 'all' || f.brand !== 'all' || f.statTracking !== 'all';
 }
 
 /**
@@ -44,6 +46,12 @@ export function matchesFilters( item: Item, f: ViewFilters ): boolean {
   if ( f.brand !== 'all' ) {
     const brands = 'brands' in item ? item.brands : undefined;
     if ( ! brands || ! brands.includes( f.brand ) ) return false;
+  }
+  if ( f.statTracking !== 'all' ) {
+    if ( ! ( 'isTrackedAsStat' in item ) ) return false;
+    const tracked = ( item as { isTrackedAsStat: boolean } ).isTrackedAsStat;
+    if ( f.statTracking === 'tracked'     && ! tracked ) return false;
+    if ( f.statTracking === 'not-tracked' &&   tracked ) return false;
   }
   return true;
 }

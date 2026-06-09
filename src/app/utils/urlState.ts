@@ -23,10 +23,11 @@ export function parseUrlState(): UrlState {
     view: VIEWS.includes( view as View ) ? ( view as View ) : undefined,
     itemId: p.get( 'item' ) || undefined,
     filters: {
-      release:  p.get( 'r' ) || 'all',
-      stage:    p.get( 's' ) || 'all',
-      category: p.get( 'c' ) || 'all',
-      brand:    p.get( 'b' ) || 'all',
+      release:     p.get( 'r' )  || 'all',
+      stage:       p.get( 's' )  || 'all',
+      category:    p.get( 'c' )  || 'all',
+      brand:       p.get( 'b' )  || 'all',
+      statTracking: p.get( 'st' ) || 'all',
     },
   };
 }
@@ -36,10 +37,11 @@ function buildParams( state: UrlState ): URLSearchParams {
   if ( state.view )   p.set( 'view', state.view );
   if ( state.itemId ) p.set( 'item', state.itemId );
   const f = state.filters;
-  if ( f.release  !== 'all' ) p.set( 'r', f.release );
-  if ( f.stage    !== 'all' ) p.set( 's', f.stage );
-  if ( f.category !== 'all' ) p.set( 'c', f.category );
-  if ( f.brand    !== 'all' ) p.set( 'b', f.brand );
+  if ( f.release      !== 'all' ) p.set( 'r',  f.release );
+  if ( f.stage        !== 'all' ) p.set( 's',  f.stage );
+  if ( f.category     !== 'all' ) p.set( 'c',  f.category );
+  if ( f.brand        !== 'all' ) p.set( 'b',  f.brand );
+  if ( f.statTracking !== 'all' ) p.set( 'st', f.statTracking );
   return p;
 }
 

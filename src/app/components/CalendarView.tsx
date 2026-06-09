@@ -328,7 +328,7 @@ export function CalendarView() {
 
           {/* Day-of-week header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
+            display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             borderBottom: `1px solid ${ C.border }`, backgroundColor: C.white,
             position: 'sticky', top: appHeaderH + calHeaderH, zIndex: 10,
           }}>
@@ -338,7 +338,7 @@ export function CalendarView() {
           </div>
 
           {/* Days grid */}
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: `minmax(${ isMobile ? 72 : 120 }px, 1fr)` }}>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gridAutoRows: `minmax(${ isMobile ? 72 : 120 }px, 1fr)` }}>
             { monthDays.map( ( day, idx ) => {
               const isCurrentMonth = isSameMonth( day, currentDate );
               const isDayToday     = isToday( day );
@@ -350,6 +350,7 @@ export function CalendarView() {
                   borderRight: `1px solid ${ C.border }`,
                   borderLeft: idx % 7 === 0 ? `1px solid ${ C.border }` : 'none',
                   display: 'flex', flexDirection: 'column',
+                  overflow: 'hidden', minWidth: 0,
                   backgroundColor: isCurrentMonth ? C.white : '#f8fafc',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '4px 4px 2px' : '6px 8px 4px' }}>
