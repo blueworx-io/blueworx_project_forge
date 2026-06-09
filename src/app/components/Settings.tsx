@@ -584,7 +584,7 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
   onSave: ( f: ReleaseForm ) => void; onClose: () => void; isSaving: boolean;
 } ) {
   const [ form, setForm ] = useState<ReleaseForm>( release );
-  const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
+  const navVisible = useIsMobile(); // bottom mobile menu is shown below 900px
 
   // Merge a structured change and re-derive the composed display name. The name
   // field stays editable as a manual override (see the input below). (#19)

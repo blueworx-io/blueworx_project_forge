@@ -74,7 +74,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
   const features = useDataStore( s => s.features );
   const releases = useDataStore( s => s.releases );
   const subitems = useDataStore( s => s.subitems );
-  const isMobile = useIsMobile( 640 );
+  const isMobile = useIsMobile( 900 );
   const [itemType,         setItemType]        = useState( 'feature' );
   const [name,             setName]            = useState( '' );
   const [description,      setDescription]     = useState( '' );

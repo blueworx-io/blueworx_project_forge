@@ -419,7 +419,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const adminMode     = isAdmin();
   const editMode      = canEdit();
   const isMobile = useIsMobile( 768 );
-  const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
+  const navVisible = useIsMobile(); // bottom mobile menu is shown below 900px
   const [density,       setDensity]       = useState<'normal' | 'compact'>( () => window.innerWidth < 768 ? 'compact' : 'normal' );
   const [isSidebarOpen, setIsSidebarOpen] = useState( () => window.innerWidth >= 768 );
   const [addItemOpen,   setAddItemOpen]   = useState( false );
