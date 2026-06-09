@@ -7,6 +7,7 @@ import {
 import { AppSettings, ArchivedItem, WorkflowStatus, BrandConfig, Release } from '../types';
 import { useDataStore } from '../store/useDataStore';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useDragScroll } from '../hooks/useDragScroll';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import {
   saveSettings, fetchArchived, restoreItem,
@@ -1062,6 +1063,7 @@ const MANAGER_SECTIONS: Section[] = [ 'brands', 'categories', 'releases' ];
 export function Settings( { settings, onSettingsChange }: SettingsProps ) {
   const wpAdmin = isAdmin();
   const isMobile = useIsMobile();
+  const tabStripRef = useDragScroll<HTMLDivElement>( { axis: 'x', allowButtons: true } );
   const visibleSections = wpAdmin ? SECTION_NAV : SECTION_NAV.filter( s => MANAGER_SECTIONS.includes( s.id ) );
   const defaultSection: Section = wpAdmin ? 'config' : 'brands';
   const [ activeSection, setActiveSection ] = useState<Section>( defaultSection );
@@ -1078,7 +1080,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
 
         {/* Mobile tab strip */}
         { isMobile && (
-          <div className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', flexShrink:0 }}>
+          <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', flexShrink:0, cursor:'grab' }}>
             { visibleSections.map( ({ id, label, Icon }) => {
               const active = activeSection === id;
               return (

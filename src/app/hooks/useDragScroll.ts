@@ -3,10 +3,12 @@ import { useEffect, useRef } from 'react';
 interface DragScrollOptions {
   /** Constrain scrolling to a single axis. 'both' detects primary direction on first move. */
   axis?: 'both' | 'x' | 'y';
+  /** Allow drag-scroll to start on button/anchor elements (e.g. tab strips where all items are buttons). */
+  allowButtons?: boolean;
 }
 
 export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions = {} ) {
-  const { axis = 'both' } = options;
+  const { axis = 'both', allowButtons = false } = options;
   const ref = useRef<T>( null );
 
   useEffect( () => {
@@ -55,11 +57,11 @@ export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions
     const onMouseDown = ( e: MouseEvent ) => {
       const target = e.target as HTMLElement;
       // Skip if clicking interactive elements or react-dnd drag sources
-      if (
+      if ( !allowButtons && (
         target.tagName === 'BUTTON' || target.tagName === 'A' ||
         target.closest( 'button' ) || target.closest( 'a' ) ||
         target.closest( '[draggable="true"]' )
-      ) return;
+      ) ) return;
 
       stopMomentum();
       isDown     = true;
@@ -142,7 +144,7 @@ export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions
       document.removeEventListener( 'mouseup', onRelease );
       el.removeEventListener( 'mouseleave', onRelease );
     };
-  }, [axis] );
+  }, [axis, allowButtons] );
 
   return ref;
 }
