@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CalendarRange, CalendarDays, Target, Plus, X, List, LayoutGrid } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar as CalendarIcon, CalendarRange, CalendarDays, Target, Plus, X, List, LayoutGrid } from 'lucide-react';
 import {
   format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
   startOfMonth, endOfMonth, eachDayOfInterval,
@@ -56,7 +56,7 @@ export function CalendarView() {
     return rs;
   }, [ storeReleases, features, subitems, bugs, feedbackItems, filters ] );
   const adminMode    = isAdmin();
-  const isMobile = useIsMobile( 640 );
+  const isMobile = useIsMobile( 900 );
   const [currentDate, setCurrentDate] = useState( () => new Date() );
   const [viewMode,    setViewMode]    = useState<CalViewMode>( 'month' );
   const [isAddingEvent, setIsAddingEvent] = useState( false );
@@ -222,26 +222,53 @@ export function CalendarView() {
     <button onClick={ navToday } style={ btnSecondary }>Today</button>
   );
 
+  const [viewDropOpen, setViewDropOpen] = useState( false );
+  const viewDropRef = useRef<HTMLDivElement>( null );
+  const closeViewDrop = useCallback( ( e: MouseEvent ) => {
+    if ( viewDropRef.current && !viewDropRef.current.contains( e.target as Node ) ) setViewDropOpen( false );
+  }, [] );
+  useEffect( () => {
+    if ( viewDropOpen ) document.addEventListener( 'mousedown', closeViewDrop );
+    return () => document.removeEventListener( 'mousedown', closeViewDrop );
+  }, [ viewDropOpen, closeViewDrop ] );
+
+  const activeTab = VIEW_TABS.find( t => t.mode === viewMode )!;
+  const ActiveIcon = activeTab.Icon;
+
   const viewSwitcher = (
-    <div style={{ display: 'flex', border: `1px solid ${ C.border }`, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-      { VIEW_TABS.map( ( { mode, label, shortLabel, Icon }, i ) => (
-        <button
-          key={ mode }
-          onClick={ () => setViewMode( mode ) }
-          title={ `${ label } view` }
-          style={{
-            ...btnIcon,
-            borderRight: i < VIEW_TABS.length - 1 ? `1px solid ${ C.border }` : undefined,
-            backgroundColor: viewMode === mode ? C.primary : C.white,
-            color:           viewMode === mode ? '#fff' : C.mutedFg,
-            gap: 4,
-            padding: isMobile ? '6px 8px' : '7px 10px',
-            fontSize: 11, fontWeight: 600,
-          }}
-        >
-          { isMobile ? <span>{ shortLabel }</span> : <><Icon size={ 14 } /><span>{ label }</span></> }
-        </button>
-      ) ) }
+    <div ref={ viewDropRef } style={{ position: 'relative' }}>
+      <button
+        onClick={ () => setViewDropOpen( o => !o ) }
+        style={{ ...btnSecondary, gap: 6, padding: isMobile ? '6px 10px' : '7px 12px', fontSize: 13 }}
+      >
+        <ActiveIcon size={ 14 } />
+        { !isMobile && <span>{ activeTab.label }</span> }
+        <ChevronDown size={ 13 } style={{ opacity: 0.6 }} />
+      </button>
+      { viewDropOpen && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 200,
+          backgroundColor: C.white, border: `1px solid ${ C.border }`, borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, overflow: 'hidden',
+        }}>
+          { VIEW_TABS.map( ( { mode, label, Icon } ) => (
+            <button
+              key={ mode }
+              onClick={ () => { setViewMode( mode ); setViewDropOpen( false ); } }
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '9px 14px', fontSize: 13, fontWeight: viewMode === mode ? 600 : 400,
+                backgroundColor: viewMode === mode ? '#eff6ff' : 'transparent',
+                color: viewMode === mode ? C.primary : C.fg,
+                border: 'none', cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <Icon size={ 14 } />
+              { label }
+            </button>
+          ) ) }
+        </div>
+      ) }
     </div>
   );
 

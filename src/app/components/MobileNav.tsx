@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
-import { BarChart3, LayoutGrid, Calendar, Menu, Settings as SettingsIcon, X, LogIn, LogOut, AlertTriangle, CalendarClock, ChevronRight } from 'lucide-react';
+import { BarChart3, LayoutGrid, Calendar, Menu, Settings as SettingsIcon, X, LogIn, LogOut, AlertTriangle, CalendarClock, ChevronRight, ExternalLink } from 'lucide-react';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
 import { AppSettings, Item } from '../types';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
-import { isLoggedIn, getLoginUrl, getLogoutUrl } from '../api/wordpress';
+import { isLoggedIn, getLoginUrl, getLogoutUrl, getAdminUrl } from '../api/wordpress';
 
 type View = 'kanban' | 'gantt' | 'calendar' | 'settings';
 
@@ -33,6 +33,7 @@ interface MobileNavProps {
   switchView: ( view: Exclude<View, 'settings'> ) => void;
   openSettings: () => void;
   adminMode: boolean;
+  isWpAdmin?: boolean;
   settings: AppSettings;
   drawerOpen: boolean;
   setDrawerOpen: ( open: boolean ) => void;
@@ -45,7 +46,7 @@ function relativeDay( diff: number ): string {
 }
 
 export function MobileNav( {
-  currentView, switchView, openSettings, adminMode, settings, drawerOpen, setDrawerOpen,
+  currentView, switchView, openSettings, adminMode, isWpAdmin = false, settings, drawerOpen, setDrawerOpen,
 }: MobileNavProps ) {
   const bugs         = useDataStore( s => s.bugs );
   const feedback     = useDataStore( s => s.feedback );
@@ -219,7 +220,7 @@ export function MobileNav( {
             ) }
           </div>
 
-          {/* Footer — Settings (admin only) + Log in / Log out by auth state */}
+          {/* Footer — Settings (admin/manager) + WP Admin (admin only) + Log in / Log out */}
           <div style={{ flexShrink: 0, padding: 12, borderTop: `1px solid ${ C.border }`, display: 'flex', flexDirection: 'column', gap: 8, ...stagger( 3 ) }}>
             { adminMode && (
               <button onClick={ handleSettings }
@@ -227,6 +228,12 @@ export function MobileNav( {
                 <SettingsIcon size={ 18 } />
                 Settings
               </button>
+            ) }
+            { isWpAdmin && (
+              <a href={ getAdminUrl() } target="_blank" rel="noreferrer" style={ authLinkStyle }>
+                <ExternalLink size={ 18 } />
+                WordPress Admin
+              </a>
             ) }
             { loggedIn ? (
               <a href={ getLogoutUrl() } style={ authLinkStyle }>

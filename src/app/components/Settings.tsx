@@ -10,7 +10,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import {
   saveSettings, fetchArchived, restoreItem,
-  createItem, archiveItem, updateItem,
+  createItem, archiveItem, updateItem, isAdmin,
 } from '../api/wordpress';
 
 interface SettingsProps {
@@ -584,7 +584,7 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
   onSave: ( f: ReleaseForm ) => void; onClose: () => void; isSaving: boolean;
 } ) {
   const [ form, setForm ] = useState<ReleaseForm>( release );
-  const navVisible = useIsMobile(); // bottom mobile menu is shown below 640px
+  const navVisible = useIsMobile(); // bottom mobile menu is shown below 900px
 
   // Merge a structured change and re-derive the composed display name. The name
   // field stays editable as a manual override (see the input below). (#19)
@@ -1056,9 +1056,14 @@ function ExportSection( { settings }: { settings: AppSettings } ) {
   );
 }
 
+const MANAGER_SECTIONS: Section[] = [ 'brands', 'categories', 'releases' ];
+
 // ── Main Settings component ──────────────────────────────────────────────────
 export function Settings( { settings, onSettingsChange }: SettingsProps ) {
-  const [ activeSection, setActiveSection ] = useState<Section>( 'config' );
+  const wpAdmin = isAdmin();
+  const visibleSections = wpAdmin ? SECTION_NAV : SECTION_NAV.filter( s => MANAGER_SECTIONS.includes( s.id ) );
+  const defaultSection: Section = wpAdmin ? 'config' : 'brands';
+  const [ activeSection, setActiveSection ] = useState<Section>( defaultSection );
   const persist = useSaveApi( onSettingsChange );
 
   return (
@@ -1068,7 +1073,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
 
         {/* Mobile tab strip */}
         <div className="flex sm:hidden" style={{ borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', flexShrink:0 }}>
-          { SECTION_NAV.map( ({ id, label, Icon }) => {
+          { visibleSections.map( ({ id, label, Icon }) => {
             const active = activeSection === id;
             return (
               <button key={id} onClick={ () => setActiveSection(id) }
@@ -1086,7 +1091,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
           <nav className="hidden sm:flex"
             style={{ flexShrink:0, width:200, borderRight:'1px solid #e2e8f0', background:'#fff', padding:'20px 12px', flexDirection:'column', gap:2, overflowY:'auto' }}>
             <p style={{ fontSize:11, fontWeight:600, color:'#94a3b8', letterSpacing:'0.07em', textTransform:'uppercase', margin:'0 4px 10px' }}>Settings</p>
-            { SECTION_NAV.map( ({ id, label, Icon }) => {
+            { visibleSections.map( ({ id, label, Icon }) => {
               const active = activeSection === id;
               return (
                 <button key={id} onClick={ () => setActiveSection(id) }

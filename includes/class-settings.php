@@ -69,7 +69,7 @@ class Forge_PM_Settings {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ __CLASS__, 'api_put' ],
-				'permission_callback' => [ __CLASS__, 'is_admin' ],
+				'permission_callback' => [ __CLASS__, 'can_edit_items' ],
 			],
 		] );
 

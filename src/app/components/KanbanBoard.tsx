@@ -7,7 +7,7 @@ import { ItemCard } from './ItemCard';
 import { WorkflowStage, Item, AppSettings, Release } from '../types';
 import { useDragScroll } from '../hooks/useDragScroll';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { updateStage, isAdmin } from '../api/wordpress';
+import { updateStage, canEdit } from '../api/wordpress';
 import { AddItemModal } from './AddItemModal';
 import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
@@ -295,7 +295,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const openModal      = useUIStore( s => s.openModal );
   const filters        = useUIStore( s => s.filters );
-  const adminMode      = isAdmin();
+  const adminMode      = canEdit();
   const isMobile = useIsMobile( 768 );
   const scrollRef = useDragScroll<HTMLDivElement>( { axis: 'x' } );
   const [isEditMode, setIsEditMode] = useState( false );

@@ -4,7 +4,7 @@ import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, Ite
 import { ImageLightbox } from './ImageLightbox';
 import { LinksEditor, LinksDisplay } from './LinksField';
 import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
-import { updateItem, archiveItem, isAdmin } from '../api/wordpress';
+import { updateItem, archiveItem, canEdit } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -79,7 +79,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const releases  = useDataStore( s => s.releases );
   const patchItem      = useDataStore( s => s.patchItem );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
-  const adminMode = isAdmin();
+  const adminMode = canEdit();
   const isMobile  = useIsMobile();
   const [lightboxOpen,    setLightboxOpen]    = useState( false );
   const [lightboxIndex,   setLightboxIndex]   = useState( 0 );

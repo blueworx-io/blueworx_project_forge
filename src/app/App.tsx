@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, LogIn, Loader2 } from 'lucide-react';
+import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, LogIn, Loader2, ExternalLink } from 'lucide-react';
 import { AppSettings, BrandConfig } from './types';
 import { Feature, SubItem, Bug, Feedback, Release, CompanyDate } from './types';
-import { isAdmin, getLoginUrl, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
+import { isAdmin, isManager, getAdminUrl, getLoginUrl, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
 import { useDataStore, selectAllItems } from './store/useDataStore';
 import { useUIStore } from './store/useUIStore';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -75,7 +75,9 @@ export default function App() {
   const isModalOpen   = useUIStore( s => s.isModalOpen );
   const openModal     = useUIStore( s => s.openModal );
 
-  const adminMode  = isAdmin();
+  const adminMode    = isAdmin();
+  const managerMode  = isManager();
+  const canAccessSettings = adminMode || managerMode;
   const isCalendar = currentView === 'calendar';
 
   // Track which views have been visited so we only mount them on first access
@@ -129,10 +131,10 @@ export default function App() {
     if ( item ) openModal( item );
   }, [ hasLoaded, deepLink.itemId, openModal ] );
 
-  // A shared settings link is admin-only — bounce everyone else to the home view (#25).
+  // Settings is accessible to admins and managers — bounce everyone else to the home view (#25).
   useEffect( () => {
-    if ( currentView === 'settings' && ! adminMode ) switchView( 'gantt' );
-  }, [ currentView, adminMode, switchView ] );
+    if ( currentView === 'settings' && ! canAccessSettings ) switchView( 'gantt' );
+  }, [ currentView, canAccessSettings, switchView ] );
 
   const TAB_VIEWS: { view: Exclude<View, 'settings'>; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
     { view: 'gantt',    label: 'Timeline', Icon: BarChart3 },
@@ -178,7 +180,7 @@ export default function App() {
                 );
               } ) }
             </div>
-            { adminMode ? (
+            { canAccessSettings ? (
               <button onClick={ currentView === 'settings' ? closeSettings : openSettings }
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #e2e8f0', backgroundColor: currentView === 'settings' ? '#2563eb' : '#ffffff', color: currentView === 'settings' ? '#ffffff' : '#1a1f36', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}>
                 <SettingsIcon size={ 15 } />
@@ -189,6 +191,12 @@ export default function App() {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', color: '#1a1f36', textDecoration: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s' }}>
                 <LogIn size={ 15 } />
                 <span className="hidden sm:inline">Login</span>
+              </a>
+            ) }
+            { adminMode && (
+              <a href={ getAdminUrl() } target="_blank" rel="noreferrer" title="WordPress Admin"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid #e2e8f0', backgroundColor: '#ffffff', color: '#64748b', textDecoration: 'none', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', transition: 'all 0.15s', flexShrink: 0 }}>
+                <ExternalLink size={ 15 } />
               </a>
             ) }
           </div>
@@ -206,7 +214,7 @@ export default function App() {
           </div>
         ) : (
           <>
-            { currentView === 'settings' && adminMode && (
+            { currentView === 'settings' && canAccessSettings && (
               <ErrorBoundary>
                 <Suspense fallback={ <ChunkLoader /> }>
                   <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } />
@@ -252,7 +260,8 @@ export default function App() {
           currentView={ currentView }
           switchView={ switchView }
           openSettings={ openSettings }
-          adminMode={ adminMode }
+          adminMode={ canAccessSettings }
+          isWpAdmin={ adminMode }
           settings={ settings }
           drawerOpen={ drawerOpen }
           setDrawerOpen={ setDrawerOpen }
