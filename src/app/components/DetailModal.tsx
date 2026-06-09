@@ -907,7 +907,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
                 </span>
               ) }
             </div>
-            { isEditing ? (
+            { isEditing && item.type !== 'release' ? (
               <input autoFocus value={ editForm.name || editForm.title || '' }
                 onChange={ ( e ) => {
                   const key = 'name' in editForm ? 'name' : 'title';

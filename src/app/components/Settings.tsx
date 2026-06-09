@@ -531,14 +531,15 @@ function isoWeekNumber( dateStr: string ): number | null {
 }
 
 // Compose the release display name from its parts. (#19)
-// Example: "v10.9.3 | Q2 (Weeks 28 -> 29)"
-function composeReleaseName( f: { versionNumber: string; quarter: string; startWeek: string; endWeek: string } ): string {
+// Example: "v10.9.3 | Q2: User Management System (Weeks 28 -> 29)"
+function composeReleaseName( f: { versionNumber: string; quarter: string; releaseName: string; startWeek: string; endWeek: string } ): string {
   const version = f.versionNumber ? `v${ f.versionNumber } | ` : '';
   const quarter = ( f.quarter.match( /Q[1-4]/ )?.[0] ) ?? f.quarter;
   const sw = isoWeekNumber( f.startWeek );
   const ew = isoWeekNumber( f.endWeek );
   const weeks = sw && ew ? ` (Weeks ${ sw } -> ${ ew })` : '';
-  return `${ version }${ quarter }${ weeks }`.trim();
+  const head = [ quarter && `${ quarter }:`, f.releaseName ].filter( Boolean ).join( ' ' );
+  return `${ version }${ head }${ weeks }`.trim();
 }
 
 // ── Releases section ─────────────────────────────────────────────────────────
@@ -556,13 +557,13 @@ const VERSION_NUMBERS = [
 ];
 
 interface ReleaseForm {
-  name: string; versionNumber: string; versionType: string;
+  name: string; releaseName: string; versionNumber: string; versionType: string;
   quarter: string; startWeek: string; endWeek: string;
   status: string; capacity: number; isBigWedgeCampaign: boolean;
 }
 
 const emptyReleaseForm: ReleaseForm = {
-  name: '', versionNumber: '', versionType: 'Major Release',
+  name: '', releaseName: '', versionNumber: '', versionType: 'Major Release',
   quarter: '', startWeek: '', endWeek: '',
   status: 'planned', capacity: 0, isBigWedgeCampaign: false,
 };
@@ -595,6 +596,10 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
 
   function updateVersion( num: string, type: string ) {
     apply( { versionNumber: num, versionType: type } );
+  }
+
+  function updateReleaseName( rn: string ) {
+    apply( { releaseName: rn } );
   }
 
   function updateDates( startIsoWeek: string, endIsoWeek: string ) {
@@ -634,10 +639,19 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
             </label>
           </div>
 
-          {/* Release name — auto-composed, read-only */}
+          {/* Descriptive release name (feeds the auto-composed display name) */}
           <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
-            <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Release name <span style={{ fontSize:11, color:'#94a3b8' }}>auto</span></span>
-            <span style={{ fontSize:12, color:'#64748b' }}>Auto-generated from version, quarter, and weeks.</span>
+            <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Release name</span>
+            <span style={{ fontSize:12, color:'#64748b' }}>A short descriptive name for this release.</span>
+            <input type="text" value={form.releaseName}
+              onChange={ e => updateReleaseName( e.target.value ) }
+              style={inputStyle} placeholder="e.g. User Management System" />
+          </label>
+
+          {/* Release title — auto-composed from all fields, read-only */}
+          <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Release title <span style={{ fontSize:11, color:'#94a3b8' }}>auto</span></span>
+            <span style={{ fontSize:12, color:'#64748b' }}>Built from version, quarter, name, and weeks.</span>
             <input type="text" readOnly value={form.name}
               style={{ ...inputStyle, background:'#f8fafc', color:'#64748b' }} placeholder="Set version and dates to generate" />
           </label>
@@ -769,7 +783,7 @@ function ReleasesSection( { settings }: { settings: AppSettings } ) {
                   </div>
                 </div>
                 <button
-                  onClick={ () => setModal({ mode:'edit', id:r.id, release:{ name:r.name, versionNumber:r.versionNumber||'', versionType:r.versionType||'Major Release', quarter:r.quarter, startWeek:r.startWeek, endWeek:r.endWeek, status:r.status, capacity:r.capacity, isBigWedgeCampaign:r.isBigWedgeCampaign } }) }
+                  onClick={ () => setModal({ mode:'edit', id:r.id, release:{ name:r.name, releaseName:r.releaseName||'', versionNumber:r.versionNumber||'', versionType:r.versionType||'Major Release', quarter:r.quarter, startWeek:r.startWeek, endWeek:r.endWeek, status:r.status, capacity:r.capacity, isBigWedgeCampaign:r.isBigWedgeCampaign } }) }
                   style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:6, fontSize:12, fontWeight:500, border:'1px solid #e2e8f0', background:'#fff', color:'#374151', cursor:'pointer' }}>
                   <Pencil size={11} /> Edit
                 </button>
