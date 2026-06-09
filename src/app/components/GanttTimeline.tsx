@@ -234,7 +234,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                       </button>
                       <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ feature.timeEstimate }h</span>
                     </>
-                  ) : <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.feature.bar }} title={ feature.name } /> }
+                  ) : <button onClick={ () => onNavigate( leftPct ) } title={ feature.name } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.feature.bar, pointerEvents:'none' }} /></button> }
                 </div>
                 <div style={{ ...barArea, backgroundColor: '#eff6ff1a' }}>
                   <InlineBar label={ feature.name } hours={ feature.timeEstimate } color={ C.feature } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( feature ) } />
@@ -257,7 +257,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                           </button>
                           <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ si.timeEstimate }h</span>
                         </>
-                      ) : <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.subitem.bar }} title={ si.name } /> }
+                      ) : <button onClick={ () => onNavigate( leftPct ) } title={ si.name } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.subitem.bar, pointerEvents:'none' }} /></button> }
                     </div>
                     <div style={{ ...barArea, backgroundColor: '#ecfeff1a' }}>
                       <InlineBar label={ si.name } hours={ si.timeEstimate } color={ C.subitem } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( si ) } isNested />
@@ -277,7 +277,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                         </button>
                         <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ child.timeEstimate }h</span>
                       </>
-                    ) : <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: child.type === 'bug' ? C.bug.bar : C.feedback.bar }} title={ ( child as Bug ).title } /> }
+                    ) : <button onClick={ () => onNavigate( leftPct ) } title={ ( child as Bug ).title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:child.type === 'bug' ? C.bug.bar : C.feedback.bar, pointerEvents:'none' }} /></button> }
                   </div>
                   <div style={{ ...barArea, backgroundColor: child.type === 'bug' ? '#fff1f21a' : '#faf5ff1a' }}>
                     <InlineBar label={ ( child as Bug ).title } hours={ child.timeEstimate } color={ child.type === 'bug' ? C.bug : C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( child ) } isNested />
@@ -298,7 +298,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                     </button>
                     <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ bug.timeEstimate }h</span>
                   </>
-                ) : <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.bug.bar }} title={ bug.title } /> }
+                ) : <button onClick={ () => onNavigate( leftPct ) } title={ bug.title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.bug.bar, pointerEvents:'none' }} /></button> }
               </div>
               <div style={{ ...barArea, backgroundColor: '#fff1f21a' }}>
                 <InlineBar label={ bug.title } hours={ bug.timeEstimate } color={ C.bug } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( bug ) } />
@@ -317,7 +317,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                     </button>
                     <span style={{ fontSize: 11, color: C.mutedFg, flexShrink: 0 }}>{ fb.timeEstimate }h</span>
                   </>
-                ) : <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.feedback.bar }} title={ fb.title } /> }
+                ) : <button onClick={ () => onNavigate( leftPct ) } title={ fb.title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.feedback.bar, pointerEvents:'none' }} /></button> }
               </div>
               <div style={{ ...barArea, backgroundColor: '#faf5ff1a' }}>
                 <InlineBar label={ fb.title } hours={ fb.timeEstimate } color={ C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( fb ) } />
