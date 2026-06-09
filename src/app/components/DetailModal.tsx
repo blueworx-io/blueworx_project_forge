@@ -493,11 +493,49 @@ export function DetailModal( { settings }: DetailModalProps ) {
     return (
       <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <MetaCard icon={ <div className="w-2 h-2 rounded-full bg-blue-600" /> } bg="bg-blue-100" label="Category" value={ feature.category } />
-          <MetaCard icon={ <Star className="w-4 h-4 text-amber-600" /> } bg="bg-amber-100" label="Feature Price" value={ <span className="capitalize">{ feature.featurePrice }</span> } />
+          <MetaCard icon={ <div className="w-2 h-2 rounded-full bg-blue-600" /> } bg="bg-blue-100" label="Category" value={
+            isEditing && settings?.categories && settings.categories.length > 0 ? (
+              <select value={ ( editForm.category as string ) ?? feature.category }
+                onChange={ e => setEditForm( { ...editForm, category: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="">— None —</option>
+                { [ ...settings.categories ].sort().map( c => <option key={ c } value={ c }>{ c }</option> ) }
+              </select>
+            ) : feature.category
+          } />
+          <MetaCard icon={ <Star className="w-4 h-4 text-amber-600" /> } bg="bg-amber-100" label="Feature Price" value={
+            isEditing ? (
+              <select value={ ( editForm.featurePrice as string ) ?? feature.featurePrice }
+                onChange={ e => setEditForm( { ...editForm, featurePrice: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="free">Free</option>
+                <option value="teaser">Teaser</option>
+                <option value="premium">Premium</option>
+                <option value="scoping">Scoping</option>
+              </select>
+            ) : <span className="capitalize">{ feature.featurePrice }</span>
+          } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
-          <MetaCard icon={ feature.isEnabled ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Circle className="w-4 h-4 text-gray-400" /> } bg={ feature.isEnabled ? 'bg-green-100' : 'bg-gray-100' } label="Status" value={ feature.isEnabled ? 'Enabled' : 'Disabled' } />
-          <MetaCard icon={ <BarChart3 className="w-4 h-4 text-indigo-600" /> } bg="bg-indigo-100" label="Stat Tracking" value={ feature.isTrackedAsStat ? 'Yes' : 'No' } />
+          <MetaCard icon={ feature.isEnabled ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Circle className="w-4 h-4 text-gray-400" /> } bg={ feature.isEnabled ? 'bg-green-100' : 'bg-gray-100' } label="Status" value={
+            isEditing ? (
+              <select value={ ( editForm.isEnabled as boolean ) ? 'enabled' : 'disabled' }
+                onChange={ e => setEditForm( { ...editForm, isEnabled: e.target.value === 'enabled' } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="enabled">Enabled</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            ) : ( feature.isEnabled ? 'Enabled' : 'Disabled' )
+          } />
+          <MetaCard icon={ <BarChart3 className="w-4 h-4 text-indigo-600" /> } bg="bg-indigo-100" label="Stat Tracking" value={
+            isEditing ? (
+              <select value={ ( editForm.isTrackedAsStat as boolean ) ? 'yes' : 'no' }
+                onChange={ e => setEditForm( { ...editForm, isTrackedAsStat: e.target.value === 'yes' } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            ) : ( feature.isTrackedAsStat ? 'Yes' : 'No' )
+          } />
           { ! isEditing && release && <MetaCard icon={ <TrendingUp className="w-4 h-4 text-green-600" /> } bg="bg-green-100" label="Release" value={ release.name } /> }
         </div>
 
@@ -587,8 +625,28 @@ export function DetailModal( { settings }: DetailModalProps ) {
       <>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           { parent && <div className="col-span-full"><MetaCard icon={ <Link2 className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Parent Feature" value={ parent.name } /></div> }
-          <MetaCard icon={ <div className="w-2 h-2 rounded-full bg-cyan-600" /> } bg="bg-cyan-100" label="Category" value={ subItem.category } />
-          <MetaCard icon={ <Star className="w-4 h-4 text-amber-600" /> } bg="bg-amber-100" label="Feature Price" value={ <span className="capitalize">{ subItem.featurePrice }</span> } />
+          <MetaCard icon={ <div className="w-2 h-2 rounded-full bg-cyan-600" /> } bg="bg-cyan-100" label="Category" value={
+            isEditing && settings?.categories && settings.categories.length > 0 ? (
+              <select value={ ( editForm.category as string ) ?? subItem.category }
+                onChange={ e => setEditForm( { ...editForm, category: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="">— None —</option>
+                { [ ...settings.categories ].sort().map( c => <option key={ c } value={ c }>{ c }</option> ) }
+              </select>
+            ) : subItem.category
+          } />
+          <MetaCard icon={ <Star className="w-4 h-4 text-amber-600" /> } bg="bg-amber-100" label="Feature Price" value={
+            isEditing ? (
+              <select value={ ( editForm.featurePrice as string ) ?? subItem.featurePrice }
+                onChange={ e => setEditForm( { ...editForm, featurePrice: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="free">Free</option>
+                <option value="teaser">Teaser</option>
+                <option value="premium">Premium</option>
+                <option value="scoping">Scoping</option>
+              </select>
+            ) : <span className="capitalize">{ subItem.featurePrice }</span>
+          } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
           { ! isEditing && release && <MetaCard icon={ <TrendingUp className="w-4 h-4 text-green-600" /> } bg="bg-green-100" label="Release" value={ release.name } /> }
         </div>
@@ -614,8 +672,28 @@ export function DetailModal( { settings }: DetailModalProps ) {
     return (
       <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <MetaCard icon={ <AlertCircle className="w-4 h-4 text-red-600" /> } bg="bg-red-100" label="Bug Status" value={ <span className="capitalize">{ bug.bugStatus }</span> } />
-          <MetaCard icon={ <div className={ `w-2 h-2 rounded-full ${ priColor }` } /> } bg={ priBg } label="Priority" value={ <span className="capitalize">{ bug.priority }</span> } />
+          <MetaCard icon={ <AlertCircle className="w-4 h-4 text-red-600" /> } bg="bg-red-100" label="Bug Status" value={
+            isEditing ? (
+              <select value={ ( editForm.bugStatus as string ) ?? bug.bugStatus }
+                onChange={ e => setEditForm( { ...editForm, bugStatus: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            ) : <span className="capitalize">{ bug.bugStatus }</span>
+          } />
+          <MetaCard icon={ <div className={ `w-2 h-2 rounded-full ${ priColor }` } /> } bg={ priBg } label="Priority" value={
+            isEditing ? (
+              <select value={ ( editForm.priority as string ) ?? bug.priority }
+                onChange={ e => setEditForm( { ...editForm, priority: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            ) : <span className="capitalize">{ bug.priority }</span>
+          } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
           <MetaCard icon={ <Calendar className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Reported Date" value={ new Date( bug.reportedDate ).toLocaleDateString( 'en-US', { year: 'numeric', month: 'long', day: 'numeric' } ) } />
         </div>
@@ -665,8 +743,28 @@ export function DetailModal( { settings }: DetailModalProps ) {
     return (
       <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <MetaCard icon={ <div className="w-2 h-2 rounded-full bg-purple-600" /> } bg="bg-purple-100" label="Status" value={ <span className="capitalize">{ feedback.status }</span> } />
-          <MetaCard icon={ <div className={ `w-2 h-2 rounded-full ${ priColor }` } /> } bg={ priBg } label="Priority" value={ <span className="capitalize">{ feedback.priority }</span> } />
+          <MetaCard icon={ <div className="w-2 h-2 rounded-full bg-purple-600" /> } bg="bg-purple-100" label="Status" value={
+            isEditing ? (
+              <select value={ ( editForm.status as string ) ?? feedback.status }
+                onChange={ e => setEditForm( { ...editForm, status: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="open">Open</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            ) : <span className="capitalize">{ feedback.status }</span>
+          } />
+          <MetaCard icon={ <div className={ `w-2 h-2 rounded-full ${ priColor }` } /> } bg={ priBg } label="Priority" value={
+            isEditing ? (
+              <select value={ ( editForm.priority as string ) ?? feedback.priority }
+                onChange={ e => setEditForm( { ...editForm, priority: e.target.value } ) }
+                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            ) : <span className="capitalize">{ feedback.priority }</span>
+          } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
           <MetaCard icon={ <Calendar className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Reported Date" value={ new Date( feedback.reportedDate ).toLocaleDateString( 'en-US', { year: 'numeric', month: 'long', day: 'numeric' } ) } />
         </div>

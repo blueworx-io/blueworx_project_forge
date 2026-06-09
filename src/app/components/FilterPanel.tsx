@@ -115,10 +115,14 @@ export function FilterPanel( { settings }: FilterPanelProps ) {
         </header>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Field label="Release"  value={ filters.release }  onChange={ v => setFilter( 'release', v ) }  options={ releaseOptions } />
-          <Field label="Status"   value={ filters.stage }    onChange={ v => setFilter( 'stage', v ) }    options={ stageOptions } />
-          <Field label="Category" value={ filters.category } onChange={ v => setFilter( 'category', v ) } options={ categoryOptions } />
-          <Field label="Brand"    value={ filters.brand }    onChange={ v => setFilter( 'brand', v ) }    options={ brandOptions } />
+          <Field label="Release"      value={ filters.release }      onChange={ v => setFilter( 'release', v ) }      options={ releaseOptions } />
+          <Field label="Status"       value={ filters.stage }        onChange={ v => setFilter( 'stage', v ) }        options={ stageOptions } />
+          <Field label="Category"     value={ filters.category }     onChange={ v => setFilter( 'category', v ) }     options={ categoryOptions } />
+          <Field label="Brand"        value={ filters.brand }        onChange={ v => setFilter( 'brand', v ) }        options={ brandOptions } />
+          <Field label="Stat Tracking" value={ filters.statTracking } onChange={ v => setFilter( 'statTracking', v ) } options={ [
+            { value: 'tracked',     label: 'Tracked' },
+            { value: 'not-tracked', label: 'Not Tracked' },
+          ] } />
         </div>
 
         <footer style={{ padding: '14px 20px', borderTop: '1px solid #e2e8f0' }}>
