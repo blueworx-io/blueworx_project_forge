@@ -8,7 +8,11 @@ import { AppSettings, ArchivedItem, WorkflowStatus, BrandConfig, Release } from 
 import { useDataStore } from '../store/useDataStore';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useDragScroll } from '../hooks/useDragScroll';
-import { BOTTOM_BAR_HEIGHT } from './MobileNav';
+import { BOTTOM_BAR_HEIGHT, TOP_BAR_HEIGHT } from './MobileNav';
+import {
+  dateToIsoWeek, isoWeekToReleaseDate, autoQuarter, autoCapacity,
+  composeReleaseName, formatDate,
+} from '../utils/dates';
 import {
   saveSettings, fetchArchived, restoreItem,
   createItem, archiveItem, updateItem, isAdmin,
@@ -88,6 +92,7 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
   const [ projectName, setProjectName ] = useState( settings.projectName ?? '' );
   const [ hours,       setHours       ] = useState( settings.teamMonthlyHours );
   const [ releaseDay,  setReleaseDay  ] = useState( settings.releaseDay ?? 1 );
+  const isMobile = useIsMobile();
   const fb = useFeedback();
   useEffect( () => {
     setProjectName( settings.projectName ?? '' );
@@ -121,7 +126,7 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
         <input
           type="number" min={1} value={hours}
           onChange={ e => setHours( Number(e.target.value) ) }
-          style={{ ...inputStyle, width:160 }}
+          style={{ ...inputStyle, width: isMobile ? '100%' : 160 }}
         />
       </label>
 
@@ -129,7 +134,7 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
         <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Release day</span>
         <span style={{ fontSize:12, color:'#64748b' }}>The day each release week starts and ends on. Week selections run from this day to this day (e.g. Tuesday → Tuesday).</span>
         <select value={releaseDay} onChange={ e => setReleaseDay( Number(e.target.value) ) }
-          style={{ ...inputStyle, width:200 }}>
+          style={{ ...inputStyle, width: isMobile ? '100%' : 200 }}>
           { DAY_NAMES.map( ( label, idx ) => <option key={idx} value={idx}>{ label }</option> ) }
         </select>
       </label>
@@ -141,6 +146,16 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
           Save
         </button>
         <SaveFeedback state={fb.state} />
+      </div>
+
+      <div style={{ marginTop:20, paddingTop:18, borderTop:'1px solid #e2e8f0' }}>
+        <span style={{ fontSize:13, fontWeight:500, color:'#374151', display:'block', marginBottom:4 }}>Refresh app</span>
+        <span style={{ fontSize:12, color:'#64748b', display:'block', marginBottom:10 }}>Reload to pull the latest version of the plugin.</span>
+        <button onClick={ () => window.location.reload() }
+          style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 16px', borderRadius:6, fontSize:13, fontWeight:500, border:'1px solid #cbd5e1', cursor:'pointer', background:'#fff', color:'#374151' }}>
+          <RotateCcw size={13} />
+          Refresh App
+        </button>
       </div>
     </Card>
   );
@@ -270,6 +285,7 @@ function StatusesSection( { settings, persist }: { settings: AppSettings; persis
 // ── Parent Brand selector card ───────────────────────────────────────────────
 function BrandParentConfig( { settings, persist }: { settings: AppSettings; persist: ( s: AppSettings ) => Promise<AppSettings> } ) {
   const [ parentBrand, setParentBrand ] = useState( settings.parentBrand );
+  const isMobile = useIsMobile();
   const fb = useFeedback();
   useEffect( () => { setParentBrand( settings.parentBrand ); }, [ settings.parentBrand ] );
 
@@ -286,7 +302,7 @@ function BrandParentConfig( { settings, persist }: { settings: AppSettings; pers
         <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Comparison baseline</span>
         <span style={{ fontSize:12, color:'#64748b' }}>The brand all others are measured against.</span>
         <select value={parentBrand} onChange={ e => setParentBrand(e.target.value) }
-          style={{ ...inputStyle, width:220 }}>
+          style={{ ...inputStyle, width: isMobile ? '100%' : 220 }}>
           <option value="">— None —</option>
           { settings.brands.map( b => <option key={b.name} value={b.name}>{b.name}</option> ) }
         </select>
@@ -485,76 +501,14 @@ function CategoriesSection( { settings, persist }: { settings: AppSettings; pers
 
 const DAY_NAMES = [ 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' ];
 
-// ── ISO week helpers ─────────────────────────────────────────────────────────
-function isoWeekToDate( weekStr: string ): string {
-  if ( ! weekStr ) return '';
-  const [yearStr, wStr] = weekStr.split( '-W' );
-  const year = parseInt( yearStr, 10 );
-  const week = parseInt( wStr, 10 );
-  const jan4  = new Date( year, 0, 4 );
-  const dow   = jan4.getDay() || 7;
-  const mon1  = new Date( jan4 );
-  mon1.setDate( jan4.getDate() - dow + 1 );
-  const d = new Date( mon1 );
-  d.setDate( mon1.getDate() + ( week - 1 ) * 7 );
-  return d.toISOString().split( 'T' )[0];
-}
-
-function dateToIsoWeek( dateStr: string ): string {
-  if ( ! dateStr ) return '';
-  const d   = new Date( dateStr + 'T00:00:00' );
-  const thu = new Date( d );
-  const dow = d.getDay() || 7;
-  thu.setDate( d.getDate() - dow + 4 );
-  const year  = thu.getFullYear();
-  const jan1  = new Date( year, 0, 1 );
-  const week  = Math.ceil( ( ( thu.getTime() - jan1.getTime() ) / 86400000 + 1 ) / 7 );
-  return `${ year }-W${ String( week ).padStart( 2, '0' ) }`;
-}
-
-// Convert a picked ISO week to a date landing on the configured release day,
-// so release ranges run release-day → release-day (e.g. Tuesday → Tuesday). (#20)
-function isoWeekToReleaseDate( weekStr: string, releaseDay: number ): string {
-  const monday = isoWeekToDate( weekStr );
-  if ( ! monday ) return '';
-  const offset = releaseDay === 0 ? 6 : releaseDay - 1; // days from Monday to release day
-  const d = new Date( monday + 'T00:00:00' );
-  d.setDate( d.getDate() + offset );
-  return d.toISOString().split( 'T' )[0];
-}
-
-// ISO week number (1–53) for a date string, used in the auto release name.
-function isoWeekNumber( dateStr: string ): number | null {
-  const iso = dateToIsoWeek( dateStr );
-  if ( ! iso ) return null;
-  return parseInt( iso.split( '-W' )[1], 10 );
-}
-
-// Compose the release display name from its parts. (#19)
-// Example: "v10.9.3 | Q2: User Management System (Weeks 28 -> 29)"
-function composeReleaseName( f: { versionNumber: string; quarter: string; releaseName: string; startWeek: string; endWeek: string } ): string {
-  const version = f.versionNumber ? `v${ f.versionNumber } | ` : '';
-  const quarter = ( f.quarter.match( /Q[1-4]/ )?.[0] ) ?? f.quarter;
-  const sw = isoWeekNumber( f.startWeek );
-  const ew = isoWeekNumber( f.endWeek );
-  const weeks = sw && ew ? ` (Weeks ${ sw } -> ${ ew })` : '';
-  const head = [ quarter && `${ quarter }:`, f.releaseName ].filter( Boolean ).join( ' ' );
-  return `${ version }${ head }${ weeks }`.trim();
-}
-
 // ── Releases section ─────────────────────────────────────────────────────────
 const VERSION_TYPES = [
   'Major Release', 'Minor Update', 'Patch', 'Bug Fix',
   'Beta', 'Alpha', 'Release Candidate', 'Hotfix',
 ];
 
-const VERSION_NUMBERS = [
-  '1.0.0', '1.0.1', '1.0.2', '1.0.3',
-  '1.1.0', '1.1.1', '1.2.0', '1.3.0', '1.4.0', '1.5.0',
-  '2.0.0', '2.0.1', '2.1.0', '2.2.0', '2.3.0',
-  '3.0.0', '3.1.0', '3.2.0',
-  '4.0.0', '4.1.0', '5.0.0',
-];
+// Each of major / minor / patch can be any value 0–99 (#49).
+const VERSION_PARTS = Array.from( { length: 100 }, ( _, i ) => i );
 
 interface ReleaseForm {
   name: string; releaseName: string; versionNumber: string; versionType: string;
@@ -563,22 +517,10 @@ interface ReleaseForm {
 }
 
 const emptyReleaseForm: ReleaseForm = {
-  name: '', releaseName: '', versionNumber: '', versionType: 'Major Release',
+  name: '', releaseName: '', versionNumber: '1.0.0', versionType: 'Major Release',
   quarter: '', startWeek: '', endWeek: '',
   status: 'planned', capacity: 0, isBigWedgeCampaign: false,
 };
-
-function autoQuarter( dateStr: string ): string {
-  if ( !dateStr ) return '';
-  const d = new Date( dateStr );
-  return `Q${ Math.floor( d.getMonth() / 3 ) + 1 } ${ d.getFullYear() }`;
-}
-
-function autoCapacity( start: string, end: string, monthlyHours: number ): number {
-  if ( !start || !end ) return 0;
-  const days = Math.max( 1, Math.ceil( ( new Date(end).getTime() - new Date(start).getTime() ) / 86400000 ) + 1 );
-  return Math.round( monthlyHours * days / 30.44 );
-}
 
 function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose, isSaving }: {
   release: ReleaseForm; teamMonthlyHours: number; releaseDay: number;
@@ -598,24 +540,40 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
     apply( { versionNumber: num, versionType: type } );
   }
 
+  // Major / minor / patch are edited independently (#49); recombine on change.
+  const vParts = ( form.versionNumber || '0.0.0' ).split( '.' );
+  const vMajor = vParts[0] ?? '0', vMinor = vParts[1] ?? '0', vPatch = vParts[2] ?? '0';
+  function setVersionPart( idx: number, value: string ) {
+    const parts = [ vMajor, vMinor, vPatch ];
+    parts[idx] = value;
+    updateVersion( parts.join( '.' ), form.versionType );
+  }
+
   function updateReleaseName( rn: string ) {
     apply( { releaseName: rn } );
   }
 
-  function updateDates( startIsoWeek: string, endIsoWeek: string ) {
+  // Convert only the selector that changed; keep the other date verbatim so the
+  // two week pickers never disturb each other (#48).
+  function updateStartWeek( startIsoWeek: string ) {
     const startDate = isoWeekToReleaseDate( startIsoWeek, releaseDay );
-    const endDate   = isoWeekToReleaseDate( endIsoWeek, releaseDay );
     apply( {
       startWeek: startDate,
-      endWeek:   endDate,
       quarter:   autoQuarter( startDate ) || form.quarter,
-      capacity:  autoCapacity( startDate, endDate, teamMonthlyHours ),
+      capacity:  autoCapacity( startDate, form.endWeek, teamMonthlyHours ),
+    } );
+  }
+  function updateEndWeek( endIsoWeek: string ) {
+    const endDate = isoWeekToReleaseDate( endIsoWeek, releaseDay );
+    apply( {
+      endWeek:  endDate,
+      capacity: autoCapacity( form.startWeek, endDate, teamMonthlyHours ),
     } );
   }
 
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:55, backgroundColor:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16, bottom: navVisible ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
-      <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 20px 60px rgba(0,0,0,0.2)', width:'100%', maxWidth:520, maxHeight:'90vh', overflowY:'auto', border:'1px solid #e2e8f0' }}>
+    <div style={{ position:'fixed', inset:0, zIndex:55, backgroundColor:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', padding:16, top: navVisible ? TOP_BAR_HEIGHT : 0, bottom: navVisible ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+      <div style={{ background:'#fff', borderRadius:12, boxShadow:'0 20px 60px rgba(0,0,0,0.2)', width:'100%', maxWidth:520, maxHeight: navVisible ? '100%' : '90vh', overflowY:'auto', border:'1px solid #e2e8f0' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #e2e8f0' }}>
           <h3 style={{ fontSize:16, fontWeight:600, color:'#1a1f36', margin:0 }}>{ form.name || 'New Release' }</h3>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#64748b', display:'flex' }}><X size={20} /></button>
@@ -623,13 +581,22 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
         <div style={{ padding:20, display:'flex', flexDirection:'column', gap:14 }}>
 
           {/* Version row */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns: navVisible ? '1fr' : '1fr 1fr', gap:12 }}>
             <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
               <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Version</span>
-              <select value={form.versionNumber} onChange={ e => updateVersion( e.target.value, form.versionType ) } style={inputStyle}>
-                <option value="">— Select —</option>
-                { VERSION_NUMBERS.map( v => <option key={v} value={v}>{ v }</option> ) }
-              </select>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <select value={vMajor} onChange={ e => setVersionPart( 0, e.target.value ) } style={{ ...inputStyle, flex:1, minWidth:0, padding:'7px 6px' }} aria-label="Major version">
+                  { VERSION_PARTS.map( v => <option key={v} value={v}>{ v }</option> ) }
+                </select>
+                <span style={{ color:'#94a3b8', fontWeight:600 }}>.</span>
+                <select value={vMinor} onChange={ e => setVersionPart( 1, e.target.value ) } style={{ ...inputStyle, flex:1, minWidth:0, padding:'7px 6px' }} aria-label="Minor version">
+                  { VERSION_PARTS.map( v => <option key={v} value={v}>{ v }</option> ) }
+                </select>
+                <span style={{ color:'#94a3b8', fontWeight:600 }}>.</span>
+                <select value={vPatch} onChange={ e => setVersionPart( 2, e.target.value ) } style={{ ...inputStyle, flex:1, minWidth:0, padding:'7px 6px' }} aria-label="Patch version">
+                  { VERSION_PARTS.map( v => <option key={v} value={v}>{ v }</option> ) }
+                </select>
+              </div>
             </label>
             <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
               <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Version type</span>
@@ -661,12 +628,12 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
             <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
               <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Start week</span>
               <input type="week" value={ dateToIsoWeek( form.startWeek ) }
-                onChange={ e => updateDates( e.target.value, dateToIsoWeek( form.endWeek ) ) } style={inputStyle} />
+                onChange={ e => updateStartWeek( e.target.value ) } style={inputStyle} />
             </label>
             <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
               <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>End week</span>
               <input type="week" value={ dateToIsoWeek( form.endWeek ) }
-                onChange={ e => updateDates( dateToIsoWeek( form.startWeek ), e.target.value ) } style={inputStyle} />
+                onChange={ e => updateEndWeek( e.target.value ) } style={inputStyle} />
             </label>
           </div>
 
@@ -687,7 +654,7 @@ function ReleaseModal( { release, teamMonthlyHours, releaseDay, onSave, onClose,
           {/* Status */}
           <label style={{ display:'flex', flexDirection:'column', gap:5 }}>
             <span style={{ fontSize:13, fontWeight:500, color:'#374151' }}>Status</span>
-            <select value={form.status} onChange={ e => setForm(f=>({...f,status:e.target.value})) } style={{ ...inputStyle, width:200 }}>
+            <select value={form.status} onChange={ e => setForm(f=>({...f,status:e.target.value})) } style={{ ...inputStyle, width: navVisible ? '100%' : 200 }}>
               { ['planned','active','complete'].map( s => <option key={s} value={s}>{ s }</option> ) }
             </select>
           </label>
@@ -778,7 +745,7 @@ function ReleasesSection( { settings }: { settings: AppSettings } ) {
                   <div style={{ fontSize:14, fontWeight:500, color:'#1a1f36' }}>{ r.name }</div>
                   <div style={{ fontSize:12, color:'#64748b' }}>
                     { r.quarter && `${ r.quarter } · ` }
-                    { r.startWeek && r.endWeek && `${ dateToIsoWeek( r.startWeek ) } → ${ dateToIsoWeek( r.endWeek ) } · ` }
+                    { r.startWeek && r.endWeek && `${ formatDate( r.startWeek ) } → ${ formatDate( r.endWeek ) } · ` }
                     { r.capacity }h capacity · <span style={{ textTransform:'capitalize' }}>{ r.status }</span>
                   </div>
                 </div>
@@ -1061,6 +1028,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
   const wpAdmin = isAdmin();
   const isMobile = useIsMobile();
   const tabStripRef = useDragScroll<HTMLDivElement>( { axis: 'x', allowButtons: true } );
+  const contentRef  = useDragScroll<HTMLDivElement>( { axis: 'y' } );
   const visibleSections = wpAdmin ? SECTION_NAV : SECTION_NAV.filter( s => MANAGER_SECTIONS.includes( s.id ) );
   const defaultSection: Section = wpAdmin ? 'config' : 'brands';
   const [ activeSection, setActiveSection ] = useState<Section>( defaultSection );
@@ -1077,7 +1045,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
 
         {/* Mobile tab strip */}
         { isMobile && (
-          <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', flexShrink:0, cursor:'grab' }}>
+          <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', overflowY:'hidden', touchAction:'pan-x', flexShrink:0, cursor:'grab' }}>
             { visibleSections.map( ({ id, label, Icon }) => {
               const active = activeSection === id;
               return (
@@ -1111,7 +1079,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
           ) }
 
           {/* Content */}
-          <div style={{ flex:1, overflowY:'auto', padding:24 }}>
+          <div ref={ contentRef } style={{ flex:1, overflowY:'auto', padding:24, cursor:'grab' }}>
 
             { activeSection === 'config' && (
               <div>

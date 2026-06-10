@@ -8,6 +8,7 @@ import {
   parseISO, isWithinInterval, startOfDay, endOfDay,
 } from 'date-fns';
 import { CompanyDate, Release } from '../types';
+import { formatDate } from '../utils/dates';
 import { createCompanyDate, updateCompanyDate, isAdmin } from '../api/wordpress';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
@@ -98,10 +99,10 @@ export function CalendarView() {
       const ws = startOfWeek( currentDate );
       const we = endOfWeek( currentDate );
       return isMobile
-        ? `${ format( ws, 'MMM d' ) } – ${ format( we, 'd' ) }`
-        : `${ format( ws, 'MMM d' ) } – ${ format( we, 'MMM d, yyyy' ) }`;
+        ? `${ format( ws, 'd MMM' ) } – ${ format( we, 'd' ) }`
+        : `${ format( ws, 'd MMM' ) } – ${ format( we, 'd MMM yyyy' ) }`;
     }
-    if ( viewMode === 'day' ) return format( currentDate, isMobile ? 'EEE, MMM d' : 'EEEE, MMMM d, yyyy' );
+    if ( viewMode === 'day' ) return format( currentDate, isMobile ? 'EEE, d MMM' : 'EEEE, d MMMM yyyy' );
     return 'Schedule';
   }, [ viewMode, currentDate, isMobile ] );
 
@@ -523,7 +524,7 @@ export function CalendarView() {
         <div style={{ padding: isMobile ? '16px 14px 40px' : '24px 24px 40px', maxWidth: 640, flex: 1 }}>
           { dayReleases.length === 0 && dayCompanyDates.length === 0 ? (
             <div style={{ padding: '48px 0', textAlign: 'center', color: C.mutedFg, fontSize: 14 }}>
-              Nothing scheduled on { format( currentDate, 'MMMM d, yyyy' ) }.
+              Nothing scheduled on { format( currentDate, 'd MMMM yyyy' ) }.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -544,7 +545,7 @@ export function CalendarView() {
                           <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#10b981', flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: C.fg }}>{ r.name }</div>
-                            <div style={{ fontSize: 12, color: C.mutedFg, marginTop: 2 }}>{ r.startWeek } – { r.endWeek }</div>
+                            <div style={{ fontSize: 12, color: C.mutedFg, marginTop: 2 }}>{ formatDate( r.startWeek ) } – { formatDate( r.endWeek ) }</div>
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                             { isStart && <span style={{ padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }}>Starts today</span> }

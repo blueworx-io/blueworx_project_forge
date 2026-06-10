@@ -62,6 +62,15 @@ class Forge_PM_Enqueue {
 		] );
 	}
 
+	/**
+	 * Prevent WordPress from rendering the admin bar on Forge pages entirely.
+	 * Hooked on `show_admin_bar` — stops the markup being output at all, which is
+	 * more reliable than only hiding it with CSS.
+	 */
+	public static function maybe_hide_admin_bar( $show ) {
+		return self::is_forge_page() ? false : $show;
+	}
+
 	public static function dequeue_theme_styles() {
 		global $wp_styles;
 		if ( empty( $wp_styles->queue ) ) return;

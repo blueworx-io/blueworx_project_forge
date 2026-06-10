@@ -1,6 +1,7 @@
 import { GripVertical, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle } from 'lucide-react';
 import { Item, Feature, SubItem, Bug, Feedback, Release } from '../types';
 import { useDataStore } from '../store/useDataStore';
+import { formatDate } from '../utils/dates';
 
 interface ItemCardProps {
   item: Item;
@@ -82,7 +83,7 @@ export function ItemCard( { item, onClick, showDragHandle = false }: ItemCardPro
       <h4 className="text-sm font-semibold text-foreground mb-2 line-clamp-2">{ bug.title }</h4>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1"><Clock className="w-3 h-3" /><span>{ bug.timeEstimate }h</span></div>
-        <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{ new Date( bug.reportedDate ).toLocaleDateString() }</span></div>
+        <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{ formatDate( bug.reportedDate ) }</span></div>
         { bug.linkedFeatureId && <div className="flex items-center gap-1"><Link2 className="w-3 h-3" /><span>Linked</span></div> }
       </div>
     </>
@@ -98,7 +99,7 @@ export function ItemCard( { item, onClick, showDragHandle = false }: ItemCardPro
       <h4 className="text-sm font-semibold text-foreground mb-2 line-clamp-2">{ feedback.title }</h4>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1"><Clock className="w-3 h-3" /><span>{ feedback.timeEstimate }h</span></div>
-        <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{ new Date( feedback.reportedDate ).toLocaleDateString() }</span></div>
+        <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{ formatDate( feedback.reportedDate ) }</span></div>
         { ( feedback.linkedFeatureId || feedback.linkedBugId ) && <div className="flex items-center gap-1"><Link2 className="w-3 h-3" /><span>Linked</span></div> }
       </div>
     </>

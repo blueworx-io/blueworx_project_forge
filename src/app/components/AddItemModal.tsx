@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Loader2, ImageIcon } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { BOTTOM_BAR_HEIGHT } from './MobileNav';
+import { BOTTOM_BAR_HEIGHT, TOP_BAR_HEIGHT } from './MobileNav';
 import { AppSettings, WorkflowStatus, ItemLink } from '../types';
 import { createItem } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
@@ -212,8 +212,8 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
     && ( ! needsCategory || !! category );
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16, bottom: isMobile ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
-      <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 520, maxHeight: '90vh', display: 'flex', flexDirection: 'column', border: `1px solid ${ C.border }` }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 55, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 16, top: isMobile ? TOP_BAR_HEIGHT : 0, bottom: isMobile ? `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` : 0 }}>
+      <div style={{ backgroundColor: C.white, borderRadius: isMobile ? '16px 16px 0 0' : 12, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: isMobile ? '100%' : 520, maxHeight: isMobile ? '100%' : '90vh', display: 'flex', flexDirection: 'column', border: `1px solid ${ C.border }` }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }`, flexShrink: 0 }}>
@@ -228,7 +228,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
           {/* Type selector */}
           <div>
             <label style={ labelStyle }>Item type</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 6 }}>
               { TYPE_OPTIONS.map( opt => (
                 <button key={ opt.value } type="button" onClick={ () => handleTypeChange( opt.value ) }
                   style={{ padding: '7px 4px', borderRadius: 6, fontSize: isMobile ? 12 : 13, fontWeight: 500, cursor: 'pointer',
@@ -245,7 +245,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
           {/* Name */}
           <div>
             <label style={ labelStyle }>{ isFeature || isSubitem ? 'Name' : 'Title' }</label>
-            <input autoFocus type="text" required value={ name } onChange={ e => setName( e.target.value ) }
+            <input autoFocus={ !isMobile } type="text" required value={ name } onChange={ e => setName( e.target.value ) }
               placeholder={ isFeature ? 'e.g. Improved onboarding flow' : isSubitem ? 'e.g. Dark mode support' : 'e.g. Login button not responding' }
               style={ inputStyle } />
           </div>
@@ -390,7 +390,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
           <div>
             <label style={ labelStyle }>Time estimate (hours)</label>
             <input type="number" min={ 0 } value={ timeEst } onChange={ e => setTimeEst( Number( e.target.value ) ) }
-              style={{ ...inputStyle, width: 120 }} />
+              style={ inputStyle } />
           </div>
 
           {/* Links — all item types */}

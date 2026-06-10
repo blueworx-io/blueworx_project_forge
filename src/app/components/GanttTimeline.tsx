@@ -3,6 +3,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2 } from 'lucide-react';
 import { format, startOfWeek, addWeeks, eachWeekOfInterval, startOfQuarter, parseISO, addDays, getISOWeek } from 'date-fns';
 import { Item, Release, Feature, Bug, Feedback, SubItem, AppSettings, CompanyDate } from '../types';
+import { formatDate } from '../utils/dates';
 import { AddItemModal } from './AddItemModal';
 import { updateCompanyDate, isAdmin, canEdit } from '../api/wordpress';
 import { useDragScroll } from '../hooks/useDragScroll';
@@ -205,7 +206,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
               }}
             >
               <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '30%', position: 'relative' }}>
-                { `${ format( rStart, 'MMM d' ) } – ${ format( rEnd, 'MMM d' ) }` }
+                { `${ format( rStart, 'd MMM' ) } – ${ format( rEnd, 'd MMM' ) }` }
               </span>
               { timeProgress > 0 && (
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.3)', position: 'absolute', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', maxWidth: '30%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -356,7 +357,7 @@ function WeekPopup( { week, releases, companyDates, onClose }: { week: Date; rel
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${ C.border }` }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: C.fg, margin: 0 }}>Week { weekNum }, { year }</h3>
-            <p style={{ fontSize: 12, color: C.mutedFg, margin: '2px 0 0' }}>{ format( week, 'MMM d' ) } – { format( weekEnd, 'MMM d, yyyy' ) }</p>
+            <p style={{ fontSize: 12, color: C.mutedFg, margin: '2px 0 0' }}>{ format( week, 'd MMM' ) } – { format( weekEnd, 'd MMM yyyy' ) }</p>
           </div>
           <button onClick={ onClose } style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.mutedFg, display: 'flex' }}><X size={ 18 } /></button>
         </div>
@@ -369,7 +370,7 @@ function WeekPopup( { week, releases, companyDates, onClose }: { week: Date; rel
                   <div key={ r.id } style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: C.release.bg, border: `1px solid ${ C.release.border }` }}>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#a7f3d0', color: C.release.text }}>release</span>
                     <span style={{ fontSize: 13, fontWeight: 500, color: C.fg, flex: 1 }}>{ r.name }</span>
-                    <span style={{ fontSize: 11, color: C.mutedFg }}>{ r.startWeek === r.endWeek ? 'single week' : `${ format( resolveReleaseDate( r.startWeek, week ), 'MMM d' ) }–${ format( resolveReleaseDate( r.endWeek, week ), 'MMM d' ) }` }</span>
+                    <span style={{ fontSize: 11, color: C.mutedFg }}>{ r.startWeek === r.endWeek ? 'single week' : `${ formatDate( resolveReleaseDate( r.startWeek, week ) ) } – ${ formatDate( resolveReleaseDate( r.endWeek, week ) ) }` }</span>
                   </div>
                 ) ) }
               </div>
@@ -383,7 +384,7 @@ function WeekPopup( { week, releases, companyDates, onClose }: { week: Date; rel
                   <div key={ cd.id } style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: '#fffbeb', border: '1px solid #fde68a' }}>
                     <Target size={ 12 } style={{ color: '#d97706', flexShrink: 0 }} />
                     <span style={{ fontSize: 13, fontWeight: 500, color: C.fg, flex: 1 }}>{ cd.title }</span>
-                    <span style={{ fontSize: 11, color: C.mutedFg }}>{ format( parseISO( cd.date ), 'MMM d' ) }</span>
+                    <span style={{ fontSize: 11, color: C.mutedFg }}>{ formatDate( cd.date ) }</span>
                   </div>
                 ) ) }
               </div>
@@ -416,6 +417,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const openModal     = useUIStore( s => s.openModal );
   const filters       = useUIStore( s => s.filters );
+  const currentView   = useUIStore( s => s.currentView );
   const adminMode     = isAdmin();
   const editMode      = canEdit();
   const isMobile = useIsMobile( 768 );
@@ -439,13 +441,15 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
 
   // Global view filters (#35) — narrow items inside each release; the release
   // filter additionally limits which releases (and the timeline range) show.
-  const fFeatures = useMemo( () => features.filter( f => matchesFilters( f, filters ) ), [ features, filters ] );
-  const fSubitems = useMemo( () => subitems.filter( s => matchesFilters( s, filters ) ), [ subitems, filters ] );
-  const fBugs     = useMemo( () => bugs.filter(     b => matchesFilters( b, filters ) ), [ bugs, filters ] );
-  const fFeedback = useMemo( () => feedback.filter( f => matchesFilters( f, filters ) ), [ feedback, filters ] );
+  // Deployed items and completed ("done") releases are excluded from the Gantt.
+  const fFeatures = useMemo( () => features.filter( f => f.workflowStage !== 'deployed' && matchesFilters( f, filters ) ), [ features, filters ] );
+  const fSubitems = useMemo( () => subitems.filter( s => s.workflowStage !== 'deployed' && matchesFilters( s, filters ) ), [ subitems, filters ] );
+  const fBugs     = useMemo( () => bugs.filter(     b => b.workflowStage !== 'deployed' && matchesFilters( b, filters ) ), [ bugs, filters ] );
+  const fFeedback = useMemo( () => feedback.filter( f => f.workflowStage !== 'deployed' && matchesFilters( f, filters ) ), [ feedback, filters ] );
 
   const releases = useMemo( () => {
-    const base = filters.release === 'all' ? storeReleases : storeReleases.filter( r => r.id === filters.release );
+    const scoped = filters.release === 'all' ? storeReleases : storeReleases.filter( r => r.id === filters.release );
+    const base   = scoped.filter( r => r.status !== 'complete' );
     return [ ...base ].sort( ( a, b ) =>
       resolveReleaseDate( a.startWeek, today ).getTime() - resolveReleaseDate( b.startWeek, today ).getTime()
     );
@@ -520,13 +524,17 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const scrollToTodayRef = useRef( scrollToToday );
   scrollToTodayRef.current = scrollToToday;
 
+  // Centre on today on first mount and every time the Gantt view becomes active
+  // again (it stays mounted but hidden when switching tabs). Double rAF waits for
+  // the view to be displayed so scroll measurements are valid.
   useEffect( () => {
+    if ( currentView !== 'gantt' ) return;
     let id2: number;
     const id1 = requestAnimationFrame( () => {
       id2 = requestAnimationFrame( () => scrollToTodayRef.current() );
     } );
     return () => { cancelAnimationFrame( id1 ); cancelAnimationFrame( id2 ); };
-  }, [] );
+  }, [ currentView ] );
 
   const pillBtn: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -616,7 +624,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
                   onMouseEnter={ e => { ( e.currentTarget as HTMLDivElement ).style.backgroundColor = '#e2e8f0'; } }
                   onMouseLeave={ e => { ( e.currentTarget as HTMLDivElement ).style.backgroundColor = C.headerBg; } }
                 >
-                  <span style={{ fontSize: 11, fontWeight: 500, color: C.mutedFg, textAlign: 'center' }}>{ density === 'compact' ? format( week, 'd' ) : format( week, 'MMM d' ) }</span>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: C.mutedFg, textAlign: 'center' }}>{ density === 'compact' ? format( week, 'd' ) : format( week, 'd MMM' ) }</span>
                 </div>
               ) ) }
             </div>

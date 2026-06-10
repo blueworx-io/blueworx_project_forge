@@ -8,7 +8,8 @@ import { updateItem, archiveItem, canEdit } from '../api/wordpress';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { BOTTOM_BAR_HEIGHT } from './MobileNav';
+import { BOTTOM_BAR_HEIGHT, TOP_BAR_HEIGHT } from './MobileNav';
+import { composeReleaseName, autoQuarter, formatDate } from '../utils/dates';
 import { sortItemsByName } from '../utils/sortItems';
 import { buildShareUrl } from '../utils/urlState';
 
@@ -144,9 +145,21 @@ export function DetailModal( { settings }: DetailModalProps ) {
     try {
       let savedItem: Item | undefined;
       if ( item.type === 'release' ) {
+        // Recompose the auto title + quarter so they stay in sync after the dates
+        // are edited here (the title is otherwise only rebuilt in Settings). (#48)
+        const r         = { ...( item as Release ), ...editForm };
+        const startWeek = ( editForm.startWeek as string | undefined ) ?? r.startWeek ?? '';
+        const endWeek   = ( editForm.endWeek as string | undefined ) ?? r.endWeek ?? '';
+        const quarter   = autoQuarter( startWeek ) || r.quarter || '';
+        const name      = composeReleaseName( {
+          versionNumber: r.versionNumber || '', quarter,
+          releaseName: r.releaseName || '', startWeek, endWeek,
+        } );
+
         // Update release with new linked ID arrays
         const releaseResult = await updateItem( item.type, item.id, {
           ...editForm,
+          name, quarter,
           linkedFeatureIds:  editLinkedFeatureIds,
           linkedBugIds:      editLinkedBugIds,
           linkedFeedbackIds: editLinkedFeedbackIds,
@@ -236,7 +249,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
     isEditing ? (
       <div className="flex items-center gap-1">
         <input type="number" value={ editForm[key] || 0 } onChange={ ( e ) => setEditForm( { ...editForm, [key]: parseInt( e.target.value ) || 0 } ) }
-          className="w-20 text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm" />
+          className="flex-1 min-w-0 text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm" />
         <span className="text-sm font-medium text-muted-foreground">hours</span>
       </div>
     ) : <div className="text-sm font-semibold text-foreground">{ (item as Record<string, unknown>)[key] } hours</div>
@@ -497,7 +510,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing && settings?.categories && settings.categories.length > 0 ? (
               <select value={ ( editForm.category as string ) ?? feature.category }
                 onChange={ e => setEditForm( { ...editForm, category: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="">— None —</option>
                 { [ ...settings.categories ].sort().map( c => <option key={ c } value={ c }>{ c }</option> ) }
               </select>
@@ -507,7 +520,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.featurePrice as string ) ?? feature.featurePrice }
                 onChange={ e => setEditForm( { ...editForm, featurePrice: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="free">Free</option>
                 <option value="teaser">Teaser</option>
                 <option value="premium">Premium</option>
@@ -520,7 +533,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.isEnabled as boolean ) ? 'enabled' : 'disabled' }
                 onChange={ e => setEditForm( { ...editForm, isEnabled: e.target.value === 'enabled' } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="enabled">Enabled</option>
                 <option value="disabled">Disabled</option>
               </select>
@@ -530,7 +543,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.isTrackedAsStat as boolean ) ? 'yes' : 'no' }
                 onChange={ e => setEditForm( { ...editForm, isTrackedAsStat: e.target.value === 'yes' } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
@@ -629,7 +642,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing && settings?.categories && settings.categories.length > 0 ? (
               <select value={ ( editForm.category as string ) ?? subItem.category }
                 onChange={ e => setEditForm( { ...editForm, category: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="">— None —</option>
                 { [ ...settings.categories ].sort().map( c => <option key={ c } value={ c }>{ c }</option> ) }
               </select>
@@ -639,7 +652,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.featurePrice as string ) ?? subItem.featurePrice }
                 onChange={ e => setEditForm( { ...editForm, featurePrice: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="free">Free</option>
                 <option value="teaser">Teaser</option>
                 <option value="premium">Premium</option>
@@ -676,7 +689,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.bugStatus as string ) ?? bug.bugStatus }
                 onChange={ e => setEditForm( { ...editForm, bugStatus: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="open">Open</option>
                 <option value="in-progress">In Progress</option>
                 <option value="resolved">Resolved</option>
@@ -687,7 +700,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.priority as string ) ?? bug.priority }
                 onChange={ e => setEditForm( { ...editForm, priority: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -695,7 +708,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             ) : <span className="capitalize">{ bug.priority }</span>
           } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
-          <MetaCard icon={ <Calendar className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Reported Date" value={ new Date( bug.reportedDate ).toLocaleDateString( 'en-US', { year: 'numeric', month: 'long', day: 'numeric' } ) } />
+          <MetaCard icon={ <Calendar className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Reported Date" value={ formatDate( bug.reportedDate ) } />
         </div>
         <Section title="Description">{ descField( 'description' ) }</Section>
         { bug.notes && <Section title="Notes"><p className="text-sm text-muted-foreground leading-relaxed">{ bug.notes }</p></Section> }
@@ -747,7 +760,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.status as string ) ?? feedback.status }
                 onChange={ e => setEditForm( { ...editForm, status: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="open">Open</option>
                 <option value="in-progress">In Progress</option>
                 <option value="resolved">Resolved</option>
@@ -758,7 +771,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             isEditing ? (
               <select value={ ( editForm.priority as string ) ?? feedback.priority }
                 onChange={ e => setEditForm( { ...editForm, priority: e.target.value } ) }
-                className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
+                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -766,7 +779,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             ) : <span className="capitalize">{ feedback.priority }</span>
           } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
-          <MetaCard icon={ <Calendar className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Reported Date" value={ new Date( feedback.reportedDate ).toLocaleDateString( 'en-US', { year: 'numeric', month: 'long', day: 'numeric' } ) } />
+          <MetaCard icon={ <Calendar className="w-4 h-4 text-blue-600" /> } bg="bg-blue-100" label="Reported Date" value={ formatDate( feedback.reportedDate ) } />
         </div>
         <Section title="Description">{ descField( 'description' ) }</Section>
         { feedback.notes && <Section title="Notes"><p className="text-sm text-muted-foreground leading-relaxed">{ feedback.notes }</p></Section> }
@@ -845,7 +858,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
                 <input type="date" value={ editForm.startWeek || '' } onChange={ ( e ) => setEditForm( { ...editForm, startWeek: e.target.value } ) }
                   className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm" />
               ) : (
-                <div className="text-sm font-semibold text-foreground">{ new Date( release.startWeek ).toLocaleDateString( 'en-US', { month: 'short', day: 'numeric', year: 'numeric' } ) }</div>
+                <div className="text-sm font-semibold text-foreground">{ formatDate( release.startWeek ) }</div>
               ) }
             </div>
           </div>
@@ -857,7 +870,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
                 <input type="date" value={ editForm.endWeek || '' } onChange={ ( e ) => setEditForm( { ...editForm, endWeek: e.target.value } ) }
                   className="text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm" />
               ) : (
-                <div className="text-sm font-semibold text-foreground">{ new Date( release.endWeek ).toLocaleDateString( 'en-US', { month: 'short', day: 'numeric', year: 'numeric' } ) }</div>
+                <div className="text-sm font-semibold text-foreground">{ formatDate( release.endWeek ) }</div>
               ) }
             </div>
           </div>
@@ -892,10 +905,11 @@ export function DetailModal( { settings }: DetailModalProps ) {
   return (
     <div
       className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center sm:p-4 md:p-6 lg:p-8"
-      style={ isMobile ? { bottom: `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` } : undefined }
+      style={ isMobile ? { top: TOP_BAR_HEIGHT, bottom: `calc(${ BOTTOM_BAR_HEIGHT }px + env(safe-area-inset-bottom))` } : undefined }
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={ closeModal } />
-      <div className="relative bg-background rounded-t-xl sm:rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-border">
+      <div className="relative bg-background rounded-t-xl sm:rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border border-border"
+        style={ isMobile ? { maxHeight: '100%' } : undefined }>
         {/* Header */}
         <div className="flex items-start justify-between p-5 sm:p-6 border-b border-border bg-gradient-to-b from-muted/30 to-background">
           <div className="flex-1 min-w-0 pr-4">
@@ -908,7 +922,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
               ) }
             </div>
             { isEditing && item.type !== 'release' ? (
-              <input autoFocus value={ editForm.name || editForm.title || '' }
+              <input autoFocus={ !isMobile } value={ editForm.name || editForm.title || '' }
                 onChange={ ( e ) => {
                   const key = 'name' in editForm ? 'name' : 'title';
                   setEditForm( { ...editForm, [key]: e.target.value } );

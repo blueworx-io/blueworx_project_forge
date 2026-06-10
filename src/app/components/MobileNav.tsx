@@ -19,6 +19,8 @@ const C = {
 };
 
 export const BOTTOM_BAR_HEIGHT = 60;
+// Approx height of the sticky app header — used to keep mobile popups below it. (#40)
+export const TOP_BAR_HEIGHT = 56;
 const UPCOMING_WINDOW_DAYS = 7; // how far ahead "upcoming" dates reach
 const MAX_ROWS = 4;             // cap each Overview section
 
