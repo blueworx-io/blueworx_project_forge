@@ -217,7 +217,7 @@ export default function App() {
             { currentView === 'settings' && canAccessSettings && (
               <ErrorBoundary>
                 <Suspense fallback={ <ChunkLoader /> }>
-                  <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } carousel />
+                  <Settings settings={ settings } onSettingsChange={ setSettings } onClose={ closeSettings } />
                 </Suspense>
               </ErrorBoundary>
             ) }

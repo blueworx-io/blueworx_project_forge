@@ -22,9 +22,6 @@ interface SettingsProps {
   settings: AppSettings;
   onSettingsChange: ( s: AppSettings ) => void;
   onClose: () => void;
-  /** Lay the setting pages out as a Kanban-style horizontal carousel — pull left/right to
-   *  switch pages instead of the sidebar/tab layout. Used by the Kanban 2 view (#50). */
-  carousel?: boolean;
 }
 
 type Section = 'config' | 'statuses' | 'brands' | 'categories' | 'releases' | 'archive' | 'export';
@@ -1038,17 +1035,13 @@ function SectionHeader( { title, blurb }: { title: string; blurb: string } ) {
   );
 }
 
-export function Settings( { settings, onSettingsChange, carousel = false }: SettingsProps ) {
+export function Settings( { settings, onSettingsChange }: SettingsProps ) {
   const wpAdmin = isAdmin();
-  const isMobile = useIsMobile();
   const tabStripRef = useDragScroll<HTMLDivElement>( { axis: 'x', allowButtons: true } );
-  const contentRef  = useDragScroll<HTMLDivElement>( { axis: 'y' } );
-  // Carousel mode: pull left/right to switch pages, like the Kanban columns (#50).
-  // Higher gain so a short drag travels a full page instead of needing a long pull.
+  // Pull left/right to switch pages, like the Kanban columns (#50). Higher gain so a
+  // short drag travels a full page instead of needing a long pull.
   const carouselRef = useDragScroll<HTMLDivElement>( { axis: 'x', allowButtons: true, gain: 2 } );
   const visibleSections = wpAdmin ? SECTION_NAV : SECTION_NAV.filter( s => MANAGER_SECTIONS.includes( s.id ) );
-  const defaultSection: Section = wpAdmin ? 'config' : 'brands';
-  const [ activeSection, setActiveSection ] = useState<Section>( defaultSection );
   const [ activeIdx, setActiveIdx ] = useState( 0 );
   const persist = useSaveApi( onSettingsChange );
 
@@ -1071,12 +1064,11 @@ export function Settings( { settings, onSettingsChange, carousel = false }: Sett
 
   // Keep the active tab visible in the strip as the carousel moves.
   useEffect( () => {
-    if ( ! carousel ) return;
     const btn = tabStripRef.current?.children[ safeIdx ] as HTMLElement | undefined;
     btn?.scrollIntoView( { inline: 'center', block: 'nearest', behavior: 'smooth' } );
-  }, [ carousel, safeIdx, tabStripRef ] );
+  }, [ safeIdx, tabStripRef ] );
 
-  // Inner content for one section — reused by both layouts.
+  // Inner content for one section.
   const renderSection = ( id: Section ) => {
     switch ( id ) {
       case 'config':
@@ -1105,86 +1097,35 @@ export function Settings( { settings, onSettingsChange, carousel = false }: Sett
   );
 
   // ── Kanban-style horizontal carousel: drag left/right to switch pages (#50) ──
-  if ( carousel ) {
-    return (
-      <>
-        { navCss }
-        <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
-          {/* Tab strip — synced with the page carousel */}
-          <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', overflowY:'hidden', flexShrink:0, cursor:'grab' }}>
-            { visibleSections.map( ({ id, label, Icon }, idx) => {
-              const active = idx === safeIdx;
-              return (
-                <button key={id} onClick={ () => goToPage(idx) }
-                  style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 16px', fontSize:13, fontWeight: active?700:500, border:'none', borderBottom: active?'2px solid #2563eb':'2px solid transparent', marginBottom:-1, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background:'transparent', color: active?'#2563eb':'#64748b' }}>
-                  <Icon size={13} />{ label }
-                </button>
-              );
-            } ) }
-          </div>
-
-          {/* Swipeable page carousel — one settings page per panel, snaps left/right */}
-          <div
-            ref={ carouselRef }
-            onScroll={ handleCarouselScroll }
-            className="settings-nav-scroll"
-            style={{ flex:1, display:'flex', overflowX:'auto', overflowY:'hidden', scrollSnapType:'x mandatory', WebkitOverflowScrolling:'touch', cursor:'grab' }}
-          >
-            { visibleSections.map( ({ id }) => (
-              <div key={id} style={{ flex:'0 0 100%', width:'100%', scrollSnapAlign:'start', overflowY:'auto', padding:24 }}>
-                { renderSection( id ) }
-              </div>
-            ) ) }
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       { navCss }
       <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+        {/* Tab strip — synced with the page carousel */}
+        <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', overflowY:'hidden', flexShrink:0, cursor:'grab' }}>
+          { visibleSections.map( ({ id, label, Icon }, idx) => {
+            const active = idx === safeIdx;
+            return (
+              <button key={id} onClick={ () => goToPage(idx) }
+                style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 16px', fontSize:13, fontWeight: active?700:500, border:'none', borderBottom: active?'2px solid #2563eb':'2px solid transparent', marginBottom:-1, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background:'transparent', color: active?'#2563eb':'#64748b' }}>
+                <Icon size={13} />{ label }
+              </button>
+            );
+          } ) }
+        </div>
 
-        {/* Mobile tab strip */}
-        { isMobile && (
-          <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', overflowY:'hidden', touchAction:'pan-x', flexShrink:0, cursor:'grab' }}>
-            { visibleSections.map( ({ id, label, Icon }) => {
-              const active = activeSection === id;
-              return (
-                <button key={id} onClick={ () => setActiveSection(id) }
-                  style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 16px', fontSize:13, fontWeight:500, border:'none', borderBottom: active?'2px solid #2563eb':'2px solid transparent', marginBottom:-1, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background:'transparent', color: active?'#2563eb':'#64748b' }}>
-                  <Icon size={13} />{ label }
-                </button>
-              );
-            } ) }
-          </div>
-        ) }
-
-        {/* Desktop row */}
-        <div style={{ display:'flex', flex:1, minHeight:0 }}>
-
-          {/* Sidebar */}
-          { !isMobile && (
-          <nav className="settings-nav-scroll"
-            style={{ flexShrink:0, width:200, borderRight:'1px solid #e2e8f0', background:'#fff', padding:'20px 12px', display:'flex', flexDirection:'column', gap:2, overflowY:'auto' }}>
-            <p style={{ fontSize:11, fontWeight:600, color:'#94a3b8', letterSpacing:'0.07em', textTransform:'uppercase', margin:'0 4px 10px' }}>Settings</p>
-            { visibleSections.map( ({ id, label, Icon }) => {
-              const active = activeSection === id;
-              return (
-                <button key={id} onClick={ () => setActiveSection(id) }
-                  style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:6, fontSize:13, fontWeight:500, border:'none', cursor:'pointer', textAlign:'left', width:'100%', background: active?'#eff6ff':'transparent', color: active?'#2563eb':'#374151', transition:'all 0.15s' }}>
-                  <Icon size={14} />{ label }
-                </button>
-              );
-            } ) }
-          </nav>
-          ) }
-
-          {/* Content */}
-          <div ref={ contentRef } style={{ flex:1, overflowY:'auto', padding:24, cursor:'grab' }}>
-            { renderSection( activeSection ) }
-          </div>
+        {/* Swipeable page carousel — one settings page per panel, snaps left/right */}
+        <div
+          ref={ carouselRef }
+          onScroll={ handleCarouselScroll }
+          className="settings-nav-scroll"
+          style={{ flex:1, display:'flex', overflowX:'auto', overflowY:'hidden', scrollSnapType:'x mandatory', WebkitOverflowScrolling:'touch', cursor:'grab' }}
+        >
+          { visibleSections.map( ({ id }) => (
+            <div key={id} style={{ flex:'0 0 100%', width:'100%', scrollSnapAlign:'start', overflowY:'auto', padding:24 }}>
+              { renderSection( id ) }
+            </div>
+          ) ) }
         </div>
       </div>
     </>
