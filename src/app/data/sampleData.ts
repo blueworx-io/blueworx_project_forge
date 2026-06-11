@@ -23,6 +23,7 @@ export const sampleFeatures: Feature[] = [
     brands: ['SwingU'],
     stageDates: { 'future-idea': '2026-05-18', 'scoping': '2026-05-18', 'in-development': '2026-05-18', 'in-review': '2026-05-18' },
     changeLog: '2026-05-21: Status changed (Scoping -> Future Idea) | 2026-05-18: Status changed (In Development -> Pending) | 2026-05-18: Release changed (Q2: Release Block - Weeks 19-22 -> No Release) | 2026-05-18: Parent feature changed (Advanced Stats -> No Parent) | 2026-05-18: Status changed (Staging -> In Development) | 2026-05-18: Status changed (Future Idea -> Pending) | 2026-05-18: Status changed ( -> Future Idea)',
+    dependsOn: ['f1'],
   },
   {
     id: 'f3', type: 'feature',
@@ -383,6 +384,7 @@ export const sampleBugs: Bug[] = [
     linkedFeatureId: 'f7', releaseId: 'r2',
     bugStatus: 'open', workflowStage: 'bug-tracking', priority: 'high',
     timeEstimate: 8, reportedDate: '2026-06-02',
+    dependsOn: ['f2'],
   },
   {
     id: 'b2', type: 'bug',

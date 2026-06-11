@@ -32,6 +32,8 @@ export interface Feature {
   stageDates?: Record<string, string>;
   changeLog?: string;
   links?: ItemLink[];
+  /** IDs of items that block this item ("blocked by"). The reverse ("blocks") is derived. */
+  dependsOn?: string[];
 }
 
 export interface SubItem {
@@ -48,6 +50,8 @@ export interface SubItem {
   images?: string[];
   brands?: string[];
   links?: ItemLink[];
+  /** IDs of items that block this item ("blocked by"). The reverse ("blocks") is derived. */
+  dependsOn?: string[];
 }
 
 export interface Bug {
@@ -67,6 +71,8 @@ export interface Bug {
   urls?: string[];
   linkedSubItemId?: string;
   links?: ItemLink[];
+  /** IDs of items that block this item ("blocked by"). The reverse ("blocks") is derived. */
+  dependsOn?: string[];
 }
 
 export interface Feedback {
@@ -87,6 +93,8 @@ export interface Feedback {
   urls?: string[];
   linkedSubItemId?: string;
   links?: ItemLink[];
+  /** IDs of items that block this item ("blocked by"). The reverse ("blocks") is derived. */
+  dependsOn?: string[];
 }
 
 export interface Release {
@@ -107,6 +115,8 @@ export interface Release {
   linkedBugIds: string[];
   linkedFeedbackIds: string[];
   links?: ItemLink[];
+  /** IDs of items that block this item ("blocked by"). The reverse ("blocks") is derived. */
+  dependsOn?: string[];
 }
 
 export interface CompanyDate {
