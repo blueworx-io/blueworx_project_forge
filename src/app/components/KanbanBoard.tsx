@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DndProvider, useDrag, useDrop, useDragLayer } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Save, Check, AlertCircle, X, Plus, GripVertical } from 'lucide-react';
+import { Save, Check, AlertCircle, AlertTriangle, X, Plus, GripVertical } from 'lucide-react';
 import { ItemCard } from './ItemCard';
 import { WorkflowStage, Item, AppSettings, Release } from '../types';
 import { useDragScroll } from '../hooks/useDragScroll';
@@ -14,6 +14,7 @@ import { useUIStore } from '../store/useUIStore';
 import { buildNestedGroups } from '../utils/nesting';
 import { sortItemsByName } from '../utils/sortItems';
 import { matchesFilters } from '../utils/filters';
+import { hasUnresolvedBlockers, itemDisplayName } from '../utils/dependencies';
 import { FilterButton, ShareButton, SearchBox } from './ViewActions';
 
 interface KanbanBoardProps {
@@ -339,6 +340,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   const [pendingStages, setPendingStages] = useState<{ id: string; type: string; stage: WorkflowStage }[]>( [] );
   const [addItemOpen, setAddItemOpen] = useState( false );
   const [activeColIdx, setActiveColIdx] = useState( 0 );
+  const [depWarning, setDepWarning] = useState<string | null>( null );
   // Mobile: swipeable column carousel kept in sync with the tab strip (#15).
   // useDragScroll adds click-and-drag (mouse) on top of native touch/snap.
   const mobileScrollRef = useDragScroll<HTMLDivElement>( { axis: 'x' } );
@@ -375,6 +377,16 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   }, [storeAllItems, pendingStages] );
 
   const handleDrop = ( itemId: string, itemType: string, newStage: WorkflowStage ) => {
+    const lastStageId = settings.statuses.length > 0
+      ? settings.statuses[ settings.statuses.length - 1 ].id
+      : undefined;
+    if ( newStage === lastStageId ) {
+      const dropped = storeAllItems.find( i => i.id === itemId );
+      if ( dropped && hasUnresolvedBlockers( dropped, storeAllItems ) ) {
+        setDepWarning( `"${ itemDisplayName( dropped ) }" still has unresolved dependencies.` );
+        window.setTimeout( () => setDepWarning( null ), 4000 );
+      }
+    }
     setPendingStages( ( prev ) => {
       const filtered = prev.filter( ( p ) => p.id !== itemId );
       return [...filtered, { id: itemId, type: itemType, stage: newStage }];
@@ -561,6 +573,14 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
             ) }
           </div>
         </div>
+
+        { depWarning && (
+          <div className="flex items-center gap-2 mx-4 mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">{ depWarning }</span>
+            <button onClick={ () => setDepWarning( null ) } className="text-amber-600 hover:text-amber-800">✕</button>
+          </div>
+        ) }
 
         {/* Columns — horizontal scroll on desktop; stacked vertically on mobile */}
         <div
