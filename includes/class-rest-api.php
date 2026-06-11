@@ -228,6 +228,7 @@ class Forge_PM_REST_API {
 			'timeEstimate'    => self::meta_int( $p->ID, '_forge_time_estimate' ),
 			'releaseId'       => self::meta( $p->ID, '_forge_release_id' ) ?: null,
 			'subItemIds'      => self::meta_array( $p->ID, '_forge_subitem_ids' ),
+			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
 			'isEnabled'       => self::meta_bool( $p->ID, '_forge_is_enabled' ),
 			'isTrackedAsStat' => self::meta_bool( $p->ID, '_forge_is_tracked_as_stat' ),
 			'createdDate'     => get_the_date( 'Y-m-d', $p ),
@@ -253,6 +254,7 @@ class Forge_PM_REST_API {
 			'releaseId'       => self::meta( $p->ID, '_forge_release_id' ) ?: null,
 			'images'          => self::meta_array( $p->ID, '_forge_image_urls' ),
 			'brands'          => self::meta_array( $p->ID, '_forge_brands' ),
+			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
 			'links'           => self::meta_links( $p->ID ),
 		];
 	}
@@ -275,6 +277,7 @@ class Forge_PM_REST_API {
 			'urls'            => self::meta_array( $p->ID, '_forge_urls' ),
 			'links'           => self::meta_links( $p->ID ),
 			'linkedSubItemId' => self::meta( $p->ID, '_forge_linked_subitem_id' ) ?: null,
+			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
 		];
 	}
 
@@ -297,6 +300,7 @@ class Forge_PM_REST_API {
 			'urls'            => self::meta_array( $p->ID, '_forge_urls' ),
 			'links'           => self::meta_links( $p->ID ),
 			'linkedSubItemId' => self::meta( $p->ID, '_forge_linked_subitem_id' ) ?: null,
+			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
 		];
 	}
 
@@ -318,6 +322,7 @@ class Forge_PM_REST_API {
 			'linkedFeatureIds'   => self::meta_array( $p->ID, '_forge_linked_feature_ids' ),
 			'linkedBugIds'       => self::meta_array( $p->ID, '_forge_linked_bug_ids' ),
 			'linkedFeedbackIds'  => self::meta_array( $p->ID, '_forge_linked_feedback_ids' ),
+			'dependsOn'          => self::meta_array( $p->ID, '_forge_depends_on' ),
 			'links'              => self::meta_links( $p->ID ),
 		];
 	}
@@ -700,6 +705,7 @@ class Forge_PM_REST_API {
 			'linkedFeatureIds'    => '_forge_linked_feature_ids',
 			'linkedBugIds'        => '_forge_linked_bug_ids',
 			'linkedFeedbackIds'   => '_forge_linked_feedback_ids',
+			'dependsOn'           => '_forge_depends_on',
 			'images'              => '_forge_image_urls',
 			'brands'              => '_forge_brands',
 		];

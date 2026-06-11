@@ -7,8 +7,10 @@ import { formatDate } from '../utils/dates';
 import { AddItemModal } from './AddItemModal';
 import { updateCompanyDate, isAdmin, canEdit } from '../api/wordpress';
 import { useDragScroll } from '../hooks/useDragScroll';
-import { useDataStore } from '../store/useDataStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
+import { getDependencies, getDependents, hasUnresolvedBlockers } from '../utils/dependencies';
 import { getNestingParentId } from '../utils/nesting';
 import { sortItemsByName } from '../utils/sortItems';
 import { matchesFilters } from '../utils/filters';
@@ -55,10 +57,10 @@ function resolveReleaseDate( value: string, fallback: Date ): Date {
 // ── InlineBar ────────────────────────────────────────────────────────────────
 interface InlineBarProps {
   label: string; hours: number; color: typeof C.feature;
-  leftPct: number; widthPct: number; onClick: () => void; isNested?: boolean;
+  leftPct: number; widthPct: number; onClick: () => void; isNested?: boolean; blocked?: boolean;
 }
 
-const InlineBar = memo( function InlineBar( { label, hours, color, leftPct, widthPct, onClick, isNested = false }: InlineBarProps ) {
+const InlineBar = memo( function InlineBar( { label, hours, color, leftPct, widthPct, onClick, isNested = false, blocked = false }: InlineBarProps ) {
   return (
     <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${ leftPct }%`, width: `${ widthPct }%`, display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
       <button onClick={ onClick }
@@ -70,7 +72,10 @@ const InlineBar = memo( function InlineBar( { label, hours, color, leftPct, widt
           { isNested && <CornerDownRight size={ 10 } style={{ flexShrink: 0, opacity: 0.55 }} /> }
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ label }</span>
         </span>
-        <span style={{ opacity: 0.6, whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{ hours }h</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          { blocked && <AlertCircle size={ 11 } style={{ color: '#dc2626' }} aria-label="Blocked" /> }
+          <span style={{ opacity: 0.6, whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}>{ hours }h</span>
+        </span>
       </button>
     </div>
   );
@@ -90,10 +95,12 @@ interface ReleaseGroupProps {
   bugs: Bug[];
   feedback: Feedback[];
   today: Date;
+  allItems: Item[];
+  highlightedIds: Set<string>;
 }
 
 const ReleaseGroup = memo( function ReleaseGroup( {
-  release, viewStart, totalDays, timelineWidth, onItemClick, onNavigate, isSidebarOpen, features, subitems, bugs, feedback, today
+  release, viewStart, totalDays, timelineWidth, onItemClick, onNavigate, isSidebarOpen, features, subitems, bugs, feedback, today, allItems, highlightedIds
 }: ReleaseGroupProps ) {
   const [isExpanded, setIsExpanded] = useState( true );
   const isOver = release.totalTimeEstimate > release.capacity;
@@ -237,8 +244,8 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                     </>
                   ) : <button onClick={ () => onNavigate( leftPct ) } title={ feature.name } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.feature.bar, pointerEvents:'none' }} /></button> }
                 </div>
-                <div style={{ ...barArea, backgroundColor: '#eff6ff1a' }}>
-                  <InlineBar label={ feature.name } hours={ feature.timeEstimate } color={ C.feature } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( feature ) } />
+                <div style={{ ...barArea, backgroundColor: highlightedIds.has( feature.id ) ? '#fef9c3' : '#eff6ff1a' }}>
+                  <InlineBar label={ feature.name } hours={ feature.timeEstimate } color={ C.feature } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( feature ) } blocked={ hasUnresolvedBlockers( feature, allItems ) } />
                 </div>
               </div>
               { sortItemsByName(
@@ -260,8 +267,8 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                         </>
                       ) : <button onClick={ () => onNavigate( leftPct ) } title={ si.name } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.subitem.bar, pointerEvents:'none' }} /></button> }
                     </div>
-                    <div style={{ ...barArea, backgroundColor: '#ecfeff1a' }}>
-                      <InlineBar label={ si.name } hours={ si.timeEstimate } color={ C.subitem } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( si ) } isNested />
+                    <div style={{ ...barArea, backgroundColor: highlightedIds.has( si.id ) ? '#fef9c3' : '#ecfeff1a' }}>
+                      <InlineBar label={ si.name } hours={ si.timeEstimate } color={ C.subitem } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( si ) } isNested blocked={ hasUnresolvedBlockers( si, allItems ) } />
                     </div>
                   </div>
                 );
@@ -280,8 +287,8 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                       </>
                     ) : <button onClick={ () => onNavigate( leftPct ) } title={ ( child as Bug ).title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:child.type === 'bug' ? C.bug.bar : C.feedback.bar, pointerEvents:'none' }} /></button> }
                   </div>
-                  <div style={{ ...barArea, backgroundColor: child.type === 'bug' ? '#fff1f21a' : '#faf5ff1a' }}>
-                    <InlineBar label={ ( child as Bug ).title } hours={ child.timeEstimate } color={ child.type === 'bug' ? C.bug : C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( child ) } isNested />
+                  <div style={{ ...barArea, backgroundColor: highlightedIds.has( child.id ) ? '#fef9c3' : ( child.type === 'bug' ? '#fff1f21a' : '#faf5ff1a' ) }}>
+                    <InlineBar label={ ( child as Bug ).title } hours={ child.timeEstimate } color={ child.type === 'bug' ? C.bug : C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( child ) } isNested blocked={ hasUnresolvedBlockers( child, allItems ) } />
                   </div>
                 </div>
               ) ) }
@@ -301,8 +308,8 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                   </>
                 ) : <button onClick={ () => onNavigate( leftPct ) } title={ bug.title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.bug.bar, pointerEvents:'none' }} /></button> }
               </div>
-              <div style={{ ...barArea, backgroundColor: '#fff1f21a' }}>
-                <InlineBar label={ bug.title } hours={ bug.timeEstimate } color={ C.bug } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( bug ) } />
+              <div style={{ ...barArea, backgroundColor: highlightedIds.has( bug.id ) ? '#fef9c3' : '#fff1f21a' }}>
+                <InlineBar label={ bug.title } hours={ bug.timeEstimate } color={ C.bug } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( bug ) } blocked={ hasUnresolvedBlockers( bug, allItems ) } />
               </div>
             </div>
           ) ) }
@@ -320,8 +327,8 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                   </>
                 ) : <button onClick={ () => onNavigate( leftPct ) } title={ fb.title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.feedback.bar, pointerEvents:'none' }} /></button> }
               </div>
-              <div style={{ ...barArea, backgroundColor: '#faf5ff1a' }}>
-                <InlineBar label={ fb.title } hours={ fb.timeEstimate } color={ C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( fb ) } />
+              <div style={{ ...barArea, backgroundColor: highlightedIds.has( fb.id ) ? '#fef9c3' : '#faf5ff1a' }}>
+                <InlineBar label={ fb.title } hours={ fb.timeEstimate } color={ C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( fb ) } blocked={ hasUnresolvedBlockers( fb, allItems ) } />
               </div>
             </div>
           ) ) }
@@ -416,6 +423,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const storeReleases = useDataStore( s => s.releases );
   const triggerRefresh = useDataStore( s => s.triggerRefresh );
   const openModal     = useUIStore( s => s.openModal );
+  const allItems      = useDataStore( useShallow( selectAllItems ) );
   const filters       = useUIStore( s => s.filters );
   const currentView   = useUIStore( s => s.currentView );
   const adminMode     = isAdmin();
@@ -430,6 +438,20 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const [dateForm,      setDateForm]      = useState<CompanyDate | null>( null );
   const [dateSaving,    setDateSaving]    = useState( false );
   const [weekPopup,     setWeekPopup]     = useState<Date | null>( null );
+  const [highlightId,   setHighlightId]   = useState<string | null>( null );
+
+  const highlightedIds = useMemo( () => {
+    if ( ! highlightId ) return new Set<string>();
+    const target = allItems.find( i => i.id === highlightId );
+    if ( ! target ) return new Set<string>();
+    const related = [ target, ...getDependencies( target, allItems ), ...getDependents( target, allItems ) ];
+    return new Set( related.map( i => i.id ) );
+  }, [ highlightId, allItems ] );
+
+  const handleItemClick = useCallback( ( clicked: Item ) => {
+    setHighlightId( prev => prev === clicked.id ? null : clicked.id );
+    openModal( clicked );
+  }, [ openModal ] );
 
   // bodyRef drives drag-scroll; headerRef is synced on scroll for fixed column headers
   const bodyRef   = useDragScroll<HTMLDivElement>( { axis: 'x' } );
@@ -685,7 +707,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
                 viewStart={ viewStart }
                 totalDays={ totalDays }
                 timelineWidth={ timelineWidth }
-                onItemClick={ openModal }
+                onItemClick={ handleItemClick }
                 onNavigate={ scrollToPct }
                 isSidebarOpen={ isSidebarOpen }
                 features={ fFeatures }
@@ -693,6 +715,8 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
                 bugs={ fBugs }
                 feedback={ fFeedback }
                 today={ today }
+                allItems={ allItems }
+                highlightedIds={ highlightedIds }
               />
             ) )
           ) }

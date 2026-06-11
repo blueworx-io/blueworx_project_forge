@@ -1,6 +1,8 @@
-import { GripVertical, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle } from 'lucide-react';
+import { GripVertical, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Item, Feature, SubItem, Bug, Feedback, Release } from '../types';
-import { useDataStore } from '../store/useDataStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useDataStore, selectAllItems } from '../store/useDataStore';
+import { getDependencyIds, hasUnresolvedBlockers } from '../utils/dependencies';
 import { formatDate } from '../utils/dates';
 
 interface ItemCardProps {
@@ -32,6 +34,9 @@ const PRIORITY_STYLES = {
 
 export function ItemCard( { item, onClick, showDragHandle = false }: ItemCardProps ) {
   const releases = useDataStore( s => s.releases );
+  const allItems = useDataStore( useShallow( selectAllItems ) );
+  const depCount = getDependencyIds( item ).length;
+  const blocked  = hasUnresolvedBlockers( item, allItems );
   const typeStyle = TYPE_STYLES[item.type];
   const releaseName = 'releaseId' in item && item.releaseId
     ? releases.find( ( r ) => r.id === item.releaseId )?.name
@@ -156,6 +161,20 @@ export function ItemCard( { item, onClick, showDragHandle = false }: ItemCardPro
           { item.type === 'bug'      && renderBugCard( item as Bug ) }
           { item.type === 'feedback' && renderFeedbackCard( item as Feedback ) }
           { item.type === 'release'  && renderReleaseCard( item as Release ) }
+          { ( depCount > 0 || blocked ) && (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border">
+              { depCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Link2 className="w-3 h-3" />{ depCount } dep{ depCount !== 1 ? 's' : '' }
+                </span>
+              ) }
+              { blocked && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border bg-red-100 text-red-700 border-red-300">
+                  <AlertTriangle className="w-3 h-3" />Blocked
+                </span>
+              ) }
+            </div>
+          ) }
         </div>
       </div>
     </div>
