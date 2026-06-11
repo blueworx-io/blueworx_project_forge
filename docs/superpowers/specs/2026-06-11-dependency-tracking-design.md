@@ -113,11 +113,12 @@ In each card's meta row:
 a release overlap horizontally. Diagonal dependency arrows would be geometrically misleading,
 so we use lighter cues:
 
-- A small **blocked indicator** (e.g. an `AlertCircle` / link glyph) rendered on an `InlineBar`
-  when that item has unresolved blockers.
-- **On row click**, highlight the rows of that item's dependencies and dependents (subtle
-  background tint), and draw thin connector lines between the highlighted rows' bars. Highlight
-  clears on the next click / deselect.
+- A small **blocked indicator** (an `AlertCircle` glyph) rendered on an `InlineBar` when that
+  item has unresolved blockers.
+- **On bar click within the Gantt**, highlight (subtle background tint) the rows of that item's
+  dependencies and dependents so the relationship is visible at a glance. Highlight clears when
+  another bar is clicked or the same one is clicked again. No diagonal connector lines — bars
+  share the release span, so lines would be geometrically misleading and low-value.
 
 This is additive to `InlineBar` / `ReleaseGroup`; no change to timeline date math.
 
