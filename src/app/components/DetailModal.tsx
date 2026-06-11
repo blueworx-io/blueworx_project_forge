@@ -167,7 +167,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
         savedItem = releaseResult.item;
 
         // Sync releaseId on each item that was added or removed
-        if ( window.forgePMData ) {
+        {
           const origRelease   = item as Release;
           const origFIds  = new Set( [ ...origRelease.linkedFeatureIds,  ...features.filter(  f => f.releaseId === origRelease.id ).map( f => f.id ) ] );
           const origBIds  = new Set( [ ...origRelease.linkedBugIds,      ...bugs_.filter(      b => b.releaseId === origRelease.id ).map( b => b.id ) ] );
@@ -190,7 +190,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
         const mainResult = await updateItem( item.type, item.id, editForm );
         savedItem = mainResult.item;
 
-        if ( window.forgePMData && oldReleaseId !== newReleaseId ) {
+        if ( oldReleaseId !== newReleaseId ) {
           const linkedKey =
             item.type === 'feature'  ? 'linkedFeatureIds'  :
             item.type === 'bug'      ? 'linkedBugIds'      :

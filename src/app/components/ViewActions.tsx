@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { SlidersHorizontal, Share2, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { SlidersHorizontal, Share2, Check, Search, X } from 'lucide-react';
 import { useUIStore } from '../store/useUIStore';
 import { ViewFilters } from '../utils/filters';
 import { buildShareUrl } from '../utils/urlState';
@@ -15,6 +15,74 @@ const toolbarBtn: React.CSSProperties = {
 
 function activeCount( f: ViewFilters ): number {
   return [ f.release, f.stage, f.category, f.brand ].filter( v => v !== 'all' ).length;
+}
+
+/**
+ * Toolbar free-text search. Writes to the shared `filters.search` so it narrows
+ * every view (Kanban / Gantt / Calendar) and is captured in shareable links.
+ * Keeps a local input value and pushes to the store on a short debounce so typing
+ * stays smooth.
+ */
+export function SearchBox( { fullWidth = false }: { fullWidth?: boolean } = {} ) {
+  const query     = useUIStore( s => s.filters.search );
+  const setFilter = useUIStore( s => s.setFilter );
+
+  const [value, setValue] = useState( query );
+
+  // Reflect external changes (deep link, Clear all filters) into the input.
+  useEffect( () => { setValue( query ); }, [ query ] );
+
+  // Debounce store writes so each keystroke doesn't re-filter the whole list.
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect( () => {
+    if ( value === query ) return;
+    timer.current = setTimeout( () => setFilter( 'search', value ), 150 );
+    return () => clearTimeout( timer.current );
+  }, [ value, query, setFilter ] );
+
+  const active = value.trim() !== '';
+
+  return (
+    <div style={{ position: 'relative', flexShrink: fullWidth ? 1 : 0, flex: fullWidth ? '1 1 auto' : undefined, display: 'flex', alignItems: 'center' }}>
+      <Search
+        size={ 15 }
+        style={{ position: 'absolute', left: 10, color: active ? '#2563eb' : '#94a3b8', pointerEvents: 'none' }}
+      />
+      <input
+        type="text"
+        value={ value }
+        onChange={ e => setValue( e.target.value ) }
+        placeholder="Search…"
+        aria-label="Search items"
+        style={{
+          width: fullWidth ? '100%' : 180,
+          maxWidth: fullWidth ? undefined : '40vw',
+          padding: '7px 28px 7px 32px',
+          fontSize: 13,
+          borderRadius: 8,
+          border: `1px solid ${ active ? '#bfdbfe' : '#e2e8f0' }`,
+          backgroundColor: active ? '#eff6ff' : '#ffffff',
+          color: '#1a1f36',
+          outline: 'none',
+        }}
+      />
+      { active && (
+        <button
+          onClick={ () => { setValue( '' ); setFilter( 'search', '' ); } }
+          title="Clear search"
+          aria-label="Clear search"
+          style={{
+            position: 'absolute', right: 6,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 18, height: 18, padding: 0, borderRadius: 99,
+            border: 'none', background: 'none', color: '#64748b', cursor: 'pointer',
+          }}
+        >
+          <X size={ 14 } />
+        </button>
+      ) }
+    </div>
+  );
 }
 
 /** Toggles the filter side panel; shows a badge with the number of active filters. */

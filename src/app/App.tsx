@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { LayoutGrid, BarChart3, Calendar, Settings as SettingsIcon, LogIn, Loader2, ExternalLink } from 'lucide-react';
+import { LayoutGrid, BarChart3, Calendar, Columns3, Settings as SettingsIcon, LogIn, Loader2, ExternalLink } from 'lucide-react';
 import { AppSettings, BrandConfig } from './types';
 import { Feature, SubItem, Bug, Feedback, Release, CompanyDate } from './types';
 import { isAdmin, isManager, getAdminUrl, getLoginUrl, getInitialSettings, fetchAllItems, fetchSettings } from './api/wordpress';
@@ -14,10 +14,11 @@ import { parseUrlState, writeUrlState } from './utils/urlState';
 const KanbanBoard   = lazy( () => import('./components/KanbanBoard').then(   m => ( { default: m.KanbanBoard } ) ) );
 const GanttTimeline = lazy( () => import('./components/GanttTimeline').then( m => ( { default: m.GanttTimeline } ) ) );
 const CalendarView  = lazy( () => import('./components/CalendarView').then(  m => ( { default: m.CalendarView } ) ) );
+const CompareView   = lazy( () => import('./components/CompareView').then(   m => ( { default: m.CompareView } ) ) );
 const Settings      = lazy( () => import('./components/Settings').then(      m => ( { default: m.Settings } ) ) );
 const DetailModal   = lazy( () => import('./components/DetailModal').then(   m => ( { default: m.DetailModal } ) ) );
 
-type View = 'kanban' | 'gantt' | 'calendar' | 'settings';
+type View = 'kanban' | 'gantt' | 'calendar' | 'compare' | 'settings';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -140,6 +141,7 @@ export default function App() {
     { view: 'gantt',    label: 'Timeline', Icon: BarChart3 },
     { view: 'kanban',   label: 'Kanban',   Icon: LayoutGrid },
     { view: 'calendar', label: 'Calendar', Icon: Calendar },
+    { view: 'compare',  label: 'Compare',  Icon: Columns3 },
   ];
 
   return (
@@ -246,6 +248,16 @@ export default function App() {
                 <Suspense fallback={ <ChunkLoader /> }>
                   <div style={{ display: currentView === 'kanban' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
                     <KanbanBoard settings={ settings } />
+                  </div>
+                </Suspense>
+              </ErrorBoundary>
+            ) }
+
+            { visited.has( 'compare' ) && (
+              <ErrorBoundary>
+                <Suspense fallback={ <ChunkLoader /> }>
+                  <div style={{ display: currentView === 'compare' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+                    <CompareView settings={ settings } />
                   </div>
                 </Suspense>
               </ErrorBoundary>

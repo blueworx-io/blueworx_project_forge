@@ -15,7 +15,7 @@ import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { matchesFilters } from '../utils/filters';
-import { FilterButton, ShareButton } from './ViewActions';
+import { FilterButton, ShareButton, SearchBox } from './ViewActions';
 
 // Design tokens
 const C = {
@@ -46,13 +46,15 @@ export function CalendarView() {
   // that contain at least one matching item.
   const releases = useMemo( () => {
     let rs = filters.release === 'all' ? storeReleases : storeReleases.filter( r => r.id === filters.release );
-    const itemFilterActive = filters.stage !== 'all' || filters.category !== 'all' || filters.brand !== 'all';
+    const searching = filters.search.trim() !== '';
+    const itemFilterActive = filters.stage !== 'all' || filters.category !== 'all' || filters.brand !== 'all' || searching;
     if ( itemFilterActive ) {
       const matchingReleaseIds = new Set<string>();
       [ ...features, ...subitems, ...bugs, ...feedbackItems ].forEach( it => {
         if ( matchesFilters( it, filters ) && 'releaseId' in it && it.releaseId ) matchingReleaseIds.add( it.releaseId );
       } );
-      rs = rs.filter( r => matchingReleaseIds.has( r.id ) );
+      // A release shows if it contains a matching item, or (when searching) its own name matches.
+      rs = rs.filter( r => matchingReleaseIds.has( r.id ) || ( searching && matchesFilters( r, filters ) ) );
     }
     return rs;
   }, [ storeReleases, features, subitems, bugs, feedbackItems, filters ] );
@@ -152,10 +154,8 @@ export function CalendarView() {
     if ( !newEvent.title || !newEvent.date ) return;
     setIsSaving( true );
     try {
-      if ( window.forgePMData ) {
-        await createCompanyDate( newEvent );
-        triggerRefresh();
-      }
+      await createCompanyDate( newEvent );
+      triggerRefresh();
     } finally {
       setIsSaving( false );
       setIsAddingEvent( false );
@@ -168,10 +168,8 @@ export function CalendarView() {
     if ( !editingDate ) return;
     setIsEditSaving( true );
     try {
-      if ( window.forgePMData ) {
-        await updateCompanyDate( editingDate.id, { title: editingDate.title, date: editingDate.date, description: editingDate.description, tracked: !! editingDate.tracked } );
-        triggerRefresh();
-      }
+      await updateCompanyDate( editingDate.id, { title: editingDate.title, date: editingDate.date, description: editingDate.description, tracked: !! editingDate.tracked } );
+      triggerRefresh();
     } finally {
       setIsEditSaving( false );
       setEditingDate( null );
@@ -310,6 +308,10 @@ export function CalendarView() {
             </div>
             { viewSwitcher }
           </div>
+          {/* Search row — full width so it isn't cramped beside the action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', minHeight: 48, padding: '0 16px', borderTop: `1px solid ${ C.border }` }}>
+            <SearchBox fullWidth />
+          </div>
         </div>
       ) : (
         <div ref={ calHeaderRef } style={{ ...headerRow, borderBottom: `1px solid ${ C.border }`, position: 'sticky', top: appHeaderH, zIndex: 40 }}>
@@ -318,6 +320,7 @@ export function CalendarView() {
             { navArrows }
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+            <SearchBox />
             <FilterButton />
             <ShareButton />
             { addButton }

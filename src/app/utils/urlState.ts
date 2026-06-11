@@ -1,8 +1,8 @@
 import { ViewFilters, EMPTY_FILTERS } from './filters';
 
-export type View = 'kanban' | 'gantt' | 'calendar' | 'settings';
+export type View = 'kanban' | 'gantt' | 'calendar' | 'compare' | 'settings';
 
-const VIEWS: View[] = [ 'kanban', 'gantt', 'calendar', 'settings' ];
+const VIEWS: View[] = [ 'kanban', 'gantt', 'calendar', 'compare', 'settings' ];
 
 export interface UrlState {
   view?:   View;
@@ -28,6 +28,7 @@ export function parseUrlState(): UrlState {
       category:    p.get( 'c' )  || 'all',
       brand:       p.get( 'b' )  || 'all',
       statTracking: p.get( 'st' ) || 'all',
+      search:      p.get( 'q' )  || '',
     },
   };
 }
@@ -42,6 +43,7 @@ function buildParams( state: UrlState ): URLSearchParams {
   if ( f.category     !== 'all' ) p.set( 'c',  f.category );
   if ( f.brand        !== 'all' ) p.set( 'b',  f.brand );
   if ( f.statTracking !== 'all' ) p.set( 'st', f.statTracking );
+  if ( f.search.trim()  !== ''  ) p.set( 'q',  f.search );
   return p;
 }
 
