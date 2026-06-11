@@ -14,7 +14,7 @@ import { useUIStore } from '../store/useUIStore';
 import { buildNestedGroups } from '../utils/nesting';
 import { sortItemsByName } from '../utils/sortItems';
 import { matchesFilters } from '../utils/filters';
-import { FilterButton, ShareButton } from './ViewActions';
+import { FilterButton, ShareButton, SearchBox } from './ViewActions';
 
 interface KanbanBoardProps {
   settings: AppSettings;
@@ -432,6 +432,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
             <div className="flex items-center gap-2 min-w-0">
               <FilterButton />
               <ShareButton />
+              <SearchBox />
             </div>
             { adminMode && (
               <button
@@ -515,6 +516,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
           <div className="flex items-center gap-2 min-w-0">
             <FilterButton />
             <ShareButton />
+            <SearchBox />
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             { saveState === 'saving' && (

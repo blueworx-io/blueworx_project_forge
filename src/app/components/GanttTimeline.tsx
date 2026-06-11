@@ -12,7 +12,7 @@ import { useUIStore } from '../store/useUIStore';
 import { getNestingParentId } from '../utils/nesting';
 import { sortItemsByName } from '../utils/sortItems';
 import { matchesFilters } from '../utils/filters';
-import { FilterButton, ShareButton } from './ViewActions';
+import { FilterButton, ShareButton, SearchBox } from './ViewActions';
 import { BOTTOM_BAR_HEIGHT } from './MobileNav';
 
 // ── Design tokens ────────────────────────────────────────────────────────────
@@ -561,6 +561,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <FilterButton />
           <ShareButton />
+          <SearchBox />
         </div>
         { editMode && (
           <button onClick={ () => setAddItemOpen( true ) }
@@ -757,7 +758,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
                     if ( !dateForm ) return;
                     setDateSaving( true );
                     try {
-                      if ( window.forgePMData ) await updateCompanyDate( dateForm.id, dateForm );
+                      await updateCompanyDate( dateForm.id, dateForm );
                       triggerRefresh();
                       setDatePopup( { ...dateForm } );
                       setDateEditing( false );

@@ -180,7 +180,7 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
     if ( links.length ) payload.links = links.filter( l => l.url.trim() );
 
     try {
-      if ( window.forgePMData ) await createItem( itemType, payload );
+      await createItem( itemType, payload );
       onSuccess();
       handleClose();
     } catch ( err: unknown ) {

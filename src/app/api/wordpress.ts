@@ -1,5 +1,16 @@
 import { Item, Feature, SubItem, Bug, Feedback, Release, CompanyDate, AppSettings, ArchivedItem, WorkflowStatus, BrandConfig } from '../types';
 import { logNetworkError } from './errorLogger';
+import * as mock from './mockBackend';
+
+/**
+ * Standalone local dev: no WordPress, so `window.forgePMData` is undefined and
+ * there is no REST API. In that mode every write/read below is served by the
+ * in-memory mock backend instead of `fetch`. Live WordPress always injects
+ * `window.forgePMData`, so this never affects real data.
+ */
+function isStandalone(): boolean {
+  return ! window.forgePMData;
+}
 
 declare global {
   interface Window {
@@ -112,6 +123,7 @@ export function fetchAllItems(): Promise<AllItems> {
 }
 
 export function updateItem( type: string, id: string, data: Partial<Item> ): Promise<{ success: boolean; id: string; item?: Item }> {
+  if ( isStandalone() ) return mock.updateItem( type, id, data );
   return apiFetch( `/items/${ type }/${ id }`, {
     method: 'PUT',
     body: JSON.stringify( data ),
@@ -119,10 +131,12 @@ export function updateItem( type: string, id: string, data: Partial<Item> ): Pro
 }
 
 export function fetchItem( type: string, id: string ): Promise<Item> {
+  if ( isStandalone() ) return mock.fetchItem( type, id );
   return apiFetch( `/items/${ type }/${ id }` );
 }
 
 export function createItem( type: string, data: Record<string, unknown> ): Promise<{ success: boolean; id: string }> {
+  if ( isStandalone() ) return mock.createItem( type, data );
   return apiFetch( `/items/${ type }`, {
     method: 'POST',
     body: JSON.stringify( data ),
@@ -130,10 +144,12 @@ export function createItem( type: string, data: Record<string, unknown> ): Promi
 }
 
 export function deleteItem( type: string, id: string ): Promise<{ success: boolean }> {
+  if ( isStandalone() ) return mock.deleteItem( type, id );
   return apiFetch( `/items/${ type }/${ id }`, { method: 'DELETE' } );
 }
 
 export function updateStage( type: string, id: string, workflowStage: string ): Promise<{ success: boolean }> {
+  if ( isStandalone() ) return mock.updateStage( type, id, workflowStage );
   return apiFetch( `/items/${ type }/${ id }/stage`, {
     method: 'PATCH',
     body: JSON.stringify( { workflowStage } ),
@@ -141,6 +157,7 @@ export function updateStage( type: string, id: string, workflowStage: string ): 
 }
 
 export function createCompanyDate( data: { title: string; date: string; description: string; tracked: boolean } ): Promise<CompanyDate> {
+  if ( isStandalone() ) return mock.createCompanyDate( data );
   return apiFetch<CompanyDate>( '/company-dates', {
     method: 'POST',
     body: JSON.stringify( data ),
@@ -148,6 +165,7 @@ export function createCompanyDate( data: { title: string; date: string; descript
 }
 
 export function updateCompanyDate( id: string, data: Partial<CompanyDate> ): Promise<{ success: boolean }> {
+  if ( isStandalone() ) return mock.updateCompanyDate( id, data );
   return apiFetch( `/items/company_date/${ id }`, {
     method: 'PUT',
     body: JSON.stringify( data ),
@@ -170,14 +188,17 @@ export function saveSettings( data: Partial<AppSettings> ): Promise<AppSettings>
 // ── Archive ─────────────────────────────────────────────────────────────────
 
 export function fetchArchived(): Promise<ArchivedItem[]> {
+  if ( isStandalone() ) return mock.fetchArchived();
   return apiFetch<ArchivedItem[]>( '/archive' );
 }
 
 export function archiveItem( type: string, id: string ): Promise<{ success: boolean }> {
+  if ( isStandalone() ) return mock.archiveItem( type, id );
   return apiFetch( `/items/${ type }/${ id }/archive`, { method: 'POST' } );
 }
 
 export function restoreItem( type: string, id: string ): Promise<{ success: boolean }> {
+  if ( isStandalone() ) return mock.restoreItem( type, id );
   return apiFetch( `/items/${ type }/${ id }/restore`, { method: 'POST' } );
 }
 

@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from 'react';
-import { BarChart3, LayoutGrid, Calendar, Menu, Settings as SettingsIcon, X, LogIn, LogOut, AlertTriangle, CalendarClock, ChevronRight, ExternalLink } from 'lucide-react';
+import { BarChart3, LayoutGrid, Calendar, Columns3, Menu, Settings as SettingsIcon, X, LogIn, LogOut, AlertTriangle, CalendarClock, ChevronRight, ExternalLink } from 'lucide-react';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
 import { AppSettings, Item } from '../types';
 import { useDataStore } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
 import { isLoggedIn, getLoginUrl, getLogoutUrl, getAdminUrl } from '../api/wordpress';
 
-type View = 'kanban' | 'gantt' | 'calendar' | 'settings';
+type View = 'kanban' | 'gantt' | 'calendar' | 'compare' | 'settings';
 
 const C = {
   white:   '#ffffff',
@@ -28,7 +28,11 @@ const TABS: { view: Exclude<View, 'settings'>; label: string; Icon: React.Compon
   { view: 'gantt',    label: 'Timeline', Icon: BarChart3 },
   { view: 'kanban',   label: 'Kanban',   Icon: LayoutGrid },
   { view: 'calendar', label: 'Calendar', Icon: Calendar },
+  { view: 'compare',  label: 'Compare',  Icon: Columns3 },
 ];
+
+// Bottom bar = the view tabs + the Menu button.
+const BAR_SLOTS = TABS.length + 1;
 
 interface MobileNavProps {
   currentView: View;
@@ -55,9 +59,9 @@ export function MobileNav( {
   const companyDates = useDataStore( s => s.companyDates );
   const openModal    = useUIStore( s => s.openModal );
 
-  // Active indicator position: tabs 0–2, Menu tab = 3 (active while drawer open)
+  // Active indicator position: view tabs 0…n-1, Menu tab = n (active while drawer open)
   const activeIndex = drawerOpen
-    ? 3
+    ? TABS.length
     : TABS.findIndex( t => t.view === currentView ); // -1 on settings view → indicator hidden
 
   // ── Overview: high-priority open items ──────────────────────────
@@ -270,7 +274,7 @@ export function MobileNav( {
           aria-hidden
           style={{
             position: 'absolute', top: 0, left: 0,
-            width: '25%', height: 3,
+            width: `${ 100 / BAR_SLOTS }%`, height: 3,
             backgroundColor: C.primary,
             borderRadius: '0 0 3px 3px',
             transform: `translateX(${ activeIndex * 100 }%)`,
