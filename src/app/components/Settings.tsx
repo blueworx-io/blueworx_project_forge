@@ -22,6 +22,9 @@ interface SettingsProps {
   settings: AppSettings;
   onSettingsChange: ( s: AppSettings ) => void;
   onClose: () => void;
+  /** Lay the setting pages out as a Kanban-style horizontal carousel — pull left/right to
+   *  switch pages instead of the sidebar/tab layout. Used by the Kanban 2 view (#50). */
+  carousel?: boolean;
 }
 
 type Section = 'config' | 'statuses' | 'brands' | 'categories' | 'releases' | 'archive' | 'export';
@@ -1024,23 +1027,123 @@ function ExportSection( { settings }: { settings: AppSettings } ) {
 const MANAGER_SECTIONS: Section[] = [ 'brands', 'categories', 'releases' ];
 
 // ── Main Settings component ──────────────────────────────────────────────────
-export function Settings( { settings, onSettingsChange }: SettingsProps ) {
+// Header + body for a single settings section — shared by the sidebar layout and
+// the Kanban-style horizontal carousel so the two never drift apart.
+function SectionHeader( { title, blurb }: { title: string; blurb: string } ) {
+  return (
+    <>
+      <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>{ title }</h2>
+      <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>{ blurb }</p>
+    </>
+  );
+}
+
+export function Settings( { settings, onSettingsChange, carousel = false }: SettingsProps ) {
   const wpAdmin = isAdmin();
   const isMobile = useIsMobile();
   const tabStripRef = useDragScroll<HTMLDivElement>( { axis: 'x', allowButtons: true } );
   const contentRef  = useDragScroll<HTMLDivElement>( { axis: 'y' } );
+  // Carousel mode: pull left/right to switch pages, like the Kanban columns (#50).
+  // Higher gain so a short drag travels a full page instead of needing a long pull.
+  const carouselRef = useDragScroll<HTMLDivElement>( { axis: 'x', allowButtons: true, gain: 2 } );
   const visibleSections = wpAdmin ? SECTION_NAV : SECTION_NAV.filter( s => MANAGER_SECTIONS.includes( s.id ) );
   const defaultSection: Section = wpAdmin ? 'config' : 'brands';
   const [ activeSection, setActiveSection ] = useState<Section>( defaultSection );
+  const [ activeIdx, setActiveIdx ] = useState( 0 );
   const persist = useSaveApi( onSettingsChange );
+
+  const safeIdx = Math.min( activeIdx, Math.max( 0, visibleSections.length - 1 ) );
+
+  // Swiping the pages updates the active tab…
+  const handleCarouselScroll = () => {
+    const el = carouselRef.current;
+    if ( ! el || el.clientWidth === 0 ) return;
+    const idx = Math.round( el.scrollLeft / el.clientWidth );
+    setActiveIdx( prev => prev === idx ? prev : idx );
+  };
+
+  // …and tapping a tab scrolls the pages to match.
+  const goToPage = ( idx: number ) => {
+    setActiveIdx( idx );
+    const el = carouselRef.current;
+    if ( el ) el.scrollTo( { left: idx * el.clientWidth, behavior: 'smooth' } );
+  };
+
+  // Keep the active tab visible in the strip as the carousel moves.
+  useEffect( () => {
+    if ( ! carousel ) return;
+    const btn = tabStripRef.current?.children[ safeIdx ] as HTMLElement | undefined;
+    btn?.scrollIntoView( { inline: 'center', block: 'nearest', behavior: 'smooth' } );
+  }, [ carousel, safeIdx, tabStripRef ] );
+
+  // Inner content for one section — reused by both layouts.
+  const renderSection = ( id: Section ) => {
+    switch ( id ) {
+      case 'config':
+        return ( <div><SectionHeader title="Config" blurb="Project name, team capacity, and global settings." /><ConfigSection settings={settings} persist={persist} /></div> );
+      case 'brands':
+        return ( <div><SectionHeader title="Brands" blurb="Manage brands, logos, and set the parent brand for comparisons." /><BrandParentConfig settings={settings} persist={persist} /><ManageBrands settings={settings} persist={persist} /></div> );
+      case 'categories':
+        return ( <div><SectionHeader title="Categories" blurb="Manage feature categories. Listed alphabetically." /><CategoriesSection settings={settings} persist={persist} /></div> );
+      case 'releases':
+        return ( <div><SectionHeader title="Releases" blurb="Add, edit, and remove release milestones." /><ReleasesSection settings={settings} /></div> );
+      case 'statuses':
+        return ( <div><SectionHeader title="Statuses" blurb="Define the workflow stages items move through. Order controls the Kanban column sequence." /><StatusesSection settings={settings} persist={persist} /></div> );
+      case 'archive':
+        return ( <div><SectionHeader title="Archive" blurb="Archived items are stored here. Restore any item to bring it back." /><ArchiveSection /></div> );
+      case 'export':
+        return ( <div><SectionHeader title="Export Data" blurb="Download your project data as CSV or JSON with optional filters." /><ExportSection settings={settings} /></div> );
+    }
+  };
+
+  const navCss = (
+    <style>{ `
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      .settings-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+      .settings-nav-scroll::-webkit-scrollbar { display: none; }
+    ` }</style>
+  );
+
+  // ── Kanban-style horizontal carousel: drag left/right to switch pages (#50) ──
+  if ( carousel ) {
+    return (
+      <>
+        { navCss }
+        <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+          {/* Tab strip — synced with the page carousel */}
+          <div ref={ tabStripRef } className="settings-nav-scroll" style={{ display:'flex', borderBottom:'1px solid #e2e8f0', background:'#fff', overflowX:'auto', overflowY:'hidden', flexShrink:0, cursor:'grab' }}>
+            { visibleSections.map( ({ id, label, Icon }, idx) => {
+              const active = idx === safeIdx;
+              return (
+                <button key={id} onClick={ () => goToPage(idx) }
+                  style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 16px', fontSize:13, fontWeight: active?700:500, border:'none', borderBottom: active?'2px solid #2563eb':'2px solid transparent', marginBottom:-1, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, background:'transparent', color: active?'#2563eb':'#64748b' }}>
+                  <Icon size={13} />{ label }
+                </button>
+              );
+            } ) }
+          </div>
+
+          {/* Swipeable page carousel — one settings page per panel, snaps left/right */}
+          <div
+            ref={ carouselRef }
+            onScroll={ handleCarouselScroll }
+            className="settings-nav-scroll"
+            style={{ flex:1, display:'flex', overflowX:'auto', overflowY:'hidden', scrollSnapType:'x mandatory', WebkitOverflowScrolling:'touch', cursor:'grab' }}
+          >
+            { visibleSections.map( ({ id }) => (
+              <div key={id} style={{ flex:'0 0 100%', width:'100%', scrollSnapAlign:'start', overflowY:'auto', padding:24 }}>
+                { renderSection( id ) }
+              </div>
+            ) ) }
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
-      <style>{ `
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .settings-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
-        .settings-nav-scroll::-webkit-scrollbar { display: none; }
-      ` }</style>
+      { navCss }
       <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
 
         {/* Mobile tab strip */}
@@ -1080,64 +1183,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
 
           {/* Content */}
           <div ref={ contentRef } style={{ flex:1, overflowY:'auto', padding:24, cursor:'grab' }}>
-
-            { activeSection === 'config' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Config</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Project name, team capacity, and global settings.</p>
-                <ConfigSection settings={settings} persist={persist} />
-              </div>
-            ) }
-
-            { activeSection === 'brands' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Brands</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Manage brands, logos, and set the parent brand for comparisons.</p>
-                <BrandParentConfig settings={settings} persist={persist} />
-                <ManageBrands     settings={settings} persist={persist} />
-              </div>
-            ) }
-
-            { activeSection === 'categories' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Categories</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Manage feature categories. Listed alphabetically.</p>
-                <CategoriesSection settings={settings} persist={persist} />
-              </div>
-            ) }
-
-            { activeSection === 'releases' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Releases</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Add, edit, and remove release milestones.</p>
-                <ReleasesSection settings={settings} />
-              </div>
-            ) }
-
-            { activeSection === 'statuses' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Statuses</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Define the workflow stages items move through. Order controls the Kanban column sequence.</p>
-                <StatusesSection settings={settings} persist={persist} />
-              </div>
-            ) }
-
-            { activeSection === 'archive' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Archive</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Archived items are stored here. Restore any item to bring it back.</p>
-                <ArchiveSection />
-              </div>
-            ) }
-
-            { activeSection === 'export' && (
-              <div>
-                <h2 style={{ fontSize:18, fontWeight:700, color:'#1a1f36', margin:'0 0 4px' }}>Export Data</h2>
-                <p style={{ fontSize:13, color:'#64748b', margin:'0 0 20px' }}>Download your project data as CSV or JSON with optional filters.</p>
-                <ExportSection settings={settings} />
-              </div>
-            ) }
-
+            { renderSection( activeSection ) }
           </div>
         </div>
       </div>
