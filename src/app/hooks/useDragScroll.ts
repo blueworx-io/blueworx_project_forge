@@ -5,10 +5,12 @@ interface DragScrollOptions {
   axis?: 'both' | 'x' | 'y';
   /** Allow drag-scroll to start on button/anchor elements (e.g. tab strips where all items are buttons). */
   allowButtons?: boolean;
+  /** Multiplier between pointer travel and scroll distance. >1 means a shorter drag scrolls further. */
+  gain?: number;
 }
 
 export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions = {} ) {
-  const { axis = 'both', allowButtons = false } = options;
+  const { axis = 'both', allowButtons = false, gain = 1 } = options;
   const ref = useRef<T>( null );
 
   useEffect( () => {
@@ -105,16 +107,16 @@ export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions
       const now = performance.now();
       const dt  = now - lastTime;
       if ( dt > 0 ) {
-        velX = ( e.pageX - lastX ) / dt * 16;
-        velY = ( e.pageY - lastY ) / dt * 16;
+        velX = ( e.pageX - lastX ) / dt * 16 * gain;
+        velY = ( e.pageY - lastY ) / dt * 16 * gain;
       }
       lastX    = e.pageX;
       lastY    = e.pageY;
       lastTime = now;
 
       const ax = axis === 'both' ? ( lockedAxis ?? 'x' ) : axis;
-      if ( ax !== 'y' ) el.scrollLeft = baseLeft - dx;
-      if ( ax !== 'x' ) el.scrollTop  = baseTop  - dy;
+      if ( ax !== 'y' ) el.scrollLeft = baseLeft - dx * gain;
+      if ( ax !== 'x' ) el.scrollTop  = baseTop  - dy * gain;
       el.style.cursor = 'grabbing';
     };
 
@@ -144,7 +146,7 @@ export function useDragScroll<T extends HTMLElement>( options: DragScrollOptions
       document.removeEventListener( 'mouseup', onRelease );
       el.removeEventListener( 'mouseleave', onRelease );
     };
-  }, [axis, allowButtons] );
+  }, [axis, allowButtons, gain] );
 
   return ref;
 }

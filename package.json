@@ -1,7 +1,7 @@
 {
   "name": "forge-project-management",
   "private": true,
-  "version": "1.31.0",
+  "version": "1.32.2",
   "type": "module",
   "scripts": {
     "dev": "vite",

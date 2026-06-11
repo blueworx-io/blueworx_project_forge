@@ -79,6 +79,13 @@ export function CalendarView() {
     return () => obs.disconnect();
   }, [] );
 
+  // Hide the window scrollbar while the Calendar view is mounted — the page still
+  // scrolls, just without the visible bar.
+  useEffect( () => {
+    document.documentElement.classList.add( 'forge-pm-hide-page-scroll' );
+    return () => document.documentElement.classList.remove( 'forge-pm-hide-page-scroll' );
+  }, [] );
+
   // ── Navigation ───────────────────────────────────────────────────────────
   const navPrev = () => {
     if ( viewMode === 'month' ) setCurrentDate( d => subMonths( d, 1 ) );

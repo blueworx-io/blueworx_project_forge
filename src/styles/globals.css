@@ -109,3 +109,16 @@
     display: none;
   }
 }
+
+/* Hide the page scrollbar while the Calendar view is active — the calendar grows
+   past the viewport and scrolls the window, so the bar lives on <html>/<body>. */
+html.forge-pm-hide-page-scroll,
+html.forge-pm-hide-page-scroll body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html.forge-pm-hide-page-scroll::-webkit-scrollbar,
+html.forge-pm-hide-page-scroll body::-webkit-scrollbar {
+  display: none;
+}
