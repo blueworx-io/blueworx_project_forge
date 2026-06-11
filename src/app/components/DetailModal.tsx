@@ -1,6 +1,6 @@
-import { X, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, Image as ImageIcon, ExternalLink, CheckCircle, Circle, Tag, History, ScrollText, Trash2, Plus, Share2, Check } from 'lucide-react';
+import { X, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, AlertTriangle, Image as ImageIcon, ExternalLink, CheckCircle, Circle, Tag, History, ScrollText, Trash2, Plus, Share2, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, ItemLink } from '../types';
+import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, ItemLink, Item } from '../types';
 import { ImageLightbox } from './ImageLightbox';
 import { LinksEditor, LinksDisplay } from './LinksField';
 import { encodeParentValue, decodeParentValue } from '../utils/linkParent';
@@ -12,6 +12,7 @@ import { BOTTOM_BAR_HEIGHT, TOP_BAR_HEIGHT } from './MobileNav';
 import { composeReleaseName, autoQuarter, formatDate } from '../utils/dates';
 import { sortItemsByName } from '../utils/sortItems';
 import { buildShareUrl } from '../utils/urlState';
+import { getDependencies, getBlockingDependencies, getDependents, isItemComplete, itemDisplayName } from '../utils/dependencies';
 
 interface WPMediaFrame {
   on: ( event: string, callback: () => void ) => void;
@@ -71,6 +72,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const item      = useUIStore( s => s.selectedItem );
   const isOpen    = useUIStore( s => s.isModalOpen );
   const closeModal = useUIStore( s => s.closeModal );
+  const openModal  = useUIStore( s => s.openModal );
   const currentView = useUIStore( s => s.currentView );
   const filters     = useUIStore( s => s.filters );
   const features  = useDataStore( s => s.features );
@@ -96,6 +98,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const [editLinkedBugIds,      setEditLinkedBugIds]      = useState<string[]>( [] );
   const [editLinkedFeedbackIds, setEditLinkedFeedbackIds] = useState<string[]>( [] );
   const [itemSearch,    setItemSearch]    = useState( '' );
+  const [depSearch,     setDepSearch]     = useState( '' );
   const [releaseSearch, setReleaseSearch] = useState( '' );
   const [linkCopied,    setLinkCopied]    = useState( false );
 
@@ -105,6 +108,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
       setIsEditing( false );
       setChangeLogPage( 0 );
       setItemSearch( '' );
+      setDepSearch( '' );
       setReleaseSearch( '' );
       if ( item.type === 'release' ) {
         const r = item as Release;
@@ -497,6 +501,100 @@ export function DetailModal( { settings }: DetailModalProps ) {
     );
   };
 
+  const renderDependenciesSection = () => {
+    const dependsOn   = ( editForm.dependsOn as string[] | undefined ) ?? ( item as { dependsOn?: string[] } ).dependsOn ?? [];
+    const blockers    = getBlockingDependencies( item, allItems );
+    const dependsList = getDependencies( item, allItems );
+    const dependents  = getDependents( item, allItems );
+
+    const typeColors: Record<string, string> = {
+      feature:  'bg-blue-50 text-blue-700 border-blue-200',
+      subitem:  'bg-cyan-50 text-cyan-700 border-cyan-200',
+      bug:      'bg-red-50 text-red-700 border-red-200',
+      feedback: 'bg-purple-50 text-purple-700 border-purple-200',
+      release:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+    };
+
+    const depRow = ( dep: Item ) => {
+      const complete = isItemComplete( dep );
+      return (
+        <button key={ dep.id } onClick={ () => openModal( dep ) }
+          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-border hover:bg-accent/50 transition-colors text-left">
+          <span className={ `px-1.5 py-0.5 text-[10px] font-semibold rounded border flex-shrink-0 ${ typeColors[dep.type] }` }>{ dep.type }</span>
+          <span className="flex-1 text-sm font-medium text-foreground truncate">{ itemDisplayName( dep ) }</span>
+          { complete
+            ? <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+            : <Circle className="w-4 h-4 text-amber-500 flex-shrink-0" /> }
+        </button>
+      );
+    };
+
+    if ( isEditing ) {
+      const candidates = allItems.filter( i => i.id !== item.id );
+      const filtered = depSearch
+        ? candidates.filter( i => itemDisplayName( i ).toLowerCase().includes( depSearch.toLowerCase() ) )
+        : candidates;
+      const selected = new Set( dependsOn );
+      const sorted = [ ...filtered ].sort( ( a, b ) => {
+        const aS = selected.has( a.id ), bS = selected.has( b.id );
+        if ( aS !== bS ) return aS ? -1 : 1;
+        return itemDisplayName( a ).localeCompare( itemDisplayName( b ) );
+      } );
+      const toggle = ( id: string ) => {
+        const next = selected.has( id ) ? dependsOn.filter( x => x !== id ) : [ ...dependsOn, id ];
+        setEditForm( { ...editForm, dependsOn: next } );
+      };
+      return (
+        <Section title={ <><Link2 className="w-4 h-4" /> Depends On ({ dependsOn.length })</> }>
+          <p className="text-xs text-muted-foreground mb-2">Items that must be done before this one. This item is &ldquo;blocked by&rdquo; them.</p>
+          <input type="text" placeholder="Search all items…" value={ depSearch } onChange={ e => setDepSearch( e.target.value ) }
+            className="w-full text-sm px-3 py-2 border border-input rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary mb-2" />
+          <div className="border border-border rounded-lg divide-y divide-border" style={{ maxHeight: 320, overflowY: 'auto' }}>
+            { sorted.length === 0 ? (
+              <div className="px-3 py-4 text-sm text-muted-foreground text-center">No items found</div>
+            ) : sorted.map( it => {
+              const isSel = selected.has( it.id );
+              return (
+                <div key={ it.id } className={ `flex items-center gap-3 px-3 py-2 transition-colors ${ isSel ? 'bg-amber-50/60' : 'hover:bg-accent/50' }` }>
+                  <span className={ `px-1.5 py-0.5 text-[10px] font-semibold rounded border flex-shrink-0 ${ typeColors[it.type] }` }>{ it.type }</span>
+                  <span className={ `flex-1 text-sm truncate ${ isSel ? 'font-medium text-foreground' : 'text-muted-foreground' }` }>{ itemDisplayName( it ) }</span>
+                  <button onClick={ () => toggle( it.id ) }
+                    className={ `flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-colors ${ isSel ? 'text-red-500 hover:bg-red-50' : 'text-amber-600 hover:bg-amber-50' }` }>
+                    { isSel ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" /> }
+                  </button>
+                </div>
+              );
+            } ) }
+          </div>
+        </Section>
+      );
+    }
+
+    if ( dependsList.length === 0 && dependents.length === 0 ) return null;
+    return (
+      <Section title={ <><Link2 className="w-4 h-4" /> Dependencies</> }>
+        { blockers.length > 0 && (
+          <div className="flex items-start gap-2 p-3 mb-3 rounded-lg bg-amber-50 border border-amber-200">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <span className="text-sm font-medium text-amber-800">Blocked by { blockers.length } unresolved item{ blockers.length !== 1 ? 's' : '' }.</span>
+          </div>
+        ) }
+        { dependsList.length > 0 && (
+          <div className="mb-3">
+            <div className="text-xs font-medium text-muted-foreground mb-1.5">Depends on</div>
+            <div className="space-y-2">{ dependsList.map( depRow ) }</div>
+          </div>
+        ) }
+        { dependents.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5">Blocks</div>
+            <div className="space-y-2">{ dependents.map( depRow ) }</div>
+          </div>
+        ) }
+      </Section>
+    );
+  };
+
   const renderFeatureDetails = ( feature: Feature ) => {
     const release  = feature.releaseId ? getItemById( feature.releaseId ) as Release | undefined : undefined;
     const subItems = sortItemsByName( ( feature.subItemIds || [] ).map( ( id ) => getItemById( id ) ).filter( ( si ): si is SubItem => si?.type === 'subitem' ) );
@@ -627,6 +725,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             </Section>
           );
         } )() }
+        { renderDependenciesSection() }
       </>
     );
   };
@@ -672,6 +771,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
         <Section title="Description">{ descField( 'description' ) }</Section>
         { renderImagesSection( 'images', 'Attachments' ) }
         { renderLinksSection() }
+        { renderDependenciesSection() }
       </>
     );
   };
@@ -742,6 +842,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             </div>
           </Section>
         ) }
+        { renderDependenciesSection() }
       </>
     );
   };
@@ -814,6 +915,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
             </div>
           </Section>
         ) }
+        { renderDependenciesSection() }
       </>
     );
   };
@@ -896,6 +998,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
           </>
         ) }
         { renderLinksSection() }
+        { renderDependenciesSection() }
       </>
     );
   };
