@@ -7,7 +7,7 @@ import { ItemCard } from './ItemCard';
 import { WorkflowStage, Item, AppSettings, Release } from '../types';
 import { useDragScroll } from '../hooks/useDragScroll';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { updateStage, canEdit } from '../api/wordpress';
+import { updateStage, updateItem, canEdit } from '../api/wordpress';
 import { AddItemModal } from './AddItemModal';
 import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
@@ -54,22 +54,52 @@ interface ReleaseGroupProps {
   isEditMode: boolean;
   onItemClick: ( item: Item ) => void;
   currentStage: WorkflowStage;
+  onItemDropInRelease: ( itemId: string, itemType: string, releaseId: string, newStage: WorkflowStage ) => void;
 }
 
-function DraggableReleaseGroup( { rId, releaseName, groupItems, nestedChildren, isEditMode, onItemClick, currentStage }: ReleaseGroupProps ) {
+function DraggableReleaseGroup( { rId, releaseName, groupItems, nestedChildren, isEditMode, onItemClick, currentStage, onItemDropInRelease }: ReleaseGroupProps ) {
   const canDragGroup = isEditMode && rId !== 'unassigned';
+
+  // The whole release must move as a unit — collect every top-level item *and*
+  // its nested descendants (sub-items, nested bugs/feedback) so dropping the
+  // group carries all of them, not just the parent rows (#53).
+  const collectGroupItems = (): { id: string; type: string }[] => {
+    const result: { id: string; type: string }[] = [];
+    const visit = ( item: Item ) => {
+      result.push( { id: item.id, type: item.type } );
+      ( nestedChildren[item.id] ?? [] ).forEach( visit );
+    };
+    groupItems.forEach( visit );
+    return result;
+  };
 
   const [{ isDragging }, drag] = useDrag<GroupDragPayload, unknown, { isDragging: boolean }>( {
     type: 'RELEASE_GROUP',
-    item: () => ( { kind: 'RELEASE_GROUP', releaseId: rId, stage: currentStage, items: groupItems.map( i => ( { id: i.id, type: i.type } ) ) } ),
+    item: () => ( { kind: 'RELEASE_GROUP', releaseId: rId, stage: currentStage, items: collectGroupItems() } ),
     canDrag: canDragGroup,
     collect: ( monitor ) => ( { isDragging: monitor.isDragging() } ),
   } );
 
+  // Dropping a single card onto a group re-assigns that item's release (and its
+  // stage to this column). The column-level drop checks didDrop() so it won't
+  // also fire a stage-only move. Dropping onto "Unassigned" clears the release.
+  const [{ isItemOver }, drop] = useDrop<AnyDragPayload, unknown, { isItemOver: boolean }>( {
+    accept: 'ITEM',
+    drop: ( dragged, monitor ) => {
+      if ( monitor.didDrop() || dragged.kind !== 'ITEM' ) return;
+      const targetReleaseId = rId === 'unassigned' ? '' : rId;
+      onItemDropInRelease( dragged.id, dragged.type, targetReleaseId, currentStage );
+    },
+    collect: ( monitor ) => ( { isItemOver: monitor.isOver( { shallow: true } ) && monitor.canDrop() } ),
+  } );
+
   return (
     <div
-      ref={ drag }
-      style={ { opacity: isDragging ? 0.45 : 1 } }
+      ref={ ( node ) => { drag( drop( node ) ); } }
+      style={ {
+        opacity: isDragging ? 0.45 : 1,
+        boxShadow: isItemOver && isEditMode ? '0 0 0 2px #2563eb' : undefined,
+      } }
       className="flex flex-col rounded-xl border border-border shadow-sm bg-background/50 overflow-hidden"
     >
       <div
@@ -108,16 +138,19 @@ interface ColumnProps {
   onItemClick: ( item: Item ) => void;
   onDrop: ( itemId: string, itemType: string, newStage: WorkflowStage ) => void;
   onGroupDrop: ( items: { id: string; type: string }[], newStage: WorkflowStage ) => void;
+  onItemDropInRelease: ( itemId: string, itemType: string, releaseId: string, newStage: WorkflowStage ) => void;
   releases: Release[];
   isMobile?: boolean;
 }
 
-function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, onGroupDrop, releases, isMobile }: ColumnProps ) {
+function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, onGroupDrop, onItemDropInRelease, releases, isMobile }: ColumnProps ) {
   const isBugTrack = stage === 'bug-tracking';
 
   const [{ isOver }, drop] = useDrop<AnyDragPayload, unknown, { isOver: boolean }>( {
     accept: ['ITEM', 'RELEASE_GROUP'],
-    drop: ( dragged ) => {
+    drop: ( dragged, monitor ) => {
+      // A release-group drop target inside the column already handled this.
+      if ( monitor.didDrop() ) return;
       if ( dragged.kind === 'RELEASE_GROUP' ) {
         if ( dragged.stage !== stage ) onGroupDrop( dragged.items, stage );
       } else {
@@ -141,6 +174,10 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, o
   } );
   // Order items alphabetically within each release group (#28)
   Object.keys( itemsByRelease ).forEach( id => { itemsByRelease[id] = sortItemsByName( itemsByRelease[id] ); } );
+
+  // In edit mode always surface an "Unassigned" drop zone so items can be
+  // dragged *out* of a release even when the column has none unassigned (#53).
+  if ( isEditMode && ! itemsByRelease.unassigned ) itemsByRelease.unassigned = [];
 
   const releaseGroups = Object.keys( itemsByRelease ).sort( ( a, b ) => {
     if ( a === 'unassigned' ) return 1;
@@ -210,6 +247,7 @@ function KanbanColumn( { stage, label, items, isEditMode, onItemClick, onDrop, o
                   isEditMode={ isEditMode }
                   onItemClick={ onItemClick }
                   currentStage={ stage }
+                  onItemDropInRelease={ onItemDropInRelease }
                 />
               );
             } ) }
@@ -338,6 +376,8 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   const [isEditMode, setIsEditMode] = useState( false );
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>( 'idle' );
   const [pendingStages, setPendingStages] = useState<{ id: string; type: string; stage: WorkflowStage }[]>( [] );
+  // Release re-assignments staged in edit mode ('' = unassigned), saved alongside stages (#53).
+  const [pendingReleases, setPendingReleases] = useState<{ id: string; type: string; releaseId: string }[]>( [] );
   const [addItemOpen, setAddItemOpen] = useState( false );
   const [activeColIdx, setActiveColIdx] = useState( 0 );
   const [depWarning, setDepWarning] = useState<string | null>( null );
@@ -368,13 +408,18 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
   }, [ activeColIdx ] );
 
   const localItems = useMemo( () => {
-    if ( pendingStages.length === 0 ) return storeAllItems;
+    if ( pendingStages.length === 0 && pendingReleases.length === 0 ) return storeAllItems;
     return storeAllItems.map( item => {
-      const pending = pendingStages.find( p => p.id === item.id );
-      if ( pending && 'workflowStage' in item ) return { ...item, workflowStage: pending.stage };
-      return item;
+      let next = item;
+      const ps = pendingStages.find( p => p.id === item.id );
+      if ( ps && 'workflowStage' in next ) next = { ...next, workflowStage: ps.stage };
+      const pr = pendingReleases.find( p => p.id === item.id );
+      // Narrow by type, not `'releaseId' in next` — an unassigned item may not
+      // carry the key at all, which would block dragging it *into* a release.
+      if ( pr && next.type !== 'release' ) next = { ...next, releaseId: pr.releaseId || undefined };
+      return next;
     } );
-  }, [storeAllItems, pendingStages] );
+  }, [storeAllItems, pendingStages, pendingReleases] );
 
   const handleDrop = ( itemId: string, itemType: string, newStage: WorkflowStage ) => {
     const lastStageId = settings.statuses.length > 0
@@ -402,14 +447,31 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
     } );
   };
 
+  // Drop a single card onto a release group: re-assign its release ('' clears it)
+  // and move it to that column's stage. Only the dragged item moves (#53).
+  const handleItemDropInRelease = ( itemId: string, itemType: string, releaseId: string, newStage: WorkflowStage ) => {
+    const current  = localItems.find( i => i.id === itemId );
+    const curStage = current && 'workflowStage' in current ? current.workflowStage : undefined;
+    const curRel   = current && 'releaseId' in current ? ( current.releaseId ?? '' ) : '';
+    if ( curStage !== newStage ) handleDrop( itemId, itemType, newStage );
+    if ( curRel !== releaseId ) {
+      setPendingReleases( ( prev ) => {
+        const filtered = prev.filter( ( p ) => p.id !== itemId );
+        return [...filtered, { id: itemId, type: itemType, releaseId }];
+      } );
+    }
+  };
+
   const handleSave = async () => {
     setSaveState( 'saving' );
     try {
-      await Promise.all(
-        pendingStages.map( ( { id, type, stage } ) => updateStage( type, id, stage ) )
-      );
+      await Promise.all( [
+        ...pendingStages.map( ( { id, type, stage } ) => updateStage( type, id, stage ) ),
+        ...pendingReleases.map( ( { id, type, releaseId } ) => updateItem( type, id, { releaseId: releaseId || undefined } as Partial<Item> ) ),
+      ] );
       setSaveState( 'success' );
       setPendingStages( [] );
+      setPendingReleases( [] );
       setTimeout( () => {
         setSaveState( 'idle' );
         setIsEditMode( false );
@@ -424,6 +486,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
     setIsEditMode( false );
     setSaveState( 'idle' );
     setPendingStages( [] );
+    setPendingReleases( [] );
   };
 
   const itemsWithWorkflow = localItems.filter( ( item ) => 'workflowStage' in item && matchesFilters( item, filters ) );
@@ -602,6 +665,7 @@ export function KanbanBoard( { settings }: KanbanBoardProps ) {
                 onItemClick={ openModal }
                 onDrop={ handleDrop }
                 onGroupDrop={ handleGroupDrop }
+                onItemDropInRelease={ handleItemDropInRelease }
                 releases={ releases }
                 isMobile={ isMobile }
               />

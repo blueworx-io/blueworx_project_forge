@@ -1,6 +1,6 @@
 import { useState, useRef, Fragment, useEffect, useCallback, useMemo, memo } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertCircle, Calendar, Star, Target, CornerDownRight, PanelLeftClose, PanelLeftOpen, Plus, X, Loader2, Waypoints } from 'lucide-react';
 import { format, startOfWeek, addWeeks, eachWeekOfInterval, startOfQuarter, parseISO, addDays, getISOWeek } from 'date-fns';
 import { Item, Release, Feature, Bug, Feedback, SubItem, AppSettings, CompanyDate } from '../types';
 import { formatDate } from '../utils/dates';
@@ -10,7 +10,7 @@ import { useDragScroll } from '../hooks/useDragScroll';
 import { useShallow } from 'zustand/react/shallow';
 import { useDataStore, selectAllItems } from '../store/useDataStore';
 import { useUIStore } from '../store/useUIStore';
-import { getDependencies, getDependents, hasUnresolvedBlockers } from '../utils/dependencies';
+import { getDependencies, getDependents, hasUnresolvedBlockers, isItemComplete } from '../utils/dependencies';
 import { getNestingParentId } from '../utils/nesting';
 import { sortItemsByName } from '../utils/sortItems';
 import { matchesFilters } from '../utils/filters';
@@ -56,14 +56,14 @@ function resolveReleaseDate( value: string, fallback: Date ): Date {
 
 // ── InlineBar ────────────────────────────────────────────────────────────────
 interface InlineBarProps {
-  label: string; hours: number; color: typeof C.feature;
+  id: string; label: string; hours: number; color: typeof C.feature;
   leftPct: number; widthPct: number; onClick: () => void; isNested?: boolean; blocked?: boolean;
 }
 
-const InlineBar = memo( function InlineBar( { label, hours, color, leftPct, widthPct, onClick, isNested = false, blocked = false }: InlineBarProps ) {
+const InlineBar = memo( function InlineBar( { id, label, hours, color, leftPct, widthPct, onClick, isNested = false, blocked = false }: InlineBarProps ) {
   return (
     <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${ leftPct }%`, width: `${ widthPct }%`, display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
-      <button onClick={ onClick }
+      <button onClick={ onClick } data-gantt-bar={ id }
         style={{ width: '100%', height: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, padding: '0 10px', backgroundColor: color.bg, border: `1px solid ${ color.border }`, borderRadius: 6, color: color.text, fontSize: 12, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.06)', pointerEvents: 'auto', textAlign: 'left' }}
         onMouseEnter={ e => { ( e.currentTarget as HTMLButtonElement ).style.backgroundColor = color.hover ?? color.bg; } }
         onMouseLeave={ e => { ( e.currentTarget as HTMLButtonElement ).style.backgroundColor = color.bg; } }
@@ -201,6 +201,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
           <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${ leftPct }%`, width: `${ widthPct }%`, display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
             <button
               onClick={ () => onItemClick( release ) }
+              data-gantt-bar={ release.id }
               style={{
                 width: '100%', height: 28, position: 'relative', overflow: 'hidden',
                 background: timeProgress > 0
@@ -245,7 +246,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                   ) : <button onClick={ () => onNavigate( leftPct ) } title={ feature.name } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.feature.bar, pointerEvents:'none' }} /></button> }
                 </div>
                 <div style={{ ...barArea, backgroundColor: highlightedIds.has( feature.id ) ? '#fef9c3' : '#eff6ff1a' }}>
-                  <InlineBar label={ feature.name } hours={ feature.timeEstimate } color={ C.feature } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( feature ) } blocked={ hasUnresolvedBlockers( feature, allItems ) } />
+                  <InlineBar id={ feature.id } label={ feature.name } hours={ feature.timeEstimate } color={ C.feature } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( feature ) } blocked={ hasUnresolvedBlockers( feature, allItems ) } />
                 </div>
               </div>
               { sortItemsByName(
@@ -268,7 +269,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                       ) : <button onClick={ () => onNavigate( leftPct ) } title={ si.name } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.subitem.bar, pointerEvents:'none' }} /></button> }
                     </div>
                     <div style={{ ...barArea, backgroundColor: highlightedIds.has( si.id ) ? '#fef9c3' : '#ecfeff1a' }}>
-                      <InlineBar label={ si.name } hours={ si.timeEstimate } color={ C.subitem } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( si ) } isNested blocked={ hasUnresolvedBlockers( si, allItems ) } />
+                      <InlineBar id={ si.id } label={ si.name } hours={ si.timeEstimate } color={ C.subitem } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( si ) } isNested blocked={ hasUnresolvedBlockers( si, allItems ) } />
                     </div>
                   </div>
                 );
@@ -288,7 +289,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                     ) : <button onClick={ () => onNavigate( leftPct ) } title={ ( child as Bug ).title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:child.type === 'bug' ? C.bug.bar : C.feedback.bar, pointerEvents:'none' }} /></button> }
                   </div>
                   <div style={{ ...barArea, backgroundColor: highlightedIds.has( child.id ) ? '#fef9c3' : ( child.type === 'bug' ? '#fff1f21a' : '#faf5ff1a' ) }}>
-                    <InlineBar label={ ( child as Bug ).title } hours={ child.timeEstimate } color={ child.type === 'bug' ? C.bug : C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( child ) } isNested blocked={ hasUnresolvedBlockers( child, allItems ) } />
+                    <InlineBar id={ child.id } label={ ( child as Bug ).title } hours={ child.timeEstimate } color={ child.type === 'bug' ? C.bug : C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( child ) } isNested blocked={ hasUnresolvedBlockers( child, allItems ) } />
                   </div>
                 </div>
               ) ) }
@@ -309,7 +310,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                 ) : <button onClick={ () => onNavigate( leftPct ) } title={ bug.title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.bug.bar, pointerEvents:'none' }} /></button> }
               </div>
               <div style={{ ...barArea, backgroundColor: highlightedIds.has( bug.id ) ? '#fef9c3' : '#fff1f21a' }}>
-                <InlineBar label={ bug.title } hours={ bug.timeEstimate } color={ C.bug } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( bug ) } blocked={ hasUnresolvedBlockers( bug, allItems ) } />
+                <InlineBar id={ bug.id } label={ bug.title } hours={ bug.timeEstimate } color={ C.bug } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( bug ) } blocked={ hasUnresolvedBlockers( bug, allItems ) } />
               </div>
             </div>
           ) ) }
@@ -328,7 +329,7 @@ const ReleaseGroup = memo( function ReleaseGroup( {
                 ) : <button onClick={ () => onNavigate( leftPct ) } title={ fb.title } style={{ background:'none', border:'none', cursor:'pointer', padding:6, display:'flex', alignItems:'center', justifyContent:'center' }}><div style={{ width:6, height:6, borderRadius:'50%', backgroundColor:C.feedback.bar, pointerEvents:'none' }} /></button> }
               </div>
               <div style={{ ...barArea, backgroundColor: highlightedIds.has( fb.id ) ? '#fef9c3' : '#faf5ff1a' }}>
-                <InlineBar label={ fb.title } hours={ fb.timeEstimate } color={ C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( fb ) } blocked={ hasUnresolvedBlockers( fb, allItems ) } />
+                <InlineBar id={ fb.id } label={ fb.title } hours={ fb.timeEstimate } color={ C.feedback } leftPct={ leftPct } widthPct={ widthPct } onClick={ () => onItemClick( fb ) } blocked={ hasUnresolvedBlockers( fb, allItems ) } />
               </div>
             </div>
           ) ) }
@@ -439,6 +440,7 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const [dateSaving,    setDateSaving]    = useState( false );
   const [weekPopup,     setWeekPopup]     = useState<Date | null>( null );
   const [highlightId,   setHighlightId]   = useState<string | null>( null );
+  const [showDeps,      setShowDeps]      = useState( true );
 
   const highlightedIds = useMemo( () => {
     if ( ! highlightId ) return new Set<string>();
@@ -454,8 +456,13 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   }, [ openModal ] );
 
   // bodyRef drives drag-scroll; headerRef is synced on scroll for fixed column headers
-  const bodyRef   = useDragScroll<HTMLDivElement>( { axis: 'x' } );
-  const headerRef = useRef<HTMLDivElement>( null );
+  const bodyRef    = useDragScroll<HTMLDivElement>( { axis: 'x' } );
+  const headerRef  = useRef<HTMLDivElement>( null );
+  // contentRef wraps the scrolled timeline content — the coordinate space the
+  // dependency connector overlay is drawn in (#53).
+  const contentRef = useRef<HTMLDivElement>( null );
+  const [connectors, setConnectors] = useState<{ d: string; unresolved: boolean }[]>( [] );
+  const [contentSize, setContentSize] = useState( { w: 0, h: 0 } );
 
   const today     = useMemo( () => new Date(), [] );
   const sidebarW  = isSidebarOpen ? 320 : 48;
@@ -510,6 +517,66 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
 
   const todayPct     = useMemo( () => pct( today, viewStart, totalDays ), [ today, viewStart, totalDays ] );
   const timelineWidth = useMemo( () => weeks.length * weekW, [ weeks.length, weekW ] );
+
+  // ── Dependency connectors (#53) ──────────────────────────────────────────────
+  // Draw connector lines for the selected item only: from each blocker bar to the
+  // bar it blocks (finish-to-start style). Bar positions are measured relative to
+  // the scrolled content container, so the coordinates stay valid as the body
+  // scrolls — only layout changes (expand/collapse, density, sidebar, data) need
+  // a recompute, handled by the ResizeObserver below.
+  const recomputeConnectors = useCallback( () => {
+    const content = contentRef.current;
+    if ( ! content ) return;
+    const target = showDeps && highlightId ? allItems.find( i => i.id === highlightId ) : undefined;
+    if ( ! target ) { setConnectors( [] ); return; }
+
+    const cRect = content.getBoundingClientRect();
+    const rectOf = ( id: string ) => {
+      const el = content.querySelector( `[data-gantt-bar="${ CSS.escape( id ) }"]` );
+      if ( ! el ) return null;
+      const r = el.getBoundingClientRect();
+      return { left: r.left - cRect.left, right: r.right - cRect.left, cy: r.top - cRect.top + r.height / 2 };
+    };
+
+    // Edges: blocker → dependent. The target's own blockers point *into* it; the
+    // items it blocks point *out* of it.
+    const edges: { blocker: Item; dependent: Item }[] = [
+      ...getDependencies( target, allItems ).map( dep => ( { blocker: dep, dependent: target } ) ),
+      ...getDependents( target, allItems ).map( dep => ( { blocker: target, dependent: dep } ) ),
+    ];
+
+    const out: { d: string; unresolved: boolean }[] = [];
+    edges.forEach( ( { blocker, dependent } ) => {
+      const a = rectOf( blocker.id );
+      const b = rectOf( dependent.id );
+      if ( ! a || ! b ) return;
+      const x1 = a.right, y1 = a.cy, x2 = b.left, y2 = b.cy;
+      const off = Math.max( 36, Math.abs( x2 - x1 ) / 2 );
+      out.push( {
+        d: `M ${ x1 } ${ y1 } C ${ x1 + off } ${ y1 }, ${ x2 - off } ${ y2 }, ${ x2 } ${ y2 }`,
+        unresolved: ! isItemComplete( blocker ),
+      } );
+    } );
+
+    setContentSize( { w: content.scrollWidth, h: content.scrollHeight } );
+    setConnectors( out );
+  }, [ highlightId, allItems, showDeps ] );
+
+  // Recompute after layout-affecting changes (a rAF lets the DOM settle first).
+  useEffect( () => {
+    const id = requestAnimationFrame( recomputeConnectors );
+    return () => cancelAnimationFrame( id );
+  }, [ recomputeConnectors, releases, fFeatures, fSubitems, fBugs, fFeedback, sidebarW, weekW, isSidebarOpen ] );
+
+  // Expand/collapse, density and resize all change the content box — observe it
+  // so connectors follow without each row reporting up to the parent.
+  useEffect( () => {
+    const content = contentRef.current;
+    if ( ! content || typeof ResizeObserver === 'undefined' ) return;
+    const ro = new ResizeObserver( () => recomputeConnectors() );
+    ro.observe( content );
+    return () => ro.disconnect();
+  }, [ recomputeConnectors ] );
 
   // Keep header columns in sync with body horizontal scroll
   const syncHeader = useCallback( () => {
@@ -585,12 +652,26 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
           <ShareButton />
           <SearchBox />
         </div>
-        { editMode && (
-          <button onClick={ () => setAddItemOpen( true ) }
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>
-            <Plus size={ 15 } />{ !isMobile && <span>Add Item</span> }
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={ () => setShowDeps( v => ! v ) }
+            title={ showDeps ? 'Hide dependency lines' : 'Show dependency lines' }
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '7px 14px',
+              fontSize: 13, fontWeight: 500, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
+              backgroundColor: showDeps ? '#fee2e2' : C.muted,
+              color: showDeps ? '#b91c1c' : C.mutedFg,
+              border: `1px solid ${ showDeps ? '#fca5a5' : C.border }`,
+            }}>
+            <Waypoints size={ 15 } />{ !isMobile && <span>Links</span> }
           </button>
-        ) }
+          { editMode && (
+            <button onClick={ () => setAddItemOpen( true ) }
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '7px 14px', fontSize: 13, fontWeight: 500, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>
+              <Plus size={ 15 } />{ !isMobile && <span>Add Item</span> }
+            </button>
+          ) }
+        </div>
       </div>
 
       {/* ── Timeline column headers — always visible, synced horizontally ── */}
@@ -664,7 +745,31 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
         onScroll={ syncHeader }
         style={{ flex: 1, overflow: 'auto', backgroundColor: '#f8fafc', cursor: 'grab', overscrollBehavior: 'none' }}
       >
-        <div style={{ minWidth: 'max-content', position: 'relative', minHeight: '100%' }}>
+        <div ref={ contentRef } style={{ minWidth: 'max-content', position: 'relative', minHeight: '100%' }}>
+
+          {/* Dependency connector lines for the selected item (#53) */}
+          { connectors.length > 0 && (
+            <svg
+              width={ contentSize.w } height={ contentSize.h }
+              style={{ position: 'absolute', top: 0, left: 0, zIndex: 15, pointerEvents: 'none', overflow: 'visible' }}
+            >
+              <defs>
+                <marker id="gantt-arrow-red"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#dc2626" />
+                </marker>
+                <marker id="gantt-arrow-gray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8" />
+                </marker>
+              </defs>
+              { connectors.map( ( c, i ) => (
+                <path key={ i } d={ c.d } fill="none"
+                  stroke={ c.unresolved ? '#dc2626' : '#94a3b8' } strokeWidth={ 2 }
+                  strokeDasharray={ c.unresolved ? '5 4' : undefined }
+                  markerEnd={ `url(#${ c.unresolved ? 'gantt-arrow-red' : 'gantt-arrow-gray' })` }
+                />
+              ) ) }
+            </svg>
+          ) }
 
           {/* Company date markers */}
           { companyDates.filter( cd => cd.tracked ).map( cd => {
