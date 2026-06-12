@@ -229,7 +229,6 @@ class Forge_PM_Post_Types {
 		self::text_field(    $post->ID, '_forge_category',          'Category' );
 		self::select_field(  $post->ID, '_forge_feature_price',     'Feature Price',   self::feature_price_options() );
 		self::text_field(    $post->ID, '_forge_time_estimate',     'Time Estimate (hours)', 'number' );
-		self::checkbox_field( $post->ID, '_forge_is_enabled',       'Enabled' );
 		self::checkbox_field( $post->ID, '_forge_is_tracked_as_stat', 'Track as Stat' );
 		self::release_select( $post->ID );
 	}
@@ -343,7 +342,7 @@ class Forge_PM_Post_Types {
 			}
 		}
 
-		$checkboxes = [ '_forge_is_enabled', '_forge_is_tracked_as_stat', '_forge_is_big_wedge_campaign', '_forge_tracked' ];
+		$checkboxes = [ '_forge_is_tracked_as_stat', '_forge_is_big_wedge_campaign', '_forge_tracked' ];
 		foreach ( $checkboxes as $key ) {
 			update_post_meta( $post_id, $key, isset( $_POST[ $key ] ) ? '1' : '0' );
 		}

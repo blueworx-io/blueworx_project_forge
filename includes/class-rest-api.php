@@ -229,7 +229,6 @@ class Forge_PM_REST_API {
 			'releaseId'       => self::meta( $p->ID, '_forge_release_id' ) ?: null,
 			'subItemIds'      => self::meta_array( $p->ID, '_forge_subitem_ids' ),
 			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
-			'isEnabled'       => self::meta_bool( $p->ID, '_forge_is_enabled' ),
 			'isTrackedAsStat' => self::meta_bool( $p->ID, '_forge_is_tracked_as_stat' ),
 			'createdDate'     => get_the_date( 'Y-m-d', $p ),
 			'images'          => self::meta_array( $p->ID, '_forge_image_urls' ),
@@ -467,7 +466,6 @@ class Forge_PM_REST_API {
 		}
 
 		$bool_meta = [
-			'isEnabled'          => '_forge_is_enabled',
 			'isTrackedAsStat'    => '_forge_is_tracked_as_stat',
 			'isBigWedgeCampaign' => '_forge_is_big_wedge_campaign',
 		];
@@ -604,7 +602,6 @@ class Forge_PM_REST_API {
 			}
 
 			$bool_checks = [
-				'isEnabled'       => [ 'meta' => '_forge_is_enabled',        'label' => 'Feature' ],
 				'isTrackedAsStat' => [ 'meta' => '_forge_is_tracked_as_stat', 'label' => 'Stat tracking' ],
 			];
 			foreach ( $bool_checks as $key => $info ) {
@@ -688,7 +685,6 @@ class Forge_PM_REST_API {
 
 		// Booleans
 		$bool_meta = [
-			'isEnabled'          => '_forge_is_enabled',
 			'isTrackedAsStat'    => '_forge_is_tracked_as_stat',
 			'isBigWedgeCampaign' => '_forge_is_big_wedge_campaign',
 			'tracked'            => '_forge_tracked',

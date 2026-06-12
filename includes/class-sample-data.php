@@ -46,7 +46,6 @@ class Forge_PM_Sample_Data {
 				'_forge_feature_price'     => 'premium',
 				'_forge_time_estimate'     => 40,
 				'_forge_release_id'        => $r1_id,
-				'_forge_is_enabled'        => '1',
 				'_forge_is_tracked_as_stat' => '1',
 				'_forge_image_urls'        => [
 					'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=800',
@@ -63,7 +62,6 @@ class Forge_PM_Sample_Data {
 				'_forge_feature_price'     => 'free',
 				'_forge_time_estimate'     => 24,
 				'_forge_release_id'        => $r1_id,
-				'_forge_is_enabled'        => '1',
 				'_forge_is_tracked_as_stat' => '1',
 			]
 		);
@@ -76,7 +74,6 @@ class Forge_PM_Sample_Data {
 				'_forge_feature_price'     => 'teaser',
 				'_forge_time_estimate'     => 16,
 				'_forge_release_id'        => $r1_id,
-				'_forge_is_enabled'        => '0',
 				'_forge_is_tracked_as_stat' => '0',
 				'_forge_image_urls'        => [ 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800' ],
 			]
@@ -90,7 +87,6 @@ class Forge_PM_Sample_Data {
 				'_forge_feature_price'     => 'scoping',
 				'_forge_time_estimate'     => 20,
 				'_forge_release_id'        => $r2_id,
-				'_forge_is_enabled'        => '0',
 				'_forge_is_tracked_as_stat' => '0',
 			]
 		);
@@ -102,7 +98,6 @@ class Forge_PM_Sample_Data {
 				'_forge_category'          => 'Communication',
 				'_forge_feature_price'     => 'premium',
 				'_forge_time_estimate'     => 28,
-				'_forge_is_enabled'        => '0',
 				'_forge_is_tracked_as_stat' => '0',
 			]
 		);
@@ -115,7 +110,6 @@ class Forge_PM_Sample_Data {
 				'_forge_feature_price'     => 'premium',
 				'_forge_time_estimate'     => 32,
 				'_forge_release_id'        => $r2_id,
-				'_forge_is_enabled'        => '1',
 				'_forge_is_tracked_as_stat' => '1',
 			]
 		);
@@ -127,7 +121,6 @@ class Forge_PM_Sample_Data {
 				'_forge_category'          => 'Mobile',
 				'_forge_feature_price'     => 'premium',
 				'_forge_time_estimate'     => 120,
-				'_forge_is_enabled'        => '1',
 				'_forge_is_tracked_as_stat' => '1',
 			]
 		);

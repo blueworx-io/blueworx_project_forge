@@ -627,16 +627,6 @@ export function DetailModal( { settings }: DetailModalProps ) {
             ) : <span className="capitalize">{ feature.featurePrice }</span>
           } />
           <MetaCard icon={ <Clock className="w-4 h-4 text-slate-600" /> } bg="bg-slate-100" label="Time Estimate" value={ timeField( 'timeEstimate' ) } />
-          <MetaCard icon={ feature.isEnabled ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Circle className="w-4 h-4 text-gray-400" /> } bg={ feature.isEnabled ? 'bg-green-100' : 'bg-gray-100' } label="Status" value={
-            isEditing ? (
-              <select value={ ( editForm.isEnabled as boolean ) ? 'enabled' : 'disabled' }
-                onChange={ e => setEditForm( { ...editForm, isEnabled: e.target.value === 'enabled' } ) }
-                className="w-full text-sm font-semibold text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm">
-                <option value="enabled">Enabled</option>
-                <option value="disabled">Disabled</option>
-              </select>
-            ) : ( feature.isEnabled ? 'Enabled' : 'Disabled' )
-          } />
           <MetaCard icon={ <BarChart3 className="w-4 h-4 text-indigo-600" /> } bg="bg-indigo-100" label="Stat Tracking" value={
             isEditing ? (
               <select value={ ( editForm.isTrackedAsStat as boolean ) ? 'yes' : 'no' }

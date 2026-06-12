@@ -24,7 +24,6 @@ export interface Feature {
   timeEstimate: number;
   releaseId?: string;
   subItemIds?: string[];
-  isEnabled: boolean;
   isTrackedAsStat: boolean;
   createdDate: string;
   images?: string[];

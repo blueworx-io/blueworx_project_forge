@@ -80,17 +80,22 @@ export function CompareView( { settings }: CompareViewProps ) {
     return map;
   }, [subitems] );
 
-  // Filtered features split into Live (enabled) and All Other (disabled). The
-  // "other" group is ordered by triage severity so what to build next is first.
+  // Filtered features split into Live and All Other. A feature is "live" once it
+  // reaches the final workflow stage (the last configured status). The "other"
+  // group is ordered by triage severity so what to build next is first.
+  const finalStageId = settings.statuses.length > 0
+    ? settings.statuses[ settings.statuses.length - 1 ].id
+    : undefined;
   const { live, other } = useMemo( () => {
     const visible = features.filter( f => matchesFilters( f, filters ) );
-    const live  = sortItemsByName( visible.filter( f => f.isEnabled ) ) as Feature[];
-    const other = ( visible.filter( f => ! f.isEnabled ) as Feature[] ).sort( ( a, b ) => {
+    const isLive  = ( f: Feature ) => finalStageId !== undefined && f.workflowStage === finalStageId;
+    const live  = sortItemsByName( visible.filter( isLive ) ) as Feature[];
+    const other = ( visible.filter( f => ! isLive( f ) ) as Feature[] ).sort( ( a, b ) => {
       const d = computeSmart( b.brands, totalBrands ).rank - computeSmart( a.brands, totalBrands ).rank;
       return d !== 0 ? d : a.name.localeCompare( b.name );
     } );
     return { live, other };
-  }, [features, filters, totalBrands] );
+  }, [features, filters, totalBrands, finalStageId] );
 
   const toggle = ( id: string ) =>
     setExpanded( prev => {
@@ -217,7 +222,7 @@ export function CompareView( { settings }: CompareViewProps ) {
             </tr>
           </thead>
           <tbody>
-            { sectionHeader( 'Live Features', live.length, showLive, () => setShowLive( v => ! v ), 'Status = Enabled' ) }
+            { sectionHeader( 'Live Features', live.length, showLive, () => setShowLive( v => ! v ), 'In the final stage' ) }
             { showLive && ( live.length > 0
               ? renderFeatureBlock( live )
               : <tr><td colSpan={ colCount } style={{ ...tdBase, color: C.mutedFg, fontSize: 13 }}>No live features match the current filters.</td></tr> ) }

@@ -47,7 +47,6 @@ export function ItemCard( { item, onClick, showDragHandle = false }: ItemCardPro
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className={ `px-2 py-0.5 text-xs font-semibold rounded border ${ typeStyle.bg } ${ typeStyle.text } ${ typeStyle.border }` }>Feature</span>
         <span className={ `px-2 py-0.5 text-xs font-medium rounded border ${ FEATURE_PRICE_STYLES[feature.featurePrice] }` }>{ feature.featurePrice }</span>
-        { feature.isEnabled && <span className="px-2 py-0.5 text-xs font-medium rounded border bg-green-100 text-green-700 border-green-300">Enabled</span> }
         { feature.isTrackedAsStat && <span title="Tracked as stat" className="flex"><BarChart3 className="w-3.5 h-3.5 text-blue-600" /></span> }
       </div>
       <h4 className="text-sm font-semibold text-foreground mb-2 line-clamp-2">{ feature.name }</h4>

@@ -80,7 +80,7 @@ function buildItem( type: string, id: string, data: Record<string, unknown> ): R
     feature: {
       type: 'feature', name: '', description: '', workflowStage: stage,
       category: '', featurePrice: 'scoping', timeEstimate: 0,
-      isEnabled: false, isTrackedAsStat: false, createdDate: today(),
+      isTrackedAsStat: false, createdDate: today(),
       brands: [], stageDates: { [stage]: today() },
     },
     subitem: {

@@ -468,21 +468,42 @@ export function GanttTimeline( { settings }: GanttTimelineProps ) {
   const sidebarW  = isSidebarOpen ? 320 : 48;
   const weekW     = density === 'compact' ? 64 : 192;
 
+  // An item is "live" once it reaches the final workflow stage (the last
+  // configured status); such items are treated as enabled and dropped from the
+  // Gantt. Falls back to 'deployed' when settings haven't loaded.
+  const finalStageId = settings?.statuses?.length
+    ? settings.statuses[ settings.statuses.length - 1 ].id
+    : 'deployed';
+
   // Global view filters (#35) — narrow items inside each release; the release
   // filter additionally limits which releases (and the timeline range) show.
-  // Deployed items and completed ("done") releases are excluded from the Gantt.
-  const fFeatures = useMemo( () => features.filter( f => f.workflowStage !== 'deployed' && matchesFilters( f, filters ) ), [ features, filters ] );
-  const fSubitems = useMemo( () => subitems.filter( s => s.workflowStage !== 'deployed' && matchesFilters( s, filters ) ), [ subitems, filters ] );
-  const fBugs     = useMemo( () => bugs.filter(     b => b.workflowStage !== 'deployed' && matchesFilters( b, filters ) ), [ bugs, filters ] );
-  const fFeedback = useMemo( () => feedback.filter( f => f.workflowStage !== 'deployed' && matchesFilters( f, filters ) ), [ feedback, filters ] );
+  // Live (final-stage) items and completed/live releases are excluded.
+  const fFeatures = useMemo( () => features.filter( f => f.workflowStage !== finalStageId && matchesFilters( f, filters ) ), [ features, filters, finalStageId ] );
+  const fSubitems = useMemo( () => subitems.filter( s => s.workflowStage !== finalStageId && matchesFilters( s, filters ) ), [ subitems, filters, finalStageId ] );
+  const fBugs     = useMemo( () => bugs.filter(     b => b.workflowStage !== finalStageId && matchesFilters( b, filters ) ), [ bugs, filters, finalStageId ] );
+  const fFeedback = useMemo( () => feedback.filter( f => f.workflowStage !== finalStageId && matchesFilters( f, filters ) ), [ feedback, filters, finalStageId ] );
+
+  // A release is "in Live Features" — and so hidden from the Gantt — when every
+  // item linked to it has reached the final stage (e.g. its whole Kanban group
+  // was dragged to the last column). Empty releases stay visible.
+  const releaseAllInFinalStage = useCallback( ( r: Release ): boolean => {
+    const linkedIds = new Set<string>( [ ...r.linkedFeatureIds, ...r.linkedBugIds, ...r.linkedFeedbackIds ] );
+    const linked = [
+      ...features.filter( f => f.releaseId === r.id || linkedIds.has( f.id ) ),
+      ...subitems.filter( s => s.releaseId === r.id ),
+      ...bugs.filter(     b => b.releaseId === r.id || linkedIds.has( b.id ) ),
+      ...feedback.filter( f => f.releaseId === r.id || linkedIds.has( f.id ) ),
+    ];
+    return linked.length > 0 && linked.every( i => i.workflowStage === finalStageId );
+  }, [ features, subitems, bugs, feedback, finalStageId ] );
 
   const releases = useMemo( () => {
     const scoped = filters.release === 'all' ? storeReleases : storeReleases.filter( r => r.id === filters.release );
-    const base   = scoped.filter( r => r.status !== 'complete' );
+    const base   = scoped.filter( r => r.status !== 'complete' && ! releaseAllInFinalStage( r ) );
     return [ ...base ].sort( ( a, b ) =>
       resolveReleaseDate( a.startWeek, today ).getTime() - resolveReleaseDate( b.startWeek, today ).getTime()
     );
-  }, [ storeReleases, today, filters.release ] );
+  }, [ storeReleases, today, filters.release, releaseAllInFinalStage ] );
 
   const { viewStart, totalDays, weeks } = useMemo( () => {
     const resolvedTimes = releases

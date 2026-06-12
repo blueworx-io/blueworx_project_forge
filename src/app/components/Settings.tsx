@@ -900,7 +900,7 @@ function ExportSection( { settings }: { settings: AppSettings } ) {
 
     if ( types.feature ) {
       data_features.filter( f => matchStage(f.workflowStage) && matchRelease(f.releaseId) && matchDate(f.createdDate) ).forEach( f => {
-        results.push({ id:f.id, type:'feature', name:f.name, workflowStage:f.workflowStage, category:f.category, featurePrice:f.featurePrice, timeEstimate:f.timeEstimate, releaseId:f.releaseId??'', isEnabled:f.isEnabled, createdDate:f.createdDate });
+        results.push({ id:f.id, type:'feature', name:f.name, workflowStage:f.workflowStage, category:f.category, featurePrice:f.featurePrice, timeEstimate:f.timeEstimate, releaseId:f.releaseId??'', createdDate:f.createdDate });
       });
     }
     if ( types.subitem ) {

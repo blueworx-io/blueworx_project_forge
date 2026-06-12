@@ -149,7 +149,6 @@ export function AddItemModal( { isOpen, onClose, onSuccess, settings }: AddItemM
       payload.name             = name.trim();
       payload.category         = category;
       payload.featurePrice     = featurePrice;
-      payload.isEnabled        = false;
       payload.isTrackedAsStat  = false;
       if ( releaseId )          payload.releaseId = releaseId;
       if ( imageUrls.length )   payload.images    = imageUrls;
