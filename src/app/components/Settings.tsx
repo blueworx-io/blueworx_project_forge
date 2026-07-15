@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Briefcase, Tag, Archive as ArchiveIcon, Plus, X, RotateCcw,
   Check, AlertCircle, Loader2, ListOrdered, PackageOpen, Download,
-  Pencil, ChevronUp, ChevronDown, Settings as SettingsIcon, Image as ImageIcon,
+  Pencil, ChevronUp, ChevronDown, Settings as SettingsIcon, Image as ImageIcon, Plug,
 } from 'lucide-react';
 import { AppSettings, ArchivedItem, WorkflowStatus, BrandConfig, Release } from '../types';
 import { useDataStore } from '../store/useDataStore';
@@ -18,6 +18,7 @@ import {
   createItem, archiveItem, updateItem, isAdmin,
 } from '../api/wordpress';
 import { Card, inputStyle } from './settings/shared';
+import ConnectionsSection from './settings/ConnectionsSection';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -25,13 +26,15 @@ interface SettingsProps {
   onClose: () => void;
 }
 
-type Section = 'config' | 'statuses' | 'brands' | 'categories' | 'releases' | 'archive' | 'export';
+type Section = 'config' | 'statuses' | 'brands' | 'categories' | 'releases' | 'connections' | 'archive' | 'export';
 
 // Config first · alphabetical middle · Archive/Export always last
 const SECTION_NAV: { id: Section; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
   { id: 'config',      label: 'Config',      Icon: SettingsIcon },
   { id: 'brands',      label: 'Brands',      Icon: Briefcase    },
   { id: 'categories',  label: 'Categories',  Icon: Tag          },
+  // Connections hold API credentials — admins only.
+  ...( isAdmin() ? [ { id: 'connections' as const, label: 'Connections', Icon: Plug } ] : [] ),
   { id: 'releases',    label: 'Releases',    Icon: PackageOpen  },
   { id: 'statuses',    label: 'Statuses',    Icon: ListOrdered  },
   { id: 'archive',     label: 'Archive',     Icon: ArchiveIcon  },
@@ -1068,6 +1071,11 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
         return ( <div><SectionHeader title="Brands" blurb="Manage brands, logos, and set the parent brand for comparisons." /><BrandParentConfig settings={settings} persist={persist} /><ManageBrands settings={settings} persist={persist} /></div> );
       case 'categories':
         return ( <div><SectionHeader title="Categories" blurb="Manage feature categories. Listed alphabetically." /><CategoriesSection settings={settings} persist={persist} /></div> );
+      case 'connections':
+        // Redundant-looking isAdmin() guard is deliberate: prevents the panel from
+        // rendering if this section is ever reached via restored tab/URL state
+        // rather than the (already admin-gated) SECTION_NAV.
+        return isAdmin() ? <ConnectionsSection /> : null;
       case 'releases':
         return ( <div><SectionHeader title="Releases" blurb="Add, edit, and remove release milestones." /><ReleasesSection settings={settings} /></div> );
       case 'statuses':
