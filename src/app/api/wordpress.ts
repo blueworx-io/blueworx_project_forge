@@ -1,4 +1,4 @@
-import { Item, Feature, SubItem, Bug, Feedback, Release, CompanyDate, AppSettings, ArchivedItem, WorkflowStatus, BrandConfig } from '../types';
+import { Item, Feature, SubItem, Bug, Feedback, Release, CompanyDate, AppSettings, ArchivedItem, WorkflowStatus, BrandConfig, Connection, ConnectionDelivery, ConnectionTestResult } from '../types';
 import { logNetworkError } from './errorLogger';
 import * as mock from './mockBackend';
 
@@ -245,4 +245,42 @@ export function getInitialSettings(): AppSettings {
     ],
     statuses: DEFAULT_STATUSES,
   };
+}
+
+// ── Connections ─────────────────────────────────────────────────────────────
+
+export function fetchConnections(): Promise<Connection[]> {
+  if ( isStandalone() ) return mock.fetchConnections();
+  return apiFetch<Connection[]>( '/connections' );
+}
+
+export function createConnection( data: Partial<Connection> ): Promise<Connection> {
+  if ( isStandalone() ) return mock.createConnection( data );
+  return apiFetch<Connection>( '/connections', {
+    method: 'POST',
+    body: JSON.stringify( data ),
+  } );
+}
+
+export function updateConnection( id: string, data: Partial<Connection> ): Promise<Connection> {
+  if ( isStandalone() ) return mock.updateConnection( id, data );
+  return apiFetch<Connection>( `/connections/${ id }`, {
+    method: 'PUT',
+    body: JSON.stringify( data ),
+  } );
+}
+
+export function deleteConnection( id: string ): Promise<{ success: boolean }> {
+  if ( isStandalone() ) return mock.deleteConnection( id );
+  return apiFetch( `/connections/${ id }`, { method: 'DELETE' } );
+}
+
+export function testConnection( id: string ): Promise<ConnectionTestResult> {
+  if ( isStandalone() ) return mock.testConnection( id );
+  return apiFetch<ConnectionTestResult>( `/connections/${ id }/test`, { method: 'POST' } );
+}
+
+export function fetchConnectionLog(): Promise<ConnectionDelivery[]> {
+  if ( isStandalone() ) return mock.fetchConnectionLog();
+  return apiFetch<ConnectionDelivery[]>( '/connections/log' );
 }

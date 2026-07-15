@@ -9,7 +9,7 @@
 // `wordpress.ts` delegates each API call here when running standalone; the live
 // WordPress code path is never affected.
 
-import { Item, CompanyDate, ArchivedItem } from '../types';
+import { Item, CompanyDate, ArchivedItem, Connection, ConnectionDelivery, ConnectionTestResult } from '../types';
 import { useDataStore } from '../store/useDataStore';
 import { sampleArchived } from '../data/sampleData';
 
@@ -181,4 +181,67 @@ export async function createCompanyDate( data: { title: string; date: string; de
 export async function updateCompanyDate( id: string, data: Partial<CompanyDate> ): Promise<{ success: boolean }> {
   patchArr( 'company_date', id, data as Record<string, unknown> );
   return { success: true };
+}
+
+// ── Connections (standalone dev only) ────────────────────────────────────────
+
+let mockConnections: Connection[] = [];
+let mockConnectionLog: ConnectionDelivery[] = [];
+
+function uuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace( /[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return ( c === 'x' ? r : ( r & 0x3 | 0x8 ) ).toString( 16 );
+  } );
+}
+
+/** Strips authToken exactly as the real API does, so the UI is exercised faithfully. */
+function toPublicConnection( c: Connection ): Connection {
+  const { authToken, ...rest } = c;
+  return authToken ? { ...rest, authTokenHint: '••••' + authToken.slice( -4 ) } : rest;
+}
+
+export async function fetchConnections(): Promise<Connection[]> {
+  return mockConnections.map( toPublicConnection );
+}
+
+export async function createConnection( data: Partial<Connection> ): Promise<Connection> {
+  const row: Connection = {
+    id:        uuid(),
+    name:      data.name ?? '',
+    url:       data.url ?? '',
+    authToken: data.authToken ?? '',
+    itemTypes: data.itemTypes ?? [],
+    enabled:   data.enabled ?? false,
+    createdAt: new Date().toISOString(),
+  };
+  mockConnections = [ ...mockConnections, row ];
+  return toPublicConnection( row );
+}
+
+export async function updateConnection( id: string, data: Partial<Connection> ): Promise<Connection> {
+  mockConnections = mockConnections.map( c => {
+    if ( c.id !== id ) return c;
+    const next = { ...c, ...data };
+    // Blank token means "leave unchanged", matching the PHP behaviour.
+    if ( ! data.authToken ) next.authToken = c.authToken;
+    return next;
+  } );
+  const found = mockConnections.find( c => c.id === id );
+  if ( ! found ) throw new Error( 'Connection not found' );
+  return toPublicConnection( found );
+}
+
+export async function deleteConnection( id: string ): Promise<{ success: boolean }> {
+  mockConnections = mockConnections.filter( c => c.id !== id );
+  return { success: true };
+}
+
+/** Simulated — standalone dev never makes real outbound calls. */
+export async function testConnection( _id: string ): Promise<ConnectionTestResult> {
+  return { success: true, httpCode: 200 };
+}
+
+export async function fetchConnectionLog(): Promise<ConnectionDelivery[]> {
+  return mockConnectionLog;
 }
