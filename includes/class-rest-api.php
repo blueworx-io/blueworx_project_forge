@@ -126,6 +126,18 @@ class Forge_PM_REST_API {
 		delete_transient( 'forge_pm_items_pub' );
 	}
 
+	/**
+	 * Public, connector-facing accessor: the shaped payload for a single item.
+	 *
+	 * Deliberately does NOT call strip_sensitive() — that method sanitises
+	 * responses for unauthenticated visitors, and would remove `description`,
+	 * the field receiving systems most need. Connections are admin-configured
+	 * destinations, so they receive full item content by design.
+	 */
+	public static function payload_for( int $post_id ): ?array {
+		return self::read_single_item( $post_id );
+	}
+
 	private static function strip_sensitive( array $payload ): array {
 		$private = [ 'changeLog', 'notes', 'urls', 'description' ];
 		foreach ( $payload as $type => &$items ) {
@@ -513,6 +525,16 @@ class Forge_PM_REST_API {
 
 		self::bust_cache();
 		$item = self::read_single_item( $post_id );
+
+		/**
+		 * Fires after a new Forge item is created and its meta saved.
+		 * Connectors subscribe to this; the REST layer stays unaware of them.
+		 *
+		 * @param string $type    Forge item type, e.g. 'feature', 'bug'.
+		 * @param int    $post_id The new post ID.
+		 */
+		do_action( 'forge_pm_item_created', $type, (int) $post_id );
+
 		return rest_ensure_response( [ 'success' => true, 'id' => (string) $post_id, 'item' => $item ] );
 	}
 
