@@ -38,8 +38,9 @@
 - `src/app/types.ts` — `Connection`, `ConnectionDelivery`. *(modify)*
 - `src/app/api/wordpress.ts` — connection API functions. *(modify)*
 - `src/app/api/mockBackend.ts` — standalone connection stubs. *(modify)*
+- `src/app/components/settings/shared.tsx` — `Card` + `inputStyle`, moved out of `Settings.tsx` so both files share them without a circular import. *(create)*
 - `src/app/components/settings/ConnectionsSection.tsx` — the settings panel. *(create)*
-- `src/app/components/Settings.tsx` — register the section in `SECTION_NAV`. *(modify)*
+- `src/app/components/Settings.tsx` — import the shared primitives; register the section in `SECTION_NAV`. *(modify)*
 - `package.json` — version bump. *(modify)*
 
 ---
@@ -817,15 +818,63 @@ git commit -m "Add connection API layer and standalone mocks (#29)"
 ## Task 7: The Connections settings panel
 
 **Files:**
+- Create: `src/app/components/settings/shared.tsx`
 - Create: `src/app/components/settings/ConnectionsSection.tsx`
+- Modify: `src/app/components/Settings.tsx`
 
 **Interfaces:**
 - Consumes: API functions from Task 6; `Connection`, `ConnectionDelivery` from Task 1.
-- Produces: `export default function ConnectionsSection()` — no props. Mounted by Task 8.
+- Produces:
+  - `settings/shared.tsx` → `export function Card(...)`, `export const inputStyle`.
+  - `export default function ConnectionsSection()` — no props. Mounted by Task 8.
 
-**Note on styling:** `Settings.tsx` uses inline `style={{}}` objects, not Tailwind classes. Match that. `Card`, `inputStyle`, `useFeedback`, and `SaveFeedback` are module-private to `Settings.tsx` and are **not** exported — this task deliberately defines its own local equivalents rather than refactoring `Settings.tsx` to export them, which would be out-of-scope churn. Keep them visually identical.
+**Note on styling:** `Settings.tsx` uses inline `style={{}}` objects, not Tailwind classes. Match that.
 
-- [ ] **Step 1: Create the component**
+**Why a shared module rather than importing from `Settings.tsx`:** `Card` and `inputStyle` are currently
+module-private to `Settings.tsx`. Task 8 makes `Settings.tsx` import `ConnectionsSection`, so having
+`ConnectionsSection` import back from `Settings.tsx` would create a **circular import** — it would
+happen to work (both are only referenced at render time, after module init), but it is fragile and a
+legitimate review finding. Moving just these two into `settings/shared.tsx` gives both files a common
+dependency and no cycle. Scope is deliberately limited to `Card` and `inputStyle` — `useFeedback` and
+`SaveFeedback` stay in `Settings.tsx` because `ConnectionsSection` does not use them, and moving them
+would be churn without a consumer.
+
+- [ ] **Step 1: Create `src/app/components/settings/shared.tsx`**
+
+Move these two verbatim out of `Settings.tsx` (lines ~80–88) into the new file, adding `export`:
+
+```tsx
+import React from 'react';
+
+export function Card( { children, style }: { children: React.ReactNode; style?: React.CSSProperties } ) {
+  return <div style={{ background:'#fff',border:'1px solid #e2e8f0',borderRadius:8,padding:20,...style }}>{ children }</div>;
+}
+
+export const inputStyle: React.CSSProperties = {
+  width:'100%', padding:'7px 10px', borderRadius:6,
+  border:'1px solid #e2e8f0', fontSize:14, color:'#1a1f36',
+  outline:'none', background:'#fff', boxSizing:'border-box',
+};
+```
+
+- [ ] **Step 2: Update `Settings.tsx` to import them**
+
+Delete the local `Card` function and `inputStyle` const from `Settings.tsx`, and add:
+
+```tsx
+import { Card, inputStyle } from './settings/shared';
+```
+
+Every existing usage of `Card` and `inputStyle` throughout `Settings.tsx` stays exactly as-is — only
+the definitions move.
+
+- [ ] **Step 3: Verify the move alone did not break anything**
+
+Run: `npm run build && npm run lint`
+Expected: both succeed. This isolates the refactor from the new component — if the build breaks here,
+the cause is the move, not the panel.
+
+- [ ] **Step 4: Create the component**
 
 ```tsx
 import React, { useState, useEffect, useCallback } from 'react';
@@ -835,6 +884,7 @@ import {
   fetchConnections, createConnection, updateConnection,
   deleteConnection, testConnection, fetchConnectionLog,
 } from '../../api/wordpress';
+import { Card, inputStyle } from './shared';
 
 const ITEM_TYPES: ItemType[] = [ 'feature', 'subitem', 'bug', 'feedback', 'release' ];
 
@@ -845,16 +895,6 @@ const TYPE_LABEL: Record<ItemType, string> = {
   feedback: 'Feedback',
   release:  'Release',
 };
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '7px 10px', borderRadius: 6,
-  border: '1px solid #e2e8f0', fontSize: 14, color: '#1a1f36',
-  outline: 'none', background: '#fff', boxSizing: 'border-box',
-};
-
-function Card( { children, style }: { children: React.ReactNode; style?: React.CSSProperties } ) {
-  return <div style={{ background:'#fff',border:'1px solid #e2e8f0',borderRadius:8,padding:20,...style }}>{ children }</div>;
-}
 
 interface FormState {
   id?: string;
@@ -1120,15 +1160,15 @@ export default function ConnectionsSection() {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [ ] **Step 5: Verify**
 
 Run: `npm run build && npm run lint`
 Expected: both succeed. The component is not yet reachable in the UI — Task 8 mounts it.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/app/components/settings/ConnectionsSection.tsx
+git add src/app/components/settings/shared.tsx src/app/components/settings/ConnectionsSection.tsx src/app/components/Settings.tsx
 git commit -m "Add Connections settings panel (#29)"
 ```
 
@@ -1142,6 +1182,9 @@ git commit -m "Add Connections settings panel (#29)"
 **Interfaces:**
 - Consumes: `ConnectionsSection` default export (Task 7); existing `isAdmin()` from `../api/wordpress`.
 - Produces: a reachable `connections` section, visible to admins only.
+
+**Note:** Task 7 already added `import { Card, inputStyle } from './settings/shared';` to this file and
+removed the local definitions. Do not re-add them.
 
 - [ ] **Step 1: Import the component and the icon**
 
