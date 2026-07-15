@@ -39,7 +39,9 @@ class Forge_PM_Connectors {
 	}
 
 	private static function save_all( array $rows ): void {
-		update_option( self::OPTION_KEY, array_values( $rows ) );
+		// Not autoloaded: holds credentials and is only read on REST/cron paths,
+		// so it shouldn't be loaded into alloptions on every front-end request.
+		update_option( self::OPTION_KEY, array_values( $rows ), false );
 	}
 
 	/** Strip the token and add a display hint. Every response passes through this. */
@@ -139,7 +141,7 @@ class Forge_PM_Connectors {
 			'id'        => wp_generate_uuid4(),
 			'name'      => sanitize_text_field( $data['name'] ),
 			'url'       => esc_url_raw( $data['url'] ),
-			'authToken' => (string) ( $data['authToken'] ?? '' ),
+			'authToken' => is_string( $data['authToken'] ?? null ) ? $data['authToken'] : '',
 			'itemTypes' => array_values( array_intersect( self::ITEM_TYPES, $data['itemTypes'] ?? [] ) ),
 			'enabled'   => ! empty( $data['enabled'] ),
 			'createdAt' => current_time( 'c', true ),
@@ -173,8 +175,10 @@ class Forge_PM_Connectors {
 
 			// A blank/absent authToken means "leave unchanged" — never wipe a
 			// stored token just because the UI sent an empty masked field.
-			if ( ! empty( $data['authToken'] ) ) {
-				$row['authToken'] = (string) $data['authToken'];
+			// A non-string value (e.g. an array) is also left unchanged rather
+			// than coerced, which would otherwise store the literal "Array".
+			if ( ! empty( $data['authToken'] ) && is_string( $data['authToken'] ) ) {
+				$row['authToken'] = $data['authToken'];
 			}
 			break;
 		}
@@ -289,7 +293,9 @@ class Forge_PM_Connectors {
 
 		if ( $result['ok'] || $is_last ) return;
 
-		$delay = self::RETRY_DELAYS[ $attempt - 1 ] ?? end( self::RETRY_DELAYS );
+		// end() takes its argument by reference, which a class constant can't
+		// satisfy — fall back to the literal last RETRY_DELAYS entry instead.
+		$delay = self::RETRY_DELAYS[ $attempt - 1 ] ?? 1800;
 		wp_schedule_single_event(
 			time() + $delay,
 			'forge_pm_push_item',
@@ -309,7 +315,9 @@ class Forge_PM_Connectors {
 			'timestamp' => current_time( 'c', true ),
 		], $entry ) );
 
-		update_option( self::LOG_KEY, array_slice( $rows, 0, self::LOG_MAX ) );
+		// Not autoloaded: only read on REST/cron paths, so it shouldn't be
+		// loaded into alloptions on every front-end request.
+		update_option( self::LOG_KEY, array_slice( $rows, 0, self::LOG_MAX ), false );
 	}
 
 	public static function api_log() {

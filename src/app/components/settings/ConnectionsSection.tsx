@@ -31,6 +31,21 @@ const EMPTY_FORM: FormState = {
   name: '', url: '', authToken: '', itemTypes: [], enabled: true, hasToken: false,
 };
 
+// Renders an ISO-8601 timestamp as a short relative age ("just now", "2m ago",
+// "3h ago", "5d ago"). No dates.ts equivalent exists yet, so this stays local.
+function relativeTime( iso: string ): string {
+  const then = new Date( iso ).getTime();
+  if ( isNaN( then ) ) return '';
+  const seconds = Math.max( 0, Math.floor( ( Date.now() - then ) / 1000 ) );
+  if ( seconds < 60 ) return 'just now';
+  const minutes = Math.floor( seconds / 60 );
+  if ( minutes < 60 ) return `${ minutes }m ago`;
+  const hours = Math.floor( minutes / 60 );
+  if ( hours < 24 ) return `${ hours }h ago`;
+  const days = Math.floor( hours / 24 );
+  return `${ days }d ago`;
+}
+
 export default function ConnectionsSection() {
   const [ connections, setConnections ] = useState<Connection[]>( [] );
   const [ log, setLog ]                 = useState<ConnectionDelivery[]>( [] );
@@ -180,7 +195,7 @@ export default function ConnectionsSection() {
             </div>
             <button onClick={ () => void runTest( c.id ) } disabled={ testing.has( c.id ) }
               style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:6,border:'1px solid #e2e8f0',background:'#fff',fontSize:12,cursor:'pointer' }}>
-              { testing.has( c.id ) ? <Loader2 size={12} /> : <Send size={12} /> } Test
+              { testing.has( c.id ) ? <Loader2 size={12} style={{ animation:'spin 1s linear infinite' }} /> : <Send size={12} /> } Test
             </button>
             <button onClick={ () => setForm( {
               id: c.id, name: c.name, url: c.url, authToken: '',
@@ -252,7 +267,7 @@ export default function ConnectionsSection() {
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={ () => void save() } disabled={ saving }
                 style={{ display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',borderRadius:6,border:'none',background:'#1a1f36',color:'#fff',fontSize:13,cursor:'pointer' }}>
-                { saving ? <Loader2 size={13} /> : <Check size={13} /> } Save
+                { saving ? <Loader2 size={13} style={{ animation:'spin 1s linear infinite' }} /> : <Check size={13} /> } Save
               </button>
               <button onClick={ () => setForm( null ) }
                 style={{ padding:'7px 14px',borderRadius:6,border:'1px solid #e2e8f0',background:'#fff',fontSize:13,cursor:'pointer' }}>
@@ -280,6 +295,9 @@ export default function ConnectionsSection() {
               </span>
               <span style={{ color:'#94a3b8', fontSize:12 }}>
                 { d.error ? d.error : d.httpCode }
+              </span>
+              <span style={{ color:'#94a3b8', fontSize:12, textAlign:'right', width:64 }}>
+                { relativeTime( d.timestamp ) }
               </span>
             </div>
           );
