@@ -157,3 +157,36 @@ export interface ArchivedItem {
   name: string;
   archivedAt: string;
 }
+
+export interface Connection {
+  id: string;
+  name: string;
+  url: string;
+  /** Write-only. Send to set/replace the token; omit to leave unchanged. Never returned by the API. */
+  authToken?: string;
+  /** Read-only display hint, e.g. "••••a1b2". Present only if a token is stored. */
+  authTokenHint?: string;
+  /** Which item creations fire this connection. */
+  itemTypes: ItemType[];
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface ConnectionDelivery {
+  id: string;
+  connectionId: string;
+  itemType: string;
+  itemId: string;
+  status: 'success' | 'failed' | 'retrying';
+  httpCode?: number;
+  error?: string;
+  /** 1–4: attempt 1 is immediate, then retries at 60s, 300s, 1800s. */
+  attempt: number;
+  timestamp: string;
+}
+
+export interface ConnectionTestResult {
+  success: boolean;
+  httpCode?: number;
+  error?: string;
+}
