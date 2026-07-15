@@ -137,6 +137,11 @@ a different trust context: an administrator has explicitly nominated the URL and
 making it an authenticated destination equivalent to a logged-in REST read. Stripping would also remove
 `description` — the single field a receiving system most needs — leaving the payload near-useless.
 
+**`changeLog` is the one field withheld.** It is internal edit history — who changed what and when — of
+no use to a receiving system and not something to hand to a third party. `payload_for()` unsets it, and
+that accessor is the single choke point for every outbound payload, so no call site can reintroduce it.
+`description`, `notes`, and `urls` are still sent.
+
 The control here is that **only an administrator can create a connection**. An admin who configures a
 destination is choosing to send full item data there; that is the feature working as intended, and the
 Connections UI states plainly that full item content is transmitted.
@@ -179,13 +184,17 @@ whole shaping layer as public API — add one narrow accessor:
 ```php
 /** Public, connector-facing: the shaped payload for a single item, or null. */
 public static function payload_for( int $post_id ): ?array {
-    return self::read_single_item( $post_id );
+    $item = self::read_single_item( $post_id );
+    if ( ! $item ) return null;
+
+    unset( $item['changeLog'] );  // internal edit history — never leaves the site
+    return $item;
 }
 ```
 
 `read_single_item()` already resolves the post, dispatches on `post_type`, and returns the same shape
-the app consumes — so the accessor is a one-line delegation. The private methods stay private; exactly
-one new public entry point is added, and the connector depends on that contract alone.
+the app consumes, so the accessor is a thin delegation that drops `changeLog`. The private methods stay
+private; exactly one new public entry point is added, and the connector depends on that contract alone.
 
 ## REST API
 

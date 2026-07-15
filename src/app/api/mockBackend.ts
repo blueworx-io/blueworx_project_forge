@@ -186,7 +186,9 @@ export async function updateCompanyDate( id: string, data: Partial<CompanyDate> 
 // ── Connections (standalone dev only) ────────────────────────────────────────
 
 let mockConnections: Connection[] = [];
-let mockConnectionLog: ConnectionDelivery[] = [];
+// Never written to: standalone dev simulates delivery rather than performing it,
+// so there are no real attempts to record. An empty Activity list is correct here.
+const mockConnectionLog: ConnectionDelivery[] = [];
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace( /[xy]/g, c => {
@@ -237,8 +239,14 @@ export async function deleteConnection( id: string ): Promise<{ success: boolean
   return { success: true };
 }
 
-/** Simulated — standalone dev never makes real outbound calls. */
-export async function testConnection( _id: string ): Promise<ConnectionTestResult> {
+/**
+ * Simulated — standalone dev never makes a real outbound call. The id is still
+ * resolved so a missing connection fails here exactly as it 404s on the real API.
+ */
+export async function testConnection( id: string ): Promise<ConnectionTestResult> {
+  if ( ! mockConnections.some( c => c.id === id ) ) {
+    throw new Error( 'Connection not found' );
+  }
   return { success: true, httpCode: 200 };
 }
 

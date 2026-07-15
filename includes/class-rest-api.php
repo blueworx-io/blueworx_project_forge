@@ -132,10 +132,18 @@ class Forge_PM_REST_API {
 	 * Deliberately does NOT call strip_sensitive() — that method sanitises
 	 * responses for unauthenticated visitors, and would remove `description`,
 	 * the field receiving systems most need. Connections are admin-configured
-	 * destinations, so they receive full item content by design.
+	 * destinations, so they receive the item's content by design.
+	 *
+	 * `changeLog` is the one exception: it is internal edit history, of no use
+	 * to a receiving system, so it never leaves the site. This is the single
+	 * choke point for outbound payloads — strip it here, not at the call site.
 	 */
 	public static function payload_for( int $post_id ): ?array {
-		return self::read_single_item( $post_id );
+		$item = self::read_single_item( $post_id );
+		if ( ! $item ) return null;
+
+		unset( $item['changeLog'] );
+		return $item;
 	}
 
 	private static function strip_sensitive( array $payload ): array {
