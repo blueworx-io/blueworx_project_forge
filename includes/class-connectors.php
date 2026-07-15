@@ -117,6 +117,12 @@ class Forge_PM_Connectors {
 				'permission_callback' => [ __CLASS__, 'is_admin' ],
 			],
 		] );
+
+		register_rest_route( self::NS, '/connections/(?P<id>[a-z0-9\-]+)/test', [
+			'methods'             => 'POST',
+			'callback'            => [ __CLASS__, 'api_test' ],
+			'permission_callback' => [ __CLASS__, 'is_admin' ],
+		] );
 	}
 
 	public static function api_list() {
@@ -309,5 +315,39 @@ class Forge_PM_Connectors {
 	public static function api_log() {
 		$rows = get_option( self::LOG_KEY, [] );
 		return rest_ensure_response( is_array( $rows ) ? $rows : [] );
+	}
+
+	/**
+	 * Sends a sample payload synchronously so the admin gets immediate feedback.
+	 * This is the one intentional exception to async delivery. It is NOT logged —
+	 * the activity log is for real item deliveries only.
+	 */
+	public static function api_test( WP_REST_Request $request ) {
+		$row = self::get( $request->get_param( 'id' ) );
+		if ( ! $row ) {
+			return new WP_Error( 'not_found', 'Connection not found.', [ 'status' => 404 ] );
+		}
+
+		$sample = [
+			'type'          => 'feature',
+			'id'            => '0',
+			'name'          => 'Forge test payload',
+			'description'   => 'This is a test delivery from Forge Project Management.',
+			'workflowStage' => 'triage',
+			'timeEstimate'  => 0,
+			'links'         => [],
+		];
+
+		$result = self::send(
+			$row,
+			self::build_envelope( 'item.test', $sample ),
+			'forge:test:' . $row['id']
+		);
+
+		return rest_ensure_response( [
+			'success'  => $result['ok'],
+			'httpCode' => $result['code'],
+			'error'    => $result['error'],
+		] );
 	}
 }
