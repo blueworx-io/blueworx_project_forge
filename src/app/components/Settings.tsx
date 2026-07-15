@@ -94,11 +94,21 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
   const [ releaseDay,  setReleaseDay  ] = useState( settings.releaseDay ?? 1 );
   const isMobile = useIsMobile();
   const fb = useFeedback();
-  useEffect( () => {
+
+  // Mirror saved settings into the form by adjusting state during render. The
+  // three fields are compared together so they stay in sync, exactly as the
+  // previous effect's dep array did.
+  const [ prevConfig, setPrevConfig ] = useState( { projectName: settings.projectName, hours: settings.teamMonthlyHours, releaseDay: settings.releaseDay } );
+  if (
+    settings.projectName      !== prevConfig.projectName ||
+    settings.teamMonthlyHours !== prevConfig.hours ||
+    settings.releaseDay       !== prevConfig.releaseDay
+  ) {
+    setPrevConfig( { projectName: settings.projectName, hours: settings.teamMonthlyHours, releaseDay: settings.releaseDay } );
     setProjectName( settings.projectName ?? '' );
     setHours( settings.teamMonthlyHours );
     setReleaseDay( settings.releaseDay ?? 1 );
-  }, [ settings.projectName, settings.teamMonthlyHours, settings.releaseDay ] );
+  }
 
   async function handleSave() {
     fb.start();
@@ -170,7 +180,12 @@ function StatusesSection( { settings, persist }: { settings: AppSettings; persis
   const [ adding, setAdding ] = useState( false );
   const fb = useFeedback();
 
-  useEffect( () => { setStatuses( settings.statuses ); }, [ settings.statuses ] );
+  // Mirror saved statuses into local state during render (guarded, so no loop).
+  const [ prevStatuses, setPrevStatuses ] = useState( settings.statuses );
+  if ( settings.statuses !== prevStatuses ) {
+    setPrevStatuses( settings.statuses );
+    setStatuses( settings.statuses );
+  }
 
   async function save( next: WorkflowStatus[] ) {
     fb.start();
@@ -287,7 +302,13 @@ function BrandParentConfig( { settings, persist }: { settings: AppSettings; pers
   const [ parentBrand, setParentBrand ] = useState( settings.parentBrand );
   const isMobile = useIsMobile();
   const fb = useFeedback();
-  useEffect( () => { setParentBrand( settings.parentBrand ); }, [ settings.parentBrand ] );
+
+  // Mirror the saved parent brand into local state during render (guarded).
+  const [ prevParentBrand, setPrevParentBrand ] = useState( settings.parentBrand );
+  if ( settings.parentBrand !== prevParentBrand ) {
+    setPrevParentBrand( settings.parentBrand );
+    setParentBrand( settings.parentBrand );
+  }
 
   async function handleSave() {
     fb.start();
@@ -798,6 +819,9 @@ function ArchiveSection() {
     finally { setLoading(false); }
   }, [] );
 
+  // Fetch-on-mount. Safe despite the rule: `load` is async and every setState in
+  // it runs after `await fetchArchived()`, so none is synchronous in the effect.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect( () => { load(); }, [ load ] );
 
   async function handleRestore( item: ArchivedItem ) {

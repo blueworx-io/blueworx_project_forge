@@ -1,5 +1,5 @@
 import { X, Calendar, Clock, Link2, TrendingUp, Star, BarChart3, AlertCircle, AlertTriangle, Image as ImageIcon, ExternalLink, CheckCircle, Circle, Tag, History, ScrollText, Trash2, Plus, Share2, Check } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Feature, SubItem, Bug, Feedback, Release, AppSettings, BrandConfig, ItemLink, Item } from '../types';
 import { ImageLightbox } from './ImageLightbox';
 import { LinksEditor, LinksDisplay } from './LinksField';
@@ -102,7 +102,14 @@ export function DetailModal( { settings }: DetailModalProps ) {
   const [releaseSearch, setReleaseSearch] = useState( '' );
   const [linkCopied,    setLinkCopied]    = useState( false );
 
-  useEffect( () => {
+  // Reset the form whenever a different item is selected. Adjusted during render
+  // instead of in an effect. `prevItem` tracks the item *reference* (not its id)
+  // and starts null, so this fires on exactly the same transitions the old
+  // `[item]` effect did — including the first render when an item is already
+  // selected, and never when the selection is cleared to null.
+  const [prevItem, setPrevItem] = useState<typeof item>( null );
+  if ( item !== prevItem ) {
+    setPrevItem( item );
     if ( item ) {
       setEditForm( { ...item } );
       setIsEditing( false );
@@ -124,7 +131,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
         setEditLinkedFeedbackIds( [] );
       }
     }
-  }, [item] ); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   if ( ! isOpen || ! item ) return null;
 

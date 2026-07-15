@@ -29,8 +29,14 @@ export function SearchBox( { fullWidth = false }: { fullWidth?: boolean } = {} )
 
   const [value, setValue] = useState( query );
 
-  // Reflect external changes (deep link, Clear all filters) into the input.
-  useEffect( () => { setValue( query ); }, [ query ] );
+  // Reflect external changes (deep link, Clear all filters) into the input by
+  // adjusting state during render — the guard means it can only run when the
+  // store value actually changes, so it can't loop.
+  const [prevQuery, setPrevQuery] = useState( query );
+  if ( query !== prevQuery ) {
+    setPrevQuery( query );
+    setValue( query );
+  }
 
   // Debounce store writes so each keystroke doesn't re-filter the whole list.
   const timer = useRef<ReturnType<typeof setTimeout>>();

@@ -81,15 +81,20 @@ export default function App() {
   const canAccessSettings = adminMode || managerMode;
   const isCalendar = currentView === 'calendar';
 
-  // Track which views have been visited so we only mount them on first access
-  useEffect( () => {
+  // Track which views have been visited so we only mount them on first access.
+  // Adjusted during render rather than in an effect: `prevView` starts null so
+  // the first render records the initial view (as the mount effect used to),
+  // and the guard means it only runs again when the view actually changes.
+  const [prevView, setPrevView] = useState<string | null>( null );
+  if ( currentView !== prevView ) {
+    setPrevView( currentView );
     setVisited( prev => {
       if ( prev.has( currentView ) ) return prev;
       const next = new Set( prev );
       next.add( currentView );
       return next;
     } );
-  }, [currentView] );
+  }
 
   useEffect( () => {
     if ( ! window.forgePMData ) return;
