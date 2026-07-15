@@ -17,6 +17,7 @@ import {
   saveSettings, fetchArchived, restoreItem,
   createItem, archiveItem, updateItem, isAdmin,
 } from '../api/wordpress';
+import { Card, inputStyle } from './settings/shared';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -76,16 +77,6 @@ function SaveFeedback( { state }: { state: ReturnType<typeof useFeedback>['state
   if ( state === 'error' ) return <span style={{ display:'inline-flex',alignItems:'center',gap:4,fontSize:12,color:'#ef4444' }}><AlertCircle size={12} /> Failed</span>;
   return null;
 }
-
-function Card( { children, style }: { children: React.ReactNode; style?: React.CSSProperties } ) {
-  return <div style={{ background:'#fff',border:'1px solid #e2e8f0',borderRadius:8,padding:20,...style }}>{ children }</div>;
-}
-
-const inputStyle: React.CSSProperties = {
-  width:'100%', padding:'7px 10px', borderRadius:6,
-  border:'1px solid #e2e8f0', fontSize:14, color:'#1a1f36',
-  outline:'none', background:'#fff', boxSizing:'border-box',
-};
 
 // ── Config section ───────────────────────────────────────────────────────────
 function ConfigSection( { settings, persist }: { settings: AppSettings; persist: ( s: AppSettings ) => Promise<AppSettings> } ) {
