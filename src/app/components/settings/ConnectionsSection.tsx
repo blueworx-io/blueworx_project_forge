@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, X, Check, AlertCircle, Loader2, Send, Trash2 } from 'lucide-react';
 import { Connection, ConnectionDelivery, ItemType } from '../../types';
 import {
@@ -38,11 +38,16 @@ export default function ConnectionsSection() {
   const [ form, setForm ]               = useState<FormState | null>( null );
   const [ saving, setSaving ]           = useState( false );
   const [ error, setError ]             = useState<string | null>( null );
-  const [ testing, setTesting ]         = useState<string | null>( null );
+  const [ testing, setTesting ]         = useState<Set<string>>( new Set() );
   const [ testResult, setTestResult ]   = useState<Record<string, string>>( {} );
 
+  // Only the very first load shows the full-panel spinner; later refreshes
+  // (after save/remove/test) update the data in place.
+  const initialLoadDone = useRef( false );
+
   const load = useCallback( async () => {
-    setLoading( true );
+    if ( ! initialLoadDone.current ) setLoading( true );
+    setError( null );
     try {
       const [ conns, entries ] = await Promise.all( [ fetchConnections(), fetchConnectionLog() ] );
       setConnections( conns );
@@ -50,7 +55,10 @@ export default function ConnectionsSection() {
     } catch ( e ) {
       setError( e instanceof Error ? e.message : 'Failed to load connections' );
     }
-    setLoading( false );
+    if ( ! initialLoadDone.current ) {
+      setLoading( false );
+      initialLoadDone.current = true;
+    }
   }, [] );
 
   useEffect( () => { void load(); }, [ load ] );
@@ -82,6 +90,7 @@ export default function ConnectionsSection() {
 
   const remove = async ( id: string ) => {
     if ( ! window.confirm( 'Delete this connection? Items will stop being pushed to it.' ) ) return;
+    setError( null );
     try {
       await deleteConnection( id );
       await load();
@@ -91,7 +100,8 @@ export default function ConnectionsSection() {
   };
 
   const runTest = async ( id: string ) => {
-    setTesting( id );
+    setError( null );
+    setTesting( prev => new Set( prev ).add( id ) );
     try {
       const r = await testConnection( id );
       setTestResult( prev => ( {
@@ -101,7 +111,11 @@ export default function ConnectionsSection() {
     } catch ( e ) {
       setTestResult( prev => ( { ...prev, [ id ]: e instanceof Error ? e.message : 'Test failed' } ) );
     }
-    setTesting( null );
+    setTesting( prev => {
+      const next = new Set( prev );
+      next.delete( id );
+      return next;
+    } );
     void load();
   };
 
@@ -169,9 +183,9 @@ export default function ConnectionsSection() {
                 </div>
               ) }
             </div>
-            <button onClick={ () => void runTest( c.id ) } disabled={ testing === c.id }
+            <button onClick={ () => void runTest( c.id ) } disabled={ testing.has( c.id ) }
               style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'5px 10px',borderRadius:6,border:'1px solid #e2e8f0',background:'#fff',fontSize:12,cursor:'pointer' }}>
-              { testing === c.id ? <Loader2 size={12} /> : <Send size={12} /> } Test
+              { testing.has( c.id ) ? <Loader2 size={12} /> : <Send size={12} /> } Test
             </button>
             <button onClick={ () => setForm( {
               id: c.id, name: c.name, url: c.url, authToken: '',
