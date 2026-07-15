@@ -64,7 +64,8 @@ POST /wp-json/forge/v1/items/{type}
         Forge_PM_Connectors::deliver()
           - wp_remote_post( url, bearer, JSON envelope )
           - 2xx  → log success
-          - else → log failure; reschedule at 60s / 300s / 1800s; give up after attempt 3
+          - else → log failure; reschedule at 60s / 300s / 1800s;
+                   give up after attempt 4 (1 immediate + 3 retries)
 ```
 
 Connectors subscribe to a `forge_pm_item_created` action rather than being called from the REST
@@ -102,7 +103,7 @@ export interface ConnectionDelivery {
   status: 'success' | 'failed' | 'retrying';
   httpCode?: number;
   error?: string;
-  attempt: number;         // 1–3
+  attempt: number;         // 1–4
   timestamp: string;
 }
 ```
@@ -129,8 +130,16 @@ Further controls:
 - **HTTPS required.** Connection URLs must use `https://`; validated on save.
 - **Idempotency.** Each request sends `Idempotency-Key: forge:{type}:{id}` so a retry after an ambiguous
   failure does not create a duplicate on a well-behaved receiver.
-- **Payload passes through `strip_sensitive()`** before send, so nothing already classed as sensitive
-  leaks outward.
+
+**The payload is *not* passed through `strip_sensitive()`.** That method removes `description`, `notes`,
+`urls`, and `changeLog`, and exists to sanitise responses for *unauthenticated* visitors. A connector is
+a different trust context: an administrator has explicitly nominated the URL and supplied a bearer token,
+making it an authenticated destination equivalent to a logged-in REST read. Stripping would also remove
+`description` — the single field a receiving system most needs — leaving the payload near-useless.
+
+The control here is that **only an administrator can create a connection**. An admin who configures a
+destination is choosing to send full item data there; that is the feature working as intended, and the
+Connections UI states plainly that full item content is transmitted.
 
 ## Payload
 
@@ -163,19 +172,20 @@ a token is configured.
 
 ### Required accessor (targeted change to `class-rest-api.php`)
 
-`shape_feature()`, `shape_bug()`, … and `strip_sensitive()` are all **`private static`**, so
+`shape_feature()`, `shape_bug()`, … and `read_single_item()` are all **`private static`**, so
 `Forge_PM_Connectors` cannot call them. Rather than widen those internals — which would expose the
 whole shaping layer as public API — add one narrow accessor:
 
 ```php
-/** Public, connector-facing: shaped + sanitised payload for a single item. */
-public static function payload_for( string $type, int $id ): ?array
+/** Public, connector-facing: the shaped payload for a single item, or null. */
+public static function payload_for( int $post_id ): ?array {
+    return self::read_single_item( $post_id );
+}
 ```
 
-It resolves the post, dispatches to the correct private `shape_*()`, passes the result through
-`strip_sensitive()`, and returns `null` if the post is missing or of the wrong type. The private
-methods stay private; exactly one new public entry point is added, and the connector depends on that
-contract alone.
+`read_single_item()` already resolves the post, dispatches on `post_type`, and returns the same shape
+the app consumes — so the accessor is a one-line delegation. The private methods stay private; exactly
+one new public entry point is added, and the connector depends on that contract alone.
 
 ## REST API
 
@@ -230,7 +240,7 @@ untestable locally and cannot be visually confirmed before commit.
 
 | Failure                         | Behaviour                                                       |
 | ------------------------------- | --------------------------------------------------------------- |
-| Endpoint returns non-2xx        | Log failure with code; retry at 60s / 300s / 1800s; stop after 3 |
+| Endpoint returns non-2xx        | Log failure with code; retry at 60s / 300s / 1800s; stop after 4 |
 | Network error / timeout         | Same retry path; 10s request timeout                             |
 | Connection deleted mid-retry    | Scheduled job exits quietly; no log entry                        |
 | Connection disabled mid-retry   | Scheduled job exits quietly                                      |
