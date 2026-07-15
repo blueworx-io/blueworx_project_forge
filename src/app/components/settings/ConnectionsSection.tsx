@@ -136,8 +136,7 @@ export default function ConnectionsSection() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <Card>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-          <h3 style={{ margin:0, fontSize:15, color:'#1a1f36' }}>Connections</h3>
+        <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', marginBottom:4 }}>
           { ! form && (
             <button onClick={ () => setForm( EMPTY_FORM ) }
               style={{ display:'inline-flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:6,border:'1px solid #e2e8f0',background:'#fff',fontSize:13,cursor:'pointer' }}>
@@ -145,10 +144,6 @@ export default function ConnectionsSection() {
             </button>
           ) }
         </div>
-        <p style={{ margin:'0 0 16px', fontSize:13, color:'#64748b' }}>
-          When a new item is created, Forge sends its full details — including the description — to each
-          enabled connection below.
-        </p>
 
         { error && (
           <div style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 10px',marginBottom:12,borderRadius:6,background:'#fff1f2',color:'#e11d48',fontSize:13 }}>

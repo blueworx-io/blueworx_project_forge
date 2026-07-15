@@ -1075,7 +1075,7 @@ export function Settings( { settings, onSettingsChange }: SettingsProps ) {
         // Redundant-looking isAdmin() guard is deliberate: prevents the panel from
         // rendering if this section is ever reached via restored tab/URL state
         // rather than the (already admin-gated) SECTION_NAV.
-        return isAdmin() ? <ConnectionsSection /> : null;
+        return isAdmin() ? ( <div><SectionHeader title="Connections" blurb="When a new item is created, Forge sends its full details to each enabled connection below." /><ConnectionsSection /></div> ) : null;
       case 'releases':
         return ( <div><SectionHeader title="Releases" blurb="Add, edit, and remove release milestones." /><ReleasesSection settings={settings} /></div> );
       case 'statuses':
