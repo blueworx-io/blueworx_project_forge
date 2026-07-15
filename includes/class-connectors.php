@@ -10,6 +10,12 @@ class Forge_PM_Connectors {
 
 	const ITEM_TYPES = [ 'feature', 'subitem', 'bug', 'feedback', 'release' ];
 
+	/** Delay in seconds before attempts 2, 3, and 4. Attempt 1 is immediate. */
+	const RETRY_DELAYS = [ 60, 300, 1800 ];
+	/** 4 total: one immediate, then one per RETRY_DELAYS entry. */
+	const MAX_ATTEMPTS = 4;
+	const TIMEOUT      = 10;
+
 	// ── Permissions ─────────────────────────────────────────────────────────
 
 	/** Connections hold API credentials — admins only, not Forge Managers. */
@@ -91,6 +97,12 @@ class Forge_PM_Connectors {
 				'callback'            => [ __CLASS__, 'api_create' ],
 				'permission_callback' => [ __CLASS__, 'is_admin' ],
 			],
+		] );
+
+		register_rest_route( self::NS, '/connections/log', [
+			'methods'             => 'GET',
+			'callback'            => [ __CLASS__, 'api_log' ],
+			'permission_callback' => [ __CLASS__, 'is_admin' ],
 		] );
 
 		register_rest_route( self::NS, '/connections/(?P<id>[a-z0-9\-]+)', [
@@ -181,5 +193,121 @@ class Forge_PM_Connectors {
 
 		self::save_all( $next );
 		return rest_ensure_response( [ 'success' => true ] );
+	}
+
+	// ── Trigger ─────────────────────────────────────────────────────────────
+
+	/**
+	 * Schedules a push for every enabled connection subscribed to $type.
+	 * Never throws — item creation must not fail because of a connector.
+	 */
+	public static function on_item_created( string $type, int $post_id ): void {
+		foreach ( self::get_all() as $row ) {
+			if ( empty( $row['enabled'] ) ) continue;
+			if ( ! in_array( $type, (array) ( $row['itemTypes'] ?? [] ), true ) ) continue;
+
+			wp_schedule_single_event(
+				time(),
+				'forge_pm_push_item',
+				[ (string) $row['id'], $type, $post_id, 1 ]
+			);
+		}
+	}
+
+	// ── Delivery ────────────────────────────────────────────────────────────
+
+	public static function build_envelope( string $event, array $item ): array {
+		return [
+			'source' => 'forge',
+			'event'  => $event,
+			'sentAt' => current_time( 'c', true ),
+			'item'   => $item,
+		];
+	}
+
+	/** Performs one HTTP POST. Returns [ ok, code, error ]. */
+	public static function send( array $row, array $envelope, string $idem_key ): array {
+		$headers = [
+			'Content-Type'    => 'application/json',
+			'Idempotency-Key' => $idem_key,
+		];
+		if ( ! empty( $row['authToken'] ) ) {
+			$headers['Authorization'] = 'Bearer ' . $row['authToken'];
+		}
+
+		$res = wp_remote_post( $row['url'], [
+			'headers' => $headers,
+			'body'    => wp_json_encode( $envelope ),
+			'timeout' => self::TIMEOUT,
+		] );
+
+		if ( is_wp_error( $res ) ) {
+			return [ 'ok' => false, 'code' => 0, 'error' => $res->get_error_message() ];
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $res );
+		$ok   = $code >= 200 && $code < 300;
+
+		return [ 'ok' => $ok, 'code' => $code, 'error' => $ok ? '' : 'HTTP ' . $code ];
+	}
+
+	/**
+	 * Cron handler. Delivers one item to one connection, rescheduling on failure.
+	 */
+	public static function deliver( string $conn_id, string $type, int $post_id, int $attempt ): void {
+		$row = self::get( $conn_id );
+
+		// Connection deleted or disabled mid-retry — exit quietly, no log entry.
+		if ( ! $row || empty( $row['enabled'] ) ) return;
+
+		$item = Forge_PM_REST_API::payload_for( $post_id );
+		if ( ! $item ) return; // Item deleted before delivery — nothing to send.
+
+		$result = self::send(
+			$row,
+			self::build_envelope( 'item.created', $item ),
+			'forge:' . $type . ':' . $post_id
+		);
+
+		$is_last = $attempt >= self::MAX_ATTEMPTS;
+
+		self::log( [
+			'connectionId' => $conn_id,
+			'itemType'     => $type,
+			'itemId'       => (string) $post_id,
+			'status'       => $result['ok'] ? 'success' : ( $is_last ? 'failed' : 'retrying' ),
+			'httpCode'     => $result['code'],
+			'error'        => $result['error'],
+			'attempt'      => $attempt,
+		] );
+
+		if ( $result['ok'] || $is_last ) return;
+
+		$delay = self::RETRY_DELAYS[ $attempt - 1 ] ?? end( self::RETRY_DELAYS );
+		wp_schedule_single_event(
+			time() + $delay,
+			'forge_pm_push_item',
+			[ $conn_id, $type, $post_id, $attempt + 1 ]
+		);
+	}
+
+	// ── Log ─────────────────────────────────────────────────────────────────
+
+	/** Prepends an entry and trims to LOG_MAX. Most recent first. */
+	public static function log( array $entry ): void {
+		$rows = get_option( self::LOG_KEY, [] );
+		if ( ! is_array( $rows ) ) $rows = [];
+
+		array_unshift( $rows, array_merge( [
+			'id'        => wp_generate_uuid4(),
+			'timestamp' => current_time( 'c', true ),
+		], $entry ) );
+
+		update_option( self::LOG_KEY, array_slice( $rows, 0, self::LOG_MAX ) );
+	}
+
+	public static function api_log() {
+		$rows = get_option( self::LOG_KEY, [] );
+		return rest_ensure_response( is_array( $rows ) ? $rows : [] );
 	}
 }

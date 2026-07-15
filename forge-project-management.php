@@ -47,5 +47,8 @@ add_filter( 'show_admin_bar',     [ 'Forge_PM_Enqueue',         'maybe_hide_admi
 add_filter( 'login_redirect',      [ 'Forge_PM_Page_Generator', 'login_redirect' ], 10, 3 );
 add_action( 'save_post',          [ 'Forge_PM_REST_API',        'bust_cache' ] );
 
+add_action( 'forge_pm_item_created', [ 'Forge_PM_Connectors', 'on_item_created' ], 10, 2 );
+add_action( 'forge_pm_push_item',    [ 'Forge_PM_Connectors', 'deliver' ],         10, 4 );
+
 add_shortcode( 'forge_project_management', [ 'Forge_PM_Enqueue', 'render_app' ] );
 
