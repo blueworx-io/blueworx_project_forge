@@ -24,6 +24,7 @@ require_once FORGE_PM_DIR . 'includes/class-sample-data.php';
 require_once FORGE_PM_DIR . 'includes/class-page-generator.php';
 require_once FORGE_PM_DIR . 'includes/class-enqueue.php';
 require_once FORGE_PM_DIR . 'includes/class-settings.php';
+require_once FORGE_PM_DIR . 'includes/class-connectors.php';
 
 // Register the fatal-error catcher as early as possible so it captures plugin
 // fatals during any request (front-end, REST, or admin).
@@ -40,6 +41,7 @@ add_action( 'init',               [ 'Forge_PM_Settings',       'register_post_st
 add_action( 'rest_api_init',      [ 'Forge_PM_REST_API',        'register_routes' ] );
 add_action( 'rest_api_init',      [ 'Forge_PM_Settings',        'register_routes' ] );
 add_action( 'rest_api_init',      [ 'Forge_PM_Status',          'register_routes' ] );
+add_action( 'rest_api_init',      [ 'Forge_PM_Connectors',      'register_routes' ] );
 add_action( 'wp_enqueue_scripts', [ 'Forge_PM_Enqueue',         'enqueue' ] );
 add_filter( 'show_admin_bar',     [ 'Forge_PM_Enqueue',         'maybe_hide_admin_bar' ] );
 add_filter( 'login_redirect',      [ 'Forge_PM_Page_Generator', 'login_redirect' ], 10, 3 );
