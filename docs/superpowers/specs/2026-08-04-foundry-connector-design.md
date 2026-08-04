@@ -55,10 +55,22 @@ nothing extra is included until the key lets us test.
   Forge PM admin menu.
 - Off by default. Nothing pushes until it is switched on.
 
+## Logging
+
+Every attempt is recorded: queued, sent, failed, skipped, and connection tests. Each entry holds the
+time, the outcome, the item (linked to its edit screen), who triggered it, and a plain-English
+detail line — the Foundry id on success, the reason on failure.
+
+Stored as a capped rolling option, newest first, last 100 entries, matching the existing error logs
+in `Forge_PM_Status`. Not autoloaded. Clearable from the settings screen.
+
+A queued entry with no matching sent or failed entry means WP-Cron never ran — which is the main
+thing worth being able to see.
+
 ## Admin surface
 
-- **Foundry settings screen** — the four settings above, plus a Test Connection button that calls
-  `GET /api/proposals` with the key and reports pass or fail.
+- **Foundry settings screen** — the four settings above, a Test Connection button that calls
+  `GET /api/proposals` with the key and reports pass or fail, and the activity log.
 - **Foundry box on each item edit screen** — shows pushed / failed / not pushed, the Foundry id or
   the error text, and a Push now button.
 

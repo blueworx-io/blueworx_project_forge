@@ -10,8 +10,10 @@ defined( 'ABSPATH' ) || exit;
 class Forge_PM_Foundry {
 
 	const OPTION_KEY = 'forge_pm_foundry';
+	const LOG_OPTION = 'forge_pm_foundry_log';
 	const BASE_URL   = 'https://foundry.gitwork.co.uk';
 	const CRON_HOOK  = 'forge_pm_foundry_push';
+	const MAX_LOG    = 100;
 
 	const META_ID        = '_forge_foundry_id';
 	const META_ERROR     = '_forge_foundry_error';
@@ -36,6 +38,7 @@ class Forge_PM_Foundry {
 		add_action( 'admin_post_forge_foundry_save', [ __CLASS__, 'handle_save' ] );
 		add_action( 'admin_post_forge_foundry_test', [ __CLASS__, 'handle_test' ] );
 		add_action( 'admin_post_forge_foundry_push', [ __CLASS__, 'handle_push' ] );
+		add_action( 'admin_post_forge_foundry_clear_log', [ __CLASS__, 'handle_clear_log' ] );
 	}
 
 	// ── Configuration ────────────────────────────────────────────
@@ -67,6 +70,40 @@ class Forge_PM_Foundry {
 		return $missing;
 	}
 
+	// ── Log ──────────────────────────────────────────────────────
+
+	/**
+	 * Capped, newest-first rolling log kept in an option — same shape as the
+	 * plugin's error logs in Forge_PM_Status.
+	 *
+	 * @param string $event   queued | sent | failed | skipped | test
+	 * @param string $message Plain-English outcome.
+	 */
+	private static function log( string $event, string $message, ?WP_Post $post = null ) {
+		$entries = self::get_log();
+
+		array_unshift( $entries, [
+			'time'    => current_time( 'mysql' ),
+			'event'   => $event,
+			'message' => $message,
+			'itemId'  => $post ? (int) $post->ID : 0,
+			'item'    => $post ? ( $post->post_title !== '' ? $post->post_title : "#{$post->ID}" ) : '',
+			'type'    => $post ? $post->post_type : '',
+			'user'    => wp_get_current_user()->display_name ?: '',
+		] );
+
+		if ( count( $entries ) > self::MAX_LOG ) {
+			$entries = array_slice( $entries, 0, self::MAX_LOG );
+		}
+
+		update_option( self::LOG_OPTION, $entries, false );
+	}
+
+	public static function get_log(): array {
+		$entries = get_option( self::LOG_OPTION, [] );
+		return is_array( $entries ) ? $entries : [];
+	}
+
 	// ── Queueing ─────────────────────────────────────────────────
 
 	/**
@@ -89,6 +126,7 @@ class Forge_PM_Foundry {
 
 		if ( ! wp_next_scheduled( self::CRON_HOOK, [ $post_id ] ) ) {
 			wp_schedule_single_event( time() + 5, self::CRON_HOOK, [ $post_id ] );
+			self::log( 'queued', 'Queued for Foundry.', $post );
 		}
 	}
 
@@ -111,12 +149,13 @@ class Forge_PM_Foundry {
 
 		$existing = get_post_meta( $post_id, self::META_ID, true );
 		if ( $existing ) {
+			self::log( 'skipped', "Already in Foundry as {$existing}.", $post );
 			return (string) $existing;
 		}
 
 		$missing = self::missing_config();
 		if ( $missing ) {
-			return self::record_failure( $post_id, new WP_Error(
+			return self::record_failure( $post, new WP_Error(
 				'forge_foundry_config',
 				'Connector not configured — missing: ' . implode( ', ', $missing ) . '.'
 			) );
@@ -132,12 +171,12 @@ class Forge_PM_Foundry {
 		] );
 
 		if ( is_wp_error( $response ) ) {
-			return self::record_failure( $post_id, $response );
+			return self::record_failure( $post, $response );
 		}
 
 		$foundry_id = self::extract_id( $response );
 		if ( $foundry_id === '' ) {
-			return self::record_failure( $post_id, new WP_Error(
+			return self::record_failure( $post, new WP_Error(
 				'forge_foundry_no_id',
 				'Foundry accepted the item but returned no id.'
 			) );
@@ -147,11 +186,14 @@ class Forge_PM_Foundry {
 		update_post_meta( $post_id, self::META_PUSHED_AT, current_time( 'mysql' ) );
 		delete_post_meta( $post_id, self::META_ERROR );
 
+		self::log( 'sent', "Created in Foundry as {$foundry_id}.", $post );
+
 		return $foundry_id;
 	}
 
-	private static function record_failure( int $post_id, WP_Error $error ): WP_Error {
-		update_post_meta( $post_id, self::META_ERROR, $error->get_error_message() );
+	private static function record_failure( WP_Post $post, WP_Error $error ): WP_Error {
+		update_post_meta( $post->ID, self::META_ERROR, $error->get_error_message() );
+		self::log( 'failed', $error->get_error_message(), $post );
 		return $error;
 	}
 
@@ -315,7 +357,65 @@ class Forge_PM_Foundry {
 				<?php wp_nonce_field( 'forge_foundry_test' ); ?>
 				<?php submit_button( __( 'Test connection', 'forge-pm' ), 'secondary', 'submit', false ); ?>
 			</form>
+
+			<h2><?php esc_html_e( 'Activity', 'forge-pm' ); ?></h2>
+			<?php self::render_log(); ?>
 		</div>
+		<?php
+	}
+
+	private static function render_log() {
+		$entries = self::get_log();
+
+		if ( ! $entries ) {
+			printf( '<p>%s</p>', esc_html__( 'Nothing sent yet.', 'forge-pm' ) );
+			return;
+		}
+
+		$labels = [
+			'queued'  => __( 'Queued', 'forge-pm' ),
+			'sent'    => __( 'Sent', 'forge-pm' ),
+			'failed'  => __( 'Failed', 'forge-pm' ),
+			'skipped' => __( 'Skipped', 'forge-pm' ),
+			'test'    => __( 'Test', 'forge-pm' ),
+		];
+		?>
+		<table class="widefat striped">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'When', 'forge-pm' ); ?></th>
+					<th><?php esc_html_e( 'Outcome', 'forge-pm' ); ?></th>
+					<th><?php esc_html_e( 'Item', 'forge-pm' ); ?></th>
+					<th><?php esc_html_e( 'Detail', 'forge-pm' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $entries as $entry ) :
+					$event     = $entry['event'] ?? '';
+					$item_id   = (int) ( $entry['itemId'] ?? 0 );
+					$edit_link = $item_id ? get_edit_post_link( $item_id ) : '';
+					?>
+					<tr>
+						<td><?php echo esc_html( $entry['time'] ?? '' ); ?></td>
+						<td><?php echo esc_html( $labels[ $event ] ?? $event ); ?></td>
+						<td>
+							<?php if ( $edit_link ) : ?>
+								<a href="<?php echo esc_url( $edit_link ); ?>"><?php echo esc_html( $entry['item'] ?? '' ); ?></a>
+							<?php else : ?>
+								<?php echo esc_html( $entry['item'] ?? '—' ); ?>
+							<?php endif; ?>
+						</td>
+						<td><?php echo esc_html( $entry['message'] ?? '' ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="forge_foundry_clear_log">
+			<?php wp_nonce_field( 'forge_foundry_clear_log' ); ?>
+			<?php submit_button( __( 'Clear log', 'forge-pm' ), 'secondary', 'submit', false ); ?>
+		</form>
 		<?php
 	}
 
@@ -344,10 +444,22 @@ class Forge_PM_Foundry {
 		$response = self::request( 'GET', '/api/proposals' );
 
 		if ( is_wp_error( $response ) ) {
+			self::log( 'test', 'Connection test failed — ' . $response->get_error_message() );
 			self::redirect_to_settings( $response->get_error_message(), false );
 		}
 
+		self::log( 'test', 'Connection test passed.' );
 		self::redirect_to_settings( __( 'Connected — Foundry accepted the key.', 'forge-pm' ), true );
+	}
+
+	public static function handle_clear_log() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'forge-pm' ) );
+		}
+		check_admin_referer( 'forge_foundry_clear_log' );
+
+		delete_option( self::LOG_OPTION );
+		self::redirect_to_settings( __( 'Log cleared.', 'forge-pm' ), true );
 	}
 
 	private static function redirect_to_settings( string $message, bool $ok ) {
