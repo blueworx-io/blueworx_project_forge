@@ -13,7 +13,17 @@ $pluginDir   = Join-Path $staging $slug
 # The zip is written one level ABOVE the project folder (beside it), so it never
 # lives inside the repo and is trivial to grab without digging into the project.
 $outputDir   = Split-Path -Parent $projectRoot
-$zipPath     = Join-Path $outputDir "$slug.zip"
+
+# The version goes in the FILENAME only, so a zip on disk says which build it is.
+# The folder inside the archive stays "$slug" with no version — WordPress installs
+# to that folder name, so versioning it would install a second copy of the plugin
+# on every update instead of replacing the first.
+$header = ( Get-Content ( Join-Path $projectRoot "$slug.php" ) -TotalCount 20 ) -join "`n"
+if ( $header -notmatch '(?m)^\s*\*\s*Version:\s*(\S+)' ) {
+    throw "Could not read Version from $slug.php"
+}
+$version = $Matches[1]
+$zipPath = Join-Path $outputDir "$slug-$version.zip"
 
 # Only these items are shipped to WordPress.
 $runtimeItems = @(
@@ -45,7 +55,11 @@ foreach ( $item in $runtimeItems ) {
 # "Plugin file does not exist." Adding each entry with forward-slash (/) names
 # (relative to the staging root so the `forge-project-management/` wrapper folder
 # is included) produces an archive WordPress can unpack.
-if ( Test-Path $zipPath ) { Remove-Item -Force $zipPath }
+#
+# Older builds are cleared out too, so exactly one zip per plugin is ever present
+# and there is no doubt which one to install.
+Get-ChildItem -Path $outputDir -Filter "$slug*.zip" -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 

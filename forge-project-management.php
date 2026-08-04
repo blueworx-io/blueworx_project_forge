@@ -3,7 +3,7 @@
  * Plugin Name: Forge Project Management
  * Plugin URI:  https://github.com/blueworx-io/forge-project-management
  * Description: Product planning and release management for WordPress.
- * Version:     1.36.0
+ * Version:     1.38.0
  * Author:      Blueworx
  * License:     GPL-2.0-or-later
  * Text Domain: forge-pm
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'FORGE_PM_VERSION',  '1.36.0' );
+define( 'FORGE_PM_VERSION',  '1.38.0' );
 define( 'FORGE_PM_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'FORGE_PM_URL',      plugin_dir_url( __FILE__ ) );
 define( 'FORGE_PM_BASENAME', plugin_basename( __FILE__ ) );
@@ -24,6 +24,7 @@ require_once FORGE_PM_DIR . 'includes/class-sample-data.php';
 require_once FORGE_PM_DIR . 'includes/class-page-generator.php';
 require_once FORGE_PM_DIR . 'includes/class-enqueue.php';
 require_once FORGE_PM_DIR . 'includes/class-settings.php';
+require_once FORGE_PM_DIR . 'includes/class-foundry.php';
 
 // Register the fatal-error catcher as early as possible so it captures plugin
 // fatals during any request (front-end, REST, or admin).
@@ -44,6 +45,8 @@ add_action( 'wp_enqueue_scripts', [ 'Forge_PM_Enqueue',         'enqueue' ] );
 add_filter( 'show_admin_bar',     [ 'Forge_PM_Enqueue',         'maybe_hide_admin_bar' ] );
 add_filter( 'login_redirect',      [ 'Forge_PM_Page_Generator', 'login_redirect' ], 10, 3 );
 add_action( 'save_post',          [ 'Forge_PM_REST_API',        'bust_cache' ] );
+
+Forge_PM_Foundry::init();
 
 add_shortcode( 'forge_project_management', [ 'Forge_PM_Enqueue', 'render_app' ] );
 
