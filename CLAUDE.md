@@ -59,7 +59,9 @@ This repo **overrides** the global "remove `node_modules`" rule in `~/.claude/CL
 To produce the installable plugin zip:
 
 1. `npm install` (first time / after dependency changes only)
-2. `npm run zip` — builds fresh assets, then stages **only** the runtime files (`forge-project-management.php`, `includes/`, `templates/`, `assets/`) into `dist-zip/` and compresses them to `forge-project-management.zip` **one level above the project folder** (i.e. beside the repo, not inside it).
+2. `npm run zip` — builds fresh assets, then stages **only** the runtime files (`forge-project-management.php`, `includes/`, `templates/`, `assets/`) into `dist-zip/` and compresses them to `forge-project-management-<version>.zip` **one level above the project folder** (i.e. beside the repo, not inside it). Older zips there are removed, so exactly one is ever present.
+
+The version is taken from the plugin header and goes in the **filename only**. The folder inside the archive stays `forge-project-management/` — WordPress installs to that folder name, so a versioned folder would install a second copy of the plugin on every update instead of replacing the first.
 
 The zip never contains `node_modules`, `src/`, or build/lint configs — those are physically never staged (see `scripts/zip-plugin.ps1`). The zip wraps the plugin in a `forge-project-management/` folder so it unzips straight into `wp-content/plugins/`. Because the zip is written outside the repo it is never tracked by git; `dist-zip/` is git-ignored.
 
@@ -73,7 +75,7 @@ Bump the version on every session that produces deployable changes. Two files mu
 
 Use patch bumps (1.0.x) for fixes, minor bumps (1.x.0) for new features.
 
-**After every version bump, run `npm run zip`** to regenerate `forge-project-management.zip` so the installable artifact always matches the current version. Do this automatically — don't wait to be asked.
+**After every version bump, run `npm run zip`** to regenerate `forge-project-management-<version>.zip` so the installable artifact always matches the current version. Do this automatically — don't wait to be asked.
 
 ## State Management (Zustand v5)
 
