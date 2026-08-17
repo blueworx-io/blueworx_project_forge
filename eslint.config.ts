@@ -6,8 +6,9 @@ import reactHooks from "eslint-plugin-react-hooks";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
-  // plugin-update-checker is vendored third-party JS, and .wp-test is a
-  // disposable WordPress instance — neither is ours to lint.
+  // plugin-update-checker is vendored third-party JS, .wp-test is a disposable
+  // WordPress instance, and .foundation is the shared check scripts CI checks
+  // out into the workspace — none of it is ours to lint.
   {
     ignores: [
       "assets/**",
@@ -17,6 +18,7 @@ export default defineConfig([
       "vendor/**",
       "plugin-update-checker/**",
       ".wp-test/**",
+      ".foundation/**",
       "test-results/**",
       "playwright-report/**",
     ],
