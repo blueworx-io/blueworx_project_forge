@@ -12,11 +12,11 @@ class Forge_PM_Roles {
 			add_role(
 				self::MANAGER_ROLE,
 				__( 'Forge Manager', 'forge-pm' ),
-				[
+				array(
 					'read'         => true,
 					'edit_posts'   => true,
 					'upload_files' => true,
-				]
+				)
 			);
 		}
 
@@ -25,9 +25,9 @@ class Forge_PM_Roles {
 			add_role(
 				self::USER_ROLE,
 				__( 'Forge User', 'forge-pm' ),
-				[
+				array(
 					'read' => true,
-				]
+				)
 			);
 		}
 	}

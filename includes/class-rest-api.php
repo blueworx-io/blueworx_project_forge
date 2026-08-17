@@ -7,70 +7,90 @@ class Forge_PM_REST_API {
 
 	public static function register_routes() {
 		// GET all items (public)
-		register_rest_route( self::NS, '/items', [
-			'methods'             => 'GET',
-			'callback'            => [ __CLASS__, 'get_all_items' ],
-			'permission_callback' => '__return_true',
-		] );
+		register_rest_route(
+			self::NS,
+			'/items',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'get_all_items' ),
+				'permission_callback' => '__return_true',
+			)
+		);
 
 		// POST new item by type
-		register_rest_route( self::NS, '/items/(?P<type>[a-z_]+)', [
-			'methods'             => 'POST',
-			'callback'            => [ __CLASS__, 'create_item' ],
-			'permission_callback' => [ __CLASS__, 'can_edit_items' ],
-			'args'                => [
-				'type' => [ 'sanitize_callback' => 'sanitize_key' ],
-			],
-		] );
+		register_rest_route(
+			self::NS,
+			'/items/(?P<type>[a-z_]+)',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'create_item' ),
+				'permission_callback' => array( __CLASS__, 'can_edit_items' ),
+				'args'                => array(
+					'type' => array( 'sanitize_callback' => 'sanitize_key' ),
+				),
+			)
+		);
 
 		// GET single item / PUT update / DELETE
-		register_rest_route( self::NS, '/items/(?P<type>[a-z_]+)/(?P<id>\d+)', [
-			[
-				'methods'             => 'GET',
-				'callback'            => [ __CLASS__, 'get_item' ],
-				'permission_callback' => '__return_true',
-				'args'                => [
-					'type' => [ 'sanitize_callback' => 'sanitize_key' ],
-					'id'   => [ 'sanitize_callback' => 'absint' ],
-				],
-			],
-			[
-				'methods'             => 'PUT',
-				'callback'            => [ __CLASS__, 'update_item' ],
-				'permission_callback' => [ __CLASS__, 'can_edit_items' ],
-				'args'                => [
-					'type' => [ 'sanitize_callback' => 'sanitize_key' ],
-					'id'   => [ 'sanitize_callback' => 'absint' ],
-				],
-			],
-			[
-				'methods'             => 'DELETE',
-				'callback'            => [ __CLASS__, 'delete_item' ],
-				'permission_callback' => [ __CLASS__, 'can_edit_items' ],
-				'args'                => [
-					'type' => [ 'sanitize_callback' => 'sanitize_key' ],
-					'id'   => [ 'sanitize_callback' => 'absint' ],
-				],
-			],
-		] );
+		register_rest_route(
+			self::NS,
+			'/items/(?P<type>[a-z_]+)/(?P<id>\d+)',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( __CLASS__, 'get_item' ),
+					'permission_callback' => '__return_true',
+					'args'                => array(
+						'type' => array( 'sanitize_callback' => 'sanitize_key' ),
+						'id'   => array( 'sanitize_callback' => 'absint' ),
+					),
+				),
+				array(
+					'methods'             => 'PUT',
+					'callback'            => array( __CLASS__, 'update_item' ),
+					'permission_callback' => array( __CLASS__, 'can_edit_items' ),
+					'args'                => array(
+						'type' => array( 'sanitize_callback' => 'sanitize_key' ),
+						'id'   => array( 'sanitize_callback' => 'absint' ),
+					),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'callback'            => array( __CLASS__, 'delete_item' ),
+					'permission_callback' => array( __CLASS__, 'can_edit_items' ),
+					'args'                => array(
+						'type' => array( 'sanitize_callback' => 'sanitize_key' ),
+						'id'   => array( 'sanitize_callback' => 'absint' ),
+					),
+				),
+			)
+		);
 
 		// PATCH workflow stage only (lightweight for Kanban DnD)
-		register_rest_route( self::NS, '/items/(?P<type>[a-z_]+)/(?P<id>\d+)/stage', [
-			'methods'             => 'PATCH',
-			'callback'            => [ __CLASS__, 'update_stage' ],
-			'permission_callback' => [ __CLASS__, 'can_edit_items' ],
-			'args'                => [
-				'type' => [ 'sanitize_callback' => 'sanitize_key' ],
-				'id'   => [ 'sanitize_callback' => 'absint' ],
-			],
-		] );
+		register_rest_route(
+			self::NS,
+			'/items/(?P<type>[a-z_]+)/(?P<id>\d+)/stage',
+			array(
+				'methods'             => 'PATCH',
+				'callback'            => array( __CLASS__, 'update_stage' ),
+				'permission_callback' => array( __CLASS__, 'can_edit_items' ),
+				'args'                => array(
+					'type' => array( 'sanitize_callback' => 'sanitize_key' ),
+					'id'   => array( 'sanitize_callback' => 'absint' ),
+				),
+			)
+		);
 
 		// POST new company date
-		register_rest_route( self::NS, '/company-dates', [
-			'methods'             => 'POST',
-			'callback'            => [ __CLASS__, 'create_company_date' ],
-			'permission_callback' => [ __CLASS__, 'can_edit_items' ],
-		] );
+		register_rest_route(
+			self::NS,
+			'/company-dates',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'create_company_date' ),
+				'permission_callback' => array( __CLASS__, 'can_edit_items' ),
+			)
+		);
 	}
 
 	public static function is_admin(): bool {
@@ -86,6 +106,10 @@ class Forge_PM_REST_API {
 	// GET /forge/v1/items/{type}/{id}  (single)
 	// -----------------------------------------------------------------------
 
+	// $request is unused: the collection is the same for every caller, and the
+	// audience is read from the current user rather than the request. WordPress
+	// passes it regardless, so the signature stays.
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found
 	public static function get_all_items( $request ) {
 		$auth = current_user_can( 'read' );
 		$key  = $auth ? 'forge_pm_items_auth' : 'forge_pm_items_pub';
@@ -95,14 +119,14 @@ class Forge_PM_REST_API {
 			return rest_ensure_response( $cached );
 		}
 
-		$payload = [
+		$payload = array(
 			'features'     => self::get_features(),
 			'subitems'     => self::get_subitems(),
 			'bugs'         => self::get_bugs(),
 			'feedback'     => self::get_feedback(),
 			'releases'     => self::get_releases(),
 			'companyDates' => self::get_company_dates(),
-		];
+		);
 
 		if ( ! $auth ) {
 			$payload = self::strip_sensitive( $payload );
@@ -116,7 +140,7 @@ class Forge_PM_REST_API {
 		$post_id = absint( $request->get_param( 'id' ) );
 		$item    = self::read_single_item( $post_id );
 		if ( ! $item ) {
-			return new WP_Error( 'not_found', 'Item not found.', [ 'status' => 404 ] );
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
 		}
 		return rest_ensure_response( $item );
 	}
@@ -127,9 +151,11 @@ class Forge_PM_REST_API {
 	}
 
 	private static function strip_sensitive( array $payload ): array {
-		$private = [ 'changeLog', 'notes', 'urls', 'description' ];
+		$private = array( 'changeLog', 'notes', 'urls', 'description' );
 		foreach ( $payload as $type => &$items ) {
-			if ( ! is_array( $items ) ) continue;
+			if ( ! is_array( $items ) ) {
+				continue;
+			}
 			$items = array_map(
 				fn( $item ) => array_diff_key( $item, array_flip( $private ) ),
 				$items
@@ -138,17 +164,22 @@ class Forge_PM_REST_API {
 		return $payload;
 	}
 
-	private static function base_query( string $post_type, array $extra = [] ): array {
-		return get_posts( array_merge( [
-			'post_type'              => $post_type,
-			'post_status'            => 'publish',
-			'numberposts'            => -1,
-			'orderby'                => 'ID',
-			'order'                  => 'ASC',
-			'no_found_rows'          => true,   // skip SQL_CALC_FOUND_ROWS (no pagination needed)
-			'update_post_term_cache' => false,  // no taxonomies used; skip term cache warming
-			'update_post_meta_cache' => true,   // keep: many meta reads per post
-		], $extra ) );
+	private static function base_query( string $post_type, array $extra = array() ): array {
+		return get_posts(
+			array_merge(
+				array(
+					'post_type'              => $post_type,
+					'post_status'            => 'publish',
+					'numberposts'            => -1,
+					'orderby'                => 'ID',
+					'order'                  => 'ASC',
+					'no_found_rows'          => true,   // skip SQL_CALC_FOUND_ROWS (no pagination needed)
+					'update_post_term_cache' => false,  // no taxonomies used; skip term cache warming
+					'update_post_meta_cache' => true,   // keep: many meta reads per post
+				),
+				$extra
+			)
+		);
 	}
 
 	private static function append_changelog( $post_id, $entry ) {
@@ -162,13 +193,13 @@ class Forge_PM_REST_API {
 		return $user->display_name ?: $user->user_login ?: 'Unknown';
 	}
 
-	private static function meta( $id, $key, $default = '' ) {
+	private static function meta( $id, $key, $fallback = '' ) {
 		$v = get_post_meta( $id, $key, true );
-		return ( $v !== '' && $v !== false ) ? $v : $default;
+		return ( $v !== '' && $v !== false ) ? $v : $fallback;
 	}
 
-	private static function meta_int( $id, $key, $default = 0 ) {
-		return (int) self::meta( $id, $key, $default );
+	private static function meta_int( $id, $key, $fallback = 0 ) {
+		return (int) self::meta( $id, $key, $fallback );
 	}
 
 	private static function meta_bool( $id, $key ) {
@@ -177,7 +208,7 @@ class Forge_PM_REST_API {
 
 	private static function meta_array( $id, $key ) {
 		$v = get_post_meta( $id, $key, true );
-		return is_array( $v ) ? $v : [];
+		return is_array( $v ) ? $v : array();
 	}
 
 	/**
@@ -189,35 +220,50 @@ class Forge_PM_REST_API {
 		if ( is_string( $raw ) && $raw !== '' ) {
 			$decoded = json_decode( $raw, true );
 			if ( is_array( $decoded ) ) {
-				return array_values( array_filter( array_map(
-					fn( $l ) => is_array( $l ) && isset( $l['url'] )
-						? [ 'label' => (string) ( $l['label'] ?? '' ), 'url' => (string) $l['url'] ]
-						: null,
-					$decoded
-				) ) );
+				return array_values(
+					array_filter(
+						array_map(
+							fn( $l ) => is_array( $l ) && isset( $l['url'] )
+								? array(
+									'label' => (string) ( $l['label'] ?? '' ),
+									'url'   => (string) $l['url'],
+								)
+								: null,
+							$decoded
+						)
+					)
+				);
 			}
 			// Stored a non-empty value that decoded to a non-array (valid JSON
 			// scalar/object, or corrupt data → null). Treat as "no links" rather
 			// than silently surfacing the legacy migration fallback below.
-			return [];
+			return array();
 		}
 		// Migration fallback (only meaningful for bug/feedback, the item types
 		// that ever persisted _forge_urls): legacy plain URLs become labeled links.
 		$urls = self::meta_array( $post_id, '_forge_urls' );
-		return array_map( fn( $u ) => [ 'label' => (string) $u, 'url' => (string) $u ], $urls );
+		return array_map(
+			fn( $u ) => array(
+				'label' => (string) $u,
+				'url'   => (string) $u,
+			),
+			$urls
+		);
 	}
 
 	private static function get_stage_dates( $post_id ) {
 		$raw = get_post_meta( $post_id, '_forge_stage_dates', true );
-		if ( ! $raw ) return (object) [];
+		if ( ! $raw ) {
+			return (object) array();
+		}
 		$decoded = json_decode( $raw, true );
-		return is_array( $decoded ) && ! empty( $decoded ) ? $decoded : (object) [];
+		return is_array( $decoded ) && ! empty( $decoded ) ? $decoded : (object) array();
 	}
 
 	// ── Shape helpers (single post → normalised array) ─────────────────────
 
 	private static function shape_feature( WP_Post $p ): array {
-		return [
+		return array(
 			'id'              => (string) $p->ID,
 			'type'            => 'feature',
 			'name'            => $p->post_title,
@@ -237,11 +283,11 @@ class Forge_PM_REST_API {
 			'stageDates'      => self::get_stage_dates( $p->ID ),
 			'changeLog'       => self::meta( $p->ID, '_forge_change_log' ) ?: null,
 			'links'           => self::meta_links( $p->ID ),
-		];
+		);
 	}
 
 	private static function shape_subitem( WP_Post $p ): array {
-		return [
+		return array(
 			'id'              => (string) $p->ID,
 			'type'            => 'subitem',
 			'name'            => $p->post_title,
@@ -256,11 +302,11 @@ class Forge_PM_REST_API {
 			'brands'          => self::meta_array( $p->ID, '_forge_brands' ),
 			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
 			'links'           => self::meta_links( $p->ID ),
-		];
+		);
 	}
 
 	private static function shape_bug( WP_Post $p ): array {
-		return [
+		return array(
 			'id'              => (string) $p->ID,
 			'type'            => 'bug',
 			'title'           => $p->post_title,
@@ -278,11 +324,11 @@ class Forge_PM_REST_API {
 			'links'           => self::meta_links( $p->ID ),
 			'linkedSubItemId' => self::meta( $p->ID, '_forge_linked_subitem_id' ) ?: null,
 			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
-		];
+		);
 	}
 
 	private static function shape_feedback( WP_Post $p ): array {
-		return [
+		return array(
 			'id'              => (string) $p->ID,
 			'type'            => 'feedback',
 			'title'           => $p->post_title,
@@ -301,11 +347,11 @@ class Forge_PM_REST_API {
 			'links'           => self::meta_links( $p->ID ),
 			'linkedSubItemId' => self::meta( $p->ID, '_forge_linked_subitem_id' ) ?: null,
 			'dependsOn'       => self::meta_array( $p->ID, '_forge_depends_on' ),
-		];
+		);
 	}
 
 	private static function shape_release( WP_Post $p ): array {
-		return [
+		return array(
 			'id'                 => (string) $p->ID,
 			'type'               => 'release',
 			'name'               => $p->post_title,
@@ -324,43 +370,43 @@ class Forge_PM_REST_API {
 			'linkedFeedbackIds'  => self::meta_array( $p->ID, '_forge_linked_feedback_ids' ),
 			'dependsOn'          => self::meta_array( $p->ID, '_forge_depends_on' ),
 			'links'              => self::meta_links( $p->ID ),
-		];
+		);
 	}
 
 	private static function shape_company_date( WP_Post $p ): array {
-		return [
+		return array(
 			'id'          => (string) $p->ID,
 			'title'       => $p->post_title,
 			'date'        => self::meta( $p->ID, '_forge_date', '' ),
 			'description' => self::meta( $p->ID, '_forge_description' ) ?: null,
 			'tracked'     => self::meta_bool( $p->ID, '_forge_tracked' ),
-		];
+		);
 	}
 
 	// ── Collection getters (used by get_all_items) ───────────────────────────
 
 	private static function get_features(): array {
-		return array_map( [ __CLASS__, 'shape_feature' ], self::base_query( 'forge_feature' ) );
+		return array_map( array( __CLASS__, 'shape_feature' ), self::base_query( 'forge_feature' ) );
 	}
 
 	private static function get_subitems(): array {
-		return array_map( [ __CLASS__, 'shape_subitem' ], self::base_query( 'forge_subitem' ) );
+		return array_map( array( __CLASS__, 'shape_subitem' ), self::base_query( 'forge_subitem' ) );
 	}
 
 	private static function get_bugs(): array {
-		return array_map( [ __CLASS__, 'shape_bug' ], self::base_query( 'forge_bug' ) );
+		return array_map( array( __CLASS__, 'shape_bug' ), self::base_query( 'forge_bug' ) );
 	}
 
 	private static function get_feedback(): array {
-		return array_map( [ __CLASS__, 'shape_feedback' ], self::base_query( 'forge_feedback' ) );
+		return array_map( array( __CLASS__, 'shape_feedback' ), self::base_query( 'forge_feedback' ) );
 	}
 
 	private static function get_releases(): array {
-		return array_map( [ __CLASS__, 'shape_release' ], self::base_query( 'forge_release' ) );
+		return array_map( array( __CLASS__, 'shape_release' ), self::base_query( 'forge_release' ) );
 	}
 
 	private static function get_company_dates(): array {
-		return array_map( [ __CLASS__, 'shape_company_date' ], self::base_query( 'forge_company_date' ) );
+		return array_map( array( __CLASS__, 'shape_company_date' ), self::base_query( 'forge_company_date' ) );
 	}
 
 	// -----------------------------------------------------------------------
@@ -368,39 +414,77 @@ class Forge_PM_REST_API {
 	// -----------------------------------------------------------------------
 
 	private static function cpt_map(): array {
-		return [
+		return array(
 			'feature'      => 'forge_feature',
 			'subitem'      => 'forge_subitem',
 			'bug'          => 'forge_bug',
 			'feedback'     => 'forge_feedback',
 			'release'      => 'forge_release',
 			'company_date' => 'forge_company_date',
-		];
+		);
 	}
 
 	// Returns the normalised array shape for a single post (used by get_item and write responses).
 	private static function read_single_item( int $post_id ): ?array {
 		$post = get_post( $post_id );
-		if ( ! $post ) return null;
+		if ( ! $post ) {
+			return null;
+		}
 
 		switch ( $post->post_type ) {
 			case 'forge_feature':
-				$rows = self::base_query( 'forge_feature', [ 'post__in' => [ $post_id ], 'numberposts' => 1 ] );
+				$rows = self::base_query(
+					'forge_feature',
+					array(
+						'post__in'    => array( $post_id ),
+						'numberposts' => 1,
+					)
+				);
 				return $rows ? self::shape_feature( $rows[0] ) : null;
 			case 'forge_subitem':
-				$rows = self::base_query( 'forge_subitem', [ 'post__in' => [ $post_id ], 'numberposts' => 1 ] );
+				$rows = self::base_query(
+					'forge_subitem',
+					array(
+						'post__in'    => array( $post_id ),
+						'numberposts' => 1,
+					)
+				);
 				return $rows ? self::shape_subitem( $rows[0] ) : null;
 			case 'forge_bug':
-				$rows = self::base_query( 'forge_bug', [ 'post__in' => [ $post_id ], 'numberposts' => 1 ] );
+				$rows = self::base_query(
+					'forge_bug',
+					array(
+						'post__in'    => array( $post_id ),
+						'numberposts' => 1,
+					)
+				);
 				return $rows ? self::shape_bug( $rows[0] ) : null;
 			case 'forge_feedback':
-				$rows = self::base_query( 'forge_feedback', [ 'post__in' => [ $post_id ], 'numberposts' => 1 ] );
+				$rows = self::base_query(
+					'forge_feedback',
+					array(
+						'post__in'    => array( $post_id ),
+						'numberposts' => 1,
+					)
+				);
 				return $rows ? self::shape_feedback( $rows[0] ) : null;
 			case 'forge_release':
-				$rows = self::base_query( 'forge_release', [ 'post__in' => [ $post_id ], 'numberposts' => 1 ] );
+				$rows = self::base_query(
+					'forge_release',
+					array(
+						'post__in'    => array( $post_id ),
+						'numberposts' => 1,
+					)
+				);
 				return $rows ? self::shape_release( $rows[0] ) : null;
 			case 'forge_company_date':
-				$rows = self::base_query( 'forge_company_date', [ 'post__in' => [ $post_id ], 'numberposts' => 1 ] );
+				$rows = self::base_query(
+					'forge_company_date',
+					array(
+						'post__in'    => array( $post_id ),
+						'numberposts' => 1,
+					)
+				);
 				return $rows ? self::shape_company_date( $rows[0] ) : null;
 		}
 		return null;
@@ -408,51 +492,55 @@ class Forge_PM_REST_API {
 
 	public static function create_item( $request ) {
 		$type    = $request->get_param( 'type' );
-		$data    = $request->get_json_params() ?: [];
+		$data    = $request->get_json_params() ?: array();
 		$cpt_map = self::cpt_map();
 
 		if ( ! isset( $cpt_map[ $type ] ) ) {
-			return new WP_Error( 'invalid_type', 'Invalid item type.', [ 'status' => 400 ] );
+			return new WP_Error( 'invalid_type', 'Invalid item type.', array( 'status' => 400 ) );
 		}
 
 		$title = sanitize_text_field( $data['name'] ?? $data['title'] ?? 'Untitled' );
 
-		$post_id = wp_insert_post( [
-			'post_type'    => $cpt_map[ $type ],
-			'post_title'   => $title,
-			'post_content' => sanitize_textarea_field( $data['description'] ?? '' ),
-			'post_status'  => 'publish',
-		] );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'    => $cpt_map[ $type ],
+				'post_title'   => $title,
+				'post_content' => sanitize_textarea_field( $data['description'] ?? '' ),
+				'post_status'  => 'publish',
+			)
+		);
 
-		if ( is_wp_error( $post_id ) ) return $post_id;
+		if ( is_wp_error( $post_id ) ) {
+			return $post_id;
+		}
 
 		// Save meta fields using the same map as update_item
-		$scalar_meta = [
-			'workflowStage'     => '_forge_workflow_stage',
-			'category'          => '_forge_category',
-			'featurePrice'      => '_forge_feature_price',
-			'timeEstimate'      => '_forge_time_estimate',
-			'releaseId'         => '_forge_release_id',
-			'parentFeatureId'   => '_forge_parent_feature_id',
-			'linkedFeatureId'   => '_forge_linked_feature_id',
-			'linkedBugId'       => '_forge_linked_bug_id',
-			'linkedSubItemId'   => '_forge_linked_subitem_id',
-			'bugStatus'         => '_forge_bug_status',
-			'status'            => '_forge_status',
-			'priority'          => '_forge_priority',
-			'reportedDate'      => '_forge_reported_date',
-			'notes'             => '_forge_notes',
-			'releaseName'       => '_forge_release_name',
-			'versionNumber'     => '_forge_version_number',
-			'versionType'       => '_forge_version_type',
-			'quarter'           => '_forge_quarter',
-			'startWeek'         => '_forge_start_week',
-			'endWeek'           => '_forge_end_week',
-			'capacity'          => '_forge_capacity',
-			'date'              => '_forge_date',
-		];
+		$scalar_meta = array(
+			'workflowStage'   => '_forge_workflow_stage',
+			'category'        => '_forge_category',
+			'featurePrice'    => '_forge_feature_price',
+			'timeEstimate'    => '_forge_time_estimate',
+			'releaseId'       => '_forge_release_id',
+			'parentFeatureId' => '_forge_parent_feature_id',
+			'linkedFeatureId' => '_forge_linked_feature_id',
+			'linkedBugId'     => '_forge_linked_bug_id',
+			'linkedSubItemId' => '_forge_linked_subitem_id',
+			'bugStatus'       => '_forge_bug_status',
+			'status'          => '_forge_status',
+			'priority'        => '_forge_priority',
+			'reportedDate'    => '_forge_reported_date',
+			'notes'           => '_forge_notes',
+			'releaseName'     => '_forge_release_name',
+			'versionNumber'   => '_forge_version_number',
+			'versionType'     => '_forge_version_type',
+			'quarter'         => '_forge_quarter',
+			'startWeek'       => '_forge_start_week',
+			'endWeek'         => '_forge_end_week',
+			'capacity'        => '_forge_capacity',
+			'date'            => '_forge_date',
+		);
 
-		$textarea_meta_keys = [ '_forge_description', '_forge_notes' ];
+		$textarea_meta_keys = array( '_forge_description', '_forge_notes' );
 
 		foreach ( $scalar_meta as $js_key => $meta_key ) {
 			if ( array_key_exists( $js_key, $data ) ) {
@@ -466,11 +554,11 @@ class Forge_PM_REST_API {
 			}
 		}
 
-		$bool_meta = [
+		$bool_meta = array(
 			'isEnabled'          => '_forge_is_enabled',
 			'isTrackedAsStat'    => '_forge_is_tracked_as_stat',
 			'isBigWedgeCampaign' => '_forge_is_big_wedge_campaign',
-		];
+		);
 		foreach ( $bool_meta as $js_key => $meta_key ) {
 			if ( array_key_exists( $js_key, $data ) ) {
 				update_post_meta( $post_id, $meta_key, $data[ $js_key ] ? '1' : '0' );
@@ -486,7 +574,7 @@ class Forge_PM_REST_API {
 		}
 
 		if ( array_key_exists( 'stageDates', $data ) && is_array( $data['stageDates'] ) ) {
-			$clean = [];
+			$clean = array();
 			foreach ( $data['stageDates'] as $stage_id => $date ) {
 				$clean[ sanitize_key( $stage_id ) ] = sanitize_text_field( $date );
 			}
@@ -494,26 +582,34 @@ class Forge_PM_REST_API {
 		}
 
 		if ( array_key_exists( 'links', $data ) && is_array( $data['links'] ) ) {
-			$clean = [];
+			$clean = array();
 			foreach ( $data['links'] as $link ) {
-				if ( ! is_array( $link ) || empty( $link['url'] ) ) continue;
-				$clean[] = [
+				if ( ! is_array( $link ) || empty( $link['url'] ) ) {
+					continue;
+				}
+				$clean[] = array(
 					'label' => sanitize_text_field( $link['label'] ?? '' ),
 					'url'   => esc_url_raw( $link['url'] ),
-				];
+				);
 			}
 			update_post_meta( $post_id, '_forge_links', wp_json_encode( $clean ) );
 		}
 
 		// Auto-generate initial changelog entry
-		$verb  = in_array( $type, [ 'bug', 'feedback' ], true ) ? 'Reported' : 'Created';
+		$verb  = in_array( $type, array( 'bug', 'feedback' ), true ) ? 'Reported' : 'Created';
 		$stage = sanitize_text_field( $data['workflowStage'] ?? '' );
 		$entry = gmdate( 'Y-m-d' ) . ": {$verb}" . ( $stage ? " (→ {$stage})" : '' ) . ' — ' . self::current_user_name();
 		update_post_meta( $post_id, '_forge_change_log', $entry );
 
 		self::bust_cache();
 		$item = self::read_single_item( $post_id );
-		return rest_ensure_response( [ 'success' => true, 'id' => (string) $post_id, 'item' => $item ] );
+		return rest_ensure_response(
+			array(
+				'success' => true,
+				'id'      => (string) $post_id,
+				'item'    => $item,
+			)
+		);
 	}
 
 	// -----------------------------------------------------------------------
@@ -526,25 +622,31 @@ class Forge_PM_REST_API {
 		$post     = get_post( $post_id );
 
 		if ( ! $post ) {
-			return new WP_Error( 'not_found', 'Item not found.', [ 'status' => 404 ] );
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
 		}
 
 		$cpt_map = self::cpt_map();
 		if ( ! isset( $cpt_map[ $req_type ] ) || $post->post_type !== $cpt_map[ $req_type ] ) {
-			return new WP_Error( 'type_mismatch', 'Post type does not match route.', [ 'status' => 400 ] );
+			return new WP_Error( 'type_mismatch', 'Post type does not match route.', array( 'status' => 400 ) );
 		}
 
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
-			return new WP_Error( 'forbidden', 'Permission denied.', [ 'status' => 403 ] );
+			return new WP_Error( 'forbidden', 'Permission denied.', array( 'status' => 403 ) );
 		}
 
 		// When a release is deleted, remove its reference from all linked items.
 		if ( $post->post_type === 'forge_release' ) {
 			global $wpdb;
-			$linked_ids = $wpdb->get_col( $wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_forge_release_id' AND meta_value = %s",
-				(string) $post_id
-			) );
+			// A meta_value lookup across every post: WP_Query offers no index-friendly
+			// equivalent, and the result must be current at the moment of deletion, so
+			// caching it would be wrong rather than merely unnecessary.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$linked_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_forge_release_id' AND meta_value = %s",
+					(string) $post_id
+				)
+			);
 			foreach ( $linked_ids as $linked_id ) {
 				delete_post_meta( (int) $linked_id, '_forge_release_id' );
 			}
@@ -553,7 +655,12 @@ class Forge_PM_REST_API {
 		wp_trash_post( $post_id );
 
 		self::bust_cache();
-		return rest_ensure_response( [ 'success' => true, 'id' => $post_id ] );
+		return rest_ensure_response(
+			array(
+				'success' => true,
+				'id'      => $post_id,
+			)
+		);
 	}
 
 	// -----------------------------------------------------------------------
@@ -566,36 +673,53 @@ class Forge_PM_REST_API {
 		$data     = $request->get_json_params();
 
 		if ( ! $data || ! is_array( $data ) ) {
-			return new WP_Error( 'invalid_data', 'No JSON body supplied.', [ 'status' => 400 ] );
+			return new WP_Error( 'invalid_data', 'No JSON body supplied.', array( 'status' => 400 ) );
 		}
 
 		$post = get_post( $post_id );
 		if ( ! $post ) {
-			return new WP_Error( 'not_found', 'Item not found.', [ 'status' => 404 ] );
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
 		}
 
 		$cpt_map = self::cpt_map();
 		if ( ! isset( $cpt_map[ $req_type ] ) || $post->post_type !== $cpt_map[ $req_type ] ) {
-			return new WP_Error( 'type_mismatch', 'Post type does not match route.', [ 'status' => 400 ] );
+			return new WP_Error( 'type_mismatch', 'Post type does not match route.', array( 'status' => 400 ) );
 		}
 
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
-			return new WP_Error( 'forbidden', 'Permission denied.', [ 'status' => 403 ] );
+			return new WP_Error( 'forbidden', 'Permission denied.', array( 'status' => 403 ) );
 		}
 
 		// Auto-generate changelog entry (features only) — must run before any saves
 		if ( $post->post_type === 'forge_feature' ) {
-			$changes = [];
+			$changes = array();
 
-			$scalar_checks = [
-				'name'         => [ 'old' => $post->post_title,                                      'label' => 'Name' ],
-				'workflowStage'=> [ 'old' => get_post_meta( $post_id, '_forge_workflow_stage', true ), 'label' => 'Stage' ],
-				'featurePrice' => [ 'old' => get_post_meta( $post_id, '_forge_feature_price',  true ), 'label' => 'Price' ],
-				'category'     => [ 'old' => get_post_meta( $post_id, '_forge_category',       true ), 'label' => 'Category' ],
-				'releaseId'    => [ 'old' => get_post_meta( $post_id, '_forge_release_id',     true ) ?: '', 'label' => 'Release' ],
-			];
+			$scalar_checks = array(
+				'name'          => array(
+					'old'   => $post->post_title,
+					'label' => 'Name',
+				),
+				'workflowStage' => array(
+					'old'   => get_post_meta( $post_id, '_forge_workflow_stage', true ),
+					'label' => 'Stage',
+				),
+				'featurePrice'  => array(
+					'old'   => get_post_meta( $post_id, '_forge_feature_price', true ),
+					'label' => 'Price',
+				),
+				'category'      => array(
+					'old'   => get_post_meta( $post_id, '_forge_category', true ),
+					'label' => 'Category',
+				),
+				'releaseId'     => array(
+					'old'   => get_post_meta( $post_id, '_forge_release_id', true ) ?: '',
+					'label' => 'Release',
+				),
+			);
 			foreach ( $scalar_checks as $key => $info ) {
-				if ( ! array_key_exists( $key, $data ) ) continue;
+				if ( ! array_key_exists( $key, $data ) ) {
+					continue;
+				}
 				$old = (string) ( $info['old'] ?? '' );
 				$new = (string) $data[ $key ];
 				if ( $old !== $new ) {
@@ -603,12 +727,20 @@ class Forge_PM_REST_API {
 				}
 			}
 
-			$bool_checks = [
-				'isEnabled'       => [ 'meta' => '_forge_is_enabled',        'label' => 'Feature' ],
-				'isTrackedAsStat' => [ 'meta' => '_forge_is_tracked_as_stat', 'label' => 'Stat tracking' ],
-			];
+			$bool_checks = array(
+				'isEnabled'       => array(
+					'meta'  => '_forge_is_enabled',
+					'label' => 'Feature',
+				),
+				'isTrackedAsStat' => array(
+					'meta'  => '_forge_is_tracked_as_stat',
+					'label' => 'Stat tracking',
+				),
+			);
 			foreach ( $bool_checks as $key => $info ) {
-				if ( ! array_key_exists( $key, $data ) ) continue;
+				if ( ! array_key_exists( $key, $data ) ) {
+					continue;
+				}
 				$old = self::meta_bool( $post_id, $info['meta'] );
 				$new = (bool) $data[ $key ];
 				if ( $old !== $new ) {
@@ -625,7 +757,9 @@ class Forge_PM_REST_API {
 				sort( $old_brands );
 				$new_brands = $data['brands'];
 				sort( $new_brands );
-				if ( $old_brands !== $new_brands ) $changes[] = 'Brands updated';
+				if ( $old_brands !== $new_brands ) {
+					$changes[] = 'Brands updated';
+				}
 			}
 
 			if ( ! empty( $changes ) ) {
@@ -635,17 +769,23 @@ class Forge_PM_REST_API {
 		}
 
 		// Update title / content
-		$update = [ 'ID' => $post_id ];
-		if ( isset( $data['name'] ) )  $update['post_title'] = sanitize_text_field( $data['name'] );
-		if ( isset( $data['title'] ) ) $update['post_title'] = sanitize_text_field( $data['title'] );
+		$update = array( 'ID' => $post_id );
+		if ( isset( $data['name'] ) ) {
+			$update['post_title'] = sanitize_text_field( $data['name'] );
+		}
+		if ( isset( $data['title'] ) ) {
+			$update['post_title'] = sanitize_text_field( $data['title'] );
+		}
 		// company_date stores description only in _forge_description meta — skip post_content write
 		if ( isset( $data['description'] ) && $post->post_type !== 'forge_company_date' ) {
 			$update['post_content'] = sanitize_textarea_field( $data['description'] );
 		}
-		if ( count( $update ) > 1 ) wp_update_post( $update );
+		if ( count( $update ) > 1 ) {
+			wp_update_post( $update );
+		}
 
 		// Update scalar meta
-		$scalar_meta = [
+		$scalar_meta = array(
 			'workflowStage'     => '_forge_workflow_stage',
 			'category'          => '_forge_category',
 			'featurePrice'      => '_forge_feature_price',
@@ -671,10 +811,10 @@ class Forge_PM_REST_API {
 			'date'              => '_forge_date',
 			// company_date stores description in meta, not post_content
 			'description'       => '_forge_description',
-		];
+		);
 
 		// Textarea fields need sanitize_textarea_field to preserve newlines
-		$textarea_meta_keys = [ '_forge_description', '_forge_notes' ];
+		$textarea_meta_keys = array( '_forge_description', '_forge_notes' );
 
 		foreach ( $scalar_meta as $js_key => $meta_key ) {
 			if ( array_key_exists( $js_key, $data ) ) {
@@ -689,12 +829,12 @@ class Forge_PM_REST_API {
 		}
 
 		// Booleans
-		$bool_meta = [
+		$bool_meta = array(
 			'isEnabled'          => '_forge_is_enabled',
 			'isTrackedAsStat'    => '_forge_is_tracked_as_stat',
 			'isBigWedgeCampaign' => '_forge_is_big_wedge_campaign',
 			'tracked'            => '_forge_tracked',
-		];
+		);
 		foreach ( $bool_meta as $js_key => $meta_key ) {
 			if ( array_key_exists( $js_key, $data ) ) {
 				update_post_meta( $post_id, $meta_key, $data[ $js_key ] ? '1' : '0' );
@@ -702,15 +842,15 @@ class Forge_PM_REST_API {
 		}
 
 		// Arrays
-		$array_meta = [
-			'subItemIds'          => '_forge_subitem_ids',
-			'linkedFeatureIds'    => '_forge_linked_feature_ids',
-			'linkedBugIds'        => '_forge_linked_bug_ids',
-			'linkedFeedbackIds'   => '_forge_linked_feedback_ids',
-			'dependsOn'           => '_forge_depends_on',
-			'images'              => '_forge_image_urls',
-			'brands'              => '_forge_brands',
-		];
+		$array_meta = array(
+			'subItemIds'        => '_forge_subitem_ids',
+			'linkedFeatureIds'  => '_forge_linked_feature_ids',
+			'linkedBugIds'      => '_forge_linked_bug_ids',
+			'linkedFeedbackIds' => '_forge_linked_feedback_ids',
+			'dependsOn'         => '_forge_depends_on',
+			'images'            => '_forge_image_urls',
+			'brands'            => '_forge_brands',
+		);
 		foreach ( $array_meta as $js_key => $meta_key ) {
 			if ( array_key_exists( $js_key, $data ) && is_array( $data[ $js_key ] ) ) {
 				update_post_meta( $post_id, $meta_key, array_map( 'sanitize_text_field', $data[ $js_key ] ) );
@@ -719,7 +859,7 @@ class Forge_PM_REST_API {
 
 		// stageDates — stored as JSON object
 		if ( array_key_exists( 'stageDates', $data ) && is_array( $data['stageDates'] ) ) {
-			$clean = [];
+			$clean = array();
 			foreach ( $data['stageDates'] as $stage_id => $date ) {
 				$clean[ sanitize_key( $stage_id ) ] = sanitize_text_field( $date );
 			}
@@ -727,20 +867,28 @@ class Forge_PM_REST_API {
 		}
 
 		if ( array_key_exists( 'links', $data ) && is_array( $data['links'] ) ) {
-			$clean = [];
+			$clean = array();
 			foreach ( $data['links'] as $link ) {
-				if ( ! is_array( $link ) || empty( $link['url'] ) ) continue;
-				$clean[] = [
+				if ( ! is_array( $link ) || empty( $link['url'] ) ) {
+					continue;
+				}
+				$clean[] = array(
 					'label' => sanitize_text_field( $link['label'] ?? '' ),
 					'url'   => esc_url_raw( $link['url'] ),
-				];
+				);
 			}
 			update_post_meta( $post_id, '_forge_links', wp_json_encode( $clean ) );
 		}
 
 		self::bust_cache();
 		$item = self::read_single_item( $post_id );
-		return rest_ensure_response( [ 'success' => true, 'id' => (string) $post_id, 'item' => $item ] );
+		return rest_ensure_response(
+			array(
+				'success' => true,
+				'id'      => (string) $post_id,
+				'item'    => $item,
+			)
+		);
 	}
 
 	// -----------------------------------------------------------------------
@@ -753,21 +901,21 @@ class Forge_PM_REST_API {
 		$data     = $request->get_json_params();
 
 		if ( empty( $data['workflowStage'] ) ) {
-			return new WP_Error( 'missing_stage', 'workflowStage is required.', [ 'status' => 400 ] );
+			return new WP_Error( 'missing_stage', 'workflowStage is required.', array( 'status' => 400 ) );
 		}
 
 		$post = get_post( $post_id );
 		if ( ! $post ) {
-			return new WP_Error( 'not_found', 'Item not found.', [ 'status' => 404 ] );
+			return new WP_Error( 'not_found', 'Item not found.', array( 'status' => 404 ) );
 		}
 
 		$cpt_map = self::cpt_map();
 		if ( ! isset( $cpt_map[ $req_type ] ) || $post->post_type !== $cpt_map[ $req_type ] ) {
-			return new WP_Error( 'type_mismatch', 'Post type does not match route.', [ 'status' => 400 ] );
+			return new WP_Error( 'type_mismatch', 'Post type does not match route.', array( 'status' => 400 ) );
 		}
 
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
-			return new WP_Error( 'forbidden', 'Permission denied.', [ 'status' => 403 ] );
+			return new WP_Error( 'forbidden', 'Permission denied.', array( 'status' => 403 ) );
 		}
 
 		// Stages are user-configurable — accept any sanitized string
@@ -781,7 +929,13 @@ class Forge_PM_REST_API {
 		}
 
 		self::bust_cache();
-		return rest_ensure_response( [ 'success' => true, 'id' => $post_id, 'workflowStage' => $stage ] );
+		return rest_ensure_response(
+			array(
+				'success'       => true,
+				'id'            => $post_id,
+				'workflowStage' => $stage,
+			)
+		);
 	}
 
 	// -----------------------------------------------------------------------
@@ -792,30 +946,34 @@ class Forge_PM_REST_API {
 		$data = $request->get_json_params();
 
 		if ( empty( $data['title'] ) || empty( $data['date'] ) ) {
-			return new WP_Error( 'missing_fields', 'title and date are required.', [ 'status' => 400 ] );
+			return new WP_Error( 'missing_fields', 'title and date are required.', array( 'status' => 400 ) );
 		}
 
-		$post_id = wp_insert_post( [
-			'post_type'   => 'forge_company_date',
-			'post_title'  => sanitize_text_field( $data['title'] ),
-			'post_status' => 'publish',
-		] );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'   => 'forge_company_date',
+				'post_title'  => sanitize_text_field( $data['title'] ),
+				'post_status' => 'publish',
+			)
+		);
 
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
 		}
 
-		update_post_meta( $post_id, '_forge_date',        sanitize_text_field( $data['date'] ) );
+		update_post_meta( $post_id, '_forge_date', sanitize_text_field( $data['date'] ) );
 		update_post_meta( $post_id, '_forge_description', sanitize_textarea_field( $data['description'] ?? '' ) );
-		update_post_meta( $post_id, '_forge_tracked',     ! empty( $data['tracked'] ) ? '1' : '0' );
+		update_post_meta( $post_id, '_forge_tracked', ! empty( $data['tracked'] ) ? '1' : '0' );
 
 		self::bust_cache();
-		return rest_ensure_response( [
-			'id'          => (string) $post_id,
-			'title'       => $data['title'],
-			'date'        => $data['date'],
-			'description' => $data['description'] ?? null,
-			'tracked'     => ! empty( $data['tracked'] ),
-		] );
+		return rest_ensure_response(
+			array(
+				'id'          => (string) $post_id,
+				'title'       => $data['title'],
+				'date'        => $data['date'],
+				'description' => $data['description'] ?? null,
+				'tracked'     => ! empty( $data['tracked'] ),
+			)
+		);
 	}
 }
