@@ -17,6 +17,7 @@
 		final tree up front would break the run for every commit before the last.
 	-->
 	<file>blueworx-forge.php</file>
+	<file>includes</file>
 
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 	<exclude-pattern>*/node_modules/*</exclude-pattern>
@@ -24,7 +25,19 @@
 	<exclude-pattern>*/.wp-test/*</exclude-pattern>
 	<exclude-pattern>*/tests/*</exclude-pattern>
 
-	<rule ref="WordPress"/>
+	<rule ref="WordPress">
+		<!--
+			The only two exclusions, and both are forced by the approved design
+			rather than chosen. `2026-08-17-blueworx-forge-rebuild-design.md`
+			specifies a namespaced, autoloaded layout — includes/Rest/Server.php
+			holding Blueworx\Forge\Rest\Server — and the autoloader maps the class
+			name straight onto that path. These two sniffs want class-server.php
+			instead, which the autoloader could not then find. Nothing else in the
+			standard is switched off; nothing security-related is touched.
+		-->
+		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+	</rule>
 
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>

@@ -31,6 +31,10 @@ define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWX_FORGE_URL', plugin_dir_url( __FILE__ ) );
 
+require_once BWX_FORGE_PATH . 'includes/autoload.php';
+
+bwx_forge_register_autoloader( BWX_FORGE_PATH . 'includes' );
+
 require_once BWX_FORGE_PATH . 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
