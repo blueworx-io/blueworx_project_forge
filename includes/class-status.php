@@ -10,44 +10,55 @@ class Forge_PM_Status {
 	// Registers the shutdown handler that captures fatal PHP errors originating
 	// from this plugin — works even when WP_DEBUG_LOG is disabled.
 	public static function init() {
-		register_shutdown_function( [ __CLASS__, 'capture_fatal' ] );
+		register_shutdown_function( array( __CLASS__, 'capture_fatal' ) );
 	}
 
 	public static function capture_fatal() {
 		$e = error_get_last();
-		if ( ! $e ) return;
+		if ( ! $e ) {
+			return;
+		}
 
 		$fatal_types = E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR;
-		if ( ! ( $e['type'] & $fatal_types ) ) return;
+		if ( ! ( $e['type'] & $fatal_types ) ) {
+			return;
+		}
 
 		// Only record errors that originate from this plugin's files.
-		if ( empty( $e['file'] ) || strpos( $e['file'], FORGE_PM_DIR ) === false ) return;
+		if ( empty( $e['file'] ) || strpos( $e['file'], FORGE_PM_DIR ) === false ) {
+			return;
+		}
 
-		self::store_error( self::PHP_ERRORS_OPTION, [
-			'time'    => current_time( 'mysql' ),
-			'type'    => self::php_error_label( $e['type'] ),
-			'message' => $e['message'],
-			'file'    => str_replace( FORGE_PM_DIR, '', $e['file'] ),
-			'line'    => $e['line'],
-		] );
+		self::store_error(
+			self::PHP_ERRORS_OPTION,
+			array(
+				'time'    => current_time( 'mysql' ),
+				'type'    => self::php_error_label( $e['type'] ),
+				'message' => $e['message'],
+				'file'    => str_replace( FORGE_PM_DIR, '', $e['file'] ),
+				'line'    => $e['line'],
+			)
+		);
 	}
 
 	private static function php_error_label( $type ) {
-		$map = [
+		$map = array(
 			E_ERROR             => 'Fatal Error',
 			E_PARSE             => 'Parse Error',
 			E_CORE_ERROR        => 'Core Error',
 			E_COMPILE_ERROR     => 'Compile Error',
 			E_USER_ERROR        => 'User Error',
 			E_RECOVERABLE_ERROR => 'Recoverable Error',
-		];
+		);
 		return $map[ $type ] ?? 'Error';
 	}
 
 	// Prepends an entry to a capped, newest-first rolling log stored in an option.
 	private static function store_error( $option, array $entry ) {
-		$errors = get_option( $option, [] );
-		if ( ! is_array( $errors ) ) $errors = [];
+		$errors = get_option( $option, array() );
+		if ( ! is_array( $errors ) ) {
+			$errors = array();
+		}
 		array_unshift( $errors, $entry );
 		if ( count( $errors ) > self::MAX_ERRORS ) {
 			$errors = array_slice( $errors, 0, self::MAX_ERRORS );
@@ -56,52 +67,60 @@ class Forge_PM_Status {
 	}
 
 	public static function get_client_errors(): array {
-		$e = get_option( self::CLIENT_ERRORS_OPTION, [] );
-		return is_array( $e ) ? $e : [];
+		$e = get_option( self::CLIENT_ERRORS_OPTION, array() );
+		return is_array( $e ) ? $e : array();
 	}
 
 	public static function get_php_errors(): array {
-		$e = get_option( self::PHP_ERRORS_OPTION, [] );
-		return is_array( $e ) ? $e : [];
+		$e = get_option( self::PHP_ERRORS_OPTION, array() );
+		return is_array( $e ) ? $e : array();
 	}
 
 	// REST: POST /forge/v1/client-errors — receives JS / network errors from the app.
 	public static function register_routes() {
-		register_rest_route( 'forge/v1', '/client-errors', [
-			'methods'             => 'POST',
-			'callback'            => [ __CLASS__, 'receive_client_error' ],
-			'permission_callback' => function () { return current_user_can( 'read' ); },
-		] );
+		register_rest_route(
+			'forge/v1',
+			'/client-errors',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'receive_client_error' ),
+				'permission_callback' => function () {
+					return current_user_can( 'read' ); },
+			)
+		);
 	}
 
 	public static function receive_client_error( $request ) {
 		$data = $request->get_json_params();
 		if ( ! is_array( $data ) ) {
-			return new WP_Error( 'invalid', 'No data supplied.', [ 'status' => 400 ] );
+			return new WP_Error( 'invalid', 'No data supplied.', array( 'status' => 400 ) );
 		}
 
 		$kind    = sanitize_key( $data['kind'] ?? 'js' );
 		$message = sanitize_text_field( mb_substr( (string) ( $data['message'] ?? '' ), 0, 500 ) );
 
 		if ( $message === '' ) {
-			return new WP_Error( 'empty', 'Empty error message.', [ 'status' => 400 ] );
+			return new WP_Error( 'empty', 'Empty error message.', array( 'status' => 400 ) );
 		}
 
-		self::store_error( self::CLIENT_ERRORS_OPTION, [
-			'time'       => current_time( 'mysql' ),
-			'kind'       => in_array( $kind, [ 'js', 'promise', 'network' ], true ) ? $kind : 'js',
-			'message'    => $message,
-			'source'     => sanitize_text_field( (string) ( $data['source'] ?? '' ) ),
-			'line'       => isset( $data['line'] ) ? (int) $data['line'] : null,
-			'col'        => isset( $data['col'] ) ? (int) $data['col'] : null,
-			'stack'      => sanitize_textarea_field( mb_substr( (string) ( $data['stack'] ?? '' ), 0, 2000 ) ),
-			'pageUrl'    => esc_url_raw( (string) ( $data['url'] ?? '' ) ),
-			'requestUrl' => esc_url_raw( (string) ( $data['requestUrl'] ?? '' ) ),
-			'status'     => isset( $data['status'] ) ? (int) $data['status'] : null,
-			'user'       => wp_get_current_user()->user_login,
-		] );
+		self::store_error(
+			self::CLIENT_ERRORS_OPTION,
+			array(
+				'time'       => current_time( 'mysql' ),
+				'kind'       => in_array( $kind, array( 'js', 'promise', 'network' ), true ) ? $kind : 'js',
+				'message'    => $message,
+				'source'     => sanitize_text_field( (string) ( $data['source'] ?? '' ) ),
+				'line'       => isset( $data['line'] ) ? (int) $data['line'] : null,
+				'col'        => isset( $data['col'] ) ? (int) $data['col'] : null,
+				'stack'      => sanitize_textarea_field( mb_substr( (string) ( $data['stack'] ?? '' ), 0, 2000 ) ),
+				'pageUrl'    => esc_url_raw( (string) ( $data['url'] ?? '' ) ),
+				'requestUrl' => esc_url_raw( (string) ( $data['requestUrl'] ?? '' ) ),
+				'status'     => isset( $data['status'] ) ? (int) $data['status'] : null,
+				'user'       => wp_get_current_user()->user_login,
+			)
+		);
 
-		return rest_ensure_response( [ 'success' => true ] );
+		return rest_ensure_response( array( 'success' => true ) );
 	}
 
 	public static function register_menu() {
@@ -111,7 +130,7 @@ class Forge_PM_Status {
 			__( 'Status', 'forge-pm' ),
 			'edit_posts',
 			'forge-pm-status',
-			[ __CLASS__, 'render_page' ]
+			array( __CLASS__, 'render_page' )
 		);
 	}
 
@@ -120,95 +139,105 @@ class Forge_PM_Status {
 		$page_id   = get_option( 'forge_pm_page_id' );
 		$page_post = $page_id ? get_post( $page_id ) : null;
 
-		$cpt_counts = [];
-		foreach ( [ 'forge_feature', 'forge_subitem', 'forge_bug', 'forge_feedback', 'forge_release', 'forge_company_date' ] as $cpt ) {
-			$counts         = wp_count_posts( $cpt );
+		$cpt_counts = array();
+		foreach ( array( 'forge_feature', 'forge_subitem', 'forge_bug', 'forge_feedback', 'forge_release', 'forge_company_date' ) as $cpt ) {
+			$counts             = wp_count_posts( $cpt );
 			$cpt_counts[ $cpt ] = (int) ( $counts->publish ?? 0 ) + (int) ( $counts->draft ?? 0 );
 		}
 
-		$api_url  = rest_url( 'forge/v1/items' );
-		$api_start = microtime( true );
-		$api_response = wp_remote_get( $api_url, [ 'timeout' => 10, 'sslverify' => false ] );
-		$api_ms   = round( ( microtime( true ) - $api_start ) * 1000 );
-		$api_code = is_wp_error( $api_response ) ? $api_response->get_error_message() : wp_remote_retrieve_response_code( $api_response );
+		$api_url      = rest_url( 'forge/v1/items' );
+		$api_start    = microtime( true );
+		$api_response = wp_remote_get(
+			$api_url,
+			array(
+				'timeout'   => 10,
+				'sslverify' => false,
+			)
+		);
+		$api_ms       = round( ( microtime( true ) - $api_start ) * 1000 );
+		$api_code     = is_wp_error( $api_response ) ? $api_response->get_error_message() : wp_remote_retrieve_response_code( $api_response );
 
-		$debug_log_lines = [];
+		$debug_log_lines = array();
 		if ( defined( 'WP_DEBUG_LOG' ) && is_string( WP_DEBUG_LOG ) && file_exists( WP_DEBUG_LOG ) ) {
-			$lines = file( WP_DEBUG_LOG, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+			$lines           = file( WP_DEBUG_LOG, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
 			$debug_log_lines = array_slice( $lines, -20 );
 		} elseif ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG === true ) {
 			$default = WP_CONTENT_DIR . '/debug.log';
 			if ( file_exists( $default ) ) {
-				$lines = file( $default, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+				$lines           = file( $default, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
 				$debug_log_lines = array_slice( $lines, -20 );
 			}
 		}
 
-		return [
-			'plugin'      => [
+		return array(
+			'plugin'        => array(
 				'version'  => FORGE_PM_VERSION,
 				'dir'      => FORGE_PM_DIR,
 				'basename' => FORGE_PM_BASENAME,
-			],
-			'environment' => [
+			),
+			'environment'   => array(
 				'wordpress' => get_bloginfo( 'version' ),
 				'php'       => PHP_VERSION,
 				'theme'     => wp_get_theme()->get( 'Name' ),
 				'multisite' => is_multisite() ? 'Yes' : 'No',
 				'debug'     => ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ? 'Enabled' : 'Disabled',
-			],
-			'post_counts' => $cpt_counts,
-			'api'         => [
+			),
+			'post_counts'   => $cpt_counts,
+			'api'           => array(
 				'url'  => $api_url,
 				'code' => $api_code,
 				'ms'   => $api_ms,
-			],
-			'settings'    => [
+			),
+			'settings'      => array(
 				'project_name'     => $settings['projectName'] ?? '(not set)',
-				'brands_count'     => count( $settings['brands'] ?? [] ),
-				'categories_count' => count( $settings['categories'] ?? [] ),
-				'statuses_count'   => count( $settings['statuses'] ?? [] ),
-			],
-			'cache'       => [
+				'brands_count'     => count( $settings['brands'] ?? array() ),
+				'categories_count' => count( $settings['categories'] ?? array() ),
+				'statuses_count'   => count( $settings['statuses'] ?? array() ),
+			),
+			'cache'         => array(
 				'auth' => get_transient( 'forge_pm_items_auth' ) !== false ? 'Cached' : 'Empty',
-				'pub'  => get_transient( 'forge_pm_items_pub' )  !== false ? 'Cached' : 'Empty',
-			],
-			'page'        => [
+				'pub'  => get_transient( 'forge_pm_items_pub' ) !== false ? 'Cached' : 'Empty',
+			),
+			'page'          => array(
 				'id'     => $page_id ?: 'None',
 				'status' => $page_post ? $page_post->post_status : 'Not found',
 				'url'    => $page_post ? get_permalink( $page_id ) : 'N/A',
-			],
-			'debug_log'   => $debug_log_lines,
+			),
+			'debug_log'     => $debug_log_lines,
 			'client_errors' => self::get_client_errors(),
 			'php_errors'    => self::get_php_errors(),
-		];
+		);
 	}
 
 	public static function render_page() {
 		// Handle "Clear" actions before reading diagnostics.
 		if ( isset( $_POST['forge_clear_errors'] ) && check_admin_referer( 'forge_clear_errors' ) ) {
 			$what = sanitize_key( wp_unslash( $_POST['forge_clear_errors'] ) );
-			if ( $what === 'client' || $what === 'all' ) delete_option( self::CLIENT_ERRORS_OPTION );
-			if ( $what === 'php'    || $what === 'all' ) delete_option( self::PHP_ERRORS_OPTION );
+			if ( $what === 'client' || $what === 'all' ) {
+				delete_option( self::CLIENT_ERRORS_OPTION );
+			}
+			if ( $what === 'php' || $what === 'all' ) {
+				delete_option( self::PHP_ERRORS_OPTION );
+			}
 			echo '<div class="notice notice-success is-dismissible"><p>Errors cleared.</p></div>';
 		}
 
 		$d = self::get_diagnostics();
 
-		$cpt_labels = [
+		$cpt_labels = array(
 			'forge_feature'      => 'Features',
 			'forge_subitem'      => 'Sub-Items',
 			'forge_bug'          => 'Bugs',
 			'forge_feedback'     => 'Feedback',
 			'forge_release'      => 'Releases',
 			'forge_company_date' => 'Company Dates',
-		];
+		);
 
 		$api_ok = $d['api']['code'] === 200;
 
 		// Build plain-text copy block
 		$copy  = "=== Forge PM Status Report ===\n";
-		$copy .= "Generated: " . current_time( 'Y-m-d H:i:s' ) . "\n\n";
+		$copy .= 'Generated: ' . current_time( 'Y-m-d H:i:s' ) . "\n\n";
 
 		$copy .= "-- Plugin --\n";
 		$copy .= "Version: {$d['plugin']['version']}\n";
@@ -246,21 +275,23 @@ class Forge_PM_Status {
 		$copy .= "Status: {$d['page']['status']}\n";
 		$copy .= "URL: {$d['page']['url']}\n\n";
 
-		$copy .= "-- JavaScript & Network Errors (" . count( $d['client_errors'] ) . ") --\n";
+		$copy .= '-- JavaScript & Network Errors (' . count( $d['client_errors'] ) . ") --\n";
 		if ( ! empty( $d['client_errors'] ) ) {
 			foreach ( $d['client_errors'] as $e ) {
-				$loc = $e['kind'] === 'network'
+				$loc   = $e['kind'] === 'network'
 					? ( ( $e['status'] ?? '' ) . ' ' . ( $e['requestUrl'] ?? '' ) )
 					: ( ( $e['source'] ?? '' ) . ( isset( $e['line'] ) ? ':' . $e['line'] : '' ) );
 				$copy .= "[{$e['time']}] ({$e['kind']}) {$e['message']}" . ( $loc ? " — {$loc}" : '' ) . "\n";
-				if ( ! empty( $e['stack'] ) ) $copy .= "  " . str_replace( "\n", "\n  ", $e['stack'] ) . "\n";
+				if ( ! empty( $e['stack'] ) ) {
+					$copy .= '  ' . str_replace( "\n", "\n  ", $e['stack'] ) . "\n";
+				}
 			}
 		} else {
 			$copy .= "None\n";
 		}
 		$copy .= "\n";
 
-		$copy .= "-- PHP Errors (" . count( $d['php_errors'] ) . ") --\n";
+		$copy .= '-- PHP Errors (' . count( $d['php_errors'] ) . ") --\n";
 		if ( ! empty( $d['php_errors'] ) ) {
 			foreach ( $d['php_errors'] as $e ) {
 				$copy .= "[{$e['time']}] {$e['type']}: {$e['message']} — {$e['file']}:{$e['line']}\n";
@@ -277,7 +308,7 @@ class Forge_PM_Status {
 			$copy .= "-- PHP Debug Log --\nNot available (WP_DEBUG_LOG not enabled or empty)\n";
 		}
 
-		$copy_json = json_encode( $copy );
+		$copy_json = wp_json_encode( $copy );
 		?>
 		<div class="wrap">
 			<h1>Forge PM — Status</h1>
@@ -288,7 +319,8 @@ class Forge_PM_Status {
 				class="button button-primary"
 				style="margin-bottom:24px;"
 				onclick="(function(btn){
-					var text = <?php echo $copy_json; ?>;
+					<?php // The JSON string sits inside a double-quoted HTML attribute, so its own quotes have to be entities or the attribute ends early. ?>
+					var text = <?php echo esc_attr( $copy_json ); ?>;
 					navigator.clipboard.writeText(text).then(function(){
 						btn.textContent = 'Copied!';
 						setTimeout(function(){ btn.textContent = 'Copy Status Report'; }, 2000);
@@ -297,56 +329,58 @@ class Forge_PM_Status {
 			>Copy Status Report</button>
 
 			<?php
-			$sections = [
-				'Plugin' => [
-					[ 'Version',  $d['plugin']['version'] ],
-					[ 'Path',     $d['plugin']['dir'] ],
-					[ 'Basename', $d['plugin']['basename'] ],
-				],
-				'Environment' => [
-					[ 'WordPress', $d['environment']['wordpress'] ],
-					[ 'PHP',       $d['environment']['php'] ],
-					[ 'Theme',     $d['environment']['theme'] ],
-					[ 'Multisite', $d['environment']['multisite'] ],
-					[ 'Debug',     $d['environment']['debug'] ],
-				],
-				'Post Counts' => array_map(
-					function( $cpt, $count ) use ( $cpt_labels ) {
-						return [ $cpt_labels[ $cpt ] ?? $cpt, $count ];
+			$sections = array(
+				'Plugin'         => array(
+					array( 'Version', $d['plugin']['version'] ),
+					array( 'Path', $d['plugin']['dir'] ),
+					array( 'Basename', $d['plugin']['basename'] ),
+				),
+				'Environment'    => array(
+					array( 'WordPress', $d['environment']['wordpress'] ),
+					array( 'PHP', $d['environment']['php'] ),
+					array( 'Theme', $d['environment']['theme'] ),
+					array( 'Multisite', $d['environment']['multisite'] ),
+					array( 'Debug', $d['environment']['debug'] ),
+				),
+				'Post Counts'    => array_map(
+					function ( $cpt, $count ) use ( $cpt_labels ) {
+						return array( $cpt_labels[ $cpt ] ?? $cpt, $count );
 					},
 					array_keys( $d['post_counts'] ),
 					array_values( $d['post_counts'] )
 				),
-				'REST API' => [
-					[ 'Endpoint',      $d['api']['url'] ],
-					[ 'HTTP Status',   $api_ok ? '<span style="color:#16a34a;font-weight:600">200 OK</span>' : '<span style="color:#dc2626;font-weight:600">' . esc_html( (string) $d['api']['code'] ) . '</span>' ],
-					[ 'Response Time', $d['api']['ms'] . 'ms' ],
-				],
-				'Settings' => [
-					[ 'Project Name', esc_html( $d['settings']['project_name'] ) ],
-					[ 'Brands',       $d['settings']['brands_count'] ],
-					[ 'Categories',   $d['settings']['categories_count'] ],
-					[ 'Statuses',     $d['settings']['statuses_count'] ],
-				],
-				'Cache' => [
-					[ 'Auth cache',   $d['cache']['auth'] ],
-					[ 'Public cache', $d['cache']['pub'] ],
-				],
-				'Front-end Page' => [
-					[ 'Page ID', $d['page']['id'] ],
-					[ 'Status',  $d['page']['status'] ],
-					[ 'URL',     $d['page']['url'] !== 'N/A' ? '<a href="' . esc_url( $d['page']['url'] ) . '" target="_blank">' . esc_html( $d['page']['url'] ) . '</a>' : 'N/A' ],
-				],
-			];
+				'REST API'       => array(
+					array( 'Endpoint', $d['api']['url'] ),
+					array( 'HTTP Status', $api_ok ? '<span style="color:#16a34a;font-weight:600">200 OK</span>' : '<span style="color:#dc2626;font-weight:600">' . esc_html( (string) $d['api']['code'] ) . '</span>' ),
+					array( 'Response Time', $d['api']['ms'] . 'ms' ),
+				),
+				'Settings'       => array(
+					array( 'Project Name', esc_html( $d['settings']['project_name'] ) ),
+					array( 'Brands', $d['settings']['brands_count'] ),
+					array( 'Categories', $d['settings']['categories_count'] ),
+					array( 'Statuses', $d['settings']['statuses_count'] ),
+				),
+				'Cache'          => array(
+					array( 'Auth cache', $d['cache']['auth'] ),
+					array( 'Public cache', $d['cache']['pub'] ),
+				),
+				'Front-end Page' => array(
+					array( 'Page ID', $d['page']['id'] ),
+					array( 'Status', $d['page']['status'] ),
+					array( 'URL', $d['page']['url'] !== 'N/A' ? '<a href="' . esc_url( $d['page']['url'] ) . '" target="_blank">' . esc_html( $d['page']['url'] ) . '</a>' : 'N/A' ),
+				),
+			);
 
-			foreach ( $sections as $title => $rows ) : ?>
+			foreach ( $sections as $title => $rows ) :
+				?>
 				<h2 style="margin-top:28px;margin-bottom:8px;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:#888;"><?php echo esc_html( $title ); ?></h2>
 				<table class="widefat striped" style="max-width:720px;margin-bottom:4px;">
 					<tbody>
 						<?php foreach ( $rows as [ $label, $value ] ) : ?>
 							<tr>
 								<td style="width:200px;font-weight:600;color:#333;"><?php echo esc_html( $label ); ?></td>
-								<td style="font-family:monospace;"><?php echo $value; ?></td>
+								<?php // Some rows deliberately carry markup (a coloured status, a link); kses keeps that while still stripping anything unexpected. ?>
+								<td style="font-family:monospace;"><?php echo wp_kses_post( (string) $value ); ?></td>
 							</tr>
 						<?php endforeach; ?>
 					</tbody>
@@ -363,12 +397,22 @@ class Forge_PM_Status {
 				$btn .= '</form>';
 				return $btn;
 			};
-			$kind_color = [ 'js' => '#dc2626', 'promise' => '#ea580c', 'network' => '#7c3aed' ];
+			$kind_color = array(
+				'js'      => '#dc2626',
+				'promise' => '#ea580c',
+				'network' => '#7c3aed',
+			);
 			?>
 
 			<h2 style="margin-top:28px;margin-bottom:8px;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:#888;">
 				JavaScript &amp; Network Errors <span style="color:#aaa;font-size:11px;">(<?php echo count( $d['client_errors'] ); ?>)</span>
-				<?php if ( ! empty( $d['client_errors'] ) ) echo $clear_form( 'client', 'Clear' ); ?>
+				<?php
+				if ( ! empty( $d['client_errors'] ) ) {
+					// $clear_form builds a nonce-protected form from literal markup and
+					// escapes both of its arguments. kses would strip the form itself.
+					echo $clear_form( 'client', 'Clear' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
+				?>
 			</h2>
 			<?php if ( empty( $d['client_errors'] ) ) : ?>
 				<p style="color:#16a34a;">No JavaScript or network errors logged. 🎉</p>
@@ -381,11 +425,12 @@ class Forge_PM_Status {
 						<th style="width:240px;">Location</th>
 					</tr></thead>
 					<tbody>
-						<?php foreach ( $d['client_errors'] as $e ) :
+						<?php
+						foreach ( $d['client_errors'] as $e ) :
 							$loc = $e['kind'] === 'network'
 								? trim( ( $e['status'] ? $e['status'] . ' · ' : '' ) . ( $e['requestUrl'] ?? '' ) )
 								: trim( ( $e['source'] ?? '' ) . ( isset( $e['line'] ) ? ':' . $e['line'] : '' ) );
-						?>
+							?>
 							<tr>
 								<td style="font-family:monospace;font-size:12px;white-space:nowrap;"><?php echo esc_html( $e['time'] ); ?></td>
 								<td><span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:<?php echo esc_attr( $kind_color[ $e['kind'] ] ?? '#64748b' ); ?>;"><?php echo esc_html( $e['kind'] ); ?></span></td>
@@ -404,7 +449,12 @@ class Forge_PM_Status {
 
 			<h2 style="margin-top:28px;margin-bottom:8px;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:#888;">
 				PHP Errors <span style="color:#aaa;font-size:11px;">(<?php echo count( $d['php_errors'] ); ?>)</span>
-				<?php if ( ! empty( $d['php_errors'] ) ) echo $clear_form( 'php', 'Clear' ); ?>
+				<?php
+				if ( ! empty( $d['php_errors'] ) ) {
+					// See the note on the client-error form above.
+					echo $clear_form( 'php', 'Clear' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				}
+				?>
 			</h2>
 			<?php if ( empty( $d['php_errors'] ) ) : ?>
 				<p style="color:#16a34a;">No PHP fatal errors captured from the plugin. 🎉</p>

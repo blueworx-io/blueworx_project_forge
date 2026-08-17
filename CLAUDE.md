@@ -233,5 +233,6 @@ status updates short, and don't re-read unchanged files.
   declarations) — use `npm run build` to check for real errors instead.
 - `rm -rf node_modules` can fail on Windows (busy files) — use PowerShell
   `Remove-Item -Recurse -Force node_modules`.
-- PHPCS here is a pragmatic ruleset, not full WPCS (see the notes in
-  `phpcs.xml.dist`).
+- PHP follows the WordPress coding standards (`composer lint`). Three sniff groups
+  are excluded, each with its reason written into `phpcs.xml.dist`; nothing
+  security-related is among them.

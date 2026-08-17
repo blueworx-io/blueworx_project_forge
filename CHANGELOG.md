@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [1.37.1] - 2026-08-17
+
+### Fixed
+
+- Four places on the Status screen printed diagnostic values without escaping
+  them first, and the "Copy Status Report" button embedded the report in a way
+  that could cut itself off mid-report. Both are fixed, and a test now proves the
+  copied report is complete and the screen renders.
+
+### Changed
+
+- All of the plugin's PHP now follows the WordPress coding standards, checked on
+  every pull request. Formatting only — nothing about how the plugin behaves
+  changed, and the full test suite passes unchanged.
+
 ## [1.37.0] - 2026-08-17
 
 ### Added

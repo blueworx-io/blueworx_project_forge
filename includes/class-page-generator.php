@@ -19,8 +19,8 @@ class Forge_PM_Page_Generator {
 
 	public static function register_template() {
 		// Register our custom page template from the plugin directory
-		add_filter( 'theme_page_templates', [ __CLASS__, 'add_template_to_list' ] );
-		add_filter( 'template_include',     [ __CLASS__, 'load_template' ] );
+		add_filter( 'theme_page_templates', array( __CLASS__, 'add_template_to_list' ) );
+		add_filter( 'template_include', array( __CLASS__, 'load_template' ) );
 	}
 
 	public static function add_template_to_list( $templates ) {
@@ -29,7 +29,9 @@ class Forge_PM_Page_Generator {
 	}
 
 	public static function load_template( $template ) {
-		if ( ! is_page() ) return $template;
+		if ( ! is_page() ) {
+			return $template;
+		}
 
 		$page_template = get_post_meta( get_the_ID(), '_wp_page_template', true );
 		if ( self::TEMPLATE_SLUG === $page_template ) {
@@ -81,12 +83,14 @@ class Forge_PM_Page_Generator {
 			return;
 		}
 
-		$page_id = wp_insert_post( [
-			'post_title'   => 'Forge Project Management',
-			'post_content' => '[forge_project_management]',
-			'post_status'  => 'publish',
-			'post_type'    => 'page',
-		] );
+		$page_id = wp_insert_post(
+			array(
+				'post_title'   => 'Forge Project Management',
+				'post_content' => '[forge_project_management]',
+				'post_status'  => 'publish',
+				'post_type'    => 'page',
+			)
+		);
 
 		if ( $page_id && ! is_wp_error( $page_id ) ) {
 			update_option( 'forge_pm_page_id', $page_id );

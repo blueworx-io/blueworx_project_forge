@@ -3,7 +3,7 @@
  * Plugin Name: Forge Project Management
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     1.37.0
+ * Version:     1.37.1
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -15,9 +15,9 @@ defined( 'ABSPATH' ) || exit;
 
 // Must equal the Version: header above and the version in package.json — CI
 // fails the build if any two disagree.
-define( 'FORGE_PM_VERSION',  '1.37.0' );
-define( 'FORGE_PM_DIR',      plugin_dir_path( __FILE__ ) );
-define( 'FORGE_PM_URL',      plugin_dir_url( __FILE__ ) );
+define( 'FORGE_PM_VERSION', '1.37.1' );
+define( 'FORGE_PM_DIR', plugin_dir_path( __FILE__ ) );
+define( 'FORGE_PM_URL', plugin_dir_url( __FILE__ ) );
 define( 'FORGE_PM_BASENAME', plugin_basename( __FILE__ ) );
 
 require_once FORGE_PM_DIR . 'plugin-update-checker/plugin-update-checker.php';
@@ -66,20 +66,20 @@ require_once FORGE_PM_DIR . 'includes/class-settings.php';
 // fatals during any request (front-end, REST, or admin).
 Forge_PM_Status::init();
 
-register_activation_hook(   __FILE__, [ 'Forge_PM_Page_Generator', 'activate' ] );
-register_activation_hook(   __FILE__, [ 'Forge_PM_Roles',          'add_roles' ] );
-register_deactivation_hook( __FILE__, [ 'Forge_PM_Page_Generator', 'deactivate' ] );
-register_deactivation_hook( __FILE__, [ 'Forge_PM_Roles',          'remove_roles' ] );
+register_activation_hook( __FILE__, array( 'Forge_PM_Page_Generator', 'activate' ) );
+register_activation_hook( __FILE__, array( 'Forge_PM_Roles', 'add_roles' ) );
+register_deactivation_hook( __FILE__, array( 'Forge_PM_Page_Generator', 'deactivate' ) );
+register_deactivation_hook( __FILE__, array( 'Forge_PM_Roles', 'remove_roles' ) );
 
-add_action( 'init',               [ 'Forge_PM_Post_Types',    'register' ] );
-add_action( 'init',               [ 'Forge_PM_Page_Generator', 'register_template' ] );
-add_action( 'init',               [ 'Forge_PM_Settings',       'register_post_status' ] );
-add_action( 'rest_api_init',      [ 'Forge_PM_REST_API',        'register_routes' ] );
-add_action( 'rest_api_init',      [ 'Forge_PM_Settings',        'register_routes' ] );
-add_action( 'rest_api_init',      [ 'Forge_PM_Status',          'register_routes' ] );
-add_action( 'wp_enqueue_scripts', [ 'Forge_PM_Enqueue',         'enqueue' ] );
-add_filter( 'show_admin_bar',     [ 'Forge_PM_Enqueue',         'maybe_hide_admin_bar' ] );
-add_filter( 'login_redirect',      [ 'Forge_PM_Page_Generator', 'login_redirect' ], 10, 3 );
-add_action( 'save_post',          [ 'Forge_PM_REST_API',        'bust_cache' ] );
+add_action( 'init', array( 'Forge_PM_Post_Types', 'register' ) );
+add_action( 'init', array( 'Forge_PM_Page_Generator', 'register_template' ) );
+add_action( 'init', array( 'Forge_PM_Settings', 'register_post_status' ) );
+add_action( 'rest_api_init', array( 'Forge_PM_REST_API', 'register_routes' ) );
+add_action( 'rest_api_init', array( 'Forge_PM_Settings', 'register_routes' ) );
+add_action( 'rest_api_init', array( 'Forge_PM_Status', 'register_routes' ) );
+add_action( 'wp_enqueue_scripts', array( 'Forge_PM_Enqueue', 'enqueue' ) );
+add_filter( 'show_admin_bar', array( 'Forge_PM_Enqueue', 'maybe_hide_admin_bar' ) );
+add_filter( 'login_redirect', array( 'Forge_PM_Page_Generator', 'login_redirect' ), 10, 3 );
+add_action( 'save_post', array( 'Forge_PM_REST_API', 'bust_cache' ) );
 
-add_shortcode( 'forge_project_management', [ 'Forge_PM_Enqueue', 'render_app' ] );
+add_shortcode( 'forge_project_management', array( 'Forge_PM_Enqueue', 'render_app' ) );
