@@ -35,6 +35,11 @@ require_once BWX_FORGE_PATH . 'includes/autoload.php';
 
 bwx_forge_register_autoloader( BWX_FORGE_PATH . 'includes' );
 
+register_activation_hook( BWX_FORGE_FILE, array( \Blueworx\Forge\Plugin::instance(), 'activate' ) );
+register_deactivation_hook( BWX_FORGE_FILE, array( \Blueworx\Forge\Plugin::instance(), 'deactivate' ) );
+
+add_action( 'plugins_loaded', array( \Blueworx\Forge\Plugin::instance(), 'boot' ) );
+
 require_once BWX_FORGE_PATH . 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
