@@ -23,3 +23,15 @@ test('the app page localises what the front end needs', async ({ page }) => {
   // decide what to render; the REST layer enforces it independently.
   expect(data.canEdit).toBe(false);
 });
+
+test('the React app mounts into the page', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await page.goto('/blueworx-forge/');
+
+  // React renders into the empty mount div, so a child element is proof the
+  // bundle loaded and executed rather than 404ing or throwing.
+  await expect(page.getByTestId('bwx-forge-ready')).toBeVisible({ timeout: 15_000 });
+  expect(errors, `the page raised JavaScript errors:\n${errors.join('\n')}`).toEqual([]);
+});
