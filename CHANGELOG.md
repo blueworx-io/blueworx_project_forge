@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [1.38.0] - 2026-08-17
+
+### Added
+
+- The decision record: the forty-seven product and architecture questions the
+  platform rebuild depends on, each with the question, what else was considered,
+  the approved answer, and what would have to be rebuilt if it ever changes.
+- A check that the record stays complete. Adding a new question to the list now
+  fails the build until somebody answers it, so the rebuild cannot quietly start
+  on a guess.
+
 ## [1.37.2] - 2026-08-17
 
 ### Changed

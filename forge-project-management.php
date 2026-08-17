@@ -3,7 +3,7 @@
  * Plugin Name: Forge Project Management
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     1.37.2
+ * Version:     1.38.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 
 // Must equal the Version: header above and the version in package.json — CI
 // fails the build if any two disagree.
-define( 'FORGE_PM_VERSION', '1.37.2' );
+define( 'FORGE_PM_VERSION', '1.38.0' );
 define( 'FORGE_PM_DIR', plugin_dir_path( __FILE__ ) );
 define( 'FORGE_PM_URL', plugin_dir_url( __FILE__ ) );
 define( 'FORGE_PM_BASENAME', plugin_basename( __FILE__ ) );

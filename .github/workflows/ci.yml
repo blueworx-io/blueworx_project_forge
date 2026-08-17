@@ -31,3 +31,15 @@ jobs:
     # Specs that sign in to wp-admin need WP_ADMIN_USER and WP_ADMIN_PASS.
     # Without them those specs skip themselves and the run asserts nothing.
     secrets: inherit
+
+  # Node's own test runner, for the tooling that has no browser in it. The
+  # decision-record completeness check runs inside `npm run lint` above; this
+  # job proves the checker itself still works, including its failure cases.
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm run test:unit
