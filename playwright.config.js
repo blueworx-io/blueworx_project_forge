@@ -23,6 +23,11 @@ export default defineConfig({
   // Puts the test WordPress offline (see the file for why) before anything runs.
   globalSetup: './tests/global-setup.js',
   fullyParallel: false,
+  // Playwright's 30s default assumes a warm application server. This suite talks
+  // to a WordPress installed seconds earlier, over PHP's single-threaded built-in
+  // server, and the first wp-admin screen of a run routinely takes most of that
+  // budget on its own. 60s costs nothing when things are healthy.
+  timeout: 60_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   // Keep the json reporter. CI reads its output to prove tests actually ran —
