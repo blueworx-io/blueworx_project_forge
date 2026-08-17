@@ -17,6 +17,7 @@
 		final tree up front would break the run for every commit before the last.
 	-->
 	<file>blueworx-forge.php</file>
+	<file>uninstall.php</file>
 	<file>includes</file>
 	<file>templates</file>
 
