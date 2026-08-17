@@ -622,7 +622,9 @@ class Forge_PM_REST_API {
 
 			if ( isset( $data['brands'] ) && is_array( $data['brands'] ) ) {
 				$old_brands = self::meta_array( $post_id, '_forge_brands' );
-				sort( $old_brands ); $new_brands = $data['brands']; sort( $new_brands );
+				sort( $old_brands );
+				$new_brands = $data['brands'];
+				sort( $new_brands );
 				if ( $old_brands !== $new_brands ) $changes[] = 'Brands updated';
 			}
 

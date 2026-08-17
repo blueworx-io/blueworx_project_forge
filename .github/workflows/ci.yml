@@ -1,0 +1,33 @@
+name: CI
+on: pull_request
+jobs:
+  guardrails:
+    uses: blueworx-io/bluegroup_core_foundation/.github/workflows/ci-wordpress.yml@v1
+    with:
+      # Tests run against a disposable real WordPress the run provisions itself
+      # (PHP + SQLite, no Docker, no hosting). Never a hosted staging site: a
+      # placeholder URL is how a suite skips itself while reporting green.
+      use_local_wordpress: true
+      plugin_slug: forge-project-management
+      # Must match the @ref above. This input defaults to `main`, so pinning only
+      # the @ref would run the v1 workflow against the foundation's main branch.
+      foundation_ref: v1
+      # Forge's front end is a Vite app: the built bundle in assets/ is what
+      # WordPress serves, so the TypeScript source and the build tooling that
+      # produces it have no business on a live site. Keep this identical to
+      # release.yml — the PR-time content check and the release build must agree
+      # about what ships.
+      exclude_paths: |
+        /src
+        /playwright-report.json
+        /index.html
+        /vite.config.*
+        /tsconfig.json
+        /postcss.config.mjs
+        /vendor
+        /.vscode
+        /.playwright-mcp
+        /.wp-test
+    # Specs that sign in to wp-admin need WP_ADMIN_USER and WP_ADMIN_PASS.
+    # Without them those specs skip themselves and the run asserts nothing.
+    secrets: inherit
