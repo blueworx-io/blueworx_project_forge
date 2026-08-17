@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git restore:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git tag:*)",
+      "Bash(git remote:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(npm ci:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm test:*)",
+      "Bash(npx playwright:*)",
+      "Bash(node:*)",
+      "mcp__playwright__*"
+    ]
+  },
+  "skillOverrides": {
+    "fewer-permission-prompts": "on",
+    "superpowers:brainstorming": "on",
+    "superpowers:test-driven-development": "on",
+    "superpowers:systematic-debugging": "on",
+    "security-review": "on",
+    "superpowers:verification-before-completion": "on",
+    "superpowers:finishing-a-development-branch": "on",
+    "init": "on",
+    "superpowers:writing-plans": "on",
+    "superpowers:executing-plans": "on",
+    "superpowers:requesting-code-review": "on",
+    "graphify": "on"
+  }
+}

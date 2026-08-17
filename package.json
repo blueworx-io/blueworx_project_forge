@@ -1,14 +1,18 @@
 {
   "name": "forge-project-management",
   "private": true,
-  "version": "1.36.0",
+  "version": "1.37.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "zip": "vite build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/zip-plugin.ps1"
+    "test": "playwright test",
+    "build:zip": "vite build && bash bin/build-zip.sh",
+    "zip": "npm run build:zip",
+    "wp:up": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs up --plugin . --slug forge-project-management --dir .wp-test --port 8881",
+    "wp:down": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs down --dir .wp-test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.6",
@@ -28,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.49.0",
     "@tailwindcss/vite": "4.1.12",
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.1",

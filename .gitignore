@@ -1,8 +1,27 @@
 node_modules/
 dist/
 dist-zip/
-forge-project-management.zip
+
+# Composer dev tooling (PHPCS). Nothing here is runtime.
+/vendor/
+composer.lock
+.phpunit.result.cache
+
+# Playwright
+/test-results/
+/playwright-report/
+playwright-report.json
+/blob-report/
+/playwright/.cache/
+
+# Disposable local WordPress test instance (foundation wp-test-env.mjs)
+.wp-test/
+
+# The deployable zip is built one level up, never in the tree.
+*.zip
+
 *.log
 .DS_Store
 Thumbs.db
 .superpowers/
+.playwright-mcp/

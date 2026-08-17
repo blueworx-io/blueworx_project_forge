@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<ruleset name="ForgeProjectManagement">
+	<description>
+		Pragmatic PHP linting for Forge Project Management. High-signal formatting
+		and modern-PHP hygiene sniffs tuned to this project's tab-indented,
+		WordPress-flavoured style.
+
+		Deliberately NOT full WordPress Coding Standards. Forge's PHP predates this
+		ruleset by many releases and is written in short-array, non-Yoda style
+		throughout; switching WPCS on wholesale would rewrite roughly 3,000 lines of
+		working runtime code in the same pull request that adds the guardrails,
+		which is how a formatting sweep hides a behaviour change. The same trade-off
+		is documented in blueworx_labs_clubhouse. Escalating to WPCS is worth its own
+		issue, on its own, with the diff reviewable as formatting only.
+	</description>
+
+	<!-- Only lint php files, show sniff codes (s) and progress (p). -->
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<arg name="parallel" value="8"/>
+
+	<!-- The plugin's own runtime PHP. -->
+	<file>forge-project-management.php</file>
+	<file>uninstall.php</file>
+	<file>includes</file>
+	<file>templates</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/plugin-update-checker/*</exclude-pattern>
+	<exclude-pattern>*/.wp-test/*</exclude-pattern>
+
+	<!-- Whitespace and file hygiene: tabs for indent (project convention), no
+	     stray trailing whitespace, one structure per file, trailing newline. -->
+	<rule ref="Generic.WhiteSpace.DisallowSpaceIndent"/>
+	<rule ref="Squiz.WhiteSpace.SuperfluousWhitespace"/>
+	<rule ref="Generic.Files.OneObjectStructurePerFile"/>
+	<rule ref="PSR2.Files.EndFileNewline"/>
+	<!-- A byte-order mark is output before any header. The main plugin file
+	     carried one until 1.37.0, which made WordPress refuse activation with
+	     "The plugin generated unexpected output". -->
+	<rule ref="Generic.Files.ByteOrderMark"/>
+
+	<!-- Modern-PHP hygiene: canonical tags, lowercase keywords/constants/types,
+	     upper-case constant names, one statement per line, no dead statements. -->
+	<rule ref="Generic.PHP.DisallowShortOpenTag"/>
+	<rule ref="Generic.PHP.DisallowAlternativePHPTags"/>
+	<rule ref="Generic.PHP.LowerCaseKeyword"/>
+	<rule ref="Generic.PHP.LowerCaseConstant"/>
+	<rule ref="Generic.PHP.LowerCaseType"/>
+	<rule ref="Generic.NamingConventions.UpperCaseConstantName"/>
+	<rule ref="Generic.Formatting.DisallowMultipleStatements"/>
+	<rule ref="Generic.CodeAnalysis.EmptyStatement"/>
+	<rule ref="Generic.CodeAnalysis.ForLoopWithTestFunctionCall"/>
+</ruleset>
