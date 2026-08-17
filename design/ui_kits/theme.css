@@ -1,0 +1,220 @@
+/* Forge site theme — binds both UI kits and the demo to the design system's v3 tokens
+   (Labs | Forge Command, 17 Aug 2026). The kit files were written against older token
+   names, so this file is an alias layer: every legacy name is redefined in terms of a
+   v3 token. Paint and density only — no structure changes.
+
+   What v3 changes here:
+   - Signal Blue promoted from rationed accent to brand: flat brand-600 primary pill,
+     brand-tinted grounds (--surface-tint), brand-tinted active nav and selected rows
+   - Ink is navy #1a1f36, not near-black; borders are solid Chalk #e2e8f0, not alpha
+   - Roomy density: 15px UI text, 32/40px controls, 44/52px rows, 264px rail, 64px bar
+   - Radii: 12/16 pair, fully-round buttons, tags and pills
+   - The twelve stages read through the five workflow phase hues of Figure 1 */
+@import url("../_ds/labs-forge-command/styles.css");
+
+:root {
+  /* Ink ramp → v3 navy-tinted slate */
+  --ink-900: var(--text-primary);      /* #1a1f36 */
+  --ink-700: var(--text-soft);         /* #334155 */
+  --ink-500: var(--text-secondary);    /* #64748b */
+  --ink-300: var(--text-muted);        /* #94a3b8 */
+  --ink-100: var(--color-chalk);
+  --ink-000: var(--color-graphite);
+
+  /* Surfaces — white panels on a cool canvas, plus the brand-tinted ground */
+  --paper-canvas: var(--color-mist);
+  --paper-surface: var(--color-snow);
+  --paper-sunken: var(--color-haze);
+  --paper-stone: var(--color-chalk);
+  --surface-page: var(--surface-canvas);
+  --surface-sunken: var(--surface-muted);
+  --surface-tinted: var(--surface-tint);
+  --surface-inverse: var(--surface-inverted);
+
+  /* The brand — one primary action per view. A flat brand fill; there are no gradients. */
+  --accent-signal: var(--brand-600);
+  --accent-signal-wash: var(--surface-tint);
+  --accent-signal-edge: var(--border-tint);
+  --accent-coral: var(--color-coral);
+  --accent-coral-wash: var(--color-danger-bg);
+  --accent-mint: var(--color-mint);
+  --accent-mint-wash: var(--color-success-bg);
+  --accent-butter: var(--color-ember);
+  --accent-butter-wash: var(--color-warning-bg);
+
+  --state-ok: var(--color-success);
+  --state-ok-wash: var(--color-success-bg);
+  --state-ok-edge: var(--color-success-border);
+  --state-warn: var(--color-warning);
+  --state-warn-wash: var(--color-warning-bg);
+  --state-warn-edge: var(--color-warning-border);
+  --state-danger: var(--color-danger);
+  --state-danger-wash: var(--color-danger-bg);
+  --state-danger-edge: var(--color-danger-border);
+  --state-info: var(--color-info);
+  --state-info-wash: var(--color-info-bg);
+  --state-info-edge: var(--color-info-border);
+  --state-over: var(--color-over);
+  --state-over-wash: var(--color-over-bg);
+
+  --text-link: var(--link-color);
+
+  /* Borders — solid, so an edge reads the same on card, canvas and tint */
+  --border-hairline: var(--border-default);
+  --border-ink: var(--color-ash);
+  --border-focus: var(--brand-600);
+
+  /* Type — one family. Hierarchy is size, tracking and colour; weight tops out at 500. */
+  --font-display: var(--font-body);
+  --font-ui: var(--font-body);
+  --font-features-ui: "ss01" on, "ss03" on;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 500;
+  --weight-bold: 500;
+  --numeric-tabular: "tnum" on, "lnum" on;
+
+  /* Elevation — shallow real drops, no rings */
+  --shadow-button: var(--shadow-action);
+  --shadow-raised: var(--shadow-card);
+  --shadow-overlay: var(--shadow-panel);
+  --shadow-dragging: var(--shadow-panel);
+  --ring-focus: var(--focus-ring);
+  --ring-invalid: 0 0 0 1.5px var(--color-danger), 0 0 0 4px rgba(220, 38, 38, 0.16);
+
+  --radius-pill: 999px;
+  --radius-xs: 6px;
+
+  /* Legacy type-scale names on the v3 scale: UI text 15px, small 13, caption 11 */
+  --text-micro: 11px;      --leading-micro: 1.4;    --tracking-micro: 0.06em;
+  --text-caption: 12px;    --leading-caption: 1.45; --tracking-caption: -0.005em;
+  --text-body-sm: 13px;    --leading-body-sm: 1.5;  --tracking-body-sm: -0.008em;
+  --text-body: 15px;       --leading-body: 1.5;     --tracking-body: -0.011em;
+  --text-body-lg: 17px;    --leading-body-lg: 1.6;  --tracking-body-lg: -0.014em;
+  --text-subheading: 20px; --leading-subheading: 1.4;  --tracking-subheading: -0.018em;
+  --text-heading-sm: 26px; --leading-heading-sm: 1.28; --tracking-heading-sm: -0.022em;
+  --text-heading: 34px;    --leading-heading: 1.2;     --tracking-heading: -0.026em;
+  --text-display: 44px;    --leading-display: 1.12;    --tracking-display: -0.028em;
+  --text-display-xl: 56px; --leading-display-xl: 1.04; --tracking-display-xl: -0.03em;
+
+  /* Spacing aliases */
+  --space-2: 2px;  --space-4: 4px;   --space-6: 6px;   --space-8: 8px;
+  --space-10: 10px; --space-12: 12px; --space-16: 16px; --space-20: 20px;
+  --space-24: 24px; --space-32: 32px; --space-40: 40px; --space-48: 48px;
+  --space-64: 64px; --space-72: 72px; --space-100: 100px; --space-120: 120px;
+
+  /* Shell + density — roomy */
+  --rail-w: var(--sidebar-width);        /* 264px */
+  --column-w: var(--board-column-width); /* 320px */
+  --header-h: var(--topbar-height);      /* 64px */
+  --dense-row-h: var(--row-height-dense);/* 44px */
+  --row-h: var(--row-height);            /* 52px */
+  --dense-pad-x: 12px;
+  --dense-pad-y: 10px;
+  --dense-gap: 10px;
+  --page-max: var(--content-max-width);
+  --page-max-wide: 1440px;
+  --card-padding: 24px;
+  --card-padding-lg: 32px;
+  --element-gap: 16px;
+  --section-gap: 80px;
+
+  /* The twelve stages read through the five phase hues (Figure 1 grouping, v3 values).
+     A stage is a tinted chip with a 4px dot — never a filled card. */
+  --stage-future-idea-ink: var(--phase-idea);
+  --stage-future-idea-wash: var(--phase-idea-bg);
+  --stage-future-idea-edge: var(--phase-idea-border);
+  --stage-triage-ink: var(--phase-pipeline);
+  --stage-triage-wash: var(--phase-pipeline-bg);
+  --stage-triage-edge: var(--phase-pipeline-border);
+
+  --stage-bug-ink: var(--phase-exception);
+  --stage-bug-wash: var(--phase-exception-bg);
+  --stage-bug-edge: var(--phase-exception-border);
+
+  --stage-documentation-ink: var(--phase-pipeline);
+  --stage-documentation-wash: var(--phase-pipeline-bg);
+  --stage-documentation-edge: var(--phase-pipeline-border);
+  --stage-audit-ink: var(--phase-pipeline);
+  --stage-audit-wash: var(--phase-pipeline-bg);
+  --stage-audit-edge: var(--phase-pipeline-border);
+  --stage-design-ink: var(--phase-pipeline);
+  --stage-design-wash: var(--phase-pipeline-bg);
+  --stage-design-edge: var(--phase-pipeline-border);
+  --stage-development-ink: var(--phase-pipeline);
+  --stage-development-wash: var(--phase-pipeline-bg);
+  --stage-development-edge: var(--phase-pipeline-border);
+
+  --stage-up-next-ink: var(--phase-gate);
+  --stage-up-next-wash: var(--phase-gate-bg);
+  --stage-up-next-edge: var(--phase-gate-border);
+  --stage-review-ink: var(--phase-gate);
+  --stage-review-wash: var(--phase-gate-bg);
+  --stage-review-edge: var(--phase-gate-border);
+
+  --stage-blocked-ink: var(--phase-exception);
+  --stage-blocked-wash: var(--phase-exception-bg);
+  --stage-blocked-edge: var(--color-coral);
+
+  --stage-completed-ink: var(--phase-done);
+  --stage-completed-wash: var(--phase-done-bg);
+  --stage-completed-edge: var(--phase-done-border);
+  --stage-released-ink: var(--color-fern);
+  --stage-released-wash: var(--phase-done-bg);
+  --stage-released-edge: var(--phase-done-border);
+
+  --gate-ready: var(--gate-pass);
+  --gate-partial: var(--color-warning);
+  --gate-failed: var(--gate-missing);
+  --blocked-hatch: repeating-linear-gradient(45deg, var(--color-coral) 0 3px, transparent 3px 6px);
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  -webkit-font-smoothing: antialiased;
+  text-wrap: pretty;
+}
+
+h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.022em; }
+
+a { color: var(--link-color); text-decoration: none; }
+a:hover { color: var(--link-hover); text-decoration: underline; text-underline-offset: 2px; }
+
+:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Control states. The primary action is a flat brand fill, so its states are the
+   whole affordance: hover deepens 600 → 700 with a soft blue-tinted lift, press sinks
+   to 800 behind an inset hairline and travels 1px. Colour and shadow only elsewhere. */
+[data-forge-btn] {
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out);
+}
+[data-forge-btn="primary"]:hover:not(:disabled) {
+  background: var(--surface-action-hover);
+  box-shadow: var(--shadow-action-hover);
+}
+[data-forge-btn="primary"]:active:not(:disabled) {
+  background: var(--surface-action-press);
+  box-shadow: var(--shadow-action-press);
+  transform: translateY(1px);
+}
+[data-forge-btn="secondary"]:hover:not(:disabled) {
+  background: var(--color-mist);
+  border-color: var(--color-ash);
+}
+[data-forge-btn="soft"]:hover:not(:disabled) { background: var(--surface-action-soft-hover); }
+[data-forge-btn="ghost"]:hover:not(:disabled) { background: var(--alpha-fill); }
+[data-forge-btn="danger"]:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger);
+}
+[data-forge-btn="secondary"]:active:not(:disabled),
+[data-forge-btn="soft"]:active:not(:disabled),
+[data-forge-btn="danger"]:active:not(:disabled) { transform: translateY(1px); }

@@ -34,12 +34,32 @@ against these values, and they must not move underneath it without a deliberate 
 | `tokens/tiles.css` | The seven feature-tile hues, and the chart ramp |
 | `tokens/workflow.css` | Workflow phase, gate and exception colours |
 
+`research/brief.txt` — the full product brief (v0.3, 14 Aug 2026), 852 lines. Every screen in
+the design was built from it, and it is the authority on behaviour: the work hierarchy, the
+twelve stages and their exit gates, roles, capacity, packages and the hour ledger, request
+intake, the client dashboard, onboarding, the sync model, and the MVP acceptance criteria.
+Requirements in it are firm **unless labelled `Proposed` or `Decision required`** — those are
+open questions, not specifications.
+
+`ui_kits/theme.css` — the alias layer binding the kits to the v3 tokens, plus the body
+defaults and the control states. Its `@import` is rewritten to this folder's `_ds` path.
+
+`ui_kits/primary/kit.jsx` — the Primary Site kit's shared primitives, and the single most
+useful reference for the rebuild: the twelve stages as data, the `DataView` table (saved
+views, search, filter pills, selection, bulk bar, footer), `PageHeader`, `IconTile`,
+`EmptyState`, `Modal`, the reason-gated action, the button and tag variants, and the inlined
+Lucide subset. The screens are composed from these.
+
 ## What is deliberately not here
 
 - **The component bundle** (`_ds_bundle.js`) and the 44 components' sources. Pull the one you
   need, when you need it.
-- **The UI kits** (`ui_kits/primary/`, `ui_kits/client/`) — twelve and five screens
-  respectively. Read a screen when building that screen.
+- **The seventeen screen files** — `ui_kits/primary/{MyTasks,Kanban,SubItem,Standup,Capacity,
+  Timeline,RequestsReview,Packages,OnboardingBoard,Sync,App}.jsx` and
+  `ui_kits/client/{Dashboard,Board,Requests,Sales,Onboarding,App}.jsx`. Each is read when its
+  screen is built, which is the workflow the sync tool itself recommends: incrementally, one
+  component at a time, never a wholesale copy. Copying all seventeen now would cost a great
+  deal and produce a snapshot that goes stale the moment the design moves.
 - **The screenshots and uploads** — binaries, including the product brief `.docx`. The brief's
   full text is readable as `research/brief.txt` in the project.
 - **The project's root `components/`, `guidelines/`, `tokens/` and `templates/` folders.** The
