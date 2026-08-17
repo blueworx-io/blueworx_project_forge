@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
-## [1.38.0] - 2026-08-17
+## [1.39.0] - 2026-08-17
 
 ### Added
 
@@ -18,6 +18,11 @@ commits and pull requests.
 - A check that the record stays complete. Adding a new question to the list now
   fails the build until somebody answers it, so the rebuild cannot quietly start
   on a guess.
+- The three documents the rebuild is built from: who is allowed to do what on
+  each of the two sites, how a piece of work moves from idea to released and what
+  it has to satisfy at each step, and what the system actually stores. Between
+  them they say what gets built and, just as importantly, what must always be
+  refused.
 
 ## [1.37.2] - 2026-08-17
 
