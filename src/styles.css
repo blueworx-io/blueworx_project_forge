@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+/* The app owns the viewport; the template loads no theme styles. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}

@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.0.0] - 2026-08-17
+
+### Changed
+
+- Forge has been rebuilt from the ground up and is now a separate plugin,
+  **Blueworx Forge**. It installs alongside the old Forge Project Management
+  rather than replacing it, so both can run on the same site while you move
+  items across by hand. The old plugin is untouched and stays installable from
+  its 1.37.2 release.
+- This release is the new plugin's foundation: it installs, activates and
+  updates itself, and nothing more. The screens follow, built from the new
+  design.
+
 ## [1.39.0] - 2026-08-17
 
 ### Added

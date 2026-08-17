@@ -8,7 +8,7 @@ jobs:
       # (PHP + SQLite, no Docker, no hosting). Never a hosted staging site: a
       # placeholder URL is how a suite skips itself while reporting green.
       use_local_wordpress: true
-      plugin_slug: forge-project-management
+      plugin_slug: blueworx-forge
       # Must match the @ref above. This input defaults to `main`, so pinning only
       # the @ref would run the v1 workflow against the foundation's main branch.
       foundation_ref: v1
@@ -19,6 +19,7 @@ jobs:
       # about what ships.
       exclude_paths: |
         /src
+        /design
         /playwright-report.json
         /index.html
         /vite.config.*

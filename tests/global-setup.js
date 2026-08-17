@@ -20,7 +20,7 @@ const MU_PLUGIN = `<?php
 add_filter(
 	'pre_http_request',
 	static function () {
-		return new WP_Error( 'forge_pm_test_offline', 'Outbound HTTP is blocked during the test run.' );
+		return new WP_Error( 'bwx_forge_test_offline', 'Outbound HTTP is blocked during the test run.' );
 	},
 	0
 );
@@ -35,5 +35,5 @@ export default function globalSetup() {
   if (!fs.existsSync(path.dirname(muDir))) return;
 
   fs.mkdirSync(muDir, { recursive: true });
-  fs.writeFileSync(path.join(muDir, 'forge-pm-test-offline.php'), MU_PLUGIN);
+  fs.writeFileSync(path.join(muDir, 'bwx-forge-test-offline.php'), MU_PLUGIN);
 }
