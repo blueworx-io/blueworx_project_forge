@@ -1,8 +1,17 @@
 <?xml version="1.0"?>
+<!--
+	The four failOn* switches below are the guardrail, not decoration. A suite
+	that runs nothing exits 0 by default, which is how a whole suite once
+	reported green for months having asserted nothing; failOnEmptyTestSuite
+	turns that into a red build. failOnSkipped applies the same rule one test at
+	a time — a skipped test is not a passing test.
+-->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
 	bootstrap="tests/php/bootstrap.php"
 	colors="true"
+	failOnEmptyTestSuite="true"
+	failOnSkipped="true"
 	failOnWarning="true"
 	failOnRisky="true">
 	<testsuites>

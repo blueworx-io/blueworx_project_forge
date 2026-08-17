@@ -44,3 +44,16 @@ jobs:
         with:
           node-version: 20
       - run: npm run test:unit
+
+      # The foundation runs PHPCS and PHPUnit only when it finds their config
+      # files, and says so in the log rather than failing. That is the right
+      # default for a repo that has neither — and exactly wrong for this one,
+      # where deleting either file would silently drop a required check and
+      # leave the build green. So assert they are still there.
+      - name: The PHP checks are still configured
+        run: |
+          for f in phpcs.xml.dist phpunit.xml.dist; do
+            [ -f "$f" ] || { echo "$f is missing — PHP checks would silently stop running." >&2; exit 1; }
+          done
+          grep -q 'failOnEmptyTestSuite="true"' phpunit.xml.dist \
+            || { echo 'phpunit.xml.dist must keep failOnEmptyTestSuite="true" — a suite that runs nothing exits 0 without it.' >&2; exit 1; }
