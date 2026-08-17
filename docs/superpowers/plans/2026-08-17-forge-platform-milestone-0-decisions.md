@@ -565,7 +565,9 @@ P1 rows 3, 4).
   capability per gate type (triage, documentation, technical, design), granted to
   named staff users independently of their Sub-item roles, so a small team can hold
   several and a larger one can separate them. An item's own Primary User may not
-  approve its own Documentation, Technical Audit or Design gate.
+  approve its own Documentation, Technical Audit or Design gate — unless they hold
+  the Principal grant from AUTH-3, which is the single exception and is marked on
+  the item wherever it is used.
 - **AUTH-2** — Client administrators may create parent items and Sub-items when the
   client has an active package, and may always submit bugs and requests. They may
   edit definition fields (problem, scope, acceptance criteria, links, attachments)
@@ -573,14 +575,30 @@ P1 rows 3, 4).
   comment-and-request-change only. They may comment, attach evidence and answer
   information requests at any stage. They may never touch workflow, accountability,
   planning or commercial fields. Client stakeholders are read-only plus comment.
-- **AUTH-3** — Primary User and Reviewer must be different people, always: a
-  self-review is not a review, and that is the gate the whole product exists to
-  enforce. Deliverer may be the same person as either. Capacity counts each role's
-  hours separately even when one person holds two.
+- **AUTH-3** — Primary User and Reviewer must be different people by default, and
+  the service refuses the assignment. The exception is a named **Principal** grant,
+  held by a small set of staff users, who may hold all three roles on one Sub-item.
+  Deliverer may be the same person as either for anyone. Three guardrails on the
+  exception, so it stays a capability rather than a shortcut:
+  - Each role's actions are still performed separately. A Principal completes the
+    In Development gate, then the review checklist, then the release record, as
+    three distinct actions with their own timestamps. There is no combined
+    approve-and-release control.
+  - Capacity counts each role's hours separately, so a Principal carrying a job
+    alone shows the full committed time rather than a third of it.
+  - The item is permanently marked as self-reviewed, the changelog records it, and
+    a report lists self-reviewed work by person and period — because a rule with an
+    exception nobody can count is not a rule.
+
+  Principal is an additional grant on a Staff user, not a fifth kind of account: a
+  Principal is an ordinary staff user in every other respect. It is granted and
+  revoked by the Primary administrator, and each grant is recorded.
 - **AUTH-4** — A substitute is named per item by the Primary administrator, with a
   reason, and is recorded on the item and in the changelog. There is no standing
   delegation and no automatic fallback, because an automatic reviewer is how
-  approval becomes a formality.
+  approval becomes a formality. A Principal does not need a substitute for their own
+  work; the Principal grant is the mechanism, and the two are never combined to
+  route around a reviewer who is merely unavailable.
 - **AUTH-5** — A client sees: their own work and its stage, their own people, their
   own hour ledger and balances, their onboarding, their meetings, their Point of
   Contact, and a privacy-safe availability result for planning. They do not see
@@ -804,8 +822,14 @@ P1 rows 3, 4).
 
 Rows are capabilities, grouped: read, create, edit, comment and evidence,
 transition, approve, administer, commercial, onboarding. Columns are the four
-access roles from §3.1 crossed with the two interfaces — eight columns. Every cell
-is `yes`, `no`, or `yes, conditional on <named condition>`. No blank cells.
+access roles from §3.1, plus Staff user holding the Principal grant from AUTH-3,
+each crossed with the two interfaces — ten columns, of which the four staff and
+Principal client-site columns will be largely `no`. Every cell is `yes`, `no`, or
+`yes, conditional on <named condition>`. No blank cells.
+
+Principal exists as its own column rather than a footnote because it is the one
+grant that changes an approval outcome, and a reader scanning for "who can sign
+this off" must not have to find a footnote to get the right answer.
 
 - [ ] **Step 2: Write the explicit-denial section**
 
