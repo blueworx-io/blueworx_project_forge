@@ -104,6 +104,7 @@ export function DetailModal( { settings }: DetailModalProps ) {
 
   useEffect( () => {
     if ( item ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: the modal's draft form is reset when a different item is opened. The draft is editable, so it cannot be derived during render.
       setEditForm( { ...item } );
       setIsEditing( false );
       setChangeLogPage( 0 );

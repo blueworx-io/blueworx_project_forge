@@ -95,6 +95,7 @@ function ConfigSection( { settings, persist }: { settings: AppSettings; persist:
   const isMobile = useIsMobile();
   const fb = useFeedback();
   useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: these are editable fields seeded from saved settings, so they re-seed when a save lands or another admin's change arrives.
     setProjectName( settings.projectName ?? '' );
     setHours( settings.teamMonthlyHours );
     setReleaseDay( settings.releaseDay ?? 1 );
@@ -170,6 +171,7 @@ function StatusesSection( { settings, persist }: { settings: AppSettings; persis
   const [ adding, setAdding ] = useState( false );
   const fb = useFeedback();
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: editable list re-seeded from saved settings, as above.
   useEffect( () => { setStatuses( settings.statuses ); }, [ settings.statuses ] );
 
   async function save( next: WorkflowStatus[] ) {
@@ -287,6 +289,7 @@ function BrandParentConfig( { settings, persist }: { settings: AppSettings; pers
   const [ parentBrand, setParentBrand ] = useState( settings.parentBrand );
   const isMobile = useIsMobile();
   const fb = useFeedback();
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: editable field re-seeded from saved settings, as above.
   useEffect( () => { setParentBrand( settings.parentBrand ); }, [ settings.parentBrand ] );
 
   async function handleSave() {
@@ -798,6 +801,7 @@ function ArchiveSection() {
     finally { setLoading(false); }
   }, [] );
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: fetches the archive on mount; the state it sets is the response, which no render can produce.
   useEffect( () => { load(); }, [ load ] );
 
   async function handleRestore( item: ArchivedItem ) {

@@ -30,6 +30,7 @@ export function SearchBox( { fullWidth = false }: { fullWidth?: boolean } = {} )
   const [value, setValue] = useState( query );
 
   // Reflect external changes (deep link, Clear all filters) into the input.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: the input is typed into, so its value cannot be derived from the store; it has to be pushed when the store changes underneath it.
   useEffect( () => { setValue( query ); }, [ query ] );
 
   // Debounce store writes so each keystroke doesn't re-filter the whole list.
