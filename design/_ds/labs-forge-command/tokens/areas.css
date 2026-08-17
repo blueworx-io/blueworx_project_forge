@@ -1,0 +1,28 @@
+/* Area hues — one colour per Forge work area. Unchanged in role by v3: an area hue is a
+   MARKER, never a fill. It may appear as a 3px rail marker, a 6px dot, a 1px chip border,
+   a text colour on a chip, or the solid tint behind a chip. It may never be a card
+   background, a button fill, or the colour of a status. Status stays semantic.
+   v3 swaps the 10% alpha tints for solid 50-level tints so a chip reads identically on
+   white, on wash and on a tinted section ground.
+   Requests uses amber rather than emerald so it can never be read as success. */
+:root{
+--area-delivery:#0d9488;
+--area-delivery-bg:#f0fdfa;
+--area-delivery-border:#ccfbf1;
+--area-support:#7c3aed;
+--area-support-bg:#f5f3ff;
+--area-support-border:#ede9fe;
+--area-requests:#b45309;
+--area-requests-bg:#fffbeb;
+--area-requests-border:#fef3c7;
+--area-admin:#475569;
+--area-admin-bg:#f8fafc;
+--area-admin-border:#e2e8f0;
+/* Reserved — for a fifth and sixth area only, same chroma family */
+--area-finance:#0284c7;
+--area-finance-bg:#f0f9ff;
+--area-finance-border:#e0f2fe;
+--area-risk:#e11d48;
+--area-risk-bg:#fff1f2;
+--area-risk-border:#ffe4e6;
+}

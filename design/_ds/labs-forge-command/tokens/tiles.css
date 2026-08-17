@@ -1,0 +1,18 @@
+/* Feature-tile hues — new in v3. The one place a saturated colour may own a filled surface.
+   Modelled on the SureCart developer-docs card grid: a small tinted square holding a
+   monochrome glyph, one hue per feature or destination, the label always doing the work.
+   Rules: a tile hue may fill a 32-48px square (--radius-tiles) and colour the glyph inside it.
+   It may NEVER fill a card, a button, a row, a bar or a status. A tile is navigation and
+   category, never state — state stays semantic (tokens/colors.css) and area stays a marker
+   (tokens/areas.css). Values are the shipping app's chart ramp so charts and tiles agree. */
+:root{
+--tile-blue-fg:#2563eb;--tile-blue-bg:#eff6ff;--tile-blue-border:#dbeafe;
+--tile-violet-fg:#7c3aed;--tile-violet-bg:#f5f3ff;--tile-violet-border:#ede9fe;
+--tile-emerald-fg:#059669;--tile-emerald-bg:#ecfdf5;--tile-emerald-border:#d1fae5;
+--tile-amber-fg:#b45309;--tile-amber-bg:#fffbeb;--tile-amber-border:#fef3c7;
+--tile-rose-fg:#e11d48;--tile-rose-bg:#fff1f2;--tile-rose-border:#ffe4e6;
+--tile-teal-fg:#0d9488;--tile-teal-bg:#f0fdfa;--tile-teal-border:#ccfbf1;
+--tile-slate-fg:#475569;--tile-slate-bg:#f8fafc;--tile-slate-border:#f1f5f9;
+/* Chart series — same hues, saturated for fills */
+--chart-1:#3b82f6;--chart-2:#8b5cf6;--chart-3:#10b981;--chart-4:#f59e0b;--chart-5:#ef4444;
+}
