@@ -83,6 +83,7 @@ export default function App() {
 
   // Track which views have been visited so we only mount them on first access
   useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: records the view as visited once it has actually been navigated to, which is not knowable during render.
     setVisited( prev => {
       if ( prev.has( currentView ) ) return prev;
       const next = new Set( prev );

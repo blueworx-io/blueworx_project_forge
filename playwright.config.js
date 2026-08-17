@@ -16,7 +16,12 @@ import { defineConfig, devices } from '@playwright/test';
 // In CI the foundation's ci-wordpress.yml provisions the instance and sets
 // PLAYWRIGHT_BASE_URL, WP_ADMIN_USER, WP_ADMIN_PASS and its own
 // PLAYWRIGHT_JSON_OUTPUT_NAME.
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://127.0.0.1:8881';
+// 8892, not the foundation's default 8881: every project's harness would
+// otherwise want the same port, and a run that finds another project's
+// WordPress there fails in a thoroughly confusing way — the site answers, so
+// nothing looks broken until every spec fails at once. CI passes
+// PLAYWRIGHT_BASE_URL explicitly and is unaffected.
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || process.env.BASE_URL || 'http://127.0.0.1:8892';
 
 export default defineConfig({
   testDir: './tests/e2e',

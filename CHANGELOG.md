@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [1.37.2] - 2026-08-17
+
+### Changed
+
+- The local test WordPress now runs on a port of its own, so it can no longer
+  collide with another project's test site — which made every test fail at once
+  while the site itself looked perfectly healthy.
+- The seven long-standing linter warnings about the app's forms and search box
+  are gone. Each was the linter objecting to a pattern that is correct here —
+  a form field seeded from saved settings, a search box that has to follow a
+  shared link — so each now says why it is deliberate. Nothing about the app
+  behaves differently, and the linter is silent again, which means the next real
+  warning will be noticed.
+
 ## [1.37.1] - 2026-08-17
 
 ### Fixed

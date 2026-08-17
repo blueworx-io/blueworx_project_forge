@@ -1,7 +1,7 @@
 {
   "name": "forge-project-management",
   "private": true,
-  "version": "1.37.1",
+  "version": "1.37.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,7 @@
     "test": "playwright test",
     "build:zip": "vite build && bash bin/build-zip.sh",
     "zip": "npm run build:zip",
-    "wp:up": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs up --plugin . --slug forge-project-management --dir .wp-test --port 8881",
+    "wp:up": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs up --plugin . --slug forge-project-management --dir .wp-test --port 8892",
     "wp:down": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs down --dir .wp-test"
   },
   "dependencies": {
