@@ -205,10 +205,32 @@ The instance lives in `.wp-test/` (git-ignored) and ships its own `admin` /
 
 ## Zip builds
 
-`npm run build:zip` builds fresh assets and stages **only** the runtime files from an
-explicit allowlist, writing `blueworx-forge-<version>.zip` one level above the
-repo. Hand-built zips are for a site's *first* install only — updates ship as GitHub
-Releases (see the foundation rules above).
+This repo produces **two** plugins, per ARCH-1:
+
+- `blueworx-forge` — the studio plugin, everything outside `client/`
+- `blueworx-forge-client` — the client-site plugin, everything inside `client/`
+
+`npm run build:zip` builds both. `npm run build:zip:studio` and
+`npm run build:zip:client` build one. Each stages **only** the runtime files from
+its own allowlist in `bin/artifacts.json`, writing `<slug>-<version>.zip` one level
+above the repo. Hand-built zips are for a site's *first* install only — updates ship
+as GitHub Releases (see the foundation rules above).
+
+Two rules the build enforces rather than trusts, both run by `npm run lint` and by
+CI on every pull request:
+
+- **The client allowlist cannot admit studio code.** Everything the client ships
+  lives under `client/`; a path that resolves outside it is refused. `shared` is
+  the one door out and is a closed list in `bin/check-artifacts.mjs` — widening it
+  is a decision, not a build change.
+- **Both plugin headers carry the same version.** One repo, one tag, one release,
+  and the release tag is checked against the studio header only.
+
+**The client plugin's main file must stay in `client/`.** The shared release
+workflow finds a plugin's main file by scanning the repo root alphabetically, and
+`blueworx-forge-client.php` sorts before `blueworx-forge.php` — a root copy would be
+resolved as the studio plugin's main file and the release checked against the wrong
+header.
 
 ## Design intake
 

@@ -13,6 +13,7 @@ jobs:
       exclude_paths: |
         /src
         /design
+        /client
         /playwright-report.json
         /index.html
         /vite.config.*
@@ -26,3 +27,50 @@ jobs:
     # gives it, so without this the publish step fails with a 403.
     permissions:
       contents: write
+
+  # The client artifact, attached to the same Release.
+  #
+  # Not a second call to the shared workflow: that workflow finds a plugin's main
+  # file by scanning the repo root, and this repo has exactly one there on
+  # purpose. It builds from bin/artifacts.json — the same allowlist a pull
+  # request is checked against — so what ships to a client site is what CI
+  # verified, not a second description of it.
+  release-client:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Refuses to build if the allowlists would let studio code into the client
+      # artifact. Belt and braces: the same check gates every pull request.
+      - name: The allowlists are shippable
+        run: node bin/check-artifacts.mjs
+
+      - name: Build the client zip
+        run: bash bin/build-zip.sh client "$RUNNER_TEMP/artifacts"
+
+      # The tag is checked against the studio header by the job above, and
+      # check-artifacts.mjs requires both headers to agree — so a mismatch here
+      # means one of those two ran on a different tree.
+      - name: The client zip matches the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          expected="blueworx-forge-client-${TAG#v}.zip"
+          if [ ! -f "$RUNNER_TEMP/artifacts/$expected" ]; then
+            echo "::error title=Client zip does not match the tag::expected $expected, found:"
+            ls -1 "$RUNNER_TEMP/artifacts" | sed 's/^/  /'
+            exit 1
+          fi
+
+      - name: Attach it to the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" "$RUNNER_TEMP/artifacts/blueworx-forge-client-${TAG#v}.zip" --clobber

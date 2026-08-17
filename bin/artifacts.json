@@ -1,0 +1,49 @@
+{
+  "_comment": [
+    "The two artifacts this one repo produces, and the single source of truth for",
+    "what may enter each. bin/build-zip.sh stages from here, bin/check-artifacts.mjs",
+    "enforces the rules below, and CI runs that checker on every pull request.",
+    "",
+    "ARCH-1 puts a Blueworx Forge plugin on the client's own WordPress. The point of",
+    "two artifacts rather than one plugin with a switch is that a client's site",
+    "cannot physically contain command-centre code — not that it is configured not",
+    "to run it.",
+    "",
+    "That guarantee is enforced by geography: everything the client artifact ships",
+    "lives under client/, and studio code lives everywhere else. A path is either",
+    "inside client/ or it cannot be in the client allowlist. 'shared' is the one",
+    "exception and is itself a closed list in the checker — client sites need the",
+    "update checker, or they could never receive a fix."
+  ],
+  "artifacts": {
+    "studio": {
+      "slug": "blueworx-forge",
+      "main": "blueworx-forge.php",
+      "root": ".",
+      "include": [
+        "blueworx-forge.php",
+        "uninstall.php",
+        "CHANGELOG.md",
+        "includes",
+        "templates",
+        "assets",
+        "plugin-update-checker"
+      ],
+      "shared": []
+    },
+    "client": {
+      "slug": "blueworx-forge-client",
+      "main": "blueworx-forge-client.php",
+      "root": "client",
+      "include": [
+        "blueworx-forge-client.php",
+        "uninstall.php",
+        "includes"
+      ],
+      "shared": [
+        "CHANGELOG.md",
+        "plugin-update-checker"
+      ]
+    }
+  }
+}
