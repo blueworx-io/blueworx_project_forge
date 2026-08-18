@@ -47,7 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 24, not 20: test:unit passes a glob to `node --test`, and Node only
+          # learned to expand those in 22. On 20 it reported "Could not find
+          # tests/unit/**/*.test.mjs" and failed — which at least failed loudly
+          # rather than running nothing and calling it a pass.
+          node-version: 24
       - run: npm run test:unit
 
       # The foundation runs PHPCS and PHPUnit only when it finds their config

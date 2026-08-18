@@ -9,6 +9,11 @@ export default defineConfig([
   // plugin-update-checker is vendored third-party JS, .wp-test is a disposable
   // WordPress instance, and .foundation is the shared check scripts CI checks
   // out into the workspace — none of it is ours to lint.
+  //
+  // design/ is the imported design kit: an export we read from, not code we
+  // ship. It is already excluded from both plugin zips and from the workflows'
+  // content checks, so linting it only ever produced findings nobody could act
+  // on without editing somebody else's export.
   {
     ignores: [
       "assets/**",
@@ -21,6 +26,7 @@ export default defineConfig([
       ".foundation/**",
       "test-results/**",
       "playwright-report/**",
+      "design/**",
     ],
   },
   { files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"], plugins: { js }, extends: ["js/recommended"], languageOptions: { globals: globals.browser } },
@@ -37,9 +43,10 @@ export default defineConfig([
       "react-hooks/set-state-in-effect": "warn",
     },
   },
-  // Playwright specs and its config run under Node, not in the browser.
+  // Playwright specs, its config, and the repo's own check scripts all run
+  // under Node, not in the browser.
   {
-    files: ["tests/**/*.js", "playwright.config.js"],
+    files: ["tests/**/*.{js,mjs}", "playwright.config.js", "bin/**/*.mjs"],
     languageOptions: { globals: { ...globals.node } },
   },
   {
