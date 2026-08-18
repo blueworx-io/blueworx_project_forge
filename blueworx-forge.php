@@ -3,7 +3,7 @@
  * Plugin Name: Blueworx Forge
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_VERSION', '2.1.0' );
+define( 'BWX_FORGE_VERSION', '2.2.0' );
 define( 'BWX_FORGE_SLUG', 'blueworx-forge' );
 define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );

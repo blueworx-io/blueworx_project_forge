@@ -20,6 +20,11 @@ jobs:
       exclude_paths: |
         /src
         /design
+        # The client artifact is built from its own allowlist by
+        # bin/build-zip.sh and published by its own release job. It has no
+        # business inside the studio zip — that is the whole point of two
+        # artifacts (ARCH-1).
+        /client
         /playwright-report.json
         /index.html
         /vite.config.*

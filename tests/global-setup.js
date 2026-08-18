@@ -27,13 +27,39 @@ add_filter(
 `;
 
 export default function globalSetup() {
-  const muDir = path.resolve(HERE, '..', '.wp-test', 'wp', 'wp-content', 'mu-plugins');
+  const contentDir = path.resolve(HERE, '..', '.wp-test', 'wp', 'wp-content');
+  const muDir = path.join(contentDir, 'mu-plugins');
 
   // Absent when the run targets something this repo did not provision. Nothing to
   // do then — the specs still assert the same things, just against a site whose
   // outbound calls are its own business.
-  if (!fs.existsSync(path.dirname(muDir))) return;
+  if (!fs.existsSync(contentDir)) return;
 
   fs.mkdirSync(muDir, { recursive: true });
   fs.writeFileSync(path.join(muDir, 'bwx-forge-test-offline.php'), MU_PLUGIN);
+
+  installClientArtifact(path.join(contentDir, 'plugins'));
+}
+
+// The harness links one plugin — the studio one. The client artifact is a
+// separate plugin from the same repo, and the thing worth proving is that it
+// installs and activates on the same WordPress without either one needing the
+// other. So it is staged here exactly as its own zip would be built: from
+// bin/artifacts.json, the same allowlist CI checks and the release publishes.
+// Copying a hand-picked list instead would prove a tree nobody ships.
+function installClientArtifact(pluginsDir) {
+  const repo = path.resolve(HERE, '..');
+  const config = JSON.parse(fs.readFileSync(path.join(repo, 'bin', 'artifacts.json'), 'utf8'));
+  const client = config.artifacts.client;
+  const target = path.join(pluginsDir, client.slug);
+
+  fs.rmSync(target, { recursive: true, force: true });
+  fs.mkdirSync(target, { recursive: true });
+
+  for (const entry of client.include) {
+    fs.cpSync(path.join(repo, client.root, entry), path.join(target, entry), { recursive: true });
+  }
+  for (const entry of client.shared) {
+    fs.cpSync(path.join(repo, entry), path.join(target, entry), { recursive: true });
+  }
 }

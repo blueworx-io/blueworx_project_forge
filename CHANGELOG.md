@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.2.0] - 2026-08-17
+
+### Added
+
+- Forge now ships as two separate plugins: the one you run, and a smaller one
+  that goes on a client's own site. A client's WordPress cannot contain the
+  command-centre code at all — not "is set up not to show it", but the files
+  are not there. The build refuses to produce a client plugin that has any of
+  it, and that refusal is checked on every change.
+- The client plugin installs, activates and updates itself independently. It
+  does nothing yet; the client workspace follows once a site can prove which
+  client it is.
+
 ## [2.1.0] - 2026-08-17
 
 ### Added

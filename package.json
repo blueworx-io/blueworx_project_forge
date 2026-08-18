@@ -1,20 +1,23 @@
 {
   "name": "blueworx-forge",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . && npm run check:decisions",
+    "lint": "eslint . && npm run check:decisions && npm run check:artifacts",
     "check:decisions": "node bin/check-decisions.mjs",
     "test": "playwright test",
     "test:unit": "node --test \"tests/unit/**/*.test.mjs\"",
-    "build:zip": "vite build && bash bin/build-zip.sh",
+    "build:zip": "vite build && bash bin/build-zip.sh all",
     "zip": "npm run build:zip",
     "wp:up": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs up --plugin . --slug blueworx-forge --dir .wp-test --port 8892",
-    "wp:down": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs down --dir .wp-test"
+    "wp:down": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs down --dir .wp-test",
+    "check:artifacts": "node bin/check-artifacts.mjs",
+    "build:zip:studio": "vite build && bash bin/build-zip.sh studio",
+    "build:zip:client": "bash bin/build-zip.sh client"
   },
   "dependencies": {},
   "devDependencies": {

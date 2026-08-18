@@ -3,7 +3,10 @@
 # Build the deployable plugin zip from an explicit allowlist, then verify the
 # artifact it just built.
 #
-#   bash bin/build-zip.sh [output-dir]      # default output-dir: parent of the repo
+#   bash bin/build-zip.sh [artifact] [output-dir]
+#
+#   artifact:   studio (default) | client | all
+#   output-dir: default is the parent of the repo
 #
 # WHY THIS EXISTS
 # Updates ship as GitHub Releases — the foundation's release workflow builds the
@@ -22,25 +25,41 @@
 
 set -euo pipefail
 
-SLUG="blueworx-forge"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT_DIR="${1:-$(cd "$ROOT/.." && pwd)}"
+ARTIFACT="${1:-studio}"
+OUT_DIR="${2:-$(cd "$ROOT/.." && pwd)}"
 
-# ---------------------------------------------------------------------------
-# THE ALLOWLIST — what ships. Allowlist, not denylist: a new dev directory is
-# excluded by default rather than shipped because nobody remembered to add it.
-# `assets` is the built Vite bundle WordPress serves; `src` is its TypeScript
-# source and has no business on a live site.
-# ---------------------------------------------------------------------------
-INCLUDE=(
-	"$SLUG.php"
-	"uninstall.php"
-	"CHANGELOG.md"
-	"includes"
-	"templates"
-	"assets"
-	"plugin-update-checker"
-)
+# "all" is what the release publishes and what a human almost always wants:
+# building one artifact and forgetting the other is how the two drift apart.
+if [ "$ARTIFACT" = "all" ]; then
+	for one in studio client; do
+		bash "${BASH_SOURCE[0]}" "$one" "$OUT_DIR"
+	done
+	exit 0
+fi
+
+# The allowlists live in bin/artifacts.json, read by this script and enforced by
+# bin/check-artifacts.mjs, so there is one list rather than two that agree until
+# they don't. Refuse to build at all if that check is unhappy — a zip built from
+# a broken allowlist is exactly the artifact nobody should be handed.
+node "$ROOT/bin/check-artifacts.mjs" >/dev/null || {
+	node "$ROOT/bin/check-artifacts.mjs" >&2 || true
+	printf 'ERROR: the build allowlists are not shippable — refusing to build.\n' >&2
+	exit 1
+}
+
+read_artifact() { node -e '
+	const c = require(process.argv[1] + "/bin/artifacts.json").artifacts[process.argv[2]];
+	if (!c) { console.error("no such artifact: " + process.argv[2]); process.exit(1); }
+	const v = c[process.argv[3]];
+	console.log(Array.isArray(v) ? v.join("\n") : v);
+' "$ROOT" "$ARTIFACT" "$1"; }
+
+SLUG="$(read_artifact slug)"
+MAIN="$(read_artifact main)"
+ART_ROOT="$(read_artifact root)"
+mapfile -t INCLUDE < <(read_artifact include)
+mapfile -t SHARED < <(read_artifact shared)
 
 # Belt and braces. The allowlist alone already excludes these, so a hit here
 # means one is nested inside a shipped directory — exactly the case a human
@@ -71,8 +90,14 @@ TOOL_KIND="${ZIP_TOOL%%:*}"
 TOOL_BIN="${ZIP_TOOL#*:}"
 say "Archiver : $TOOL_KIND ($TOOL_BIN)"
 
-VERSION="$(grep -oE "define\( 'BWX_FORGE_VERSION', *'[^']+'" "$ROOT/$SLUG.php" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")"
-[ -n "$VERSION" ] || die "could not read the plugin version from $SLUG.php"
+# Read off the "Version:" header rather than a constant: the header is what
+# WordPress and the release tag check both read, so it is the one that must be
+# right, and each artifact names its constant differently anyway.
+MAIN_PATH="$ROOT/$ART_ROOT/$MAIN"
+[ -f "$MAIN_PATH" ] || die "the artifact's main file is missing: $ART_ROOT/$MAIN"
+VERSION="$(grep -oE "^\s*\*?\s*Version:\s*[0-9]+\.[0-9]+\.[0-9]+" "$MAIN_PATH" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1)"
+[ -n "$VERSION" ] || die "could not read the plugin version from $ART_ROOT/$MAIN"
+say "Artifact : $ARTIFACT ($SLUG)"
 say "Version  : $VERSION"
 
 # The version lives in the FILENAME only. The folder inside the archive stays
@@ -84,8 +109,17 @@ ZIP="$OUT_DIR/$SLUG-$VERSION.zip"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/$SLUG"
+# The artifact's own files, taken from its own root and nowhere else.
 for item in "${INCLUDE[@]}"; do
-	[ -e "$ROOT/$item" ] || die "allowlisted path is missing from the repo: $item (did you run the build?)"
+	[ -e "$ROOT/$ART_ROOT/$item" ] || die "allowlisted path is missing from the repo: $ART_ROOT/$item (did you run the build?)"
+	cp -R "$ROOT/$ART_ROOT/$item" "$STAGE/$SLUG/"
+done
+# The few paths both artifacts take from the repo root. Kept to a closed list in
+# bin/check-artifacts.mjs, because this is the one door out of the artifact's
+# own directory and widening it silently is how studio code reaches a client.
+for item in "${SHARED[@]}"; do
+	[ -n "$item" ] || continue
+	[ -e "$ROOT/$item" ] || die "shared path is missing from the repo: $item"
 	cp -R "$ROOT/$item" "$STAGE/$SLUG/"
 done
 
@@ -93,7 +127,10 @@ done
 mkdir -p "$OUT_DIR"
 # Exactly one zip per plugin is ever present: an older build left beside the new
 # one is how the wrong version reaches a live site.
-rm -f "$OUT_DIR/$SLUG.zip" "$OUT_DIR"/"$SLUG"-*.zip
+# Anchored on a digit, not on "$SLUG-*": "blueworx-forge-*" also matches
+# "blueworx-forge-client-2.2.0.zip", so the loose glob would have the studio
+# build quietly delete the client artifact sitting beside it.
+rm -f "$OUT_DIR/$SLUG.zip" "$OUT_DIR"/"$SLUG"-[0-9]*.zip
 case "$TOOL_KIND" in
 	bsdtar) ( cd "$STAGE" && "$TOOL_BIN" -a -c -f "$ZIP" "$SLUG" ) ;;
 	zip)    ( cd "$STAGE" && "$TOOL_BIN" -q -r -X "$ZIP" "$SLUG" ) ;;
@@ -141,10 +178,38 @@ done
 check "no development files ship" "$(printf '%s' "$offenders" | sed '/^$/d')"
 
 check "the main plugin file sits directly inside $SLUG/" \
-	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/$SLUG.php" && true || echo "missing $SLUG/$SLUG.php")"
+	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/$MAIN" && true || echo "missing $SLUG/$MAIN")"
 
-check "the built app bundle ships" \
-	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/assets/js/blueworx-forge.js" && true || echo "missing $SLUG/assets/js/blueworx-forge.js — run npm run build")"
+# A client site without the update checker could never receive a fix, so its
+# absence is a shipping failure rather than a missing nicety.
+check "the update checker ships" \
+	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/plugin-update-checker/plugin-update-checker.php" && true || echo "missing $SLUG/plugin-update-checker/plugin-update-checker.php")"
+
+if [ "$ARTIFACT" = "studio" ]; then
+	check "the built app bundle ships" \
+		"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/assets/js/blueworx-forge.js" && true || echo "missing $SLUG/assets/js/blueworx-forge.js — run npm run build")"
+fi
+
+if [ "$ARTIFACT" = "client" ]; then
+	# ARCH-1's actual guarantee, read off the built archive rather than off the
+	# allowlist that produced it. The allowlist is checked separately; this is
+	# the thing a client's server would physically contain.
+	# Named for what could only have come from the studio tree. The client has
+	# its own includes/Plugin.php, so matching on file name alone would flag the
+	# artifact's own code; these are files the client half simply does not have.
+	check "no studio code ships to a client" \
+		"$(printf '%s\n' "$ENTRIES" | grep -E "^$SLUG/(blueworx-forge\.php|includes/(Rest/|Frontend\.php)|templates/|assets/)" || true)"
+
+	# The studio plugin's namespace has no files on a client site, so a reference
+	# to it is a boundary crossing that would fatal there rather than here.
+	studio_refs=""
+	while IFS= read -r php; do
+		[ -n "$php" ] || continue
+		hit="$(grep -lE 'Blueworx\\Forge\\(Rest|Frontend|Plugin)|BWX_FORGE_(VERSION|SLUG|PATH|URL|FILE)\b' "$php" || true)"
+		[ -n "$hit" ] && studio_refs="$studio_refs$hit"$'\n'
+	done < <(find "$STAGE/$SLUG" -name '*.php' -not -path '*/plugin-update-checker/*')
+	check "no client file reaches for studio code" "$(printf '%s' "$studio_refs" | sed '/^$/d')"
+fi
 
 [ "$fail" -eq 0 ] || die "the zip is not shippable — see the failures above"
 
