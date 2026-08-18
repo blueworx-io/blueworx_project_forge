@@ -118,6 +118,47 @@ Replay, then version, then work:
 2. **Then the version check.** A stale write is refused before anything changes.
 3. **Then the work**, and remember the answer under the key.
 
+## A client site authenticating itself
+
+ARCH-6. A client WordPress is a machine, not a logged-in user, so it proves
+which client it is with a per-site key rather than an account. Routes it may
+call use `Permissions::client_site()`; nothing else does.
+
+The studio issues the key at registration, and registration is a manual studio
+action — `POST /sites` requires the administrator capability, matching "register
+or revoke a client site key" in [`permission-matrix.md`](permission-matrix.md).
+There is no route by which a site enrols itself.
+
+Each request carries four headers:
+
+| Header | What it is |
+|---|---|
+| `X-BWX-Site` | The site id the studio issued |
+| `X-BWX-Timestamp` | Unix time the request was signed |
+| `X-BWX-Nonce` | Single-use value, never repeated |
+| `X-BWX-Signature` | HMAC-SHA256 over the canonical string |
+
+The signature covers the site, the method, the path, the timestamp, the nonce
+and a hash of the body. Every part earns its place: without method and path a
+signature captured from a read could be replayed onto a write; without the body
+hash a request could be edited in flight; without the timestamp a captured
+request is valid forever; without the nonce it is valid for the whole five-minute
+window, which is plenty.
+
+**Refusals all look the same from outside** — one code, one message, 401 —
+whether the site is unknown, revoked, badly signed or replayed. Anything more
+specific would let an unauthenticated caller sort real site ids from invented
+ones, and tell somebody holding a stolen key that it was genuine and has since
+been revoked. The precise reason goes to `Sites\SecurityLog` instead, which is
+readable only by an administrator.
+
+**The client signs with its own copy of the canonical form**, in
+`client/includes/Signer.php`, because a client site contains no studio code
+(ARCH-1) and there is no file both can load. `tests/php/SignerConformanceTest.php`
+signs the same inputs with both and fails if they ever differ — which matters,
+because drift would surface as "bad signature" on every site at once and send
+you looking at keys rather than at code.
+
 ## Where each piece lives
 
 | File | What it owns |
@@ -127,6 +168,9 @@ Replay, then version, then work:
 | `includes/Rest/Errors.php` | The error envelope and the gate-failure body |
 | `includes/Rest/Versioning.php` | Stale-write rejection |
 | `includes/Rest/Idempotency.php` | Idempotency keys |
+| `includes/Rest/Signature.php` | Signed-request verification for client sites |
+| `includes/Sites/Registry.php` | Registered sites, and their keys |
+| `includes/Sites/SecurityLog.php` | Every refused client-site request |
 | `includes/Rest/StatusController.php` | The reference implementation |
 
 Tests: `tests/php/RestConventionsTest.php` for each convention in isolation,

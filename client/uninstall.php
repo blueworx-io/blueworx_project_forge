@@ -18,6 +18,11 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 $bwx_forge_client_options = array(
 	'bwx_forge_client_installed_version',
+	'bwx_forge_client_studio_url',
+	'bwx_forge_client_site_id',
+	// The signing key. Leaving this behind would mean an uninstalled plugin's
+	// credentials sitting in the database of a site nobody is watching.
+	'bwx_forge_client_key',
 );
 
 foreach ( $bwx_forge_client_options as $bwx_forge_client_option ) {

@@ -17,9 +17,11 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8892';
 export default defineConfig({
   testDir: './tests/pair',
   fullyParallel: false,
-  // Same reasoning as the single-instance config: a WordPress installed seconds
-  // ago, on PHP's single-threaded built-in server, and now two of them.
-  timeout: 60_000,
+  // Double the single-instance config's 60s, because this suite pays for two
+  // cold WordPress installs rather than one — signing in to both, on PHP's
+  // single-threaded built-in server, before it can assert anything. The first
+  // spec of a fresh run was landing just the wrong side of 60s.
+  timeout: 120_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   // Keep the json reporter: bin/check-tests-ran.mjs reads it to prove the suite
