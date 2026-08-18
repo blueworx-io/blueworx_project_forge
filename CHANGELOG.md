@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.8.0] - 2026-08-18
+
+### Added
+
+- A Forge screen in the studio's dashboard for connecting a client site. It
+  registers the site, shows its key once, issues a replacement key, and cuts a
+  site off. Doing any of that previously meant hand-crafting an API call.
+- The same screen lists recently refused requests, which is where you look when
+  a client site says it cannot connect.
+
 ## [2.7.0] - 2026-08-18
 
 ### Fixed

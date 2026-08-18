@@ -44,6 +44,11 @@ final class Plugin {
 		Frontend::instance()->boot();
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
+
+		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
+		add_action( 'admin_enqueue_scripts', array( Admin\SitesScreen::class, 'enqueue' ) );
+
+		Admin\SiteActions::boot();
 	}
 
 	/**
