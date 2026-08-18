@@ -65,5 +65,7 @@ final class Server {
 	 */
 	public static function register_routes(): void {
 		StatusController::register_routes( self::NAMESPACE );
+		SitesController::register_routes( self::NAMESPACE );
+		ClientController::register_routes( self::NAMESPACE );
 	}
 }

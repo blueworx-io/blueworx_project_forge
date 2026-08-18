@@ -43,14 +43,11 @@ final class Plugin {
 	/**
 	 * Hooks everything up. Called on plugins_loaded.
 	 *
-	 * Nothing yet. The workspace arrives with the authentication layer.
+	 * Only the connection routes so far: this site has to be able to prove which
+	 * client it is (ARCH-6) before there is anything worth showing.
 	 */
 	public function boot(): void {
-		/*
-		 * Intentionally empty. The client plugin activating cleanly and doing
-		 * nothing is exactly what this milestone claims, and a stub that quietly
-		 * registered a hook would make that claim untrue.
-		 */
+		add_action( 'rest_api_init', array( Rest\ConnectionController::class, 'register_routes' ) );
 	}
 
 	/**

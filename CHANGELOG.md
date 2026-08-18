@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.4.0] - 2026-08-18
+
+### Added
+
+- A client site can now prove which client it is. You register the site from
+  the studio, which hands you a key once; the site uses it to sign every
+  request it makes. Nothing else is accepted — a site you have not registered
+  cannot connect, however it asks.
+- You can cut a site off, from the studio, without touching the site itself.
+  Revoking stops it immediately even though it still holds its key, which is
+  the point: a site you want disconnected is not going to help you do it.
+- You can also issue a site a fresh key, which stops the old one working the
+  moment you do.
+- Every refused attempt is recorded — which site it claimed to be, why it was
+  turned away, and when — so a key being tried repeatedly is something you can
+  see rather than something you find out about later.
+
 ## [2.3.0] - 2026-08-18
 
 ### Added

@@ -242,5 +242,100 @@ function esc_html( string $text ): string {
 	return $text;
 }
 
+$GLOBALS['bwx_forge_test_options'] = array();
+$GLOBALS['bwx_forge_test_actions'] = array();
+$GLOBALS['bwx_forge_test_now']     = 1000000;
+
+/**
+ * Stub. In-memory option store.
+ *
+ * @param string $option  Option name.
+ * @param mixed  $default_value Returned when the option is unset.
+ * @return mixed
+ */
+function get_option( string $option, $default_value = false ) {
+	return $GLOBALS['bwx_forge_test_options'][ $option ] ?? $default_value;
+}
+
+/**
+ * Stub. In-memory option store.
+ *
+ * @param string $option Option name.
+ * @param mixed  $value  Value.
+ * @return bool
+ */
+function update_option( string $option, $value ): bool {
+	$GLOBALS['bwx_forge_test_options'][ $option ] = $value;
+	return true;
+}
+
+/**
+ * Stub. Records the fired action so a test can assert on it.
+ *
+ * @param string $hook Hook name.
+ * @param mixed  ...$args Arguments.
+ */
+function do_action( string $hook, ...$args ): void {
+	$GLOBALS['bwx_forge_test_actions'][] = array( $hook, $args );
+}
+
+/**
+ * Stub. A clock the tests control, so a window can be tested without waiting.
+ *
+ * @return int
+ */
+function bwx_forge_now(): int {
+	return (int) ( $GLOBALS['bwx_forge_test_now'] ?? 1000000 );
+}
+
+/**
+ * Stub. Identity — nothing under test relies on WordPress URL escaping.
+ *
+ * @param string $url URL.
+ * @return string
+ */
+function esc_url_raw( string $url ): string {
+	return $url;
+}
+
+/**
+ * Stub. Trims to the characters WordPress allows in a key.
+ *
+ * @param string $key Candidate key.
+ * @return string
+ */
+function sanitize_key( string $key ): string {
+	return strtolower( preg_replace( '/[^a-zA-Z0-9_-]/', '', $key ) ?? '' );
+}
+
+/**
+ * Stub. Identity — nothing under test relies on WordPress text sanitising.
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function sanitize_text_field( string $text ): string {
+	return trim( $text );
+}
+
+/**
+ * Stub. Identity — the tests do not go through WordPress's slashing.
+ *
+ * @param string $value Value.
+ * @return string
+ */
+function wp_unslash( string $value ): string {
+	return $value;
+}
+
 require_once dirname( __DIR__, 2 ) . '/includes/autoload.php';
 bwx_forge_register_autoloader( dirname( __DIR__, 2 ) . '/includes' );
+
+/*
+ * The client artifact ships separately and has its own autoloader, so the units
+ * register both. BlueworxForgeClientX starts with the studio prefix, so the
+ * studio autoloader is asked first, finds no file, and hands on — which is
+ * exactly the behaviour its "ignore what is not ours" rule is there to give.
+ */
+require_once dirname( __DIR__, 2 ) . '/client/includes/autoload.php';
+bwx_forge_client_register_autoloader( dirname( __DIR__, 2 ) . '/client/includes' );
