@@ -48,6 +48,10 @@ function delete_option( string $option ): bool {
  */
 function delete_transient( string $transient ): bool {
 	bwx_forge_test_record( 'delete_transient', $transient );
+	// Records the call *and* deletes, for the same reason delete_option() does:
+	// this stub used to only record, so a unit that deleted a transient and read
+	// it straight back still saw it, and "shown once" passed while showing twice.
+	unset( $GLOBALS['bwx_forge_test_transients'][ $transient ] );
 	return true;
 }
 
