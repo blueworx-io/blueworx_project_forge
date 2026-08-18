@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.0.1] - 2026-08-17
+
+### Fixed
+
+- The server-side test suite can no longer report success without having run
+  anything. A build where the tests fail to run at all now fails, instead of
+  passing quietly — which is the failure that hides broken code for months.
+
 ## [2.0.0] - 2026-08-17
 
 ### Changed
