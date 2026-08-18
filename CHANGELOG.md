@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.6.0] - 2026-08-18
+
+### Added
+
+- Both interfaces now take their colours, type and spacing from one file. Change
+  a colour once and it changes in the studio and on every client site — there is
+  no second copy to keep in step, and a check fails the build if one ever
+  appears.
+
+### Changed
+
+- The design system's token files moved out of the design intake folder, which
+  never ships, to the top of the repository, which does. Re-imports from the
+  design tool still arrive as a pull request rather than changing the product
+  underneath it.
+
 ## [2.5.0] - 2026-08-18
 
 ### Added

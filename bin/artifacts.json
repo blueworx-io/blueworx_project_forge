@@ -27,6 +27,7 @@
         "includes",
         "templates",
         "assets",
+        "tokens",
         "plugin-update-checker"
       ],
       "shared": []
@@ -42,7 +43,8 @@
       ],
       "shared": [
         "CHANGELOG.md",
-        "plugin-update-checker"
+        "plugin-update-checker",
+        "tokens"
       ]
     }
   }

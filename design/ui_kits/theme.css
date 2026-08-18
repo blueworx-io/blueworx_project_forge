@@ -10,7 +10,7 @@
    - Roomy density: 15px UI text, 32/40px controls, 44/52px rows, 264px rail, 64px bar
    - Radii: 12/16 pair, fully-round buttons, tags and pills
    - The twelve stages read through the five workflow phase hues of Figure 1 */
-@import url("../_ds/labs-forge-command/styles.css");
+@import url("../../tokens/forge.css");
 
 :root {
   /* Ink ramp → v3 navy-tinted slate */

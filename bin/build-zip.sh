@@ -194,11 +194,36 @@ if [ "$ARTIFACT" = "client" ]; then
 	# ARCH-1's actual guarantee, read off the built archive rather than off the
 	# allowlist that produced it. The allowlist is checked separately; this is
 	# the thing a client's server would physically contain.
-	# Named for what could only have come from the studio tree. The client has
-	# its own includes/Plugin.php, so matching on file name alone would flag the
-	# artifact's own code; these are files the client half simply does not have.
-	check "no studio code ships to a client" \
-		"$(printf '%s\n' "$ENTRIES" | grep -E "^$SLUG/(blueworx-forge\.php|includes/(Rest/|Frontend\.php)|templates/|assets/)" || true)"
+	#
+	# The rule is geography, so the test is geography: for every file in the
+	# archive, does that same path exist in the repository OUTSIDE client/, and
+	# not inside it? Then it could only have come from the studio tree. Naming
+	# studio files one by one was the earlier approach, and it went stale the
+	# moment the client grew an includes/Rest/ of its own — which is exactly the
+	# kind of staleness that reads as "checked" while checking nothing.
+	from_studio=""
+	while IFS= read -r entry; do
+		case "$entry" in
+			"$SLUG/"*) rel="${entry#"$SLUG"/}" ;;
+			*) continue ;;
+		esac
+		[ -n "$rel" ] || continue
+		case "$rel" in */) continue ;; esac
+
+		shared_hit=0
+		for one in "${SHARED[@]}"; do
+			[ -n "$one" ] || continue
+			case "$rel" in "$one"|"$one"/*) shared_hit=1 ;; esac
+		done
+		[ "$shared_hit" = 1 ] && continue
+
+		if [ -e "$ROOT/$rel" ] && [ ! -e "$ROOT/$ART_ROOT/$rel" ]; then
+			from_studio="$from_studio$rel"$'
+'
+		fi
+	done <<< "$ENTRIES"
+
+	check "no studio code ships to a client" "$(printf '%s' "$from_studio" | sed '/^$/d')"
 
 	# The studio plugin's namespace has no files on a client site, so a reference
 	# to it is a boundary crossing that would fatal there rather than here.

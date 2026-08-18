@@ -27,8 +27,12 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 // The only paths an artifact may take from outside its own root. Deliberately
 // short, deliberately not a pattern: plugin-update-checker is here because a
-// client site without it could never receive a fix.
-const SHAREABLE = new Set(['plugin-update-checker', 'CHANGELOG.md']);
+// client site without it could never receive a fix, and tokens because the two
+// interfaces have to be able to drift apart before they can look different, and
+// a second copy of the token layer is how that starts (#85). Neither is studio
+// code: the boundary exists to keep command-centre code off a client site, not
+// to keep colours off it. Adding a third entry is a decision, not a build change.
+const SHAREABLE = new Set(['plugin-update-checker', 'CHANGELOG.md', 'tokens']);
 
 /**
  * Checks every artifact definition, returning a list of problems.

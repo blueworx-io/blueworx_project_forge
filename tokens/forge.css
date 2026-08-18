@@ -1,0 +1,19 @@
+/* Labs | Forge Command v3 — the whole token layer, and the only copy of it.
+ *
+ * This is the single origin both artifacts draw from (#85). The studio's React
+ * build compiles it into its stylesheet; the client plugin ships this directory
+ * and loads this file directly. One edit here therefore changes both, and there
+ * is no second copy to forget.
+ *
+ * It lives here rather than in design/ because design/ is intake — reference
+ * material that never ships, re-imported from Claude Design. A re-import that
+ * changes the tokens is brought across by a pull request, the same as any other
+ * design change.
+ */
+@import "./colors.css";
+@import "./tiles.css";
+@import "./areas.css";
+@import "./workflow.css";
+@import "./typography.css";
+@import "./spacing.css";
+@import "./effects.css";
