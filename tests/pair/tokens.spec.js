@@ -65,3 +65,26 @@ test('the client interface resolves the same token to the same value', async ({ 
 
   await context.close();
 });
+
+test('the client plugin styles its own screen and no other', async ({ browser }) => {
+  // The client screen lives inside wp-admin and is meant to look like it
+  // belongs there, so it keeps WordPress's own styling. What it must not do is
+  // take its tokens anywhere else — a plugin that restyles the whole dashboard
+  // is the other half of "holds its own styling".
+  const context = await browser.newContext({ baseURL: CLIENT_URL });
+  const page = await context.newPage();
+
+  await page.goto('/wp-login.php');
+  await page.fill('#user_login', ADMIN_USER);
+  await page.fill('#user_pass', ADMIN_PASS);
+  await page.click('#wp-submit');
+  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+
+  await page.goto('/wp-admin/');
+  await expect(page.locator('link#blueworx-forge-tokens-css')).toHaveCount(0);
+
+  await page.goto(SCREEN);
+  await expect(page.locator('link#blueworx-forge-tokens-css')).toHaveCount(1);
+
+  await context.close();
+});

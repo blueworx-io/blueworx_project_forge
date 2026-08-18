@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.7.0] - 2026-08-18
+
+### Fixed
+
+- Forge's own screen now looks the same whatever theme a site uses. It was
+  quietly picking up the theme's colours, fonts and spacing, which would have
+  meant the app looking different on every site it was installed on.
+- Forge no longer changes anything else on a site. Its styling loads on its own
+  screens and nowhere else, and the admin bar no longer sits over the app.
+
 ## [2.6.0] - 2026-08-18
 
 ### Added
