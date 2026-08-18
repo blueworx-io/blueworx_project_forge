@@ -1,24 +1,22 @@
 <?xml version="1.0"?>
-<ruleset name="ForgeProjectManagement">
+<ruleset name="BlueworxForge">
 	<description>
-		WordPress Coding Standards for Forge Project Management.
-
-		The whole standard is on, including every security, escaping, i18n and
-		database sniff — those found four unescaped outputs and a missing
-		translators comment, all fixed rather than silenced. Three groups are
-		excluded below, each for a stated reason. Nothing security-related is
-		among them, and the individual suppressions in includes/ are annotated
-		one by one where they sit.
+		WordPress Coding Standards for Blueworx Forge. Full WPCS with no sniff
+		exclusions: this is a new codebase with no legacy style to accommodate, so
+		the tree is clean before the first pull request rather than after.
 	</description>
 
-	<!-- Only lint php files, show sniff codes (s) and progress (p). -->
 	<arg name="extensions" value="php"/>
 	<arg name="colors"/>
 	<arg value="sp"/>
 	<arg name="parallel" value="8"/>
 
-	<!-- The plugin's own runtime PHP. -->
-	<file>forge-project-management.php</file>
+	<!--
+		Each path is listed by the task that creates it: PHPCS errors out on a
+		<file> that does not exist rather than skipping it, so listing the whole
+		final tree up front would break the run for every commit before the last.
+	-->
+	<file>blueworx-forge.php</file>
 	<file>uninstall.php</file>
 	<file>includes</file>
 	<file>templates</file>
@@ -27,45 +25,28 @@
 	<exclude-pattern>*/node_modules/*</exclude-pattern>
 	<exclude-pattern>*/plugin-update-checker/*</exclude-pattern>
 	<exclude-pattern>*/.wp-test/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
 
 	<rule ref="WordPress">
 		<!--
-			Documentation sniffs. This codebase comments what is not obvious and
-			leaves the rest to read itself; the sniffs would demand a docblock on
-			all 74 methods and a full stop on 53 inline comments, adding prose
-			without adding information. A method whose behaviour needs explaining
-			still gets a docblock — several already have one.
+			The only two exclusions, and both are forced by the approved design
+			rather than chosen. `2026-08-17-blueworx-forge-rebuild-design.md`
+			specifies a namespaced, autoloaded layout — includes/Rest/Server.php
+			holding Blueworx\Forge\Rest\Server — and the autoloader maps the class
+			name straight onto that path. These two sniffs want class-server.php
+			instead, which the autoloader could not then find. Nothing else in the
+			standard is switched off; nothing security-related is touched.
 		-->
-		<exclude name="Squiz.Commenting.FunctionComment"/>
-		<exclude name="Squiz.Commenting.FileComment"/>
-		<exclude name="Squiz.Commenting.ClassComment"/>
-		<exclude name="Squiz.Commenting.InlineComment.InvalidEndChar"/>
-
-		<!--
-			Style preferences the plugin applies consistently: `?:` where a value
-			has a fallback, and conditions written subject-first. Both read better
-			than the alternative and neither has ever caused a bug here.
-		-->
-		<exclude name="Universal.Operators.DisallowShortTernary"/>
-		<exclude name="WordPress.PHP.YodaConditions"/>
-
-		<!--
-			Would rename all nine files in includes/ to match their class names
-			(class-forge-pm-enqueue.php and so on). Nothing loads them by
-			convention — the main plugin file requires each by name — so the rename
-			buys nothing at runtime and rewrites the history of every file.
-		-->
+		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
 		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
 	</rule>
 
-	<!-- Every global symbol carries the plugin's own prefix. A plugin shares one
-	     PHP process with every other plugin on the site. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="forge_pm"/>
-				<element value="FORGE_PM"/>
-				<element value="Forge_PM"/>
+				<element value="bwx_forge"/>
+				<element value="BWX_FORGE"/>
+				<element value="Blueworx\Forge"/>
 			</property>
 		</properties>
 	</rule>
@@ -73,7 +54,7 @@
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">
-				<element value="forge-pm"/>
+				<element value="blueworx-forge"/>
 			</property>
 		</properties>
 	</rule>

@@ -1,0 +1,29 @@
+/* v3 density: roomy. Controls grew ~4px, card padding 20 to 24, rows 40 to 52,
+   the rail 248 to 264 and the top bar 56 to 64. Radii softened to a 12/16 pair with
+   fully-round buttons, tags and pills. */
+:root{
+--spacing-2:2px;--spacing-4:4px;--spacing-6:6px;--spacing-8:8px;--spacing-10:10px;--spacing-12:12px;--spacing-16:16px;
+--spacing-20:20px;--spacing-24:24px;--spacing-28:28px;--spacing-32:32px;--spacing-36:36px;--spacing-40:40px;
+--spacing-48:48px;--spacing-52:52px;--spacing-64:64px;--spacing-80:80px;--spacing-96:96px;
+--page-max-width:1120px;
+--content-max-width:1280px;
+--section-gap:80px;
+--card-padding:24px;
+--card-padding-lg:32px;
+--element-gap:10px;
+/* App shell layout */
+--sidebar-width:264px;
+--topbar-height:64px;
+--board-column-width:320px;
+--row-height:52px;
+--row-height-dense:44px;
+--detail-panel-width:440px;
+--hairline:1px;
+/* Radii — 12/16 pair, round buttons and pills */
+--radius-xs:6px;--radius-sm:8px;--radius-md:10px;--radius-lg:12px;--radius-xl:16px;--radius-2xl:20px;--radius-3xl:24px;
+--radius-buttons:999px;--radius-pills:999px;--radius-tags:999px;--radius-inputs:10px;
+--radius-wash:12px;--radius-cards:16px;--radius-panels:16px;--radius-tiles:12px;
+--radius-controls:10px;
+/* Control heights */
+--control-sm:32px;--control-md:40px;--control-lg:48px;
+}

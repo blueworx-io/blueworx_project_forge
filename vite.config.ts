@@ -16,9 +16,9 @@ export default defineConfig({
       output: {
         format: 'iife',
         inlineDynamicImports: true,
-        entryFileNames: 'js/forge-app.js',
+        entryFileNames: 'js/blueworx-forge.js',
         assetFileNames: ( info ) => {
-          if ( info.name?.endsWith( '.css' ) ) return 'css/forge-app.css';
+          if ( info.name?.endsWith( '.css' ) ) return 'css/blueworx-forge.css';
           return 'img/[name][extname]';
         },
       },

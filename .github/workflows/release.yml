@@ -6,12 +6,13 @@ jobs:
   release:
     uses: blueworx-io/bluegroup_core_foundation/.github/workflows/release-wordpress.yml@v1
     with:
-      plugin_slug: forge-project-management
+      plugin_slug: blueworx-forge
       foundation_ref: v1
       # Keep identical to ci.yml's input of the same name, or the PR-time check
       # and the release build disagree about what ships.
       exclude_paths: |
         /src
+        /design
         /playwright-report.json
         /index.html
         /vite.config.*

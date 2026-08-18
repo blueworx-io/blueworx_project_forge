@@ -1,0 +1,851 @@
+
+FORGE PROJECT MANAGEMENT
+Development Workflow
+Management System
+Product brief for technical audit and product design
+Document
+Detail
+Status
+Discovery brief - decisions still required
+Version
+0.3
+Date
+14 August 2026
+Audience
+Product, UX/UI, technical architecture and development teams
+Purpose: Define the intended product, controlled workflow, system boundaries and audit questions before interface design or implementation begins.
+Important: Requirements in this brief are firm unless labelled Proposed or Decision required. Proposed rules must be confirmed during the audit.
+
+1. Product Intent
+Forge is a multi-client project management system designed to enforce a controlled development process. It must replace unrestricted categories and informal card movement with defined stages, required evidence, named accountability and a complete transition history.
+The product has two connected interfaces:
+Interface
+Scope
+Core purpose
+Primary site
+Cross-client command centre
+View and manage all client work, global staff capacity, approvals, delivery, reporting and sync health.
+Client site
+Single-client workspace
+Embedded in or connected to the client's website. Users can view their own work, submit permitted intake and contribute information, but cannot move work through the delivery boards.
+An authorised update made on either interface must appear on the other without duplicating work or bypassing permissions, workflow gates or audit tracking.
+1.1 Required outcomes
+Controlled delivery. Every executable work item follows a defined state machine; users cannot invent stages or skip required checks.
+Clear accountability. Each sub-item has one Primary User, one Reviewer and one Deliverer.
+Portfolio visibility. The Primary Site provides a complete view across every client while each Client Site remains isolated.
+Reliable two-way updates. Both interfaces show the same authorised data, transition state, comments, evidence and assignments.
+Resource control. Capacity is calculated across all clients so a user cannot appear available in one client workspace while already committed elsewhere.
+Commercial control. Package hours, top-ups, pro-rata allocations and item usage reconcile in one ledger.
+Open intake. Clients can submit Bugs and Requests / Ideas / Suggestions without a support package.
+Client communication. Each client sees its Point of Contact and receives key WordPress email confirmations.
+Client-safe governance. Client users can view board state and contribute permitted content, but only authorised internal staff can transition work.
+Client account clarity. Each Client Site dashboard shows support details, upcoming work and every active recurring support-meeting schedule.
+Controlled onboarding. Each client completes a predetermined launch-readiness checklist that is reviewed and tracked on both interfaces.
+Operational focus. Daily Standup surfaces work requiring action.
+Traceability. Every material change records who, what, when, where and why.
+1.2 Product principles
+One controlled workflow shared by both interfaces.
+Server-side gate validation; interface controls alone are not sufficient.
+One canonical identity for every client, user, parent item and sub-item.
+Client isolation by default, including capacity privacy.
+No silent overrides, skipped stages or destructive status changes.
+Client-facing boards are read-only for workflow movement; this restriction is enforced by the canonical service.
+Parent progress is derived from the actual work beneath it.
+Exceptions are modelled explicitly and remain visible until resolved.
+2. Product Structure
+2.1 Work hierarchy
+Work begins with one of three parent container types:
+Project. A defined body of work with an objective, owner and planned delivery period.
+Feature. A product capability or change that may require several pieces of work.
+Milestone. A significant delivery target used to group and track the work required to reach it.
+Each parent contains Sub-items. Sub-items are the executable units that receive role assignments, planned hours, dates, dependencies, workflow stages, review decisions and release records.
+Proposed control: Users should not create standalone executable work outside a Project, Feature or Milestone. Parent status and progress should roll up from its Sub-items rather than being moved independently.
+2.2 Required Sub-item data
+Field group
+Minimum content
+Identity
+Unique ID, title, client/site, parent ID and work type.
+Definition
+Problem or requirement, scope, acceptance criteria, supporting links and attachments.
+Accountability
+One Primary User, one Reviewer and one Deliverer.
+Planning
+Priority, planned start, due date, dependencies and hours by responsibility.
+Workflow
+Current stage, prior stage, gate completion, blocker state and transition requests.
+Delivery evidence
+Implementation evidence, review outcome, release target, released version/environment and post-release confirmation.
+History
+Immutable activity and transition record including actor, timestamp, interface, reason and changed values.
+Commercial entitlement
+Support-package state, approved time allocation, reserved/used hours and the related hour-ledger entry.
+2.3 Required client account data
+Client field group
+Minimum content
+Tenant identity
+Client ID, legal/display name, site(s), status, timezone and permitted domains.
+Point of Contact
+Assigned internal staff user, client-visible role/title and approved contact method.
+Support entitlement
+No Support Package or current package state, effective/renewal dates and package snapshot.
+Hour account
+Annual/pro-rata allocation, top-ups, reserved/used/available balances and immutable ledger.
+Support meetings
+Zero or more recurring meeting series, recurrence rules, timezone, next occurrences, host, attendees, meeting location/link and billable hours per occurrence.
+Onboarding
+Assigned checklist template/version, step owners, statuses, due dates, submissions, approvals, evidence and derived completion percentage.
+WordPress delivery
+Client Site identity, callback/authentication configuration and configured mail/SMTP capability status.
+Client recipients
+Verified users/contacts eligible to receive item confirmation emails.
+3. Roles and Accountability
+The three Sub-item roles are separate accountability fields. They must be visible on every card and included in capacity calculations.
+Sub-item role
+Responsibility
+Primary User
+Owns execution, maintains the work record, supplies completion evidence and submits the item for review.
+Reviewer
+Confirms the work meets the approved requirements and acceptance criteria; either approves it or returns it with recorded feedback.
+Deliverer
+Owns deployment, publication, handover or other agreed delivery action and confirms the release record.
+Decision required: Confirm whether one person may hold more than one of these roles on the same Sub-item. If permitted, the system must still preserve separate approval actions and capacity allocations.
+3.1 Access roles required for design
+The interface permission model must be agreed separately from the three Sub-item accountability roles. The audit must define at least the following capabilities:
+Provisional access role
+Required capability
+Primary administrator
+Cross-client access; user/client, package, Point of Contact and hour-ledger administration; workflow oversight; audited overrides; sync monitoring.
+Client administrator
+Own-client administration, permitted intake, comments/evidence and authorised package upgrade/top-up actions; no board movement or workflow-transition permission.
+Staff user
+Internal access to permitted client work; transition actions depend on assigned Sub-item responsibility and workflow authority.
+Stakeholder/viewer
+Read-only access to permitted work and reporting.
+Gap: Early stages require authorised triage, documentation, technical and design sign-off. Those approvers have not yet been mapped to access roles or Sub-item fields and must be defined before interaction design.
+4. Controlled Development Workflow
+All Sub-items use the same controlled workflow. Forward movement is limited to the next permitted stage and only occurs when that stage's exit gate is satisfied. On the Primary Site, dragging a card is a request to transition, not an unrestricted status edit.
+Client workflow lock: Client users cannot drag cards, edit workflow-stage fields or call transition endpoints. Their Kanban, Gantt and Calendar views are read-only for workflow movement. They may submit permitted intake, comment, attach evidence, answer information requests and use other explicitly authorised actions without changing stage.
+
+Figure 1. Proposed state model. Bug Tracking is conditional; Blocked is an exception state.
+Proposed interpretation: Bug Tracking applies only when Triage classifies an item as a bug. Blocked can be entered from any active stage, stores the previous stage and returns there after resolution. Treating either as a mandatory linear stage would force irrelevant steps onto normal work.
+4.1 Transition rules
+Users cannot create, rename, reorder or delete workflow stages.
+Only authorised internal staff may request or approve workflow transitions; client roles have no transition permission even when they can edit other item fields.
+A forward move can advance only one permitted stage at a time.
+The system checks every required field, approval and evidence item before committing a transition.
+A failed gate displays each missing requirement and leaves the item in its current stage.
+A return to an earlier stage requires an authorised return action, target stage and reason; it is not an unrestricted backward drag.
+In Review may be returned to In Development by the Reviewer with recorded feedback.
+Blocked requires a reason, blocker owner, target resolution date and next action. Resolution returns the item to its stored prior stage.
+An administrator override, if allowed, requires a reason and is permanently identified in the audit log.
+Reopening Completed or Released work requires a defined reopen route and must never erase the earlier completion or release record.
+4.2 Stage definitions and minimum exit gates
+Stage
+Purpose
+Minimum exit gate
+Future Idea
+Capture an opportunity without committing delivery resources.
+Title, client/portfolio scope, problem or opportunity, source and creator recorded; item submitted for Triage.
+Triage
+Decide whether and how the item proceeds.
+Work type, client, parent type, priority, scope summary and duplicate check complete; authorised outcome recorded. Rejected/cancelled/deferred outcomes still require a defined destination.
+Bug Tracking
+Capture and validate a bug before specification.
+Bug classification confirmed; expected vs actual result, reproduction steps, environment/version, evidence, impact/severity and initial diagnosis recorded.
+Documentation Period
+Create the approved definition of work.
+Problem, scope, non-goals, requirements, acceptance criteria, dependencies, affected clients/data and reference material complete; authorised documentation approval recorded.
+Technical Audit
+Confirm feasibility, approach and technical risk.
+Architecture/implementation assessment, dependencies, data and sync impact, security/privacy impact, test approach, estimate range, risks and technical approval recorded.
+Design Process
+Define the required user experience and states.
+Approved design link/artifact, responsive states, empty/loading/error/permission states, accessibility considerations and design approval recorded. Non-UI work requires an explicit approved Not Applicable decision.
+Blocked
+Pause active work without hiding responsibility.
+Blocker reason, owner, dependency, target resolution date, last update and next action present. Exit requires a resolution note and return to the stored prior stage.
+Up Next (Assign Hours)
+Commit ready work to the delivery queue.
+Primary User, Reviewer and Deliverer assigned; planned hours, planned dates, priority and dependencies confirmed; staff-capacity check and client support-hours entitlement check passed, or an authorised override recorded.
+In Development
+Complete the defined work.
+Primary User confirms requirements are implemented; work evidence, test evidence, actual/remaining effort and completion checklist supplied; item submitted to Reviewer.
+In Review
+Independently confirm the work is acceptable.
+Reviewer completes the review checklist, resolves or returns all feedback, confirms every acceptance criterion and records approval. Failed review returns to In Development with reason.
+Completed
+Mark approved work ready for delivery.
+Review approval preserved; Deliverer confirms release method, target environment/version/window, delivery checklist, dependencies and release notes are ready.
+Released
+Confirm delivery to the agreed destination.
+Deliverer records release date/time, environment/version or handover destination, evidence, client communication status and post-release check result.
+Gate requirements should be implemented as structured fields and checklist records, not only free-text comments. Every gate completion must identify the actor and completion time.
+5. Core Views
+View
+Minimum behaviour
+Kanban
+Fixed workflow columns; parent/sub-item grouping; gate readiness, blocked state, age, assignees and due dates on cards. Primary Site drag/drop invokes validation; Client Site cards cannot be moved.
+Gantt
+Parent and Sub-item dates, dependencies, milestones, sequencing, overdue work and progress roll-up. Unscheduled work is shown separately rather than hidden.
+Calendar
+Planned start, due, review and release dates using day/week/month views. The same filters and permissions apply as other views.
+Capacity
+Available, committed and remaining hours by person and period, aggregated across clients on the Primary Site and privacy-safe on Client Sites.
+Daily Standup
+Action queue for work requiring triage, review, unblock, resourcing, delivery or operational intervention.
+Requests / Ideas / Suggestions
+Client submission and status page, plus a cross-client Primary Site queue with controlled conversion into the development pipeline.
+Sales and Support Hours
+Current package, annual allocation, pro-rata adjustments, top-ups, balance and upgrade options.
+Client Dashboard
+Point of Contact, package and hour summary, upcoming work, alerts and all active recurring support-meeting series with next occurrences.
+Client Onboarding
+Predetermined launch-readiness steps, client submissions, evidence, review status, due dates, progress and next actions, mirrored on the Primary Site.
+5.1 Shared controls
+Primary Site filters: client, site, parent type, parent item, stage, work type, priority, user role, date range, blocked/overdue state and gate readiness.
+Client Site filters use the same structure but are permanently restricted to the current client/site.
+Client Site boards never expose drag/drop, stage-edit or transition controls; direct transition requests from client roles are rejected server-side.
+Selecting the same Sub-item from any view opens one consistent detail experience and audit history.
+Saved views may change filters and grouping but cannot change workflow rules or create new stages.
+Counts and totals must reconcile across Kanban, Gantt, Calendar, Capacity and Daily Standup views.
+6. Daily Standup Board
+The Daily Standup Board is an operational queue, not a second workflow. It surfaces Sub-items from their current stage when a defined action or risk condition is present.
+Board section
+Inclusion rule
+Needs triage
+New or ageing Triage items awaiting a decision.
+Bug confirmation
+Bug Tracking items missing validation, evidence or severity.
+Approval queues
+Documentation, Technical Audit or Design items waiting for the relevant approval.
+Blocked
+All blocked work, ordered by age, target resolution date and impact.
+Capacity conflict
+Unassigned work or work whose planned hours exceed a user's available capacity.
+Due or overdue
+Work due today, approaching its due date or already overdue.
+Review queue
+In Review items awaiting the assigned Reviewer or returned feedback action.
+Release queue
+Completed items awaiting the assigned Deliverer or release window.
+Request queue
+New Requests, Ideas or Suggestions awaiting review, information or conversion.
+Support-hours attention
+Low/insufficient balances, unreserved meeting hours, expiring packages, pending upgrades or allocation changes requiring action.
+Onboarding attention
+Overdue or blocked onboarding steps, client submissions awaiting review, returned steps and missing launch-critical information.
+Sync attention
+Failed, delayed or conflicting updates requiring operational intervention.
+Each Standup card must show:
+Client/site, parent and Sub-item title.
+Current stage, stage age, due date and priority.
+Primary User, Reviewer and Deliverer.
+Reason the item appears on the board.
+Missing gate requirement, blocker or required next action.
+Direct action to open the item and complete the requirement, subject to permission.
+Control: Items leave the Daily Standup Board only when the underlying condition is resolved. Dismissing a card must not hide unresolved work.
+7. Capacity Management
+Capacity must use a single global staff identity so commitments created by any client are included in the same calculation. Client Sites may display availability required for planning, but must not expose another client's identity, work title or commercial information.
+Separate controls: Staff capacity answers whether the assigned people have time available. Client support hours answer whether the client has enough purchased hours. A Sub-item may pass one control and fail the other; both results must remain visible.
+7.1 Capacity data
+Base availability. Working hours by day/week, part-time pattern, leave and other unavailable time.
+Planned allocations. Hours assigned to a user for execution, review and delivery within a defined date range.
+Support meetings. Scheduled duration for internal hosts and required staff attendees, counted once for each meeting occurrence.
+Actuals and forecast. Actual staff time where separately tracked, remaining estimate and forecast completion. This does not replace the client support-hours ledger.
+Cross-client commitments. Every authorised assignment on every client is included once.
+Status. Available, near capacity and over capacity thresholds, with drill-down on the Primary Site.
+7.2 Proposed calculation
+Available hours: Base working hours - leave/unavailable hours - committed Primary User hours - committed Reviewer hours - committed Deliverer hours - scheduled internal support-meeting hours.
+One total estimate per Sub-item is not sufficient if all three assigned roles affect workload. The audit must decide whether hours are entered separately by role or calculated from controlled defaults.
+7.3 Capacity controls
+Up Next cannot be considered ready until hours, dates and all three roles are present.
+Moving to In Development revalidates capacity in case commitments changed after planning.
+Over-allocation must either block the move or require an authorised, reasoned override; this behaviour must be decided before design.
+The Primary Site shows full cross-client allocation detail. A Client Site shows only the current client's allocations and a privacy-safe availability result.
+Changes to hours or dates recalculate capacity on both interfaces and add an audit event.
+Creating, rescheduling, cancelling or changing the duration or internal attendees of a support meeting recalculates staff capacity and the client's meeting-hour reservation.
+8. Support Packages, Hours and Sales
+Each client has a support entitlement that controls access to planned development work and tracks the annual hours available to that client. Support hours are commercial entitlement; they are separate from staff capacity.
+8.1 Package catalogue and assignment
+A Primary Site administrator must be able to create, edit, retire and manually assign reusable support packages at any point. Existing assignments retain a snapshot of the package terms that applied when assigned, so later catalogue edits do not rewrite client history.
+Package field group
+Minimum content
+Package identity
+Name, internal ID, description and active/retired status.
+Commercial terms
+Annual price, currency, included annual hours and any tax/checkout data required by the selected payment method.
+Validity
+Effective date, end/renewal date and rules for mid-year assignment, upgrade, cancellation and expiry.
+Top-up product
+Purchasable hours, price, validity/expiry and whether it is available with every base package.
+Sales visibility
+Whether the package appears on a Client Site Sales page, display order and client eligibility.
+8.2 Client support state
+State
+Required behaviour
+No Support Package
+Client work-creation access is limited to Bug Tracking and Requests / Ideas / Suggestions. Sales, account and Point of Contact access remain available so the client can upgrade or ask for help.
+Scheduled
+A package has been assigned with a future effective date; the current entitlement remains unchanged until activation.
+Active
+The client may use the standard development pipeline, subject to available support hours and normal workflow gates.
+Expired / Suspended
+New paid work cannot be scheduled. Existing work behaviour and any grace period require an explicit policy decision.
+Access control: The No Support Package restriction must be enforced by the canonical service, not only by hiding navigation. Bug Tracking, request intake, package sales and contact access must remain available.
+8.3 Pro-rata allocation
+When a package is aligned to an existing client service year and assigned part-way through that year, the system must calculate the available included hours for the remaining period:
+Pro-rata hours: Annual included hours x eligible days remaining / total days in the applicable package year.
+The calculation must use exact effective and renewal dates, including leap years, and show a preview before assignment or purchase. If a mid-year purchase instead starts a new twelve-month term, the full annual allocation applies and no pro-rata calculation is needed.
+Decision required: Confirm whether packages align to a shared client renewal date or begin a new twelve-month term; whether price is also prorated; and how fractional hours are rounded.
+8.4 Hour ledger, work and meeting allocation
+Every change to a client's support-hour balance must be represented by an immutable ledger entry linked to its source. The client and Primary Site must see the same reconciled totals.
+Ledger event
+Meaning
+Opening allocation
+Annual or pro-rata package hours added on activation/renewal.
+Top-up
+Additional hours purchased or manually assigned at any time.
+Work reservation
+Hours allocated to a Sub-item when it is committed in Up Next.
+Work usage
+Hours charged to the Sub-item according to its approved time allocation.
+Meeting reservation
+Billable hours reserved for a support-meeting occurrence within the active entitlement period.
+Meeting usage
+Reserved meeting hours converted to usage when the occurrence is confirmed as held/completed.
+Release / adjustment
+Reserved hours returned or a reasoned manual credit/debit; never overwrite the original entry.
+Expiry / rollover
+Year-end or product-rule entry that expires or carries hours according to the agreed policy.
+Proposed allocation lifecycle: Up Next reserves the approved hours. Moving to In Development converts the reservation into usage because the user's requirement is to charge by item allocation rather than a running timer. Cancelling before development releases the reservation. Any later hour change creates an adjustment entry and changelog event.
+Required meeting-hour control: Every recurring support-meeting occurrence must consume the client's allocated support hours. Each occurrence stores planned billable hours separately from its calendar duration. Occurrences within the active package term reserve those hours; confirming that the meeting was held converts the reservation to usage. Rescheduling transfers the reservation, cancellation releases it, and any adjustment is appended to the ledger with actor, time and reason. Occurrences beyond the current term are forecast only until the next entitlement is active.
+The balance must show at least:
+Total package allocation, including the pro-rata result.
+Top-up hours and their validity dates.
+Reserved hours, used hours and available hours.
+Hours by Sub-item, with links to each item's detail and changelog.
+Meeting hours reserved, used, released and forecast, with links to each occurrence and meeting series.
+Manual adjustments, actor, timestamp and reason.
+Upcoming expiry/renewal and any rollover balance.
+Gate: Work and support meetings draw from the same client support-hour pool. A standard Sub-item cannot enter Up Next and a new meeting occurrence cannot be confirmed when its reservation exceeds the available balance, unless an authorised override is defined. The treatment of bug work, late cancellations and no-shows are P0 decisions.
+8.5 Client Sales page
+Each Client Site must include a Sales page that allows an authorised client user to review and upgrade support at any point. It must show:
+Current support state, package, effective/renewal dates and Point of Contact.
+Annual/pro-rata included hours, work and meeting reservations, work and meeting usage, and remaining hours.
+Available base packages and top-up products with clear pricing and included hours.
+A pro-rata preview where the purchase aligns to an existing renewal date.
+Upgrade/top-up action, purchase confirmation and resulting balance change.
+Purchase and assignment history, including manually assigned packages.
+The payment/checkout provider and whether an upgrade is immediate or requires approval remain technical and commercial decisions. Manual Primary Site assignment is required regardless of the checkout route.
+8.6 Primary package and sales administration
+Create, version, publish, retire and reorder package/top-up products.
+Assign, schedule, replace, renew, suspend or cancel a client's package with an effective-date and pro-rata preview.
+Add top-ups and reasoned manual hour adjustments.
+View current balance, ledger, renewal, sales/purchase history, pipeline hours and recurring-meeting hour commitments for every client.
+Identify clients with no package, insufficient hours, low balances or upcoming expiry.
+Preserve historical commercial terms and every administrator action in the client and item changelogs.
+9. Requests / Ideas / Suggestions
+Every Client Site must include a dedicated Requests / Ideas / Suggestions page. It is an intake channel, not an unrestricted development board, and it remains available to clients without a support package.
+9.1 Client page
+Submit a controlled type: Request, Idea or Suggestion.
+Capture title, description/problem, desired outcome and supporting evidence or attachments.
+View only that client's submissions, current intake status, response, related Point of Contact and converted work link where applicable.
+Provide requested information without directly moving the submission into the development workflow.
+9.2 Primary Site review page
+The Primary Site must aggregate submissions from all Client Sites into one review page with client, type, status, age, submitter, Point of Contact and support-package filters.
+Proposed intake state
+Meaning
+Submitted
+Received and awaiting central review.
+Under Review
+An authorised user is assessing the submission.
+More Information Required
+Returned to the client with a recorded question.
+Accepted
+Approved for controlled conversion into the development pipeline.
+Declined / Duplicate
+Closed with a client-visible reason or link to the existing submission/work.
+Converted
+Linked to the resulting parent/Sub-item in the client's main pipeline.
+9.3 Acceptance and pipeline conversion
+Accepting a submission must open a controlled conversion action. The authorised user must choose either an existing parent or create a Project, Feature or Milestone, then create or link the required Sub-item for the same client. The first permitted pipeline stage is Future Idea or Triage, as selected during conversion.
+The original submission remains immutable as the source record and links to the resulting work.
+The new work retains the request ID, client, submitter, attachments and acceptance decision in its changelog.
+A submission is never copied into another client's pipeline.
+For a client without a support package, accepted standard work may enter the pipeline but cannot pass the support-hours gate into Up Next until valid hours are available.
+Decline, duplicate and conversion actions require an actor, timestamp and client-visible explanation.
+10. Client Site Dashboard and Support Relationship
+10.1 Client dashboard
+Every Client Site must open to a permission-scoped dashboard that gives the client a concise account and delivery overview without granting workflow control. The dashboard remains available when the client has No Support Package.
+Dashboard area
+Minimum content
+Point of Contact
+Current contact name, role/title, approved contact method and a clear contact action.
+Support details
+Support state, package, effective/renewal dates, annual or pro-rata allocation, top-ups, work/meeting reserved and used hours, remaining hours and Sales/upgrade link.
+Upcoming work
+Read-only client-visible work that is scheduled, active, awaiting review or awaiting release, with stage, planned/due/release dates, priority, blocked/at-risk state and item link.
+Recurring support meetings
+Every active meeting series, including cadence, timezone, next occurrence, host, attendees, billable hours, balance impact and meeting location/link; multiple series are supported.
+Onboarding
+Checklist completion, steps awaiting the client, returned items, overdue items and a direct link to the Client Onboarding page.
+Attention
+Client-visible requests for information, approaching dates, low support-hour balance, package renewal and meeting changes.
+Upcoming work uses the canonical work records and the same client-facing permissions as Kanban, Gantt and Calendar; counts and dates must reconcile.
+No dashboard card may be dragged or used to change workflow stage. Client actions are limited to opening the record and performing explicitly permitted non-transition actions.
+Clients with no recurring meetings see a clear empty state rather than a missing or broken section.
+Internal-only notes, other-client data, full cross-client capacity and private staff information must never appear.
+10.2 Client Point of Contact
+A Primary Site administrator must assign one current Point of Contact to each client. The contact is an internal staff user and gives the client a clear person to reach for support, package questions and work follow-up.
+Display the Point of Contact on the Client Site dashboard, Requests page and Sales page.
+Show the contact's name, role/title and approved contact method; do not expose private staff data.
+The Primary Site client record shows current and historical assignments.
+Changing the Point of Contact records who changed it, when it changed and the previous/new contact.
+A deactivated contact cannot remain assigned; the Primary Site must flag the client for reassignment and show a defined fallback contact to the client.
+10.3 Recurring support meetings
+A client may have zero, one or multiple recurring support-meeting series. An authorised Primary Site administrator or Point of Contact must be able to create, edit, pause and end each series independently; the Client Site displays the resulting schedule.
+Each series stores a unique ID, title/purpose, recurrence rule, timezone, start date, optional end date, duration, planned billable hours per occurrence, host, client attendees, meeting location/link and active/paused/ended state.
+The system calculates and shows the next occurrence and a defined number of future occurrences for every active series.
+A single occurrence may be rescheduled or cancelled without rewriting the underlying recurrence rule; the exception and actor are audited.
+Past occurrences and schedule changes remain in client-account history. Client-visible notes must be separated from internal notes.
+A client may submit a meeting-change request if enabled, but cannot silently edit the canonical recurrence schedule.
+Meeting-series and occurrence changes sync to the correct Client Site and appear in its dashboard without exposing another client's meetings.
+Each occurrence shows Scheduled, Held, Cancelled or No Show status plus its meeting-hour reservation/usage state and linked ledger entry.
+Meeting-hour rule: Recurring support meetings use the same annual/pro-rata and top-up hour balance as development work. The Client and Primary Sites must show the same meeting reservations, usage and remaining balance.
+Decision required: Confirm meeting ownership, permitted client actions, recurrence and exception rules, planned billable-hour defaults, reservation horizon, late-cancellation/no-show charging, reminders and whether an external calendar integration is required or schedules are maintained directly in Forge.
+Point of Contact decision: Confirm whether a client can have secondary contacts, which contact details are displayed and whether client emails are sent to the submitter, the client's own nominated contact, or both.
+11. Client Onboarding
+11.1 Purpose and ownership
+Each Client Site must include an Onboarding page containing a predetermined, centrally managed set of steps required to prepare, build and launch that client's site. A Primary Site administrator assigns a versioned onboarding template to the client/site; the assigned checklist retains that template snapshot so later template edits do not rewrite completed work.
+Client users may complete assigned fields, upload evidence, add permitted comments and submit steps for review, but cannot create, delete, reorder or approve required steps.
+Authorised internal reviewers may return a submission with feedback, approve it or record a reasoned Not Applicable decision where the template permits one.
+Checklist progress is derived from approved required steps; users cannot manually edit the completion percentage.
+The Onboarding page remains available to an assigned client regardless of support-package state because it controls site-delivery readiness rather than support entitlement.
+11.2 Predetermined onboarding checklist
+Checklist category
+Minimum required inputs or evidence
+Client and contacts
+Legal/display name, business details, primary client owner, content approvers, technical contacts and launch decision-makers.
+Site scope
+Objectives, target audiences, required pages, functions, languages, locations, reference sites and agreed exclusions.
+Brand assets
+Approved logos and variants, favicon/icon assets, brand guidelines, colours, fonts and evidence of required font/media licences.
+Content
+Approved page copy, services/products, team details, contact information, calls to action, forms, downloads and ownership for missing content.
+Images and media
+Approved photographs, video, graphics, usage rights, captions and accessibility/alt-text information where available.
+Domain and DNS
+Domain name, registrar and DNS-host links, account owner, renewal/expiry details, DNS authority and approved access/invitation status.
+Hosting and current site
+Hosting provider link, CMS/platform, current and staging URLs, backup/migration scope, existing licences and approved delegated access.
+Email and SMTP
+Email provider, approved sender addresses, mail-routing constraints, required DNS records, notification recipients and SMTP/mail capability status.
+Integrations
+Analytics, Search Console, Tag Manager, CRM, maps, social accounts, payments, bookings, memberships, APIs and other required services.
+Legal and compliance
+Privacy policy, terms, cookie/consent requirements, company disclosures, accessibility requirements and data-processing responsibilities.
+SEO and migration
+Current URL inventory, redirect requirements, metadata, indexing rules, analytics baseline and content that must be retained or retired.
+Review and launch
+Design/content/UAT approvals, launch window, DNS approval, SSL, backups, monitoring, form/email checks, training and handover sign-off.
+11.3 Step data and controlled status
+Every onboarding step must contain:
+Stable step ID, client/site, assigned template/version, category, title, instructions and required/optional classification.
+Client or internal owner, reviewer, due date, dependencies and whether the step is launch-critical.
+Structured response fields, links, attachments/evidence, client-visible comments and internal-only notes kept in separate permission scopes.
+Current status, submission time, review outcome, feedback, approved or Not Applicable actor/time, and complete change history.
+Step status
+Meaning
+Not Started
+No response has been supplied.
+Awaiting Client
+The client owns the next required action.
+Submitted
+The client has supplied the response/evidence for internal review.
+In Review
+An authorised internal reviewer is assessing the submission.
+Changes Requested
+Returned to the client with recorded, client-visible feedback.
+Approved
+An authorised reviewer has accepted the required response/evidence.
+Blocked
+A named dependency prevents completion; owner, reason, next action and target date are required.
+Not Applicable
+An authorised user has recorded why the template step does not apply.
+Launch control: A site cannot be marked Released/live until every launch-critical onboarding step is Approved or has an authorised Not Applicable decision. Earlier work may proceed only where its linked onboarding dependencies are satisfied.
+11.4 Primary Site monitoring and two-way sync
+The Primary Site provides a cross-client Onboarding Board filtered by client/site, template, Point of Contact, owner, status, due/overdue state, blocked state and launch readiness.
+Client responses, evidence, status submissions and comments appear on the Primary Site with the same IDs, actor and timestamps.
+Internal feedback, approvals, due-date changes and authorised exceptions appear on the correct Client Site without duplicating steps or evidence.
+Every update is versioned and idempotent; conflicts preserve both attempted changes and require an authorised resolution rather than silent overwrite.
+Overdue, blocked, Changes Requested and Submitted-for-review steps appear on the Daily Standup Board until resolved.
+The Client Site dashboard shows onboarding progress, the next required client actions and any launch-critical blockers.
+11.5 Access and credential safety
+Onboarding fields, comments and ordinary attachments must never store passwords, recovery codes, private keys, full API secrets or payment credentials.
+Registrar, hosting, DNS, email and integration steps store provider links, account/tenant identifiers, account owner, required access role, invitation status and verification outcome.
+Where privileged access is required, use provider delegation/invitations or an approved secure credential-handover method; Forge stores only the access request and completion reference.
+Domain, DNS, hosting and launch changes require explicit authority, actor/time logging and a record of the approved change window.
+Uploaded brand, content and legal files inherit client/tenant permissions, malware checks, retention rules and immutable submission history.
+Decision required: Approve the onboarding template(s), mandatory and launch-critical steps, client/internal ownership, reviewer authority, due-date defaults, secure access-handover method, notifications and permitted client-specific exceptions before product design.
+12. Two-Way Data Model and Sync
+Recommended architecture: Use one central workflow service and canonical database, with the Primary and Client Sites acting as permission-scoped interfaces. This produces the required two-way behaviour without maintaining independent multi-master databases.
+If the Client Site must maintain its own local database, the technical design must include event-based synchronisation rather than basic record copying. At minimum it requires:
+Globally unique IDs and tenant IDs for every shared record.
+Record versioning and optimistic concurrency checks.
+Idempotent create/update events so retries do not duplicate records.
+A field ownership matrix defining which interface may author each field.
+A retry queue, dead-letter handling and visible last-sync status.
+A conflict queue for changes that cannot be merged safely; do not use silent last-write-wins for workflow, assignments, hours or approvals.
+Ordered transition events so a stale update cannot move an item backwards or bypass a gate.
+Permission and gate validation at the canonical service for changes from either interface.
+An explicit server-side denial for all workflow-transition requests made under a client role, including direct API calls and replayed requests.
+Atomic updates between a Sub-item's hour allocation and the client's support-hours ledger so balances cannot drift.
+Versioned meeting-series and occurrence events so schedules, planned billable hours, reservations, usage, reschedules and cancellations remain consistent and attributable.
+Versioned onboarding-template, checklist-step, evidence, submission and review events so both interfaces show the same progress and launch-readiness result.
+One canonical notification event per qualifying status change, with the correct Client Site responsible for WordPress SMTP delivery.
+Monitoring for delayed, failed and conflicting events on the Primary Site and Daily Standup Board.
+12.1 Required sync behaviour
+Event
+Expected result
+Client creates/edits work
+Primary Site receives the same record and history; client scope remains attached.
+Primary edits client work
+The relevant Client Site receives the update and sees the same gate state.
+Role or hours change
+Global capacity recalculates; the affected Client Site receives only permitted availability data.
+Package/top-up changes
+Client entitlement and ledger update on both interfaces; historical package terms remain unchanged.
+Request submitted/converted
+Primary review queue and originating Client Site remain linked to the same source and resulting work records.
+Client attempts board move
+Request is rejected without changing stage; the denial is logged with user, item, source and time.
+Transition requested
+Canonical service validates permission and gates, then distributes the committed result.
+Support meeting changed
+The correct Client Site receives the occurrence and its hour reservation/usage result; schedule exceptions, balance and history remain consistent.
+Onboarding step submitted
+Primary Site receives the same answer, evidence and history and routes it to the assigned reviewer.
+Onboarding reviewed or changed
+The correct Client Site receives the status, feedback, due date, approval or authorised exception on the same step.
+Email-triggering transition
+One canonical event is sent to the correct WordPress site; delivery status returns to the Primary Site and item Changelog.
+Conflict or failure
+No silent overwrite. Preserve both attempted changes, show status and route intervention to an authorised user.
+User/client removed
+Historical attribution remains intact; future access is revoked without deleting audit history.
+12.2 Minimum data entities for audit
+Entity
+Purpose
+Client / Tenant
+Client identity, access boundary, support state, Point of Contact and commercial account.
+Client Site Integration
+WordPress site identity, authorised connection, sync health and mail capability.
+User and Membership
+One global person plus client-scoped access roles and permissions.
+Point of Contact Assignment
+Current and historical staff contact for a client.
+Support Meeting Series
+Client-scoped recurrence rule, timezone, ownership, participants, meeting details and lifecycle state.
+Support Meeting Occurrence
+Calculated or excepted date/time, status, planned billable hours, ledger state, location/link and source series.
+Support Package Version
+Immutable snapshot of package hours, price, validity and sales terms.
+Client Package Assignment
+Effective dates, pro-rata result, state, renewal and source transaction/manual assignment.
+Hour Ledger Entry
+Allocation, top-up, work/meeting reservation, usage, release, adjustment, expiry or rollover event.
+Onboarding Template Version
+Immutable, centrally managed checklist definition, defaults, dependencies and launch-critical rules.
+Client Onboarding
+Client assignment of a template version, owners, overall progress and launch-readiness state.
+Onboarding Step
+Client response, controlled status, due date, reviewer, feedback, exception and approval history.
+Onboarding Evidence
+Tenant-scoped file/link metadata, submitter, version, safety scan and associated step.
+Request Submission
+Client Request, Idea or Suggestion plus intake state and conversion link.
+Parent Work
+Project, Feature or Milestone container.
+Sub-item
+Executable work, dates, stage, hours, dependencies and client entitlement result.
+Role Assignment
+Primary User, Reviewer and Deliverer with planned role hours.
+Gate Completion
+Structured requirement, result, evidence, approver and time.
+Changelog Event
+Immutable human-readable actor/action/time record for an item.
+Notification Event
+Email/in-app trigger, recipient, unique event ID and delivery outcome.
+Sync Event
+Versioned change, delivery/retry/conflict state and resolution.
+13. Changelog, Notifications and Reporting
+13.1 Per-item changelog
+Every Sub-item must include a visible Changelog tab. This is the human-readable record of who did what and when; it is backed by an immutable audit history and is available on both interfaces subject to client permissions.
+Each changelog entry must show:
+Actor name and applicable role, or System when the action was automated.
+Action performed and a plain-language description of the change.
+Previous and new values where a field changed.
+Date, time and timezone.
+Source interface or integration and the related reason, comment or evidence link where applicable.
+The changelog must capture:
+Creation, field edits, assignments and planned-hour changes.
+Gate completion, approval, rejection, return and override events.
+Stage transitions, previous and next stage, actor, timestamp, source interface and reason.
+Denied client workflow-transition attempts, with no change to the current stage.
+Blocker creation, updates and resolution.
+Review feedback and its resolution.
+Release confirmation and any reopen event.
+Support-hour reservation, usage, release and adjustment entries linked to the client ledger.
+Request/Idea/Suggestion acceptance and conversion into the pipeline.
+Point of Contact changes where they affect the item or client communication.
+WordPress SMTP notification queued, sent, failed, retried or suppressed as a duplicate.
+Sync failure, retry, conflict and resolution events where they affect record integrity.
+Control: Changelog entries cannot be edited or deleted. Corrections are appended as new entries. Client-visible entries must exclude internal-only notes and other-client information.
+13.2 Client-account and onboarding history
+The same immutable actor/action/time standard applies to client-account records. Authorised users must be able to trace meeting-hour deductions and every onboarding decision without relying on a Sub-item changelog.
+Support-meeting series and occurrence creation, schedule changes, billable-hour changes, reservation, usage, release, cancellation and manual adjustment.
+Onboarding template assignment and version, step response, submission, evidence version, status, reviewer feedback, approval, return, blocker, due-date change and authorised Not Applicable decision.
+Client-visible history on both interfaces, with internal-only notes and sensitive access details excluded from the Client Site.
+Corrections appended as new events; prior financial, review and launch-readiness history is never overwritten.
+13.3 WordPress SMTP notifications
+Client confirmation emails must use the WordPress site's configured SMTP/mail delivery setup. The WordPress integration should send through the standard WordPress mail layer (wp_mail) so the site's configured SMTP plugin handles delivery; Forge must not store or duplicate the site's SMTP credentials.
+Email event
+Trigger
+Item raised
+Send after any client-visible work item, Bug or Request / Idea / Suggestion is successfully created and assigned its permanent ID.
+In progress
+Send when the related pipeline Sub-item first enters In Development.
+Completed
+Send when the Sub-item first enters Completed.
+Each email must include the permitted client-facing information:
+Client name, item ID, item title/type and new status.
+Short confirmation message, event time and direct link to the Client Site item.
+Assigned Point of Contact and approved contact method.
+No internal-only comments, technical notes, staff-capacity detail or other-client data.
+Notification events require a unique event ID so two-way sync, retries or repeated page loads cannot send the same confirmation twice. The system must log queued, sent, failed and retried outcomes, retry recoverable failures and surface unresolved failures on the Primary Site/Daily Standup Board.
+Decision required: Confirm whether recipients are the original submitter, a client-nominated contact, both, or a configurable list; and whether Completed or Released is the final client confirmation point.
+In-app notifications are also required for assignment, approval, returned review, blocker updates, due/overdue work, capacity conflict, insufficient support hours, request review, release readiness and sync intervention.
+13.4 Operational reporting
+Work volume and stage distribution by client, parent type and period.
+Time in stage, total cycle time and ageing work.
+Blocked time and recurring blocker reasons.
+Review turnaround, returned-review rate and release lead time.
+Planned versus actual hours where actuals are captured.
+Capacity utilisation and over-allocation by user and period.
+Throughput: completed and released Sub-items by client and period.
+Gate overrides, reopened work and sync exceptions.
+Support package status, work and meeting hours allocated/reserved/used/remaining, top-ups, expiry and renewal by client.
+Recurring meeting hours by client, series, occurrence and outcome, including cancellations and manual adjustments.
+Onboarding completion, overdue/blocked steps, review ageing, launch-critical readiness and evidence status by client.
+Request volumes, response time, acceptance/decline/conversion rate and resulting pipeline work.
+WordPress email delivery success, failure, retry and duplicate-suppression events.
+14. Security and Tenant Boundaries
+Every record is associated with a client/tenant and access is enforced server-side.
+Client users cannot query, infer or receive another client's work, people, attachments, comments or allocation detail.
+Primary Site cross-client access is limited to explicitly authorised users.
+A person working across clients uses one global identity with separate client memberships and permissions.
+The same transition and permission rules apply to direct interface actions, APIs, imports and sync events.
+Client roles are denied all workflow-stage mutations server-side, including board drag/drop, direct field updates, transition APIs and replayed sync events.
+Package prices, purchase history and hour ledgers are client-scoped commercial data; only authorised client and Primary Site users may access them.
+Email recipients are resolved from verified client records and never inferred from free-text content on an item.
+Deleted or deactivated users remain attached to historical events; personal-data retention rules must be defined during audit.
+Attachments, evidence and design/document links inherit the parent record's tenant permissions.
+Onboarding records store provider/account references and delegated-access status, not passwords, recovery codes, private keys, API secrets or payment credentials.
+15. Minimum Product Scope
+The first complete product scope should include:
+Primary Site and client-scoped Client Site.
+Client, site, global user and membership management.
+Project, Feature and Milestone parent records with Sub-items.
+Fixed workflow state machine, stage gates and audited exceptions.
+Server-enforced client workflow lock: Client Site users can view boards but cannot move cards or invoke stage transitions.
+Primary User, Reviewer and Deliverer assignments.
+Kanban, Gantt, Calendar, Daily Standup, Capacity and Client Onboarding views.
+Comments, evidence/attachments or links, review feedback and release records.
+Per-item Changelog tab with immutable actor/action/time records.
+Support package catalogue, manual assignment, pro-rata allocation, top-ups and a client hour ledger shared by work and recurring meetings.
+No Support Package access state and support-hours scheduling gate.
+Client Sales page with current entitlement, balances, packages, top-ups and upgrade action.
+Client and Primary Requests / Ideas / Suggestions pages with controlled pipeline conversion.
+Client Site dashboard with Point of Contact, support summary, upcoming work, attention items and meeting schedule.
+One assigned client Point of Contact displayed on the Client Site.
+Zero-to-many recurring support-meeting series per client, with planned billable hours, ledger deductions, staff-capacity impact, future occurrences, exceptions and history.
+Versioned onboarding templates, a controlled Client Site checklist and a cross-client Primary Site Onboarding Board with two-way submissions, evidence, review and launch-readiness tracking.
+WordPress SMTP confirmation emails for item raised, In Development and Completed events.
+Two-way data behaviour, conflict handling and sync health monitoring.
+Notifications, global search/filtering, audit history and core operational reports.
+Responsive client and primary interfaces with permission, loading, empty and error states.
+15.1 Not included in this brief
+Client-created workflow stages, arbitrary categories or unrestricted status editing.
+CRM and unrelated sales pipeline functions beyond support-package sales and top-ups.
+Source-control, deployment, external-calendar synchronisation, chat or stopwatch-based time-tracking integrations.
+AI prioritisation, estimation or automated approvals.
+Native mobile applications.
+These may be scoped later; their omission here does not reject them as future product capabilities.
+16. MVP Acceptance Criteria
+A permitted client user can create a Project, Feature or Milestone and add a Sub-item; it appears once on the Primary Site.
+A permitted Primary Site user can update that Sub-item and the authorised change appears on the correct Client Site.
+A user from another client cannot access the record or infer its details.
+A Sub-item cannot advance when a required gate field, approval, role, hour allocation or evidence item is missing.
+A successful transition records the actor, time, source, prior stage, new stage and completed gate data.
+A client user cannot move a card or change workflow stage through the Client Site, a direct API request or a replayed sync event; the rejected attempt leaves the item unchanged and is logged.
+Only the assigned Reviewer or an explicitly authorised substitute can approve In Review to Completed.
+Only the assigned Deliverer or an explicitly authorised substitute can confirm Completed to Released.
+Failed review returns the item to In Development with feedback and preserves the prior review attempt.
+Blocked work records and later restores its prior stage without losing elapsed blocked time.
+Daily Standup automatically surfaces all items matching its defined action/risk rules and removes them only when resolved.
+Capacity on the Primary Site includes the user's commitments from every client without double-counting; Client Sites do not expose cross-client details.
+A Primary administrator can create a package, assign it to a client on an effective date and see the exact annual or pro-rata hours added to the client's ledger.
+A permitted client user can buy or request an upgrade/top-up from the Sales page and the confirmed transaction updates the same ledger on both interfaces.
+Hours allocated in Up Next are reserved against the client balance and linked to the Sub-item; usage, release or adjustment creates immutable ledger and changelog entries.
+Each recurring meeting occurrence in the active support term reserves its planned billable hours from the same client balance; a held meeting converts the reservation to usage, a valid cancellation releases it and every result reconciles on both interfaces.
+Recurring meetings reduce the assigned staff members' available capacity for the affected period without exposing their other-client commitments on a Client Site.
+A standard Sub-item cannot enter Up Next when the client has No Support Package or insufficient available hours, unless the agreed override policy applies.
+A No Support Package client can still use its dashboard, submit Bugs and Requests / Ideas / Suggestions, open Sales and view its Point of Contact, but cannot create standard pipeline work.
+An accepted request converts into work for the same client, links to a valid parent and preserves a two-way source link without duplicating the submission.
+Each item Changelog shows the actor, action and timestamp for every material change and does not allow editing or deletion of history.
+The assigned Point of Contact is visible to the correct client and reassignment is recorded without exposing private staff data.
+The Client Site dashboard shows support state and balances plus client-visible upcoming work, and no dashboard action can change workflow stage.
+A client with multiple recurring support-meeting series sees each active series and its correct next occurrence; a one-off reschedule does not rewrite the series rule.
+A client receives the assigned onboarding template and can complete, attach evidence to and submit its predetermined steps without creating, deleting, reordering or approving steps.
+A client onboarding submission appears once on the Primary Site; internal feedback, approval, due-date change or authorised exception appears on the same step on the correct Client Site with immutable history.
+A site cannot be marked Released/live while a launch-critical onboarding step is neither Approved nor authorised Not Applicable, and no onboarding field stores a prohibited credential.
+WordPress sends exactly one client confirmation email for each qualifying item-raised, In Development and Completed event; retry or sync processing does not duplicate it.
+Kanban, Gantt, Calendar, Capacity, Standup, Client Dashboard and Client Onboarding views reconcile to the same underlying records and permissions.
+A sync delay, failed event or conflict is visible and recoverable without silent data loss or duplicate work.
+17. Decisions Required Before Product Design
+Priority
+Decision
+Required definition
+P0
+Client delivery model
+Embedded module, plugin, subdomain or separate application; whether a client can have multiple sites.
+P0
+Canonical architecture
+Confirm central shared service/database or justify separate client data stores and full sync architecture.
+P0
+Workflow semantics
+Approve Bug Tracking as conditional and Blocked as an exception state, or define an alternative.
+P0
+Missing terminal states
+Define Rejected, Cancelled, Duplicate, Deferred and Archived outcomes and their reporting behaviour.
+P0
+Early-stage authority
+Name who may approve Triage, Documentation, Technical Audit and Design gates.
+P0
+Client contribution boundary
+Confirm which client roles may create parents/Sub-items, edit fields, comment, attach evidence, answer requests or approve client-facing checkpoints while all stage transitions remain prohibited.
+P0
+Parent behaviour
+Confirm whether Projects, Features and Milestones can contain each other and whether parent status is fully derived.
+P0
+Role separation
+Decide whether Primary User, Reviewer and Deliverer must be different people and how substitutes work.
+P0
+Capacity model
+Define base hours, leave source, execution/review/delivery hours, actual tracking and over-allocation enforcement.
+P0
+Package term
+Decide whether assignment starts a new twelve-month term or aligns to an existing client renewal date.
+P0
+Pro-rata policy
+Define pro-rata hours, pro-rata pricing, date basis, rounding and upgrade/downgrade treatment.
+P0
+Hour consumption
+Approve reservation in Up Next and usage in In Development, plus cancellation, adjustment, negative-balance and override rules.
+P0
+Meeting-hour lifecycle
+Define planned billable hours, reservation horizon, held/cancelled/late-cancel/no-show treatment, insufficient-balance handling and term-boundary forecasting.
+P0
+Top-ups and rollover
+Define top-up expiry, consumption order, annual rollover and package-expiry treatment.
+P0
+No-package bugs
+Define whether validated bug work is free, consumes top-up hours, or requires a package before development begins.
+P0
+Sales transaction
+Select checkout/payment route and define immediate purchase versus approval, tax, refund and failed-payment behaviour.
+P0
+Request conversion
+Confirm permitted conversion stages, parent creation/linking rules and package gating after acceptance.
+P0
+Onboarding template and launch gate
+Approve templates, mandatory and launch-critical steps, dependencies, assignment/versioning rules and the derived completion threshold.
+P0
+Onboarding authority
+Define client/internal step ownership, assigned reviewer, return/approval rights, authorised Not Applicable decisions and exceptions.
+P0
+Secure access handover
+Select approved provider delegation or credential-handover method, stored reference fields, access verification and retention rules.
+P0
+Client email recipient
+Define recipient source and whether Completed or Released is the final WordPress SMTP confirmation event.
+P0
+Release definition
+Define what Released means for software, content, design, infrastructure and non-deployment work.
+P0
+Conflict rules
+Define field authority, acceptable sync delay and who resolves conflicts.
+P1
+Dates
+Confirm mandatory planned start, due, review and release date rules, plus timezone handling.
+P1
+Workflow returns
+Define authorised return paths from each stage, reopen behaviour and override permissions.
+P1
+Client visibility
+Define which users, capacity indicators, reports and audit details a client may view.
+P1
+Authentication
+Define user invitation, account ownership, multi-client membership, SSO and offboarding requirements.
+P1
+Notifications
+Approve WordPress email templates, sender identity, retry/escalation rules and any additional in-app events.
+P1
+Client dashboard
+Define the upcoming-work inclusion window, ordering, client-visible fields, attention rules and dashboard access by client role.
+P1
+Support meetings
+Define schedule ownership, recurrence and exception rules, client change requests, reminders and any external-calendar integration.
+P1
+Onboarding communications
+Define assignment, due, overdue, submission, return, approval, blocker and launch-ready notifications.
+P1
+Point of Contact
+Define permitted contact details, fallback contact, secondary contacts and reassignment ownership.
+P1
+Data retention
+Define deletion, archive, export, attachment retention and audit-history requirements.
+18. Required Audit and Design Outputs
+18.1 Technical audit
+Recommended system architecture and client-site delivery model.
+Tenant, identity, authentication and permission model.
+Server-enforced client workflow-lock design and tests covering UI, API and sync mutation paths.
+Canonical data model and source-of-truth/field-ownership matrix.
+Workflow state machine, gate rule engine and exception handling.
+Two-way update/sync strategy, conflict handling, monitoring and recovery.
+Capacity calculation and recalculation rules, including recurring meeting commitments.
+Support-package, pro-rata, top-up, entitlement and immutable work/meeting hour-ledger model.
+Sales checkout/payment feasibility and transaction reconciliation strategy.
+Request intake and controlled pipeline-conversion model.
+Client dashboard query model plus recurring meeting-series, occurrence, billable-hour and exception model.
+Onboarding template/version, client assignment, step, evidence, review, launch-gate and two-way sync model, including secure-access boundaries.
+WordPress SMTP event, idempotency, delivery logging and retry design.
+Security, privacy, retention, performance and availability requirements.
+Delivery phases, technical risks, dependencies and implementation estimate.
+18.2 Product design preparation
+Information architecture separating Primary and Client Site capabilities.
+Permission matrix and visibility rules for every role and interface.
+Read-only Client Site board behaviour, permitted contribution actions and denied-transition states.
+End-to-end flows for standard work, bugs, blocked work, failed review, release and reopen.
+Package assignment, pro-rata preview, top-up, upgrade, insufficient-hours and no-package flows.
+Client submission, central request review and pipeline conversion flows.
+Client dashboard, upcoming-work, recurring-meeting hours, per-item Changelog, Point of Contact and WordPress email delivery/failure states.
+Client onboarding checklist and Primary Onboarding Board flows for submission, evidence, review, return, approval, blocking, exceptions and launch readiness.
+Screen inventory and low-fidelity wireframes for all required views and Sub-item detail.
+Gate completion, transition failure, approval, return and override interactions.
+Responsive, loading, empty, error, conflict, offline/delayed-sync and permission-denied states.
+Capacity planning, support-hour balances and privacy-safe client availability designs.
+Clickable prototype covering one full client-to-primary delivery cycle.
+18.3 Ready-for-design gate
+Design may begin when: All P0 decisions are approved; the state machine, permission matrix, data ownership, meeting-hour lifecycle, onboarding launch gate and capacity rules are documented; the MVP boundary is agreed; and the technical audit confirms the intended client integration and two-way data model are feasible.
+END OF BRIEF

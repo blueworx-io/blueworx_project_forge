@@ -1,0 +1,105 @@
+/* Forge palette — v3. Signal Blue promoted from a rationed accent to the brand colour.
+   Neutrals, ink and borders are taken from the shipping Forge app (src/styles/theme.css in
+   blueworx-io/blueworx_project_forge) so the design system and the product agree on values:
+   #2563eb primary, #1a1f36 navy ink, #e2e8f0 border, #f8fafc canvas.
+   Area hues live in tokens/areas.css; feature-tile hues in tokens/tiles.css. */
+:root{
+/* Neutral ramp — cool navy-tinted slate, lightest to darkest */
+--color-snow:#ffffff;
+--color-bone:#fafbfc;
+--color-mist:#f8fafc;
+--color-haze:#f1f5f9;
+--color-chalk:#e2e8f0;
+--color-ash:#cbd5e1;
+--color-fog:#94a3b8;
+--color-steel:#64748b;
+--color-smoke:#475569;
+--color-slate:#334155;
+--color-charcoal:#1e293b;
+--color-graphite:#1a1f36;
+--color-pitch:#141829;
+--color-void:#0f172a;
+--color-ink:#1a1f36;
+/* Brand ramp — Signal Blue. 600 is the brand value; 500 tops the action gradient. */
+--brand-50:#eff6ff;
+--brand-100:#dbeafe;
+--brand-200:#bfdbfe;
+--brand-300:#93c5fd;
+--brand-400:#60a5fa;
+--brand-500:#3b82f6;
+--brand-600:#2563eb;
+--brand-700:#1d4ed8;
+--brand-800:#1e40af;
+--color-signal-blue:var(--brand-600);
+--color-arc-blue:var(--brand-500);
+--color-deep-blue:var(--brand-700);
+--color-ring-blue:var(--brand-300);
+/* Chromatic — text-safe values first, display fills second */
+--color-mint:#059669;
+--color-fern:#047857;
+--color-emerald:#10b981;
+--color-coral:#dc2626;
+--color-rose:#e11d48;
+--color-ember:#b45309;
+--color-amber:#f59e0b;
+--color-iris:#7c3aed;
+--color-violet:#8b5cf6;
+/* Alpha layers — navy-based, for hover fills and ghost surfaces */
+--alpha-hairline:rgba(26,31,54,0.10);
+--alpha-hairline-strong:rgba(26,31,54,0.18);
+--alpha-fill:rgba(26,31,54,0.04);
+--alpha-fill-hover:rgba(26,31,54,0.07);
+--alpha-inset:rgba(255,255,255,0.7);
+/* Semantic status — solid tints, so a signal reads the same on card, wash or canvas */
+--color-success:var(--color-mint);
+--color-success-bg:#ecfdf5;
+--color-success-border:#a7f3d0;
+--color-danger:var(--color-coral);
+--color-danger-bg:#fef2f2;
+--color-danger-border:#fecaca;
+--color-warning:var(--color-ember);
+--color-warning-bg:#fffbeb;
+--color-warning-border:#fde68a;
+--color-info:var(--brand-600);
+--color-info-bg:var(--brand-50);
+--color-info-border:var(--brand-200);
+--color-over:var(--color-rose);
+--color-over-bg:#fff1f2;
+--color-over-border:#fecdd3;
+/* Text */
+--text-primary:var(--color-graphite);
+--text-soft:var(--color-slate);
+--text-secondary:var(--color-steel);
+--text-muted:var(--color-fog);
+--text-on-dark:var(--color-snow);
+--text-on-action:var(--color-snow);
+--text-accent:var(--brand-600);
+/* Surfaces — white panels on a cool canvas, plus brand-tinted section grounds */
+--surface-canvas:var(--color-mist);
+--surface-rail:var(--color-snow);
+--surface-card:var(--color-snow);
+--surface-wash:var(--color-mist);
+--surface-muted:var(--color-haze);
+--surface-fill:var(--alpha-fill);
+--surface-tint:var(--brand-50);
+--surface-tint-strong:var(--brand-100);
+--surface-inverted:var(--color-graphite);
+/* The primary action is a flat brand fill — no gradient anywhere in the system */
+--surface-action:var(--brand-600);
+--surface-action-hover:var(--brand-700);
+--surface-action-press:var(--brand-800);
+--surface-action-solid:var(--brand-600);
+--surface-action-soft:var(--brand-50);
+--surface-action-soft-hover:var(--brand-100);
+--surface-scrim:rgba(15,23,42,0.45);
+--surface-nav:rgba(255,255,255,0.85);
+/* Borders — solid, not alpha. A hairline that survives every ground. */
+--border-default:var(--color-chalk);
+--border-strong:var(--color-ash);
+--border-subtle:#eef2f7;
+--border-accent:var(--brand-600);
+--border-tint:var(--brand-200);
+--link-color:var(--brand-600);
+--link-hover:var(--brand-700);
+--link-hover-bg:var(--brand-50);
+}

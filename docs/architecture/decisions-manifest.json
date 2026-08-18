@@ -1,0 +1,60 @@
+{
+	"decisions": [
+		{ "id": "ARCH-1", "group": "Architecture and delivery", "question": "Client delivery model: embedded module, plugin, subdomain or separate application" },
+		{ "id": "ARCH-2", "group": "Architecture and delivery", "question": "Canonical architecture: central shared service and database, or separate client data stores" },
+		{ "id": "ARCH-3", "group": "Architecture and delivery", "question": "Whether one client may have multiple sites" },
+		{ "id": "ARCH-4", "group": "Architecture and delivery", "question": "Whether client sites must function while the studio is unreachable" },
+		{ "id": "ARCH-5", "group": "Architecture and delivery", "question": "Conflict rules: field authority, acceptable sync delay, who resolves conflicts" },
+		{ "id": "ARCH-6", "group": "Architecture and delivery", "question": "How a client site authenticates to the studio, and how that trust is revoked" },
+
+		{ "id": "WF-1", "group": "Workflow", "question": "Whether Bug Tracking is conditional and Blocked is an exception state" },
+		{ "id": "WF-2", "group": "Workflow", "question": "The terminal states Rejected, Cancelled, Duplicate, Deferred and Archived, and their reporting behaviour" },
+		{ "id": "WF-3", "group": "Workflow", "question": "Authorised return paths from each stage" },
+		{ "id": "WF-4", "group": "Workflow", "question": "Reopen behaviour for Completed and Released work" },
+		{ "id": "WF-5", "group": "Workflow", "question": "Whether an administrator override exists, and its constraints" },
+		{ "id": "WF-6", "group": "Workflow", "question": "What Released means for software, content, design, infrastructure and non-deployment work" },
+
+		{ "id": "AUTH-1", "group": "Authority and permissions", "question": "Who may approve the Triage, Documentation, Technical Audit and Design gates" },
+		{ "id": "AUTH-2", "group": "Authority and permissions", "question": "The client contribution boundary: what client roles may create, edit, comment and answer" },
+		{ "id": "AUTH-3", "group": "Authority and permissions", "question": "Whether Primary User, Reviewer and Deliverer must be different people" },
+		{ "id": "AUTH-4", "group": "Authority and permissions", "question": "How substitutes for Reviewer and Deliverer are authorised" },
+		{ "id": "AUTH-5", "group": "Authority and permissions", "question": "Which users, capacity indicators, reports and audit details a client may view" },
+		{ "id": "AUTH-6", "group": "Authority and permissions", "question": "User invitation, account ownership, multi-client membership, SSO and offboarding" },
+
+		{ "id": "WORK-1", "group": "Work structure", "question": "Whether Projects, Features and Milestones may contain each other" },
+		{ "id": "WORK-2", "group": "Work structure", "question": "Whether parent status and progress are fully derived from Sub-items" },
+		{ "id": "WORK-3", "group": "Work structure", "question": "Mandatory date rules and timezone handling" },
+
+		{ "id": "CAP-1", "group": "Capacity", "question": "Base working hours and the source of leave and unavailable time" },
+		{ "id": "CAP-2", "group": "Capacity", "question": "Whether hours are entered per role or derived from controlled defaults" },
+		{ "id": "CAP-3", "group": "Capacity", "question": "Whether actual staff time is tracked, and how" },
+		{ "id": "CAP-4", "group": "Capacity", "question": "Whether over-allocation blocks the move or requires a reasoned override" },
+
+		{ "id": "COMM-1", "group": "Commercial", "question": "Whether package assignment starts a new twelve-month term or aligns to a shared renewal date" },
+		{ "id": "COMM-2", "group": "Commercial", "question": "Pro-rata hours, pro-rata pricing, date basis and rounding" },
+		{ "id": "COMM-3", "group": "Commercial", "question": "Hour consumption: reservation, usage, cancellation, adjustment and negative balance" },
+		{ "id": "COMM-4", "group": "Commercial", "question": "Top-up expiry, consumption order, annual rollover and package-expiry treatment" },
+		{ "id": "COMM-5", "group": "Commercial", "question": "Whether validated bug work for a no-package client is free, uses top-ups, or requires a package" },
+		{ "id": "COMM-6", "group": "Commercial", "question": "Checkout route, immediate versus approved upgrade, tax, refund and failed payment" },
+
+		{ "id": "MEET-1", "group": "Support meetings", "question": "Meeting schedule ownership and permitted client actions" },
+		{ "id": "MEET-2", "group": "Support meetings", "question": "Recurrence and exception rules" },
+		{ "id": "MEET-3", "group": "Support meetings", "question": "Planned billable-hour defaults per occurrence" },
+		{ "id": "MEET-4", "group": "Support meetings", "question": "Reservation horizon and term-boundary forecasting" },
+		{ "id": "MEET-5", "group": "Support meetings", "question": "Late-cancellation, no-show and insufficient-balance treatment" },
+		{ "id": "MEET-6", "group": "Support meetings", "question": "Reminders, and whether an external calendar integration is required" },
+
+		{ "id": "ONB-1", "group": "Onboarding", "question": "Approved templates, mandatory and launch-critical steps, dependencies and completion threshold" },
+		{ "id": "ONB-2", "group": "Onboarding", "question": "Step ownership, reviewer authority, return and approval rights, authorised Not Applicable decisions" },
+		{ "id": "ONB-3", "group": "Onboarding", "question": "Secure access-handover method, stored reference fields, verification and retention" },
+		{ "id": "ONB-4", "group": "Onboarding", "question": "Onboarding notifications: assignment, due, overdue, submission, return, approval, blocker, launch-ready" },
+
+		{ "id": "REQ-1", "group": "Requests", "question": "Permitted conversion stages, parent creation and linking rules, package gating after acceptance" },
+
+		{ "id": "NOTIF-1", "group": "Notifications and retention", "question": "Client email recipient source" },
+		{ "id": "NOTIF-2", "group": "Notifications and retention", "question": "Whether Completed or Released is the final client confirmation event" },
+		{ "id": "NOTIF-3", "group": "Notifications and retention", "question": "Email templates, sender identity, retry and escalation rules" },
+		{ "id": "NOTIF-4", "group": "Notifications and retention", "question": "The in-app notification event list" },
+		{ "id": "NOTIF-5", "group": "Notifications and retention", "question": "Deletion, archive, export, attachment retention and audit-history requirements" }
+	]
+}

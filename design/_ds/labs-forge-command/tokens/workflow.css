@@ -1,0 +1,30 @@
+/* Workflow phase encoding — the five phase groups of Figure 1 on the v3 light palette.
+   Stage identity is a 4px dot + label on a solid tint; never a filled card. */
+:root{
+--phase-idea:var(--color-steel);
+--phase-idea-bg:var(--color-haze);
+--phase-idea-border:var(--color-chalk);
+--phase-pipeline:var(--brand-600);
+--phase-pipeline-bg:var(--brand-50);
+--phase-pipeline-border:var(--brand-100);
+--phase-gate:var(--color-ember);
+--phase-gate-bg:#fffbeb;
+--phase-gate-border:#fef3c7;
+--phase-done:var(--color-mint);
+--phase-done-bg:#ecfdf5;
+--phase-done-border:#d1fae5;
+--phase-exception:var(--color-coral);
+--phase-exception-bg:#fef2f2;
+--phase-exception-border:#fecaca;
+/* Gate + entitlement state aliases */
+--gate-pass:var(--color-mint);
+--gate-missing:var(--color-coral);
+--gate-pending:var(--color-fog);
+--blocked-accent:var(--color-coral);
+--overdue-accent:var(--color-coral);
+--at-risk-accent:var(--color-ember);
+--readonly-accent:var(--color-fog);
+/* Signal rings — on a light ground a glow reads as blur, so status dots take a soft ring */
+--glow-live:rgba(5,150,105,0.18) 0 0 0 3px;
+--glow-active:rgba(37,99,235,0.18) 0 0 0 3px;
+}

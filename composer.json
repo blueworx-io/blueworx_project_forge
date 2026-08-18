@@ -1,6 +1,6 @@
 {
-  "name": "blueworx/forge-project-management",
-  "description": "Forge Project Management — product planning and release management for WordPress.",
+  "name": "blueworx/blueworx-forge",
+  "description": "Blueworx Forge — product planning and release management for WordPress.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
@@ -9,7 +9,8 @@
   "require-dev": {
     "squizlabs/php_codesniffer": "^3.9",
     "wp-coding-standards/wpcs": "^3.1",
-    "dealerdirect/phpcodesniffer-composer-installer": "^1.0"
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "phpunit/phpunit": "^11.5"
   },
   "scripts": {
     "lint": "phpcs",

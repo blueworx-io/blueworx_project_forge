@@ -8,7 +8,7 @@ jobs:
       # (PHP + SQLite, no Docker, no hosting). Never a hosted staging site: a
       # placeholder URL is how a suite skips itself while reporting green.
       use_local_wordpress: true
-      plugin_slug: forge-project-management
+      plugin_slug: blueworx-forge
       # Must match the @ref above. This input defaults to `main`, so pinning only
       # the @ref would run the v1 workflow against the foundation's main branch.
       foundation_ref: v1
@@ -19,6 +19,7 @@ jobs:
       # about what ships.
       exclude_paths: |
         /src
+        /design
         /playwright-report.json
         /index.html
         /vite.config.*
@@ -31,3 +32,19 @@ jobs:
     # Specs that sign in to wp-admin need WP_ADMIN_USER and WP_ADMIN_PASS.
     # Without them those specs skip themselves and the run asserts nothing.
     secrets: inherit
+
+  # Node's own test runner, for the tooling that has no browser in it. The
+  # decision-record completeness check runs inside `npm run lint` above; this
+  # job proves the checker itself still works, including its failure cases.
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # 24, not 20: test:unit passes a glob to `node --test`, and Node only
+          # learned to expand those in 22. On 20 it reported "Could not find
+          # tests/unit/**/*.test.mjs" and failed — which at least failed loudly
+          # rather than running nothing and calling it a pass.
+          node-version: 24
+      - run: npm run test:unit

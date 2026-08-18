@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-SLUG="forge-project-management"
+SLUG="blueworx-forge"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$(cd "$ROOT/.." && pwd)}"
 
@@ -45,8 +45,8 @@ INCLUDE=(
 # Belt and braces. The allowlist alone already excludes these, so a hit here
 # means one is nested inside a shipped directory — exactly the case a human
 # misses. "vendor" is not listed: plugin-update-checker ships its own.
-FORBIDDEN_SEGMENTS=( "src" "tests" "test-results" "docs" "bin" "node_modules" ".superpowers" ".github" ".git" ".wp-test" )
-FORBIDDEN_FILES=( "*.spec.js" "*.ts" "*.tsx" "phpcs.xml*" "composer.json" "composer.lock" "package.json" "package-lock.json" "approved-deps.json" "playwright.config.js" "CLAUDE.md" ".gitignore" "*.zip" )
+FORBIDDEN_SEGMENTS=( "src" "design" "tests" "test-results" "docs" "bin" "node_modules" ".superpowers" ".github" ".git" ".wp-test" )
+FORBIDDEN_FILES=( "*.spec.js" "*.ts" "*.tsx" "phpcs.xml*" "phpunit.xml*" "composer.json" "composer.lock" "package.json" "package-lock.json" "approved-deps.json" "playwright.config.js" "CLAUDE.md" ".gitignore" "*.zip" )
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -71,7 +71,7 @@ TOOL_KIND="${ZIP_TOOL%%:*}"
 TOOL_BIN="${ZIP_TOOL#*:}"
 say "Archiver : $TOOL_KIND ($TOOL_BIN)"
 
-VERSION="$(grep -oE "define\( 'FORGE_PM_VERSION', *'[^']+'" "$ROOT/$SLUG.php" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")"
+VERSION="$(grep -oE "define\( 'BWX_FORGE_VERSION', *'[^']+'" "$ROOT/$SLUG.php" | grep -oE "[0-9]+\.[0-9]+\.[0-9]+")"
 [ -n "$VERSION" ] || die "could not read the plugin version from $SLUG.php"
 say "Version  : $VERSION"
 
@@ -144,7 +144,7 @@ check "the main plugin file sits directly inside $SLUG/" \
 	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/$SLUG.php" && true || echo "missing $SLUG/$SLUG.php")"
 
 check "the built app bundle ships" \
-	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/assets/js/forge-app.js" && true || echo "missing $SLUG/assets/js/forge-app.js — run npm run build")"
+	"$(printf '%s\n' "$ENTRIES" | grep -qxF "$SLUG/assets/js/blueworx-forge.js" && true || echo "missing $SLUG/assets/js/blueworx-forge.js — run npm run build")"
 
 [ "$fail" -eq 0 ] || die "the zip is not shippable — see the failures above"
 

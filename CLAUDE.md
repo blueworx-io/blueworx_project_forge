@@ -146,7 +146,7 @@ Meaningful alt text, real form labels, readable contrast, full keyboard access, 
 
 ---
 
-# Project-specific — Forge Project Management
+# Project-specific — Blueworx Forge
 
 Everything above is the shared foundation `CLAUDE.md.template`, carried in verbatim.
 This section is the only part that is Forge's own, and it must never contradict the
@@ -154,8 +154,14 @@ rules above — where they overlap, the foundation wins.
 
 ## Project Intent
 
-Product planning and release management for WordPress, built from a Figma Make design
-and shipped as a WordPress plugin (React + Vite front end, PHP REST API).
+Product planning and release management for WordPress, shipped as a WordPress plugin
+(React + Vite front end, PHP REST API).
+
+Forge was rebuilt from the ground up as **Blueworx Forge**, slug `blueworx-forge`,
+namespace `Blueworx\Forge`, constants `BWX_FORGE_*`. It installs alongside the old
+Forge Project Management plugin rather than replacing it, so both can run on one site
+while items are moved across. The old plugin is gone from `main` and lives on in its
+`v1.37.2` release and in git history.
 
 ## GitHub Issue Workflow (source of truth)
 
@@ -178,8 +184,9 @@ GitHub Issues are the source of truth for all work. Follow this Issue → Implem
 
 ## Local development
 
-- `npm run dev` serves the app standalone at `localhost:5173` with sample data — no
-  WordPress needed. This is the fastest way to check front-end work.
+- `npm run dev` serves the app standalone at `localhost:5173` — no WordPress needed.
+  This is the fastest way to check front-end work. Without WordPress there is no
+  `window.bwxForgeData`, and the app renders accordingly.
 - **`node_modules` stays in place.** This repo overrides the foundation's "remove
   `node_modules` at session end" rule: keeping it makes `npm run dev` and
   `npm run build:zip` instant with no reinstall.
@@ -199,19 +206,26 @@ The instance lives in `.wp-test/` (git-ignored) and ships its own `admin` /
 ## Zip builds
 
 `npm run build:zip` builds fresh assets and stages **only** the runtime files from an
-explicit allowlist, writing `forge-project-management-<version>.zip` one level above the
+explicit allowlist, writing `blueworx-forge-<version>.zip` one level above the
 repo. Hand-built zips are for a site's *first* install only — updates ship as GitHub
 Releases (see the foundation rules above).
 
-## State Management (Zustand v5)
+## Design intake
 
-- The store hook does **not** accept a second equality-function argument (removed in
-  v5). Calling `useDataStore( selector, shallow )` silently ignores `shallow`, so a
-  selector returning a new array/object every call (e.g. `selectAllItems`) causes an
-  infinite render loop → React error #185 ("Maximum update depth exceeded").
-- For any derived/array/object selector, wrap it:
-  `useDataStore( useShallow( selector ) )` from `zustand/react/shallow`. Single-field
-  selectors like `s => s.features` are fine as-is.
+The design lands on the `design-sync` branch and is integrated through pull requests.
+`design-sync` is never merged: it is an intake branch, and taking a change from it
+means opening a PR that brings that change across.
+
+## PHP checks
+
+```bash
+vendor/bin/phpcs      # WordPress Coding Standards
+vendor/bin/phpunit    # unit tests, no WordPress runtime — stubs in tests/php/bootstrap.php
+```
+
+PHPCS runs the full `WordPress` standard with exactly two sniffs excluded, both
+forced by the approved design's namespaced, autoloaded file layout. The reason is
+written into `phpcs.xml.dist`; nothing security-related is among them.
 
 ## Rules
 

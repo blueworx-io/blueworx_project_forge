@@ -1,39 +1,29 @@
 <?php
 /**
- * Removes Forge Project Management's own data on uninstall, and nothing else.
+ * Removes Blueworx Forge's own data on uninstall, and nothing else.
  *
- * Forge stores no custom tables — its items are custom post types and its
- * configuration lives in options — so uninstall clears the options, the cached
- * item payloads, and the two roles the plugin adds.
+ * Options are listed here rather than read from the plugin's classes because
+ * uninstall runs without the plugin loaded. Adding an option means adding it
+ * here too, and tests/php/UninstallTest.php asserts every name carries the
+ * plugin's prefix — the old Forge Project Management plugin may be installed
+ * alongside this one during migration, and its data is not ours to delete.
  *
- * Deliberately left alone: the Forge items themselves (features, releases, bugs,
- * feedback, sub-items, company dates) and the generated app page. Those are the
- * site's content, entered by its users, not the plugin's to delete — and a
- * reinstall picks them straight back up.
+ * The generated app page is deliberately left alone: it is a published page the
+ * site owns, not the plugin's to remove.
  *
- * @package Forge_PM
+ * @package Blueworx\Forge
  */
 
-defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
+declare( strict_types = 1 );
 
-// Options are listed here rather than read from the classes because uninstall
-// runs without the plugin loaded. Adding an option means adding it here too.
-$forge_pm_options = array(
-	'forge_pm_page_id',
-	'forge_pm_settings',
-	'forge_pm_client_errors',
-	'forge_pm_php_errors',
-);
-
-foreach ( $forge_pm_options as $forge_pm_option ) {
-	delete_option( $forge_pm_option );
+if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+	exit;
 }
 
-// Cached REST payloads, one per audience.
-delete_transient( 'forge_pm_items_auth' );
-delete_transient( 'forge_pm_items_pub' );
+$bwx_forge_options = array(
+	'bwx_forge_app_page_id',
+);
 
-// The roles the plugin adds on activation. Users holding them keep their
-// accounts and fall back to the site's default role.
-remove_role( 'forge_manager' );
-remove_role( 'forge_user' );
+foreach ( $bwx_forge_options as $bwx_forge_option ) {
+	delete_option( $bwx_forge_option );
+}
