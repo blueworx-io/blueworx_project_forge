@@ -25,3 +25,12 @@ playwright-report.json
 Thumbs.db
 .superpowers/
 .playwright-mcp/
+
+# The client half of the two-instance test harness (#86): a disposable
+# WordPress and the staged client plugin it links.
+.wp-test-client/
+.wp-test-client-plugin/
+playwright-pair-report.json
+
+# The shared foundation, checked out beside this repo by CI.
+.foundation/

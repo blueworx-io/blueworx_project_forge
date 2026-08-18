@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { stageArtifact } from '../bin/stage-artifact.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // The plugin checks GitHub for updates on wp-admin screens, and WordPress itself
@@ -44,22 +46,12 @@ export default function globalSetup() {
 // The harness links one plugin — the studio one. The client artifact is a
 // separate plugin from the same repo, and the thing worth proving is that it
 // installs and activates on the same WordPress without either one needing the
-// other. So it is staged here exactly as its own zip would be built: from
-// bin/artifacts.json, the same allowlist CI checks and the release publishes.
-// Copying a hand-picked list instead would prove a tree nobody ships.
+// other. Staged through bin/stage-artifact.mjs, the same code the two-instance
+// harness uses, so there is one description of what a client site runs.
 function installClientArtifact(pluginsDir) {
-  const repo = path.resolve(HERE, '..');
-  const config = JSON.parse(fs.readFileSync(path.join(repo, 'bin', 'artifacts.json'), 'utf8'));
-  const client = config.artifacts.client;
-  const target = path.join(pluginsDir, client.slug);
+  const config = JSON.parse(
+    fs.readFileSync(path.resolve(HERE, '..', 'bin', 'artifacts.json'), 'utf8')
+  );
 
-  fs.rmSync(target, { recursive: true, force: true });
-  fs.mkdirSync(target, { recursive: true });
-
-  for (const entry of client.include) {
-    fs.cpSync(path.join(repo, client.root, entry), path.join(target, entry), { recursive: true });
-  }
-  for (const entry of client.shared) {
-    fs.cpSync(path.join(repo, entry), path.join(target, entry), { recursive: true });
-  }
+  stageArtifact('client', path.join(pluginsDir, config.artifacts.client.slug));
 }

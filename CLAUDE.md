@@ -203,6 +203,33 @@ npm run wp:down
 The instance lives in `.wp-test/` (git-ignored) and ships its own `admin` /
 `wptest-admin-pw` account. CI provisions the same thing.
 
+## Testing the studio and a client site together
+
+```bash
+npm run wp:pair:up    # studio on :8892, client on :8893
+npm run test:pair     # the two-instance suite
+npm run wp:pair:down
+```
+
+Two separate installs, same throwaway `admin` / `wptest-admin-pw` login on both.
+The studio site links this repo, so edits are live. The client site links a
+**staged** copy built from the client allowlist in `bin/artifacts.json` — the
+client plugin lives under `client/` but also needs `plugin-update-checker` from
+the repo root, so there is no single directory to link, and staging means the
+site runs exactly what ships to a client.
+
+`bin/wp-pair.mjs` drives the shared foundation harness twice rather than
+reimplementing it, so the pair cannot drift from the single instance every other
+project tests against. It finds the foundation as a sibling directory, or in
+`.foundation/` (how CI checks it out), or wherever `BWX_FOUNDATION_DIR` says.
+
+The pair suite has its own config, `playwright.pair.config.js`, and its own CI
+job. It is kept out of `playwright.config.js` deliberately: the shared
+foundation CI job provisions one WordPress and knows nothing about a second, so
+folding both into one config would have it run specs against a site it never
+created.
+
+
 ## Zip builds
 
 This repo produces **two** plugins, per ARCH-1:

@@ -23,6 +23,11 @@ export default defineConfig([
       "vendor/**",
       "plugin-update-checker/**",
       ".wp-test/**",
+      // The client half of the two-instance harness, and the artifact staged
+      // for it. Both are disposable WordPress trees — thousands of files the
+      // linter would walk on every run.
+      ".wp-test-client/**",
+      ".wp-test-client-plugin/**",
       ".foundation/**",
       "test-results/**",
       "playwright-report/**",
@@ -46,7 +51,7 @@ export default defineConfig([
   // Playwright specs, its config, and the repo's own check scripts all run
   // under Node, not in the browser.
   {
-    files: ["tests/**/*.{js,mjs}", "playwright.config.js", "bin/**/*.mjs"],
+    files: ["tests/**/*.{js,mjs}", "playwright*.config.js", "bin/**/*.mjs"],
     languageOptions: { globals: { ...globals.node } },
   },
   {
