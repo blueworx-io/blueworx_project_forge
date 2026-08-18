@@ -159,6 +159,32 @@ signs the same inputs with both and fails if they ever differ — which matters,
 because drift would surface as "bad signature" on every site at once and send
 you looking at keys rather than at code.
 
+## A client site reading canonical records
+
+ARCH-2. The studio holds the records; a client site renders them and keeps no
+canonical copy. `GET /client/workspace` returns the record for **the site that
+signed the request** — never one named in a parameter, because the signature is
+what proves which site is calling and that is the only site it may read.
+
+The client half is a read-through cache, not a replica:
+
+| State | What the client site is showing |
+|---|---|
+| `live` | Just read from the studio |
+| `cached` | A copy less than 60 seconds old (ARCH-5) |
+| `stale` | An older copy, because the studio could not be reached (ARCH-4) |
+| `unreachable` | Nothing — the studio is unreachable and there is no copy |
+| `not_configured` | Nothing — this site has never been connected |
+
+The last two are deliberately different states. "You have nothing" and "we
+cannot see your things right now" are different sentences, and only one of them
+is ever true.
+
+A failed refresh is recorded next to the copy it failed to replace, so the next
+page view still reports the site as out of date rather than going back to
+calling itself current — and does not retry on every view, because a studio that
+is down does not want a request from every page view on every client site.
+
 ## Where each piece lives
 
 | File | What it owns |

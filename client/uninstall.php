@@ -23,6 +23,9 @@ $bwx_forge_client_options = array(
 	// The signing key. Leaving this behind would mean an uninstalled plugin's
 	// credentials sitting in the database of a site nobody is watching.
 	'bwx_forge_client_key',
+	// The read-through cache. It is a copy of studio records, not this site's
+	// own data, so there is nothing to keep once the plugin is gone.
+	'bwx_forge_client_cache',
 );
 
 foreach ( $bwx_forge_client_options as $bwx_forge_client_option ) {

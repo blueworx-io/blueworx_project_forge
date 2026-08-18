@@ -33,6 +33,10 @@ function bwx_forge_test_record( string $name, $arg ): void {
  */
 function delete_option( string $option ): bool {
 	bwx_forge_test_record( 'delete_option', $option );
+	// Records the call *and* deletes: a unit that deletes an option and then
+	// reads it back has to see it gone, or a cache that is never really cleared
+	// passes its own test.
+	unset( $GLOBALS['bwx_forge_test_options'][ $option ] );
 	return true;
 }
 
@@ -339,3 +343,80 @@ bwx_forge_register_autoloader( dirname( __DIR__, 2 ) . '/includes' );
  */
 require_once dirname( __DIR__, 2 ) . '/client/includes/autoload.php';
 bwx_forge_client_register_autoloader( dirname( __DIR__, 2 ) . '/client/includes' );
+
+$GLOBALS['bwx_forge_test_http']          = array();
+$GLOBALS['bwx_forge_test_http_requests'] = array();
+$GLOBALS['bwx_forge_client_test_now']    = 2000000;
+
+/**
+ * Stub. A clock the client artifact's tests control, so a cache can be aged
+ * without waiting a minute for it.
+ *
+ * @return int
+ */
+function bwx_forge_client_now(): int {
+	return (int) ( $GLOBALS['bwx_forge_client_test_now'] ?? 2000000 );
+}
+
+/**
+ * Stub. Returns whatever the test queued, and records the request.
+ *
+ * A queued WP_Error stands for the studio being unreachable; a queued array
+ * stands for an answer, in WordPress's own response shape.
+ *
+ * @param string               $url  Request URL.
+ * @param array<string, mixed> $args Request arguments.
+ * @return array<string, mixed>|WP_Error
+ */
+function wp_remote_get( string $url, array $args = array() ) {
+	$GLOBALS['bwx_forge_test_http_requests'][] = array(
+		'url'  => $url,
+		'args' => $args,
+	);
+
+	$queued = array_shift( $GLOBALS['bwx_forge_test_http'] );
+
+	return null === $queued
+		? new WP_Error( 'bwx_forge_test_no_response_queued', 'No response queued.' )
+		: $queued;
+}
+
+/**
+ * Stub.
+ *
+ * @param mixed $thing Anything.
+ * @return bool
+ */
+function is_wp_error( $thing ): bool {
+	return $thing instanceof WP_Error;
+}
+
+/**
+ * Stub.
+ *
+ * @param array<string, mixed> $response Response.
+ * @return int
+ */
+function wp_remote_retrieve_response_code( $response ): int {
+	return (int) ( $response['response']['code'] ?? 0 );
+}
+
+/**
+ * Stub.
+ *
+ * @param array<string, mixed> $response Response.
+ * @return string
+ */
+function wp_remote_retrieve_body( $response ): string {
+	return (string) ( $response['body'] ?? '' );
+}
+
+/**
+ * Stub. JSON encoding, as WordPress's own wrapper does it.
+ *
+ * @param mixed $data Anything encodable.
+ * @return string|false
+ */
+function wp_json_encode( $data ) {
+	return json_encode( $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
+}

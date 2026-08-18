@@ -16,11 +16,9 @@ use WP_REST_Response;
 /**
  * What a client site can ask the studio, once it has proved which client it is.
  *
- * For now that is one route: the handshake, which answers "yes, you are this
- * site, and here is what I know about you". It exists so authentication is
- * provable end to end before any data hangs off it — Milestone 1's read-through
- * layer (#84) is built on this permission callback, and a signed request that
- * nothing ever called would be authentication nobody had tested.
+ * Two routes: the handshake, which answers "yes, you are this site", and the
+ * workspace, which is the first canonical record a client site renders without
+ * holding a copy of it (ARCH-2).
  *
  * Every route here uses Permissions::client_site, never a capability check: the
  * caller is a machine, not a logged-in user.
@@ -39,6 +37,16 @@ final class ClientController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'handshake' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/workspace',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'workspace' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
 			)
 		);
@@ -70,6 +78,43 @@ final class ClientController {
 				'status'      => $site['status'] ?? '',
 				'server_time' => bwx_forge_now(),
 				'version'     => BWX_FORGE_VERSION,
+			)
+		);
+	}
+
+	/**
+	 * The calling site's workspace record.
+	 *
+	 * This is the canonical record the client site renders and does not store
+	 * (ARCH-2). The site it describes is always the one that signed the request,
+	 * never one named in a parameter — a signed request proves which site is
+	 * calling, and that is the only site it may read.
+	 *
+	 * `generated` is the studio's own clock at the moment the record was read.
+	 * The client site stamps its cache with the time it received the answer
+	 * rather than with this, because the age it shows a human has to be measured
+	 * on the clock that human's browser is on. It is here for support: a record
+	 * that looks stale on one side and fresh on the other is clock drift, and
+	 * this is what shows that.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function workspace( WP_REST_Request $request ): WP_REST_Response {
+		$site_id = (string) $request->get_header( Signature::HEADER_SITE );
+		$site    = Registry::get( $site_id );
+
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'generated' => bwx_forge_now(),
+				'record'    => array(
+					'site_id'         => $site_id,
+					'name'            => $site['name'] ?? '',
+					'url'             => $site['url'] ?? '',
+					'status'          => $site['status'] ?? '',
+					'connected_since' => (int) ( $site['created_at'] ?? 0 ),
+				),
 			)
 		);
 	}

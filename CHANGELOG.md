@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.5.0] - 2026-08-18
+
+### Added
+
+- A client site now shows the details the studio holds for it, read from the
+  studio each time rather than kept on the client's own site. Change them in
+  one place and that is the only place they live.
+- Every screen says when it last heard from the studio. If the studio cannot be
+  reached, the site keeps showing what it last saw and says plainly that it is
+  doing so — rather than an error page, or worse, an old page that looks
+  current.
+- A site that has been cut off says so rather than sitting there looking
+  connected.
+- A "check again" link, for when you have just fixed something and do not want
+  to wait for the next refresh.
+
 ## [2.4.0] - 2026-08-18
 
 ### Added
