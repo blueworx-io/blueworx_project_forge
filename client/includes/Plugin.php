@@ -43,11 +43,13 @@ final class Plugin {
 	/**
 	 * Hooks everything up. Called on plugins_loaded.
 	 *
-	 * Only the connection routes so far: this site has to be able to prove which
-	 * client it is (ARCH-6) before there is anything worth showing.
+	 * The connection routes prove which client this site is (ARCH-6); the
+	 * workspace route and screen render what the studio holds for it (ARCH-2).
 	 */
 	public function boot(): void {
 		add_action( 'rest_api_init', array( Rest\ConnectionController::class, 'register_routes' ) );
+		add_action( 'rest_api_init', array( Rest\WorkspaceController::class, 'register_routes' ) );
+		add_action( 'admin_menu', array( Admin\Screen::class, 'register' ) );
 	}
 
 	/**

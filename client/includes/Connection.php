@@ -101,6 +101,11 @@ final class Connection {
 		update_option( self::OPTION_STUDIO_URL, esc_url_raw( rtrim( $studio_url, '/' ) ) );
 		update_option( self::OPTION_SITE_ID, sanitize_text_field( $site_id ) );
 		update_option( self::OPTION_KEY, sanitize_text_field( $key ) );
+
+		// Whatever is cached was read as whoever this site was before. After a
+		// re-connection it may be a different site, and serving the old copy would
+		// show one client another client's record.
+		Cache::flush();
 	}
 
 	/**
@@ -110,6 +115,7 @@ final class Connection {
 		delete_option( self::OPTION_STUDIO_URL );
 		delete_option( self::OPTION_SITE_ID );
 		delete_option( self::OPTION_KEY );
+		Cache::flush();
 	}
 
 	/**
