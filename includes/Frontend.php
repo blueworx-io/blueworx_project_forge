@@ -33,6 +33,16 @@ final class Frontend {
 	private static ?Frontend $instance = null;
 
 	/**
+	 * Whether the app's assets have been queued already.
+	 *
+	 * The template asks for them rather than waiting for wp_head, so the same
+	 * call can arrive twice — once from the head, once from the body.
+	 *
+	 * @var bool
+	 */
+	private bool $enqueued = false;
+
+	/**
 	 * Returns the single instance.
 	 *
 	 * @return Frontend
@@ -126,9 +136,11 @@ final class Frontend {
 	 * Loads the built bundle and the data it needs, on the app page only.
 	 */
 	public function enqueue(): void {
-		if ( ! $this->is_app_page() ) {
+		if ( ! $this->is_app_page() || $this->enqueued ) {
 			return;
 		}
+
+		$this->enqueued = true;
 
 		$script = BWX_FORGE_PATH . 'assets/js/blueworx-forge.js';
 		$style  = BWX_FORGE_PATH . 'assets/css/blueworx-forge.css';
@@ -177,6 +189,39 @@ final class Frontend {
 			'window.bwxForgeData = ' . wp_json_encode( $data ) . ';',
 			'before'
 		);
+	}
+
+	/**
+	 * Prints the app's own stylesheets, and nothing else.
+	 *
+	 * The app page does not call wp_head() (#193). That is the whole isolation:
+	 * wp_head() is an open door — the active theme, its fonts, the block
+	 * library's presets and every other plugin's global CSS all arrive through
+	 * it, and almost all of it arrives as inline <style> rather than as a link,
+	 * so it does not look like anything is being loaded.
+	 *
+	 * Dequeuing them one by one was the alternative and it is a losing game:
+	 * each WordPress release adds another inline block, and the page silently
+	 * starts inheriting again. Printing only our own handles cannot drift.
+	 *
+	 * The cost is that nothing a site adds through wp_head reaches this page —
+	 * analytics, cookie banners, a theme's fonts. On an application screen that
+	 * is the intended answer rather than a regrettable side effect.
+	 */
+	public function print_styles(): void {
+		$this->enqueue();
+		wp_print_styles( 'blueworx-forge' );
+	}
+
+	/**
+	 * Prints the app bundle and the data it needs, at the end of the body.
+	 *
+	 * At the end, not in the head: the bundle mounts into #bwx-forge-app as it
+	 * runs, so the element has to exist first.
+	 */
+	public function print_scripts(): void {
+		$this->enqueue();
+		wp_print_scripts( 'blueworx-forge' );
 	}
 
 	/**
