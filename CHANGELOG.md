@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.1.0] - 2026-08-17
+
+### Added
+
+- The rules every part of the API follows from here on. Two of them you will
+  notice: if somebody else changed an item since you opened it, your save is
+  refused and you are shown what changed, instead of one of you quietly
+  overwriting the other. And if a save is sent twice — a slow connection, a
+  second click — it still only happens once.
+- When an item cannot move to the next stage, the answer now lists everything
+  that is missing, not just the first thing found. No more fixing one item,
+  resubmitting, and being told about the next.
+
 ## [2.0.1] - 2026-08-17
 
 ### Fixed
