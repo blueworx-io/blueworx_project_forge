@@ -32,6 +32,40 @@ final class Screen {
 	public const SLUG = 'blueworx-forge-client';
 
 	/**
+	 * Handle of the design token stylesheet.
+	 */
+	public const STYLE = 'blueworx-forge-tokens';
+
+	/**
+	 * Loads the design tokens, on this screen only.
+	 *
+	 * The tokens are shipped rather than compiled here: this artifact has no
+	 * build step of its own, and the file it loads is the same one the studio's
+	 * app compiles in (#85). One edit reaches both, and there is no second copy
+	 * to forget.
+	 *
+	 * @param string $hook The screen being loaded.
+	 */
+	public static function enqueue( string $hook ): void {
+		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
+			return;
+		}
+
+		$tokens = BWX_FORGE_CLIENT_PATH . 'tokens/forge.css';
+
+		if ( ! file_exists( $tokens ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			self::STYLE,
+			BWX_FORGE_CLIENT_URL . 'tokens/forge.css',
+			array(),
+			(string) filemtime( $tokens )
+		);
+	}
+
+	/**
 	 * Adds the menu entry.
 	 */
 	public static function register(): void {

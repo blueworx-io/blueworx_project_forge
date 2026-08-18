@@ -19,20 +19,26 @@ screen's source when you build that screen, rather than carrying a stale copy of
 
 ## What is here
 
-`_ds/labs-forge-command/` — the complete v3 token layer and its root stylesheet. This is the
-visual contract, so it is pinned locally rather than read on demand: the build compiles
-against these values, and they must not move underneath it without a deliberate re-import.
+**The v3 token layer is no longer here. It lives in [`/tokens`](../tokens), at the top of the
+repository, because it ships** (#85): the studio's build compiles it in and the client plugin
+loads the same directory. Nothing in `design/` ships, so a token layer kept here could only
+have reached the two builds as two copies, which is how two interfaces start looking
+different.
+
+That makes it the one place tokens are edited. A re-import from Claude Design that changes
+them is brought across by a pull request, the same as any other design change — `design/`
+stays intake, and the values the product is built against never move underneath it silently.
 
 | File | Holds |
 |---|---|
-| `styles.css` | The `@import` list. Consumers link this one file |
-| `tokens/colors.css` | Neutral ramp, brand ramp, semantic states, surfaces, borders |
-| `tokens/typography.css` | Inter + JetBrains Mono, the 11–68px scale, weights capped at 500 |
-| `tokens/spacing.css` | Spacing scale, app-shell sizes, radii, control heights |
-| `tokens/effects.css` | Shadows, motion, focus ring |
-| `tokens/areas.css` | The four work-area hues, as markers only |
-| `tokens/tiles.css` | The seven feature-tile hues, and the chart ramp |
-| `tokens/workflow.css` | Workflow phase, gate and exception colours |
+| `/tokens/forge.css` | The `@import` list. Consumers link this one file |
+| `/tokens/colors.css` | Neutral ramp, brand ramp, semantic states, surfaces, borders |
+| `/tokens/typography.css` | Inter + JetBrains Mono, the 11–68px scale, weights capped at 500 |
+| `/tokens/spacing.css` | Spacing scale, app-shell sizes, radii, control heights |
+| `/tokens/effects.css` | Shadows, motion, focus ring |
+| `/tokens/areas.css` | The four work-area hues, as markers only |
+| `/tokens/tiles.css` | The seven feature-tile hues, and the chart ramp |
+| `/tokens/workflow.css` | Workflow phase, gate and exception colours |
 
 `research/brief.txt` — the full product brief (v0.3, 14 Aug 2026), 852 lines. Every screen in
 the design was built from it, and it is the authority on behaviour: the work hierarchy, the
@@ -42,7 +48,7 @@ Requirements in it are firm **unless labelled `Proposed` or `Decision required`*
 open questions, not specifications.
 
 `ui_kits/theme.css` — the alias layer binding the kits to the v3 tokens, plus the body
-defaults and the control states. Its `@import` is rewritten to this folder's `_ds` path.
+defaults and the control states. Its `@import` points at `/tokens`.
 
 `ui_kits/primary/kit.jsx` — the Primary Site kit's shared primitives, and the single most
 useful reference for the rebuild: the twelve stages as data, the `DataView` table (saved

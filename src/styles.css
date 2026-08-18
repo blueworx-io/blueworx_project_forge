@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+/* The design tokens, from the one copy of them in the repository (#85). The
+   client plugin loads the same directory directly; this build compiles it in.
+   A change to a token therefore reaches both interfaces from one edit. */
+@import '../tokens/forge.css';
+
 /* The app owns the viewport; the template loads no theme styles. */
 html,
 body {
