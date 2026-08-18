@@ -66,3 +66,54 @@ jobs:
           done
           grep -q 'failOnEmptyTestSuite="true"' phpunit.xml.dist \
             || { echo 'phpunit.xml.dist must keep failOnEmptyTestSuite="true" — a suite that runs nothing exits 0 without it.' >&2; exit 1; }
+
+  # The two-instance suite (#86). Its own job because the shared foundation
+  # workflow provisions exactly one WordPress — right for every other project,
+  # and not enough for a repo whose whole point is a studio talking to a client.
+  # It drives the same harness script that job does, twice, so the pair cannot
+  # drift from the single instance everything else is tested against.
+  pair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The harness lives in the foundation repo, which this one expects as a
+      # sibling directory — the same shape as a developer's machine.
+      - name: Checkout the foundation beside this repo
+        uses: actions/checkout@v4
+        with:
+          repository: blueworx-io/bluegroup_core_foundation
+          ref: v1
+          path: .foundation
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: sqlite3, pdo_sqlite
+
+      - run: npm ci
+
+      # The studio site serves the built bundle, so it has to exist first.
+      - run: npm run build
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Provision the studio and client pair
+        run: npm run wp:pair:up
+
+      # test:pair fails the build if the run executed nothing, so a suite that
+      # quietly stops reaching its sites cannot report green.
+      - name: Run the two-instance suite
+        env:
+          BWX_CLIENT_BASE_URL: http://127.0.0.1:8893
+          WP_ADMIN_USER: admin
+          WP_ADMIN_PASS: wptest-admin-pw
+        run: npm run test:pair
+
+      - name: Tear the pair down
+        if: always()
+        run: npm run wp:pair:down || true

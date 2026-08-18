@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.3.0] - 2026-08-18
+
+### Added
+
+- One command now sets up both sides of Forge at once — the studio and a client
+  site — as two separate, throwaway WordPress installs. Everything that follows
+  needs the two talking to each other, and until now there was only ever one to
+  test against.
+- The checks on every change now prove the client site really is a client site:
+  it has no command-centre code on it and cannot answer for one. That was
+  previously only checked inside the zip file; it is now checked on a running
+  site.
+
 ## [2.2.0] - 2026-08-17
 
 ### Added
