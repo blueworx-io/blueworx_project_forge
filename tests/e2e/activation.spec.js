@@ -45,3 +45,12 @@ test('activating the plugin raises no PHP error', async ({ page }) => {
   // template in every plugin row's auto-updates column.
   await expect(page.locator('#message.error, .notice-error:visible')).toHaveCount(0);
 });
+
+test('activation builds the plugin tables', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/wp-admin/admin.php?page=blueworx-forge-sites');
+
+  // The screen only renders when the plugin booted; a fatal from a bad CREATE
+  // would show here instead.
+  await expect(page.locator('h1')).toContainText('Forge');
+});

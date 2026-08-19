@@ -41,6 +41,30 @@ function delete_option( string $option ): bool {
 }
 
 /**
+ * Stub of the two things this plugin's schema asks $wpdb for.
+ */
+class BWX_Forge_Test_Wpdb {
+
+	/**
+	 * Table prefix.
+	 *
+	 * @var string
+	 */
+	public string $prefix = 'wp_';
+
+	/**
+	 * Charset and collation clause.
+	 *
+	 * @return string
+	 */
+	public function get_charset_collate(): string {
+		return 'DEFAULT CHARACTER SET utf8mb4';
+	}
+}
+
+$GLOBALS['wpdb'] = new BWX_Forge_Test_Wpdb();
+
+/**
  * Stub of the request object WordPress hands a permission callback.
  *
  * Only what the callback reads. The identity of the object matters as much as
