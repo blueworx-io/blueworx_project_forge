@@ -41,6 +41,87 @@ function delete_option( string $option ): bool {
 }
 
 /**
+ * Stub of the request object WordPress hands a permission callback.
+ *
+ * Only what the callback reads. The identity of the object matters as much as
+ * its contents: WordPress passes the same instance when it calls a permission
+ * callback a second time to build the Allow header, which is how a callback can
+ * tell one request asked twice from two requests that look alike.
+ */
+class WP_REST_Request {
+
+	/**
+	 * Headers, keyed by name.
+	 *
+	 * @var array<string, string>
+	 */
+	private array $headers;
+
+	/**
+	 * HTTP method.
+	 *
+	 * @var string
+	 */
+	private string $method;
+
+	/**
+	 * Route.
+	 *
+	 * @var string
+	 */
+	private string $route;
+
+	/**
+	 * Raw body.
+	 *
+	 * @var string
+	 */
+	private string $body;
+
+	/**
+	 * @param array<string, string> $headers Headers.
+	 * @param string                $method  HTTP method.
+	 * @param string                $route   Route.
+	 * @param string                $body    Raw body.
+	 */
+	public function __construct( array $headers = array(), string $method = 'GET', string $route = '/', string $body = '' ) {
+		$this->headers = $headers;
+		$this->method  = $method;
+		$this->route   = $route;
+		$this->body    = $body;
+	}
+
+	/**
+	 * @param string $name Header name.
+	 * @return string
+	 */
+	public function get_header( string $name ): string {
+		return $this->headers[ $name ] ?? '';
+	}
+
+	/**
+	 * @return string
+	 */
+	public function get_method(): string {
+		return $this->method;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function get_route(): string {
+		return $this->route;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function get_body(): string {
+		return $this->body;
+	}
+}
+
+/**
  * Stub. Records the deleted transient name.
  *
  * @param string $transient Transient name.
