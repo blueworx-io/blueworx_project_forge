@@ -82,6 +82,19 @@ final class Connection {
 	}
 
 	/**
+	 * Which credentials wp-config.php fixes, and the dashboard cannot change.
+	 *
+	 * @return array{studio_url: bool, site_id: bool, key: bool}
+	 */
+	public static function fixed(): array {
+		return array(
+			'studio_url' => defined( 'BWX_FORGE_STUDIO_URL' ) && (bool) BWX_FORGE_STUDIO_URL,
+			'site_id'    => defined( 'BWX_FORGE_CLIENT_SITE_ID' ) && (bool) BWX_FORGE_CLIENT_SITE_ID,
+			'key'        => defined( 'BWX_FORGE_CLIENT_KEY' ) && (bool) BWX_FORGE_CLIENT_KEY,
+		);
+	}
+
+	/**
 	 * Whether the site has everything it needs to call the studio.
 	 *
 	 * @return bool
