@@ -41,6 +41,78 @@ function delete_option( string $option ): bool {
 }
 
 /**
+ * Stub of the two things this plugin's schema asks $wpdb for.
+ */
+class BWX_Forge_Test_Wpdb {
+
+	/**
+	 * Table prefix.
+	 *
+	 * @var string
+	 */
+	public string $prefix = 'wp_';
+
+	/**
+	 * Charset and collation clause.
+	 *
+	 * @return string
+	 */
+	public function get_charset_collate(): string {
+		return 'DEFAULT CHARACTER SET utf8mb4';
+	}
+
+	/**
+	 * Stub. A %s-only sprintf, which is all Schema's own query needs.
+	 *
+	 * @param string $query Query with %s placeholders.
+	 * @param mixed  ...$args Values to interpolate.
+	 * @return string
+	 */
+	public function prepare( string $query, ...$args ): string {
+		foreach ( $args as $arg ) {
+			$query = preg_replace( '/%s/', "'" . (string) $arg . "'", $query, 1 );
+		}
+
+		return $query;
+	}
+
+	/**
+	 * Stub. Answers a `SHOW TABLES LIKE '...'` query from
+	 * $GLOBALS['bwx_forge_test_existing_tables'], which a test populates to say
+	 * which tables its dbDelta() stub is standing in for having built.
+	 *
+	 * @param string $query Prepared query.
+	 * @return string|null The table name, when it "exists"; null otherwise.
+	 */
+	public function get_var( string $query ) {
+		if ( 1 !== preg_match( "/LIKE '([^']+)'/", $query, $matches ) ) {
+			return null;
+		}
+
+		$existing = $GLOBALS['bwx_forge_test_existing_tables'] ?? array();
+
+		return in_array( $matches[1], $existing, true ) ? $matches[1] : null;
+	}
+}
+
+/**
+ * Stub. Records the call; does not touch a database. Schema's own test controls
+ * whether a table "exists" afterwards through $wpdb->get_var()'s stub above,
+ * independently of this call, so a test can simulate dbDelta() only partly
+ * succeeding.
+ *
+ * @param string $sql CREATE TABLE statement.
+ * @return array<int, string>
+ */
+function dbDelta( string $sql ): array {
+	bwx_forge_test_record( 'dbDelta', $sql );
+
+	return array();
+}
+
+$GLOBALS['wpdb'] = new BWX_Forge_Test_Wpdb();
+
+/**
  * Stub of the request object WordPress hands a permission callback.
  *
  * Only what the callback reads. The identity of the object matters as much as

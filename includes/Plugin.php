@@ -41,6 +41,8 @@ final class Plugin {
 	 * Hooks everything up. Called on plugins_loaded.
 	 */
 	public function boot(): void {
+		Data\Schema::maybe_upgrade();
+
 		Frontend::instance()->boot();
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
@@ -49,12 +51,17 @@ final class Plugin {
 		add_action( 'admin_enqueue_scripts', array( Admin\SitesScreen::class, 'enqueue' ) );
 
 		Admin\SiteActions::boot();
+
+		add_action( 'admin_menu', array( Admin\ClientsScreen::class, 'register' ) );
+
+		Admin\ClientActions::boot();
 	}
 
 	/**
 	 * Runs on activation.
 	 */
 	public function activate(): void {
+		Data\Schema::maybe_upgrade();
 		Frontend::instance()->create_app_page();
 		flush_rewrite_rules();
 	}

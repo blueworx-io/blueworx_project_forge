@@ -45,3 +45,22 @@ test('activating the plugin raises no PHP error', async ({ page }) => {
   // template in every plugin row's auto-updates column.
   await expect(page.locator('#message.error, .notice-error:visible')).toHaveCount(0);
 });
+
+test('activation builds the plugin tables', async ({ page }) => {
+  await signIn(page);
+
+  // The sites screen predates this branch and touches neither new table, so it
+  // proves only that the plugin booted, not that bwx_forge_clients and
+  // bwx_forge_client_sites exist. Writing to and reading back a client does:
+  // if either table (or a column on it) is missing, the INSERT or the SELECT
+  // that renders the list fails, and the client never appears.
+  const name = `Activation Ltd ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+
+  await page.goto('/wp-admin/admin.php?page=blueworx-forge-clients');
+  await expect(page.locator('h1')).toContainText('Forge');
+
+  await page.fill('#bwx-client-name', name);
+  await page.click('form[data-bwx-add-client] input[type="submit"]');
+
+  await expect(page.locator(`[data-bwx-client-name]:text-is("${name}")`)).toBeVisible();
+});
