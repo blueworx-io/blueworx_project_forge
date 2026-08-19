@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.9.1] - 2026-08-19
+
+### Changed
+
+- The two plugins are now named "BlueWorx Labs | Forge Parent Site" and
+  "BlueWorx Labs | Forge Client Site" in the WordPress plugins list, so it is
+  obvious which is which on a site running one of them.
+
 ## [2.9.0] - 2026-08-19
 
 ### Added
