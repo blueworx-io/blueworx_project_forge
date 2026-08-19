@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.9.3] - 2026-08-19
+
+### Changed
+
+- The foundation decisions are signed off. Two changed in review: moving a job
+  outside the normal rules, and booking someone past their capacity, can both be
+  done by any administrator rather than by one named person.
+
 ## [2.9.2] - 2026-08-19
 
 ### Fixed
