@@ -11,6 +11,8 @@ namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Health;
+use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Validate;
 
 /**
@@ -68,6 +70,7 @@ final class ClientsScreen {
 		echo '<h1>' . esc_html__( 'Forge — clients', 'blueworx-forge' ) . '</h1>';
 
 		self::notice();
+		self::issued_key();
 		self::status_toggle_link( $status );
 		self::clients_list( $status );
 		self::add_client_form();
@@ -135,6 +138,29 @@ final class ClientsScreen {
 	}
 
 	/**
+	 * A key that has just been issued, shown once and then gone.
+	 *
+	 * Same panel as the client sites screen's, and the same reasoning: the key
+	 * survives exactly one redirect, in a transient held for the administrator
+	 * who issued it, never in the URL where it would end up in browser history
+	 * and access logs.
+	 */
+	private static function issued_key(): void {
+		$issued = IssuedKey::take( get_current_user_id() );
+
+		if ( null === $issued ) {
+			return;
+		}
+
+		echo '<div class="notice notice-warning" data-bwx-issued-key="1">';
+		echo '<p><strong>' . esc_html__( 'Copy this key now. It cannot be shown again.', 'blueworx-forge' ) . '</strong></p>';
+		echo '<p>' . esc_html__( 'Site id', 'blueworx-forge' ) . ': <code data-bwx-site-id="1">' . esc_html( $issued['site_id'] ) . '</code></p>';
+		echo '<p>' . esc_html__( 'Key', 'blueworx-forge' ) . ': <code data-bwx-key="1">' . esc_html( $issued['key'] ) . '</code></p>';
+		echo '<p class="description">' . esc_html__( 'Paste both into the client site. If the key is lost, issue a new one — there is nowhere to look it up.', 'blueworx-forge' ) . '</p>';
+		echo '</div>';
+	}
+
+	/**
 	 * The clients, filtered by status, each with its sites.
 	 *
 	 * @param string $status The status filter in effect.
@@ -196,6 +222,11 @@ final class ClientsScreen {
 			return;
 		}
 
+		// One query for the whole client rather than one per site: this screen
+		// is the place somebody looks when they want to know the state of a
+		// client's estate, and it should not cost a query per row to answer.
+		$integrations = Integrations::for_client( $client_id );
+
 		echo '<ul data-bwx-sites="1">';
 
 		foreach ( $sites as $site ) {
@@ -207,6 +238,8 @@ final class ClientsScreen {
 			echo '<span data-bwx-site-name>' . esc_html( (string) $site['name'] ) . '</span> ';
 			echo '<span data-bwx-status>' . esc_html( $site_label ) . '</span> ';
 
+			self::connection( $site, $integrations[ (string) $site['id'] ] ?? null );
+
 			self::deactivate_site_form( $site );
 
 			self::edit_site_form( $site );
@@ -215,6 +248,98 @@ final class ClientsScreen {
 		}
 
 		echo '</ul>';
+	}
+
+	/**
+	 * One site's connection: what state it is in, when it was last heard from,
+	 * whether it can send mail, and the actions that change any of that (#89).
+	 *
+	 * @param array<string, mixed>      $site        The site row.
+	 * @param array<string, mixed>|null $integration Its integration, if it has one.
+	 */
+	private static function connection( array $site, ?array $integration ): void {
+		$health = null === $integration ? Health::UNCONFIGURED : (string) $integration['health'];
+
+		echo '<span data-bwx-connection="' . esc_attr( $health ) . '">';
+		echo esc_html( Health::label( $health ) );
+
+		if ( null !== $integration && $integration['last_seen_at'] > 0 ) {
+			echo ' <span data-bwx-last-seen>';
+			printf(
+				/* translators: %s: how long ago the site last called, e.g. "2 hours". */
+				esc_html__( 'last seen %s ago', 'blueworx-forge' ),
+				esc_html( human_time_diff( (int) $integration['last_seen_at'], bwx_forge_now() ) )
+			);
+			echo '</span>';
+		}
+
+		echo '</span> ';
+
+		echo '<span data-bwx-mail="' . esc_attr( null === $integration ? 'unknown' : (string) $integration['mail_capable'] ) . '">';
+		echo esc_html( self::mail_label( null === $integration ? 'unknown' : (string) $integration['mail_capable'] ) );
+		echo '</span> ';
+
+		self::key_forms( $site, $integration );
+	}
+
+	/**
+	 * How a site's mail capability reads to a human.
+	 *
+	 * @param string $capable One of unknown, yes, no.
+	 * @return string
+	 */
+	private static function mail_label( string $capable ): string {
+		switch ( $capable ) {
+			case 'yes':
+				return __( 'Can send mail', 'blueworx-forge' );
+			case 'no':
+				return __( 'Cannot send mail', 'blueworx-forge' );
+			default:
+				return __( 'Mail unknown', 'blueworx-forge' );
+		}
+	}
+
+	/**
+	 * Issue, rotate and revoke, as forms rather than links: each changes state,
+	 * and a link that changes state is one a browser can follow by prefetching
+	 * it.
+	 *
+	 * @param array<string, mixed>      $site        The site row.
+	 * @param array<string, mixed>|null $integration Its integration, if it has one.
+	 */
+	private static function key_forms( array $site, ?array $integration ): void {
+		if ( 'active' !== (string) $site['status'] ) {
+			return;
+		}
+
+		$site_id  = (string) $site['id'];
+		$has_key  = null !== $integration && Integrations::KEY_ACTIVE === $integration['key_state'];
+		$issuing  = $has_key ? __( 'Rotate key', 'blueworx-forge' ) : __( 'Issue key', 'blueworx-forge' );
+		$question = $has_key
+			? __( 'Issue a new key? The site stops working until the new one is installed on it.', 'blueworx-forge' )
+			: __( 'Issue a key for this site?', 'blueworx-forge' );
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		wp_nonce_field( 'bwx_forge_issue_site_key_' . $site_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_issue_site_key">';
+		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
+		echo '<button type="submit" class="button" data-bwx-issue-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( $question ) ) . ')">';
+		echo esc_html( $issuing );
+		echo '</button>';
+		echo '</form> ';
+
+		if ( ! $has_key ) {
+			return;
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		wp_nonce_field( 'bwx_forge_revoke_site_key_' . $site_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_revoke_site_key">';
+		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
+		echo '<button type="submit" class="button" data-bwx-revoke-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Cut this site off? Its key stops working immediately.', 'blueworx-forge' ) ) ) . ')">';
+		echo esc_html__( 'Revoke key', 'blueworx-forge' );
+		echo '</button>';
+		echo '</form> ';
 	}
 
 	/**

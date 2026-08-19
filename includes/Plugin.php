@@ -55,6 +55,8 @@ final class Plugin {
 		add_action( 'admin_menu', array( Admin\ClientsScreen::class, 'register' ) );
 
 		Admin\ClientActions::boot();
+
+		Tenancy\IntegrationEvents::boot();
 	}
 
 	/**

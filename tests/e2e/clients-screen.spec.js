@@ -157,3 +157,61 @@ test('the screen is not reachable by a logged-in user without the capability', a
 
   await context.close();
 });
+
+test('a new site shows as not connected, and issuing a key shows it once', async ({ page }) => {
+  await signIn(page);
+  const clientId = await addClient(page, `Connected Co ${RUN_ID}`);
+  await addSite(page, clientId, `Connected site ${RUN_ID}`);
+
+  const site = page.locator(`[data-bwx-client="${clientId}"] [data-bwx-site]`).first();
+
+  // A site nobody has connected is not a fault, and must not read as one.
+  await expect(site.locator('[data-bwx-connection]')).toHaveAttribute(
+    'data-bwx-connection',
+    'unconfigured',
+  );
+  await expect(site.locator('[data-bwx-mail]')).toHaveAttribute('data-bwx-mail', 'unknown');
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await site.locator('[data-bwx-issue-key]').click();
+
+  // Shown once, on the screen that issued it, and never in the URL.
+  const panel = page.locator('[data-bwx-issued-key]');
+  await expect(panel).toBeVisible();
+  const key = await panel.locator('[data-bwx-key]').innerText();
+  expect(key).toMatch(/^[0-9a-f]{64}$/);
+  expect(page.url()).not.toContain(key);
+
+  // And gone on the next load: whoever saw it is the only one who ever will.
+  await page.goto(SCREEN);
+  await expect(page.locator('[data-bwx-issued-key]')).toHaveCount(0);
+
+  const connected = page
+    .locator(`[data-bwx-client="${clientId}"] [data-bwx-site]`)
+    .first()
+    .locator('[data-bwx-connection]');
+  await expect(connected).toHaveAttribute('data-bwx-connection', 'never_connected');
+});
+
+test('revoking a key reads as cut off rather than as broken', async ({ page }) => {
+  await signIn(page);
+  const clientId = await addClient(page, `Revoking Co ${RUN_ID}`);
+  await addSite(page, clientId, `Revoking site ${RUN_ID}`);
+
+  const site = () => page.locator(`[data-bwx-client="${clientId}"] [data-bwx-site]`).first();
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await site().locator('[data-bwx-issue-key]').click();
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await site().locator('[data-bwx-revoke-key]').click();
+
+  await expect(site().locator('[data-bwx-connection]')).toHaveAttribute(
+    'data-bwx-connection',
+    'revoked',
+  );
+
+  // Nothing left to revoke, so the button is gone; issuing is offered again.
+  await expect(site().locator('[data-bwx-revoke-key]')).toHaveCount(0);
+  await expect(site().locator('[data-bwx-issue-key]')).toHaveCount(1);
+});

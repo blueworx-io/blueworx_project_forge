@@ -9,15 +9,18 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Admin;
 
+use Blueworx\Forge\Rest\IntegrationsController;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Validate;
+use WP_REST_Request;
 
 /**
- * The four actions behind the clients screen: add a client, add a site under
- * one, and deactivate either. Separate from the screen that renders them
- * because these change state and that one does not, and because each has the
- * same three guards to get right: the capability, the nonce, then the work.
+ * The actions behind the clients screen: add a client, add a site under one,
+ * edit or deactivate either, and issue or revoke a site's connection key.
+ * Separate from the screen that renders them because these change state and
+ * that one does not, and because each has the same three guards to get right:
+ * the capability, the nonce, then the work.
  *
  * Every write goes through Tenancy\Validate — the same rules the REST routes
  * apply (#83) — so the screen and the API cannot disagree about what is
@@ -36,6 +39,58 @@ final class ClientActions {
 		add_action( 'admin_post_bwx_forge_deactivate_client_site', array( self::class, 'deactivate_client_site' ) );
 		add_action( 'admin_post_bwx_forge_edit_client', array( self::class, 'edit_client' ) );
 		add_action( 'admin_post_bwx_forge_edit_client_site', array( self::class, 'edit_client_site' ) );
+		add_action( 'admin_post_bwx_forge_issue_site_key', array( self::class, 'issue_site_key' ) );
+		add_action( 'admin_post_bwx_forge_revoke_site_key', array( self::class, 'revoke_site_key' ) );
+	}
+
+	/**
+	 * Issues a site's first key, or rotates the one it has (#89).
+	 *
+	 * The work is the REST controller's, called directly rather than
+	 * reimplemented: registering, recording and the rules about inactive and
+	 * revoked sites must be identical whichever door somebody came through, and
+	 * two copies of that would eventually disagree.
+	 *
+	 * The key never reaches the redirect. It goes into the one-shot store the
+	 * client sites screen already uses, and the screen takes it from there.
+	 */
+	public static function issue_site_key(): void {
+		$site_id = self::field( 'site_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_issue_site_key_' . $site_id );
+
+		$request = new WP_REST_Request( 'POST' );
+		$request->set_param( 'site_id', $site_id );
+
+		$response = IntegrationsController::issue_key( $request );
+
+		if ( is_wp_error( $response ) ) {
+			self::back( 'bwx_forge_unknown_client_site' === $response->get_error_code() ? 'unknown' : 'invalid' );
+		}
+
+		$data = $response->get_data();
+
+		IssuedKey::remember( get_current_user_id(), (string) $data['integration']['registry_site_id'], (string) $data['key'] );
+
+		self::back( 'added' );
+	}
+
+	/**
+	 * Cuts a site off.
+	 */
+	public static function revoke_site_key(): void {
+		$site_id = self::field( 'site_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_revoke_site_key_' . $site_id );
+
+		$request = new WP_REST_Request( 'DELETE' );
+		$request->set_param( 'site_id', $site_id );
+
+		$response = IntegrationsController::revoke_key( $request );
+
+		self::back( is_wp_error( $response ) ? 'invalid' : 'added' );
 	}
 
 	/**

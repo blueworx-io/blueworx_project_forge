@@ -577,3 +577,32 @@ function wp_remote_retrieve_body( $response ): string {
 function wp_json_encode( $data ) {
 	return json_encode( $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
 }
+
+/**
+ * Stub. Identity — no filters are registered in a unit run, so a filtered value
+ * is its default. A test that needs a filter to have changed something sets the
+ * value it is filtering directly.
+ *
+ * @param string $hook  Hook name.
+ * @param mixed  $value Value being filtered.
+ * @return mixed
+ */
+function apply_filters( string $hook, $value ) {
+	unset( $hook );
+	return $value;
+}
+
+/**
+ * Stub. Records the call, so a unit that must not send mail can be proven not
+ * to have sent any. Nothing under test sends.
+ *
+ * @param string|array<int, string> $to      Recipient.
+ * @param string                    $subject Subject.
+ * @param string                    $message Body.
+ * @return bool
+ */
+function wp_mail( $to, string $subject = '', string $message = '' ): bool {
+	unset( $subject, $message );
+	bwx_forge_test_record( 'wp_mail', $to );
+	return true;
+}

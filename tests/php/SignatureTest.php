@@ -258,6 +258,32 @@ final class SignatureTest extends TestCase {
 	}
 
 	/**
+	 * An accepted request announces itself, so the Client Site Integration
+	 * record (#89) can stamp when the site was last heard from. It is announced
+	 * rather than written here: the database has no business inside the
+	 * signature check, and this class has to stay testable without one.
+	 */
+	public function test_an_accepted_request_announces_that_the_site_was_seen(): void {
+		$this->verify( $this->headers() );
+
+		$fired = array_column( $GLOBALS['bwx_forge_test_actions'], 0 );
+
+		$this->assertContains( 'bwx_forge_site_verified', $fired );
+	}
+
+	/**
+	 * A refused request does not. A site whose key stopped working must not go
+	 * on looking freshly seen.
+	 */
+	public function test_a_refused_request_does_not_announce_a_sighting(): void {
+		$this->verify( $this->headers( array( 'key' => 'wrong' ) ) );
+
+		$fired = array_column( $GLOBALS['bwx_forge_test_actions'], 0 );
+
+		$this->assertNotContains( 'bwx_forge_site_verified', $fired );
+	}
+
+	/**
 	 * An accepted request is not logged as a security event. A log that records
 	 * everything is a log nobody reads.
 	 */

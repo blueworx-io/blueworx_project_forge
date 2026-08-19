@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Integrations;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,10 +23,11 @@ use PHPUnit\Framework\TestCase;
 final class TenancyNoDeleteTest extends TestCase {
 
 	/**
-	 * Neither repository exposes anything that removes a row.
+	 * No repository exposes anything that removes a row. An integration is cut
+	 * off by revoking its key, which keeps the record and its history.
 	 */
 	public function test_neither_repository_can_delete(): void {
-		foreach ( array( Clients::class, ClientSites::class ) as $class ) {
+		foreach ( array( Clients::class, ClientSites::class, Integrations::class ) as $class ) {
 			$methods = get_class_methods( $class );
 
 			foreach ( array( 'delete', 'remove', 'drop', 'purge' ) as $forbidden ) {

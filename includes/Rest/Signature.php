@@ -145,6 +145,20 @@ final class Signature {
 			return self::refuse( $site_id, 'replayed_request' );
 		}
 
+		/*
+		 * Announced, not written. The Client Site Integration record (#89)
+		 * stamps freshness from this, and it stamps it from every route a site
+		 * calls rather than from one instrumented endpoint — which is the only
+		 * way "last seen" means last seen. Doing the write here would put a
+		 * database round trip inside the signature check and make this class
+		 * untestable without a site around it.
+		 *
+		 * Spelled out rather than passed as a constant, matching SecurityLog: a
+		 * hook name built from a constant is invisible to anybody grepping for
+		 * who fires it.
+		 */
+		do_action( 'bwx_forge_site_verified', $site_id );
+
 		return true;
 	}
 
