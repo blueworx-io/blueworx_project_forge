@@ -23,14 +23,16 @@ async function signIn(page) {
 }
 
 function clientRow(page) {
-  return page.locator('tr[data-slug="blueworx-forge-client"], tr#blueworx-forge-client');
+  // By plugin file, not by row id: WordPress builds the id from the plugin's
+  // display name, so renaming the plugin silently stops the row being found.
+  return page.locator('tr[data-plugin="blueworx-forge-client/blueworx-forge-client.php"]');
 }
 
 test('the client plugin is installed alongside the studio one', async ({ page }) => {
   await signIn(page);
   await page.goto('/wp-admin/plugins.php', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.locator('tr[data-slug="blueworx-forge"], tr#blueworx-forge')).toHaveCount(1);
+  await expect(page.locator('tr[data-plugin="blueworx-forge/blueworx-forge.php"]')).toHaveCount(1);
   await expect(clientRow(page)).toHaveCount(1);
   await expect(clientRow(page)).toContainText('BlueWorx Labs | Forge Client Site');
 });

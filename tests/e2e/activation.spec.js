@@ -25,7 +25,9 @@ test('the plugin is installed and active', async ({ page }) => {
   await signIn(page);
   await page.goto('/wp-admin/plugins.php', { waitUntil: 'domcontentloaded' });
 
-  const row = page.locator('tr[data-slug="blueworx-forge"], tr#blueworx-forge');
+  // By plugin file, not by row id: WordPress builds the id from the plugin's
+  // display name, so renaming the plugin silently stops the row being found.
+  const row = page.locator('tr[data-plugin="blueworx-forge/blueworx-forge.php"]');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('BlueWorx Labs | Forge Parent Site');
   // Word-boundary match is load-bearing: WordPress renders an inactive row with
