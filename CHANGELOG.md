@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.10.0] - 2026-08-19
+
+### Added
+
+- Clients and their sites are now records in their own right. A client can have
+  more than one site, and each site is its own workspace — work, hours and
+  onboarding will belong to the site rather than to the client. Add and manage
+  them from Forge → Clients. Nothing is ever deleted: a client or site you
+  finish with is made inactive and kept.
+
 ## [2.9.3] - 2026-08-19
 
 ### Changed
