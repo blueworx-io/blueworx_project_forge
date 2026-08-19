@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.9.2] - 2026-08-19
+
+### Fixed
+
+- The refused requests list no longer fills with replays that never happened.
+  Every successful request from a client site was logging one, because
+  WordPress asks a route's permission question twice and a signed request can
+  only answer it once. A log of false alarms hides the real ones.
+
 ## [2.9.1] - 2026-08-19
 
 ### Changed

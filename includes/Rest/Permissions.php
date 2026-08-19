@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use SplObjectStorage;
 use WP_REST_Request;
 
 /**
@@ -53,7 +54,33 @@ final class Permissions {
 	 * @return true|WP_Error
 	 */
 	public static function client_site( WP_REST_Request $request ) {
-		return Signature::verify(
+		/*
+		 * WordPress asks about the same request twice: once to decide whether it
+		 * may proceed, and again after it has, from rest_send_allow_header(),
+		 * which calls every handler's permission callback purely to work out
+		 * which methods to name in the Allow header.
+		 *
+		 * Verifying a signed request is not a question that can be asked twice:
+		 * the nonce is single-use, so the second ask was refused as a replay and
+		 * written to the security log. The request worked; the log filled with
+		 * refusals that never happened, which is the worse failure — a log of
+		 * false alarms is one nobody reads when a real alarm arrives.
+		 *
+		 * So the answer is remembered against the request object itself. Two
+		 * genuinely separate requests are two objects, and the second still gets
+		 * verified in full: this only stops one request being asked about twice.
+		 */
+		static $answers = null;
+
+		if ( null === $answers ) {
+			$answers = new SplObjectStorage();
+		}
+
+		if ( isset( $answers[ $request ] ) ) {
+			return $answers[ $request ];
+		}
+
+		$answer = Signature::verify(
 			(string) $request->get_header( Signature::HEADER_SITE ),
 			(string) $request->get_header( Signature::HEADER_SIGNATURE ),
 			(string) $request->get_header( Signature::HEADER_TIMESTAMP ),
@@ -62,5 +89,9 @@ final class Permissions {
 			(string) $request->get_route(),
 			(string) $request->get_body()
 		);
+
+		$answers[ $request ] = $answer;
+
+		return $answer;
 	}
 }
