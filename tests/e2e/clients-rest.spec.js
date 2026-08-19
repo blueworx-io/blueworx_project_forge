@@ -7,6 +7,13 @@ import { test, expect } from '@playwright/test';
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
 
+// Idempotency keys are remembered for 24 hours (see Idempotency::TTL), and
+// nothing here is ever deleted — a hardcoded key or display name reused on a
+// later run can replay a response, or match a row, from a run that came
+// before it. RUN_ID keeps this run's writes from being confused with any
+// other run's.
+const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+
 async function signedInContext(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
@@ -116,10 +123,12 @@ test('a write with no version at all is refused', async ({ browser, baseURL }) =
 test('a retried create produces one client, not two', async ({ browser, baseURL }) => {
   const { context, nonce } = await signedInContext(browser, baseURL);
 
+  const name = `Retry Ltd ${RUN_ID}`;
+
   const send = () =>
     context.request.post('/wp-json/blueworx-forge/v1/clients', {
-      headers: { 'X-WP-Nonce': nonce, 'Idempotency-Key': 'clients-retry-1' },
-      data: { display_name: 'Retry Ltd', timezone: 'UTC' },
+      headers: { 'X-WP-Nonce': nonce, 'Idempotency-Key': `clients-retry-${RUN_ID}` },
+      data: { display_name: name, timezone: 'UTC' },
     });
 
   const first = await send();
@@ -130,7 +139,7 @@ test('a retried create produces one client, not two', async ({ browser, baseURL 
   const listed = await context.request.get('/wp-json/blueworx-forge/v1/clients', {
     headers: { 'X-WP-Nonce': nonce },
   });
-  const named = (await listed.json()).clients.filter((c) => c.display_name === 'Retry Ltd');
+  const named = (await listed.json()).clients.filter((c) => c.display_name === name);
   expect(named).toHaveLength(1);
 
   await context.close();
