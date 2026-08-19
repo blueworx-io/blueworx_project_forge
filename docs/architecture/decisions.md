@@ -20,7 +20,21 @@ which the programme plan identified as missing from the brief.
 
 Approved by Luke on 2026-08-17.
 
+## Signed off
+
+Every decision below was reviewed and signed off by Luke on 19 August 2026, one
+at a time. Two were changed in that review, both the same change: an
+administrator override and a capacity override are held by **any user with the
+studio administrator role**, not by the Primary administrator alone (WF-5,
+CAP-4). The reason is the same in both cases — real work should never wait on
+one person being at a keyboard. Everything else stands as proposed.
+
+They are decisions, not preferences: reversing one has the consequence written
+under it, and that consequence is the reason to think twice rather than a reason
+never to change course.
+
 ## Architecture and delivery
+
 
 ### ARCH-1 — client-delivery-model
 
@@ -130,7 +144,7 @@ Approved by Luke on 2026-08-17.
 
 **Options considered:** No override at all, which means a genuinely stuck item can only be fixed in the database; an override available to all staff, which makes the gates advisory.
 
-**Decision:** Yes, one override, held by the Primary administrator only. It can move an item to any stage, requires a reason, is permanently marked on the item rather than only in the log, and appears in an override report. It cannot bypass the client transition lock, because that is a security boundary rather than a workflow gate.
+**Decision:** Yes, one override, held by any user with the studio administrator role — not the Primary administrator alone, so the studio is never waiting on one person to unstick real work. It can move an item to any stage, requires a reason, is permanently marked on the item rather than only in the log, and appears in an override report. It cannot bypass the client transition lock, because that is a security boundary rather than a workflow gate.
 
 **Consequence if reversed:** Removing it leaves no route out of a stuck item; widening it makes every gate optional and invalidates the workflow test suite's assumptions.
 
@@ -276,7 +290,7 @@ Approved by Luke on 2026-08-17.
 
 **Options considered:** A hard block, which lets a capacity model with no actuals in it overrule a human on worse information; a silent warning, which nobody reads.
 
-**Decision:** Over-allocation requires a reasoned override by the Primary administrator and does not hard block. The override is recorded, reported and visible on the item.
+**Decision:** Over-allocation requires a reasoned override by any user with the studio administrator role — as with WF-5, so a real week is never waiting on one person — and does not hard block. The override is recorded, reported and visible on the item.
 
 **Consequence if reversed:** A hard block changes the delivery queue's behaviour at Up Next and In Development, and previously overridden items become invalid under the new rule.
 
