@@ -51,6 +51,10 @@ final class Plugin {
 		add_action( 'admin_enqueue_scripts', array( Admin\SitesScreen::class, 'enqueue' ) );
 
 		Admin\SiteActions::boot();
+
+		add_action( 'admin_menu', array( Admin\ClientsScreen::class, 'register' ) );
+
+		Admin\ClientActions::boot();
 	}
 
 	/**
