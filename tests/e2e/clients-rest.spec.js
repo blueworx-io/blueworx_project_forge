@@ -136,6 +136,33 @@ test('a retried create produces one client, not two', async ({ browser, baseURL 
   await context.close();
 });
 
+test('an idempotency key is scoped per client, not shared across them', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const clientA = await createClient(context.request, nonce, 'Scoped A Ltd');
+  const clientB = await createClient(context.request, nonce, 'Scoped B Ltd');
+
+  const createSite = (client) =>
+    context.request.post(`/wp-json/blueworx-forge/v1/clients/${client.id}/sites`, {
+      headers: { 'X-WP-Nonce': nonce, 'Idempotency-Key': 'shared-retry-key' },
+      data: { name: `${client.display_name} Main` },
+    });
+
+  const responseA = await createSite(clientA);
+  const responseB = await createSite(clientB);
+
+  expect(responseA.status()).toBe(200);
+  expect(responseB.status()).toBe(200);
+
+  const siteA = (await responseA.json()).site;
+  const siteB = (await responseB.json()).site;
+
+  expect(siteA.id).not.toEqual(siteB.id);
+  expect(siteA.client_id).toBe(clientA.id);
+  expect(siteB.client_id).toBe(clientB.id);
+
+  await context.close();
+});
+
 test('deactivating a client deactivates its sites', async ({ browser, baseURL }) => {
   const { context, nonce } = await signedInContext(browser, baseURL);
   const client = await createClient(context.request, nonce, 'Closing Ltd');

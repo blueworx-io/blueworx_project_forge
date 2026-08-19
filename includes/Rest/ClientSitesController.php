@@ -151,6 +151,11 @@ final class ClientSitesController {
 
 		$key = (string) $request->get_header( Idempotency::HEADER );
 
+		// Scoped by client id: two different clients reusing one key must never
+		// answer each other's replays, or a retry against client B could hand
+		// back client A's site.
+		$operation = self::CREATE_OPERATION . ':' . $client_id;
+
 		// Replay first. A retry costs nothing and, crucially, cannot be refused
 		// for being stale against a version its own first attempt moved.
 		if ( '' !== $key ) {
@@ -162,7 +167,7 @@ final class ClientSitesController {
 				);
 			}
 
-			$replay = Idempotency::replay( self::CREATE_OPERATION, $key );
+			$replay = Idempotency::replay( $operation, $key );
 
 			if ( null !== $replay ) {
 				return rest_ensure_response( $replay );
@@ -188,7 +193,7 @@ final class ClientSitesController {
 		);
 
 		if ( '' !== $key ) {
-			Idempotency::remember( self::CREATE_OPERATION, $key, $response );
+			Idempotency::remember( $operation, $key, $response );
 		}
 
 		return rest_ensure_response( $response );
