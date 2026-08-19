@@ -107,6 +107,22 @@ final class TenancyValidateTest extends TestCase {
 	}
 
 	/**
+	 * Name length is measured in characters, not bytes — a 191-character name in
+	 * a multi-byte script must be accepted, not refused for a byte count that
+	 * has nothing to do with what varchar(191) actually stores.
+	 */
+	public function test_a_multibyte_name_is_measured_in_characters_not_bytes(): void {
+		// 191 characters, each three bytes in UTF-8: 573 bytes, well past
+		// strlen()'s idea of the limit, but exactly at mb_strlen()'s.
+		$name = str_repeat( '本', 191 );
+
+		$result = Validate::client( array( 'display_name' => $name ), false );
+
+		$this->assertSame( array(), $result['errors'] );
+		$this->assertSame( $name, $result['values']['display_name'] );
+	}
+
+	/**
 	 * A site needs a name and, if given, a real URL.
 	 */
 	public function test_a_site_needs_a_name_and_a_real_url(): void {

@@ -132,6 +132,30 @@ final class Schema {
 			dbDelta( $sql );
 		}
 
-		update_option( self::OPTION, self::VERSION );
+		// A failed CREATE must not be remembered as a success: that is what
+		// leaves a site marked current and never retrying.
+		if ( self::tables_exist() ) {
+			update_option( self::OPTION, self::VERSION );
+		}
+	}
+
+	/**
+	 * Whether every table this plugin owns is actually present.
+	 *
+	 * @return bool
+	 */
+	private static function tables_exist(): bool {
+		global $wpdb;
+
+		foreach ( array( self::clients_table(), self::sites_table() ) as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for "does this table exist".
+			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+
+			if ( $table !== $found ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

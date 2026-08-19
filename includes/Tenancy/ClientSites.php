@@ -34,9 +34,10 @@ final class ClientSites {
 	 * @param string               $client_id Owning client id.
 	 * @param array<string, mixed> $values    Validated values.
 	 * @param int                  $author    WordPress user id of the author.
-	 * @return array<string, mixed> The stored row.
+	 * @return array<string, mixed>|null The stored row, or null when the insert
+	 *                                   itself failed and nothing was written.
 	 */
-	public static function create( string $client_id, array $values, int $author ): array {
+	public static function create( string $client_id, array $values, int $author ): ?array {
 		global $wpdb;
 
 		$now = bwx_forge_now();
@@ -55,7 +56,11 @@ final class ClientSites {
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
-		$wpdb->insert( Schema::sites_table(), $row );
+		$inserted = $wpdb->insert( Schema::sites_table(), $row );
+
+		if ( ! $inserted ) {
+			return null;
+		}
 
 		return self::hydrate( $row );
 	}

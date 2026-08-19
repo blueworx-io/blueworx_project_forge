@@ -49,7 +49,7 @@ final class Validate {
 
 			if ( '' === $name ) {
 				$errors['display_name'] = 'A client needs a name.';
-			} elseif ( strlen( $name ) > self::MAX_NAME ) {
+			} elseif ( mb_strlen( $name ) > self::MAX_NAME ) {
 				$errors['display_name'] = 'That name is too long.';
 			} else {
 				$values['display_name'] = $name;
@@ -116,7 +116,7 @@ final class Validate {
 
 			if ( '' === $name ) {
 				$errors['name'] = 'A site needs a name.';
-			} elseif ( strlen( $name ) > self::MAX_NAME ) {
+			} elseif ( mb_strlen( $name ) > self::MAX_NAME ) {
 				$errors['name'] = 'That name is too long.';
 			} else {
 				$values['name'] = $name;

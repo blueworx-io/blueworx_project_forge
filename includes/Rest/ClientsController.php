@@ -165,6 +165,14 @@ final class ClientsController {
 
 		$client = Clients::create( $checked['values'], get_current_user_id() );
 
+		if ( null === $client ) {
+			return Errors::rest(
+				'write_failed',
+				__( 'That client could not be saved.', 'blueworx-forge' ),
+				500
+			);
+		}
+
 		$response = array(
 			'ok'     => true,
 			'client' => $client,
@@ -209,7 +217,7 @@ final class ClientsController {
 		}
 
 		$updated = 'inactive' === ( $checked['values']['status'] ?? '' )
-			? Clients::deactivate( $client['id'], (int) $sent )
+			? Clients::deactivate( $client['id'], (int) $sent, $checked['values'] )
 			: Clients::update( $client['id'], $checked['values'], (int) $sent );
 
 		if ( null === $updated ) {

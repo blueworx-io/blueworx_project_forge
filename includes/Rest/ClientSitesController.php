@@ -145,8 +145,21 @@ final class ClientSitesController {
 
 		// A site under no client is not a site: this is checked before anything
 		// else, including the idempotency replay and validation.
-		if ( null === Clients::get( $client_id ) ) {
+		$client = Clients::get( $client_id );
+
+		if ( null === $client ) {
 			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+		}
+
+		// A closed client has no site anybody works on. This is the state
+		// deactivation's cascade exists to produce, so creation must not be able
+		// to undo it from underneath.
+		if ( 'active' !== (string) $client['status'] ) {
+			return Errors::rest(
+				'inactive_client',
+				__( 'That client is inactive; reactivate it before adding a site.', 'blueworx-forge' ),
+				409
+			);
 		}
 
 		$key = (string) $request->get_header( Idempotency::HEADER );
@@ -186,6 +199,14 @@ final class ClientSitesController {
 		}
 
 		$site = ClientSites::create( $client_id, $checked['values'], get_current_user_id() );
+
+		if ( null === $site ) {
+			return Errors::rest(
+				'write_failed',
+				__( 'That site could not be saved.', 'blueworx-forge' ),
+				500
+			);
+		}
 
 		$response = array(
 			'ok'   => true,
@@ -230,9 +251,11 @@ final class ClientSitesController {
 			);
 		}
 
-		$updated = 'inactive' === ( $checked['values']['status'] ?? '' )
-			? ClientSites::deactivate( $site['id'], (int) $sent )
-			: ClientSites::update( $site['id'], $checked['values'], (int) $sent );
+		// Unlike a client's deactivation, a site's has no cascade to trigger —
+		// ClientSites::deactivate() is byte-for-byte what update() already does
+		// with a validated 'status' => 'inactive', so there is one path here,
+		// not two ways of doing the one thing.
+		$updated = ClientSites::update( $site['id'], $checked['values'], (int) $sent );
 
 		if ( null === $updated ) {
 			// The row moved between the check above and the write, or the write

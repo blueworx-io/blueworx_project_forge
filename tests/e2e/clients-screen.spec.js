@@ -36,7 +36,10 @@ async function addClient(page, name) {
 }
 
 async function addSite(page, clientId, name) {
-  await page.fill(`[data-bwx-client="${clientId}"] input[name="name"]`, name);
+  // Scoped to the add-site form specifically: a client with an existing site
+  // also carries that site's edit form, which has its own name="name" input,
+  // and a plain input[name="name"] selector would match both once one exists.
+  await page.fill(`[data-bwx-client="${clientId}"] form[data-bwx-add-site] input[name="name"]`, name);
   await page.click(`[data-bwx-client="${clientId}"] form[data-bwx-add-site] input[type="submit"]`);
   await expect(page.locator(`[data-bwx-site-name]:text-is("${name}")`)).toBeVisible();
 }
@@ -74,7 +77,83 @@ test('deactivating a client hides it and its sites from the default list', async
   ).toContainText('Inactive');
 });
 
-test('the screen is not reachable without the capability', async ({ page }) => {
+test('an administrator can edit a client', async ({ page }) => {
+  await signIn(page);
+  const clientId = await addClient(page, `Edit Ltd ${RUN_ID}`);
+
+  const renamed = `Edit Ltd Renamed ${RUN_ID}`;
+
+  await page.click(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] summary`);
+  await page.fill(`#bwx-edit-client-name-${clientId}`, renamed);
+  await page.fill(`#bwx-edit-client-legal-${clientId}`, 'Edit Ltd Renamed Legal');
+  await page.click(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] input[type="submit"]`);
+
+  await expect(page.locator(`[data-bwx-client-name]:text-is("${renamed}")`)).toBeVisible();
+});
+
+test('a deactivated client can be reactivated from its edit form', async ({ page }) => {
+  await signIn(page);
+  const clientId = await addClient(page, `Reactivate Ltd ${RUN_ID}`);
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.click(`[data-bwx-client="${clientId}"] [data-bwx-deactivate-client]`);
+  await expect(page.locator(`[data-bwx-client="${clientId}"]`)).toHaveCount(0);
+
+  await page.goto(`${SCREEN}&status=all`);
+  await expect(
+    page.locator(`[data-bwx-client="${clientId}"] > [data-bwx-status]`),
+  ).toContainText('Inactive');
+
+  await page.click(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] summary`);
+  await page.selectOption(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] select[name="status"]`, 'active');
+  await page.click(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] input[type="submit"]`);
+
+  await expect(
+    page.locator(`[data-bwx-client="${clientId}"] > [data-bwx-status]`),
+  ).toContainText('Active');
+});
+
+test('the status=all link is reachable from the screen itself', async ({ page }) => {
+  await signIn(page);
   await page.goto(SCREEN);
-  await expect(page.locator('body')).not.toContainText('Add a client');
+
+  await expect(page.locator('[data-bwx-status-toggle="active"]')).toBeVisible();
+  await page.click('[data-bwx-status-toggle="active"]');
+  await expect(page).toHaveURL(/status=all/);
+});
+
+test('the screen is not reachable by a logged-in user without the capability', async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  // The login wall alone proves nothing about the capability check inside the
+  // screen — a logged-out visit is refused before any plugin code runs. This
+  // creates a real, capability-less user and signs in as them instead.
+  const username = `bwx-no-cap-${RUN_ID}`;
+  const password = `pw-${RUN_ID}-x9Q!`;
+
+  await signIn(page);
+  await page.goto('/wp-admin/user-new.php');
+  await page.fill('#user_login', username);
+  await page.fill('#email', `${username}@example.test`);
+  await page.fill('#pass1', password);
+  await page.uncheck('#send_user_notification');
+  // Default role is Subscriber, which carries no manage_options capability.
+  await page.click('#createusersub');
+  await expect(page.locator('#message')).toBeVisible();
+
+  const context = await browser.newContext({ baseURL });
+  const limitedPage = await context.newPage();
+
+  await limitedPage.goto('/wp-login.php');
+  await limitedPage.fill('#user_login', username);
+  await limitedPage.fill('#user_pass', password);
+  await limitedPage.click('#wp-submit');
+  await limitedPage.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+
+  await limitedPage.goto(SCREEN);
+  await expect(limitedPage.locator('body')).not.toContainText('Add a client');
+
+  await context.close();
 });

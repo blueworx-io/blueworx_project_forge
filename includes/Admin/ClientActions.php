@@ -34,6 +34,8 @@ final class ClientActions {
 		add_action( 'admin_post_bwx_forge_add_client_site', array( self::class, 'add_client_site' ) );
 		add_action( 'admin_post_bwx_forge_deactivate_client', array( self::class, 'deactivate_client' ) );
 		add_action( 'admin_post_bwx_forge_deactivate_client_site', array( self::class, 'deactivate_client_site' ) );
+		add_action( 'admin_post_bwx_forge_edit_client', array( self::class, 'edit_client' ) );
+		add_action( 'admin_post_bwx_forge_edit_client_site', array( self::class, 'edit_client_site' ) );
 	}
 
 	/**
@@ -73,9 +75,13 @@ final class ClientActions {
 			self::back( 'unknown' );
 		}
 
+		// The raw value goes to Validate, unescaped: it and the REST route must
+		// refuse the same input for the same reason, and esc_url_raw() rewrites
+		// what is not a URL into one, which would let this door accept what the
+		// API refuses.
 		$input = array(
 			'name' => isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '',
-			'url'  => isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '',
+			'url'  => isset( $_POST['url'] ) ? sanitize_text_field( wp_unslash( $_POST['url'] ) ) : '',
 		);
 
 		$checked = Validate::site( $input, false );
@@ -123,6 +129,76 @@ final class ClientActions {
 		$version = (int) self::field( 'record_version' );
 
 		self::back( null === ClientSites::deactivate( $site_id, $version ) ? 'stale' : 'added' );
+	}
+
+	/**
+	 * Edits a client — every writable field, including status, so this is also
+	 * how an inactive client is set back to active.
+	 */
+	public static function edit_client(): void {
+		$client_id = self::field( 'client_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_edit_client_' . $client_id );
+
+		if ( null === Clients::get( $client_id ) ) {
+			self::back( 'unknown' );
+		}
+
+		$input = array(
+			'display_name'  => isset( $_POST['display_name'] ) ? sanitize_text_field( wp_unslash( $_POST['display_name'] ) ) : '',
+			'legal_name'    => isset( $_POST['legal_name'] ) ? sanitize_text_field( wp_unslash( $_POST['legal_name'] ) ) : '',
+			'timezone'      => isset( $_POST['timezone'] ) ? sanitize_text_field( wp_unslash( $_POST['timezone'] ) ) : '',
+			'email_domains' => isset( $_POST['email_domains'] ) ? sanitize_text_field( wp_unslash( $_POST['email_domains'] ) ) : '',
+			'status'        => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '',
+		);
+
+		$checked = Validate::client( $input, true );
+
+		if ( array() !== $checked['errors'] ) {
+			self::back( 'invalid' );
+		}
+
+		$version = (int) self::field( 'record_version' );
+
+		$updated = 'inactive' === ( $checked['values']['status'] ?? '' )
+			? Clients::deactivate( $client_id, $version, $checked['values'] )
+			: Clients::update( $client_id, $checked['values'], $version );
+
+		self::back( null === $updated ? 'stale' : 'added' );
+	}
+
+	/**
+	 * Edits a client site — every writable field, including status, so this is
+	 * also how an inactive site is set back to active.
+	 */
+	public static function edit_client_site(): void {
+		$site_id = self::field( 'site_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_edit_client_site_' . $site_id );
+
+		if ( null === ClientSites::get( $site_id ) ) {
+			self::back( 'unknown' );
+		}
+
+		// The raw value goes to Validate, unescaped — see the note in
+		// add_client_site() above.
+		$input = array(
+			'name'   => isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '',
+			'url'    => isset( $_POST['url'] ) ? sanitize_text_field( wp_unslash( $_POST['url'] ) ) : '',
+			'status' => isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : '',
+		);
+
+		$checked = Validate::site( $input, true );
+
+		if ( array() !== $checked['errors'] ) {
+			self::back( 'invalid' );
+		}
+
+		$version = (int) self::field( 'record_version' );
+
+		self::back( null === ClientSites::update( $site_id, $checked['values'], $version ) ? 'stale' : 'added' );
 	}
 
 	/**

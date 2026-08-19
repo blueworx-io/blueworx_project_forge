@@ -34,9 +34,10 @@ final class Clients {
 	 *
 	 * @param array<string, mixed> $values Validated values.
 	 * @param int                  $author WordPress user id of the author.
-	 * @return array<string, mixed> The stored row.
+	 * @return array<string, mixed>|null The stored row, or null when the insert
+	 *                                   itself failed and nothing was written.
 	 */
-	public static function create( array $values, int $author ): array {
+	public static function create( array $values, int $author ): ?array {
 		global $wpdb;
 
 		$now = bwx_forge_now();
@@ -56,7 +57,11 @@ final class Clients {
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
-		$wpdb->insert( Schema::clients_table(), $row );
+		$inserted = $wpdb->insert( Schema::clients_table(), $row );
+
+		if ( ! $inserted ) {
+			return null;
+		}
 
 		return self::hydrate( $row );
 	}
@@ -142,12 +147,19 @@ final class Clients {
 	/**
 	 * Deactivates a client, and every site under it.
 	 *
-	 * @param string $id           Client id.
-	 * @param int    $sent_version Version the change was made against.
+	 * Any other validated field on the same request rides along with the
+	 * status change: a PATCH that deactivates is still a write of everything
+	 * else it named, not a write of the status column alone.
+	 *
+	 * @param string               $id           Client id.
+	 * @param int                  $sent_version Version the change was made against.
+	 * @param array<string, mixed> $values       The rest of the validated values.
 	 * @return array<string, mixed>|null Null when the version did not match.
 	 */
-	public static function deactivate( string $id, int $sent_version ): ?array {
-		$client = self::update( $id, array( 'status' => 'inactive' ), $sent_version );
+	public static function deactivate( string $id, int $sent_version, array $values = array() ): ?array {
+		$values['status'] = 'inactive';
+
+		$client = self::update( $id, $values, $sent_version );
 
 		if ( null === $client ) {
 			return null;

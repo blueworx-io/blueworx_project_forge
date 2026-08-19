@@ -42,6 +42,16 @@ async function createClient(request, nonce, name) {
   return (await response.json()).client;
 }
 
+async function createSite(request, nonce, clientId, name) {
+  const response = await request.post(`/wp-json/blueworx-forge/v1/clients/${clientId}/sites`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { name, url: 'https://example.test' },
+  });
+
+  expect(response.status()).toBe(200);
+  return (await response.json()).site;
+}
+
 test('a stranger cannot list or create clients', async ({ request }) => {
   expect([401, 403]).toContain((await request.get('/wp-json/blueworx-forge/v1/clients')).status());
 
@@ -168,6 +178,124 @@ test('an idempotency key is scoped per client, not shared across them', async ({
   expect(siteA.id).not.toEqual(siteB.id);
   expect(siteA.client_id).toBe(clientA.id);
   expect(siteB.client_id).toBe(clientB.id);
+
+  await context.close();
+});
+
+test('PATCH /clients/{id} that deactivates also saves the rest of the request', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Closing Fields Ltd ${RUN_ID}`);
+
+  const response = await context.request.patch(`/wp-json/blueworx-forge/v1/clients/${client.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'inactive', display_name: 'Closing Fields (closed)', record_version: client.record_version },
+  });
+
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  // Every field the request named is saved, not only the status column: a
+  // PATCH that deactivates is still a write of everything else it carried.
+  expect(body.client.status).toBe('inactive');
+  expect(body.client.display_name).toBe('Closing Fields (closed)');
+
+  await context.close();
+});
+
+test('PATCH /client-sites/{id} edits a site', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Site Edit Ltd ${RUN_ID}`);
+  const site = await createSite(context.request, nonce, client.id, 'Site Edit Main');
+
+  const response = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { name: 'Site Edit Main — renamed', record_version: site.record_version },
+  });
+
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  expect(body.site.name).toBe('Site Edit Main — renamed');
+  expect(body.site.record_version).toBe(site.record_version + 1);
+
+  await context.close();
+});
+
+test('PATCH /client-sites/{id} against a stale version is refused, not merged', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Site Stale Ltd ${RUN_ID}`);
+  const site = await createSite(context.request, nonce, client.id, 'Site Stale Main');
+
+  const first = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { name: 'Renamed once', record_version: site.record_version },
+  });
+  expect(first.status()).toBe(200);
+
+  const second = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { name: 'Renamed twice', record_version: site.record_version },
+  });
+  expect(second.status()).toBe(409);
+
+  const body = await second.json();
+  expect(body.code).toBe('bwx_forge_stale_write');
+  expect(body.data.current.name).toBe('Renamed once');
+
+  await context.close();
+});
+
+test('PATCH /client-sites/{id} with no version at all is refused', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Site Versionless Ltd ${RUN_ID}`);
+  const site = await createSite(context.request, nonce, client.id, 'Site Versionless Main');
+
+  const response = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { name: 'No version' },
+  });
+
+  expect(response.status()).toBe(400);
+  expect((await response.json()).code).toBe('bwx_forge_missing_version');
+
+  await context.close();
+});
+
+test('PATCH /client-sites/{id} that deactivates also saves the rest of the request', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Site Deactivate Ltd ${RUN_ID}`);
+  const site = await createSite(context.request, nonce, client.id, 'Site Deactivate Main');
+
+  const response = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'inactive', name: 'Closed Main', record_version: site.record_version },
+  });
+
+  expect(response.status()).toBe(200);
+  const body = await response.json();
+  // Every field the request named is saved, not only the status column: a
+  // PATCH that deactivates is still a write of everything else it carried.
+  expect(body.site.status).toBe('inactive');
+  expect(body.site.name).toBe('Closed Main');
+
+  await context.close();
+});
+
+test('a site cannot be created under an inactive client', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Closed Client Ltd ${RUN_ID}`);
+
+  const closed = await context.request.patch(`/wp-json/blueworx-forge/v1/clients/${client.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'inactive', record_version: client.record_version },
+  });
+  expect(closed.status()).toBe(200);
+
+  const response = await context.request.post(`/wp-json/blueworx-forge/v1/clients/${client.id}/sites`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { name: 'Should not exist' },
+  });
+
+  expect(response.status()).toBe(409);
+  expect((await response.json()).code).toBe('bwx_forge_inactive_client');
 
   await context.close();
 });

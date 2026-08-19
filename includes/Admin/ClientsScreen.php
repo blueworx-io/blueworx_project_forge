@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Validate;
 
 /**
  * Adding a client, and the sites beneath it, in the browser.
@@ -61,14 +62,48 @@ final class ClientsScreen {
 			return;
 		}
 
+		$status = self::status_filter();
+
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Forge — clients', 'blueworx-forge' ) . '</h1>';
 
 		self::notice();
-		self::clients_list();
+		self::status_toggle_link( $status );
+		self::clients_list( $status );
 		self::add_client_form();
 
 		echo '</div>';
+	}
+
+	/**
+	 * The status filter in effect, from the URL.
+	 *
+	 * @return string 'active' or 'all'.
+	 */
+	private static function status_filter(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reads a filter, changes nothing.
+		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : 'active';
+
+		return 'all' === $status ? 'all' : 'active';
+	}
+
+	/**
+	 * A link toggling between the default active-only view and every record,
+	 * including inactive ones — otherwise a deactivated client is unreachable
+	 * from this screen.
+	 *
+	 * @param string $status The status filter in effect.
+	 */
+	private static function status_toggle_link( string $status ): void {
+		if ( 'all' === $status ) {
+			$url   = admin_url( 'admin.php?page=' . self::SLUG );
+			$label = __( 'Show active only', 'blueworx-forge' );
+		} else {
+			$url   = add_query_arg( 'status', 'all', admin_url( 'admin.php?page=' . self::SLUG ) );
+			$label = __( 'Show all, including inactive', 'blueworx-forge' );
+		}
+
+		echo '<p><a href="' . esc_url( $url ) . '" data-bwx-status-toggle="' . esc_attr( $status ) . '">' . esc_html( $label ) . '</a></p>';
 	}
 
 	/**
@@ -101,12 +136,10 @@ final class ClientsScreen {
 
 	/**
 	 * The clients, filtered by status, each with its sites.
+	 *
+	 * @param string $status The status filter in effect.
 	 */
-	private static function clients_list(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reads a filter, changes nothing.
-		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : 'active';
-		$status = 'all' === $status ? 'all' : 'active';
-
+	private static function clients_list( string $status ): void {
 		$clients = Clients::all( 'all' === $status ? null : 'active' );
 
 		if ( array() === $clients ) {
@@ -142,6 +175,8 @@ final class ClientsScreen {
 
 		self::deactivate_client_form( $client );
 
+		self::edit_client_form( $client );
+
 		self::sites_list( $client_id, $status );
 		self::add_site_form( $client_id );
 
@@ -173,6 +208,8 @@ final class ClientsScreen {
 			echo '<span data-bwx-status>' . esc_html( $site_label ) . '</span> ';
 
 			self::deactivate_site_form( $site );
+
+			self::edit_site_form( $site );
 
 			echo '</li>';
 		}
@@ -270,5 +307,87 @@ final class ClientsScreen {
 		echo esc_html__( 'Deactivate', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
+	}
+
+	/**
+	 * The form that edits a client — every writable field, including status, so
+	 * this is also how an inactive client is set back to active.
+	 *
+	 * @param array<string, mixed> $client The client row.
+	 */
+	private static function edit_client_form( array $client ): void {
+		$client_id = (string) $client['id'];
+
+		echo '<details data-bwx-edit-client="' . esc_attr( $client_id ) . '">';
+		echo '<summary>' . esc_html__( 'Edit', 'blueworx-forge' ) . '</summary>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_edit_client_' . $client_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_edit_client">';
+		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
+		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $client['record_version'] ) . '">';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th scope="row"><label for="bwx-edit-client-name-' . esc_attr( $client_id ) . '">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label></th>';
+		echo '<td><input type="text" id="bwx-edit-client-name-' . esc_attr( $client_id ) . '" name="display_name" class="regular-text" value="' . esc_attr( (string) $client['display_name'] ) . '" required></td></tr>';
+
+		echo '<tr><th scope="row"><label for="bwx-edit-client-legal-' . esc_attr( $client_id ) . '">' . esc_html__( 'Legal name', 'blueworx-forge' ) . '</label></th>';
+		echo '<td><input type="text" id="bwx-edit-client-legal-' . esc_attr( $client_id ) . '" name="legal_name" class="regular-text" value="' . esc_attr( (string) $client['legal_name'] ) . '"></td></tr>';
+
+		echo '<tr><th scope="row"><label for="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '">' . esc_html__( 'Timezone', 'blueworx-forge' ) . '</label></th>';
+		echo '<td><select id="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '" name="timezone">';
+
+		foreach ( timezone_identifiers_list() as $timezone ) {
+			echo '<option value="' . esc_attr( $timezone ) . '"' . selected( (string) $client['timezone'], $timezone, false ) . '>' . esc_html( $timezone ) . '</option>';
+		}
+
+		echo '</select></td></tr>';
+
+		echo '<tr><th scope="row"><label for="bwx-edit-client-domains-' . esc_attr( $client_id ) . '">' . esc_html__( 'Permitted email domains', 'blueworx-forge' ) . '</label></th>';
+		echo '<td><input type="text" id="bwx-edit-client-domains-' . esc_attr( $client_id ) . '" name="email_domains" class="regular-text" value="' . esc_attr( implode( ', ', (array) $client['email_domains'] ) ) . '"></td></tr>';
+
+		echo '<tr><th scope="row"><label for="bwx-edit-client-status-' . esc_attr( $client_id ) . '">' . esc_html__( 'Status', 'blueworx-forge' ) . '</label></th>';
+		echo '<td><select id="bwx-edit-client-status-' . esc_attr( $client_id ) . '" name="status">';
+
+		foreach ( Validate::STATUSES as $status_option ) {
+			echo '<option value="' . esc_attr( $status_option ) . '"' . selected( (string) $client['status'], $status_option, false ) . '>' . esc_html( ucfirst( $status_option ) ) . '</option>';
+		}
+
+		echo '</select></td></tr>';
+
+		echo '</tbody></table>';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</form>';
+		echo '</details>';
+	}
+
+	/**
+	 * The form that edits a client site — every writable field, including
+	 * status, so this is also how an inactive site is set back to active.
+	 *
+	 * @param array<string, mixed> $site The site row.
+	 */
+	private static function edit_site_form( array $site ): void {
+		$site_id = (string) $site['id'];
+
+		echo '<details data-bwx-edit-site="' . esc_attr( $site_id ) . '">';
+		echo '<summary>' . esc_html__( 'Edit', 'blueworx-forge' ) . '</summary>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_edit_client_site_' . $site_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_edit_client_site">';
+		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
+		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $site['record_version'] ) . '">';
+
+		echo '<input type="text" name="name" value="' . esc_attr( (string) $site['name'] ) . '" required>';
+		echo '<input type="url" name="url" value="' . esc_attr( (string) $site['url'] ) . '">';
+		echo '<select name="status">';
+
+		foreach ( Validate::STATUSES as $status_option ) {
+			echo '<option value="' . esc_attr( $status_option ) . '"' . selected( (string) $site['status'], $status_option, false ) . '>' . esc_html( ucfirst( $status_option ) ) . '</option>';
+		}
+
+		echo '</select>';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</form>';
+		echo '</details>';
 	}
 }
