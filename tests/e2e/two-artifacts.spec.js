@@ -32,7 +32,7 @@ test('the client plugin is installed alongside the studio one', async ({ page })
 
   await expect(page.locator('tr[data-slug="blueworx-forge"], tr#blueworx-forge')).toHaveCount(1);
   await expect(clientRow(page)).toHaveCount(1);
-  await expect(clientRow(page)).toContainText('Blueworx Forge Client');
+  await expect(clientRow(page)).toContainText('BlueWorx Labs | Forge Client Site');
 });
 
 test('the client plugin activates on its own, with no PHP error', async ({ page }) => {

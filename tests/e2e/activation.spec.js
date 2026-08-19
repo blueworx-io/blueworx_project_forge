@@ -27,7 +27,7 @@ test('the plugin is installed and active', async ({ page }) => {
 
   const row = page.locator('tr[data-slug="blueworx-forge"], tr#blueworx-forge');
   await expect(row).toHaveCount(1);
-  await expect(row).toContainText('Blueworx Forge');
+  await expect(row).toContainText('BlueWorx Labs | Forge Parent Site');
   // Word-boundary match is load-bearing: WordPress renders an inactive row with
   // class="inactive", and the substring "active" inside "inactive" would match
   // /active/ regardless of activation state.
