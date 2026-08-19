@@ -15,6 +15,11 @@ jobs:
         /design
         /client
         /playwright-report.json
+        # The pair suite's config. The foundation's own excludes list covers
+        # playwright.config.js but knows nothing about a second one, so without
+        # this line it shipped to live sites in v2.8.0.
+        /playwright.pair.config.js
+        /playwright-pair-report.json
         /index.html
         /vite.config.*
         /tsconfig.json

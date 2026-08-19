@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.8.1] - 2026-08-19
+
+### Fixed
+
+- The studio plugin no longer ships a test configuration file to live sites.
+  It reached the 2.8.0 release because the two workflows that decide what ships
+  had drifted apart; a check now fails if they ever disagree again.
+
 ## [2.8.0] - 2026-08-18
 
 ### Added
