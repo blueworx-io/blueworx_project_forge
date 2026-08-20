@@ -281,10 +281,13 @@ test.describe('tenant isolation', () => {
     });
     expect(ended.status(), await ended.text()).toBe(200);
 
-    // Access is gone.
+    // Access is gone, and they are told so rather than shown an empty list —
+    // "nothing here" and "not yours" mean different things (#125).
     const after = await signedIn(browser, baseURL, leaver.login, PASSWORD);
-    const listed = await after.api.get('/client-sites');
-    expect(listed.sites).toHaveLength(0);
+    const listed = await after.api.request.get('/wp-json/blueworx-forge/v1/client-sites', {
+      headers: after.api.headers,
+    });
+    expect(listed.status()).toBe(403);
     await after.context.close();
 
     // The work they did is still there, still attributed to them.

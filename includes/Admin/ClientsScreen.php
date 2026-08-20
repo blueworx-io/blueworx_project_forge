@@ -68,6 +68,21 @@ final class ClientsScreen {
 	private static array $integrations = array();
 
 	/**
+	 * The current contact for each client. Read once per render.
+	 *
+	 * @var array<string, array<string, mixed>>
+	 */
+	private static array $contacts = array();
+
+	/**
+	 * Every person by id, including offboarded ones, so a contact who has left
+	 * can still be named. Read once per render.
+	 *
+	 * @var array<string, array<string, mixed>>
+	 */
+	private static array $everyone = array();
+
+	/**
 	 * Adds the menu entry, beneath the Forge menu the sites screen creates.
 	 */
 	public static function register(): void {
@@ -237,8 +252,15 @@ final class ClientsScreen {
 		self::$memberships  = Memberships::by_client( 'all' === $status ? null : 'active' );
 		self::$integrations = Integrations::all();
 
+		// The current contact for every client, in one query. Asked per client
+		// this cost a query a row — twice, with the person's record — and it was
+		// found the same way the note above was: a test ran out of patience.
+		self::$contacts = Contacts::current_by_client();
+		self::$everyone = array();
+
 		foreach ( Users::all( null ) as $person ) {
 			self::$people_by_id[ (string) $person['id'] ] = (string) $person['display_name'];
+			self::$everyone[ (string) $person['id'] ]     = $person;
 		}
 
 		echo '<ul data-bwx-clients="1">';
@@ -377,10 +399,10 @@ final class ClientsScreen {
 	 */
 	private static function contact( array $client ): void {
 		$client_id  = (string) $client['id'];
-		$assignment = Contacts::current( $client_id );
+		$assignment = self::$contacts[ $client_id ] ?? null;
 		$person     = null === $assignment || '' === (string) $assignment['user_id']
 			? null
-			: Users::get( (string) $assignment['user_id'] );
+			: ( self::$everyone[ (string) $assignment['user_id'] ] ?? null );
 
 		$state = Contacts::resolve( $assignment, $person );
 

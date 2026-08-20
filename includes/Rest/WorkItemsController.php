@@ -17,6 +17,7 @@ use Blueworx\Forge\Work\Dependencies;
 use Blueworx\Forge\Work\Derived;
 use Blueworx\Forge\Work\Events;
 use Blueworx\Forge\Work\Fields;
+use Blueworx\Forge\Work\Filters;
 use Blueworx\Forge\Work\GateRecords;
 use Blueworx\Forge\Work\Gates;
 use Blueworx\Forge\Work\Items;
@@ -87,15 +88,22 @@ final class WorkItemsController {
 					'param'  => 'client_site_id',
 					'record' => 'client_site',
 				),
+				/*
+				 * Only the site is declared. The filters are not, deliberately:
+				 * they are a closed list decided by Work\Filters, and declaring
+				 * each one here would be a second list of what a filter may be
+				 * — kept in a different file, and wrong the first time somebody
+				 * changes one of them.
+				 *
+				 * Nothing reaches a query unchecked as a result. Anything
+				 * Work\Filters does not recognise, by name or by value, is
+				 * dropped rather than applied.
+				 */
 				'args'                => array(
 					'client_site_id' => array(
 						'type'     => 'string',
 						'required' => true,
 					),
-					'stage'          => array( 'type' => 'string' ),
-					'level'          => array( 'type' => 'string' ),
-					'work_type'      => array( 'type' => 'string' ),
-					'parent_id'      => array( 'type' => 'string' ),
 				),
 			)
 		);
@@ -345,26 +353,62 @@ final class WorkItemsController {
 			return Boundary::absent( 'client_site' );
 		}
 
-		$filters = array();
+		$narrow = array();
 
+		/*
+		 * The four the query itself can narrow on, kept as query narrowing
+		 * rather than folded into the filter model: reading a site's whole
+		 * history into memory to throw most of it away is not the same as asking
+		 * for less. Everything else is decided by Work\Filters, over what comes
+		 * back.
+		 */
 		foreach ( array( 'stage', 'level', 'work_type', 'parent_id' ) as $filter ) {
-			if ( $request->has_param( $filter ) ) {
-				$filters[ $filter ] = (string) $request->get_param( $filter );
+			$value = $request->get_param( $filter );
+
+			if ( is_string( $value ) && '' !== $value ) {
+				$narrow[ $filter ] = $value;
 			}
 		}
 
 		// Archived work is out of the default view and in every report (#111),
 		// so a caller has to ask for it by name.
 		if ( $request->has_param( 'include_archived' ) ) {
-			$filters['include_archived'] = rest_sanitize_boolean( $request->get_param( 'include_archived' ) );
+			$narrow['include_archived'] = rest_sanitize_boolean( $request->get_param( 'include_archived' ) );
 		}
 
-		return rest_ensure_response(
-			array(
-				'ok'    => true,
-				'items' => self::derive_across( (string) $site['id'], Items::for_site( $site['id'], $filters ) ),
-			)
+		/*
+		 * #123. One filter model, applied here, so that every view is rendering
+		 * one answer. A view that filtered the list it was handed would be a
+		 * second thing deciding what a filter means, and #124 exists because
+		 * two of those disagree.
+		 */
+		$filters = Filters::sanitise( (array) $request->get_params() );
+		$items   = Filters::apply(
+			self::derive_across( (string) $site['id'], Items::for_site( $site['id'], $narrow ) ),
+			$filters
 		);
+
+		$grouping = Filters::grouping( (string) $request->get_param( 'group_by' ) );
+
+		$answer = array(
+			'ok'      => true,
+			'items'   => $items,
+
+			// Counted from the same array the items came out of, so a total and
+			// a list cannot disagree even in principle.
+			'total'   => count( $items ),
+
+			// Echoed back, so a screen can show what it is actually filtering by
+			// rather than what it thinks it asked for.
+			'filters' => $filters,
+		);
+
+		if ( '' !== $grouping ) {
+			$answer['grouping'] = $grouping;
+			$answer['groups']   = Filters::group( $items, $grouping );
+		}
+
+		return rest_ensure_response( $answer );
 	}
 
 	/**

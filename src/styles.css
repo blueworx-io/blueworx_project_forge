@@ -140,6 +140,114 @@ body {
   border-radius: 6px;
 }
 
+/* ---- Filters and views ---- */
+
+.bwx-views {
+  display: flex;
+  gap: 0;
+}
+
+/* Two halves of one control rather than two buttons that happen to be next to
+   each other: the seam between them is what says they are alternatives. */
+.bwx-views .bwx-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.bwx-views .bwx-button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+
+.bwx-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var( --color-snow );
+  border-bottom: 1px solid var( --color-chalk );
+  flex-wrap: wrap;
+}
+
+/* The search box takes the room that is going, and stops before it becomes the
+   widest thing on a wide screen. */
+.bwx-filters .bwx-input {
+  flex: 1 1 220px;
+  max-width: 420px;
+}
+
+/* ---- List ---- */
+
+.bwx-list {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+.bwx-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+
+.bwx-table th {
+  text-align: left;
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+  padding: 0 12px 4px;
+}
+
+.bwx-row {
+  background: var( --color-snow );
+}
+
+.bwx-row td {
+  padding: 10px 12px;
+  border-top: 1px solid var( --color-chalk );
+  border-bottom: 1px solid var( --color-chalk );
+  vertical-align: top;
+}
+
+/* The same rail the cards carry, so the two views read as two views of one
+   thing rather than as two screens. */
+.bwx-row td:first-child {
+  border-left: 3px solid var( --row-rail, var( --color-chalk ) );
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.bwx-row td:last-child {
+  border-right: 1px solid var( --color-chalk );
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.bwx-row-open {
+  font: inherit;
+  font-weight: var( --font-weight-label );
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bwx-row-open:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-list-empty {
+  color: var( --color-fog );
+  font-size: var( --text-small );
+  padding: 12px 2px;
+}
+
 /* ---- Board ---- */
 
 .bwx-board {

@@ -253,10 +253,15 @@ test('an item moves one stage at a time, and the move is recorded', async ({ bro
     })
   ).json();
 
-  expect(shown.history).toHaveLength(2);
-  expect(shown.history[1].from_stage).toBe('future-idea');
-  expect(shown.history[1].to_stage).toBe('triage');
-  expect(shown.history[1].gate).toBe('G-FUTURE-IDEA');
+  // Found rather than counted. Since #99 the history also carries an entry for
+  // every field somebody filled in on the way, so an index into it says more
+  // about how the gate was satisfied than about the move being recorded.
+  const moves = shown.history.filter((event) => 'moved' === event.action);
+
+  expect(moves).toHaveLength(1);
+  expect(moves[0].from_stage).toBe('future-idea');
+  expect(moves[0].to_stage).toBe('triage');
+  expect(moves[0].gate).toBe('G-FUTURE-IDEA');
 
   await context.close();
 });
@@ -570,7 +575,12 @@ test('an item walks the whole path to Released', async ({ browser, baseURL }) =>
   const shown = await me.api.get(`/work-items/${released.id}`);
 
   expect(shown.available).toEqual([]);
-  expect(shown.history).toHaveLength(path.length + 1);
+
+  // One move per stage, plus the creation. Counted by action rather than by the
+  // length of the history, which since #99 also holds an entry for every field
+  // filled in on the way.
+  expect(shown.history.filter((event) => 'moved' === event.action)).toHaveLength(path.length);
+  expect(shown.history.filter((event) => 'created' === event.action)).toHaveLength(1);
 
   await crew.close();
   await me.context.close();

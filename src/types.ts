@@ -50,7 +50,50 @@ export interface WorkItem {
   commercial_class: string;
   record_version: number;
   updated_at: number;
+
+  /*
+   * What the children beneath it make it (#101). Filled in by the API on the
+   * way out and never stored, so there is nothing here anybody can write —
+   * which is why these are optional: an item read from a response that predates
+   * them has none, and a screen has to cope with that rather than show 0%.
+   */
+  progress?: number;
+  derived_state?: 'empty' | 'not-started' | 'in-progress' | 'completed';
+  derived_start?: string;
+  derived_due?: string;
 }
+
+/**
+ * A filter set, in the shape the API takes it.
+ *
+ * Set-valued filters take a list because "triage or up next" is one question
+ * rather than two views; the free ones take a single value.
+ */
+export interface WorkFilters {
+  stage?: string[];
+  level?: string[];
+  work_type?: string[];
+  priority?: string[];
+  commercial_class?: string[];
+  person?: string[];
+  parent_id?: string[];
+  search?: string;
+  due_from?: string;
+  due_to?: string;
+  start_from?: string;
+  start_to?: string;
+}
+
+/** Somebody's own shortcut to a way of looking at the work (#123). */
+export interface SavedView {
+  id: string;
+  name: string;
+  filters: WorkFilters;
+  grouping: string;
+}
+
+/** Which view of the work is on screen. */
+export type ViewName = 'board' | 'list';
 
 /** One thing that has to be true before work leaves a stage. */
 export interface Requirement {

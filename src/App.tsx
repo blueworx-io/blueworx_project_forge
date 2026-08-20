@@ -1,10 +1,38 @@
 import { useEffect, useState } from 'react';
-import type { ClientSite, Requirement, Stage, WorkItem } from './types';
+import type { ClientSite, Requirement, SavedView, Stage, ViewName, WorkFilters, WorkItem } from './types';
 import { api, GateError, forgeData, isConnected, isDenied, messageFor } from './api';
 import { Board } from './components/Board';
+import { Filters } from './components/Filters';
 import { ItemPanel } from './components/ItemPanel';
+import { ListView } from './components/ListView';
 import { NewWork } from './components/NewWork';
 import { Screen } from './components/States';
+
+/**
+ * A filter set as query parameters.
+ *
+ * Built here rather than by each caller, because the API is strict about the
+ * shape: a set-valued filter arrives as repeated `name[]` parameters, and one
+ * built the other way is silently dropped rather than refused.
+ */
+function asQuery( filters: WorkFilters ): string {
+  const parts: string[] = [];
+
+  for ( const [ name, value ] of Object.entries( filters ) ) {
+    if ( Array.isArray( value ) ) {
+      for ( const one of value ) {
+        parts.push( `${ encodeURIComponent( name ) }[]=${ encodeURIComponent( one ) }` );
+      }
+      continue;
+    }
+
+    if ( undefined !== value && '' !== value ) {
+      parts.push( `${ encodeURIComponent( name ) }=${ encodeURIComponent( String( value ) ) }` );
+    }
+  }
+
+  return 0 === parts.length ? '' : `&${ parts.join( '&' ) }`;
+}
 
 interface Site extends ClientSite {
   client_name: string;
@@ -36,6 +64,17 @@ export function App() {
   const [ adding, setAdding ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
+
+  /*
+   * The filter set and the view are separate pieces of state on purpose (#123).
+   * Filters belong to the shell rather than to either view, so switching views
+   * keeps what somebody was looking at — a filter that belongs to a view has to
+   * be set again on every switch, and two filters that drift apart are how two
+   * views come to show different totals.
+   */
+  const [ view, setView ] = useState< ViewName >( 'board' );
+  const [ filters, setFilters ] = useState< WorkFilters >( {} );
+  const [ savedViews, setSavedViews ] = useState< SavedView[] >( [] );
   /*
    * Both start as loading rather than being set to it once an effect runs.
    * Running outside WordPress is known before the first render — it is a
@@ -47,15 +86,21 @@ export function App() {
 
   async function loadShell() {
     try {
-      const [ stageList, siteList ] = await Promise.all( [
+      const [ stageList, siteList, viewList ] = await Promise.all( [
         api< { stages: Stage[]; columns: string[] } >( '/stages' ),
         api< { sites: Site[] } >( '/client-sites' ),
+
+        // A person with no saved views is the ordinary case, and a failure to
+        // read them must not stop the board loading — so this one is allowed to
+        // come back empty rather than throwing the whole shell away.
+        api< { views: SavedView[] } >( '/saved-views' ).catch( () => ( { views: [] } ) ),
       ] );
 
       setStages( stageList.stages );
       setColumns( stageList.columns );
       setSites( siteList.sites );
       setSiteId( siteList.sites[ 0 ]?.id ?? '' );
+      setSavedViews( viewList.views );
       setShell( 'ready' );
     } catch ( error ) {
       setShell( isDenied( error ) ? 'denied' : 'error' );
@@ -72,10 +117,16 @@ export function App() {
     }
   }, [] );
 
-  async function loadItems( id: string ) {
+  async function loadItems( id: string, applied: WorkFilters = filters ) {
     try {
+      /*
+       * The filters go to the server rather than being applied here. That is
+       * what makes #124 true rather than checked: both views render whatever
+       * one answer contains, so there is no second place that could decide what
+       * a filter means and disagree.
+       */
       const loaded = await api< { items: WorkItem[] } >(
-        `/work-items?client_site_id=${ encodeURIComponent( id ) }`
+        `/work-items?client_site_id=${ encodeURIComponent( id ) }${ asQuery( applied ) }`
       );
       setItems( loaded.items );
       setBoard( 'ready' );
@@ -86,17 +137,50 @@ export function App() {
   }
 
   /*
-   * The board reloads when the shell arrives and whenever the site changes.
-   * Showing the loading state is the *caller's* job — the initial value covers
-   * the first read, and the site picker sets it when somebody switches — so
-   * this fetches and nothing else.
+   * The work reloads when the shell arrives, when the site changes, and when
+   * the filters change. Showing the loading state is the *caller's* job — the
+   * initial value covers the first read, and the site picker sets it when
+   * somebody switches — so this fetches and nothing else.
+   *
+   * The filter set is compared as JSON rather than by reference: it is rebuilt
+   * on every keystroke in the search box, and a reference comparison would
+   * refetch on each one whether or not anything had actually changed.
    */
+  const filterKey = JSON.stringify( filters );
+
   useEffect( () => {
     if ( 'ready' === shell && '' !== siteId ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadItems( siteId );
     }
-  }, [ siteId, shell ] );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ siteId, shell, filterKey ] );
+
+  /** Saves the filter set on screen as a view of its own. */
+  async function saveView( name: string ) {
+    try {
+      const saved = await api< { view: SavedView } >( '/saved-views', {
+        method: 'POST',
+        body: { name, filters, grouping: '' },
+      } );
+
+      setSavedViews( [ ...savedViews, saved.view ] );
+      setNotice( `Saved “${ saved.view.name }”.` );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That view could not be saved.' ) );
+    }
+  }
+
+  /** Forgets one. */
+  async function removeView( view: SavedView ) {
+    try {
+      const left = await api< { views: SavedView[] } >( `/saved-views/${ view.id }`, { method: 'DELETE' } );
+
+      setSavedViews( left.views );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That view could not be removed.' ) );
+    }
+  }
 
   async function move( itemId: string, to: string ) {
     const item = items.find( ( candidate ) => candidate.id === itemId );
@@ -196,6 +280,35 @@ export function App() {
 
         <span className="bwx-header-spacer" />
 
+        { /*
+           * The view switch, in the shell rather than in either view (#117).
+           * Every later view mounts here and brings no chrome of its own: the
+           * header, the filters and the states above are the frame, and a view
+           * is only what goes inside it.
+           */ }
+        <div className="bwx-views" role="group" aria-label="View">
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'board' === view ? undefined : 'quiet' }
+            data-testid="bwx-view-board"
+            aria-pressed={ 'board' === view }
+            onClick={ () => setView( 'board' ) }
+          >
+            Board
+          </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'list' === view ? undefined : 'quiet' }
+            data-testid="bwx-view-list"
+            aria-pressed={ 'list' === view }
+            onClick={ () => setView( 'list' ) }
+          >
+            List
+          </button>
+        </div>
+
         <span className="bwx-mono">{ items.length } { 1 === items.length ? 'item' : 'items' }</span>
 
         <button
@@ -208,6 +321,28 @@ export function App() {
           Add work
         </button>
       </header>
+
+      { /*
+         One filter bar, above both views rather than inside either (#123).
+         Only once there is something to filter: a bar over an empty screen is
+         chrome asking a question nobody has.
+       */ }
+      { 'ready' === shell && 0 < sites.length && (
+        <Filters
+          filters={ filters }
+          views={ savedViews }
+          onChange={ ( next ) => {
+            setBoard( 'loading' );
+            setFilters( next );
+          } }
+          onSave={ ( name ) => void saveView( name ) }
+          onOpenView={ ( saved ) => {
+            setBoard( 'loading' );
+            setFilters( saved.filters ?? {} );
+          } }
+          onRemoveView={ ( saved ) => void removeView( saved ) }
+        />
+      ) }
 
       { '' !== notice && (
         <p className="bwx-notice" data-testid="bwx-notice" role="status" style={ { margin: '12px 20px 0' } }>
@@ -318,13 +453,19 @@ export function App() {
             />
           ) }
 
-          <Board
-            stages={ stages }
-            columns={ columns }
-            items={ items }
-            onOpen={ ( item ) => setOpenId( item.id ) }
-            onMove={ ( itemId, to ) => void move( itemId, to ) }
-          />
+          { 'board' === view && (
+            <Board
+              stages={ stages }
+              columns={ columns }
+              items={ items }
+              onOpen={ ( item ) => setOpenId( item.id ) }
+              onMove={ ( itemId, to ) => void move( itemId, to ) }
+            />
+          ) }
+
+          { 'list' === view && (
+            <ListView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+          ) }
 
           { /*
              Blocked work is not a column — it is work that left one and kept its

@@ -10,7 +10,6 @@ declare( strict_types = 1 );
 use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\Events;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * #99. Every material change recorded in a way nobody can edit or delete.

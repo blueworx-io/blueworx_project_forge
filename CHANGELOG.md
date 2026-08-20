@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.19.0] - 2026-08-21
+
+### Added
+
+- A list view of the same work, alongside the board. It shows the columns a
+  card cannot fit: when work starts, when it is due, and how far a parent's
+  children have got.
+- One filter bar above both views. Switching between them keeps what you were
+  looking at, and the two can never show different totals for the same filters
+  because they are two renderings of one answer.
+- Saved views. Name the way you like to look at things and come back to it. A
+  saved view can only change what is shown — never what you are allowed to do —
+  and yours are not visible to anyone else.
+
 ## [2.18.0] - 2026-08-20
 
 ### Added

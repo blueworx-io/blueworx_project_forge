@@ -139,6 +139,41 @@ final class Contacts {
 	}
 
 	/**
+	 * The current assignment for every client, in one query.
+	 *
+	 * For the clients screen, which shows every client at once. Asked per client
+	 * this is a query a row, and the screen already reads people and connections
+	 * once for the whole page for exactly that reason — a studio with eighty
+	 * clients feels the difference immediately, and this was found by making it
+	 * slow enough to time a test out.
+	 *
+	 * The latest row per client is picked here rather than in SQL: "the greatest
+	 * started_at per group" is a correlated subquery or a window function, and
+	 * neither is worth it against a table with one row per contact change.
+	 *
+	 * @return array<string, array<string, mixed>> Client id to its current assignment.
+	 */
+	public static function current_by_client(): array {
+		global $wpdb;
+
+		$table = Schema::contacts_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; no user input in this query.
+		$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY started_at ASC, id ASC", ARRAY_A );
+
+		$current = array();
+
+		// Ascending order, so the last row seen for a client is its latest.
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$record = self::hydrate( $row );
+
+			$current[ $record['client_id'] ] = $record;
+		}
+
+		return $current;
+	}
+
+	/**
 	 * Every assignment a client has had, newest first.
 	 *
 	 * @param string $client_id Client.

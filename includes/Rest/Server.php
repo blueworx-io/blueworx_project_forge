@@ -85,5 +85,6 @@ final class Server {
 		MembershipsController::register_routes( self::NAMESPACE );
 		WorkItemsController::register_routes( self::NAMESPACE );
 		CommentsController::register_routes( self::NAMESPACE );
+		SavedViewsController::register_routes( self::NAMESPACE );
 	}
 }
