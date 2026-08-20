@@ -53,6 +53,7 @@ final class Users {
 			'email'          => (string) ( $values['email'] ?? '' ),
 			'display_name'   => (string) ( $values['display_name'] ?? '' ),
 			'status'         => (string) ( $values['status'] ?? 'active' ),
+			'grants'         => Grants::format( (array) ( $values['grants'] ?? array() ) ),
 			'wp_user_id'     => (int) ( $values['wp_user_id'] ?? 0 ),
 			'created_at'     => $now,
 			'updated_at'     => $now,
@@ -178,6 +179,16 @@ final class Users {
 			$changes['wp_user_id'] = (int) $values['wp_user_id'];
 		}
 
+		/*
+		 * #93. Written through Grants::format() rather than taken as given, so
+		 * a value nobody defined cannot reach the column — a string stored here
+		 * would be found later by something reading the column loosely, and
+		 * would be authority nobody granted.
+		 */
+		if ( array_key_exists( 'grants', $values ) ) {
+			$changes['grants'] = Grants::format( (array) $values['grants'] );
+		}
+
 		$changes['updated_at']     = bwx_forge_now();
 		$changes['record_version'] = $sent_version + 1;
 
@@ -245,6 +256,7 @@ final class Users {
 			'email'          => (string) $row['email'],
 			'display_name'   => (string) $row['display_name'],
 			'status'         => (string) $row['status'],
+			'grants'         => (string) ( $row['grants'] ?? '' ),
 			'wp_user_id'     => (int) $row['wp_user_id'],
 			'created_at'     => (int) $row['created_at'],
 			'updated_at'     => (int) $row['updated_at'],

@@ -49,6 +49,10 @@ final class MembershipsController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_CLIENT,
+					'param' => 'client_id',
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -65,6 +69,10 @@ final class MembershipsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_CLIENT,
+					'param' => 'client_id',
+				),
 			)
 		);
 
@@ -75,6 +83,11 @@ final class MembershipsController {
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'    => Boundary::SCOPE_ITEM,
+					'param'   => 'membership_id',
+					'resolve' => array( self::class, 'locate' ),
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -83,6 +96,25 @@ final class MembershipsController {
 					),
 				),
 			)
+		);
+	}
+
+	/**
+	 * Where one membership sits, for the tenant boundary (#92).
+	 *
+	 * A membership is not a work item and not a site, so the boundary's three
+	 * built-in resolvers cannot place it. This says where to look; the boundary
+	 * still decides.
+	 *
+	 * @param string $membership_id Membership id.
+	 * @return array{client_id: string, client_site_id: string}|null
+	 */
+	public static function locate( string $membership_id ) {
+		$membership = Memberships::get( $membership_id );
+
+		return null === $membership ? null : array(
+			'client_id'      => (string) $membership['client_id'],
+			'client_site_id' => (string) $membership['client_site_id'],
 		);
 	}
 

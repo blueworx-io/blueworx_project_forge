@@ -56,6 +56,7 @@ final class Memberships {
 			'client_id'      => $client_id,
 			'client_site_id' => (string) ( $values['client_site_id'] ?? '' ),
 			'role'           => (string) ( $values['role'] ?? '' ),
+			'grants'         => Grants::format( (array) ( $values['grants'] ?? array() ) ),
 			'status'         => (string) ( $values['status'] ?? 'active' ),
 			'created_at'     => $now,
 			'updated_at'     => $now,
@@ -171,6 +172,15 @@ final class Memberships {
 			if ( array_key_exists( $field, $values ) ) {
 				$changes[ $field ] = (string) $values[ $field ];
 			}
+		}
+
+		/*
+		 * Written through Grants::format() rather than taken as given, so a
+		 * value nobody defined cannot reach the column and be read back later as
+		 * authority nobody granted.
+		 */
+		if ( array_key_exists( 'grants', $values ) ) {
+			$changes['grants'] = Grants::format( (array) $values['grants'] );
 		}
 
 		$changes['updated_at']     = bwx_forge_now();
@@ -313,6 +323,7 @@ final class Memberships {
 			'client_site_id' => (string) $row['client_site_id'],
 			'role'           => (string) $row['role'],
 			'role_label'     => Roles::label( (string) $row['role'] ),
+			'grants'         => (string) ( $row['grants'] ?? '' ),
 			'status'         => (string) $row['status'],
 			'created_at'     => (int) $row['created_at'],
 			'updated_at'     => (int) $row['updated_at'],

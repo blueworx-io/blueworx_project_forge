@@ -50,6 +50,10 @@ final class IntegrationsController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'site_id',
+				),
 			)
 		);
 
@@ -60,6 +64,10 @@ final class IntegrationsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'issue_key' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'site_id',
+				),
 			)
 		);
 
@@ -70,6 +78,10 @@ final class IntegrationsController {
 				'methods'             => 'DELETE',
 				'callback'            => array( self::class, 'revoke_key' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'site_id',
+				),
 			)
 		);
 	}

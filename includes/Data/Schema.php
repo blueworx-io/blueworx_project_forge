@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 6;
+	public const VERSION = 7;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -73,6 +73,17 @@ final class Schema {
 		global $wpdb;
 
 		return $wpdb->prefix . 'bwx_forge_users';
+	}
+
+	/**
+	 * The client contacts table's full name.
+	 *
+	 * @return string
+	 */
+	public static function contacts_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_client_contacts';
 	}
 
 	/**
@@ -163,6 +174,7 @@ final class Schema {
 		$work_events  = self::work_events_table();
 		$gate_records = self::gate_records_table();
 		$comments     = self::comments_table();
+		$contacts     = self::contacts_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -249,6 +261,7 @@ final class Schema {
 	email varchar(191) NOT NULL,
 	display_name varchar(191) NOT NULL,
 	status varchar(20) NOT NULL DEFAULT 'active',
+	grants varchar(191) NOT NULL DEFAULT '',
 	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -258,6 +271,34 @@ final class Schema {
 	UNIQUE KEY email (email),
 	KEY wp_user_id (wp_user_id),
 	KEY status (status)
+) {$collate};",
+
+			/*
+			 * #95. Who our current contact is for a client, as a row with a
+			 * start and an end rather than a column on the client.
+			 *
+			 * A column would answer "who is it now" and nothing else. The
+			 * requirement is that history is not lost when it changes, so each
+			 * assignment is appended and the current contact is the latest row.
+			 * Nothing here is ever updated, which is why there is no version and
+			 * no updated_at: this is a record of what happened, not a record of
+			 * how things are.
+			 *
+			 * An empty user_id is a real answer — the contact left and nobody
+			 * has been named yet. That state has to be storable, or a client
+			 * with no contact is indistinguishable from a client whose contact
+			 * was never set, and #95 asks for one of those to be flagged.
+			 */
+			$contacts     => "CREATE TABLE {$contacts} (
+	id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	user_id varchar(32) NOT NULL DEFAULT '',
+	started_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY client_started (client_id,started_at),
+	KEY user_id (user_id)
 ) {$collate};",
 
 			/*

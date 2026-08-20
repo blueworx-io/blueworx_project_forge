@@ -141,4 +141,107 @@ final class TenancyValidateTest extends TestCase {
 		);
 		$this->assertArrayHasKey( 'url', $bad_url['errors'] );
 	}
+
+	// -----------------------------------------------------------------------
+	// #93. The grants handed out on the people screen.
+	// -----------------------------------------------------------------------
+
+	/**
+	 * A membership can carry the two grants that are held with one client.
+	 */
+	public function test_a_membership_may_hold_the_grants_that_belong_to_a_client(): void {
+		$checked = Validate::membership(
+			array(
+				'role'   => 'staff',
+				'grants' => array( 'principal', 'approver' ),
+			),
+			false
+		);
+
+		$this->assertSame( array(), $checked['errors'] );
+		$this->assertSame( array( 'principal', 'approver' ), $checked['values']['grants'] );
+	}
+
+	/**
+	 * And not the one that is deliberately not. Cross-client means "not held
+	 * with one client", so holding it on a membership would be a contradiction
+	 * stored as data — and one that reads as authority to whatever finds it.
+	 */
+	public function test_a_membership_may_not_hold_the_cross_client_grant(): void {
+		$checked = Validate::membership(
+			array(
+				'role'   => 'staff',
+				'grants' => array( 'cross_client' ),
+			),
+			false
+		);
+
+		$this->assertArrayHasKey( 'grants', $checked['errors'] );
+	}
+
+	/**
+	 * The grants are studio authority. A client administrator holding Approver
+	 * would approve their own estimates, which is the whole thing AUTH-1 exists
+	 * to prevent.
+	 */
+	public function test_a_client_role_may_not_hold_a_studio_grant(): void {
+		$checked = Validate::membership(
+			array(
+				'role'   => 'client_admin',
+				'grants' => array( 'approver' ),
+			),
+			false
+		);
+
+		$this->assertArrayHasKey( 'grants', $checked['errors'] );
+	}
+
+	/**
+	 * Holding none is the default and always allowed, including as the way to
+	 * take one away.
+	 */
+	public function test_a_membership_may_hold_no_grant_at_all(): void {
+		$checked = Validate::membership(
+			array(
+				'role'   => 'staff',
+				'grants' => array(),
+			),
+			false
+		);
+
+		$this->assertSame( array(), $checked['errors'] );
+		$this->assertSame( array(), $checked['values']['grants'] );
+	}
+
+	/**
+	 * A person can hold the cross-client grant, which is the one that is not
+	 * about any single client.
+	 */
+	public function test_a_person_may_hold_the_cross_client_grant(): void {
+		$checked = Validate::user( array( 'grants' => array( 'cross_client' ) ), true );
+
+		$this->assertSame( array(), $checked['errors'] );
+		$this->assertSame( array( 'cross_client' ), $checked['values']['grants'] );
+	}
+
+	/**
+	 * And not the two that are. Principal is held with a client because it
+	 * waives a rule about one client's work; held globally it would waive it
+	 * everywhere at once.
+	 */
+	public function test_a_person_may_not_hold_a_grant_that_belongs_to_a_membership(): void {
+		$checked = Validate::user( array( 'grants' => array( 'principal' ) ), true );
+
+		$this->assertArrayHasKey( 'grants', $checked['errors'] );
+	}
+
+	/**
+	 * A grant nobody defined is refused rather than dropped quietly, so somebody
+	 * who thought they were granting something is told they were not.
+	 */
+	public function test_a_grant_nobody_defined_is_refused(): void {
+		$checked = Validate::user( array( 'grants' => array( 'superuser' ) ), true );
+
+		$this->assertArrayHasKey( 'grants', $checked['errors'] );
+	}
 }

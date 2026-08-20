@@ -80,6 +80,10 @@ final class RestConventionsTest extends TestCase {
 				'methods'             => 'GET',
 				'callback'            => '__return_true',
 				'permission_callback' => '__return_true',
+				'scope'               => array(
+					'kind'   => \Blueworx\Forge\Rest\Boundary::SCOPE_OPEN,
+					'reason' => 'A fixture. The scope rule is its own test.',
+				),
 			)
 		);
 

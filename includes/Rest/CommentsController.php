@@ -46,6 +46,10 @@ final class CommentsController {
 				 * route answering two ways.
 				 */
 				'permission_callback' => array( self::class, 'may_read' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				),
 			)
 		);
 
@@ -56,6 +60,10 @@ final class CommentsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( self::class, 'may_read' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				),
 				'args'                => array(
 					'body' => array( 'type' => 'string' ),
 				),

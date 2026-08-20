@@ -38,9 +38,13 @@ use WP_REST_Response;
  * Since #91 the routes that move work are gated on being signed in, and then on
  * the capability the move actually needs — which is what lets a staff member
  * who is not a WordPress administrator do their job, and what refuses every
- * client role by the same door (#115). The reads are still on manage() until
- * #92 scopes them to the sites a membership grants; opening them first would be
- * a hole rather than a permission.
+ * client role by the same door (#115).
+ *
+ * Since #92 the reads are too. They were held on manage() until the tenant
+ * boundary existed, because opening them before anything scoped them would have
+ * been a hole rather than a permission; now every route here declares the record
+ * it is about, and Rest\Boundary answers for a site the caller does not reach
+ * exactly as it would for an id nobody has ever used.
  */
 final class WorkItemsController {
 
@@ -74,7 +78,11 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'client_site_id',
+				),
 				'args'                => array(
 					'client_site_id' => array(
 						'type'     => 'string',
@@ -94,7 +102,11 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'client_site_id',
+				),
 			)
 		);
 
@@ -104,7 +116,11 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				),
 			)
 		);
 
@@ -114,7 +130,11 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -132,6 +152,10 @@ final class WorkItemsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'transition' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				),
 				'args'                => array(
 					'to'              => array(
 						'type'     => 'string',
@@ -160,6 +184,10 @@ final class WorkItemsController {
 					'methods'             => 'POST',
 					'callback'            => array( self::class, $callback ),
 					'permission_callback' => array( Permissions::class, 'signed_in' ),
+					'scope'               => array(
+						'kind'  => Boundary::SCOPE_ITEM,
+						'param' => 'item_id',
+					),
 					'args'                => array(
 						Versioning::PARAM => array(
 							'type'     => 'integer',
@@ -177,6 +205,10 @@ final class WorkItemsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'record_gate' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				),
 				'args'                => array(
 					'requirement' => array(
 						'type'     => 'string',
@@ -196,6 +228,10 @@ final class WorkItemsController {
 				// data. A person about to be refused a move is better off having
 				// read them.
 				'permission_callback' => array( Permissions::class, 'read' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The gate definitions are the product\'s own rules. A person about to be refused a move is better off having read them.',
+				),
 			)
 		);
 
@@ -208,6 +244,10 @@ final class WorkItemsController {
 				// Read-only and derived from a class constant. There is nothing
 				// here a visitor could not infer from the product itself.
 				'permission_callback' => array( Permissions::class, 'read' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The stage registry is the product\'s own shape, derived from a class constant. Nothing in it belongs to a client.',
+				),
 			)
 		);
 	}
@@ -423,6 +463,17 @@ final class WorkItemsController {
 				__( 'That site is closed; reactivate it before adding work.', 'blueworx-forge' ),
 				409
 			);
+		}
+
+		/*
+		 * The route asks only for a signed-in person since #92, so the real
+		 * question is asked here. Reaching a site is not permission to add work
+		 * to it: a client viewer reads their own site and creates nothing on it.
+		 */
+		$refused = Access::refuse_unless( Capabilities::CREATE_WORK_ITEM, (string) $site['client_id'] );
+
+		if ( null !== $refused ) {
+			return $refused;
 		}
 
 		$key       = (string) $request->get_header( Idempotency::HEADER );

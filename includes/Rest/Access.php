@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\SecurityLog;
 use Blueworx\Forge\Tenancy\Capabilities;
+use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Roles;
 use Blueworx\Forge\Tenancy\Users;
@@ -218,7 +219,7 @@ final class Access {
 	 * @return array<string, mixed>
 	 */
 	private static function build( string $role, string $user_id, ?array $item, bool $own_site, array $membership = array() ): array {
-		$grants = self::grants( $membership );
+		$grants = (string) ( $membership['grants'] ?? '' );
 
 		return array(
 			'role'                  => $role,
@@ -228,13 +229,12 @@ final class Access {
 
 			/*
 			 * The AUTH-3 Principal grant and the AUTH-1 Approver capabilities
-			 * are held on the membership rather than being roles of their own.
-			 * Until the screen that grants them exists, the column is empty and
-			 * these are false — which is the safe direction: nobody
-			 * self-approves by accident.
+			 * are held on the membership rather than being roles of their own,
+			 * and are handed out on the people screen (#93). Absent is the
+			 * default and the safe direction: nobody self-approves by accident.
 			 */
-			'principal'             => in_array( 'principal', $grants, true ),
-			'holds_approver'        => in_array( 'approver', $grants, true ),
+			'principal'             => Grants::held( $grants, Grants::PRINCIPAL ),
+			'holds_approver'        => Grants::held( $grants, Grants::APPROVER ),
 
 			// #112. Who the item names, as against who is asking.
 			'assigned_primary_user' => self::is_assigned( $item, 'primary_user_id', $user_id ),
@@ -245,22 +245,6 @@ final class Access {
 			'acting_as_substitute'  => self::is_assigned( $item, 'reviewer_substitute_id', $user_id )
 				|| self::is_assigned( $item, 'deliverer_substitute_id', $user_id ),
 		);
-	}
-
-	/**
-	 * The grants on a membership, as a list.
-	 *
-	 * @param array<string, mixed> $membership The membership, or an empty array.
-	 * @return array<int, string>
-	 */
-	private static function grants( array $membership ): array {
-		$grants = (string) ( $membership['grants'] ?? '' );
-
-		if ( '' === $grants ) {
-			return array();
-		}
-
-		return array_values( array_filter( array_map( 'trim', explode( ',', $grants ) ) ) );
 	}
 
 	/**

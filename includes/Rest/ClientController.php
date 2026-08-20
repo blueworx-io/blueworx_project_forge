@@ -40,6 +40,10 @@ final class ClientController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'handshake' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
 			)
 		);
 
@@ -50,6 +54,10 @@ final class ClientController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'report' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
 			)
 		);
 
@@ -60,6 +68,10 @@ final class ClientController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'workspace' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
 			)
 		);
 	}

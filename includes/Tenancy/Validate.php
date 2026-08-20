@@ -202,6 +202,16 @@ final class Validate {
 			$values['wp_user_id'] = 0;
 		}
 
+		$grants = self::grants( $input, Grants::ON_USER );
+
+		if ( null !== $grants ) {
+			if ( null === $grants['error'] ) {
+				$values['grants'] = $grants['value'];
+			} else {
+				$errors['grants'] = $grants['error'];
+			}
+		}
+
 		$status = self::status( $input, $partial );
 
 		if ( null === $status['error'] ) {
@@ -249,6 +259,25 @@ final class Validate {
 			$values['client_site_id'] = trim( (string) $input['client_site_id'] );
 		} elseif ( ! $partial ) {
 			$values['client_site_id'] = '';
+		}
+
+		$grants = self::grants( $input, Grants::ON_MEMBERSHIP );
+
+		if ( null !== $grants ) {
+			if ( null !== $grants['error'] ) {
+				$errors['grants'] = $grants['error'];
+			} elseif ( array() !== $grants['value'] && Roles::is_client_side( (string) ( $values['role'] ?? '' ) ) ) {
+				/*
+				 * AUTH-1 and AUTH-3 are studio authority. A client
+				 * administrator holding Approver would approve their own
+				 * estimates, which is the thing the capability exists to
+				 * prevent — so the grant is refused with the role rather than
+				 * stored and then ignored somewhere downstream.
+				 */
+				$errors['grants'] = 'Those are ours to hold, not the client\'s.';
+			} else {
+				$values['grants'] = $grants['value'];
+			}
 		}
 
 		$status = self::status( $input, $partial );
@@ -353,6 +382,53 @@ final class Validate {
 		return array(
 			'values' => $values,
 			'errors' => $errors,
+		);
+	}
+
+	/**
+	 * The grants rule (#93), which differs only in which grants belong here.
+	 *
+	 * A grant nobody defined is refused rather than dropped. Dropping it would
+	 * leave somebody who thought they had granted an authority believing they
+	 * had, with a screen that agreed and a column that did not.
+	 *
+	 * @param array<string, mixed> $input   Raw input.
+	 * @param array<int, string>   $allowed The grants that belong on this record.
+	 * @return array{value: array<int, string>, error: string|null}|null Null when
+	 *                                                                  grants
+	 *                                                                  were not
+	 *                                                                  named at
+	 *                                                                  all.
+	 */
+	private static function grants( array $input, array $allowed ): ?array {
+		if ( ! array_key_exists( 'grants', $input ) ) {
+			return null;
+		}
+
+		$granted = array();
+
+		foreach ( (array) $input['grants'] as $candidate ) {
+			$grant = trim( (string) $candidate );
+
+			if ( '' === $grant ) {
+				continue;
+			}
+
+			if ( ! in_array( $grant, $allowed, true ) ) {
+				return array(
+					'value' => array(),
+					'error' => 'That is not a grant that can be held here.',
+				);
+			}
+
+			if ( ! in_array( $grant, $granted, true ) ) {
+				$granted[] = $grant;
+			}
+		}
+
+		return array(
+			'value' => $granted,
+			'error' => null,
 		);
 	}
 

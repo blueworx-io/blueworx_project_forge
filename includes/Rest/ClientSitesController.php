@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -19,9 +20,13 @@ use WP_REST_Response;
 /**
  * A site beneath a client (ARCH-3). Everything scoped to a single engagement —
  * work, hours, packages, onboarding — lives here rather than on the client
- * above it. Every route here is gated to Permissions::manage() — real access
- * roles arrive with issue #91, and every callback below is written so that
- * swap is one line each.
+ * above it.
+ *
+ * Every route here stays on Permissions::manage(). That is not a leftover: a
+ * client site is configuration, and ARCH-7 puts configuration in WordPress
+ * admin rather than in the app. Since #92 they are scoped as well as gated, so
+ * the listing offers only the sites the person reaches and a named site outside
+ * their reach answers as absent.
  */
 final class ClientSitesController {
 
@@ -44,6 +49,9 @@ final class ClientSitesController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'all' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind' => Boundary::SCOPE_LIST,
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -60,6 +68,10 @@ final class ClientSitesController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_CLIENT,
+					'param' => 'client_id',
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -76,6 +88,10 @@ final class ClientSitesController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_CLIENT,
+					'param' => 'client_id',
+				),
 			)
 		);
 
@@ -86,6 +102,10 @@ final class ClientSitesController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'site_id',
+				),
 			)
 		);
 
@@ -96,6 +116,10 @@ final class ClientSitesController {
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'  => Boundary::SCOPE_SITE,
+					'param' => 'site_id',
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -128,8 +152,15 @@ final class ClientSitesController {
 		}
 
 		$sites = array();
+		$reach = Boundary::current();
 
-		foreach ( ClientSites::all( $status ) as $site ) {
+		/*
+		 * #92, and the reason this route is declared SCOPE_LIST. The site picker
+		 * is built from this, so what it filters here is exactly what somebody
+		 * can choose between — a site out of reach is not offered rather than
+		 * offered and then refused.
+		 */
+		foreach ( Reach::keep_sites( $reach, ClientSites::all( $status ), 'id' ) as $site ) {
 			$site['client_name'] = $names[ (string) $site['client_id'] ] ?? '';
 			$sites[]             = $site;
 		}

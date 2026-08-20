@@ -17,7 +17,8 @@ use InvalidArgumentException;
  *
  * A controller missing from the list below is a route that silently does not
  * exist, so new controllers are added here and nowhere else. A route that does
- * not say who may call it never registers at all — see register_route().
+ * not say who may call it, or how it is scoped to a tenant, never registers at
+ * all — see register_route().
  */
 final class Server {
 
@@ -31,7 +32,8 @@ final class Server {
 	public const NAMESPACE = 'blueworx-forge/v1';
 
 	/**
-	 * Registers a route, refusing any that does not declare who may call it.
+	 * Registers a route, refusing any that does not declare who may call it and
+	 * how it is scoped.
 	 *
 	 * WordPress treats a missing or null permission_callback as "anyone", warning
 	 * about it and carrying on. That default is how one forgotten line becomes an
@@ -39,6 +41,15 @@ final class Server {
 	 * call this" does not register, and the mistake is a failed test rather than
 	 * a live hole. A deliberately public route says so explicitly, with
 	 * Permissions::read().
+	 *
+	 * The scope declaration (#92) is the same rule asked of the other question a
+	 * route must answer: which tenant's records is this. Boundary::apply() both
+	 * refuses a route that does not say, and wraps the callback so that what it
+	 * says is enforced rather than merely documented.
+	 *
+	 * The two are separate questions and both are asked. Permission is what
+	 * somebody may do; scope is whose records they may do it to. A route that
+	 * checks only the first lets a legitimate user act on somebody else's data.
 	 *
 	 * @param string               $route_namespace REST namespace.
 	 * @param string               $route           Route pattern.
@@ -57,7 +68,7 @@ final class Server {
 			);
 		}
 
-		register_rest_route( $route_namespace, $route, $args );
+		register_rest_route( $route_namespace, $route, Boundary::apply( $route_namespace . $route, $args ) );
 	}
 
 	/**

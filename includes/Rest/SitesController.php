@@ -42,6 +42,10 @@ final class SitesController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The connection key registry: which endpoints the studio has issued keys to. Studio infrastructure, administrator-only, and no client record is in it.',
+				),
 			)
 		);
 
@@ -52,6 +56,10 @@ final class SitesController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The connection key registry: which endpoints the studio has issued keys to. Studio infrastructure, administrator-only, and no client record is in it.',
+				),
 				'args'                => array(
 					'name' => array(
 						'type'              => 'string',
@@ -75,6 +83,10 @@ final class SitesController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'rotate' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The connection key registry: which endpoints the studio has issued keys to. Studio infrastructure, administrator-only, and no client record is in it.',
+				),
 			)
 		);
 
@@ -85,6 +97,10 @@ final class SitesController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'revoke' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The connection key registry: which endpoints the studio has issued keys to. Studio infrastructure, administrator-only, and no client record is in it.',
+				),
 			)
 		);
 
@@ -95,6 +111,10 @@ final class SitesController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'security_log' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The connection key registry: which endpoints the studio has issued keys to. Studio infrastructure, administrator-only, and no client record is in it.',
+				),
 			)
 		);
 	}
