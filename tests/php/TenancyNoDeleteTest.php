@@ -10,6 +10,8 @@ declare( strict_types = 1 );
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Memberships;
+use Blueworx\Forge\Tenancy\Users;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -27,7 +29,7 @@ final class TenancyNoDeleteTest extends TestCase {
 	 * off by revoking its key, which keeps the record and its history.
 	 */
 	public function test_neither_repository_can_delete(): void {
-		foreach ( array( Clients::class, ClientSites::class, Integrations::class ) as $class ) {
+		foreach ( array( Clients::class, ClientSites::class, Integrations::class, Users::class, Memberships::class ) as $class ) {
 			$methods = get_class_methods( $class );
 
 			foreach ( array( 'delete', 'remove', 'drop', 'purge' ) as $forbidden ) {
@@ -37,5 +39,7 @@ final class TenancyNoDeleteTest extends TestCase {
 
 		$this->assertContains( 'deactivate', get_class_methods( Clients::class ) );
 		$this->assertContains( 'deactivate', get_class_methods( ClientSites::class ) );
+		$this->assertContains( 'deactivate', get_class_methods( Users::class ) );
+		$this->assertContains( 'deactivate', get_class_methods( Memberships::class ) );
 	}
 }

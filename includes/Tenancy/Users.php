@@ -1,6 +1,6 @@
 <?php
 /**
- * Client records.
+ * People, once each.
  *
  * @package Blueworx\Forge
  */
@@ -13,44 +13,47 @@ use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 
 /**
- * The client: identity, people and memberships (ARCH-3). It groups sites and
- * owns nothing that is scoped — no work, no hours, no packages, no onboarding.
- * Those belong to the site beneath it, and a field for one of them appearing
- * here later is the mistake ARCH-3 exists to prevent.
+ * AUTH-6: one person, one account, one identity across every client. A user who
+ * works with three clients is one row here and three memberships next door — not
+ * three people who happen to share a name.
  *
- * Two rules live here rather than in callers. There is no delete: a client is
- * deactivated and kept (NOTIF-5). And every update quotes the version it was
- * made against, refused in the UPDATE's own WHERE so two writes racing cannot
- * both believe they were current (ARCH-5).
+ * That matters beyond tidiness. Capacity counts a person's committed hours
+ * across everything they work on, so a duplicated person shows as two people at
+ * half load. Attribution follows the row, so a duplicate splits somebody's
+ * history in two. And offboarding is one action against one row; against
+ * duplicates it is one action per copy, done correctly the first time and
+ * forgotten the second.
+ *
+ * The rules that make it true are the unique index on the address and the check
+ * below. Neither is enough alone: the check gives a usable refusal, the index
+ * makes it true when two requests arrive at once.
  */
-final class Clients {
+final class Users {
 
 	/**
-	 * Id prefix for a client.
+	 * Id prefix for a user.
 	 */
-	public const PREFIX = 'cli';
+	public const PREFIX = 'usr';
 
 	/**
-	 * Stores a new client.
+	 * Stores a new user.
 	 *
 	 * @param array<string, mixed> $values Validated values.
 	 * @param int                  $author WordPress user id of the author.
-	 * @return array<string, mixed>|null The stored row, or null when the insert
-	 *                                   itself failed and nothing was written.
+	 * @return array<string, mixed>|null Null when the insert failed — most
+	 *                                   likely the address is already somebody's.
 	 */
 	public static function create( array $values, int $author ): ?array {
 		global $wpdb;
 
 		$now = bwx_forge_now();
-		$id  = Ids::create( self::PREFIX );
 
 		$row = array(
-			'id'             => $id,
+			'id'             => Ids::create( self::PREFIX ),
+			'email'          => (string) ( $values['email'] ?? '' ),
 			'display_name'   => (string) ( $values['display_name'] ?? '' ),
-			'legal_name'     => (string) ( $values['legal_name'] ?? '' ),
 			'status'         => (string) ( $values['status'] ?? 'active' ),
-			'timezone'       => (string) ( $values['timezone'] ?? 'UTC' ),
-			'email_domains'  => wp_json_encode( $values['email_domains'] ?? array() ),
+			'wp_user_id'     => (int) ( $values['wp_user_id'] ?? 0 ),
 			'created_at'     => $now,
 			'updated_at'     => $now,
 			'created_by'     => $author,
@@ -58,7 +61,7 @@ final class Clients {
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
-		$inserted = $wpdb->insert( Schema::clients_table(), $row, Formats::for_row( $row ) );
+		$inserted = $wpdb->insert( Schema::users_table(), $row, Formats::for_row( $row ) );
 
 		if ( ! $inserted ) {
 			return null;
@@ -68,15 +71,15 @@ final class Clients {
 	}
 
 	/**
-	 * One client.
+	 * One user.
 	 *
-	 * @param string $id Client id.
+	 * @param string $id User id.
 	 * @return array<string, mixed>|null
 	 */
 	public static function get( string $id ): ?array {
 		global $wpdb;
 
-		$table = Schema::clients_table();
+		$table = Schema::users_table();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %s", $id ), ARRAY_A );
@@ -85,7 +88,28 @@ final class Clients {
 	}
 
 	/**
-	 * Every client, newest first.
+	 * The person at an address, whatever their status.
+	 *
+	 * Inactive people are found too, deliberately: somebody coming back is the
+	 * same person, and creating a second row for them is the failure this whole
+	 * class exists to prevent.
+	 *
+	 * @param string $email Address, lower-cased.
+	 * @return array<string, mixed>|null
+	 */
+	public static function by_email( string $email ): ?array {
+		global $wpdb;
+
+		$table = Schema::users_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE email = %s", strtolower( $email ) ), ARRAY_A );
+
+		return is_array( $row ) ? self::hydrate( $row ) : null;
+	}
+
+	/**
+	 * Every user, newest first.
 	 *
 	 * @param string|null $status Status to filter by, or null for all of them.
 	 * @return array<int, array<string, mixed>>
@@ -93,7 +117,7 @@ final class Clients {
 	public static function all( ?string $status = 'active' ): array {
 		global $wpdb;
 
-		$table = Schema::clients_table();
+		$table = Schema::users_table();
 
 		if ( null === $status ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
@@ -109,28 +133,35 @@ final class Clients {
 	/**
 	 * Applies an edit, refusing one made against a version that has moved.
 	 *
-	 * @param string               $id           Client id.
+	 * @param string               $id           User id.
 	 * @param array<string, mixed> $values       Validated values.
 	 * @param int                  $sent_version Version the edit was made against.
-	 * @return array<string, mixed>|null Null when the version did not match, or
-	 *                                   there is no such client.
+	 * @return array<string, mixed>|null Null when the version did not match.
 	 */
 	public static function update( string $id, array $values, int $sent_version ): ?array {
 		global $wpdb;
 
-		$changes = self::writable( $values );
+		$changes = array();
+
+		foreach ( array( 'email', 'display_name', 'status' ) as $field ) {
+			if ( array_key_exists( $field, $values ) ) {
+				$changes[ $field ] = (string) $values[ $field ];
+			}
+		}
+
+		if ( array_key_exists( 'wp_user_id', $values ) ) {
+			$changes['wp_user_id'] = (int) $values['wp_user_id'];
+		}
 
 		$changes['updated_at']     = bwx_forge_now();
 		$changes['record_version'] = $sent_version + 1;
 
-		/*
-		 * The version is in the WHERE, not checked and then written: two writes
-		 * arriving together would both read the same current version and both
-		 * believe themselves current. Here the second changes no rows.
-		 */
+		// The version is in the WHERE, not checked and then written: two writes
+		// arriving together would both read the same version and both believe
+		// themselves current.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
 		$changed = $wpdb->update(
-			Schema::clients_table(),
+			Schema::users_table(),
 			$changes,
 			array(
 				'id'             => $id,
@@ -148,13 +179,15 @@ final class Clients {
 	}
 
 	/**
-	 * Deactivates a client, and every site under it.
+	 * Offboards somebody: the account is deactivated and every membership they
+	 * hold goes with it (AUTH-6). Nothing is deleted, so everything they ever
+	 * did is still attributed to them.
 	 *
-	 * Any other validated field on the same request rides along with the
-	 * status change: a PATCH that deactivates is still a write of everything
-	 * else it named, not a write of the status column alone.
+	 * Takes the rest of the edit with it, like Clients::deactivate(): a PATCH
+	 * that deactivates is still a write of everything else it named, not a write
+	 * of the status column alone.
 	 *
-	 * @param string               $id           Client id.
+	 * @param string               $id           User id.
 	 * @param int                  $sent_version Version the change was made against.
 	 * @param array<string, mixed> $values       The rest of the validated values.
 	 * @return array<string, mixed>|null Null when the version did not match.
@@ -162,43 +195,17 @@ final class Clients {
 	public static function deactivate( string $id, int $sent_version, array $values = array() ): ?array {
 		$values['status'] = 'inactive';
 
-		$client = self::update( $id, $values, $sent_version );
+		$updated = self::update( $id, $values, $sent_version );
 
-		if ( null === $client ) {
+		if ( null === $updated ) {
 			return null;
 		}
 
-		// A client nobody works for has no site anybody works on. Leaving the
-		// sites active would leave their work in default views.
-		ClientSites::deactivate_for_client( $id );
+		// After the user's own write, not before: a refused write must not have
+		// already revoked somebody's access on the way to being refused.
+		Memberships::deactivate_for_user( $id );
 
-		// And nobody should still hold access to a client we have closed (#90).
-		// The rows stay, so what they did while they held it still resolves.
-		Memberships::deactivate_for_client( $id );
-
-		return $client;
-	}
-
-	/**
-	 * The columns an edit may set.
-	 *
-	 * @param array<string, mixed> $values Validated values.
-	 * @return array<string, mixed>
-	 */
-	private static function writable( array $values ): array {
-		$changes = array();
-
-		foreach ( array( 'display_name', 'legal_name', 'status', 'timezone' ) as $field ) {
-			if ( array_key_exists( $field, $values ) ) {
-				$changes[ $field ] = (string) $values[ $field ];
-			}
-		}
-
-		if ( array_key_exists( 'email_domains', $values ) ) {
-			$changes['email_domains'] = wp_json_encode( $values['email_domains'] );
-		}
-
-		return $changes;
+		return $updated;
 	}
 
 	/**
@@ -208,15 +215,12 @@ final class Clients {
 	 * @return array<string, mixed>
 	 */
 	private static function hydrate( array $row ): array {
-		$domains = json_decode( (string) ( $row['email_domains'] ?? '[]' ), true );
-
 		return array(
 			'id'             => (string) $row['id'],
+			'email'          => (string) $row['email'],
 			'display_name'   => (string) $row['display_name'],
-			'legal_name'     => (string) $row['legal_name'],
 			'status'         => (string) $row['status'],
-			'timezone'       => (string) $row['timezone'],
-			'email_domains'  => is_array( $domains ) ? $domains : array(),
+			'wp_user_id'     => (int) $row['wp_user_id'],
 			'created_at'     => (int) $row['created_at'],
 			'updated_at'     => (int) $row['updated_at'],
 			'created_by'     => (int) $row['created_by'],

@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 3, $definitions );
+		$this->assertCount( 5, $definitions );
 
 		foreach ( $definitions as $sql ) {
 			$this->assertStringContainsString( 'id varchar(32) NOT NULL', $sql );
@@ -93,6 +93,29 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
+	 * One person is one row, whatever number of clients they work with
+	 * (AUTH-6). The index is what makes that true: without it the second
+	 * invitation to somebody who already has an account creates a second
+	 * person, and capacity counts them twice for ever after.
+	 */
+	public function test_one_person_cannot_become_two(): void {
+		$users = Schema::definitions()[ Schema::users_table() ];
+
+		$this->assertStringContainsString( 'UNIQUE KEY email (email)', $users );
+	}
+
+	/**
+	 * And holds one role in one place: one row per user, client and site, so
+	 * #91 never has two answers to choose between.
+	 */
+	public function test_a_person_holds_one_role_in_one_place(): void {
+		$memberships = Schema::definitions()[ Schema::memberships_table() ];
+
+		$this->assertStringContainsString( 'UNIQUE KEY user_client_site (user_id,client_id,client_site_id)', $memberships );
+		$this->assertStringContainsString( 'role varchar(32) NOT NULL', $memberships );
+	}
+
+	/**
 	 * Resets the option and table state a maybe_upgrade() test depends on, so
 	 * one test's fixture cannot leak into the next.
 	 */
@@ -110,7 +133,7 @@ final class SchemaTest extends TestCase {
 	 * also the in-place upgrade case once the stored option is behind the code.
 	 */
 	public function test_maybe_upgrade_builds_the_tables_and_records_the_version(): void {
-		$GLOBALS['bwx_forge_test_existing_tables'] = array( Schema::clients_table(), Schema::sites_table(), Schema::integrations_table() );
+		$GLOBALS['bwx_forge_test_existing_tables'] = array_keys( Schema::definitions() );
 
 		Schema::maybe_upgrade();
 
@@ -126,7 +149,7 @@ final class SchemaTest extends TestCase {
 	 */
 	public function test_maybe_upgrade_reruns_when_the_stored_version_is_behind(): void {
 		update_option( Schema::OPTION, Schema::VERSION - 1 );
-		$GLOBALS['bwx_forge_test_existing_tables'] = array( Schema::clients_table(), Schema::sites_table(), Schema::integrations_table() );
+		$GLOBALS['bwx_forge_test_existing_tables'] = array_keys( Schema::definitions() );
 
 		Schema::maybe_upgrade();
 

@@ -13,6 +13,8 @@ use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Health;
 use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Memberships;
+use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 
 /**
@@ -29,6 +31,40 @@ final class ClientsScreen {
 	 * The admin page slug.
 	 */
 	public const SLUG = 'blueworx-forge-clients';
+
+	/**
+	 * Id of the one timezone list every client's edit form points at.
+	 */
+	private const TIMEZONE_LIST = 'bwx-forge-timezones';
+
+	/**
+	 * Active people, for the add-access dropdowns. Read once per render.
+	 *
+	 * @var array<int, array<string, mixed>>
+	 */
+	private static array $people = array();
+
+	/**
+	 * Every person's name by id, including offboarded ones, so an ended
+	 * membership still shows whose it was.
+	 *
+	 * @var array<string, string>
+	 */
+	private static array $people_by_id = array();
+
+	/**
+	 * Memberships grouped by client. Read once per render.
+	 *
+	 * @var array<string, array<int, array<string, mixed>>>
+	 */
+	private static array $memberships = array();
+
+	/**
+	 * Integrations by client site id. Read once per render.
+	 *
+	 * @var array<string, array<string, mixed>>
+	 */
+	private static array $integrations = array();
 
 	/**
 	 * Adds the menu entry, beneath the Forge menu the sites screen creates.
@@ -71,6 +107,7 @@ final class ClientsScreen {
 
 		self::notice();
 		self::issued_key();
+		self::timezone_list();
 		self::status_toggle_link( $status );
 		self::clients_list( $status );
 		self::add_client_form();
@@ -161,6 +198,20 @@ final class ClientsScreen {
 	}
 
 	/**
+	 * The timezones, once for the page, for every client's edit form to point
+	 * at. See the note in edit_client_form() for why this is not a select.
+	 */
+	private static function timezone_list(): void {
+		echo '<datalist id="' . esc_attr( self::TIMEZONE_LIST ) . '">';
+
+		foreach ( timezone_identifiers_list() as $timezone ) {
+			echo '<option value="' . esc_attr( $timezone ) . '"></option>';
+		}
+
+		echo '</datalist>';
+	}
+
+	/**
 	 * The clients, filtered by status, each with its sites.
 	 *
 	 * @param string $status The status filter in effect.
@@ -172,6 +223,21 @@ final class ClientsScreen {
 			echo '<p data-bwx-no-clients="1">' . esc_html__( 'No clients yet.', 'blueworx-forge' ) . '</p>';
 
 			return;
+		}
+
+		/*
+		 * Everything this screen needs about people and connections, read once
+		 * for the whole page rather than per client. Asked per client, a studio
+		 * with eighty clients paid a query a row three times over and the page
+		 * stopped loading inside a test's patience.
+		 */
+		self::$people       = Users::all( 'active' );
+		self::$people_by_id = array();
+		self::$memberships  = Memberships::by_client( 'all' === $status ? null : 'active' );
+		self::$integrations = Integrations::all();
+
+		foreach ( Users::all( null ) as $person ) {
+			self::$people_by_id[ (string) $person['id'] ] = (string) $person['display_name'];
 		}
 
 		echo '<ul data-bwx-clients="1">';
@@ -206,6 +272,8 @@ final class ClientsScreen {
 		self::sites_list( $client_id, $status );
 		self::add_site_form( $client_id );
 
+		self::people( $client );
+
 		echo '</li>';
 	}
 
@@ -222,10 +290,10 @@ final class ClientsScreen {
 			return;
 		}
 
-		// One query for the whole client rather than one per site: this screen
-		// is the place somebody looks when they want to know the state of a
-		// client's estate, and it should not cost a query per row to answer.
-		$integrations = Integrations::for_client( $client_id );
+		// Read once for the whole screen in clients_list(), not per client: this
+		// is the page somebody opens to see the state of every client's estate,
+		// and it should not cost a query a row to answer.
+		$integrations = self::$integrations;
 
 		echo '<ul data-bwx-sites="1">';
 
@@ -248,6 +316,120 @@ final class ClientsScreen {
 		}
 
 		echo '</ul>';
+	}
+
+	/**
+	 * Who works with this client, and the form that adds somebody (#90).
+	 *
+	 * On the client's own row rather than on the people screen, because this is
+	 * where somebody is thinking about who works with that client. The people
+	 * screen answers the other question — everywhere one person works.
+	 *
+	 * The status filter was already applied when the memberships were read for
+	 * the whole page, so this takes only the client it is rendering.
+	 *
+	 * @param array<string, mixed> $client The client row.
+	 */
+	private static function people( array $client ): void {
+		$client_id = (string) $client['id'];
+		$held      = self::$memberships[ $client_id ] ?? array();
+
+		echo '<h4>' . esc_html__( 'People', 'blueworx-forge' ) . '</h4>';
+
+		if ( array() === $held ) {
+			echo '<p data-bwx-no-client-people="1">' . esc_html__( 'Nobody has access to this client yet.', 'blueworx-forge' ) . '</p>';
+		} else {
+			$names = self::$people_by_id;
+
+			echo '<ul data-bwx-client-people="1">';
+
+			foreach ( $held as $membership ) {
+				echo '<li data-bwx-membership="' . esc_attr( (string) $membership['id'] ) . '" data-bwx-membership-role="' . esc_attr( (string) $membership['role'] ) . '">';
+				echo '<span data-bwx-membership-person>' . esc_html( $names[ (string) $membership['user_id'] ] ?? __( 'Unknown person', 'blueworx-forge' ) ) . '</span> — ';
+				echo '<span data-bwx-membership-role-label>' . esc_html( (string) $membership['role_label'] ) . '</span> ';
+				echo '<span data-bwx-status>' . esc_html( 'active' === (string) $membership['status'] ? __( 'Active', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) ) . '</span> ';
+
+				self::end_membership_form( $membership );
+
+				echo '</li>';
+			}
+
+			echo '</ul>';
+		}
+
+		if ( 'active' === (string) $client['status'] ) {
+			self::add_membership_form( $client );
+		}
+	}
+
+	/**
+	 * The form that gives somebody a role on this client.
+	 *
+	 * @param array<string, mixed> $client The client row.
+	 */
+	private static function add_membership_form( array $client ): void {
+		$client_id = (string) $client['id'];
+		$people    = self::$people;
+
+		if ( array() === $people ) {
+			echo '<p data-bwx-no-people-yet="1">' . esc_html__( 'Add somebody on Forge → People first.', 'blueworx-forge' ) . '</p>';
+
+			return;
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-membership>';
+		wp_nonce_field( 'bwx_forge_add_membership_' . $client_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_add_membership">';
+		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
+
+		echo '<select name="user_id" aria-label="' . esc_attr__( 'Person', 'blueworx-forge' ) . '">';
+
+		foreach ( $people as $person ) {
+			echo '<option value="' . esc_attr( (string) $person['id'] ) . '">' . esc_html( (string) $person['display_name'] ) . '</option>';
+		}
+
+		echo '</select> ';
+
+		echo '<select name="role" aria-label="' . esc_attr__( 'Role', 'blueworx-forge' ) . '">';
+		PeopleScreen::role_options();
+		echo '</select> ';
+
+		// Empty means every site under the client, which is a real answer rather
+		// than a missing one — so it is the first option and says so.
+		echo '<select name="client_site_id" aria-label="' . esc_attr__( 'Scope', 'blueworx-forge' ) . '">';
+		echo '<option value="">' . esc_html__( 'Every site', 'blueworx-forge' ) . '</option>';
+
+		foreach ( ClientSites::for_client( $client_id, 'active' ) as $site ) {
+			echo '<option value="' . esc_attr( (string) $site['id'] ) . '">' . esc_html( (string) $site['name'] ) . '</option>';
+		}
+
+		echo '</select> ';
+
+		submit_button( __( 'Give access', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</form>';
+	}
+
+	/**
+	 * The form that ends one membership, carrying its current version.
+	 *
+	 * @param array<string, mixed> $membership The membership row.
+	 */
+	private static function end_membership_form( array $membership ): void {
+		if ( 'active' !== (string) $membership['status'] ) {
+			return;
+		}
+
+		$id = (string) $membership['id'];
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		wp_nonce_field( 'bwx_forge_end_membership_' . $id );
+		echo '<input type="hidden" name="action" value="bwx_forge_end_membership">';
+		echo '<input type="hidden" name="membership_id" value="' . esc_attr( $id ) . '">';
+		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $membership['record_version'] ) . '">';
+		echo '<button type="submit" class="button" data-bwx-end-membership onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'End this access?', 'blueworx-forge' ) ) ) . ')">';
+		echo esc_html__( 'End access', 'blueworx-forge' );
+		echo '</button>';
+		echo '</form>';
 	}
 
 	/**
@@ -458,14 +640,16 @@ final class ClientsScreen {
 		echo '<tr><th scope="row"><label for="bwx-edit-client-legal-' . esc_attr( $client_id ) . '">' . esc_html__( 'Legal name', 'blueworx-forge' ) . '</label></th>';
 		echo '<td><input type="text" id="bwx-edit-client-legal-' . esc_attr( $client_id ) . '" name="legal_name" class="regular-text" value="' . esc_attr( (string) $client['legal_name'] ) . '"></td></tr>';
 
+		/*
+		 * An input against one shared list, not a select of its own. There are
+		 * about four hundred timezones and this form is rendered once per
+		 * client: as a select, a studio with eighty clients was served a
+		 * two-and-a-half megabyte page carrying thirty-six thousand options,
+		 * which the browser then had to lay out. The rule that matters is
+		 * server-side in Validate::client() either way.
+		 */
 		echo '<tr><th scope="row"><label for="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '">' . esc_html__( 'Timezone', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><select id="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '" name="timezone">';
-
-		foreach ( timezone_identifiers_list() as $timezone ) {
-			echo '<option value="' . esc_attr( $timezone ) . '"' . selected( (string) $client['timezone'], $timezone, false ) . '>' . esc_html( $timezone ) . '</option>';
-		}
-
-		echo '</select></td></tr>';
+		echo '<td><input type="text" id="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '" name="timezone" class="regular-text" list="' . esc_attr( self::TIMEZONE_LIST ) . '" value="' . esc_attr( (string) $client['timezone'] ) . '"></td></tr>';
 
 		echo '<tr><th scope="row"><label for="bwx-edit-client-domains-' . esc_attr( $client_id ) . '">' . esc_html__( 'Permitted email domains', 'blueworx-forge' ) . '</label></th>';
 		echo '<td><input type="text" id="bwx-edit-client-domains-' . esc_attr( $client_id ) . '" name="email_domains" class="regular-text" value="' . esc_attr( implode( ', ', (array) $client['email_domains'] ) ) . '"></td></tr>';

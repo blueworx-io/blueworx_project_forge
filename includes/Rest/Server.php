@@ -70,5 +70,7 @@ final class Server {
 		ClientsController::register_routes( self::NAMESPACE );
 		ClientSitesController::register_routes( self::NAMESPACE );
 		IntegrationsController::register_routes( self::NAMESPACE );
+		UsersController::register_routes( self::NAMESPACE );
+		MembershipsController::register_routes( self::NAMESPACE );
 	}
 }
