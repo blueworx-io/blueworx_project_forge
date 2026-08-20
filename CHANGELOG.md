@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.12.1] - 2026-08-20
+
+### Changed
+
+- Settled where each screen lives: the ones you work in are the app, the ones
+  that configure Forge stay in the WordPress admin. Nothing visible changes
+  today — it stops the same screen being built twice.
+
 ## [2.12.0] - 2026-08-20
 
 ### Added

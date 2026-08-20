@@ -96,6 +96,16 @@ never to change course.
 
 **Consequence if reversed:** The authentication layer, its revocation path and every signed-request test are rebuilt, and the client artifact's entire data access changes shape.
 
+### ARCH-7 — interface-boundary
+
+**Question:** Which screens are built as the React application, and which stay as plain WordPress admin pages?
+
+**Options considered:** Everything in React, which spends designed-interface effort on screens used a few times a year and blocks operational work on the design being ready; everything as plain admin pages, which leaves the screens people live in all day looking like WordPress; no rule at all, which was the position that had the clients and people screens built twice — once as an operational tool and again in the studio views milestone.
+
+**Decision:** Every screen somebody uses to do the work is the React application — the board, work items, and every view of work. Every screen that configures the system is a plain WordPress admin page — clients, sites, people, memberships, connection keys. A screen is built once, in whichever of the two it belongs to, and is never rebuilt in the other. Approved by Luke on 20 August 2026.
+
+**Consequence if reversed:** Screens are built twice, and the studio views milestone grows by the whole of the configuration surface.
+
 ## Workflow
 
 ### WF-1 — conditional-and-exception-stages
