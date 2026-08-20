@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 1;
+	public const VERSION = 2;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -54,6 +54,17 @@ final class Schema {
 	}
 
 	/**
+	 * The site integrations table's full name.
+	 *
+	 * @return string
+	 */
+	public static function integrations_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_site_integrations';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -68,11 +79,12 @@ final class Schema {
 
 		$collate = $wpdb->get_charset_collate();
 
-		$clients = self::clients_table();
-		$sites   = self::sites_table();
+		$clients      = self::clients_table();
+		$sites        = self::sites_table();
+		$integrations = self::integrations_table();
 
 		return array(
-			$clients => "CREATE TABLE {$clients} (
+			$clients      => "CREATE TABLE {$clients} (
 	id varchar(32) NOT NULL,
 	display_name varchar(191) NOT NULL,
 	legal_name varchar(191) NOT NULL DEFAULT '',
@@ -86,7 +98,7 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY status (status)
 ) {$collate};",
-			$sites   => "CREATE TABLE {$sites} (
+			$sites        => "CREATE TABLE {$sites} (
 	id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
 	name varchar(191) NOT NULL,
@@ -99,6 +111,48 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY client_id (client_id),
 	KEY status (status)
+) {$collate};",
+			/*
+			 * The signing key is deliberately absent. ARCH-6 keeps it in
+			 * Sites\Registry, issued once and never read back; this table is
+			 * what the studio knows *about* the connection, not the credential
+			 * itself.
+			 *
+			 * `registry_site_id` is that awkward name for a reason. WordPress
+			 * core declares a global column-name-to-format map in
+			 * wp-includes/load.php, and `site_id` is in it as '%d' — so a
+			 * column called site_id has every $wpdb->insert() and ->update()
+			 * cast to an integer whatever its declared type, storing 0 and
+			 * reporting success. Do not rename it back.
+			 */
+			$integrations => "CREATE TABLE {$integrations} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	registry_site_id varchar(32) NOT NULL DEFAULT '',
+	key_state varchar(20) NOT NULL DEFAULT 'unissued',
+	key_issued_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	key_rotated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	key_revoked_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_seen_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_report_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_error_code varchar(64) NOT NULL DEFAULT '',
+	last_error_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	mail_capable varchar(20) NOT NULL DEFAULT 'unknown',
+	mail_checked_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	mail_detail varchar(191) NOT NULL DEFAULT '',
+	home_url varchar(255) NOT NULL DEFAULT '',
+	wp_version varchar(32) NOT NULL DEFAULT '',
+	php_version varchar(32) NOT NULL DEFAULT '',
+	plugin_version varchar(32) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	UNIQUE KEY client_site_id (client_site_id),
+	KEY client_id (client_id),
+	KEY registry_site_id (registry_site_id)
 ) {$collate};",
 		);
 	}
@@ -147,7 +201,7 @@ final class Schema {
 	private static function tables_exist(): bool {
 		global $wpdb;
 
-		foreach ( array( self::clients_table(), self::sites_table() ) as $table ) {
+		foreach ( array( self::clients_table(), self::sites_table(), self::integrations_table() ) as $table ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for "does this table exist".
 			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
 

@@ -33,6 +33,12 @@ final class Validate {
 	public const MAX_NAME = 191;
 
 	/**
+	 * The only answers a site may give about its ability to send mail. Screens
+	 * switch on this, so anything else must not reach the column.
+	 */
+	public const MAIL_STATES = array( 'unknown', 'yes', 'no' );
+
+	/**
 	 * Checks a client.
 	 *
 	 * @param array<string, mixed> $input   Raw input.
@@ -143,6 +149,57 @@ final class Validate {
 			}
 		} else {
 			$errors['status'] = $status['error'];
+		}
+
+		return array(
+			'values' => $values,
+			'errors' => $errors,
+		);
+	}
+
+	/**
+	 * Checks a client site's report about itself (#89).
+	 *
+	 * Unlike the two above, this input comes from a machine rather than from
+	 * somebody typing, and it writes to a record the studio owns. So the rules
+	 * are different in two ways. The fields are a closed list — a signed request
+	 * proves which site is calling, not that it may choose which columns to
+	 * touch — and an over-long value is trimmed rather than refused, because a
+	 * site running some unusual build should still get its mail capability
+	 * recorded rather than having the whole report bounced over a version
+	 * string.
+	 *
+	 * @param array<string, mixed> $input Raw report.
+	 * @return array{values: array<string, mixed>, errors: array<string, string>}
+	 */
+	public static function report( array $input ): array {
+		$lengths = array(
+			'home_url'       => 255,
+			'wp_version'     => 32,
+			'php_version'    => 32,
+			'plugin_version' => 32,
+			'mail_detail'    => 191,
+		);
+
+		$values = array();
+		$errors = array();
+
+		foreach ( $lengths as $field => $limit ) {
+			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
+			}
+
+			$values[ $field ] = mb_substr( trim( (string) $input[ $field ] ), 0, $limit );
+		}
+
+		if ( array_key_exists( 'mail_capable', $input ) ) {
+			$capable = trim( (string) $input['mail_capable'] );
+
+			if ( ! in_array( $capable, self::MAIL_STATES, true ) ) {
+				$errors['mail_capable'] = 'A site can send mail, cannot, or has not said.';
+			} else {
+				$values['mail_capable'] = $capable;
+			}
 		}
 
 		return array(

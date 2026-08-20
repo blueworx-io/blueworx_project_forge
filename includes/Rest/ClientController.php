@@ -10,6 +10,8 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\Registry;
+use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -37,6 +39,16 @@ final class ClientController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'handshake' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/report',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'report' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
 			)
 		);
@@ -78,6 +90,53 @@ final class ClientController {
 				'status'      => $site['status'] ?? '',
 				'server_time' => bwx_forge_now(),
 				'version'     => BWX_FORGE_VERSION,
+			)
+		);
+	}
+
+	/**
+	 * Records what the calling site says about itself (#89).
+	 *
+	 * The site it describes is the one that signed the request, never one named
+	 * in the body — the same rule the workspace read follows, and for the same
+	 * reason: a signed request proves which site is calling and that is the only
+	 * site it may touch.
+	 *
+	 * A site with no integration record is one whose key was issued through M1's
+	 * routes rather than against a Client Site. It is turned away rather than
+	 * given a record: an integration exists to say which client site a
+	 * connection belongs to, and inventing one here would have to guess.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function report( WP_REST_Request $request ) {
+		$site_id = (string) $request->get_header( Signature::HEADER_SITE );
+		$checked = Validate::report( (array) $request->get_json_params() );
+
+		if ( array() !== $checked['errors'] ) {
+			return Errors::rest(
+				'invalid_report',
+				__( 'That report could not be recorded.', 'blueworx-forge' ),
+				400,
+				array( 'fields' => $checked['errors'] )
+			);
+		}
+
+		$updated = Integrations::note_report( $site_id, $checked['values'] );
+
+		if ( null === $updated ) {
+			return Errors::rest(
+				'no_integration',
+				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'recorded' => $updated['last_report_at'],
 			)
 		);
 	}

@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -104,11 +105,24 @@ final class ClientSitesController {
 		}
 
 		$status = (string) $request->get_param( 'status' );
+		$sites  = ClientSites::for_client( $client_id, 'all' === $status ? null : $status );
+
+		/*
+		 * Every site's connection comes back with it, from one query rather than
+		 * one per site: the studio's answer to "is this client's estate healthy"
+		 * should not cost a request each. A site nobody has connected yet has no
+		 * integration row, and says so with a null rather than by being absent.
+		 */
+		$integrations = Integrations::for_client( $client_id );
+
+		foreach ( $sites as $index => $site ) {
+			$sites[ $index ]['integration'] = $integrations[ $site['id'] ] ?? null;
+		}
 
 		return rest_ensure_response(
 			array(
 				'ok'    => true,
-				'sites' => ClientSites::for_client( $client_id, 'all' === $status ? null : $status ),
+				'sites' => $sites,
 			)
 		);
 	}

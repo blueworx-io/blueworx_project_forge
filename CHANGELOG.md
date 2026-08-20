@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.11.0] - 2026-08-19
+
+### Added
+
+- Forge now shows whether each client site is actually connected, when it last
+  called, and whether that site can send email. A site nobody has connected, one
+  that has simply gone quiet, and one that has stopped working now read
+  differently, so a quiet site is not mistaken for a broken one.
+- Connection keys are issued, rotated and revoked from Forge → Clients, against
+  the site they belong to. A new key is shown once, on the screen that issues it.
+
 ## [2.10.0] - 2026-08-19
 
 ### Added

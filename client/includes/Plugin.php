@@ -54,6 +54,11 @@ final class Plugin {
 		add_action( 'admin_menu', array( Admin\ConnectionScreen::class, 'register' ) );
 
 		Admin\ConnectionActions::boot();
+
+		// So the studio's connection record knows what this site is running and
+		// whether it can email anybody (#89).
+		Mail::boot();
+		Report::boot();
 	}
 
 	/**
@@ -61,15 +66,19 @@ final class Plugin {
 	 */
 	public function activate(): void {
 		update_option( 'bwx_forge_client_installed_version', BWX_FORGE_CLIENT_VERSION );
+
+		// A site that has just been updated or reactivated is exactly the one
+		// whose recorded version is wrong, so it says so immediately rather
+		// than waiting up to a day for the cron.
+		Report::send();
 	}
 
 	/**
 	 * Runs on deactivation.
 	 */
 	public function deactivate(): void {
-		/*
-		 * Nothing to tear down. Deactivating is not uninstalling, and the one
-		 * option this plugin owns is removed by uninstall.php.
-		 */
+		// The daily report is the one thing that would otherwise keep firing
+		// into a plugin that is no longer here.
+		Report::unschedule();
 	}
 }

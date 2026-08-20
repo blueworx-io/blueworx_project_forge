@@ -39,14 +39,14 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
-	 * Both tables are defined, and each carries the columns everything later
+	 * Every table is defined, and each carries the columns everything later
 	 * depends on: the id, the author and time stamps, and the record version
 	 * that ARCH-5 refuses stale writes against.
 	 */
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 2, $definitions );
+		$this->assertCount( 3, $definitions );
 
 		foreach ( $definitions as $sql ) {
 			$this->assertStringContainsString( 'id varchar(32) NOT NULL', $sql );
@@ -70,6 +70,29 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
+	 * One integration per site, enforced by the database rather than by callers
+	 * remembering: two rows would mean two keys both able to sign as one site,
+	 * and nothing to say which one the studio meant.
+	 */
+	public function test_a_site_can_only_have_one_integration(): void {
+		$integrations = Schema::definitions()[ Schema::integrations_table() ];
+
+		$this->assertStringContainsString( 'client_site_id varchar(32) NOT NULL', $integrations );
+		$this->assertStringContainsString( 'UNIQUE KEY client_site_id (client_site_id)', $integrations );
+	}
+
+	/**
+	 * The signing key is not among the integration's columns. ARCH-6 keeps it in
+	 * the register, issued once and never read back, and #89 does not move it.
+	 */
+	public function test_the_integration_does_not_store_the_key(): void {
+		$integrations = Schema::definitions()[ Schema::integrations_table() ];
+
+		$this->assertStringNotContainsString( 'signing_key', $integrations );
+		$this->assertStringNotContainsString( "\tkey ", $integrations );
+	}
+
+	/**
 	 * Resets the option and table state a maybe_upgrade() test depends on, so
 	 * one test's fixture cannot leak into the next.
 	 */
@@ -87,7 +110,7 @@ final class SchemaTest extends TestCase {
 	 * also the in-place upgrade case once the stored option is behind the code.
 	 */
 	public function test_maybe_upgrade_builds_the_tables_and_records_the_version(): void {
-		$GLOBALS['bwx_forge_test_existing_tables'] = array( Schema::clients_table(), Schema::sites_table() );
+		$GLOBALS['bwx_forge_test_existing_tables'] = array( Schema::clients_table(), Schema::sites_table(), Schema::integrations_table() );
 
 		Schema::maybe_upgrade();
 
@@ -103,7 +126,7 @@ final class SchemaTest extends TestCase {
 	 */
 	public function test_maybe_upgrade_reruns_when_the_stored_version_is_behind(): void {
 		update_option( Schema::OPTION, Schema::VERSION - 1 );
-		$GLOBALS['bwx_forge_test_existing_tables'] = array( Schema::clients_table(), Schema::sites_table() );
+		$GLOBALS['bwx_forge_test_existing_tables'] = array( Schema::clients_table(), Schema::sites_table(), Schema::integrations_table() );
 
 		Schema::maybe_upgrade();
 

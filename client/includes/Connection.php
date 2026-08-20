@@ -119,6 +119,17 @@ final class Connection {
 		// re-connection it may be a different site, and serving the old copy would
 		// show one client another client's record.
 		Cache::flush();
+
+		/*
+		 * Announced rather than reported from here, so this class stays about
+		 * credentials and nothing else. Report subscribes (#89): connecting is
+		 * the moment the studio has never heard of this site and most needs to,
+		 * and waiting for the daily cron would leave a site somebody has just
+		 * connected reading as never connected. Both doors that store
+		 * credentials — the screen and the REST route — come through here, so
+		 * the rule is in one place rather than remembered twice.
+		 */
+		do_action( 'bwx_forge_client_connected' );
 	}
 
 	/**
@@ -129,6 +140,45 @@ final class Connection {
 		delete_option( self::OPTION_SITE_ID );
 		delete_option( self::OPTION_KEY );
 		Cache::flush();
+	}
+
+	/**
+	 * Makes a signed POST to the studio.
+	 *
+	 * The body is encoded once and both signed and sent, never encoded twice:
+	 * the signature covers a hash of the exact bytes, so a second encode that
+	 * ordered a key differently would produce a request that fails to verify
+	 * for no visible reason.
+	 *
+	 * @param string               $route   Route within the studio namespace.
+	 * @param array<string, mixed> $payload What to send.
+	 * @return array<string, mixed>|WP_Error The decoded response body.
+	 */
+	public static function post( string $route, array $payload ) {
+		if ( ! self::is_configured() ) {
+			return new WP_Error(
+				'bwx_forge_client_not_configured',
+				__( 'This site has not been connected to the studio yet.', 'blueworx-forge' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$path = self::STUDIO_NAMESPACE . $route;
+		$body = (string) wp_json_encode( $payload );
+
+		$response = wp_remote_post(
+			self::studio_url() . '/wp-json' . $path,
+			array(
+				'timeout' => 15,
+				'headers' => array_merge(
+					Signer::headers( self::key(), self::site_id(), 'POST', $path, $body ),
+					array( 'Content-Type' => 'application/json' )
+				),
+				'body'    => $body,
+			)
+		);
+
+		return self::answer( $response );
 	}
 
 	/**
@@ -160,6 +210,18 @@ final class Connection {
 			)
 		);
 
+		return self::answer( $response );
+	}
+
+	/**
+	 * Turns an HTTP response into the decoded body, or the error it was.
+	 *
+	 * Shared by both verbs so a refusal reads the same whichever one hit it.
+	 *
+	 * @param array<string, mixed>|WP_Error $response Response from wp_remote_*.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private static function answer( $response ) {
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
