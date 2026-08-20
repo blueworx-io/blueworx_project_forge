@@ -72,5 +72,6 @@ final class Server {
 		IntegrationsController::register_routes( self::NAMESPACE );
 		UsersController::register_routes( self::NAMESPACE );
 		MembershipsController::register_routes( self::NAMESPACE );
+		WorkItemsController::register_routes( self::NAMESPACE );
 	}
 }
