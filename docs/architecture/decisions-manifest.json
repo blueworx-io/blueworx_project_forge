@@ -6,6 +6,7 @@
 		{ "id": "ARCH-4", "group": "Architecture and delivery", "question": "Whether client sites must function while the studio is unreachable" },
 		{ "id": "ARCH-5", "group": "Architecture and delivery", "question": "Conflict rules: field authority, acceptable sync delay, who resolves conflicts" },
 		{ "id": "ARCH-6", "group": "Architecture and delivery", "question": "How a client site authenticates to the studio, and how that trust is revoked" },
+		{ "id": "ARCH-7", "group": "Architecture and delivery", "question": "Which screens are the React application and which stay plain WordPress admin pages" },
 
 		{ "id": "WF-1", "group": "Workflow", "question": "Whether Bug Tracking is conditional and Blocked is an exception state" },
 		{ "id": "WF-2", "group": "Workflow", "question": "The terminal states Rejected, Cancelled, Duplicate, Deferred and Archived, and their reporting behaviour" },
