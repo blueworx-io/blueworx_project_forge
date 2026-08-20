@@ -132,11 +132,8 @@ final class Contacts {
 
 		$table = Schema::contacts_table();
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-		$query = $wpdb->prepare( "SELECT * FROM {$table} WHERE client_id = %s ORDER BY started_at DESC, id DESC LIMIT 1", $client_id );
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
-		$row = $wpdb->get_row( $query, ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_id = %s ORDER BY started_at DESC, id DESC LIMIT 1", $client_id ), ARRAY_A );
 
 		return is_array( $row ) ? self::hydrate( $row ) : null;
 	}
@@ -152,11 +149,8 @@ final class Contacts {
 
 		$table = Schema::contacts_table();
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-		$query = $wpdb->prepare( "SELECT * FROM {$table} WHERE client_id = %s ORDER BY started_at DESC, id DESC", $client_id );
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
-		$rows = $wpdb->get_results( $query, ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_id = %s ORDER BY started_at DESC, id DESC", $client_id ), ARRAY_A );
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
 	}

@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.17.0] - 2026-08-20
+
+### Added
+
+- People now see only the clients and sites they actually work with. Somebody
+  brought in for one site of a two-site client gets that site and not its
+  neighbour.
+- Anything belonging to a client you have nothing to do with answers as though
+  it does not exist, word for word — so nobody can work out which records are
+  real by comparing refusals.
+- Studio people who genuinely work across every client can be given that reach
+  explicitly. Without it they are scoped exactly like a client's own people.
+- The Principal and Approver authorities can be handed out on the people
+  screen. Until now the column existed and nothing wrote to it, which meant
+  nobody could approve their own work even when they should have been able to.
+- Every client has a named point of contact, kept as history rather than
+  overwritten. A contact who leaves is flagged for reassignment instead of
+  quietly staying in place, and the client site shows their name and nothing
+  else about them.
+
+### Changed
+
+- The board and the site picker no longer need a WordPress administrator
+  account. A staff member signs in and sees their own work.
+
+### Fixed
+
+- A route that forgets to scope itself to a client can no longer be written: it
+  refuses to register at all, so the mistake is a failed build rather than
+  somebody else's data.
+
 ## [2.16.0] - 2026-08-20
 
 ### Added

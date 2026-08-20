@@ -137,8 +137,9 @@ final class TenantBoundaryTest extends TestCase {
 				'/thing',
 				$this->route(
 					array(
-						'kind'  => $kind,
-						'param' => 'id',
+						'kind'   => $kind,
+						'param'  => 'id',
+						'record' => 'work_item',
 					)
 				)
 			);
@@ -222,5 +223,69 @@ final class TenantBoundaryTest extends TestCase {
 
 		$this->assertStringNotContainsString( 'another', $message );
 		$this->assertStringNotContainsString( 'permission', $message );
+	}
+
+	/**
+	 * The one that matters, and the one an end-to-end test found: hiding a
+	 * record is only hiding it if the answer is **byte for byte** the answer an
+	 * id nobody has ever used would get.
+	 *
+	 * Two different 404s are not the same answer. A caller comparing the error
+	 * codes learns which ids are real on a tenant they have nothing to do with,
+	 * which is precisely what D-1 and D-2 forbid — and it is a leak that reads
+	 * as correct in every code review, because both are 404s.
+	 */
+	public function test_a_hidden_record_answers_exactly_as_a_missing_one(): void {
+		foreach ( Boundary::RECORDS as $record => $ignored ) {
+			$hidden  = Boundary::hidden( $record );
+			$missing = Boundary::absent( $record );
+
+			$this->assertSame( $missing->get_error_code(), $hidden->get_error_code(), $record );
+			$this->assertSame( $missing->get_error_message(), $hidden->get_error_message(), $record );
+			$this->assertSame( $missing->get_error_data(), $hidden->get_error_data(), $record );
+		}
+	}
+
+	/**
+	 * A route scoped to a record has to say which kind, or the boundary cannot
+	 * refuse it in that record's own words and would fall back to a generic
+	 * answer — which is the leak above, reintroduced quietly.
+	 */
+	public function test_a_record_scope_must_name_the_kind_of_record(): void {
+		$this->expectException( InvalidArgumentException::class );
+
+		Server::register_route(
+			'blueworx-forge/v1',
+			'/thing',
+			$this->route(
+				array(
+					'kind'  => Boundary::SCOPE_ITEM,
+					'param' => 'item_id',
+				)
+			)
+		);
+	}
+
+	/**
+	 * And every one of the plugin's own does.
+	 */
+	public function test_every_record_scoped_route_names_its_record(): void {
+		Server::register_routes();
+
+		foreach ( $GLOBALS['bwx_forge_test_routes'] as $route ) {
+			$scope = (array) ( $route['args']['scope'] ?? array() );
+			$kind  = (string) ( $scope['kind'] ?? '' );
+
+			if ( ! in_array( $kind, array( Boundary::SCOPE_SITE, Boundary::SCOPE_CLIENT, Boundary::SCOPE_ITEM ), true ) ) {
+				continue;
+			}
+
+			$this->assertArrayHasKey( 'record', $scope, sprintf( '%s names no record', $route['route'] ) );
+			$this->assertArrayHasKey(
+				(string) $scope['record'],
+				Boundary::RECORDS,
+				sprintf( '%s names a record nobody defined', $route['route'] )
+			);
+		}
 	}
 }

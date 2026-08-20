@@ -97,6 +97,29 @@ final class Boundary {
 	);
 
 	/**
+	 * The kinds of record a route can be scoped to, and how each says it is not
+	 * there.
+	 *
+	 * There is one answer per kind and both callers use it: the route, when the
+	 * id genuinely is not a record, and the boundary, when it is somebody
+	 * else's. **They have to be identical**, because two different 404s are two
+	 * different answers, and a caller comparing them learns which ids are real
+	 * on a tenant they have nothing to do with (D-1, D-2).
+	 *
+	 * That is not a hypothetical. It shipped, briefly: the boundary answered
+	 * "there is no such record" while the route answered "there is no such work
+	 * item", both with a 404, and the two together told a caller exactly what
+	 * the boundary existed to hide. Holding the pair here is what stops the two
+	 * drifting apart again.
+	 */
+	public const RECORDS = array(
+		'work_item'   => 'unknown_work_item',
+		'client_site' => 'unknown_client_site',
+		'client'      => 'unknown_client',
+		'membership'  => 'unknown_membership',
+	);
+
+	/**
 	 * Whether a string is a scope at all.
 	 *
 	 * @param string $kind Candidate.
@@ -134,10 +157,18 @@ final class Boundary {
 			);
 		}
 
-		if ( in_array( $kind, self::FROM_PARAM, true ) && '' === (string) ( $scope['param'] ?? '' ) ) {
-			throw new InvalidArgumentException(
-				sprintf( '%s is scoped by "%s" but names no parameter to resolve it from.', esc_html( $route ), esc_html( $kind ) )
-			);
+		if ( in_array( $kind, self::FROM_PARAM, true ) ) {
+			if ( '' === (string) ( $scope['param'] ?? '' ) ) {
+				throw new InvalidArgumentException(
+					sprintf( '%s is scoped by "%s" but names no parameter to resolve it from.', esc_html( $route ), esc_html( $kind ) )
+				);
+			}
+
+			if ( ! array_key_exists( (string) ( $scope['record'] ?? '' ), self::RECORDS ) ) {
+				throw new InvalidArgumentException(
+					sprintf( '%s does not say which kind of record it is scoped to, so it cannot be refused in that record\'s own words.', esc_html( $route ) )
+				);
+			}
 		}
 
 		if ( self::SCOPE_OPEN === $kind && '' === trim( (string) ( $scope['reason'] ?? '' ) ) ) {
@@ -158,10 +189,11 @@ final class Boundary {
 
 		$callback = $args['callback'];
 		$param    = (string) $scope['param'];
+		$record   = (string) $scope['record'];
 		$resolve  = isset( $scope['resolve'] ) && is_callable( $scope['resolve'] ) ? $scope['resolve'] : null;
 
-		$args['callback'] = static function ( WP_REST_Request $request ) use ( $callback, $kind, $param, $resolve ) {
-			$refused = self::check( $kind, $param, $request, $resolve );
+		$args['callback'] = static function ( WP_REST_Request $request ) use ( $callback, $kind, $param, $record, $resolve ) {
+			$refused = self::check( $kind, $param, $request, $resolve, $record );
 
 			if ( null !== $refused ) {
 				return $refused;
@@ -182,9 +214,11 @@ final class Boundary {
 	 * @param callable|null   $resolve A route's own way of placing its record,
 	 *                                 for the kinds of record the three built-in
 	 *                                 resolvers do not know about.
+	 * @param string          $record  Which kind of record, so a refusal reads
+	 *                                 exactly as a missing one.
 	 * @return WP_Error|null Null when it may.
 	 */
-	public static function check( string $kind, string $param, WP_REST_Request $request, ?callable $resolve = null ): ?WP_Error {
+	public static function check( string $kind, string $param, WP_REST_Request $request, ?callable $resolve = null, string $record = '' ): ?WP_Error {
 		$id = (string) $request->get_param( $param );
 
 		/*
@@ -217,7 +251,7 @@ final class Boundary {
 			return null;
 		}
 
-		return self::hidden();
+		return self::hidden( $record );
 	}
 
 	/**
@@ -295,13 +329,52 @@ final class Boundary {
 	/**
 	 * The answer for a record outside somebody's reach.
 	 *
-	 * Deliberately the same answer an id nobody has ever used would get, and
-	 * deliberately silent about tenancy: "that belongs to another client" is the
-	 * disclosure a 403 would make, written politely.
+	 * Deliberately the same answer an id nobody has ever used would get — the
+	 * very same one, from absent() below — and deliberately silent about
+	 * tenancy: "that belongs to another client" is the disclosure a 403 would
+	 * make, written politely.
 	 *
+	 * @param string $record Which kind of record, from RECORDS.
 	 * @return WP_Error
 	 */
-	public static function hidden(): WP_Error {
-		return Errors::rest( 'not_found', __( 'There is no such record.', 'blueworx-forge' ), 404 );
+	public static function hidden( string $record = '' ): WP_Error {
+		return self::absent( $record );
+	}
+
+	/**
+	 * The answer for a record that is not there.
+	 *
+	 * Called by the routes themselves when an id resolves to nothing, so that
+	 * "never existed" and "not yours" are one answer rather than two that happen
+	 * to share a status code.
+	 *
+	 * @param string $record Which kind of record, from RECORDS.
+	 * @return WP_Error
+	 */
+	public static function absent( string $record = '' ): WP_Error {
+		$code = self::RECORDS[ $record ] ?? 'not_found';
+
+		return Errors::rest( $code, self::not_there( $record ), 404 );
+	}
+
+	/**
+	 * How each kind of record says it is not there.
+	 *
+	 * @param string $record Which kind of record.
+	 * @return string
+	 */
+	private static function not_there( string $record ): string {
+		switch ( $record ) {
+			case 'work_item':
+				return __( 'There is no such work item.', 'blueworx-forge' );
+			case 'client_site':
+				return __( 'There is no such client site.', 'blueworx-forge' );
+			case 'client':
+				return __( 'There is no such client.', 'blueworx-forge' );
+			case 'membership':
+				return __( 'There is no such membership.', 'blueworx-forge' );
+			default:
+				return __( 'There is no such record.', 'blueworx-forge' );
+		}
 	}
 }

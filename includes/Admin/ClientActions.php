@@ -12,6 +12,8 @@ namespace Blueworx\Forge\Admin;
 use Blueworx\Forge\Rest\IntegrationsController;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Contacts;
+use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 
@@ -41,6 +43,7 @@ final class ClientActions {
 		add_action( 'admin_post_bwx_forge_edit_client_site', array( self::class, 'edit_client_site' ) );
 		add_action( 'admin_post_bwx_forge_issue_site_key', array( self::class, 'issue_site_key' ) );
 		add_action( 'admin_post_bwx_forge_revoke_site_key', array( self::class, 'revoke_site_key' ) );
+		add_action( 'admin_post_bwx_forge_assign_contact', array( self::class, 'assign_contact' ) );
 	}
 
 	/**
@@ -221,6 +224,41 @@ final class ClientActions {
 			: Clients::update( $client_id, $checked['values'], $version );
 
 		self::back( null === $updated ? 'stale' : 'added' );
+	}
+
+	/**
+	 * Names our point of contact for a client (#95).
+	 *
+	 * Appends rather than overwrites: the previous contacts stay, so the answer
+	 * to "who was looking after this in March" survives the person moving on.
+	 * Naming nobody is one of the answers, and a real one — it is the difference
+	 * between a client that has never had a contact and one whose contact left.
+	 */
+	public static function assign_contact(): void {
+		$client_id = self::field( 'client_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_assign_contact_' . $client_id );
+
+		if ( null === Clients::get( $client_id ) ) {
+			self::back( 'unknown' );
+		}
+
+		$user_id = self::field( 'user_id' );
+
+		if ( '' !== $user_id ) {
+			$person = Users::get( $user_id );
+
+			// Somebody who has left cannot be made the contact. Recording it
+			// would create the exact state the screen then flags as broken.
+			if ( null === $person || 'active' !== (string) $person['status'] ) {
+				self::back( 'invalid' );
+			}
+		}
+
+		$assigned = Contacts::assign( $client_id, $user_id, get_current_user_id() );
+
+		self::back( null === $assigned ? 'invalid' : 'added' );
 	}
 
 	/**

@@ -48,7 +48,15 @@ final class ClientSitesController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'all' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+
+				/*
+				 * The one read here the app itself makes: the site picker. It
+				 * asks only for a signed-in person because a staff member who
+				 * is not a WordPress administrator still has to choose which
+				 * site they are working on, and since #92 the answer is scoped
+				 * to what they reach rather than to everything.
+				 */
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind' => Boundary::SCOPE_LIST,
 				),
@@ -69,8 +77,9 @@ final class ClientSitesController {
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_CLIENT,
-					'param' => 'client_id',
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
 				),
 				'args'                => array(
 					'status' => array(
@@ -89,8 +98,9 @@ final class ClientSitesController {
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_CLIENT,
-					'param' => 'client_id',
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
 				),
 			)
 		);
@@ -103,8 +113,9 @@ final class ClientSitesController {
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_SITE,
-					'param' => 'site_id',
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
 				),
 			)
 		);
@@ -117,8 +128,9 @@ final class ClientSitesController {
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_SITE,
-					'param' => 'site_id',
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
 				),
 				'args'                => array(
 					Versioning::PARAM => array(
@@ -183,7 +195,7 @@ final class ClientSitesController {
 		$client_id = (string) $request['client_id'];
 
 		if ( null === Clients::get( $client_id ) ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		$status = (string) $request->get_param( 'status' );
@@ -219,7 +231,7 @@ final class ClientSitesController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		return rest_ensure_response(
@@ -244,7 +256,7 @@ final class ClientSitesController {
 		$client = Clients::get( $client_id );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		// A closed client has no site anybody works on. This is the state
@@ -326,7 +338,7 @@ final class ClientSitesController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );

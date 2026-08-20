@@ -39,6 +39,7 @@ final class PeopleActions {
 		add_action( 'admin_post_bwx_forge_offboard_person', array( self::class, 'offboard_person' ) );
 		add_action( 'admin_post_bwx_forge_add_membership', array( self::class, 'add_membership' ) );
 		add_action( 'admin_post_bwx_forge_end_membership', array( self::class, 'end_membership' ) );
+		add_action( 'admin_post_bwx_forge_set_membership_grants', array( self::class, 'set_membership_grants' ) );
 	}
 
 	/**
@@ -91,6 +92,11 @@ final class PeopleActions {
 			'display_name' => self::field( 'display_name' ),
 			'email'        => self::field( 'email' ),
 			'status'       => self::field( 'status' ),
+
+			// #93. Always sent, because an unticked box is how a grant is taken
+			// away — a field that only arrived when ticked could grant but never
+			// revoke.
+			'grants'       => self::checkboxes( 'grants' ),
 		);
 
 		$checked = Validate::user( $input, true );
@@ -209,6 +215,49 @@ final class PeopleActions {
 	}
 
 	/**
+	 * Sets the grants somebody holds with one client (#93).
+	 *
+	 * A grant is not part of the role and is not edited with it. Somebody's role
+	 * says what kind of access they have; a grant is an authority handed to that
+	 * person specifically, and the two are changed by different decisions.
+	 */
+	public static function set_membership_grants(): void {
+		$membership_id = self::field( 'membership_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_set_membership_grants_' . $membership_id );
+
+		$membership = Memberships::get( $membership_id );
+
+		if ( null === $membership ) {
+			self::back( 'unknown' );
+		}
+
+		$checked = Validate::membership(
+			array(
+				// The stored role, not one from the form. The rule that refuses
+				// a studio grant to a client role has to be checked against what
+				// they actually hold.
+				'role'   => (string) $membership['role'],
+				'grants' => self::checkboxes( 'grants' ),
+			),
+			true
+		);
+
+		if ( array() !== $checked['errors'] ) {
+			self::back( 'invalid' );
+		}
+
+		$updated = Memberships::update(
+			$membership_id,
+			array( 'grants' => $checked['values']['grants'] ),
+			(int) self::field( 'record_version' )
+		);
+
+		self::back( null === $updated ? 'stale' : 'added' );
+	}
+
+	/**
 	 * Whether a named site belongs to the client the membership is on.
 	 *
 	 * @param string $client_site_id The site named, or '' for the whole client.
@@ -238,6 +287,33 @@ final class PeopleActions {
 	private static function field( string $name ): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- names the nonce the caller then verifies; see the note below.
 		return isset( $_POST[ $name ] ) ? sanitize_text_field( wp_unslash( $_POST[ $name ] ) ) : '';
+	}
+
+	/**
+	 * One posted set of checkboxes, sanitised.
+	 *
+	 * An absent field is an empty set rather than a missing one: every box
+	 * unticked and the field never rendered post identically, and for a grant
+	 * form the first of those has to mean "take them all away".
+	 *
+	 * @param string $name Field name.
+	 * @return array<int, string>
+	 */
+	private static function checkboxes( string $name ): array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- names the nonce the caller then verifies; see the note below.
+		if ( ! isset( $_POST[ $name ] ) || ! is_array( $_POST[ $name ] ) ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- the nonce is verified by the caller, and each value is sanitised in the loop below, which the sniff cannot follow.
+		$posted = wp_unslash( $_POST[ $name ] );
+		$values = array();
+
+		foreach ( (array) $posted as $value ) {
+			$values[] = sanitize_text_field( (string) $value );
+		}
+
+		return $values;
 	}
 
 	/**

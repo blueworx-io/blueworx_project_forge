@@ -80,8 +80,9 @@ final class WorkItemsController {
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_SITE,
-					'param' => 'client_site_id',
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'client_site_id',
+					'record' => 'client_site',
 				),
 				'args'                => array(
 					'client_site_id' => array(
@@ -104,8 +105,9 @@ final class WorkItemsController {
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_SITE,
-					'param' => 'client_site_id',
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'client_site_id',
+					'record' => 'client_site',
 				),
 			)
 		);
@@ -118,8 +120,9 @@ final class WorkItemsController {
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_ITEM,
-					'param' => 'item_id',
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
 				),
 			)
 		);
@@ -132,8 +135,9 @@ final class WorkItemsController {
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_ITEM,
-					'param' => 'item_id',
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
 				),
 				'args'                => array(
 					Versioning::PARAM => array(
@@ -153,8 +157,9 @@ final class WorkItemsController {
 				'callback'            => array( self::class, 'transition' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_ITEM,
-					'param' => 'item_id',
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
 				),
 				'args'                => array(
 					'to'              => array(
@@ -185,8 +190,9 @@ final class WorkItemsController {
 					'callback'            => array( self::class, $callback ),
 					'permission_callback' => array( Permissions::class, 'signed_in' ),
 					'scope'               => array(
-						'kind'  => Boundary::SCOPE_ITEM,
-						'param' => 'item_id',
+						'kind'   => Boundary::SCOPE_ITEM,
+						'param'  => 'item_id',
+						'record' => 'work_item',
 					),
 					'args'                => array(
 						Versioning::PARAM => array(
@@ -206,8 +212,9 @@ final class WorkItemsController {
 				'callback'            => array( self::class, 'record_gate' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_ITEM,
-					'param' => 'item_id',
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
 				),
 				'args'                => array(
 					'requirement' => array(
@@ -290,7 +297,7 @@ final class WorkItemsController {
 		$site = ClientSites::get( (string) $request->get_param( 'client_site_id' ) );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		$filters = array();
@@ -339,7 +346,7 @@ final class WorkItemsController {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
-			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'work_item' );
 		}
 
 		$children = Items::children( $item['id'] );
@@ -388,7 +395,7 @@ final class WorkItemsController {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
-			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'work_item' );
 		}
 
 		// D-18. Marking a gate requirement is a workflow act, so it is under the
@@ -454,7 +461,7 @@ final class WorkItemsController {
 		$site = ClientSites::get( (string) ( $body['client_site_id'] ?? '' ) );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		if ( 'active' !== (string) $site['status'] ) {
@@ -544,7 +551,7 @@ final class WorkItemsController {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
-			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'work_item' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );
@@ -617,7 +624,7 @@ final class WorkItemsController {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
-			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'work_item' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );
@@ -843,7 +850,7 @@ final class WorkItemsController {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
-			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'work_item' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );

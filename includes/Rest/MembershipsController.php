@@ -50,8 +50,9 @@ final class MembershipsController {
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_CLIENT,
-					'param' => 'client_id',
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
 				),
 				'args'                => array(
 					'status' => array(
@@ -70,8 +71,9 @@ final class MembershipsController {
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_CLIENT,
-					'param' => 'client_id',
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
 				),
 			)
 		);
@@ -86,6 +88,7 @@ final class MembershipsController {
 				'scope'               => array(
 					'kind'    => Boundary::SCOPE_ITEM,
 					'param'   => 'membership_id',
+					'record'  => 'membership',
 					'resolve' => array( self::class, 'locate' ),
 				),
 				'args'                => array(
@@ -128,7 +131,7 @@ final class MembershipsController {
 		$client_id = (string) $request['client_id'];
 
 		if ( null === Clients::get( $client_id ) ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		$status = (string) $request->get_param( 'status' );
@@ -152,7 +155,7 @@ final class MembershipsController {
 		$client    = Clients::get( $client_id );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		if ( 'active' !== (string) $client['status'] ) {
@@ -264,7 +267,7 @@ final class MembershipsController {
 		$membership = Memberships::get( (string) $request['membership_id'] );
 
 		if ( null === $membership ) {
-			return Errors::rest( 'unknown_membership', __( 'There is no such membership.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'membership' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );
@@ -364,7 +367,7 @@ final class MembershipsController {
 		$site = ClientSites::get( $client_site_id );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		if ( (string) $site['client_id'] !== $client_id ) {
@@ -374,7 +377,7 @@ final class MembershipsController {
 			 * to look identical, or the API confirms which ids are real for
 			 * clients the caller has nothing to do with.
 			 */
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		return null;

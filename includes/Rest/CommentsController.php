@@ -47,8 +47,9 @@ final class CommentsController {
 				 */
 				'permission_callback' => array( self::class, 'may_read' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_ITEM,
-					'param' => 'item_id',
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
 				),
 			)
 		);
@@ -61,8 +62,9 @@ final class CommentsController {
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( self::class, 'may_read' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_ITEM,
-					'param' => 'item_id',
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
 				),
 				'args'                => array(
 					'body' => array( 'type' => 'string' ),
@@ -164,7 +166,7 @@ final class CommentsController {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
-			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'work_item' );
 		}
 
 		$scope = Scope::current( (string) $item['client_id'] );

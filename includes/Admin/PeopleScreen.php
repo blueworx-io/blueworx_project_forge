@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Roles;
 use Blueworx\Forge\Tenancy\Users;
@@ -217,7 +218,13 @@ final class PeopleScreen {
 				: esc_html__( 'one site', 'blueworx-forge' );
 			echo '</span> ';
 
-			echo '<span data-bwx-status>' . esc_html( 'active' === (string) $membership['status'] ? __( 'Active', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) ) . '</span>';
+			echo '<span data-bwx-status>' . esc_html( 'active' === (string) $membership['status'] ? __( 'Active', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) ) . '</span> ';
+
+			foreach ( Grants::parse( (string) ( $membership['grants'] ?? '' ) ) as $grant ) {
+				echo '<span data-bwx-membership-grant="' . esc_attr( $grant ) . '">' . esc_html( Grants::label( $grant ) ) . '</span> ';
+			}
+
+			self::membership_grants_form( $membership );
 			echo '</li>';
 		}
 
@@ -299,8 +306,78 @@ final class PeopleScreen {
 		echo '<option value="inactive"' . selected( 'inactive', (string) $person['status'], false ) . '>' . esc_html__( 'Offboarded', 'blueworx-forge' ) . '</option>';
 		echo '</select></td></tr>';
 
+		self::reach_row( $person );
+
 		echo '</tbody></table>';
 		submit_button( __( 'Save', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</form>';
+		echo '</details>';
+	}
+
+	/**
+	 * How far this person reaches (#93).
+	 *
+	 * One checkbox, because there is one grant that is not held with a client.
+	 * Its absence is the default and the point: a studio user without it is
+	 * scoped exactly like a client user, and reaches only what their memberships
+	 * name.
+	 *
+	 * @param array<string, mixed> $person The person.
+	 */
+	private static function reach_row( array $person ): void {
+		$id     = (string) $person['id'];
+		$grants = Grants::parse( (string) ( $person['grants'] ?? '' ) );
+
+		echo '<tr><th scope="row">' . esc_html__( 'Reach', 'blueworx-forge' ) . '</th><td>';
+		echo '<label for="bwx-edit-person-cross-' . esc_attr( $id ) . '">';
+		echo '<input type="checkbox" id="bwx-edit-person-cross-' . esc_attr( $id ) . '" name="grants[]" value="' . esc_attr( Grants::CROSS_CLIENT ) . '"';
+		checked( in_array( Grants::CROSS_CLIENT, $grants, true ) );
+		echo ' data-bwx-grant="' . esc_attr( Grants::CROSS_CLIENT ) . '"> ';
+		echo esc_html( Grants::label( Grants::CROSS_CLIENT ) );
+		echo '</label>';
+		echo '<p class="description">' . esc_html( Grants::description( Grants::CROSS_CLIENT ) ) . '</p>';
+		echo '</td></tr>';
+	}
+
+	/**
+	 * The grants held with one client, and the form that changes them (#93).
+	 *
+	 * These sit on the membership rather than the person because they are held
+	 * with one client: somebody can be trusted to approve their own work here
+	 * and not there, which a grant on the person could not say.
+	 *
+	 * @param array<string, mixed> $membership The membership.
+	 */
+	private static function membership_grants_form( array $membership ): void {
+		if ( 'active' !== (string) $membership['status'] || Roles::is_client_side( (string) $membership['role'] ) ) {
+			// Nothing to offer. The two grants here are studio authority, and a
+			// membership that has ended grants nothing at all.
+			return;
+		}
+
+		$id   = (string) $membership['id'];
+		$held = Grants::parse( (string) ( $membership['grants'] ?? '' ) );
+
+		echo '<details data-bwx-membership-grants="' . esc_attr( $id ) . '">';
+		echo '<summary>' . esc_html__( 'Grants', 'blueworx-forge' ) . '</summary>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_set_membership_grants_' . $id );
+		echo '<input type="hidden" name="action" value="bwx_forge_set_membership_grants">';
+		echo '<input type="hidden" name="membership_id" value="' . esc_attr( $id ) . '">';
+		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $membership['record_version'] ) . '">';
+
+		foreach ( Grants::ON_MEMBERSHIP as $grant ) {
+			$field = 'bwx-grant-' . $grant . '-' . $id;
+
+			echo '<p><label for="' . esc_attr( $field ) . '">';
+			echo '<input type="checkbox" id="' . esc_attr( $field ) . '" name="grants[]" value="' . esc_attr( $grant ) . '"';
+			checked( in_array( $grant, $held, true ) );
+			echo ' data-bwx-grant="' . esc_attr( $grant ) . '"> ';
+			echo esc_html( Grants::label( $grant ) );
+			echo '</label><br><span class="description">' . esc_html( Grants::description( $grant ) ) . '</span></p>';
+		}
+
+		submit_button( __( 'Save grants', 'blueworx-forge' ), 'secondary', '', false );
 		echo '</form>';
 		echo '</details>';
 	}

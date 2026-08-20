@@ -40,7 +40,15 @@ final class ClientsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+
+				/*
+				 * Reading which clients you work with is not administration.
+				 * The set is scoped to what the person reaches (#92), so
+				 * somebody with no membership at all sees an empty list rather
+				 * than a refusal — the difference matters, because a refusal
+				 * would say there is something to be refused.
+				 */
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind' => Boundary::SCOPE_LIST,
 				),
@@ -75,8 +83,9 @@ final class ClientsController {
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_CLIENT,
-					'param' => 'client_id',
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
 				),
 			)
 		);
@@ -89,8 +98,9 @@ final class ClientsController {
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
-					'kind'  => Boundary::SCOPE_CLIENT,
-					'param' => 'client_id',
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
 				),
 				'args'                => array(
 					Versioning::PARAM => array(
@@ -137,7 +147,7 @@ final class ClientsController {
 		$client = Clients::get( (string) $request['client_id'] );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		return rest_ensure_response(
@@ -218,7 +228,7 @@ final class ClientsController {
 		$client = Clients::get( (string) $request['client_id'] );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );
