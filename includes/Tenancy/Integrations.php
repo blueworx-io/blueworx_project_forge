@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Tenancy;
 
+use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 
 /**
@@ -104,7 +105,7 @@ final class Integrations {
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
-		$wpdb->insert( Schema::integrations_table(), $row );
+		$wpdb->insert( Schema::integrations_table(), $row, Formats::for_row( $row ) );
 
 		/*
 		 * Read back rather than trusting the insert. A refused insert is most
@@ -173,6 +174,32 @@ final class Integrations {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_id = %s", $client_id ), ARRAY_A );
+
+		$found = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$record                             = self::hydrate( $row );
+			$found[ $record['client_site_id'] ] = $record;
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Every integration there is, keyed by client site id.
+	 *
+	 * Same reason as Memberships::by_client(): the clients screen shows every
+	 * client at once, and asking per client made the page cost a query a row.
+	 *
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function all(): array {
+		global $wpdb;
+
+		$table = Schema::integrations_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( "SELECT * FROM {$table}", ARRAY_A );
 
 		$found = array();
 
@@ -337,7 +364,9 @@ final class Integrations {
 		$changed = $wpdb->update(
 			Schema::integrations_table(),
 			$changes,
-			array( 'client_site_id' => $client_site_id )
+			array( 'client_site_id' => $client_site_id ),
+			Formats::for_row( $changes ),
+			array( '%s' )
 		);
 
 		if ( false === $changed ) {
