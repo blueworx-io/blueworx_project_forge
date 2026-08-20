@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as Forge from './helpers/forge.js';
 
 // The workflow proper (#105, #107, #108, #109, #110, #111) and the discussion
 // attached to it (#100), against a real WordPress. The unit tests prove the
@@ -36,6 +37,10 @@ function forge(request, nonce) {
   const headers = { 'X-WP-Nonce': nonce };
 
   return {
+    // Carried so the shared helpers can make the calls that are not Forge's own
+    // — creating the WordPress account behind a person, for one.
+    headers,
+    request,
     get: (path) => request.get(`${BASE}${path}`, { headers }).then((r) => r.json()),
     post: (path, data) => request.post(`${BASE}${path}`, { headers, data }),
     patch: (path, data) => request.patch(`${BASE}${path}`, { headers, data }),
@@ -86,15 +91,22 @@ function answerFor(field) {
   }
 }
 
-/** Does whatever the gate asks for, the way a person would. */
-async function satisfy(api, item, to) {
+/**
+ * Does whatever the gate asks for, the way a person would.
+ *
+ * `seats` covers the fields a plausible answer cannot invent: the three seats
+ * hold people, and since #112 the authority rules read them back.
+ */
+async function satisfy(api, item, to, seats = {}) {
   const detail = await api.get(`/work-items/${item.id}`);
-  const patch = {};
+  const patch = { ...seats };
 
   for (const requirement of detail.readiness[to]?.unmet ?? []) {
     if ('field' === requirement.by) {
       for (const field of requirement.fields) {
-        patch[field] = answerFor(field);
+        if (undefined === patch[field]) {
+          patch[field] = answerFor(field);
+        }
       }
       continue;
     }
@@ -120,11 +132,11 @@ async function satisfy(api, item, to) {
 }
 
 /** Walks an item up the path, satisfying each gate on the way. */
-async function walkTo(api, item, stages) {
+async function walkTo(api, item, stages, seats = {}) {
   let current = item;
 
   for (const stage of stages) {
-    current = await satisfy(api, current, stage);
+    current = await satisfy(api, current, stage, 'up-next' === stage ? seats : {});
 
     const moved = await api.post(`/work-items/${current.id}/transition`, {
       to: stage,
@@ -267,16 +279,25 @@ test('a failed review keeps the review attempt that failed', async ({ browser, b
   const api = forge(context.request, nonce);
   const site = await makeSite(api, 'Review Co');
 
+  // The three seats have to hold real people since #112, and the item's own
+  // Reviewer is who a failed review comes from.
+  const crew = await Forge.team( api, browser, baseURL, site.client_id );
+
   let item = await makeItem(api, site.id, { title: `Reviewed twice ${RUN_ID}` });
-  item = await walkTo(api, item, [
-    'triage',
-    'documentation-period',
-    'technical-audit',
-    'design-process',
-    'up-next',
-    'in-development',
-    'in-review',
-  ]);
+  item = await walkTo(
+    api,
+    item,
+    [
+      'triage',
+      'documentation-period',
+      'technical-audit',
+      'design-process',
+      'up-next',
+      'in-development',
+      'in-review',
+    ],
+    crew.seats
+  );
 
   // The reviewer gets part way through, then sends it back.
   await api.post(`/work-items/${item.id}/gate`, {
@@ -303,6 +324,7 @@ test('a failed review keeps the review attempt that failed', async ({ browser, b
   const feedback = after.history[after.history.length - 1];
   expect(feedback.detail).toContain('no empty state');
 
+  await crew.close();
   await context.close();
 });
 
@@ -312,17 +334,23 @@ test('a review that sends work back has to say what was wrong', async ({ browser
   const { context, nonce } = await signedInContext(browser, baseURL);
   const api = forge(context.request, nonce);
   const site = await makeSite(api, 'Feedback Co');
+  const crew = await Forge.team( api, browser, baseURL, site.client_id );
 
   let item = await makeItem(api, site.id, { title: `Needs feedback ${RUN_ID}` });
-  item = await walkTo(api, item, [
-    'triage',
-    'documentation-period',
-    'technical-audit',
-    'design-process',
-    'up-next',
-    'in-development',
-    'in-review',
-  ]);
+  item = await walkTo(
+    api,
+    item,
+    [
+      'triage',
+      'documentation-period',
+      'technical-audit',
+      'design-process',
+      'up-next',
+      'in-development',
+      'in-review',
+    ],
+    crew.seats
+  );
 
   const silent = await api.post(`/work-items/${item.id}/return`, {
     to: 'in-development',
@@ -333,6 +361,7 @@ test('a review that sends work back has to say what was wrong', async ({ browser
   expect(silent.status()).toBe(400);
   expect((await silent.json()).code).toBe('bwx_forge_feedback_required');
 
+  await crew.close();
   await context.close();
 });
 

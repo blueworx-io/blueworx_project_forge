@@ -9,9 +9,11 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Events;
+use Blueworx\Forge\Work\Fields;
 use Blueworx\Forge\Work\GateRecords;
 use Blueworx\Forge\Work\Gates;
 use Blueworx\Forge\Work\Items;
@@ -33,8 +35,12 @@ use WP_REST_Response;
  * change look like an ordinary field edit, which is exactly what the gates
  * exist to prevent.
  *
- * Gated to Permissions::manage() for now; #91 swaps each for a capability, and
- * #92 puts the site scoping behind a layer rather than in each callback.
+ * Since #91 the routes that move work are gated on being signed in, and then on
+ * the capability the move actually needs — which is what lets a staff member
+ * who is not a WordPress administrator do their job, and what refuses every
+ * client role by the same door (#115). The reads are still on manage() until
+ * #92 scopes them to the sites a membership grants; opening them first would be
+ * a hole rather than a permission.
  */
 final class WorkItemsController {
 
@@ -47,11 +53,13 @@ final class WorkItemsController {
 	 * The ways work moves other than forwards, as route path to callback.
 	 */
 	private const MOVES = array(
-		'return'  => 'send_back',
-		'block'   => 'block',
-		'unblock' => 'unblock',
-		'outcome' => 'outcome',
-		'archive' => 'archive',
+		'return'   => 'send_back',
+		'block'    => 'block',
+		'unblock'  => 'unblock',
+		'outcome'  => 'outcome',
+		'archive'  => 'archive',
+		'reopen'   => 'reopen',
+		'override' => 'override',
 	);
 
 	/**
@@ -123,7 +131,7 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'transition' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'args'                => array(
 					'to'              => array(
 						'type'     => 'string',
@@ -151,7 +159,7 @@ final class WorkItemsController {
 				array(
 					'methods'             => 'POST',
 					'callback'            => array( self::class, $callback ),
-					'permission_callback' => array( Permissions::class, 'manage' ),
+					'permission_callback' => array( Permissions::class, 'signed_in' ),
 					'args'                => array(
 						Versioning::PARAM => array(
 							'type'     => 'integer',
@@ -168,7 +176,7 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'record_gate' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'args'                => array(
 					'requirement' => array(
 						'type'     => 'string',
@@ -343,6 +351,14 @@ final class WorkItemsController {
 			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
 		}
 
+		// D-18. Marking a gate requirement is a workflow act, so it is under the
+		// lock with the rest of them.
+		$refused = self::permit( Capabilities::COMPLETE_GATE, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
 		$body        = (array) $request->get_json_params();
 		$requirement = (string) ( $body['requirement'] ?? $request->get_param( 'requirement' ) );
 
@@ -426,6 +442,10 @@ final class WorkItemsController {
 			}
 		}
 
+		// Never from the caller: whether the self-review rule is waived is a fact
+		// about the person's grants (AUTH-3), not a field they may send.
+		$body['self_review_permitted'] = ! empty( Access::context( (string) $site['client_id'] )['principal'] );
+
 		$checked = Validate::item( $body, false );
 
 		if ( array() !== $checked['errors'] ) {
@@ -483,7 +503,7 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$checked = Validate::item( (array) $request->get_json_params(), true );
+		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -492,6 +512,12 @@ final class WorkItemsController {
 				400,
 				array( 'fields' => $checked['errors'] )
 			);
+		}
+
+		$refused = self::permit_edit( $item, $checked['values'] );
+
+		if ( null !== $refused ) {
+			return $refused;
 		}
 
 		if ( array_key_exists( 'parent_id', $checked['values'] ) ) {
@@ -550,7 +576,84 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		return self::answer( Transition::move( $item, (string) $request->get_param( 'to' ), (int) $sent, get_current_user_id() ) );
+		$to = (string) $request->get_param( 'to' );
+
+		/*
+		 * Which capability this particular move needs, decided by the workflow
+		 * rather than here: nine of the eleven forward moves want ordinary
+		 * permission to move work, and two want the person the item names
+		 * (#112).
+		 */
+		$capability = Transitions::capability_for( (string) $item['stage'], $to );
+		$refused    = self::permit( $capability, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$context = Access::context( (string) $item['client_id'], $item );
+
+		return self::answer(
+			Transition::move(
+				$item,
+				$to,
+				(int) $sent,
+				get_current_user_id(),
+				empty( $context['acting_as_substitute'] ) ? '' : Events::VIA_SUBSTITUTE
+			)
+		);
+	}
+
+	/**
+	 * Reopens finished work as a new cycle (#113).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function reopen( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::REOPEN );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		return self::answer(
+			Transition::reopen(
+				$ready['item'],
+				(string) ( $body['to'] ?? '' ),
+				(string) ( $body['reason'] ?? '' ),
+				$ready['version'],
+				get_current_user_id()
+			)
+		);
+	}
+
+	/**
+	 * The WF-5 override (#114).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function override( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::OVERRIDE );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		return self::answer(
+			Transition::override(
+				$ready['item'],
+				(string) ( $body['to'] ?? '' ),
+				(string) ( $body['reason'] ?? '' ),
+				$ready['version'],
+				get_current_user_id()
+			)
+		);
 	}
 
 	/**
@@ -560,7 +663,7 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function send_back( WP_REST_Request $request ) {
-		$ready = self::ready( $request );
+		$ready = self::ready( $request, Capabilities::RETURN_ITEM );
 
 		if ( ! is_array( $ready ) ) {
 			return $ready;
@@ -588,7 +691,7 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function block( WP_REST_Request $request ) {
-		$ready = self::ready( $request );
+		$ready = self::ready( $request, Capabilities::BLOCK_ITEM );
 
 		if ( ! is_array( $ready ) ) {
 			return $ready;
@@ -619,7 +722,7 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function unblock( WP_REST_Request $request ) {
-		$ready = self::ready( $request );
+		$ready = self::ready( $request, Capabilities::BLOCK_ITEM );
 
 		if ( ! is_array( $ready ) ) {
 			return $ready;
@@ -639,7 +742,7 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function outcome( WP_REST_Request $request ) {
-		$ready = self::ready( $request );
+		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
 
 		if ( ! is_array( $ready ) ) {
 			return $ready;
@@ -668,7 +771,7 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function archive( WP_REST_Request $request ) {
-		$ready = self::ready( $request );
+		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
 
 		if ( ! is_array( $ready ) ) {
 			return $ready;
@@ -681,10 +784,11 @@ final class WorkItemsController {
 	 * The item and the version every move route needs, or the refusal that
 	 * stops it: no such item, or a write against a version that has moved on.
 	 *
-	 * @param WP_REST_Request $request Request.
+	 * @param WP_REST_Request $request    Request.
+	 * @param string          $capability What the caller is about to exercise.
 	 * @return array{item: array<string, mixed>, version: int}|\WP_Error|WP_REST_Response
 	 */
-	private static function ready( WP_REST_Request $request ) {
+	private static function ready( WP_REST_Request $request, string $capability ) {
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
@@ -698,10 +802,109 @@ final class WorkItemsController {
 			return $stale;
 		}
 
+		$refused = self::permit( $capability, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
 		return array(
 			'item'    => $item,
 			'version' => (int) $sent,
 		);
+	}
+
+	/**
+	 * Asks the permission layer, and refuses in the shape every route answers
+	 * with.
+	 *
+	 * Every workflow mutation goes through here, which is what makes the client
+	 * transition lock a lock rather than a habit (#115): there is no route that
+	 * moves work without asking, so there is no route a client role can reach
+	 * by finding the one that forgot.
+	 *
+	 * @param string               $capability What is being exercised.
+	 * @param array<string, mixed> $item       The item it is being exercised on.
+	 * @return \WP_Error|null Null when it is allowed.
+	 */
+	private static function permit( string $capability, array $item ) {
+		return Access::refuse_unless( $capability, (string) $item['client_id'], $item );
+	}
+
+	/**
+	 * The request body, with the facts a caller does not get to assert.
+	 *
+	 * `self_review_permitted` decides whether the Reviewer may be the same
+	 * person as the Primary User (AUTH-3). That is a fact about the person's
+	 * grants, not a field — so it is stripped from whatever arrived and set from
+	 * the permission layer. A caller that could send it could waive the rule by
+	 * saying it did not apply.
+	 *
+	 * @param WP_REST_Request           $request Request.
+	 * @param string                    $client_id The client these records belong to.
+	 * @param array<string, mixed>|null $item      The item, where there is one.
+	 * @return array<string, mixed>
+	 */
+	private static function body( WP_REST_Request $request, string $client_id, ?array $item = null ): array {
+		$body = (array) $request->get_json_params();
+
+		unset( $body['self_review_permitted'] );
+
+		$context = Access::context( $client_id, $item );
+
+		$body['self_review_permitted'] = ! empty( $context['principal'] );
+
+		return $body;
+	}
+
+	/**
+	 * Which capability an edit needs, decided by which fields it touches.
+	 *
+	 * An edit is not one permission. The definition is a client's to write while
+	 * the item is still being documented (AUTH-2); the seats and the dates are
+	 * ours; the commercial classification is the Primary administrator's alone.
+	 * Asking one question for all three would give whoever may write a title the
+	 * ability to reclassify what a client is charged (D-20, D-21).
+	 *
+	 * @param array<string, mixed> $item   The item being edited.
+	 * @param array<string, mixed> $values The values the edit would write.
+	 * @return \WP_Error|null Null when every field in the edit is permitted.
+	 */
+	private static function permit_edit( array $item, array $values ) {
+		$groups = array(
+			Capabilities::EDIT_COMMERCIAL     => Fields::COMMERCIAL,
+			Capabilities::EDIT_ACCOUNTABILITY => Fields::ACCOUNTABILITY,
+			Capabilities::EDIT_PLANNING       => Fields::PLANNING,
+			Capabilities::EDIT_DEFINITION     => Fields::DEFINITION,
+		);
+
+		// The substitute seats are the Primary administrator's to assign, and
+		// nobody else's — an assignment anybody could make is not a control.
+		$groups[ Capabilities::GRANT_CAPABILITY ] = Fields::SUBSTITUTES;
+
+		foreach ( $groups as $capability => $fields ) {
+			if ( array() === array_intersect( array_keys( $values ), $fields ) ) {
+				continue;
+			}
+
+			$refused = Access::refuse_unless(
+				$capability,
+				(string) $item['client_id'],
+				$item,
+				array(
+					// AUTH-2. A client writes the definition while the item is
+					// still in Documentation Period, and comments afterwards.
+					'before_documentation_ends' => Stages::position( (string) $item['stage'] )
+						<= Stages::position( 'documentation-period' ),
+				)
+			);
+
+			if ( null !== $refused ) {
+				return $refused;
+			}
+		}
+
+		return null;
 	}
 
 	/**

@@ -225,11 +225,19 @@ final class WorkGatesTest extends TestCase {
 	 * does.
 	 */
 	public function test_a_recorded_completion_satisfies_a_record_requirement(): void {
-		$records = array( 'G-UP-NEXT-1' => array( 'actor' => 3 ) );
+		$records = array( 'G-UP-NEXT-7' => array( 'actor' => 3 ) );
 		$result  = Gates::evaluate( 'G-UP-NEXT', $this->item(), $records );
 
-		$this->assertNotContains( 'G-UP-NEXT-1', array_column( $result['unmet'], 'id' ) );
-		$this->assertContains( 'G-UP-NEXT-2', array_column( $result['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-UP-NEXT-7', array_column( $result['unmet'], 'id' ) );
+		$this->assertContains( 'G-UP-NEXT-4', array_column( $result['unmet'], 'id' ) );
+
+		// And a record does not satisfy a requirement backed by a field. The
+		// three seats are fields since #112, because a completion record saying
+		// "reviewer assigned" does not say who — and the authority rules have
+		// to read it back.
+		$seat = Gates::evaluate( 'G-UP-NEXT', $this->item(), array( 'G-UP-NEXT-2' => array( 'actor' => 3 ) ) );
+
+		$this->assertContains( 'G-UP-NEXT-2', array_column( $seat['unmet'], 'id' ) );
 	}
 
 	/**

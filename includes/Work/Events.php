@@ -67,6 +67,26 @@ final class Events {
 	public const ARCHIVED = 'archived';
 
 	/**
+	 * Finished work was picked up again, as a new cycle (#113).
+	 */
+	public const REOPENED = 'reopened';
+
+	/**
+	 * The workflow was gone round by the Primary administrator (#114).
+	 */
+	public const OVERRIDDEN = 'overridden';
+
+	/**
+	 * Done by somebody standing in for the person the item names (AUTH-4).
+	 */
+	public const VIA_SUBSTITUTE = 'substitute';
+
+	/**
+	 * Done through the WF-5 override.
+	 */
+	public const VIA_OVERRIDE = 'override';
+
+	/**
 	 * Appends an entry.
 	 *
 	 * @param array<string, mixed> $entry item_id, client_site_id, action, and
@@ -87,6 +107,15 @@ final class Events {
 			'to_stage'       => (string) ( $entry['to_stage'] ?? '' ),
 			'gate'           => (string) ( $entry['gate'] ?? '' ),
 			'outcome'        => (string) ( $entry['outcome'] ?? '' ),
+
+			/*
+			 * How the actor was entitled to do this, where it was not simply
+			 * their own authority: standing in for somebody (AUTH-4), or the
+			 * WF-5 override. Blank is the ordinary case, and that is why it is
+			 * a column rather than a note in the reason — "which of these were
+			 * done by a substitute" has to be a query.
+			 */
+			'via'            => (string) ( $entry['via'] ?? '' ),
 			// Bounded because it lands in a varchar and comes from a person
 			// typing a reason into a box.
 			'reason'         => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, 191 ),
@@ -134,6 +163,7 @@ final class Events {
 					'to_stage'    => (string) $row['to_stage'],
 					'gate'        => (string) $row['gate'],
 					'outcome'     => (string) $row['outcome'],
+					'via'         => (string) $row['via'],
 					'reason'      => (string) $row['reason'],
 					'detail'      => (string) $row['detail'],
 					'cycle'       => (int) $row['cycle'],

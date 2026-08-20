@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 5;
+	public const VERSION = 6;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -273,6 +273,7 @@ final class Schema {
 	client_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL DEFAULT '',
 	role varchar(32) NOT NULL,
+	grants varchar(191) NOT NULL DEFAULT '',
 	status varchar(20) NOT NULL DEFAULT 'active',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -317,6 +318,11 @@ final class Schema {
 	duplicate_of varchar(32) NOT NULL DEFAULT '',
 	archived tinyint(1) NOT NULL DEFAULT 0,
 	review_attempt int(11) unsigned NOT NULL DEFAULT 1,
+	primary_user_id varchar(32) NOT NULL DEFAULT '',
+	reviewer_id varchar(32) NOT NULL DEFAULT '',
+	deliverer_id varchar(32) NOT NULL DEFAULT '',
+	reviewer_substitute_id varchar(32) NOT NULL DEFAULT '',
+	deliverer_substitute_id varchar(32) NOT NULL DEFAULT '',
 	cycle int(11) unsigned NOT NULL DEFAULT 1,
 	self_reviewed tinyint(1) NOT NULL DEFAULT 0,
 	override_used tinyint(1) NOT NULL DEFAULT 0,
@@ -359,6 +365,7 @@ final class Schema {
 	to_stage varchar(32) NOT NULL DEFAULT '',
 	gate varchar(40) NOT NULL DEFAULT '',
 	outcome varchar(20) NOT NULL DEFAULT '',
+	via varchar(20) NOT NULL DEFAULT '',
 	reason varchar(191) NOT NULL DEFAULT '',
 	detail text NULL,
 	cycle int(11) unsigned NOT NULL DEFAULT 1,

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as Forge from './helpers/forge.js';
 
 // #96, #97, #104 and #106 against a real WordPress. The unit tests prove the
 // rules in isolation; these prove the table exists, the routes are registered,
@@ -536,20 +537,17 @@ test('a due date before its start is refused', async ({ browser, baseURL }) => {
 });
 
 test('an item walks the whole path to Released', async ({ browser, baseURL }) => {
-  // Nine gates, each with its own requirements to satisfy first.
+  // Nine gates, each with its own requirements to satisfy first — and two of
+  // the moves belong to the person the item names rather than to whoever is
+  // driving (#112), so the walk changes hands twice on the way.
   test.slow();
 
-  const { context, nonce } = await signedInContext(browser, baseURL);
-  const site = await makeSite(context.request, nonce, 'End To End Co');
+  const me = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(me.api, 'End To End Co', RUN_ID);
+  const crew = await Forge.team(me.api, browser, baseURL, client.id);
 
-  let item = (
-    await (
-      await makeItem(context.request, nonce, site.id, {
-        title: `All the way ${RUN_ID}`,
-        level: 'sub-feature',
-        work_type: 'feature',
-      })
-    ).json()
+  const item = (
+    await (await Forge.makeItem(me.api, site.id, { title: `All the way ${RUN_ID}` })).json()
   ).item;
 
   const path = [
@@ -564,22 +562,16 @@ test('an item walks the whole path to Released', async ({ browser, baseURL }) =>
     'released',
   ];
 
-  for (const stage of path) {
-    const response = await advance(context.request, nonce, item, stage);
-    expect(response.status(), `moving to ${stage}`).toBe(200);
-    item = (await response.json()).item;
-    expect(item.stage).toBe(stage);
-  }
+  const released = await Forge.walkTo(me.api, item, path, { seats: crew.seats, as: crew.as });
+
+  expect(released.stage).toBe('released');
 
   // Released is the end of the forward path.
-  const shown = await (
-    await context.request.get(`/wp-json/blueworx-forge/v1/work-items/${item.id}`, {
-      headers: { 'X-WP-Nonce': nonce },
-    })
-  ).json();
+  const shown = await me.api.get(`/work-items/${released.id}`);
 
   expect(shown.available).toEqual([]);
   expect(shown.history).toHaveLength(path.length + 1);
 
-  await context.close();
+  await crew.close();
+  await me.context.close();
 });

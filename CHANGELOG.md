@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.16.0] - 2026-08-20
+
+### Added
+
+- Who may do what is now written down and enforced, for every role, on both the
+  studio and a client site. A refusal says which rule stopped it rather than
+  only that something did.
+- Work names the person doing it, the person checking it and the person
+  shipping it. Only the named reviewer approves a review and only the named
+  deliverer confirms a release — being an administrator is not a substitute for
+  being the person.
+- A stand-in can be named for a reviewer or a deliverer who is away, by you and
+  nobody else, and anything they approve is recorded as having been done by a
+  stand-in.
+- Finished work can be picked up again. It starts a fresh round and keeps the
+  record of having been finished the first time.
+- You can move any item to any stage with a reason. The item says so
+  permanently afterwards, and it still cannot be used to move a client's work
+  or to put work in a stage its type has no business being in.
+
+### Changed
+
+- Client accounts are refused every way of moving work — nine routes, all
+  refused, with the item untouched.
+- Staff who are not WordPress administrators can now do their job. The screens
+  that move work check what someone may do rather than whether they administer
+  the site; reads stay administrator-only until they are properly scoped.
+
 ## [2.15.0] - 2026-08-20
 
 ### Added

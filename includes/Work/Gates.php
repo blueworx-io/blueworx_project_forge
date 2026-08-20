@@ -153,9 +153,16 @@ final class Gates {
 				self::record( 'G-DESIGN-5', 'Design approval', 'approval', 'Have the design approved by the design approver.', self::APR ),
 			),
 			'G-UP-NEXT'         => array(
-				self::record( 'G-UP-NEXT-1', 'Primary User assigned', 'reference', 'Assign the Primary User.' ),
-				self::record( 'G-UP-NEXT-2', 'Reviewer assigned', 'reference', 'Assign a Reviewer, who must be somebody other than the Primary User unless they hold Principal.' ),
-				self::record( 'G-UP-NEXT-3', 'Deliverer assigned', 'reference', 'Assign the Deliverer.' ),
+
+				/*
+				 * The three seats are fields rather than records, because #112
+				 * has to read them back: only the named Reviewer approves a
+				 * review, and a completion record saying "reviewer assigned"
+				 * does not say who.
+				 */
+				self::field( 'G-UP-NEXT-1', 'Primary User assigned', 'reference', array( 'primary_user_id' ), 'Assign the Primary User.' ),
+				self::field( 'G-UP-NEXT-2', 'Reviewer assigned', 'reference', array( 'reviewer_id' ), 'Assign a Reviewer, who must be somebody other than the Primary User unless they hold Principal.' ),
+				self::field( 'G-UP-NEXT-3', 'Deliverer assigned', 'reference', array( 'deliverer_id' ), 'Assign the Deliverer.' ),
 				self::record( 'G-UP-NEXT-4', 'Planned hours per role', 'numeric', 'Enter planned hours for Primary User, Reviewer and Deliverer.' ),
 				self::field( 'G-UP-NEXT-5', 'Planned start and due date', 'date', array( 'planned_start', 'planned_due' ), 'Set a planned start and a planned due date.' ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),

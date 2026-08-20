@@ -56,9 +56,12 @@ final class Transition {
 	 * @param string               $to           The stage to move to.
 	 * @param int                  $sent_version Version the move was made against.
 	 * @param int                  $actor        WordPress user id requesting it.
+	 * @param string               $via          How the actor was entitled to make
+	 *                                           it, where it was not their own
+	 *                                           authority: Events::VIA_SUBSTITUTE.
 	 * @return array<string, mixed>|WP_Error The item as it now stands.
 	 */
-	public static function move( array $item, string $to, int $sent_version, int $actor ) {
+	public static function move( array $item, string $to, int $sent_version, int $actor, string $via = '' ) {
 		$from = (string) $item['stage'];
 
 		$refusal = self::refuse_bad_target( $item, $to );
@@ -100,6 +103,9 @@ final class Transition {
 			array(
 				'action' => Events::MOVED,
 				'gate'   => $gate,
+				// AUTH-4: a review approved by a stand-in is still approved, and
+				// the changelog says which it was.
+				'via'    => $via,
 			),
 			$sent_version,
 			$actor
@@ -437,6 +443,124 @@ final class Transition {
 				'action'  => Events::ARCHIVED,
 				'gate'    => '',
 				'outcome' => Outcomes::ARCHIVED,
+			),
+			$sent_version,
+			$actor
+		);
+	}
+
+	/**
+	 * Picks finished work back up, as a new cycle (#113).
+	 *
+	 * Nothing is erased and nothing is rewound. The earlier completion and
+	 * release records stay attached to the cycle they happened in, and the new
+	 * cycle starts with its gates unsatisfied — because a reopened item has not
+	 * undone its documentation approval, it has started another round that needs
+	 * one of its own (WF-4).
+	 *
+	 * @param array<string, mixed> $item         The item, as read.
+	 * @param string               $to           Documentation Period or In Development.
+	 * @param string               $reason       Why it is being reopened.
+	 * @param int                  $sent_version Version moved against.
+	 * @param int                  $actor        Who is doing it.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function reopen( array $item, string $to, string $reason, int $sent_version, int $actor ) {
+		$reason = trim( $reason );
+
+		if ( '' === $reason ) {
+			return new WP_Error(
+				'bwx_forge_reason_required',
+				__( 'Reopening finished work needs a reason.', 'blueworx-forge' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! Reopen::allowed( $item, $to ) ) {
+			return new WP_Error(
+				'bwx_forge_reopen_not_allowed',
+				__( 'That work cannot be reopened there.', 'blueworx-forge' ),
+				array(
+					'status'    => 409,
+					'from'      => (string) $item['stage'],
+					'attempted' => $to,
+					'available' => Reopen::targets( $item ),
+				)
+			);
+		}
+
+		return self::commit(
+			$item,
+			$to,
+			array(
+				'cycle'          => Reopen::next_cycle( $item ),
+				// The new cycle reviews from scratch. The old attempt's records
+				// keep their own cycle and stop counting, rather than being
+				// deleted to make room.
+				'review_attempt' => 1,
+			),
+			array(
+				'action' => Events::REOPENED,
+				'gate'   => '',
+				'reason' => $reason,
+				// Stamped with the cycle being *left*, so the changelog reads as
+				// the closing entry of the old cycle rather than as the first
+				// entry of the new one.
+				'cycle'  => (int) $item['cycle'],
+			),
+			$sent_version,
+			$actor
+		);
+	}
+
+	/**
+	 * The WF-5 override: any stage to any stage, by the Primary administrator,
+	 * marked on the item for ever (#114).
+	 *
+	 * Who may call this is not decided here — Tenancy\Capabilities answers that,
+	 * and answers a client role with the transition lock whatever else they
+	 * hold, because the lock is a security boundary rather than a workflow gate.
+	 * What is decided here is that it costs a reason and leaves a mark.
+	 *
+	 * @param array<string, mixed> $item         The item, as read.
+	 * @param string               $to           Anywhere at all.
+	 * @param string               $reason       Why the workflow had to be gone round.
+	 * @param int                  $sent_version Version moved against.
+	 * @param int                  $actor        Who is doing it.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function override( array $item, string $to, string $reason, int $sent_version, int $actor ) {
+		$reason = trim( $reason );
+
+		if ( '' === $reason ) {
+			return new WP_Error(
+				'bwx_forge_reason_required',
+				__( 'An override is only ever made with a reason.', 'blueworx-forge' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! Override::allowed( $item, $to ) ) {
+			return new WP_Error(
+				'bwx_forge_override_not_allowed',
+				__( 'Even an override cannot put that work there.', 'blueworx-forge' ),
+				array(
+					'status'    => 409,
+					'from'      => (string) $item['stage'],
+					'attempted' => $to,
+				)
+			);
+		}
+
+		return self::commit(
+			$item,
+			$to,
+			Override::mark( $reason ),
+			array(
+				'action' => Events::OVERRIDDEN,
+				'gate'   => '',
+				'reason' => $reason,
+				'via'    => Events::VIA_OVERRIDE,
 			),
 			$sent_version,
 			$actor
