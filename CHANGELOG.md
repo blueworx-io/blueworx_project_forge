@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.12.0] - 2026-08-20
+
+### Added
+
+- People are now records of their own, on a new Forge → People screen. One
+  person has one account however many clients they work with, so somebody can be
+  staff on one client and a viewer on another without being two people — and
+  offboarding them ends their access to every client in one action, keeping
+  everything they ever did.
+- Access to a client is given and ended from that client's row on Forge →
+  Clients, either across the whole client or on one of its sites.
+- A client that lists permitted email domains now has that enforced: its own
+  people must use an address at one of them.
+
+### Fixed
+
+- The Clients screen was serving a very large page once a studio had a lot of
+  clients, and became slow to use. It now loads in a fraction of the time.
+
 ## [2.11.0] - 2026-08-19
 
 ### Added

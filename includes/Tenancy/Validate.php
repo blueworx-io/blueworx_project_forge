@@ -158,6 +158,154 @@ final class Validate {
 	}
 
 	/**
+	 * Checks a user (#90).
+	 *
+	 * The email is lower-cased rather than merely accepted. AUTH-6 makes one
+	 * person one account, and the unique index behind this column only sees two
+	 * spellings of one address as one person if they are stored the same way.
+	 *
+	 * @param array<string, mixed> $input   Raw input.
+	 * @param bool                 $partial True for an edit.
+	 * @return array{values: array<string, mixed>, errors: array<string, string>}
+	 */
+	public static function user( array $input, bool $partial ): array {
+		$values = array();
+		$errors = array();
+
+		if ( ! $partial || array_key_exists( 'email', $input ) ) {
+			$email = strtolower( trim( (string) ( $input['email'] ?? '' ) ) );
+
+			if ( '' === $email ) {
+				$errors['email'] = 'A person needs an email address.';
+			} elseif ( ! is_email( $email ) || mb_strlen( $email ) > self::MAX_NAME ) {
+				$errors['email'] = 'That is not an email address we can use.';
+			} else {
+				$values['email'] = $email;
+			}
+		}
+
+		if ( ! $partial || array_key_exists( 'display_name', $input ) ) {
+			$name = trim( (string) ( $input['display_name'] ?? '' ) );
+
+			if ( '' === $name ) {
+				$errors['display_name'] = 'A person needs a name.';
+			} elseif ( mb_strlen( $name ) > self::MAX_NAME ) {
+				$errors['display_name'] = 'That name is too long.';
+			} else {
+				$values['display_name'] = $name;
+			}
+		}
+
+		if ( array_key_exists( 'wp_user_id', $input ) ) {
+			$values['wp_user_id'] = max( 0, (int) $input['wp_user_id'] );
+		} elseif ( ! $partial ) {
+			$values['wp_user_id'] = 0;
+		}
+
+		$status = self::status( $input, $partial );
+
+		if ( null === $status['error'] ) {
+			if ( null !== $status['value'] ) {
+				$values['status'] = $status['value'];
+			}
+		} else {
+			$errors['status'] = $status['error'];
+		}
+
+		return array(
+			'values' => $values,
+			'errors' => $errors,
+		);
+	}
+
+	/**
+	 * Checks a membership (#90).
+	 *
+	 * Whether the named site actually belongs to the named client is not decided
+	 * here — that needs the database. It is the caller's next check, and the one
+	 * this milestone exists for.
+	 *
+	 * @param array<string, mixed> $input   Raw input.
+	 * @param bool                 $partial True for an edit.
+	 * @return array{values: array<string, mixed>, errors: array<string, string>}
+	 */
+	public static function membership( array $input, bool $partial ): array {
+		$values = array();
+		$errors = array();
+
+		if ( ! $partial || array_key_exists( 'role', $input ) ) {
+			$role = trim( (string) ( $input['role'] ?? '' ) );
+
+			if ( ! Roles::exists( $role ) ) {
+				$errors['role'] = 'That is not one of the access roles.';
+			} else {
+				$values['role'] = $role;
+			}
+		}
+
+		if ( array_key_exists( 'client_site_id', $input ) ) {
+			// An empty site is a real answer — every site under the client — so
+			// it is stored rather than treated as a missing field.
+			$values['client_site_id'] = trim( (string) $input['client_site_id'] );
+		} elseif ( ! $partial ) {
+			$values['client_site_id'] = '';
+		}
+
+		$status = self::status( $input, $partial );
+
+		if ( null === $status['error'] ) {
+			if ( null !== $status['value'] ) {
+				$values['status'] = $status['value'];
+			}
+		} else {
+			$errors['status'] = $status['error'];
+		}
+
+		return array(
+			'values' => $values,
+			'errors' => $errors,
+		);
+	}
+
+	/**
+	 * Whether a person's address is allowed to hold this role on this client.
+	 *
+	 * #88 stored each client's permitted domains for exactly this. The rule
+	 * applies to the client's own people only: a staff membership on that client
+	 * is one of ours, on our domain, and the client's list is not about us.
+	 *
+	 * The match is exact. A subdomain of a permitted domain is not the permitted
+	 * domain — a rule that lets anybody who can create a hostname under a
+	 * lookalike through is not worth having.
+	 *
+	 * @param string             $email   The person's address, already lower-cased.
+	 * @param string             $role    The role they would hold.
+	 * @param array<int, string> $domains The client's permitted domains.
+	 * @return string|null The refusal, or null when there is nothing to refuse.
+	 */
+	public static function domain_error( string $email, string $role, array $domains ): ?string {
+		if ( array() === $domains || ! Roles::is_client_side( $role ) ) {
+			return null;
+		}
+
+		$at = strrpos( $email, '@' );
+
+		if ( false === $at ) {
+			return 'That is not an email address we can use.';
+		}
+
+		$domain = strtolower( substr( $email, $at + 1 ) );
+
+		foreach ( $domains as $permitted ) {
+			if ( strtolower( (string) $permitted ) === $domain ) {
+				return null;
+			}
+		}
+
+		return 'That client only accepts people at: ' . implode( ', ', $domains ) . '.';
+	}
+
+	/**
 	 * Checks a client site's report about itself (#89).
 	 *
 	 * Unlike the two above, this input comes from a machine rather than from

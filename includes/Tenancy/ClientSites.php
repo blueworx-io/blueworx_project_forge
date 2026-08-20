@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Tenancy;
 
+use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 
 /**
@@ -56,7 +57,7 @@ final class ClientSites {
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
-		$inserted = $wpdb->insert( Schema::sites_table(), $row );
+		$inserted = $wpdb->insert( Schema::sites_table(), $row, Formats::for_row( $row ) );
 
 		if ( ! $inserted ) {
 			return null;
@@ -134,11 +135,27 @@ final class ClientSites {
 			array(
 				'id'             => $id,
 				'record_version' => $sent_version,
-			)
+			),
+			Formats::for_row( $changes ),
+			array( '%s', '%d' )
 		);
 
 		if ( ! $changed ) {
 			return null;
+		}
+
+		/*
+		 * The cascade lives here rather than in deactivate(), because a site is
+		 * closed both ways: by that method and by a PATCH that happens to set
+		 * status. Putting it there would mean one of the two doors quietly left
+		 * people holding access to a closed site.
+		 *
+		 * Only memberships scoped to this site alone. Ones covering the whole
+		 * client were never about this site, and ending them would cut somebody
+		 * off from the client's other sites because one of them closed.
+		 */
+		if ( 'inactive' === (string) ( $changes['status'] ?? '' ) ) {
+			Memberships::deactivate_for_site( $id );
 		}
 
 		return self::get( $id );

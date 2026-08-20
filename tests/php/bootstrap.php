@@ -606,3 +606,14 @@ function wp_mail( $to, string $subject = '', string $message = '' ): bool {
 	bwx_forge_test_record( 'wp_mail', $to );
 	return true;
 }
+
+/**
+ * Stub of WordPress's own address check, close enough for the rules under test:
+ * something, an @, a domain with a dot in it.
+ *
+ * @param string $email Candidate address.
+ * @return string|false The address when it is usable.
+ */
+function is_email( string $email ) {
+	return 1 === preg_match( '/^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/', $email ) ? $email : false;
+}

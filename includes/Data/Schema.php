@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 2;
+	public const VERSION = 3;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -65,6 +65,28 @@ final class Schema {
 	}
 
 	/**
+	 * The users table's full name.
+	 *
+	 * @return string
+	 */
+	public static function users_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_users';
+	}
+
+	/**
+	 * The memberships table's full name.
+	 *
+	 * @return string
+	 */
+	public static function memberships_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_memberships';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -82,6 +104,8 @@ final class Schema {
 		$clients      = self::clients_table();
 		$sites        = self::sites_table();
 		$integrations = self::integrations_table();
+		$users        = self::users_table();
+		$memberships  = self::memberships_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -154,6 +178,52 @@ final class Schema {
 	KEY client_id (client_id),
 	KEY registry_site_id (registry_site_id)
 ) {$collate};",
+			/*
+			 * One person, one row, whatever number of clients they work with
+			 * (AUTH-6). The unique index on the address is what makes that true
+			 * rather than intended — without it, the second invitation to
+			 * somebody who already has an account quietly creates a second
+			 * person, and capacity counts them twice for ever after.
+			 */
+			$users        => "CREATE TABLE {$users} (
+	id varchar(32) NOT NULL,
+	email varchar(191) NOT NULL,
+	display_name varchar(191) NOT NULL,
+	status varchar(20) NOT NULL DEFAULT 'active',
+	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	UNIQUE KEY email (email),
+	KEY wp_user_id (wp_user_id),
+	KEY status (status)
+) {$collate};",
+			/*
+			 * The join, and the only place an access role lives. An empty
+			 * client_site_id means every site under the client; a named one
+			 * means that site alone. The unique index across the three is what
+			 * stops one person holding two roles in one place, which #91 would
+			 * then have to choose between.
+			 */
+			$memberships  => "CREATE TABLE {$memberships} (
+	id varchar(32) NOT NULL,
+	user_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL DEFAULT '',
+	role varchar(32) NOT NULL,
+	status varchar(20) NOT NULL DEFAULT 'active',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	UNIQUE KEY user_client_site (user_id,client_id,client_site_id),
+	KEY client_id (client_id),
+	KEY client_site_id (client_site_id),
+	KEY status (status)
+) {$collate};",
 		);
 	}
 
@@ -201,7 +271,7 @@ final class Schema {
 	private static function tables_exist(): bool {
 		global $wpdb;
 
-		foreach ( array( self::clients_table(), self::sites_table(), self::integrations_table() ) as $table ) {
+		foreach ( self::definitions() as $table => $ignored ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for "does this table exist".
 			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
 

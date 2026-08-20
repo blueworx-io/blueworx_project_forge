@@ -56,6 +56,10 @@ final class Plugin {
 
 		Admin\ClientActions::boot();
 
+		add_action( 'admin_menu', array( Admin\PeopleScreen::class, 'register' ) );
+
+		Admin\PeopleActions::boot();
+
 		Tenancy\IntegrationEvents::boot();
 	}
 
