@@ -39,6 +39,22 @@ final class ClientSitesController {
 	public static function register_routes( string $route_namespace ): void {
 		Server::register_route(
 			$route_namespace,
+			'/client-sites',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'all' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'args'                => array(
+					'status' => array(
+						'type'    => 'string',
+						'default' => 'active',
+					),
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
 			'/clients/(?P<client_id>[A-Za-z0-9_\-]+)/sites',
 			array(
 				'methods'             => 'GET',
@@ -87,6 +103,41 @@ final class ClientSitesController {
 						'description' => 'The record version this write was made against.',
 					),
 				),
+			)
+		);
+	}
+
+	/**
+	 * Every site on every client, each carrying the name of the client above it.
+	 *
+	 * The board opens on a site, so it has to offer a list of them before it can
+	 * draw anything. The client name is joined on here because "Marketing" means
+	 * nothing on its own — the same site name appears under several clients.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function all( WP_REST_Request $request ): WP_REST_Response {
+		$status = (string) $request->get_param( 'status' );
+		$status = 'all' === $status ? null : $status;
+
+		$names = array();
+
+		foreach ( Clients::all( null ) as $client ) {
+			$names[ (string) $client['id'] ] = (string) $client['display_name'];
+		}
+
+		$sites = array();
+
+		foreach ( ClientSites::all( $status ) as $site ) {
+			$site['client_name'] = $names[ (string) $site['client_id'] ] ?? '';
+			$sites[]             = $site;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'sites' => $sites,
 			)
 		);
 	}

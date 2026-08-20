@@ -84,6 +84,32 @@ final class ClientSites {
 	}
 
 	/**
+	 * Every site on every client, newest first.
+	 *
+	 * The board needs one list to choose from, and building it by asking each
+	 * client in turn is a query per client on a screen that has not yet drawn
+	 * anything. One read instead.
+	 *
+	 * @param string|null $status Status to filter by, or null for all of them.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function all( ?string $status = 'active' ): array {
+		global $wpdb;
+
+		$table = Schema::sites_table();
+
+		if ( null === $status ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+			$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC", ARRAY_A );
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status = %s ORDER BY created_at DESC", $status ), ARRAY_A );
+		}
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * Every site under a client, newest first.
 	 *
 	 * @param string      $client_id Owning client id.

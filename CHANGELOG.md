@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.14.0] - 2026-08-20
+
+### Added
+
+- The board. Every piece of work on a site, in a column for the stage it is at,
+  grouped under whether it is still being captured, waiting on an approval, in
+  delivery, or finished.
+- Drag a card to move the work. A move the workflow does not allow puts the card
+  straight back and says why, rather than leaving the board showing something
+  that never happened.
+- Click a card to open it: the same moves as buttons, the fields to fill in, and
+  everything that has happened to it so far.
+- Work can be added from the board.
+
 ## [2.13.0] - 2026-08-20
 
 ### Added
