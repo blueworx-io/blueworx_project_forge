@@ -251,7 +251,9 @@ final class Items {
 
 			$column = 'references' === $field ? 'references_text' : $field;
 
-			if ( 'remaining_estimate' === $field ) {
+			// Every field measured in hours goes to the column as a decimal
+			// string, so the format map treats them all the same way.
+			if ( in_array( $field, array_merge( array( 'remaining_estimate' ), Fields::HOURS ), true ) ) {
 				$changes[ $column ] = (string) (float) $values[ $field ];
 				continue;
 			}
@@ -309,6 +311,9 @@ final class Items {
 			'review_target'           => '',
 			'release_target'          => '',
 			'remaining_estimate'      => '0',
+			'hours_primary'           => '0',
+			'hours_review'            => '0',
+			'hours_delivery'          => '0',
 			'release_method'          => '',
 			'release_destination'     => '',
 		);
@@ -364,6 +369,9 @@ final class Items {
 			'review_target'           => (string) $row['review_target'],
 			'release_target'          => (string) $row['release_target'],
 			'remaining_estimate'      => (float) $row['remaining_estimate'],
+			'hours_primary'           => (float) ( $row['hours_primary'] ?? 0 ),
+			'hours_review'            => (float) ( $row['hours_review'] ?? 0 ),
+			'hours_delivery'          => (float) ( $row['hours_delivery'] ?? 0 ),
 			'release_method'          => (string) $row['release_method'],
 			'release_destination'     => (string) $row['release_destination'],
 			'created_at'              => (int) $row['created_at'],

@@ -55,6 +55,27 @@ final class Fields {
 		'primary_user_id',
 		'reviewer_id',
 		'deliverer_id',
+		'hours_primary',
+		'hours_review',
+		'hours_delivery',
+	);
+
+	/**
+	 * The planned hours, one per seat (#98).
+	 *
+	 * With the seats rather than with the plan, because "who is reviewing this"
+	 * and "how long we said the review would take" are one conversation and are
+	 * set by the same people. M7 plans capacity from these; without them it has
+	 * a list of names and no idea what any of them costs.
+	 *
+	 * A named subset of ACCOUNTABILITY rather than a group of its own, so the
+	 * permission question stays "may this person set the accountability fields"
+	 * and does not become two questions that can drift apart.
+	 */
+	public const HOURS = array(
+		'hours_primary',
+		'hours_review',
+		'hours_delivery',
 	);
 
 	/**

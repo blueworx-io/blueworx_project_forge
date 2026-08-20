@@ -385,6 +385,29 @@ final class Transition {
 		}
 
 		/*
+		 * The surviving item has to be real and on this site. A reference across
+		 * the tenant boundary is the thing ARCH-3 forbids — the record would be
+		 * reachable from two tenants at once — and a reference to nothing is a
+		 * dead end somebody finds months later with no way to resolve it.
+		 *
+		 * Work cannot be a duplicate of itself either, which would leave an item
+		 * pointing at itself as the survivor of its own closure.
+		 */
+		if ( '' !== $duplicate ) {
+			$survivor = Items::get( $duplicate );
+
+			if ( null === $survivor
+				|| $duplicate === (string) $item['id']
+				|| (string) $survivor['client_site_id'] !== (string) $item['client_site_id'] ) {
+				return new WP_Error(
+					'bwx_forge_unknown_work_item',
+					__( 'There is no such work item.', 'blueworx-forge' ),
+					array( 'status' => 404 )
+				);
+			}
+		}
+
+		/*
 		 * Deferred is the one that does not stop: it goes back to being an idea
 		 * and stays open. Everything else stays where it is with the outcome
 		 * flagged, because "cancelled during development" and "cancelled at

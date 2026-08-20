@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 7;
+	public const VERSION = 8;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -131,6 +131,17 @@ final class Schema {
 	}
 
 	/**
+	 * The work dependencies table's full name.
+	 *
+	 * @return string
+	 */
+	public static function dependencies_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_work_dependencies';
+	}
+
+	/**
 	 * The comments table's full name.
 	 *
 	 * @return string
@@ -175,6 +186,7 @@ final class Schema {
 		$gate_records = self::gate_records_table();
 		$comments     = self::comments_table();
 		$contacts     = self::contacts_table();
+		$dependencies = self::dependencies_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -271,6 +283,31 @@ final class Schema {
 	UNIQUE KEY email (email),
 	KEY wp_user_id (wp_user_id),
 	KEY status (status)
+) {$collate};",
+
+			/*
+			 * #103. One row per "this work waits for that work".
+			 *
+			 * A row rather than a column on the item, because an item can wait
+			 * on any number of things and a column would hold one. The site is
+			 * carried so the tenant boundary applies without a join: a
+			 * dependency across two sites would make an item reachable from two
+			 * tenants at once, which is exactly what ARCH-3 exists to prevent.
+			 *
+			 * The unique index is the honest kind of duplicate prevention —
+			 * saying the same thing twice is not two dependencies.
+			 */
+			$dependencies => "CREATE TABLE {$dependencies} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	depends_on_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY item_depends_on (item_id,depends_on_id),
+	KEY depends_on_id (depends_on_id),
+	KEY client_site_id (client_site_id)
 ) {$collate};",
 
 			/*
@@ -376,6 +413,9 @@ final class Schema {
 	review_target varchar(10) NOT NULL DEFAULT '',
 	release_target varchar(10) NOT NULL DEFAULT '',
 	remaining_estimate decimal(8,2) NOT NULL DEFAULT 0,
+	hours_primary decimal(8,2) NOT NULL DEFAULT 0,
+	hours_review decimal(8,2) NOT NULL DEFAULT 0,
+	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
 	release_method varchar(20) NOT NULL DEFAULT '',
 	release_destination varchar(191) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -407,6 +447,11 @@ final class Schema {
 	gate varchar(40) NOT NULL DEFAULT '',
 	outcome varchar(20) NOT NULL DEFAULT '',
 	via varchar(20) NOT NULL DEFAULT '',
+	field varchar(64) NOT NULL DEFAULT '',
+	previous_value varchar(191) NOT NULL DEFAULT '',
+	new_value varchar(191) NOT NULL DEFAULT '',
+	source_interface varchar(20) NOT NULL DEFAULT '',
+	timezone varchar(64) NOT NULL DEFAULT '',
 	reason varchar(191) NOT NULL DEFAULT '',
 	detail text NULL,
 	cycle int(11) unsigned NOT NULL DEFAULT 1,

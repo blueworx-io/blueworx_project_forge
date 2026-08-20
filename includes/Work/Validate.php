@@ -239,13 +239,22 @@ final class Validate {
 			$values[ $field ] = $date;
 		}
 
-		if ( array_key_exists( 'remaining_estimate', $input ) ) {
-			$hours = (float) $input['remaining_estimate'];
+		/*
+		 * Every field measured in hours, checked the same way. Negative hours
+		 * are the only thing refused: zero is a real answer — "this seat has no
+		 * planned time" — and a cap would be a guess about how long work takes.
+		 */
+		foreach ( array_merge( array( 'remaining_estimate' ), Fields::HOURS ) as $field ) {
+			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
+			}
+
+			$hours = (float) $input[ $field ];
 
 			if ( $hours < 0 ) {
-				$errors['remaining_estimate'] = 'Hours cannot be negative.';
+				$errors[ $field ] = 'Hours cannot be negative.';
 			} else {
-				$values['remaining_estimate'] = $hours;
+				$values[ $field ] = $hours;
 			}
 		}
 

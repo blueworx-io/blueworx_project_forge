@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.18.0] - 2026-08-20
+
+### Added
+
+- Every change to a work item is now remembered as what changed, what it was
+  before, what it became, who did it and from which side. One entry per field,
+  so "when did the due date move" is a question with an answer.
+- Work can be marked as waiting on other work. A dependency that nobody has
+  scheduled, or that is itself blocked, is said out loud rather than left in a
+  list of things you are waiting for.
+- A parent now reads as what the work beneath it actually is — how far along,
+  when it starts, when it is due — and none of it can be typed in by hand.
+  A parent with nothing beneath it says "empty" rather than pretending to be
+  work nobody has started.
+- Planned hours for each of the three people named on a piece of work.
+
+### Fixed
+
+- Work that was cancelled no longer holds its parent open forever.
+- Marking work as a duplicate of something on another client's site is
+  refused, as is marking it a duplicate of itself.
+
 ## [2.17.0] - 2026-08-20
 
 ### Added

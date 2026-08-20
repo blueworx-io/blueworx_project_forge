@@ -11,7 +11,10 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\Comments;
+use Blueworx\Forge\Work\Dependencies;
+use Blueworx\Forge\Work\Derived;
 use Blueworx\Forge\Work\Events;
 use Blueworx\Forge\Work\Fields;
 use Blueworx\Forge\Work\GateRecords;
@@ -225,6 +228,48 @@ final class WorkItemsController {
 			)
 		);
 
+		/*
+		 * #103. Adding and removing a dependency are their own routes rather
+		 * than fields on the item, because a dependency is a relationship
+		 * between two records: an edit that set a list would have to decide what
+		 * happens to the ones it left out, and would silently remove them.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/dependencies',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'add_dependency' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+				'args'                => array(
+					'depends_on_id' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/dependencies/(?P<dependency_id>[A-Za-z0-9_\-]+)',
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'remove_dependency' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
 		Server::register_route(
 			$route_namespace,
 			'/gates',
@@ -317,9 +362,43 @@ final class WorkItemsController {
 		return rest_ensure_response(
 			array(
 				'ok'    => true,
-				'items' => Items::for_site( $site['id'], $filters ),
+				'items' => self::derive_across( (string) $site['id'], Items::for_site( $site['id'], $filters ) ),
 			)
 		);
+	}
+
+	/**
+	 * Fills in what each item's children make it (#101).
+	 *
+	 * Done for the whole set at once, from one extra read of the site, rather
+	 * than a query per parent. A board with forty cards on it would otherwise
+	 * cost forty-one queries to answer, and the board is the screen somebody
+	 * leaves open all day.
+	 *
+	 * The child map is built from **every** item on the site, not from the
+	 * filtered set: a parent's progress is what its children are, and filtering
+	 * the board to one column must not change what a card says about itself.
+	 *
+	 * @param string                           $site_id The site.
+	 * @param array<int, array<string, mixed>> $items   The items being returned.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function derive_across( string $site_id, array $items ): array {
+		$children = array();
+
+		foreach ( Items::for_site( $site_id, array( 'include_archived' => true ) ) as $candidate ) {
+			$parent = (string) $candidate['parent_id'];
+
+			if ( '' !== $parent ) {
+				$children[ $parent ][] = $candidate;
+			}
+		}
+
+		foreach ( $items as $index => $item ) {
+			$items[ $index ] = array_merge( $item, Derived::fields( $children[ (string) $item['id'] ] ?? array() ) );
+		}
+
+		return $items;
 	}
 
 	/**
@@ -367,20 +446,230 @@ final class WorkItemsController {
 
 		return rest_ensure_response(
 			array(
-				'ok'          => true,
-				'item'        => $item,
-				'children'    => $children,
-				'history'     => $history,
-				'available'   => array_keys( $readiness ),
+				'ok'           => true,
+
+				// #101. What the children make it, filled in on the way out
+				// rather than stored — there is no column for anybody to write.
+				'item'         => array_merge( $item, Derived::fields( $children ) ),
+				'children'     => $children,
+				'history'      => $history,
+				'available'    => array_keys( $readiness ),
 				// What each of those moves is still waiting on, so a person can
 				// see the gate before it refuses them rather than after.
-				'readiness'   => $readiness,
-				'returns'     => Returns::targets( $item, $history ),
-				'outcomes'    => Outcomes::available_for( $item ),
-				'can_archive' => Outcomes::may_archive( $item ),
-				'records'     => GateRecords::current_for( $item ),
-				'comments'    => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
-				'scope'       => $scope,
+				'readiness'    => $readiness,
+				'returns'      => Returns::targets( $item, $history ),
+				'outcomes'     => Outcomes::available_for( $item ),
+				'can_archive'  => Outcomes::may_archive( $item ),
+				'records'      => GateRecords::current_for( $item ),
+				'comments'     => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
+				'scope'        => $scope,
+
+				// #103. What this waits on, what waits on it, and which of the
+				// first are not going to move on their own.
+				'dependencies' => self::dependency_view( $item ),
+			)
+		);
+	}
+
+	/**
+	 * What one item waits on, what waits on it, and what that adds up to (#103).
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return array<string, mixed>
+	 */
+	private static function dependency_view( array $item ): array {
+		$upstream   = self::items_for( Dependencies::for_item( (string) $item['id'] ), 'depends_on_id' );
+		$downstream = self::items_for( Dependencies::waiting_on( (string) $item['id'] ), 'item_id' );
+
+		return array(
+			'upstream'   => $upstream,
+			'downstream' => $downstream,
+			'summary'    => Dependencies::summarise( $upstream ),
+		);
+	}
+
+	/**
+	 * The items a set of dependency rows point at.
+	 *
+	 * Only the parts a screen shows. A dependency panel wants a title and
+	 * whether the thing is moving, not another whole work item each — and
+	 * returning the whole record would quietly make the panel a second place
+	 * that renders an item.
+	 *
+	 * @param array<int, array<string, mixed>> $rows The dependency rows.
+	 * @param string                           $key  Which end to resolve.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function items_for( array $rows, string $key ): array {
+		$items = array();
+
+		foreach ( $rows as $row ) {
+			$item = Items::get( (string) $row[ $key ] );
+
+			if ( null === $item ) {
+				continue;
+			}
+
+			$items[] = array(
+				'dependency_id'    => (string) $row['id'],
+				'id'               => (string) $item['id'],
+				'title'            => (string) $item['title'],
+				'stage'            => (string) $item['stage'],
+				'terminal_outcome' => (string) $item['terminal_outcome'],
+				'planned_start'    => (string) $item['planned_start'],
+				'planned_due'      => (string) $item['planned_due'],
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Makes one item wait on another (#103).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function add_dependency( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		// Changing what work waits on is planning, not definition: it moves
+		// dates, and a client cannot move our dates.
+		$refused = self::permit( Capabilities::EDIT_PLANNING, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$body     = (array) $request->get_json_params();
+		$upstream = Items::get( (string) ( $body['depends_on_id'] ?? $request->get_param( 'depends_on_id' ) ) );
+
+		/*
+		 * Work on another site gets the same answer as work that does not exist.
+		 * Saying "that is real but elsewhere" would confirm which ids are live on
+		 * a site the caller has nothing to do with, and the dependency itself is
+		 * the thing ARCH-3 forbids — an item waiting on another tenant's work is
+		 * reachable from two tenants at once.
+		 */
+		if ( null === $upstream || (string) $upstream['client_site_id'] !== (string) $item['client_site_id'] ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refusal = Dependencies::refuse(
+			(string) $item['id'],
+			(string) $upstream['id'],
+			Dependencies::chain_on_site( (string) $item['client_site_id'] )
+		);
+
+		if ( null !== $refusal ) {
+			return Errors::rest(
+				'invalid_dependency',
+				Dependencies::SELF === $refusal
+					? __( 'Work cannot wait on itself.', 'blueworx-forge' )
+					: __( 'That would leave the two waiting on each other, and neither could ever start.', 'blueworx-forge' ),
+				400,
+				array( 'refused_because' => $refusal )
+			);
+		}
+
+		$added = Dependencies::add(
+			(string) $item['id'],
+			(string) $upstream['id'],
+			(string) $item['client_site_id'],
+			get_current_user_id()
+		);
+
+		if ( null === $added ) {
+			// The unique index refuses a repeat. Saying the same thing twice is
+			// not two dependencies, and it is not an error worth a 500 either.
+			return Errors::rest(
+				'duplicate_dependency',
+				__( 'That work already waits on this.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		self::record_dependency( $item, $upstream, Events::DEPENDENCY_ADDED );
+
+		return rest_ensure_response(
+			array(
+				'ok'           => true,
+				'dependency'   => $added,
+				'dependencies' => self::dependency_view( $item ),
+			)
+		);
+	}
+
+	/**
+	 * Stops one item waiting on another (#103).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function remove_dependency( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_PLANNING, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$dependency = Dependencies::get( (string) $request['dependency_id'] );
+
+		// A dependency belonging to another item is not this item's to remove,
+		// and answering "no such dependency" is both true and all the caller
+		// needs to know.
+		if ( null === $dependency || (string) $dependency['item_id'] !== (string) $item['id'] ) {
+			return Errors::rest( 'unknown_dependency', __( 'There is no such dependency.', 'blueworx-forge' ), 404 );
+		}
+
+		if ( ! Dependencies::remove( (string) $dependency['id'] ) ) {
+			return Errors::rest( 'write_failed', __( 'That could not be removed.', 'blueworx-forge' ), 500 );
+		}
+
+		self::record_dependency( $item, Items::get( (string) $dependency['depends_on_id'] ), Events::DEPENDENCY_REMOVED );
+
+		return rest_ensure_response(
+			array(
+				'ok'           => true,
+				'dependencies' => self::dependency_view( $item ),
+			)
+		);
+	}
+
+	/**
+	 * Writes the changelog entry a dependency change leaves behind.
+	 *
+	 * The row can be removed; this cannot. What survives a dependency being
+	 * deleted is the record that it was there and that somebody took it away,
+	 * which is the part anybody asks about afterwards.
+	 *
+	 * @param array<string, mixed>      $item     The item that waits.
+	 * @param array<string, mixed>|null $upstream The item it waited for.
+	 * @param string                    $action   Added or removed.
+	 */
+	private static function record_dependency( array $item, ?array $upstream, string $action ): void {
+		Events::append(
+			array(
+				'item_id'          => (string) $item['id'],
+				'client_site_id'   => (string) $item['client_site_id'],
+				'action'           => $action,
+				'field'            => 'dependencies',
+				'new_value'        => null === $upstream ? '' : (string) $upstream['title'],
+				'detail'           => null === $upstream ? '' : (string) $upstream['id'],
+				'source_interface' => Capabilities::STUDIO,
+				'cycle'            => (int) $item['cycle'],
+				'attempt'          => (int) $item['review_attempt'],
+				'actor'            => get_current_user_id(),
 			)
 		);
 	}
@@ -606,11 +895,46 @@ final class WorkItemsController {
 			return Errors::rest( 'write_failed', __( 'That change could not be saved.', 'blueworx-forge' ), 500 );
 		}
 
+		/*
+		 * #99. One entry per field that actually changed, written from the
+		 * values as they were before the update — which is why $item is used
+		 * rather than re-reading, and why this happens after the write rather
+		 * than before it. Recording a change that then failed would be worse
+		 * than recording none.
+		 */
+		foreach ( Changelog::for_edit( $item, $checked['values'], self::change_context( $request ) ) as $entry ) {
+			Events::append( $entry );
+		}
+
 		return rest_ensure_response(
 			array(
 				'ok'   => true,
 				'item' => $updated,
 			)
+		);
+	}
+
+	/**
+	 * Who made a change, from where, and why, for the changelog.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string, mixed>
+	 */
+	private static function change_context( WP_REST_Request $request ): array {
+		$body = (array) $request->get_json_params();
+
+		return array(
+			'actor'            => get_current_user_id(),
+
+			/*
+			 * This controller serves the studio application. When the client
+			 * workspace gets an edit route of its own it passes its own value
+			 * here rather than this being inferred from anything — an interface
+			 * that works out which interface it is gets it wrong the first time
+			 * one calls the other.
+			 */
+			'source_interface' => Capabilities::STUDIO,
+			'reason'           => (string) ( $body['reason'] ?? '' ),
 		);
 	}
 

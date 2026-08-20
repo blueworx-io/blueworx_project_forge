@@ -426,13 +426,15 @@ final class Gates {
 				return isset( $records['G-IN-REVIEW-4'] );
 
 			case 'children_completed':
-				foreach ( (array) ( $context['children'] ?? array() ) as $child ) {
-					if ( ! in_array( (string) $child['stage'], array( 'completed', 'released' ), true ) ) {
-						return false;
-					}
-				}
-
-				return true;
+				/*
+				 * Asked of Work\Derived rather than answered here, so the gate
+				 * and what the parent reads as on a screen cannot disagree
+				 * (#101). The rule they share is that work which ended without
+				 * being done — cancelled, rejected, a duplicate — is not work
+				 * anybody is still waiting for; counting it would leave a parent
+				 * held open forever by a child somebody deliberately stopped.
+				 */
+				return Derived::may_complete( (array) ( $context['children'] ?? array() ) );
 
 			case 'prior_stage':
 			case 'blocked_elapsed':

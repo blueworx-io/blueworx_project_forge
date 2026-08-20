@@ -77,6 +77,53 @@ final class Events {
 	public const OVERRIDDEN = 'overridden';
 
 	/**
+	 * A field was changed (#99).
+	 */
+	public const EDITED = 'edited';
+
+	/**
+	 * An earlier entry was wrong, and this one says so.
+	 *
+	 * The only way a mistake in the log is put right. Nothing here is ever
+	 * changed, so a correction is a further entry — which is also the more
+	 * useful record, because "somebody got this wrong on Tuesday and fixed it on
+	 * Thursday" is a fact worth keeping.
+	 */
+	public const CORRECTED = 'corrected';
+
+	/**
+	 * Work was made to wait on other work (#103).
+	 */
+	public const DEPENDENCY_ADDED = 'dependency-added';
+
+	/**
+	 * It stopped waiting.
+	 */
+	public const DEPENDENCY_REMOVED = 'dependency-removed';
+
+	/**
+	 * Every action an entry can record.
+	 *
+	 * Listed so a reader can see the whole vocabulary at once, and so the test
+	 * that proves a correction is possible has something to check against.
+	 */
+	public const ACTIONS = array(
+		self::CREATED,
+		self::EDITED,
+		self::MOVED,
+		self::RETURNED,
+		self::BLOCKED,
+		self::UNBLOCKED,
+		self::ENDED,
+		self::ARCHIVED,
+		self::REOPENED,
+		self::OVERRIDDEN,
+		self::CORRECTED,
+		self::DEPENDENCY_ADDED,
+		self::DEPENDENCY_REMOVED,
+	);
+
+	/**
 	 * Done by somebody standing in for the person the item names (AUTH-4).
 	 */
 	public const VIA_SUBSTITUTE = 'substitute';
@@ -116,6 +163,29 @@ final class Events {
 			 * done by a substitute" has to be a query.
 			 */
 			'via'            => (string) ( $entry['via'] ?? '' ),
+
+			/*
+			 * #99. Which field changed and both sides of the change, so an entry
+			 * answers "what was it before" on its own rather than by somebody
+			 * replaying the whole history to work it out.
+			 */
+			'field'            => (string) ( $entry['field'] ?? '' ),
+			'previous_value'   => Changelog::render( $entry['previous_value'] ?? '' ),
+			'new_value'        => Changelog::render( $entry['new_value'] ?? '' ),
+
+			/*
+			 * Which interface it came from. The same edit made by us and made by
+			 * the client are different facts, and nothing else in the row can say
+			 * which — the actor is a person, and a person can be on either side.
+			 */
+			'source_interface' => (string) ( $entry['source_interface'] ?? '' ),
+
+			/*
+			 * The site's timezone at the time, stored with the entry rather than
+			 * looked up when it is read. A client that moves timezone would
+			 * otherwise rewrite when every past event appears to have happened.
+			 */
+			'timezone'         => (string) ( $entry['timezone'] ?? '' ),
 			// Bounded because it lands in a varchar and comes from a person
 			// typing a reason into a box.
 			'reason'         => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, 191 ),
@@ -163,13 +233,18 @@ final class Events {
 					'to_stage'    => (string) $row['to_stage'],
 					'gate'        => (string) $row['gate'],
 					'outcome'     => (string) $row['outcome'],
-					'via'         => (string) $row['via'],
-					'reason'      => (string) $row['reason'],
-					'detail'      => (string) $row['detail'],
-					'cycle'       => (int) $row['cycle'],
-					'attempt'     => (int) $row['attempt'],
-					'actor'       => (int) $row['actor'],
-					'occurred_at' => (int) $row['occurred_at'],
+					'via'              => (string) $row['via'],
+					'field'            => (string) ( $row['field'] ?? '' ),
+					'previous_value'   => (string) ( $row['previous_value'] ?? '' ),
+					'new_value'        => (string) ( $row['new_value'] ?? '' ),
+					'source_interface' => (string) ( $row['source_interface'] ?? '' ),
+					'timezone'         => (string) ( $row['timezone'] ?? '' ),
+					'reason'           => (string) $row['reason'],
+					'detail'           => (string) $row['detail'],
+					'cycle'            => (int) $row['cycle'],
+					'attempt'          => (int) $row['attempt'],
+					'actor'            => (int) $row['actor'],
+					'occurred_at'      => (int) $row['occurred_at'],
 				);
 			},
 			is_array( $rows ) ? $rows : array()
