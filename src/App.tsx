@@ -170,6 +170,16 @@ export function App() {
           aria-label="Site"
           value={ siteId }
           onChange={ ( event ) => {
+            /*
+             * Only when the site actually changes. Picking the site already
+             * shown would otherwise put the board into loading with nothing on
+             * its way to take it out again — the effect below does not run,
+             * because from its point of view nothing happened.
+             */
+            if ( event.target.value === siteId ) {
+              return;
+            }
+
             setBoard( 'loading' );
             setSiteId( event.target.value );
           } }
