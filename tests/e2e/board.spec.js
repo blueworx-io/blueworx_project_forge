@@ -53,6 +53,28 @@ async function seed(page, label) {
   }, { label, runId: RUN_ID });
 }
 
+/*
+ * Since #105 a card does not move because somebody dragged it — it moves
+ * because the stage's gate is satisfied. G-FUTURE-IDEA wants the problem
+ * (which seed() writes) and three recorded completions, so a test about
+ * dragging has to do them first or it is only testing the refusal.
+ */
+async function readyForTriage(page, itemId) {
+  await page.evaluate(async (id) => {
+    const nonce = window.bwxForgeData.nonce;
+    const base = window.bwxForgeData.restUrl.replace(/\/$/, '');
+
+    for (const requirement of ['G-FUTURE-IDEA-2', 'G-FUTURE-IDEA-3', 'G-FUTURE-IDEA-4']) {
+      await fetch(`${base}/work-items/${id}/gate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({ requirement, value: 'Confirmed.' }),
+      });
+    }
+  }, itemId);
+}
+
 async function openBoardOn(page, siteId) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
@@ -93,7 +115,8 @@ test.describe('the board', () => {
   });
 
   test('dragging a card to the next column moves the work', async ({ page }) => {
-    const { siteId } = await seed(page, 'Drag');
+    const { siteId, itemId } = await seed(page, 'Drag');
+    await readyForTriage(page, itemId);
     await openBoardOn(page, siteId);
 
     await page
@@ -124,7 +147,8 @@ test.describe('the board', () => {
   });
 
   test('the panel opens on a card, moves it, and shows the history', async ({ page }) => {
-    const { siteId } = await seed(page, 'Panel');
+    const { siteId, itemId } = await seed(page, 'Panel');
+    await readyForTriage(page, itemId);
     await openBoardOn(page, siteId);
 
     await page.locator('[data-testid="bwx-card"]').click();
@@ -150,6 +174,91 @@ test.describe('the board', () => {
 
     await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.');
     await expect(page.locator('[data-testid="bwx-card"]')).toContainText(`Renamed ${RUN_ID}`);
+  });
+
+  test('a site with no work says so, and still shows what happens to work', async ({ page }) => {
+    // #125. An empty board is drawn — the ten columns are the answer to "what
+    // happens to work here" — with the emptiness said out loud above it rather
+    // than left to be inferred.
+    const { siteId, itemId } = await seed(page, 'Empty');
+
+    // Cancel the only item and archive it, so the site genuinely has none.
+    await page.evaluate(async (id) => {
+      const nonce = window.bwxForgeData.nonce;
+      const base = window.bwxForgeData.restUrl.replace(/\/$/, '');
+      const post = (path, body) =>
+        fetch(`${base}${path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
+          credentials: 'same-origin',
+          body: JSON.stringify(body),
+        }).then((r) => r.json());
+
+      const read = await fetch(`${base}/work-items/${id}`, {
+        headers: { 'X-WP-Nonce': nonce },
+        credentials: 'same-origin',
+      }).then((r) => r.json());
+
+      const ended = await post(`/work-items/${id}/outcome`, {
+        outcome: 'cancelled',
+        reason: 'Not needed after all.',
+        record_version: read.item.record_version,
+      });
+
+      await post(`/work-items/${id}/archive`, { record_version: ended.item.record_version });
+    }, itemId);
+
+    await page.goto('/blueworx-forge/');
+    await page.waitForSelector('[data-testid="bwx-board"]');
+    await page.selectOption('[data-testid="bwx-site"]', siteId);
+
+    const state = page.locator('[data-testid="bwx-state"]');
+    await expect(state).toHaveAttribute('data-state', 'empty');
+    await expect(state).toContainText('No work on this site yet');
+
+    // Empty, not denied. The two are told apart deliberately.
+    await expect(state).not.toHaveAttribute('data-state', 'denied');
+    await expect(page.locator('[data-testid="bwx-column"]')).toHaveCount(10);
+  });
+
+  test('somebody without access is told that, not shown an empty board', async ({ page }) => {
+    // #125's other half. "Nothing here" and "not yours to see" look identical
+    // as a blank screen and mean completely different things.
+    const login = `visitor${Date.now()}`;
+
+    await page.goto('/blueworx-forge/');
+    const created = await page.evaluate(async (user) => {
+      const response = await fetch('/wp-json/wp/v2/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': window.bwxForgeData.nonce },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          username: user,
+          email: `${user}@example.test`,
+          password: 'visitor-pw-9931',
+          roles: ['subscriber'],
+        }),
+      });
+
+      return { status: response.status, body: await response.json() };
+    }, login);
+
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+
+    await page.context().clearCookies();
+
+    await page.goto('/wp-login.php');
+    await page.fill('#user_login', login);
+    await page.fill('#user_pass', 'visitor-pw-9931');
+    await page.click('#wp-submit');
+    await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+
+    await page.goto('/blueworx-forge/');
+
+    const state = page.locator('[data-testid="bwx-state"]');
+    await expect(state).toHaveAttribute('data-state', 'denied');
+    await expect(state).toContainText('Not yours to see');
+    await expect(page.locator('[data-testid="bwx-board"]')).toHaveCount(0);
   });
 
   test('work can be added from the board', async ({ page }) => {

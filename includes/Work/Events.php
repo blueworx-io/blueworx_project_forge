@@ -42,11 +42,37 @@ final class Events {
 	public const MOVED = 'moved';
 
 	/**
+	 * The item was sent back to a stage it had occupied (#108).
+	 */
+	public const RETURNED = 'returned';
+
+	/**
+	 * The item was paused, and where it came from stored (#109).
+	 */
+	public const BLOCKED = 'blocked';
+
+	/**
+	 * The blocker was resolved and the item put back (#109).
+	 */
+	public const UNBLOCKED = 'unblocked';
+
+	/**
+	 * The item ended at one of the WF-2 outcomes (#111).
+	 */
+	public const ENDED = 'ended';
+
+	/**
+	 * The item was put out of the default views (#111).
+	 */
+	public const ARCHIVED = 'archived';
+
+	/**
 	 * Appends an entry.
 	 *
 	 * @param array<string, mixed> $entry item_id, client_site_id, action, and
 	 *                                    optionally from_stage, to_stage, gate,
-	 *                                    reason, actor.
+	 *                                    reason, detail, outcome, cycle,
+	 *                                    attempt, actor.
 	 * @return bool Whether it was written.
 	 */
 	public static function append( array $entry ): bool {
@@ -60,9 +86,21 @@ final class Events {
 			'from_stage'     => (string) ( $entry['from_stage'] ?? '' ),
 			'to_stage'       => (string) ( $entry['to_stage'] ?? '' ),
 			'gate'           => (string) ( $entry['gate'] ?? '' ),
+			'outcome'        => (string) ( $entry['outcome'] ?? '' ),
 			// Bounded because it lands in a varchar and comes from a person
 			// typing a reason into a box.
 			'reason'         => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, 191 ),
+
+			/*
+			 * Whatever the action needs beyond a reason: a reviewer's feedback,
+			 * the next action on a blocker, the surviving item a duplicate
+			 * points at. It is a text column because review feedback is the one
+			 * thing here somebody genuinely writes paragraphs of, and truncating
+			 * that would throw away the part the developer needs.
+			 */
+			'detail'         => (string) ( $entry['detail'] ?? '' ),
+			'cycle'          => max( 1, (int) ( $entry['cycle'] ?? 1 ) ),
+			'attempt'        => max( 1, (int) ( $entry['attempt'] ?? 1 ) ),
 			'actor'          => (int) ( $entry['actor'] ?? 0 ),
 			'occurred_at'    => bwx_forge_now(),
 		);
@@ -95,7 +133,11 @@ final class Events {
 					'from_stage'  => (string) $row['from_stage'],
 					'to_stage'    => (string) $row['to_stage'],
 					'gate'        => (string) $row['gate'],
+					'outcome'     => (string) $row['outcome'],
 					'reason'      => (string) $row['reason'],
+					'detail'      => (string) $row['detail'],
+					'cycle'       => (int) $row['cycle'],
+					'attempt'     => (int) $row['attempt'],
 					'actor'       => (int) $row['actor'],
 					'occurred_at' => (int) $row['occurred_at'],
 				);

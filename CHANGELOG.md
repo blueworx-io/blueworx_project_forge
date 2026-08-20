@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.15.0] - 2026-08-20
+
+### Added
+
+- Every stage now has a written list of what must be true before work leaves it.
+  Work does not move until those things are done.
+- A refused move tells you everything that is missing, not the first thing, and
+  the item stays exactly where it was.
+- The item panel shows what a stage is waiting on before you try to move it, and
+  each thing you tick off records who did it and when.
+- Work can be sent back to a stage it has actually been in, and never without a
+  reason. A failed review also has to say what was wrong, and keeps the earlier
+  review attempt.
+- Work can be blocked from wherever it is, with a reason, an owner, what it is
+  waiting on, a target date and a next action. Resolving it puts the work back
+  exactly where it was and remembers how long it waited.
+- Work can be rejected, marked a duplicate, cancelled or deferred, and archived
+  once it has ended. Ended work stops moving; archived work leaves the board and
+  stays in the reports.
+- Comments and evidence on a work item, with internal notes kept in a separate
+  scope from anything a client can read.
+
+### Changed
+
+- Bug Tracking is now closed to anything that is not a bug by every route, not
+  only the forward one.
+- Loading, empty, broken and no-access each say which they are instead of
+  showing a blank board.
+
 ## [2.14.0] - 2026-08-20
 
 ### Added

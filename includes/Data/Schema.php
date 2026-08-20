@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 4;
+	public const VERSION = 5;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -109,12 +109,43 @@ final class Schema {
 	}
 
 	/**
+	 * The gate records table's full name.
+	 *
+	 * @return string
+	 */
+	public static function gate_records_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_gate_records';
+	}
+
+	/**
+	 * The comments table's full name.
+	 *
+	 * @return string
+	 */
+	public static function comments_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_comments';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
 	 * two spaces after PRIMARY KEY, one field per line, no backticks around field
 	 * names. Changing the whitespace here changes whether an upgrade happens at
 	 * all.
+	 *
+	 * **A column added to an existing table needs a default, or it has to be
+	 * nullable.** dbDelta adds it with ALTER TABLE, and a NOT NULL column with
+	 * no default cannot be added to a table that already has rows — the ALTER
+	 * fails, everything else in the upgrade succeeds, and the site is recorded
+	 * as current with one column missing. That is why `detail` below is NULL
+	 * rather than NOT NULL: a `text` column cannot carry a default on MySQL 5.7,
+	 * so nullable is the only way to add one later. Found by adding it and
+	 * watching every write to that table fail.
 	 *
 	 * @return array<string, string> Table name to statement.
 	 */
@@ -130,6 +161,8 @@ final class Schema {
 		$memberships  = self::memberships_table();
 		$work_items   = self::work_items_table();
 		$work_events  = self::work_events_table();
+		$gate_records = self::gate_records_table();
+		$comments     = self::comments_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -278,9 +311,12 @@ final class Schema {
 	references_text text NOT NULL,
 	stage varchar(32) NOT NULL DEFAULT 'future-idea',
 	prior_stage varchar(32) NOT NULL DEFAULT '',
+	blocked_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	blocked_elapsed bigint(20) unsigned NOT NULL DEFAULT 0,
 	terminal_outcome varchar(20) NOT NULL DEFAULT '',
 	duplicate_of varchar(32) NOT NULL DEFAULT '',
+	archived tinyint(1) NOT NULL DEFAULT 0,
+	review_attempt int(11) unsigned NOT NULL DEFAULT 1,
 	cycle int(11) unsigned NOT NULL DEFAULT 1,
 	self_reviewed tinyint(1) NOT NULL DEFAULT 0,
 	override_used tinyint(1) NOT NULL DEFAULT 0,
@@ -304,7 +340,9 @@ final class Schema {
 	KEY client_id (client_id),
 	KEY parent_id (parent_id),
 	KEY stage (stage),
-	KEY level (level)
+	KEY level (level),
+	KEY archived (archived),
+	KEY terminal_outcome (terminal_outcome)
 ) {$collate};",
 
 			/*
@@ -320,13 +358,73 @@ final class Schema {
 	from_stage varchar(32) NOT NULL DEFAULT '',
 	to_stage varchar(32) NOT NULL DEFAULT '',
 	gate varchar(40) NOT NULL DEFAULT '',
+	outcome varchar(20) NOT NULL DEFAULT '',
 	reason varchar(191) NOT NULL DEFAULT '',
+	detail text NULL,
+	cycle int(11) unsigned NOT NULL DEFAULT 1,
+	attempt int(11) unsigned NOT NULL DEFAULT 1,
 	actor bigint(20) unsigned NOT NULL DEFAULT 0,
 	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id),
 	KEY item_id (item_id),
 	KEY client_site_id (client_site_id),
 	KEY occurred_at (occurred_at)
+) {$collate};",
+
+			/*
+			 * One row per gate requirement somebody has satisfied (#105). The
+			 * actor and the completion time have no default, for the reason
+			 * Work\GateRecords refuses to write without them: a completion with
+			 * nobody's name on it proves nothing afterwards, which is the only
+			 * time anybody reads one.
+			 *
+			 * Scoped by cycle and attempt rather than replaced. A failed review
+			 * starts a new attempt and the earlier one stays exactly where it
+			 * is — #108 requires it preserved, and deleting the old records to
+			 * "reset" the gate is the obvious implementation and the wrong one.
+			 */
+			$gate_records => "CREATE TABLE {$gate_records} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	gate varchar(40) NOT NULL,
+	requirement varchar(60) NOT NULL,
+	value text NOT NULL,
+	evidence text NOT NULL,
+	cycle int(11) unsigned NOT NULL DEFAULT 1,
+	attempt int(11) unsigned NOT NULL DEFAULT 1,
+	actor bigint(20) unsigned NOT NULL,
+	completed_at bigint(20) unsigned NOT NULL,
+	PRIMARY KEY  (id),
+	KEY item_id (item_id),
+	KEY client_site_id (client_site_id),
+	KEY requirement (requirement)
+) {$collate};",
+
+			/*
+			 * Discussion and evidence on a work item (#100).
+			 *
+			 * `visibility` is this table's entire security surface. An internal
+			 * note and a client-visible comment are the same shape and differ by
+			 * one column, so every read filters on it and no caller is handed a
+			 * query it could widen.
+			 */
+			$comments     => "CREATE TABLE {$comments} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	kind varchar(20) NOT NULL DEFAULT 'comment',
+	visibility varchar(20) NOT NULL DEFAULT 'internal',
+	body text NOT NULL,
+	url varchar(255) NOT NULL DEFAULT '',
+	author bigint(20) unsigned NOT NULL,
+	author_name varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL,
+	PRIMARY KEY  (id),
+	KEY item_id (item_id),
+	KEY client_site_id (client_site_id),
+	KEY visibility (visibility)
 ) {$collate};",
 		);
 	}

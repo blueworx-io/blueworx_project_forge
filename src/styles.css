@@ -352,3 +352,130 @@ body {
     transition: none;
   }
 }
+
+/* ---- The four states (#125) ---- */
+
+/*
+ * Loading, empty, error and permission-denied are drawn as one thing with four
+ * tones rather than as four unrelated paragraphs. They have to be told apart at
+ * a glance — "nothing yet" and "not yours to see" are the same shape of screen
+ * and mean completely different things — so the tone carries the difference and
+ * the words carry the detail.
+ */
+.bwx-state {
+  margin: auto;
+  max-width: 460px;
+  padding: 28px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bwx-state-title {
+  margin: 0;
+  font-size: var( --text-subheading );
+  font-weight: 500;
+  color: var( --color-ink );
+}
+
+.bwx-state-detail {
+  margin: 0;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+  line-height: 1.5;
+}
+
+.bwx-state[ data-tone='alert' ] .bwx-state-title {
+  color: var( --color-coral );
+}
+
+.bwx-state[ data-state='loading' ] .bwx-state-title {
+  color: var( --color-fog );
+}
+
+/* ---- Gate requirements ---- */
+
+/*
+ * The list a refusal produces, and the same list shown before anybody is
+ * refused. One style for both on purpose: a person should recognise what they
+ * are looking at whether they went and read it or ran into it.
+ */
+.bwx-unmet {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bwx-unmet li {
+  border: 1px solid var( --color-chalk );
+  border-left: 3px solid var( --phase-exception-border );
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var( --text-small );
+}
+
+.bwx-unmet li[ data-met='true' ] {
+  border-left-color: var( --phase-done, var( --color-chalk ) );
+  opacity: 0.62;
+}
+
+.bwx-unmet-label {
+  display: block;
+  color: var( --color-ink );
+  font-weight: var( --font-weight-label );
+}
+
+.bwx-unmet-how {
+  display: block;
+  color: var( --color-steel );
+  margin-top: 2px;
+}
+
+.bwx-check {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+/* ---- Comments ---- */
+
+.bwx-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bwx-comment {
+  border: 1px solid var( --color-chalk );
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var( --text-small );
+  color: var( --color-ink );
+}
+
+/*
+ * Internal notes are marked, always. A note that looks exactly like a
+ * client-visible one is a note somebody writes the wrong thing in.
+ */
+.bwx-comment[ data-visibility='internal' ] {
+  background: var( --color-mist );
+  border-style: dashed;
+}
+
+.bwx-comment-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+  color: var( --color-fog );
+}

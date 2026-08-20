@@ -96,8 +96,14 @@ final class Items {
 	 * get to name the column it filters on: that is how a filter becomes a way
 	 * to read a column somebody was never meant to query.
 	 *
+	 * Archived work is left out unless it is asked for (#111). "Hidden from
+	 * default views, never from reports" is enforced by the default here rather
+	 * than by every caller remembering: a report asks for it explicitly, and a
+	 * board never has to.
+	 *
 	 * @param string               $client_site_id The site.
-	 * @param array<string, mixed> $filters        stage, level, work_type, parent_id.
+	 * @param array<string, mixed> $filters        stage, level, work_type,
+	 *                                             parent_id, include_archived.
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function for_site( string $client_site_id, array $filters = array() ): array {
@@ -114,6 +120,11 @@ final class Items {
 
 			$where[]  = $column . ' = %s';
 			$values[] = (string) $filters[ $column ];
+		}
+
+		if ( empty( $filters['include_archived'] ) ) {
+			$where[]  = 'archived = %s';
+			$values[] = '0';
 		}
 
 		$clause = implode( ' AND ', $where );
@@ -276,9 +287,12 @@ final class Items {
 			'acceptance_criteria' => '',
 			'references_text'     => '',
 			'prior_stage'         => '',
+			'blocked_at'          => 0,
 			'blocked_elapsed'     => 0,
 			'terminal_outcome'    => '',
 			'duplicate_of'        => '',
+			'archived'            => 0,
+			'review_attempt'      => 1,
 			'self_reviewed'       => 0,
 			'override_used'       => 0,
 			'override_reason'     => '',
@@ -321,9 +335,13 @@ final class Items {
 			'stage'               => (string) $row['stage'],
 			'stage_label'         => Stages::label( (string) $row['stage'] ),
 			'prior_stage'         => (string) $row['prior_stage'],
+			'blocked_at'          => (int) $row['blocked_at'],
 			'blocked_elapsed'     => (int) $row['blocked_elapsed'],
 			'terminal_outcome'    => (string) $row['terminal_outcome'],
+			'terminal_label'      => Outcomes::label( (string) $row['terminal_outcome'] ),
 			'duplicate_of'        => (string) $row['duplicate_of'],
+			'archived'            => (bool) $row['archived'],
+			'review_attempt'      => (int) $row['review_attempt'],
 			'cycle'               => (int) $row['cycle'],
 			'self_reviewed'       => (bool) $row['self_reviewed'],
 			'override_used'       => (bool) $row['override_used'],

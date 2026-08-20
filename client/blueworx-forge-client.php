@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Client Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: The client-side workspace for Blueworx Forge.
- * Version:     2.14.0
+ * Version:     2.15.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_CLIENT_VERSION', '2.14.0' );
+define( 'BWX_FORGE_CLIENT_VERSION', '2.15.0' );
 define( 'BWX_FORGE_CLIENT_SLUG', 'blueworx-forge-client' );
 define( 'BWX_FORGE_CLIENT_FILE', __FILE__ );
 define( 'BWX_FORGE_CLIENT_PATH', plugin_dir_path( __FILE__ ) );

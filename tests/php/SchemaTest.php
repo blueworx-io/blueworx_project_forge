@@ -46,13 +46,17 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 7, $definitions );
+		$this->assertCount( 9, $definitions );
+
+		// The three append-only tables are the exception, for the reason spelled
+		// out in the next test: nothing ever updates a row in them.
+		$append_only = array( Schema::work_events_table(), Schema::gate_records_table(), Schema::comments_table() );
 
 		foreach ( $definitions as $table => $sql ) {
 			$this->assertStringContainsString( 'id varchar(32) NOT NULL', $sql );
 			$this->assertStringContainsString( 'PRIMARY KEY  (id)', $sql );
 
-			if ( Schema::work_events_table() === $table ) {
+			if ( in_array( $table, $append_only, true ) ) {
 				continue;
 			}
 

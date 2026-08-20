@@ -10,8 +10,13 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Events;
+use Blueworx\Forge\Work\GateRecords;
+use Blueworx\Forge\Work\Gates;
 use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Outcomes;
+use Blueworx\Forge\Work\Returns;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Transition;
 use Blueworx\Forge\Work\Transitions;
@@ -37,6 +42,17 @@ final class WorkItemsController {
 	 * Name this write is remembered under, scoped per site at the call site.
 	 */
 	private const CREATE_OPERATION = 'create_work_item';
+
+	/**
+	 * The ways work moves other than forwards, as route path to callback.
+	 */
+	private const MOVES = array(
+		'return'  => 'send_back',
+		'block'   => 'block',
+		'unblock' => 'unblock',
+		'outcome' => 'outcome',
+		'archive' => 'archive',
+	);
 
 	/**
 	 * Registers this controller's routes.
@@ -121,12 +137,66 @@ final class WorkItemsController {
 			)
 		);
 
+		/*
+		 * One route per way work moves, rather than one route with a mode
+		 * parameter. Each of these has different requirements — a reason, a
+		 * resolution note, five blocker answers — and a single endpoint
+		 * switching on a string would validate whichever set the caller
+		 * happened to name.
+		 */
+		foreach ( self::MOVES as $path => $callback ) {
+			Server::register_route(
+				$route_namespace,
+				'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/' . $path,
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( self::class, $callback ),
+					'permission_callback' => array( Permissions::class, 'manage' ),
+					'args'                => array(
+						Versioning::PARAM => array(
+							'type'     => 'integer',
+							'required' => false,
+						),
+					),
+				)
+			);
+		}
+
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/gate',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'record_gate' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'args'                => array(
+					'requirement' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/gates',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'gates' ),
+				// The gate definitions are the product's own rules, not anybody's
+				// data. A person about to be refused a move is better off having
+				// read them.
+				'permission_callback' => array( Permissions::class, 'read' ),
+			)
+		);
+
 		Server::register_route(
 			$route_namespace,
 			'/stages',
 			array(
-				'methods'  => 'GET',
-				'callback' => array( self::class, 'stages' ),
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'stages' ),
 				// Read-only and derived from a class constant. There is nothing
 				// here a visitor could not infer from the product itself.
 				'permission_callback' => array( Permissions::class, 'read' ),
@@ -183,10 +253,30 @@ final class WorkItemsController {
 			}
 		}
 
+		// Archived work is out of the default view and in every report (#111),
+		// so a caller has to ask for it by name.
+		if ( $request->has_param( 'include_archived' ) ) {
+			$filters['include_archived'] = rest_sanitize_boolean( $request->get_param( 'include_archived' ) );
+		}
+
 		return rest_ensure_response(
 			array(
 				'ok'    => true,
 				'items' => Items::for_site( $site['id'], $filters ),
+			)
+		);
+	}
+
+	/**
+	 * The gate registry: every requirement of every gate.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function gates(): WP_REST_Response {
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'gates' => Gates::all(),
 			)
 		);
 	}
@@ -204,15 +294,95 @@ final class WorkItemsController {
 			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
 		}
 
+		$children = Items::children( $item['id'] );
+		$history  = Events::for_item( $item['id'] );
+		$scope    = Scope::current( (string) $item['client_id'] );
+
+		/*
+		 * Everything a screen needs to draw the item's options, worked out here
+		 * rather than by each screen inferring it. A board that decides for
+		 * itself which moves exist is a second implementation of the state
+		 * machine, and the two disagree the first time one of them changes.
+		 */
+		$readiness = array();
+
+		foreach ( Transitions::next_from( $item['stage'], $item['work_type'] ) as $to ) {
+			$readiness[ $to ] = Transition::readiness( $item, $to, $children );
+		}
+
 		return rest_ensure_response(
 			array(
-				'ok'        => true,
-				'item'      => $item,
-				'children'  => Items::children( $item['id'] ),
-				'history'   => Events::for_item( $item['id'] ),
-				// What a board or detail screen may offer as the next step,
-				// decided here rather than by each screen working it out.
-				'available' => Transitions::next_from( $item['stage'], $item['work_type'] ),
+				'ok'          => true,
+				'item'        => $item,
+				'children'    => $children,
+				'history'     => $history,
+				'available'   => array_keys( $readiness ),
+				// What each of those moves is still waiting on, so a person can
+				// see the gate before it refuses them rather than after.
+				'readiness'   => $readiness,
+				'returns'     => Returns::targets( $item, $history ),
+				'outcomes'    => Outcomes::available_for( $item ),
+				'can_archive' => Outcomes::may_archive( $item ),
+				'records'     => GateRecords::current_for( $item ),
+				'comments'    => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
+				'scope'       => $scope,
+			)
+		);
+	}
+
+	/**
+	 * Records one gate requirement as satisfied (#105).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function record_gate( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+		}
+
+		$body        = (array) $request->get_json_params();
+		$requirement = (string) ( $body['requirement'] ?? $request->get_param( 'requirement' ) );
+
+		if ( null === Gates::requirement( $requirement ) ) {
+			return Errors::rest( 'unknown_requirement', __( 'There is no such gate requirement.', 'blueworx-forge' ), 400 );
+		}
+
+		$record = GateRecords::complete(
+			array(
+				'item_id'        => (string) $item['id'],
+				'client_site_id' => (string) $item['client_site_id'],
+				'requirement'    => $requirement,
+				'value'          => (string) ( $body['value'] ?? '' ),
+				'evidence'       => (string) ( $body['evidence'] ?? '' ),
+				'cycle'          => (int) $item['cycle'],
+				'attempt'        => (int) $item['review_attempt'],
+				'actor'          => get_current_user_id(),
+			)
+		);
+
+		if ( null === $record ) {
+			/*
+			 * Three refusals share this answer, and all three are the same
+			 * failure from the caller's side: nobody signed it, the evidence a
+			 * requirement demands was not supplied, or the write failed.
+			 */
+			return Errors::rest(
+				'gate_record_refused',
+				__( 'That could not be recorded. A completion needs a signed-in person, and a requirement that asks for evidence needs evidence.', 'blueworx-forge' ),
+				400
+			);
+		}
+
+		$refreshed = Items::get( (string) $item['id'] );
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'record'  => $record,
+				'records' => GateRecords::current_for( null === $refreshed ? $item : $refreshed ),
 			)
 		);
 	}
@@ -380,9 +550,176 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$moved = Transition::move( $item, (string) $request->get_param( 'to' ), (int) $sent, get_current_user_id() );
+		return self::answer( Transition::move( $item, (string) $request->get_param( 'to' ), (int) $sent, get_current_user_id() ) );
+	}
 
+	/**
+	 * Sends an item back to a stage it has occupied (#108).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function send_back( WP_REST_Request $request ) {
+		$ready = self::ready( $request );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		return self::answer(
+			Transition::send_back(
+				$ready['item'],
+				(string) ( $body['to'] ?? '' ),
+				(string) ( $body['reason'] ?? '' ),
+				(string) ( $body['feedback'] ?? '' ),
+				Events::for_item( (string) $ready['item']['id'] ),
+				$ready['version'],
+				get_current_user_id()
+			)
+		);
+	}
+
+	/**
+	 * Blocks an item, storing where it came from (#109).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function block( WP_REST_Request $request ) {
+		$ready = self::ready( $request );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		return self::answer(
+			Transition::block(
+				$ready['item'],
+				array(
+					'reason'      => (string) ( $body['reason'] ?? '' ),
+					'owner'       => (string) ( $body['owner'] ?? '' ),
+					'dependency'  => (string) ( $body['dependency'] ?? '' ),
+					'target_date' => (string) ( $body['target_date'] ?? '' ),
+					'next_action' => (string) ( $body['next_action'] ?? '' ),
+				),
+				$ready['version'],
+				get_current_user_id()
+			)
+		);
+	}
+
+	/**
+	 * Returns a blocked item to exactly the stage it left (#109).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function unblock( WP_REST_Request $request ) {
+		$ready = self::ready( $request );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		return self::answer(
+			Transition::unblock( $ready['item'], (string) ( $body['resolution'] ?? '' ), $ready['version'], get_current_user_id() )
+		);
+	}
+
+	/**
+	 * Ends an item at one of the WF-2 outcomes (#111).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function outcome( WP_REST_Request $request ) {
+		$ready = self::ready( $request );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		return self::answer(
+			Transition::end(
+				$ready['item'],
+				(string) ( $body['outcome'] ?? '' ),
+				array(
+					'reason'       => (string) ( $body['reason'] ?? '' ),
+					'duplicate_of' => (string) ( $body['duplicate_of'] ?? '' ),
+				),
+				$ready['version'],
+				get_current_user_id()
+			)
+		);
+	}
+
+	/**
+	 * Puts an ended item out of the default views (#111).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function archive( WP_REST_Request $request ) {
+		$ready = self::ready( $request );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		return self::answer( Transition::archive( $ready['item'], $ready['version'], get_current_user_id() ) );
+	}
+
+	/**
+	 * The item and the version every move route needs, or the refusal that
+	 * stops it: no such item, or a write against a version that has moved on.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array{item: array<string, mixed>, version: int}|\WP_Error|WP_REST_Response
+	 */
+	private static function ready( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Errors::rest( 'unknown_work_item', __( 'There is no such work item.', 'blueworx-forge' ), 404 );
+		}
+
+		$sent  = $request->get_param( Versioning::PARAM );
+		$stale = Versioning::check( null === $sent ? null : (int) $sent, $item['record_version'], $item );
+
+		if ( null !== $stale ) {
+			return $stale;
+		}
+
+		return array(
+			'item'    => $item,
+			'version' => (int) $sent,
+		);
+	}
+
+	/**
+	 * The one answer shape every move route gives.
+	 *
+	 * A gate failure is separated out here rather than in each route: it is not
+	 * an error in the WP_Error sense — the request was well-formed and allowed,
+	 * the item simply is not ready — and it has its own documented body.
+	 *
+	 * @param array<string, mixed>|\WP_Error $moved What the transition service said.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	private static function answer( $moved ) {
 		if ( is_wp_error( $moved ) ) {
+			if ( Transition::GATE_FAILURE === $moved->get_error_code() ) {
+				return Errors::from_gate_failure( $moved );
+			}
+
 			return $moved;
 		}
 
@@ -391,6 +728,8 @@ final class WorkItemsController {
 				'ok'        => true,
 				'item'      => $moved,
 				'available' => Transitions::next_from( $moved['stage'], $moved['work_type'] ),
+				'returns'   => Returns::targets( $moved, Events::for_item( (string) $moved['id'] ) ),
+				'outcomes'  => Outcomes::available_for( $moved ),
 			)
 		);
 	}

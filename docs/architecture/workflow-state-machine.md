@@ -292,11 +292,23 @@ stage and **every** unmet requirement — not the first one found:
     {
       "id": "G-UP-NEXT-4",
       "label": "Planned hours per role",
-      "satisfied_by": "Enter planned hours for Primary User, Reviewer and Deliverer"
+      "satisfied_by": "Enter planned hours for Primary User, Reviewer and Deliverer.",
+      "type": "numeric",
+      "evidence": false,
+      "who": "ANY"
     }
+  ],
+  "checks": [
+    { "id": "G-UP-NEXT-8", "label": "Capacity check", "result": "pass", "note": "" },
+    { "id": "G-UP-NEXT-9", "label": "Support-hours check", "result": "pass", "note": "" }
   ]
 }
 ```
+
+`checks` appears only for a gate that has system results. `unmet` carries the
+requirement's type, whether it needs evidence and who may complete it, because
+the screen rendering it has to draw the right control and say who it is waiting
+on.
 
 Milestone 4 returns this shape and Milestone 5 renders it against the card. The
 capacity and support-hours results (G-UP-NEXT #8 and #9) always both appear,

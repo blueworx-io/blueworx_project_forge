@@ -70,18 +70,52 @@ final class Errors {
 	 * @param string                    $stage     Its stage, unchanged.
 	 * @param string                    $attempted The stage that was attempted.
 	 * @param array<int, array<string>> $unmet     Every unmet requirement.
+	 * @param array<int, array<string>> $checks    Every system result, where the
+	 *                                             gate has any.
 	 * @return WP_REST_Response
 	 */
-	public static function gate_failure( string $item_id, string $stage, string $attempted, array $unmet ): WP_REST_Response {
-		return new WP_REST_Response(
-			array(
-				'ok'        => false,
-				'item_id'   => $item_id,
-				'stage'     => $stage,
-				'attempted' => $attempted,
-				'unmet'     => array_values( $unmet ),
-			),
-			self::STATUS_GATE_FAILURE
+	public static function gate_failure( string $item_id, string $stage, string $attempted, array $unmet, array $checks = array() ): WP_REST_Response {
+		$body = array(
+			'ok'        => false,
+			'item_id'   => $item_id,
+			'stage'     => $stage,
+			'attempted' => $attempted,
+			'unmet'     => array_values( $unmet ),
+		);
+
+		/*
+		 * The system results, where the gate has any. G-UP-NEXT #8 and #9 are
+		 * evaluated independently and **both** are always reported, so a pass on
+		 * the capacity check and a failure on support hours shows as two results
+		 * rather than as one refusal a person has to guess the cause of.
+		 */
+		if ( array() !== $checks ) {
+			$body['checks'] = array_values( $checks );
+		}
+
+		return new WP_REST_Response( $body, self::STATUS_GATE_FAILURE );
+	}
+
+	/**
+	 * Turns the transition service's gate refusal into that body.
+	 *
+	 * The service answers in WP_Error because that is how it answers everything;
+	 * only the REST layer knows a gate failure has a body of its own. Keeping
+	 * the translation here means one place decides what a gate failure looks
+	 * like on the wire.
+	 *
+	 * @param WP_Error $error A Work\Transition::GATE_FAILURE error.
+	 * @return WP_REST_Response
+	 */
+	public static function from_gate_failure( WP_Error $error ): WP_REST_Response {
+		$data = (array) $error->get_error_data();
+
+		return self::gate_failure(
+			(string) ( $data['item_id'] ?? '' ),
+			(string) ( $data['stage'] ?? '' ),
+			(string) ( $data['attempted'] ?? '' ),
+			(array) ( $data['unmet'] ?? array() ),
+			(array) ( $data['checks'] ?? array() )
 		);
 	}
 }
