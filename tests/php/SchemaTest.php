@@ -39,23 +39,55 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
-	 * Every table is defined, and each carries the columns everything later
-	 * depends on: the id, the author and time stamps, and the record version
-	 * that ARCH-5 refuses stale writes against.
+	 * Every record table carries the columns everything later depends on: the
+	 * id, the author and time stamps, and the record version that ARCH-5
+	 * refuses stale writes against.
 	 */
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 5, $definitions );
+		$this->assertCount( 7, $definitions );
 
-		foreach ( $definitions as $sql ) {
+		foreach ( $definitions as $table => $sql ) {
 			$this->assertStringContainsString( 'id varchar(32) NOT NULL', $sql );
+			$this->assertStringContainsString( 'PRIMARY KEY  (id)', $sql );
+
+			if ( Schema::work_events_table() === $table ) {
+				continue;
+			}
+
 			$this->assertStringContainsString( 'record_version', $sql );
 			$this->assertStringContainsString( 'created_at', $sql );
 			$this->assertStringContainsString( 'updated_at', $sql );
 			$this->assertStringContainsString( 'created_by', $sql );
-			$this->assertStringContainsString( 'PRIMARY KEY  (id)', $sql );
 		}
+	}
+
+	/**
+	 * The work event log is the exception, and deliberately so. It is
+	 * append-only: nothing is ever updated, so there is no version to write
+	 * against and no updated_at to move. A row carrying either would invite
+	 * somebody to change history rather than append to it.
+	 */
+	public function test_the_event_log_is_append_only(): void {
+		$events = Schema::definitions()[ Schema::work_events_table() ];
+
+		$this->assertStringNotContainsString( 'record_version', $events );
+		$this->assertStringNotContainsString( 'updated_at', $events );
+		$this->assertStringContainsString( 'occurred_at', $events );
+	}
+
+	/**
+	 * Work is scoped to a site (ARCH-3), and the column is not called `site_id`
+	 * — core would write an integer into it. Same trap as the integration
+	 * record's; the name is avoided as well as defended against.
+	 */
+	public function test_work_is_scoped_to_a_site(): void {
+		$items = Schema::definitions()[ Schema::work_items_table() ];
+
+		$this->assertStringContainsString( 'client_site_id varchar(32) NOT NULL', $items );
+		$this->assertStringContainsString( 'KEY client_site_id (client_site_id)', $items );
+		$this->assertStringNotContainsString( "\tsite_id ", $items );
 	}
 
 	/**

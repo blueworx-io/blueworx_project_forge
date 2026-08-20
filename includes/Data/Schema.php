@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 3;
+	public const VERSION = 4;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -87,6 +87,28 @@ final class Schema {
 	}
 
 	/**
+	 * The work items table's full name.
+	 *
+	 * @return string
+	 */
+	public static function work_items_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_work_items';
+	}
+
+	/**
+	 * The work events table's full name.
+	 *
+	 * @return string
+	 */
+	public static function work_events_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_work_events';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -106,6 +128,8 @@ final class Schema {
 		$integrations = self::integrations_table();
 		$users        = self::users_table();
 		$memberships  = self::memberships_table();
+		$work_items   = self::work_items_table();
+		$work_events  = self::work_events_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -136,6 +160,7 @@ final class Schema {
 	KEY client_id (client_id),
 	KEY status (status)
 ) {$collate};",
+
 			/*
 			 * The signing key is deliberately absent. ARCH-6 keeps it in
 			 * Sites\Registry, issued once and never read back; this table is
@@ -178,6 +203,7 @@ final class Schema {
 	KEY client_id (client_id),
 	KEY registry_site_id (registry_site_id)
 ) {$collate};",
+
 			/*
 			 * One person, one row, whatever number of clients they work with
 			 * (AUTH-6). The unique index on the address is what makes that true
@@ -200,6 +226,7 @@ final class Schema {
 	KEY wp_user_id (wp_user_id),
 	KEY status (status)
 ) {$collate};",
+
 			/*
 			 * The join, and the only place an access role lives. An empty
 			 * client_site_id means every site under the client; a named one
@@ -223,6 +250,83 @@ final class Schema {
 	KEY client_id (client_id),
 	KEY client_site_id (client_site_id),
 	KEY status (status)
+) {$collate};",
+
+			/*
+			 * One table for all four rungs of WORK-1, because the hierarchy is a
+			 * parent reference and the rung is a column — which is what lets a
+			 * level be skipped and lets a Bug hang anywhere or nowhere. Five
+			 * tables would make "skip a level" a schema change.
+			 *
+			 * `stage` is written only by the transition service. Nothing else
+			 * has any business setting it, and Work\Validate refuses an edit
+			 * that names it.
+			 */
+			$work_items   => "CREATE TABLE {$work_items} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	parent_id varchar(32) NOT NULL DEFAULT '',
+	level varchar(20) NOT NULL,
+	work_type varchar(20) NOT NULL,
+	title varchar(191) NOT NULL,
+	problem text NOT NULL,
+	scope text NOT NULL,
+	non_goals text NOT NULL,
+	requirements text NOT NULL,
+	acceptance_criteria text NOT NULL,
+	references_text text NOT NULL,
+	stage varchar(32) NOT NULL DEFAULT 'future-idea',
+	prior_stage varchar(32) NOT NULL DEFAULT '',
+	blocked_elapsed bigint(20) unsigned NOT NULL DEFAULT 0,
+	terminal_outcome varchar(20) NOT NULL DEFAULT '',
+	duplicate_of varchar(32) NOT NULL DEFAULT '',
+	cycle int(11) unsigned NOT NULL DEFAULT 1,
+	self_reviewed tinyint(1) NOT NULL DEFAULT 0,
+	override_used tinyint(1) NOT NULL DEFAULT 0,
+	override_reason varchar(191) NOT NULL DEFAULT '',
+	commercial_class varchar(20) NOT NULL DEFAULT 'unclassified',
+	delivered_by_forge tinyint(1) NOT NULL DEFAULT 0,
+	priority varchar(20) NOT NULL DEFAULT '',
+	planned_start varchar(10) NOT NULL DEFAULT '',
+	planned_due varchar(10) NOT NULL DEFAULT '',
+	review_target varchar(10) NOT NULL DEFAULT '',
+	release_target varchar(10) NOT NULL DEFAULT '',
+	remaining_estimate decimal(8,2) NOT NULL DEFAULT 0,
+	release_method varchar(20) NOT NULL DEFAULT '',
+	release_destination varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY client_site_id (client_site_id),
+	KEY client_id (client_id),
+	KEY parent_id (parent_id),
+	KEY stage (stage),
+	KEY level (level)
+) {$collate};",
+
+			/*
+			 * Append-only. #99 expands this into the full changelog; it exists
+			 * now because #106 promises a move is recorded atomically, and that
+			 * is not true without somewhere for the record to go.
+			 */
+			$work_events  => "CREATE TABLE {$work_events} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	action varchar(40) NOT NULL,
+	from_stage varchar(32) NOT NULL DEFAULT '',
+	to_stage varchar(32) NOT NULL DEFAULT '',
+	gate varchar(40) NOT NULL DEFAULT '',
+	reason varchar(191) NOT NULL DEFAULT '',
+	actor bigint(20) unsigned NOT NULL DEFAULT 0,
+	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY item_id (item_id),
+	KEY client_site_id (client_site_id),
+	KEY occurred_at (occurred_at)
 ) {$collate};",
 		);
 	}

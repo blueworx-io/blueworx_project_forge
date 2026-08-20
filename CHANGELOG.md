@@ -8,7 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
-## [2.12.1] - 2026-08-20
+## [2.13.0] - 2026-08-20
+
+### Added
+
+- Work is now a record: projects, milestones, features and sub-features, plus
+  bugs, feedback and tasks that can hang anywhere or nowhere. A level can be
+  skipped, and work can only ever belong to one site.
+- The twelve stages, fixed. They cannot be renamed, reordered or added to,
+  because everything else — the gates, the board, the reports — is written
+  against them.
+- Work moves one stage at a time, through one route that records every move and
+  who made it. A move that fails leaves the item exactly as it was.
 
 ### Changed
 
