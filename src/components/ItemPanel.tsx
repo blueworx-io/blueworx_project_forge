@@ -127,10 +127,18 @@ export function ItemPanel( {
   }
 
   useEffect( () => {
+    // Every state change inside load() happens after an await, which the rule
+    // cannot see. Reading the item when the panel opens is what an effect is
+    // for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+
     // Focus lands in the panel when it opens, so a keyboard user is not left
     // behind on the board underneath it.
     closer.current?.focus();
+
+    // load() is rebuilt every render, so naming it as a dependency would reload
+    // the panel forever. The item's id is the only thing that should reopen it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ itemId ] );
 

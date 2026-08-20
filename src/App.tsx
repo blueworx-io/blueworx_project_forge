@@ -36,12 +36,16 @@ export function App() {
   const [ adding, setAdding ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
-  const [ shell, setShell ] = useState< Loading >( 'loading' );
+  /*
+   * Both start as loading rather than being set to it once an effect runs.
+   * Running outside WordPress is known before the first render — it is a
+   * property of the page, not something to go and find out — so it is the
+   * initial value here rather than a state change on mount.
+   */
+  const [ shell, setShell ] = useState< Loading >( () => ( isConnected() ? 'loading' : 'ready' ) );
   const [ board, setBoard ] = useState< Loading >( 'loading' );
 
   async function loadShell() {
-    setShell( 'loading' );
-
     try {
       const [ stageList, siteList ] = await Promise.all( [
         api< { stages: Stage[]; columns: string[] } >( '/stages' ),
@@ -60,23 +64,15 @@ export function App() {
   }
 
   useEffect( () => {
-    if ( ! isConnected() ) {
-      setShell( 'ready' );
-      return;
+    if ( isConnected() ) {
+      // The rule cannot see that every state change in here happens after an
+      // await. Reading from the server on mount is what an effect is for.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadShell();
     }
-
-    void loadShell();
   }, [] );
 
   async function loadItems( id: string ) {
-    if ( '' === id ) {
-      setItems( [] );
-      setBoard( 'ready' );
-      return;
-    }
-
-    setBoard( 'loading' );
-
     try {
       const loaded = await api< { items: WorkItem[] } >(
         `/work-items?client_site_id=${ encodeURIComponent( id ) }`
@@ -89,13 +85,17 @@ export function App() {
     }
   }
 
+  /*
+   * The board reloads when the shell arrives and whenever the site changes.
+   * Showing the loading state is the *caller's* job — the initial value covers
+   * the first read, and the site picker sets it when somebody switches — so
+   * this fetches and nothing else.
+   */
   useEffect( () => {
-    if ( 'ready' !== shell ) {
-      return;
+    if ( 'ready' === shell && '' !== siteId ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadItems( siteId );
     }
-
-    void loadItems( siteId );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ siteId, shell ] );
 
   async function move( itemId: string, to: string ) {
@@ -169,7 +169,10 @@ export function App() {
           data-testid="bwx-site"
           aria-label="Site"
           value={ siteId }
-          onChange={ ( event ) => setSiteId( event.target.value ) }
+          onChange={ ( event ) => {
+            setBoard( 'loading' );
+            setSiteId( event.target.value );
+          } }
         >
           { 0 === sites.length && <option value="">No sites yet</option> }
           { sites.map( ( option ) => (
@@ -232,7 +235,14 @@ export function App() {
           state="error"
           detail={ notice }
           action={
-            <button type="button" className="bwx-button" onClick={ () => void loadShell() }>
+            <button
+              type="button"
+              className="bwx-button"
+              onClick={ () => {
+                setShell( 'loading' );
+                void loadShell();
+              } }
+            >
               Try again
             </button>
           }
@@ -263,7 +273,14 @@ export function App() {
           state="error"
           detail={ notice }
           action={
-            <button type="button" className="bwx-button" onClick={ () => void loadItems( siteId ) }>
+            <button
+              type="button"
+              className="bwx-button"
+              onClick={ () => {
+                setBoard( 'loading' );
+                void loadItems( siteId );
+              } }
+            >
               Try again
             </button>
           }
