@@ -151,9 +151,27 @@ final class ClientSitesController {
 	 * nothing on its own — the same site name appears under several clients.
 	 *
 	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response
+	 * @return WP_REST_Response|\WP_Error
 	 */
-	public static function all( WP_REST_Request $request ): WP_REST_Response {
+	public static function all( WP_REST_Request $request ) {
+		$reach = Boundary::current();
+
+		/*
+		 * #125. "Nothing here" and "not yours to see" look identical as an empty
+		 * list and mean completely different things, so somebody who reaches
+		 * nothing at all is refused rather than handed an empty array. A studio
+		 * with no sites created yet is a different case and gets the empty
+		 * array, because its administrator reaches everything — there simply is
+		 * not anything.
+		 */
+		if ( Reach::is_nothing( $reach ) ) {
+			return Errors::rest(
+				'no_access',
+				__( 'You do not have access to any client sites.', 'blueworx-forge' ),
+				403
+			);
+		}
+
 		$status = (string) $request->get_param( 'status' );
 		$status = 'all' === $status ? null : $status;
 
@@ -164,7 +182,6 @@ final class ClientSitesController {
 		}
 
 		$sites = array();
-		$reach = Boundary::current();
 
 		/*
 		 * #92, and the reason this route is declared SCOPE_LIST. The site picker

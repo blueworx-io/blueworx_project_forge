@@ -215,6 +215,45 @@ final class TenantReachTest extends TestCase {
 		$this->assertFalse( Reach::reaches_site( $reach, 'cli_anything', 'csite_anything' ) );
 	}
 
+	/**
+	 * "Reaches nothing" is a question the listing routes have to ask, because
+	 * an empty list is the wrong answer to it.
+	 *
+	 * A person who holds nothing and a person whose clients happen to have no
+	 * sites yet both get an empty array, and those mean completely different
+	 * things — one is "not yours to see" and the other is "nothing here yet"
+	 * (#125). A screen cannot tell them apart from the list alone.
+	 */
+	public function test_holding_nothing_is_a_question_that_can_be_asked(): void {
+		$this->assertTrue( Reach::is_nothing( Reach::nothing() ) );
+		$this->assertFalse( Reach::is_nothing( Reach::everything() ) );
+		$this->assertFalse(
+			Reach::is_nothing( Reach::for_memberships( array( $this->membership( 'cli_a' ) ), '' ) )
+		);
+	}
+
+	/**
+	 * An administrator with no clients configured at all still holds
+	 * everything. Their empty list means "none created yet", and answering
+	 * "not yours" on a fresh installation would be absurd.
+	 */
+	public function test_an_empty_studio_is_not_the_same_as_holding_nothing(): void {
+		$this->assertFalse( Reach::is_nothing( Reach::everything() ) );
+	}
+
+	/**
+	 * And somebody whose only membership has ended holds nothing, rather than
+	 * holding a client with no sites.
+	 */
+	public function test_an_ended_membership_leaves_somebody_holding_nothing(): void {
+		$reach = Reach::for_memberships(
+			array( $this->membership( 'cli_a', '', Roles::STAFF, 'inactive' ) ),
+			''
+		);
+
+		$this->assertTrue( Reach::is_nothing( $reach ) );
+	}
+
 	// -----------------------------------------------------------------------
 	// Filtering a set of records.
 	// -----------------------------------------------------------------------

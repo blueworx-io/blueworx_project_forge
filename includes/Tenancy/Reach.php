@@ -122,6 +122,25 @@ final class Reach {
 	}
 
 	/**
+	 * Whether this reach covers nothing at all.
+	 *
+	 * The listing routes have to ask, because an empty list is the wrong answer
+	 * to it. Somebody who holds nothing and somebody whose clients happen to
+	 * have no sites yet both come back with an empty array, and those mean
+	 * completely different things: "not yours to see" and "nothing here yet"
+	 * (#125). A screen cannot tell them apart from the list alone, so the API
+	 * has to.
+	 *
+	 * @param array<string, mixed> $reach The reach.
+	 * @return bool
+	 */
+	public static function is_nothing( array $reach ): bool {
+		return empty( $reach['everything'] )
+			&& array() === (array) ( $reach['clients'] ?? array() )
+			&& array() === (array) ( $reach['sites'] ?? array() );
+	}
+
+	/**
 	 * Whether a client is reached at all.
 	 *
 	 * A client reached through one of its sites counts, or the site somebody
