@@ -102,7 +102,9 @@ test('the workspace screen shows the record and how old it is', async ({ browser
   const page = await client.context.newPage();
   await page.goto(SCREEN);
 
-  await expect(page.getByText('Screen Ltd')).toBeVisible();
+  // Scoped to the record itself: since #126 the frame above also names the
+  // client, and this test is about the record having come from the studio.
+  await expect(page.locator('[data-bwx-workspace]')).toContainText('Screen Ltd');
   await expect(page.locator('[data-bwx-sync-state]')).toContainText('Last synced');
 
   const state = await page.locator('[data-bwx-sync-state]').getAttribute('data-bwx-sync-state');
@@ -138,7 +140,7 @@ test('a cut-off site keeps showing what it last saw, and says it is old', async 
   await expect(page.locator('[data-bwx-sync-state="stale"]')).toContainText(
     'The studio could not be reached'
   );
-  await expect(page.getByText('Cut Off Ltd')).toBeVisible();
+  await expect(page.locator('[data-bwx-workspace]')).toContainText('Cut Off Ltd');
 
   await page.close();
   await studio.context.close();

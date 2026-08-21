@@ -71,6 +71,8 @@ final class ConnectionScreen {
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Forge — connection', 'blueworx-forge' ) . '</h1>';
 
+		Nav::render( self::SLUG );
+
 		self::result_notice();
 		self::status();
 		self::form();

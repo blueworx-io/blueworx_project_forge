@@ -101,6 +101,8 @@ final class Screen {
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Forge', 'blueworx-forge' ) . '</h1>';
 
+		Nav::render( self::SLUG, $view );
+
 		self::sync_notice( $view['sync'] );
 
 		if ( null === $view['record'] ) {
