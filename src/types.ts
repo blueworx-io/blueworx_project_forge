@@ -47,6 +47,15 @@ export interface WorkItem {
   priority: string;
   planned_start: string;
   planned_due: string;
+
+  /*
+   * When it is meant to be reviewed and when it is meant to ship. Stored
+   * alongside the planned dates and read by the calendar (#121), which treats
+   * all four as dates in their own right rather than as detail hanging off the
+   * due date.
+   */
+  review_target?: string;
+  release_target?: string;
   commercial_class: string;
   record_version: number;
   updated_at: number;
@@ -101,7 +110,7 @@ export interface SavedView {
 }
 
 /** Which view of the work is on screen. */
-export type ViewName = 'board' | 'list' | 'gantt';
+export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** One thing that has to be true before work leaves a stage. */
 export interface Requirement {
