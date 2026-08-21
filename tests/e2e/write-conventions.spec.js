@@ -183,9 +183,9 @@ test.describe('write conventions', () => {
 
     // Prefixed, so an id pasted into a message says which kind of record it is
     // and cannot be mistaken for another kind's.
-    expect(item.id).toMatch(/^wrk_[0-9a-f]{16}$/);
-    expect(world.client.id).toMatch(/^cli_[0-9a-f]{16}$/);
-    expect(world.site.id).toMatch(/^cst_[0-9a-f]{16}$/);
+    expect(item.id).toMatch(/^wrk_[0-9a-f]{26}$/);
+    expect(world.client.id).toMatch(/^cli_[0-9a-f]{26}$/);
+    expect(world.site.id).toMatch(/^cst_[0-9a-f]{26}$/);
   });
 
   test('two records never share an id', async () => {
