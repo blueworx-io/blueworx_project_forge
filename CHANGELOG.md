@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.20.0] - 2026-08-21
+
+### Added
+
+- A third way of looking at the work, beside the board and the list: the
+  schedule. It draws when each piece of work starts and is due, how far a
+  parent has got, and what is already past its date.
+- Work nobody has given dates to is kept in a tray under the schedule rather
+  than dropped off it. It is open by default and says how much it holds even
+  when closed, so unplanned work is visible instead of invisible.
+- A parent with no dates of its own is drawn from the dates of the work
+  beneath it, as an outline rather than a solid bar — so it is clear those
+  dates were derived and not promised by anybody.
+- Work that is waiting on other work is marked as waiting, and picking a bar
+  shows what is immediately either side of it in the sequence.
+
 ## [2.19.1] - 2026-08-21
 
 ### Fixed

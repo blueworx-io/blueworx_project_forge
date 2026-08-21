@@ -412,7 +412,8 @@ final class WorkItemsController {
 	}
 
 	/**
-	 * Fills in what each item's children make it (#101).
+	 * Fills in what each item's children make it (#101), and what it waits on
+	 * (#120).
 	 *
 	 * Done for the whole set at once, from one extra read of the site, rather
 	 * than a query per parent. A board with forty cards on it would otherwise
@@ -438,8 +439,23 @@ final class WorkItemsController {
 			}
 		}
 
+		/*
+		 * What each item waits on, for the whole site in one read (#120). The
+		 * single-item view answers this in full — both directions and a summary
+		 * — but a schedule needs it for everything on screen at once, and one
+		 * request per bar is not a way to draw a chart. Ids only: the titles are
+		 * already in the list the caller is holding.
+		 */
+		$waits = Dependencies::chain_on_site( $site_id );
+
 		foreach ( $items as $index => $item ) {
-			$items[ $index ] = array_merge( $item, Derived::fields( $children[ (string) $item['id'] ] ?? array() ) );
+			$id = (string) $item['id'];
+
+			$items[ $index ] = array_merge(
+				$item,
+				Derived::fields( $children[ $id ] ?? array() ),
+				array( 'waits_on' => $waits[ $id ] ?? array() )
+			);
 		}
 
 		return $items;

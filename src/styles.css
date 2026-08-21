@@ -587,3 +587,250 @@ body {
   margin-top: 4px;
   color: var( --color-fog );
 }
+
+/* ---------------------------------------------------------------------------
+   The schedule (#120).
+
+   One geometry, declared once: a fixed gutter for the labels and whatever is
+   left for the track. Every bar and the today line are positioned as a
+   percentage of that track, so the axis above and the rows below cannot drift
+   apart the way they would if each worked out its own width.
+   --------------------------------------------------------------------------- */
+
+.bwx-gantt {
+  --gantt-gutter: 220px;
+  --gantt-track: calc( 100% - var( --gantt-gutter ) );
+
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 20px;
+  gap: 16px;
+}
+
+.bwx-gantt-chart {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.bwx-gantt-axis {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var( --color-snow );
+  padding-bottom: 6px;
+}
+
+.bwx-gantt-axis-gutter {
+  flex: 0 0 var( --gantt-gutter );
+}
+
+.bwx-gantt-axis-weeks {
+  flex: 1;
+  display: flex;
+}
+
+.bwx-gantt-week {
+  flex: 1;
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+  border-left: 1px solid var( --color-chalk );
+  padding-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.bwx-gantt-rows {
+  position: relative;
+}
+
+/* Where today is. Behind the bars rather than over them, so it never hides the
+   work it is there to put in context. */
+.bwx-gantt-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var( --at-risk-accent );
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bwx-gantt-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 30px;
+}
+
+.bwx-gantt-row[ data-dimmed='true' ] {
+  opacity: 0.28;
+}
+
+.bwx-gantt-label {
+  flex: 0 0 var( --gantt-gutter );
+  padding-right: 12px;
+  font-size: var( --text-small );
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Work that is waiting on other work. A mark rather than an arrow: the arrows
+   are what turn a chart of any size into a thicket. */
+.bwx-gantt-row[ data-waiting='true' ] .bwx-gantt-label::before {
+  content: '↳ ';
+  color: var( --color-steel );
+}
+
+.bwx-gantt-row[ data-chain='upstream' ] .bwx-gantt-label,
+.bwx-gantt-row[ data-chain='downstream' ] .bwx-gantt-label {
+  font-weight: var( --font-weight-label );
+}
+
+.bwx-gantt-track {
+  position: relative;
+  flex: 1;
+  height: 22px;
+}
+
+.bwx-gantt-bar {
+  position: absolute;
+  top: 3px;
+  height: 16px;
+  min-width: 3px;
+  border: 0;
+  border-radius: 3px;
+  padding: 0;
+  cursor: pointer;
+  background: var( --bar-phase, var( --color-chalk ) );
+  overflow: hidden;
+  text-align: left;
+}
+
+/* A span nobody chose. Its dates are what the work beneath it adds up to, so it
+   is drawn as an outline rather than a fill — holding somebody to a date they
+   never set is exactly the mistake a solid bar invites. */
+.bwx-gantt-bar[ data-derived='true' ] {
+  background: transparent;
+  border: 1px dashed var( --bar-phase, var( --color-chalk ) );
+}
+
+.bwx-gantt-bar[ data-overdue='true' ] {
+  outline: 2px solid var( --at-risk-accent );
+  outline-offset: 1px;
+}
+
+/* A milestone is a date something has to be true by, not a stretch of work. */
+.bwx-gantt-bar[ data-milestone='true' ] {
+  border-radius: 0;
+  clip-path: polygon( 0 50%, 6px 0, 100% 0, 100% 100%, 6px 100% );
+}
+
+.bwx-gantt-bar:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-gantt-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var( --alpha-inset, rgba( 0, 0, 0, 0.22 ) );
+}
+
+/* Readable only when the bar is wide enough to hold it, which is the honest
+   behaviour: a two-day bar has no room for a date range and should not grow to
+   make one fit. */
+.bwx-gantt-bar-text {
+  position: relative;
+  display: block;
+  padding: 0 6px;
+  font-size: var( --text-caption );
+  line-height: 16px;
+  color: var( --color-snow );
+  white-space: nowrap;
+}
+
+.bwx-gantt-bar[ data-derived='true' ] .bwx-gantt-bar-text {
+  color: var( --color-steel );
+}
+
+.bwx-gantt-empty {
+  color: var( --color-fog );
+  font-size: var( --text-small );
+  padding: 12px 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   The tray. Given the same weight as the chart rather than tucked under it:
+   work nobody has scheduled is the work most likely to be forgotten.
+   --------------------------------------------------------------------------- */
+
+.bwx-gantt-tray {
+  border-top: 1px solid var( --color-chalk );
+  padding-top: 12px;
+}
+
+.bwx-gantt-tray-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.bwx-gantt-tray-toggle:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-gantt-tray-toggle::before {
+  content: '▾';
+  color: var( --color-steel );
+}
+
+.bwx-gantt-tray[ data-open='false' ] .bwx-gantt-tray-toggle::before {
+  content: '▸';
+}
+
+.bwx-gantt-tray-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.bwx-gantt-tray-item {
+  font: inherit;
+  font-size: var( --text-small );
+  color: inherit;
+  background: var( --color-bone );
+  border: 1px solid var( --color-chalk );
+  border-left: 3px solid var( --bar-phase, var( --color-chalk ) );
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.bwx-gantt-tray-item:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-gantt-tray-empty {
+  color: var( --color-fog );
+  font-size: var( --text-small );
+  margin: 10px 0 0;
+}
