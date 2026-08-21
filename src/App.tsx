@@ -4,6 +4,7 @@ import { api, GateError, forgeData, isConnected, isDenied, messageFor } from './
 import { Board } from './components/Board';
 import { Filters } from './components/Filters';
 import { ItemPanel } from './components/ItemPanel';
+import { CalendarView } from './components/CalendarView';
 import { GanttView } from './components/GanttView';
 import { ListView } from './components/ListView';
 import { NewWork } from './components/NewWork';
@@ -318,6 +319,16 @@ export function App() {
           >
             Schedule
           </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'calendar' === view ? undefined : 'quiet' }
+            data-testid="bwx-view-calendar"
+            aria-pressed={ 'calendar' === view }
+            onClick={ () => setView( 'calendar' ) }
+          >
+            Calendar
+          </button>
         </div>
 
         <span className="bwx-mono">{ items.length } { 1 === items.length ? 'item' : 'items' }</span>
@@ -480,6 +491,10 @@ export function App() {
 
           { 'gantt' === view && (
             <GanttView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+          ) }
+
+          { 'calendar' === view && (
+            <CalendarView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
           ) }
 
           { /*

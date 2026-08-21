@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.21.0] - 2026-08-21
+
+### Added
+
+- A calendar, in month, week and day. Work appears on every date it carries —
+  when it starts, when it is due, when it is meant to be reviewed and when it
+  is meant to ship — and each entry says which of those it is, so a release day
+  is visible as a release day rather than buried in an item.
+- A busy day says how much it is not showing instead of quietly cutting the
+  list short, and opens in full when asked.
+- Work with no dates does not appear, which is the honest answer for a
+  calendar. The schedule is where that work stays visible.
+
 ## [2.20.0] - 2026-08-21
 
 ### Added

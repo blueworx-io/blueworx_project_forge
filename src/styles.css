@@ -834,3 +834,178 @@ body {
   font-size: var( --text-small );
   margin: 10px 0 0;
 }
+
+/* ---------------------------------------------------------------------------
+   The calendar (#121).
+
+   One grid rule for all three ranges: seven columns for a month or a week, one
+   for a day. The mode changes how many rows there are, not what a day is.
+   --------------------------------------------------------------------------- */
+
+.bwx-calendar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 20px;
+  gap: 10px;
+}
+
+.bwx-calendar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bwx-calendar-title {
+  font-weight: var( --font-weight-label );
+  min-width: 14ch;
+}
+
+.bwx-calendar-goto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.bwx-calendar-weekdays,
+.bwx-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat( 7, minmax( 0, 1fr ) );
+  gap: 4px;
+}
+
+.bwx-calendar[ data-mode='day' ] .bwx-calendar-grid {
+  grid-template-columns: minmax( 0, 1fr );
+}
+
+.bwx-calendar-weekdays span {
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+  padding: 0 4px;
+}
+
+.bwx-calendar-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+}
+
+.bwx-calendar-day {
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-radius: 6px;
+  padding: 6px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bwx-calendar[ data-mode='day' ] .bwx-calendar-day,
+.bwx-calendar[ data-mode='week' ] .bwx-calendar-day {
+  min-height: 220px;
+}
+
+/* The days a month grid borrows from either side. Quietened, not emptied: work
+   on them is real work, and blanking it would hide it because a grid has
+   corners. */
+.bwx-calendar-day[ data-outside='true' ] {
+  background: var( --color-bone );
+}
+
+.bwx-calendar-day[ data-outside='true' ] .bwx-calendar-date {
+  color: var( --color-fog );
+}
+
+.bwx-calendar-day[ data-today='true' ] {
+  border-color: var( --brand-600 );
+}
+
+.bwx-calendar-date {
+  font-size: var( --text-caption );
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+}
+
+.bwx-calendar-day[ data-today='true' ] .bwx-calendar-date {
+  color: var( --brand-600 );
+}
+
+.bwx-calendar-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bwx-calendar-entry {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: var( --text-small );
+  color: inherit;
+  text-align: left;
+  background: var( --color-bone );
+  border: 0;
+  border-left: 3px solid var( --entry-phase, var( --color-chalk ) );
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.bwx-calendar-entry:hover {
+  background: var( --alpha-fill-hover, var( --color-mist ) );
+}
+
+.bwx-calendar-entry:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+/* Which of the four dates this is. Said on every entry rather than left to the
+   colour, because the colour already carries the stage and one mark cannot
+   honestly carry two meanings. */
+.bwx-calendar-kind {
+  display: block;
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  color: var( --color-steel );
+}
+
+.bwx-calendar-entry-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bwx-calendar-more {
+  font: inherit;
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+  background: none;
+  border: 0;
+  padding: 2px 0 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bwx-calendar-more:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-calendar-empty {
+  color: var( --color-fog );
+  font-size: var( --text-small );
+}
