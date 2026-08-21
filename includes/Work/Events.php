@@ -42,11 +42,104 @@ final class Events {
 	public const MOVED = 'moved';
 
 	/**
+	 * The item was sent back to a stage it had occupied (#108).
+	 */
+	public const RETURNED = 'returned';
+
+	/**
+	 * The item was paused, and where it came from stored (#109).
+	 */
+	public const BLOCKED = 'blocked';
+
+	/**
+	 * The blocker was resolved and the item put back (#109).
+	 */
+	public const UNBLOCKED = 'unblocked';
+
+	/**
+	 * The item ended at one of the WF-2 outcomes (#111).
+	 */
+	public const ENDED = 'ended';
+
+	/**
+	 * The item was put out of the default views (#111).
+	 */
+	public const ARCHIVED = 'archived';
+
+	/**
+	 * Finished work was picked up again, as a new cycle (#113).
+	 */
+	public const REOPENED = 'reopened';
+
+	/**
+	 * The workflow was gone round by the Primary administrator (#114).
+	 */
+	public const OVERRIDDEN = 'overridden';
+
+	/**
+	 * A field was changed (#99).
+	 */
+	public const EDITED = 'edited';
+
+	/**
+	 * An earlier entry was wrong, and this one says so.
+	 *
+	 * The only way a mistake in the log is put right. Nothing here is ever
+	 * changed, so a correction is a further entry — which is also the more
+	 * useful record, because "somebody got this wrong on Tuesday and fixed it on
+	 * Thursday" is a fact worth keeping.
+	 */
+	public const CORRECTED = 'corrected';
+
+	/**
+	 * Work was made to wait on other work (#103).
+	 */
+	public const DEPENDENCY_ADDED = 'dependency-added';
+
+	/**
+	 * It stopped waiting.
+	 */
+	public const DEPENDENCY_REMOVED = 'dependency-removed';
+
+	/**
+	 * Every action an entry can record.
+	 *
+	 * Listed so a reader can see the whole vocabulary at once, and so the test
+	 * that proves a correction is possible has something to check against.
+	 */
+	public const ACTIONS = array(
+		self::CREATED,
+		self::EDITED,
+		self::MOVED,
+		self::RETURNED,
+		self::BLOCKED,
+		self::UNBLOCKED,
+		self::ENDED,
+		self::ARCHIVED,
+		self::REOPENED,
+		self::OVERRIDDEN,
+		self::CORRECTED,
+		self::DEPENDENCY_ADDED,
+		self::DEPENDENCY_REMOVED,
+	);
+
+	/**
+	 * Done by somebody standing in for the person the item names (AUTH-4).
+	 */
+	public const VIA_SUBSTITUTE = 'substitute';
+
+	/**
+	 * Done through the WF-5 override.
+	 */
+	public const VIA_OVERRIDE = 'override';
+
+	/**
 	 * Appends an entry.
 	 *
 	 * @param array<string, mixed> $entry item_id, client_site_id, action, and
 	 *                                    optionally from_stage, to_stage, gate,
-	 *                                    reason, actor.
+	 *                                    reason, detail, outcome, cycle,
+	 *                                    attempt, actor.
 	 * @return bool Whether it was written.
 	 */
 	public static function append( array $entry ): bool {
@@ -60,9 +153,53 @@ final class Events {
 			'from_stage'     => (string) ( $entry['from_stage'] ?? '' ),
 			'to_stage'       => (string) ( $entry['to_stage'] ?? '' ),
 			'gate'           => (string) ( $entry['gate'] ?? '' ),
+			'outcome'        => (string) ( $entry['outcome'] ?? '' ),
+
+			/*
+			 * How the actor was entitled to do this, where it was not simply
+			 * their own authority: standing in for somebody (AUTH-4), or the
+			 * WF-5 override. Blank is the ordinary case, and that is why it is
+			 * a column rather than a note in the reason — "which of these were
+			 * done by a substitute" has to be a query.
+			 */
+			'via'            => (string) ( $entry['via'] ?? '' ),
+
+			/*
+			 * #99. Which field changed and both sides of the change, so an entry
+			 * answers "what was it before" on its own rather than by somebody
+			 * replaying the whole history to work it out.
+			 */
+			'field'            => (string) ( $entry['field'] ?? '' ),
+			'previous_value'   => Changelog::render( $entry['previous_value'] ?? '' ),
+			'new_value'        => Changelog::render( $entry['new_value'] ?? '' ),
+
+			/*
+			 * Which interface it came from. The same edit made by us and made by
+			 * the client are different facts, and nothing else in the row can say
+			 * which — the actor is a person, and a person can be on either side.
+			 */
+			'source_interface' => (string) ( $entry['source_interface'] ?? '' ),
+
+			/*
+			 * The site's timezone at the time, stored with the entry rather than
+			 * looked up when it is read. A client that moves timezone would
+			 * otherwise rewrite when every past event appears to have happened.
+			 */
+			'timezone'         => (string) ( $entry['timezone'] ?? '' ),
 			// Bounded because it lands in a varchar and comes from a person
 			// typing a reason into a box.
 			'reason'         => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, 191 ),
+
+			/*
+			 * Whatever the action needs beyond a reason: a reviewer's feedback,
+			 * the next action on a blocker, the surviving item a duplicate
+			 * points at. It is a text column because review feedback is the one
+			 * thing here somebody genuinely writes paragraphs of, and truncating
+			 * that would throw away the part the developer needs.
+			 */
+			'detail'         => (string) ( $entry['detail'] ?? '' ),
+			'cycle'          => max( 1, (int) ( $entry['cycle'] ?? 1 ) ),
+			'attempt'        => max( 1, (int) ( $entry['attempt'] ?? 1 ) ),
 			'actor'          => (int) ( $entry['actor'] ?? 0 ),
 			'occurred_at'    => bwx_forge_now(),
 		);
@@ -95,9 +232,19 @@ final class Events {
 					'from_stage'  => (string) $row['from_stage'],
 					'to_stage'    => (string) $row['to_stage'],
 					'gate'        => (string) $row['gate'],
-					'reason'      => (string) $row['reason'],
-					'actor'       => (int) $row['actor'],
-					'occurred_at' => (int) $row['occurred_at'],
+					'outcome'     => (string) $row['outcome'],
+					'via'              => (string) $row['via'],
+					'field'            => (string) ( $row['field'] ?? '' ),
+					'previous_value'   => (string) ( $row['previous_value'] ?? '' ),
+					'new_value'        => (string) ( $row['new_value'] ?? '' ),
+					'source_interface' => (string) ( $row['source_interface'] ?? '' ),
+					'timezone'         => (string) ( $row['timezone'] ?? '' ),
+					'reason'           => (string) $row['reason'],
+					'detail'           => (string) $row['detail'],
+					'cycle'            => (int) $row['cycle'],
+					'attempt'          => (int) $row['attempt'],
+					'actor'            => (int) $row['actor'],
+					'occurred_at'      => (int) $row['occurred_at'],
 				);
 			},
 			is_array( $rows ) ? $rows : array()

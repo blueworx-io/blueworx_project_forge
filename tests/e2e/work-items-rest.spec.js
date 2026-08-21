@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as Forge from './helpers/forge.js';
 
 // #96, #97, #104 and #106 against a real WordPress. The unit tests prove the
 // rules in isolation; these prove the table exists, the routes are registered,
@@ -59,6 +60,87 @@ function move(request, nonce, item, to) {
     headers: { 'X-WP-Nonce': nonce },
     data: { to, record_version: item.record_version },
   });
+}
+
+function show(request, nonce, itemId) {
+  return request
+    .get(`/wp-json/blueworx-forge/v1/work-items/${itemId}`, { headers: { 'X-WP-Nonce': nonce } })
+    .then((response) => response.json());
+}
+
+// A plausible answer for each field a gate asks for. Anything not named here is
+// prose, and prose is prose.
+function answerFor(field) {
+  switch (field) {
+    case 'planned_start':
+      return '2026-09-01';
+    case 'planned_due':
+      return '2026-09-30';
+    case 'priority':
+      return 'normal';
+    case 'commercial_class':
+      return 'chargeable';
+    case 'release_method':
+      return 'software';
+    case 'remaining_estimate':
+      return 2;
+    default:
+      return 'Written down.';
+  }
+}
+
+// Satisfies whatever stands between an item and a stage, then hands back the
+// item as it now is. Since #105 the gates are real, so a test that wants to
+// exercise a move past one has to go through it like a person would.
+async function satisfy(request, nonce, item, to) {
+  const detail = await show(request, nonce, item.id);
+  const unmet = detail.readiness[to]?.unmet ?? [];
+  const patch = {};
+
+  for (const requirement of unmet) {
+    if ('field' === requirement.by) {
+      for (const field of requirement.fields) {
+        patch[field] = answerFor(field);
+      }
+      continue;
+    }
+
+    if ('record' !== requirement.by) {
+      continue;
+    }
+
+    const recorded = await request.post(
+      `/wp-json/blueworx-forge/v1/work-items/${item.id}/gate`,
+      {
+        headers: { 'X-WP-Nonce': nonce },
+        data: {
+          requirement: requirement.id,
+          value: 'Done.',
+          evidence: requirement.evidence ? 'https://example.test/evidence' : '',
+        },
+      },
+    );
+    expect(recorded.status(), `recording ${requirement.id}`).toBe(200);
+  }
+
+  if (0 === Object.keys(patch).length) {
+    return (await show(request, nonce, item.id)).item;
+  }
+
+  const edited = await request.patch(`/wp-json/blueworx-forge/v1/work-items/${item.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { ...patch, record_version: (await show(request, nonce, item.id)).item.record_version },
+  });
+  expect(edited.status(), `filling in ${Object.keys(patch).join(', ')}`).toBe(200);
+
+  return (await edited.json()).item;
+}
+
+// Move, having first done what the stage asks for.
+async function advance(request, nonce, item, to) {
+  const ready = await satisfy(request, nonce, item, to);
+
+  return move(request, nonce, ready, to);
 }
 
 test('the stages are twelve, fixed, and readable without signing in', async ({ request }) => {
@@ -150,14 +232,16 @@ test('an item moves one stage at a time, and the move is recorded', async ({ bro
     })
   ).json();
 
-  const moved = await move(context.request, nonce, item, 'triage');
+  const moved = await advance(context.request, nonce, item, 'triage');
   expect(moved.status()).toBe(200);
 
   const body = await moved.json();
   item = body.item;
 
   expect(item.stage).toBe('triage');
-  expect(item.record_version).toBe(2);
+  // Satisfying the gate wrote to the item too, so the version has moved more
+  // than once. What matters is that the move itself moved it on.
+  expect(item.record_version).toBeGreaterThan(1);
 
   // A feature leaves Triage for Documentation Period; Bug Tracking is not on
   // offer, because it is not a bug.
@@ -169,10 +253,15 @@ test('an item moves one stage at a time, and the move is recorded', async ({ bro
     })
   ).json();
 
-  expect(shown.history).toHaveLength(2);
-  expect(shown.history[1].from_stage).toBe('future-idea');
-  expect(shown.history[1].to_stage).toBe('triage');
-  expect(shown.history[1].gate).toBe('G-FUTURE-IDEA');
+  // Found rather than counted. Since #99 the history also carries an entry for
+  // every field somebody filled in on the way, so an index into it says more
+  // about how the gate was satisfied than about the move being recorded.
+  const moves = shown.history.filter((event) => 'moved' === event.action);
+
+  expect(moves).toHaveLength(1);
+  expect(moves[0].from_stage).toBe('future-idea');
+  expect(moves[0].to_stage).toBe('triage');
+  expect(moves[0].gate).toBe('G-FUTURE-IDEA');
 
   await context.close();
 });
@@ -234,11 +323,17 @@ test('only a bug goes through Bug Tracking', async ({ browser, baseURL }) => {
     ).json()
   ).item;
 
-  const triagedBug = (await (await move(context.request, nonce, bug, 'triage')).json()).item;
-  const triagedFeature = (await (await move(context.request, nonce, feature, 'triage')).json()).item;
+  const triagedBug = (await (await advance(context.request, nonce, bug, 'triage')).json()).item;
+  const triagedFeature = (await (await advance(context.request, nonce, feature, 'triage')).json())
+    .item;
 
-  expect((await move(context.request, nonce, triagedBug, 'bug-tracking')).status()).toBe(200);
-  expect((await move(context.request, nonce, triagedFeature, 'bug-tracking')).status()).toBe(409);
+  expect((await advance(context.request, nonce, triagedBug, 'bug-tracking')).status()).toBe(200);
+
+  // #110. Refused for what it is, not for what it is missing: satisfying the
+  // gate first proves the refusal is about the work type and nothing else.
+  const refused = await advance(context.request, nonce, triagedFeature, 'bug-tracking');
+  expect(refused.status()).toBe(409);
+  expect((await refused.json()).code).toBe('bwx_forge_stage_not_for_type');
 
   await context.close();
 });
@@ -447,17 +542,17 @@ test('a due date before its start is refused', async ({ browser, baseURL }) => {
 });
 
 test('an item walks the whole path to Released', async ({ browser, baseURL }) => {
-  const { context, nonce } = await signedInContext(browser, baseURL);
-  const site = await makeSite(context.request, nonce, 'End To End Co');
+  // Nine gates, each with its own requirements to satisfy first — and two of
+  // the moves belong to the person the item names rather than to whoever is
+  // driving (#112), so the walk changes hands twice on the way.
+  test.slow();
 
-  let item = (
-    await (
-      await makeItem(context.request, nonce, site.id, {
-        title: `All the way ${RUN_ID}`,
-        level: 'sub-feature',
-        work_type: 'feature',
-      })
-    ).json()
+  const me = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(me.api, 'End To End Co', RUN_ID);
+  const crew = await Forge.team(me.api, browser, baseURL, client.id);
+
+  const item = (
+    await (await Forge.makeItem(me.api, site.id, { title: `All the way ${RUN_ID}` })).json()
   ).item;
 
   const path = [
@@ -472,22 +567,21 @@ test('an item walks the whole path to Released', async ({ browser, baseURL }) =>
     'released',
   ];
 
-  for (const stage of path) {
-    const response = await move(context.request, nonce, item, stage);
-    expect(response.status(), `moving to ${stage}`).toBe(200);
-    item = (await response.json()).item;
-    expect(item.stage).toBe(stage);
-  }
+  const released = await Forge.walkTo(me.api, item, path, { seats: crew.seats, as: crew.as });
+
+  expect(released.stage).toBe('released');
 
   // Released is the end of the forward path.
-  const shown = await (
-    await context.request.get(`/wp-json/blueworx-forge/v1/work-items/${item.id}`, {
-      headers: { 'X-WP-Nonce': nonce },
-    })
-  ).json();
+  const shown = await me.api.get(`/work-items/${released.id}`);
 
   expect(shown.available).toEqual([]);
-  expect(shown.history).toHaveLength(path.length + 1);
 
-  await context.close();
+  // One move per stage, plus the creation. Counted by action rather than by the
+  // length of the history, which since #99 also holds an entry for every field
+  // filled in on the way.
+  expect(shown.history.filter((event) => 'moved' === event.action)).toHaveLength(path.length);
+  expect(shown.history.filter((event) => 'created' === event.action)).toHaveLength(1);
+
+  await crew.close();
+  await me.context.close();
 });

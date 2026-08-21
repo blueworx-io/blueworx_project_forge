@@ -96,8 +96,14 @@ final class Items {
 	 * get to name the column it filters on: that is how a filter becomes a way
 	 * to read a column somebody was never meant to query.
 	 *
+	 * Archived work is left out unless it is asked for (#111). "Hidden from
+	 * default views, never from reports" is enforced by the default here rather
+	 * than by every caller remembering: a report asks for it explicitly, and a
+	 * board never has to.
+	 *
 	 * @param string               $client_site_id The site.
-	 * @param array<string, mixed> $filters        stage, level, work_type, parent_id.
+	 * @param array<string, mixed> $filters        stage, level, work_type,
+	 *                                             parent_id, include_archived.
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function for_site( string $client_site_id, array $filters = array() ): array {
@@ -114,6 +120,11 @@ final class Items {
 
 			$where[]  = $column . ' = %s';
 			$values[] = (string) $filters[ $column ];
+		}
+
+		if ( empty( $filters['include_archived'] ) ) {
+			$where[]  = 'archived = %s';
+			$values[] = '0';
 		}
 
 		$clause = implode( ' AND ', $where );
@@ -240,7 +251,9 @@ final class Items {
 
 			$column = 'references' === $field ? 'references_text' : $field;
 
-			if ( 'remaining_estimate' === $field ) {
+			// Every field measured in hours goes to the column as a decimal
+			// string, so the format map treats them all the same way.
+			if ( in_array( $field, array_merge( array( 'remaining_estimate' ), Fields::HOURS ), true ) ) {
 				$changes[ $column ] = (string) (float) $values[ $field ];
 				continue;
 			}
@@ -265,33 +278,44 @@ final class Items {
 	 */
 	private static function defaults(): array {
 		return array(
-			'parent_id'           => '',
-			'level'               => Levels::SUB_FEATURE,
-			'work_type'           => Types::TASK,
-			'title'               => '',
-			'problem'             => '',
-			'scope'               => '',
-			'non_goals'           => '',
-			'requirements'        => '',
-			'acceptance_criteria' => '',
-			'references_text'     => '',
-			'prior_stage'         => '',
-			'blocked_elapsed'     => 0,
-			'terminal_outcome'    => '',
-			'duplicate_of'        => '',
-			'self_reviewed'       => 0,
-			'override_used'       => 0,
-			'override_reason'     => '',
-			'commercial_class'    => 'unclassified',
-			'delivered_by_forge'  => 0,
-			'priority'            => '',
-			'planned_start'       => '',
-			'planned_due'         => '',
-			'review_target'       => '',
-			'release_target'      => '',
-			'remaining_estimate'  => '0',
-			'release_method'      => '',
-			'release_destination' => '',
+			'parent_id'               => '',
+			'level'                   => Levels::SUB_FEATURE,
+			'work_type'               => Types::TASK,
+			'title'                   => '',
+			'problem'                 => '',
+			'scope'                   => '',
+			'non_goals'               => '',
+			'requirements'            => '',
+			'acceptance_criteria'     => '',
+			'references_text'         => '',
+			'prior_stage'             => '',
+			'blocked_at'              => 0,
+			'blocked_elapsed'         => 0,
+			'terminal_outcome'        => '',
+			'duplicate_of'            => '',
+			'archived'                => 0,
+			'review_attempt'          => 1,
+			'primary_user_id'         => '',
+			'reviewer_id'             => '',
+			'deliverer_id'            => '',
+			'reviewer_substitute_id'  => '',
+			'deliverer_substitute_id' => '',
+			'self_reviewed'           => 0,
+			'override_used'           => 0,
+			'override_reason'         => '',
+			'commercial_class'        => 'unclassified',
+			'delivered_by_forge'      => 0,
+			'priority'                => '',
+			'planned_start'           => '',
+			'planned_due'             => '',
+			'review_target'           => '',
+			'release_target'          => '',
+			'remaining_estimate'      => '0',
+			'hours_primary'           => '0',
+			'hours_review'            => '0',
+			'hours_delivery'          => '0',
+			'release_method'          => '',
+			'release_destination'     => '',
 		);
 	}
 
@@ -303,45 +327,57 @@ final class Items {
 	 */
 	private static function hydrate( array $row ): array {
 		return array(
-			'id'                  => (string) $row['id'],
-			'client_site_id'      => (string) $row['client_site_id'],
-			'client_id'           => (string) $row['client_id'],
-			'parent_id'           => (string) $row['parent_id'],
-			'level'               => (string) $row['level'],
-			'level_label'         => Levels::label( (string) $row['level'] ),
-			'work_type'           => (string) $row['work_type'],
-			'work_type_label'     => Types::label( (string) $row['work_type'] ),
-			'title'               => (string) $row['title'],
-			'problem'             => (string) $row['problem'],
-			'scope'               => (string) $row['scope'],
-			'non_goals'           => (string) $row['non_goals'],
-			'requirements'        => (string) $row['requirements'],
-			'acceptance_criteria' => (string) $row['acceptance_criteria'],
-			'references'          => (string) $row['references_text'],
-			'stage'               => (string) $row['stage'],
-			'stage_label'         => Stages::label( (string) $row['stage'] ),
-			'prior_stage'         => (string) $row['prior_stage'],
-			'blocked_elapsed'     => (int) $row['blocked_elapsed'],
-			'terminal_outcome'    => (string) $row['terminal_outcome'],
-			'duplicate_of'        => (string) $row['duplicate_of'],
-			'cycle'               => (int) $row['cycle'],
-			'self_reviewed'       => (bool) $row['self_reviewed'],
-			'override_used'       => (bool) $row['override_used'],
-			'override_reason'     => (string) $row['override_reason'],
-			'commercial_class'    => (string) $row['commercial_class'],
-			'delivered_by_forge'  => (bool) $row['delivered_by_forge'],
-			'priority'            => (string) $row['priority'],
-			'planned_start'       => (string) $row['planned_start'],
-			'planned_due'         => (string) $row['planned_due'],
-			'review_target'       => (string) $row['review_target'],
-			'release_target'      => (string) $row['release_target'],
-			'remaining_estimate'  => (float) $row['remaining_estimate'],
-			'release_method'      => (string) $row['release_method'],
-			'release_destination' => (string) $row['release_destination'],
-			'created_at'          => (int) $row['created_at'],
-			'updated_at'          => (int) $row['updated_at'],
-			'created_by'          => (int) $row['created_by'],
-			'record_version'      => (int) $row['record_version'],
+			'id'                      => (string) $row['id'],
+			'client_site_id'          => (string) $row['client_site_id'],
+			'client_id'               => (string) $row['client_id'],
+			'parent_id'               => (string) $row['parent_id'],
+			'level'                   => (string) $row['level'],
+			'level_label'             => Levels::label( (string) $row['level'] ),
+			'work_type'               => (string) $row['work_type'],
+			'work_type_label'         => Types::label( (string) $row['work_type'] ),
+			'title'                   => (string) $row['title'],
+			'problem'                 => (string) $row['problem'],
+			'scope'                   => (string) $row['scope'],
+			'non_goals'               => (string) $row['non_goals'],
+			'requirements'            => (string) $row['requirements'],
+			'acceptance_criteria'     => (string) $row['acceptance_criteria'],
+			'references'              => (string) $row['references_text'],
+			'stage'                   => (string) $row['stage'],
+			'stage_label'             => Stages::label( (string) $row['stage'] ),
+			'prior_stage'             => (string) $row['prior_stage'],
+			'blocked_at'              => (int) $row['blocked_at'],
+			'blocked_elapsed'         => (int) $row['blocked_elapsed'],
+			'terminal_outcome'        => (string) $row['terminal_outcome'],
+			'terminal_label'          => Outcomes::label( (string) $row['terminal_outcome'] ),
+			'duplicate_of'            => (string) $row['duplicate_of'],
+			'archived'                => (bool) $row['archived'],
+			'review_attempt'          => (int) $row['review_attempt'],
+			'primary_user_id'         => (string) $row['primary_user_id'],
+			'reviewer_id'             => (string) $row['reviewer_id'],
+			'deliverer_id'            => (string) $row['deliverer_id'],
+			'reviewer_substitute_id'  => (string) $row['reviewer_substitute_id'],
+			'deliverer_substitute_id' => (string) $row['deliverer_substitute_id'],
+			'cycle'                   => (int) $row['cycle'],
+			'self_reviewed'           => (bool) $row['self_reviewed'],
+			'override_used'           => (bool) $row['override_used'],
+			'override_reason'         => (string) $row['override_reason'],
+			'commercial_class'        => (string) $row['commercial_class'],
+			'delivered_by_forge'      => (bool) $row['delivered_by_forge'],
+			'priority'                => (string) $row['priority'],
+			'planned_start'           => (string) $row['planned_start'],
+			'planned_due'             => (string) $row['planned_due'],
+			'review_target'           => (string) $row['review_target'],
+			'release_target'          => (string) $row['release_target'],
+			'remaining_estimate'      => (float) $row['remaining_estimate'],
+			'hours_primary'           => (float) ( $row['hours_primary'] ?? 0 ),
+			'hours_review'            => (float) ( $row['hours_review'] ?? 0 ),
+			'hours_delivery'          => (float) ( $row['hours_delivery'] ?? 0 ),
+			'release_method'          => (string) $row['release_method'],
+			'release_destination'     => (string) $row['release_destination'],
+			'created_at'              => (int) $row['created_at'],
+			'updated_at'              => (int) $row['updated_at'],
+			'created_by'              => (int) $row['created_by'],
+			'record_version'          => (int) $row['record_version'],
 		);
 	}
 }

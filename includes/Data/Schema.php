@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 4;
+	public const VERSION = 8;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -76,6 +76,17 @@ final class Schema {
 	}
 
 	/**
+	 * The client contacts table's full name.
+	 *
+	 * @return string
+	 */
+	public static function contacts_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_client_contacts';
+	}
+
+	/**
 	 * The memberships table's full name.
 	 *
 	 * @return string
@@ -109,12 +120,54 @@ final class Schema {
 	}
 
 	/**
+	 * The gate records table's full name.
+	 *
+	 * @return string
+	 */
+	public static function gate_records_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_gate_records';
+	}
+
+	/**
+	 * The work dependencies table's full name.
+	 *
+	 * @return string
+	 */
+	public static function dependencies_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_work_dependencies';
+	}
+
+	/**
+	 * The comments table's full name.
+	 *
+	 * @return string
+	 */
+	public static function comments_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_comments';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
 	 * two spaces after PRIMARY KEY, one field per line, no backticks around field
 	 * names. Changing the whitespace here changes whether an upgrade happens at
 	 * all.
+	 *
+	 * **A column added to an existing table needs a default, or it has to be
+	 * nullable.** dbDelta adds it with ALTER TABLE, and a NOT NULL column with
+	 * no default cannot be added to a table that already has rows — the ALTER
+	 * fails, everything else in the upgrade succeeds, and the site is recorded
+	 * as current with one column missing. That is why `detail` below is NULL
+	 * rather than NOT NULL: a `text` column cannot carry a default on MySQL 5.7,
+	 * so nullable is the only way to add one later. Found by adding it and
+	 * watching every write to that table fail.
 	 *
 	 * @return array<string, string> Table name to statement.
 	 */
@@ -130,6 +183,10 @@ final class Schema {
 		$memberships  = self::memberships_table();
 		$work_items   = self::work_items_table();
 		$work_events  = self::work_events_table();
+		$gate_records = self::gate_records_table();
+		$comments     = self::comments_table();
+		$contacts     = self::contacts_table();
+		$dependencies = self::dependencies_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -216,6 +273,7 @@ final class Schema {
 	email varchar(191) NOT NULL,
 	display_name varchar(191) NOT NULL,
 	status varchar(20) NOT NULL DEFAULT 'active',
+	grants varchar(191) NOT NULL DEFAULT '',
 	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -225,6 +283,59 @@ final class Schema {
 	UNIQUE KEY email (email),
 	KEY wp_user_id (wp_user_id),
 	KEY status (status)
+) {$collate};",
+
+			/*
+			 * #103. One row per "this work waits for that work".
+			 *
+			 * A row rather than a column on the item, because an item can wait
+			 * on any number of things and a column would hold one. The site is
+			 * carried so the tenant boundary applies without a join: a
+			 * dependency across two sites would make an item reachable from two
+			 * tenants at once, which is exactly what ARCH-3 exists to prevent.
+			 *
+			 * The unique index is the honest kind of duplicate prevention —
+			 * saying the same thing twice is not two dependencies.
+			 */
+			$dependencies => "CREATE TABLE {$dependencies} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	depends_on_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY item_depends_on (item_id,depends_on_id),
+	KEY depends_on_id (depends_on_id),
+	KEY client_site_id (client_site_id)
+) {$collate};",
+
+			/*
+			 * #95. Who our current contact is for a client, as a row with a
+			 * start and an end rather than a column on the client.
+			 *
+			 * A column would answer "who is it now" and nothing else. The
+			 * requirement is that history is not lost when it changes, so each
+			 * assignment is appended and the current contact is the latest row.
+			 * Nothing here is ever updated, which is why there is no version and
+			 * no updated_at: this is a record of what happened, not a record of
+			 * how things are.
+			 *
+			 * An empty user_id is a real answer — the contact left and nobody
+			 * has been named yet. That state has to be storable, or a client
+			 * with no contact is indistinguishable from a client whose contact
+			 * was never set, and #95 asks for one of those to be flagged.
+			 */
+			$contacts     => "CREATE TABLE {$contacts} (
+	id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	user_id varchar(32) NOT NULL DEFAULT '',
+	started_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY client_started (client_id,started_at),
+	KEY user_id (user_id)
 ) {$collate};",
 
 			/*
@@ -240,6 +351,7 @@ final class Schema {
 	client_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL DEFAULT '',
 	role varchar(32) NOT NULL,
+	grants varchar(191) NOT NULL DEFAULT '',
 	status varchar(20) NOT NULL DEFAULT 'active',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -278,9 +390,17 @@ final class Schema {
 	references_text text NOT NULL,
 	stage varchar(32) NOT NULL DEFAULT 'future-idea',
 	prior_stage varchar(32) NOT NULL DEFAULT '',
+	blocked_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	blocked_elapsed bigint(20) unsigned NOT NULL DEFAULT 0,
 	terminal_outcome varchar(20) NOT NULL DEFAULT '',
 	duplicate_of varchar(32) NOT NULL DEFAULT '',
+	archived tinyint(1) NOT NULL DEFAULT 0,
+	review_attempt int(11) unsigned NOT NULL DEFAULT 1,
+	primary_user_id varchar(32) NOT NULL DEFAULT '',
+	reviewer_id varchar(32) NOT NULL DEFAULT '',
+	deliverer_id varchar(32) NOT NULL DEFAULT '',
+	reviewer_substitute_id varchar(32) NOT NULL DEFAULT '',
+	deliverer_substitute_id varchar(32) NOT NULL DEFAULT '',
 	cycle int(11) unsigned NOT NULL DEFAULT 1,
 	self_reviewed tinyint(1) NOT NULL DEFAULT 0,
 	override_used tinyint(1) NOT NULL DEFAULT 0,
@@ -293,6 +413,9 @@ final class Schema {
 	review_target varchar(10) NOT NULL DEFAULT '',
 	release_target varchar(10) NOT NULL DEFAULT '',
 	remaining_estimate decimal(8,2) NOT NULL DEFAULT 0,
+	hours_primary decimal(8,2) NOT NULL DEFAULT 0,
+	hours_review decimal(8,2) NOT NULL DEFAULT 0,
+	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
 	release_method varchar(20) NOT NULL DEFAULT '',
 	release_destination varchar(191) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -304,7 +427,9 @@ final class Schema {
 	KEY client_id (client_id),
 	KEY parent_id (parent_id),
 	KEY stage (stage),
-	KEY level (level)
+	KEY level (level),
+	KEY archived (archived),
+	KEY terminal_outcome (terminal_outcome)
 ) {$collate};",
 
 			/*
@@ -320,13 +445,79 @@ final class Schema {
 	from_stage varchar(32) NOT NULL DEFAULT '',
 	to_stage varchar(32) NOT NULL DEFAULT '',
 	gate varchar(40) NOT NULL DEFAULT '',
+	outcome varchar(20) NOT NULL DEFAULT '',
+	via varchar(20) NOT NULL DEFAULT '',
+	field varchar(64) NOT NULL DEFAULT '',
+	previous_value varchar(191) NOT NULL DEFAULT '',
+	new_value varchar(191) NOT NULL DEFAULT '',
+	source_interface varchar(20) NOT NULL DEFAULT '',
+	timezone varchar(64) NOT NULL DEFAULT '',
 	reason varchar(191) NOT NULL DEFAULT '',
+	detail text NULL,
+	cycle int(11) unsigned NOT NULL DEFAULT 1,
+	attempt int(11) unsigned NOT NULL DEFAULT 1,
 	actor bigint(20) unsigned NOT NULL DEFAULT 0,
 	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id),
 	KEY item_id (item_id),
 	KEY client_site_id (client_site_id),
 	KEY occurred_at (occurred_at)
+) {$collate};",
+
+			/*
+			 * One row per gate requirement somebody has satisfied (#105). The
+			 * actor and the completion time have no default, for the reason
+			 * Work\GateRecords refuses to write without them: a completion with
+			 * nobody's name on it proves nothing afterwards, which is the only
+			 * time anybody reads one.
+			 *
+			 * Scoped by cycle and attempt rather than replaced. A failed review
+			 * starts a new attempt and the earlier one stays exactly where it
+			 * is — #108 requires it preserved, and deleting the old records to
+			 * "reset" the gate is the obvious implementation and the wrong one.
+			 */
+			$gate_records => "CREATE TABLE {$gate_records} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	gate varchar(40) NOT NULL,
+	requirement varchar(60) NOT NULL,
+	value text NOT NULL,
+	evidence text NOT NULL,
+	cycle int(11) unsigned NOT NULL DEFAULT 1,
+	attempt int(11) unsigned NOT NULL DEFAULT 1,
+	actor bigint(20) unsigned NOT NULL,
+	completed_at bigint(20) unsigned NOT NULL,
+	PRIMARY KEY  (id),
+	KEY item_id (item_id),
+	KEY client_site_id (client_site_id),
+	KEY requirement (requirement)
+) {$collate};",
+
+			/*
+			 * Discussion and evidence on a work item (#100).
+			 *
+			 * `visibility` is this table's entire security surface. An internal
+			 * note and a client-visible comment are the same shape and differ by
+			 * one column, so every read filters on it and no caller is handed a
+			 * query it could widen.
+			 */
+			$comments     => "CREATE TABLE {$comments} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	kind varchar(20) NOT NULL DEFAULT 'comment',
+	visibility varchar(20) NOT NULL DEFAULT 'internal',
+	body text NOT NULL,
+	url varchar(255) NOT NULL DEFAULT '',
+	author bigint(20) unsigned NOT NULL,
+	author_name varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL,
+	PRIMARY KEY  (id),
+	KEY item_id (item_id),
+	KEY client_site_id (client_site_id),
+	KEY visibility (visibility)
 ) {$collate};",
 		);
 	}

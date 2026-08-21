@@ -8,6 +8,155 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.19.1] - 2026-08-21
+
+### Fixed
+
+- An item history is shown in the order things actually happened. Anything
+  recorded in the same second — the four entries one edit across four fields
+  writes, or a move and the return that follows it — could previously come back
+  in any order, so a history read as though events happened in an order they did
+  not. Comments and the record of who did what at each gate were affected the
+  same way.
+
+## [2.19.0] - 2026-08-21
+
+### Added
+
+- A list view of the same work, alongside the board. It shows the columns a
+  card cannot fit: when work starts, when it is due, and how far a parent's
+  children have got.
+- One filter bar above both views. Switching between them keeps what you were
+  looking at, and the two can never show different totals for the same filters
+  because they are two renderings of one answer.
+- Saved views. Name the way you like to look at things and come back to it. A
+  saved view can only change what is shown — never what you are allowed to do —
+  and yours are not visible to anyone else.
+
+## [2.18.0] - 2026-08-20
+
+### Added
+
+- Every change to a work item is now remembered as what changed, what it was
+  before, what it became, who did it and from which side. One entry per field,
+  so "when did the due date move" is a question with an answer.
+- Work can be marked as waiting on other work. A dependency that nobody has
+  scheduled, or that is itself blocked, is said out loud rather than left in a
+  list of things you are waiting for.
+- A parent now reads as what the work beneath it actually is — how far along,
+  when it starts, when it is due — and none of it can be typed in by hand.
+  A parent with nothing beneath it says "empty" rather than pretending to be
+  work nobody has started.
+- Planned hours for each of the three people named on a piece of work.
+
+### Fixed
+
+- Work that was cancelled no longer holds its parent open forever.
+- Marking work as a duplicate of something on another client's site is
+  refused, as is marking it a duplicate of itself.
+
+## [2.17.0] - 2026-08-20
+
+### Added
+
+- People now see only the clients and sites they actually work with. Somebody
+  brought in for one site of a two-site client gets that site and not its
+  neighbour.
+- Anything belonging to a client you have nothing to do with answers as though
+  it does not exist, word for word — so nobody can work out which records are
+  real by comparing refusals.
+- Studio people who genuinely work across every client can be given that reach
+  explicitly. Without it they are scoped exactly like a client's own people.
+- The Principal and Approver authorities can be handed out on the people
+  screen. Until now the column existed and nothing wrote to it, which meant
+  nobody could approve their own work even when they should have been able to.
+- Every client has a named point of contact, kept as history rather than
+  overwritten. A contact who leaves is flagged for reassignment instead of
+  quietly staying in place, and the client site shows their name and nothing
+  else about them.
+
+### Changed
+
+- The board and the site picker no longer need a WordPress administrator
+  account. A staff member signs in and sees their own work.
+
+### Fixed
+
+- A route that forgets to scope itself to a client can no longer be written: it
+  refuses to register at all, so the mistake is a failed build rather than
+  somebody else's data.
+
+## [2.16.0] - 2026-08-20
+
+### Added
+
+- Who may do what is now written down and enforced, for every role, on both the
+  studio and a client site. A refusal says which rule stopped it rather than
+  only that something did.
+- Work names the person doing it, the person checking it and the person
+  shipping it. Only the named reviewer approves a review and only the named
+  deliverer confirms a release — being an administrator is not a substitute for
+  being the person.
+- A stand-in can be named for a reviewer or a deliverer who is away, by you and
+  nobody else, and anything they approve is recorded as having been done by a
+  stand-in.
+- Finished work can be picked up again. It starts a fresh round and keeps the
+  record of having been finished the first time.
+- You can move any item to any stage with a reason. The item says so
+  permanently afterwards, and it still cannot be used to move a client's work
+  or to put work in a stage its type has no business being in.
+
+### Changed
+
+- Client accounts are refused every way of moving work — nine routes, all
+  refused, with the item untouched.
+- Staff who are not WordPress administrators can now do their job. The screens
+  that move work check what someone may do rather than whether they administer
+  the site; reads stay administrator-only until they are properly scoped.
+
+## [2.15.0] - 2026-08-20
+
+### Added
+
+- Every stage now has a written list of what must be true before work leaves it.
+  Work does not move until those things are done.
+- A refused move tells you everything that is missing, not the first thing, and
+  the item stays exactly where it was.
+- The item panel shows what a stage is waiting on before you try to move it, and
+  each thing you tick off records who did it and when.
+- Work can be sent back to a stage it has actually been in, and never without a
+  reason. A failed review also has to say what was wrong, and keeps the earlier
+  review attempt.
+- Work can be blocked from wherever it is, with a reason, an owner, what it is
+  waiting on, a target date and a next action. Resolving it puts the work back
+  exactly where it was and remembers how long it waited.
+- Work can be rejected, marked a duplicate, cancelled or deferred, and archived
+  once it has ended. Ended work stops moving; archived work leaves the board and
+  stays in the reports.
+- Comments and evidence on a work item, with internal notes kept in a separate
+  scope from anything a client can read.
+
+### Changed
+
+- Bug Tracking is now closed to anything that is not a bug by every route, not
+  only the forward one.
+- Loading, empty, broken and no-access each say which they are instead of
+  showing a blank board.
+
+## [2.14.0] - 2026-08-20
+
+### Added
+
+- The board. Every piece of work on a site, in a column for the stage it is at,
+  grouped under whether it is still being captured, waiting on an approval, in
+  delivery, or finished.
+- Drag a card to move the work. A move the workflow does not allow puts the card
+  straight back and says why, rather than leaving the board showing something
+  that never happened.
+- Click a card to open it: the same moves as buttons, the fields to fill in, and
+  everything that has happened to it so far.
+- Work can be added from the board.
+
 ## [2.13.0] - 2026-08-20
 
 ### Added

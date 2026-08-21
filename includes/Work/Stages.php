@@ -51,6 +51,17 @@ final class Stages {
 	public const FIRST = 'future-idea';
 
 	/**
+	 * The conditional one. Named because three other classes have to test for
+	 * it, and a literal repeated four times is a typo waiting to be permitted.
+	 */
+	public const BUG_TRACKING = 'bug-tracking';
+
+	/**
+	 * The exception one.
+	 */
+	public const BLOCKED = 'blocked';
+
+	/**
 	 * The twelve, in the order the state machine gives them.
 	 */
 	public const ALL = array(
@@ -131,6 +142,76 @@ final class Stages {
 				}
 			)
 		);
+	}
+
+	/**
+	 * Whether an item of this work type may ever be in this stage (#110).
+	 *
+	 * **Asked by every route that moves work, not only the forward one.** Bug
+	 * Tracking being conditional is worth nothing if the forward path checks it
+	 * and a return, an unblock or a reopen does not — one unchecked door and a
+	 * Feature is sitting in Bug Tracking with a gate that assumes it is a bug.
+	 * So the condition lives here, on the stage, and every mover asks the stage.
+	 *
+	 * @param string $stage     Stage.
+	 * @param string $work_type The item's work type.
+	 * @return bool
+	 */
+	public static function may_hold( string $stage, string $work_type ): bool {
+		if ( ! self::exists( $stage ) ) {
+			return false;
+		}
+
+		if ( self::BUG_TRACKING === $stage ) {
+			return Types::BUG === $work_type;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Whether a bug is obliged to pass through this stage. The other half of
+	 * WF-1: Bug Tracking is not optional for a bug, it is the only way out of
+	 * Triage for one.
+	 *
+	 * @param string $stage     Stage.
+	 * @param string $work_type The item's work type.
+	 * @return bool
+	 */
+	public static function required_for( string $stage, string $work_type ): bool {
+		return self::BUG_TRACKING === $stage && Types::BUG === $work_type;
+	}
+
+	/**
+	 * The stages an item of this work type may occupy, in order. What a board
+	 * draws for one item, as against the twelve it draws in general.
+	 *
+	 * @param string $work_type The item's work type.
+	 * @return array<int, string>
+	 */
+	public static function path_for( string $work_type ): array {
+		return array_values(
+			array_filter(
+				self::ALL,
+				static function ( string $stage ) use ( $work_type ): bool {
+					return self::EXCEPTION !== self::kind( $stage ) && self::may_hold( $stage, $work_type );
+				}
+			)
+		);
+	}
+
+	/**
+	 * Whether work in this stage is still being worked on — which is what "any
+	 * active stage" means everywhere the specification says it.
+	 *
+	 * Released is not active: it is done. Blocked is not active: it is paused,
+	 * and the move out of it is its own path.
+	 *
+	 * @param string $stage Stage.
+	 * @return bool
+	 */
+	public static function is_active( string $stage ): bool {
+		return self::exists( $stage ) && self::BLOCKED !== $stage && 'released' !== $stage;
 	}
 
 	/**

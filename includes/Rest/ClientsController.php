@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -39,7 +40,18 @@ final class ClientsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+
+				/*
+				 * Reading which clients you work with is not administration.
+				 * The set is scoped to what the person reaches (#92), so
+				 * somebody with no membership at all sees an empty list rather
+				 * than a refusal — the difference matters, because a refusal
+				 * would say there is something to be refused.
+				 */
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind' => Boundary::SCOPE_LIST,
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -56,6 +68,10 @@ final class ClientsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Creating a client is the act that makes a tenant. There is no tenant yet to scope it to.',
+				),
 			)
 		);
 
@@ -66,6 +82,11 @@ final class ClientsController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
+				),
 			)
 		);
 
@@ -76,6 +97,11 @@ final class ClientsController {
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -96,10 +122,17 @@ final class ClientsController {
 	public static function index( WP_REST_Request $request ): WP_REST_Response {
 		$status = (string) $request->get_param( 'status' );
 
+		/*
+		 * #92, and the reason this route is declared SCOPE_LIST: a set is
+		 * filtered rather than refused. Somebody asking for the clients they
+		 * work with should get them, not a refusal because the studio has
+		 * others — and a client that never appears is a client whose existence
+		 * was never disclosed (D-1).
+		 */
 		return rest_ensure_response(
 			array(
 				'ok'      => true,
-				'clients' => Clients::all( 'all' === $status ? null : $status ),
+				'clients' => Reach::keep_clients( Boundary::current(), Clients::all( 'all' === $status ? null : $status ) ),
 			)
 		);
 	}
@@ -114,7 +147,7 @@ final class ClientsController {
 		$client = Clients::get( (string) $request['client_id'] );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		return rest_ensure_response(
@@ -195,7 +228,7 @@ final class ClientsController {
 		$client = Clients::get( (string) $request['client_id'] );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );

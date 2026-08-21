@@ -50,6 +50,11 @@ final class IntegrationsController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
+				),
 			)
 		);
 
@@ -60,6 +65,11 @@ final class IntegrationsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'issue_key' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
+				),
 			)
 		);
 
@@ -70,6 +80,11 @@ final class IntegrationsController {
 				'methods'             => 'DELETE',
 				'callback'            => array( self::class, 'revoke_key' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
+				),
 			)
 		);
 	}
@@ -84,7 +99,7 @@ final class IntegrationsController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		$integration = Integrations::ensure( $site['id'], $site['client_id'], get_current_user_id() );
@@ -122,7 +137,7 @@ final class IntegrationsController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		// An inactive site is one nobody works on. Handing out a working key for
@@ -226,7 +241,7 @@ final class IntegrationsController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		$integration = Integrations::for_site( $site['id'] );

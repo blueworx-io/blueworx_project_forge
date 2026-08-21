@@ -55,6 +55,10 @@ final class StatusController {
 				// Deliberately public: the app serves a read-only view to
 				// logged-out visitors.
 				'permission_callback' => array( Permissions::class, 'read' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The plugin\'s own version and health. There is no client record in it.',
+				),
 			)
 		);
 
@@ -65,6 +69,10 @@ final class StatusController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'echo_message' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The conventions harness. It writes one plugin option and touches no client record.',
+				),
 				'args'                => array(
 					'message'         => array(
 						'type'              => 'string',

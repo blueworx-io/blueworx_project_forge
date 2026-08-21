@@ -39,6 +39,55 @@ final class Fields {
 	);
 
 	/**
+	 * The accountability group: who does the work, who checks it, who ships it.
+	 *
+	 * These are the seats, and they are fields rather than a separate table
+	 * because an item has exactly one of each. #112 turns them into authority —
+	 * only the named Reviewer approves a review, only the named Deliverer
+	 * confirms a release — so a seat left empty is not a tidiness problem, it is
+	 * a transition nobody can make.
+	 *
+	 * The substitutes are the AUTH-4 route, assigned by a Primary administrator
+	 * and no one else, and every use of one is marked on the changelog entry so
+	 * "who actually approved this" survives the person being away.
+	 */
+	public const ACCOUNTABILITY = array(
+		'primary_user_id',
+		'reviewer_id',
+		'deliverer_id',
+		'hours_primary',
+		'hours_review',
+		'hours_delivery',
+	);
+
+	/**
+	 * The planned hours, one per seat (#98).
+	 *
+	 * With the seats rather than with the plan, because "who is reviewing this"
+	 * and "how long we said the review would take" are one conversation and are
+	 * set by the same people. M7 plans capacity from these; without them it has
+	 * a list of names and no idea what any of them costs.
+	 *
+	 * A named subset of ACCOUNTABILITY rather than a group of its own, so the
+	 * permission question stays "may this person set the accountability fields"
+	 * and does not become two questions that can drift apart.
+	 */
+	public const HOURS = array(
+		'hours_primary',
+		'hours_review',
+		'hours_delivery',
+	);
+
+	/**
+	 * The substitute seats. Separated from the rest because who may set them is
+	 * different: a Primary administrator only.
+	 */
+	public const SUBSTITUTES = array(
+		'reviewer_substitute_id',
+		'deliverer_substitute_id',
+	);
+
+	/**
 	 * The planning group (WORK-3). Dates become mandatory at Up Next and not
 	 * before — an idea with a due date is a guess wearing a commitment's
 	 * clothes.
@@ -81,6 +130,9 @@ final class Fields {
 		'title'               => 'future-idea',
 		'problem'             => 'future-idea',
 		'commercial_class'    => 'triage',
+		'primary_user_id'     => 'up-next',
+		'reviewer_id'         => 'up-next',
+		'deliverer_id'        => 'up-next',
 		'requirements'        => 'documentation-period',
 		'acceptance_criteria' => 'documentation-period',
 		'planned_start'       => 'up-next',
@@ -118,6 +170,8 @@ final class Fields {
 	public static function writable(): array {
 		return array_merge(
 			self::DEFINITION,
+			self::ACCOUNTABILITY,
+			self::SUBSTITUTES,
 			self::PLANNING,
 			self::COMMERCIAL,
 			self::DELIVERY,

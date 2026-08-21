@@ -85,6 +85,7 @@ final class Validate {
 			$values['parent_id'] = '';
 		}
 
+		self::seats( $input, $values, $errors );
 		self::text_fields( $input, $values );
 		self::enum_fields( $input, $values, $errors );
 		self::planning_fields( $input, $values, $errors );
@@ -93,6 +94,58 @@ final class Validate {
 			'values' => $values,
 			'errors' => $errors,
 		);
+	}
+
+	/**
+	 * Who the item names: the Primary User, the Reviewer, the Deliverer, and
+	 * the two substitute seats.
+	 *
+	 * The shape is checked here and the *existence* of the person is not — that
+	 * needs the database, and Work\Validate deliberately does not have one. The
+	 * caller confirms the user is real and belongs to this client, for the same
+	 * reason it confirms a parent does.
+	 *
+	 * Clearing a seat is a real answer, so an empty string is stored rather than
+	 * refused: somebody leaves, and the seat is empty until it is filled.
+	 *
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
+	 */
+	private static function seats( array $input, array &$values, array &$errors ): void {
+		foreach ( array_merge( Fields::ACCOUNTABILITY, Fields::SUBSTITUTES ) as $field ) {
+			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
+			}
+
+			$id = trim( (string) $input[ $field ] );
+
+			if ( '' === $id ) {
+				$values[ $field ] = '';
+				continue;
+			}
+
+			if ( 1 !== preg_match( '/^usr_[A-Za-z0-9]+$/', $id ) ) {
+				$errors[ $field ] = 'That is not a person.';
+				continue;
+			}
+
+			$values[ $field ] = $id;
+		}
+
+		/*
+		 * AUTH-3. The Reviewer is somebody other than the Primary User unless
+		 * they hold the Principal grant — and the grant is a fact about a
+		 * person rather than about this item, so the caller applies it. What is
+		 * checked here is the plain case: the same person in both seats, with
+		 * nothing said about why, is refused.
+		 */
+		$primary  = (string) ( $values['primary_user_id'] ?? '' );
+		$reviewer = (string) ( $values['reviewer_id'] ?? '' );
+
+		if ( '' !== $primary && $primary === $reviewer && empty( $input['self_review_permitted'] ) ) {
+			$errors['reviewer_id'] = 'A reviewer has to be somebody other than the person who did the work.';
+		}
 	}
 
 	/**
@@ -186,13 +239,22 @@ final class Validate {
 			$values[ $field ] = $date;
 		}
 
-		if ( array_key_exists( 'remaining_estimate', $input ) ) {
-			$hours = (float) $input['remaining_estimate'];
+		/*
+		 * Every field measured in hours, checked the same way. Negative hours
+		 * are the only thing refused: zero is a real answer — "this seat has no
+		 * planned time" — and a cap would be a guess about how long work takes.
+		 */
+		foreach ( array_merge( array( 'remaining_estimate' ), Fields::HOURS ) as $field ) {
+			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
+			}
+
+			$hours = (float) $input[ $field ];
 
 			if ( $hours < 0 ) {
-				$errors['remaining_estimate'] = 'Hours cannot be negative.';
+				$errors[ $field ] = 'Hours cannot be negative.';
 			} else {
-				$values['remaining_estimate'] = $hours;
+				$values[ $field ] = $hours;
 			}
 		}
 

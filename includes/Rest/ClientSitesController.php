@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -19,9 +20,13 @@ use WP_REST_Response;
 /**
  * A site beneath a client (ARCH-3). Everything scoped to a single engagement —
  * work, hours, packages, onboarding — lives here rather than on the client
- * above it. Every route here is gated to Permissions::manage() — real access
- * roles arrive with issue #91, and every callback below is written so that
- * swap is one line each.
+ * above it.
+ *
+ * Every route here stays on Permissions::manage(). That is not a leftover: a
+ * client site is configuration, and ARCH-7 puts configuration in WordPress
+ * admin rather than in the app. Since #92 they are scoped as well as gated, so
+ * the listing offers only the sites the person reaches and a named site outside
+ * their reach answers as absent.
  */
 final class ClientSitesController {
 
@@ -39,11 +44,43 @@ final class ClientSitesController {
 	public static function register_routes( string $route_namespace ): void {
 		Server::register_route(
 			$route_namespace,
+			'/client-sites',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'all' ),
+
+				/*
+				 * The one read here the app itself makes: the site picker. It
+				 * asks only for a signed-in person because a staff member who
+				 * is not a WordPress administrator still has to choose which
+				 * site they are working on, and since #92 the answer is scoped
+				 * to what they reach rather than to everything.
+				 */
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind' => Boundary::SCOPE_LIST,
+				),
+				'args'                => array(
+					'status' => array(
+						'type'    => 'string',
+						'default' => 'active',
+					),
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
 			'/clients/(?P<client_id>[A-Za-z0-9_\-]+)/sites',
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -60,6 +97,11 @@ final class ClientSitesController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
+				),
 			)
 		);
 
@@ -70,6 +112,11 @@ final class ClientSitesController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
+				),
 			)
 		);
 
@@ -80,6 +127,11 @@ final class ClientSitesController {
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -87,6 +139,65 @@ final class ClientSitesController {
 						'description' => 'The record version this write was made against.',
 					),
 				),
+			)
+		);
+	}
+
+	/**
+	 * Every site on every client, each carrying the name of the client above it.
+	 *
+	 * The board opens on a site, so it has to offer a list of them before it can
+	 * draw anything. The client name is joined on here because "Marketing" means
+	 * nothing on its own — the same site name appears under several clients.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function all( WP_REST_Request $request ) {
+		$reach = Boundary::current();
+
+		/*
+		 * #125. "Nothing here" and "not yours to see" look identical as an empty
+		 * list and mean completely different things, so somebody who reaches
+		 * nothing at all is refused rather than handed an empty array. A studio
+		 * with no sites created yet is a different case and gets the empty
+		 * array, because its administrator reaches everything — there simply is
+		 * not anything.
+		 */
+		if ( Reach::is_nothing( $reach ) ) {
+			return Errors::rest(
+				'no_access',
+				__( 'You do not have access to any client sites.', 'blueworx-forge' ),
+				403
+			);
+		}
+
+		$status = (string) $request->get_param( 'status' );
+		$status = 'all' === $status ? null : $status;
+
+		$names = array();
+
+		foreach ( Clients::all( null ) as $client ) {
+			$names[ (string) $client['id'] ] = (string) $client['display_name'];
+		}
+
+		$sites = array();
+
+		/*
+		 * #92, and the reason this route is declared SCOPE_LIST. The site picker
+		 * is built from this, so what it filters here is exactly what somebody
+		 * can choose between — a site out of reach is not offered rather than
+		 * offered and then refused.
+		 */
+		foreach ( Reach::keep_sites( $reach, ClientSites::all( $status ), 'id' ) as $site ) {
+			$site['client_name'] = $names[ (string) $site['client_id'] ] ?? '';
+			$sites[]             = $site;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'sites' => $sites,
 			)
 		);
 	}
@@ -101,7 +212,7 @@ final class ClientSitesController {
 		$client_id = (string) $request['client_id'];
 
 		if ( null === Clients::get( $client_id ) ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		$status = (string) $request->get_param( 'status' );
@@ -137,7 +248,7 @@ final class ClientSitesController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		return rest_ensure_response(
@@ -162,7 +273,7 @@ final class ClientSitesController {
 		$client = Clients::get( $client_id );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		// A closed client has no site anybody works on. This is the state
@@ -244,7 +355,7 @@ final class ClientSitesController {
 		$site = ClientSites::get( (string) $request['site_id'] );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );

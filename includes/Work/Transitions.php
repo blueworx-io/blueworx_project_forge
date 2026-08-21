@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Work;
 
+use Blueworx\Forge\Tenancy\Capabilities;
+
 /**
  * The forward path from docs/architecture/workflow-state-machine.md, as a table
  * rather than as a series of conditions somewhere in a controller.
@@ -165,6 +167,48 @@ final class Transitions {
 	 */
 	public static function gate_for( string $from, string $to ): string {
 		return self::FORWARD[ $from ][ $to ]['gate'] ?? '';
+	}
+
+	/**
+	 * The gate recorded on *entering* a stage, as against leaving one.
+	 *
+	 * Released is the only stage with one, and it has to be a separate idea from
+	 * the exit gate: G-COMPLETED asks whether the item is ready to be released,
+	 * and G-RELEASED asks what actually happened when it was. Folding the second
+	 * into the first would mean recording the release evidence before the
+	 * release.
+	 *
+	 * @param string $to Stage being entered.
+	 * @return string The gate's name, or '' where entry has no gate of its own.
+	 */
+	public static function entry_gate_for( string $to ): string {
+		return 'released' === $to ? 'G-RELEASED' : '';
+	}
+
+	/**
+	 * Which capability a forward move needs (#112).
+	 *
+	 * Two of the eleven are not the ordinary one. Approving a review and
+	 * confirming a release belong to the person the item names, not to anybody
+	 * with permission to move work — so the move itself says which capability
+	 * it wants, and the permission layer answers whether this person has it.
+	 * Deciding that in the controller instead would mean every new caller has
+	 * to remember which two moves are special.
+	 *
+	 * @param string $from Stage moving from.
+	 * @param string $to   Stage moving to.
+	 * @return string A Tenancy\Capabilities constant.
+	 */
+	public static function capability_for( string $from, string $to ): string {
+		if ( 'in-review' === $from && 'completed' === $to ) {
+			return Capabilities::APPROVE_REVIEW;
+		}
+
+		if ( 'completed' === $from && 'released' === $to ) {
+			return Capabilities::CONFIRM_RELEASE;
+		}
+
+		return Capabilities::MOVE_FORWARD;
 	}
 
 	/**

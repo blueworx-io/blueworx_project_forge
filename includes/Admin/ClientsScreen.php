@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Health;
 use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Memberships;
@@ -65,6 +66,21 @@ final class ClientsScreen {
 	 * @var array<string, array<string, mixed>>
 	 */
 	private static array $integrations = array();
+
+	/**
+	 * The current contact for each client. Read once per render.
+	 *
+	 * @var array<string, array<string, mixed>>
+	 */
+	private static array $contacts = array();
+
+	/**
+	 * Every person by id, including offboarded ones, so a contact who has left
+	 * can still be named. Read once per render.
+	 *
+	 * @var array<string, array<string, mixed>>
+	 */
+	private static array $everyone = array();
 
 	/**
 	 * Adds the menu entry, beneath the Forge menu the sites screen creates.
@@ -236,8 +252,15 @@ final class ClientsScreen {
 		self::$memberships  = Memberships::by_client( 'all' === $status ? null : 'active' );
 		self::$integrations = Integrations::all();
 
+		// The current contact for every client, in one query. Asked per client
+		// this cost a query a row — twice, with the person's record — and it was
+		// found the same way the note above was: a test ran out of patience.
+		self::$contacts = Contacts::current_by_client();
+		self::$everyone = array();
+
 		foreach ( Users::all( null ) as $person ) {
 			self::$people_by_id[ (string) $person['id'] ] = (string) $person['display_name'];
+			self::$everyone[ (string) $person['id'] ]     = $person;
 		}
 
 		echo '<ul data-bwx-clients="1">';
@@ -268,6 +291,8 @@ final class ClientsScreen {
 		self::deactivate_client_form( $client );
 
 		self::edit_client_form( $client );
+
+		self::contact( $client );
 
 		self::sites_list( $client_id, $status );
 		self::add_site_form( $client_id );
@@ -360,6 +385,82 @@ final class ClientsScreen {
 		if ( 'active' === (string) $client['status'] ) {
 			self::add_membership_form( $client );
 		}
+	}
+
+	/**
+	 * Who we are to this client (#95), and the form that changes it.
+	 *
+	 * A change appends rather than overwrites, so the previous contacts are
+	 * still there — and a contact who has been offboarded is said out loud
+	 * rather than quietly left in place, because a client pointed at somebody
+	 * who has left has no contact at all and nobody would find out from here.
+	 *
+	 * @param array<string, mixed> $client The client row.
+	 */
+	private static function contact( array $client ): void {
+		$client_id  = (string) $client['id'];
+		$assignment = self::$contacts[ $client_id ] ?? null;
+		$person     = null === $assignment || '' === (string) $assignment['user_id']
+			? null
+			: ( self::$everyone[ (string) $assignment['user_id'] ] ?? null );
+
+		$state = Contacts::resolve( $assignment, $person );
+
+		echo '<h4>' . esc_html__( 'Point of contact', 'blueworx-forge' ) . '</h4>';
+		echo '<p data-bwx-contact="' . esc_attr( $client_id ) . '">';
+
+		if ( null === $state['contact'] ) {
+			echo '<span data-bwx-contact-none="1">' . esc_html__( 'Nobody is our contact for this client.', 'blueworx-forge' ) . '</span>';
+		} else {
+			echo '<span data-bwx-contact-name>' . esc_html( (string) $state['contact']['display_name'] ) . '</span>';
+		}
+
+		if ( $state['needs_reassignment'] ) {
+			echo ' <strong data-bwx-contact-needs-reassignment="1">' . esc_html__( 'Needs reassigning — until then the client\'s contact is the studio.', 'blueworx-forge' ) . '</strong>';
+		}
+
+		echo '</p>';
+
+		if ( 'active' === (string) $client['status'] ) {
+			self::assign_contact_form( $client, null === $assignment ? '' : (string) $assignment['user_id'] );
+		}
+	}
+
+	/**
+	 * The form that names our contact for a client.
+	 *
+	 * Naming nobody is one of the options, and a real one: it is the difference
+	 * between a client that has never had a contact and one whose contact just
+	 * left.
+	 *
+	 * @param array<string, mixed> $client  The client row.
+	 * @param string               $current The person currently named, or ''.
+	 */
+	private static function assign_contact_form( array $client, string $current ): void {
+		$client_id = (string) $client['id'];
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-assign-contact="' . esc_attr( $client_id ) . '">';
+		wp_nonce_field( 'bwx_forge_assign_contact_' . $client_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_assign_contact">';
+		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
+		echo '<select name="user_id" aria-label="' . esc_attr__( 'Point of contact', 'blueworx-forge' ) . '">';
+		echo '<option value=""' . selected( '', $current, false ) . '>' . esc_html__( 'Nobody', 'blueworx-forge' ) . '</option>';
+
+		foreach ( self::$people as $candidate ) {
+			// Only our own people. A client's own administrator being our
+			// internal contact for them is not a thing that can be true.
+			if ( 'active' !== (string) $candidate['status'] ) {
+				continue;
+			}
+
+			echo '<option value="' . esc_attr( (string) $candidate['id'] ) . '"' . selected( (string) $candidate['id'], $current, false ) . '>';
+			echo esc_html( (string) $candidate['display_name'] );
+			echo '</option>';
+		}
+
+		echo '</select> ';
+		submit_button( __( 'Set contact', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</form>';
 	}
 
 	/**

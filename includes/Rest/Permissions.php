@@ -41,6 +41,26 @@ final class Permissions {
 	}
 
 	/**
+	 * Somebody at all, with the real question asked afterwards.
+	 *
+	 * Used by the routes that move work. It looks weaker than manage() and is
+	 * not: every one of those routes then asks Rest\Access, which refuses
+	 * anybody whose membership does not carry the capability — and refuses
+	 * every client role outright, which is the transition lock (#115). What it
+	 * buys is that a staff member who is not a WordPress administrator can do
+	 * their job, which manage() made impossible.
+	 *
+	 * The reads are deliberately still on manage(). Scoping a read to the sites
+	 * a membership grants is #92's job, and opening them before that exists
+	 * would be a hole rather than a permission.
+	 *
+	 * @return bool
+	 */
+	public static function signed_in(): bool {
+		return is_user_logged_in();
+	}
+
+	/**
 	 * A request from a registered client site, proven by its signature.
 	 *
 	 * This is the only callback that authenticates something other than a logged-in

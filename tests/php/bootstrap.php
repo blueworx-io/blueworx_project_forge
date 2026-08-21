@@ -617,3 +617,33 @@ function wp_mail( $to, string $subject = '', string $message = '' ): bool {
 function is_email( string $email ) {
 	return 1 === preg_match( '/^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/', $email ) ? $email : false;
 }
+
+$GLOBALS['bwx_forge_test_user_meta'] = array();
+
+/**
+ * Stub. Reads from the in-memory user meta store.
+ *
+ * @param int    $user_id User id.
+ * @param string $key     Meta key.
+ * @param bool   $single  Whether one value is wanted.
+ * @return mixed
+ */
+function get_user_meta( int $user_id, string $key = '', bool $single = false ) {
+	$value = $GLOBALS['bwx_forge_test_user_meta'][ $user_id ][ $key ] ?? '';
+
+	return $single ? $value : array( $value );
+}
+
+/**
+ * Stub. Writes to the in-memory user meta store.
+ *
+ * @param int    $user_id User id.
+ * @param string $key     Meta key.
+ * @param mixed  $value   Value.
+ * @return bool
+ */
+function update_user_meta( int $user_id, string $key, $value ): bool {
+	$GLOBALS['bwx_forge_test_user_meta'][ $user_id ][ $key ] = $value;
+
+	return true;
+}

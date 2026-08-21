@@ -43,6 +43,10 @@ final class UsersController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'People are global records held once and reachable everywhere (AUTH-6), not a client\'s. Administrator-only configuration (ARCH-7).',
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -59,6 +63,10 @@ final class UsersController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'People are global records held once and reachable everywhere (AUTH-6), not a client\'s. Administrator-only configuration (ARCH-7).',
+				),
 			)
 		);
 
@@ -69,6 +77,10 @@ final class UsersController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'People are global records held once and reachable everywhere (AUTH-6), not a client\'s. Administrator-only configuration (ARCH-7).',
+				),
 			)
 		);
 
@@ -79,6 +91,10 @@ final class UsersController {
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'People are global records held once and reachable everywhere (AUTH-6), not a client\'s. Administrator-only configuration (ARCH-7).',
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -96,6 +112,10 @@ final class UsersController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'memberships' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'People are global records held once and reachable everywhere (AUTH-6), not a client\'s. Administrator-only configuration (ARCH-7).',
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',

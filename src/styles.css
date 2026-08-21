@@ -11,3 +11,579 @@ body {
   margin: 0;
   padding: 0;
 }
+
+body {
+  background: var( --color-mist );
+  color: var( --color-graphite );
+  font-family: var( --font-body );
+  font-size: var( --text-ui );
+  line-height: var( --leading-ui );
+  letter-spacing: var( --tracking-ui );
+  font-weight: var( --font-weight );
+}
+
+/* Weight tops out at 500 across the system: hierarchy comes from size, colour
+   and tracking, not from heavy type. */
+.bwx-eyebrow {
+  font-size: var( --text-caption );
+  line-height: var( --leading-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+}
+
+.bwx-mono {
+  font-family: var( --font-mono );
+  font-size: var( --text-caption );
+  color: var( --color-fog );
+}
+
+/* ---- Shell ---- */
+
+.bwx-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.bwx-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: var( --color-snow );
+  border-bottom: 1px solid var( --color-chalk );
+  flex-wrap: wrap;
+}
+
+.bwx-wordmark {
+  font-size: var( --text-subheading );
+  line-height: 1;
+  letter-spacing: var( --tracking-subheading );
+  font-weight: var( --font-weight-label );
+  margin: 0;
+}
+
+.bwx-wordmark span {
+  color: var( --brand-600 );
+}
+
+.bwx-header-spacer {
+  flex: 1;
+}
+
+.bwx-select,
+.bwx-input,
+.bwx-textarea {
+  font: inherit;
+  color: inherit;
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.bwx-select {
+  max-width: 340px;
+}
+
+.bwx-textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+}
+
+.bwx-input {
+  width: 100%;
+}
+
+.bwx-select:focus-visible,
+.bwx-input:focus-visible,
+.bwx-textarea:focus-visible,
+.bwx-button:focus-visible,
+.bwx-card:focus-visible,
+.bwx-icon-button:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-button {
+  font: inherit;
+  font-weight: var( --font-weight-label );
+  border: 1px solid var( --brand-600 );
+  background: var( --brand-600 );
+  color: var( --color-snow );
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.bwx-button[ data-variant='quiet' ] {
+  background: var( --color-snow );
+  color: var( --color-slate );
+  border-color: var( --color-chalk );
+}
+
+.bwx-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bwx-icon-button {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var( --color-steel );
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+/* ---- Filters and views ---- */
+
+.bwx-views {
+  display: flex;
+  gap: 0;
+}
+
+/* Two halves of one control rather than two buttons that happen to be next to
+   each other: the seam between them is what says they are alternatives. */
+.bwx-views .bwx-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.bwx-views .bwx-button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+
+.bwx-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var( --color-snow );
+  border-bottom: 1px solid var( --color-chalk );
+  flex-wrap: wrap;
+}
+
+/* The search box takes the room that is going, and stops before it becomes the
+   widest thing on a wide screen. */
+.bwx-filters .bwx-input {
+  flex: 1 1 220px;
+  max-width: 420px;
+}
+
+/* ---- List ---- */
+
+.bwx-list {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+.bwx-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+
+.bwx-table th {
+  text-align: left;
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+  padding: 0 12px 4px;
+}
+
+.bwx-row {
+  background: var( --color-snow );
+}
+
+.bwx-row td {
+  padding: 10px 12px;
+  border-top: 1px solid var( --color-chalk );
+  border-bottom: 1px solid var( --color-chalk );
+  vertical-align: top;
+}
+
+/* The same rail the cards carry, so the two views read as two views of one
+   thing rather than as two screens. */
+.bwx-row td:first-child {
+  border-left: 3px solid var( --row-rail, var( --color-chalk ) );
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.bwx-row td:last-child {
+  border-right: 1px solid var( --color-chalk );
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.bwx-row-open {
+  font: inherit;
+  font-weight: var( --font-weight-label );
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bwx-row-open:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
+.bwx-list-empty {
+  color: var( --color-fog );
+  font-size: var( --text-small );
+  padding: 12px 2px;
+}
+
+/* ---- Board ---- */
+
+.bwx-board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  padding: 0 20px 24px;
+}
+
+/* The phase rail: one band per phase rather than one per column, so the shape
+   of the workflow — capture, approve, deliver, finish — is legible without
+   anybody reading twelve labels. */
+.bwx-phases {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0 8px;
+  min-width: max-content;
+}
+
+.bwx-phase {
+  border-top: 3px solid var( --phase-colour );
+  padding-top: 8px;
+  color: var( --phase-colour );
+}
+
+.bwx-columns {
+  display: grid;
+  gap: 12px;
+  /* Stretched rather than shrink-wrapped: a column is a place work goes, and an
+     empty one an inch tall does not read as somewhere anything could be put. */
+  align-items: stretch;
+  flex: 1;
+  min-width: max-content;
+  padding-bottom: 8px;
+}
+
+.bwx-column {
+  width: 268px;
+  background: var( --color-haze );
+  border: 1px solid var( --color-chalk );
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 120px;
+}
+
+.bwx-column[ data-over='true' ] {
+  border-color: var( --brand-400 );
+  background: var( --brand-50 );
+}
+
+.bwx-column-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 10px;
+}
+
+/* Stage identity is a dot and a label on a tint, never a filled card — the
+   rule the token file states, kept to. */
+.bwx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var( --phase-colour );
+  flex: none;
+}
+
+.bwx-count {
+  margin-left: auto;
+  font-family: var( --font-mono );
+  font-size: var( --text-caption );
+  color: var( --color-fog );
+}
+
+.bwx-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bwx-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-left: 3px solid var( --card-rail, var( --color-chalk ) );
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: grab;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.bwx-card:hover {
+  border-color: var( --color-ash );
+}
+
+.bwx-card[ data-dragging='true' ] {
+  opacity: 0.4;
+}
+
+.bwx-card-title {
+  margin: 0 0 6px;
+  font-size: var( --text-ui );
+  line-height: 1.35;
+  font-weight: var( --font-weight-emphasis );
+}
+
+.bwx-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bwx-chip {
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  border: 1px solid var( --chip-border, var( --color-chalk ) );
+  background: var( --chip-bg, var( --color-mist ) );
+  color: var( --chip-ink, var( --color-steel ) );
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.bwx-empty {
+  color: var( --color-fog );
+  font-size: var( --text-small );
+  padding: 6px 2px 10px;
+}
+
+/* ---- Panel ---- */
+
+.bwx-panel-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba( 15, 23, 42, 0.32 );
+  display: flex;
+  justify-content: flex-end;
+  z-index: 20;
+}
+
+.bwx-panel {
+  width: min( 520px, 100% );
+  background: var( --color-snow );
+  border-left: 1px solid var( --color-chalk );
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bwx-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bwx-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bwx-field label {
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+.bwx-moves {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bwx-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+.bwx-notice {
+  border: 1px solid var( --phase-exception-border );
+  background: var( --phase-exception-bg );
+  color: var( --color-coral );
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var( --text-small );
+}
+
+.bwx-notice[ data-tone='quiet' ] {
+  border-color: var( --color-chalk );
+  background: var( --color-mist );
+  color: var( --color-steel );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+  .bwx-card {
+    transition: none;
+  }
+}
+
+/* ---- The four states (#125) ---- */
+
+/*
+ * Loading, empty, error and permission-denied are drawn as one thing with four
+ * tones rather than as four unrelated paragraphs. They have to be told apart at
+ * a glance — "nothing yet" and "not yours to see" are the same shape of screen
+ * and mean completely different things — so the tone carries the difference and
+ * the words carry the detail.
+ */
+.bwx-state {
+  margin: auto;
+  max-width: 460px;
+  padding: 28px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bwx-state-title {
+  margin: 0;
+  font-size: var( --text-subheading );
+  font-weight: 500;
+  color: var( --color-ink );
+}
+
+.bwx-state-detail {
+  margin: 0;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+  line-height: 1.5;
+}
+
+.bwx-state[ data-tone='alert' ] .bwx-state-title {
+  color: var( --color-coral );
+}
+
+.bwx-state[ data-state='loading' ] .bwx-state-title {
+  color: var( --color-fog );
+}
+
+/* ---- Gate requirements ---- */
+
+/*
+ * The list a refusal produces, and the same list shown before anybody is
+ * refused. One style for both on purpose: a person should recognise what they
+ * are looking at whether they went and read it or ran into it.
+ */
+.bwx-unmet {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bwx-unmet li {
+  border: 1px solid var( --color-chalk );
+  border-left: 3px solid var( --phase-exception-border );
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var( --text-small );
+}
+
+.bwx-unmet li[ data-met='true' ] {
+  border-left-color: var( --phase-done, var( --color-chalk ) );
+  opacity: 0.62;
+}
+
+.bwx-unmet-label {
+  display: block;
+  color: var( --color-ink );
+  font-weight: var( --font-weight-label );
+}
+
+.bwx-unmet-how {
+  display: block;
+  color: var( --color-steel );
+  margin-top: 2px;
+}
+
+.bwx-check {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+/* ---- Comments ---- */
+
+.bwx-comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bwx-comment {
+  border: 1px solid var( --color-chalk );
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var( --text-small );
+  color: var( --color-ink );
+}
+
+/*
+ * Internal notes are marked, always. A note that looks exactly like a
+ * client-visible one is a note somebody writes the wrong thing in.
+ */
+.bwx-comment[ data-visibility='internal' ] {
+  background: var( --color-mist );
+  border-style: dashed;
+}
+
+.bwx-comment-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+  color: var( --color-fog );
+}

@@ -46,13 +46,25 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 7, $definitions );
+		$this->assertCount( 11, $definitions );
+
+		// The append-only tables are the exception, for the reason spelled out
+		// in the next test: nothing ever updates a row in them. The dependency
+		// table is the other kind of exception — a row is created and removed
+		// and never edited, so there is no version for a write to quote.
+		$append_only = array(
+			Schema::work_events_table(),
+			Schema::gate_records_table(),
+			Schema::comments_table(),
+			Schema::contacts_table(),
+			Schema::dependencies_table(),
+		);
 
 		foreach ( $definitions as $table => $sql ) {
 			$this->assertStringContainsString( 'id varchar(32) NOT NULL', $sql );
 			$this->assertStringContainsString( 'PRIMARY KEY  (id)', $sql );
 
-			if ( Schema::work_events_table() === $table ) {
+			if ( in_array( $table, $append_only, true ) ) {
 				continue;
 			}
 
@@ -145,6 +157,54 @@ final class SchemaTest extends TestCase {
 
 		$this->assertStringContainsString( 'UNIQUE KEY user_client_site (user_id,client_id,client_site_id)', $memberships );
 		$this->assertStringContainsString( 'role varchar(32) NOT NULL', $memberships );
+	}
+
+	/**
+	 * #93. The cross-client grant sits on the person rather than on a
+	 * membership, because its whole meaning is that it is not held with one
+	 * client. Putting it on a membership would mean holding it once per client,
+	 * which is the opposite of what it says.
+	 */
+	public function test_the_cross_client_grant_lives_on_the_person(): void {
+		$users = Schema::definitions()[ Schema::users_table() ];
+
+		$this->assertStringContainsString( "grants varchar(191) NOT NULL DEFAULT ''", $users );
+	}
+
+	/**
+	 * #95. A client's contact is a row with a start and an end, not a column
+	 * that gets overwritten — the history is the requirement, and a column has
+	 * none.
+	 */
+	public function test_a_clients_contact_is_a_row_rather_than_a_column(): void {
+		$contacts = Schema::definitions()[ Schema::contacts_table() ];
+
+		$this->assertStringContainsString( 'client_id varchar(32) NOT NULL', $contacts );
+		$this->assertStringContainsString( 'user_id varchar(32) NOT NULL', $contacts );
+		$this->assertStringContainsString( 'started_at bigint(20) unsigned NOT NULL', $contacts );
+	}
+
+	/**
+	 * Nothing ends a contact. A change appends the next assignment, and the
+	 * current contact is the latest row — so the table is append-only like the
+	 * event log, and for the same reason: a column that gets closed is a column
+	 * somebody can reopen.
+	 */
+	public function test_a_contact_assignment_is_never_updated(): void {
+		$contacts = Schema::definitions()[ Schema::contacts_table() ];
+
+		$this->assertStringNotContainsString( 'record_version', $contacts );
+		$this->assertStringNotContainsString( 'updated_at', $contacts );
+	}
+
+	/**
+	 * And the current one is found by an index rather than by reading them all:
+	 * "who is the contact" is asked on every client screen.
+	 */
+	public function test_the_current_contact_is_indexed(): void {
+		$contacts = Schema::definitions()[ Schema::contacts_table() ];
+
+		$this->assertStringContainsString( 'KEY client_started (client_id,started_at)', $contacts );
 	}
 
 	/**

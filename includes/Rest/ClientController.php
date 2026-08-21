@@ -10,7 +10,9 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\Registry;
+use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -40,6 +42,10 @@ final class ClientController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'handshake' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
 			)
 		);
 
@@ -50,6 +56,10 @@ final class ClientController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'report' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
 			)
 		);
 
@@ -60,6 +70,10 @@ final class ClientController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'workspace' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
 			)
 		);
 	}
@@ -174,7 +188,39 @@ final class ClientController {
 					'status'          => $site['status'] ?? '',
 					'connected_since' => (int) ( $site['created_at'] ?? 0 ),
 				),
+				'contact'   => self::contact_for( $site_id ),
 			)
 		);
+	}
+
+	/**
+	 * Who the client's contact is here, as they may see it (#95).
+	 *
+	 * A name, and nothing else. The address, the WordPress account and the
+	 * grants somebody holds are ours; the last of those says what a member of
+	 * staff is allowed to do, and no client has any business reading it.
+	 *
+	 * While there is no usable contact the client is told nothing rather than
+	 * told a name that no longer answers. The flag that somebody needs to fix
+	 * that is on our screen, not theirs.
+	 *
+	 * @param string $site_id The registry site making the request.
+	 * @return array<string, mixed>
+	 */
+	private static function contact_for( string $site_id ): array {
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return array();
+		}
+
+		$assignment = Contacts::current( (string) $integration['client_id'] );
+		$person     = null === $assignment || '' === (string) $assignment['user_id']
+			? null
+			: Users::get( (string) $assignment['user_id'] );
+
+		$state = Contacts::resolve( $assignment, $person );
+
+		return $state['needs_reassignment'] ? array() : Contacts::for_client( $state['contact'] );
 	}
 }

@@ -49,6 +49,11 @@ final class MembershipsController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
+				),
 				'args'                => array(
 					'status' => array(
 						'type'    => 'string',
@@ -65,6 +70,11 @@ final class MembershipsController {
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'create' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_CLIENT,
+					'param'  => 'client_id',
+					'record' => 'client',
+				),
 			)
 		);
 
@@ -75,6 +85,12 @@ final class MembershipsController {
 				'methods'             => 'PATCH',
 				'callback'            => array( self::class, 'update' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'    => Boundary::SCOPE_ITEM,
+					'param'   => 'membership_id',
+					'record'  => 'membership',
+					'resolve' => array( self::class, 'locate' ),
+				),
 				'args'                => array(
 					Versioning::PARAM => array(
 						'type'        => 'integer',
@@ -83,6 +99,25 @@ final class MembershipsController {
 					),
 				),
 			)
+		);
+	}
+
+	/**
+	 * Where one membership sits, for the tenant boundary (#92).
+	 *
+	 * A membership is not a work item and not a site, so the boundary's three
+	 * built-in resolvers cannot place it. This says where to look; the boundary
+	 * still decides.
+	 *
+	 * @param string $membership_id Membership id.
+	 * @return array{client_id: string, client_site_id: string}|null
+	 */
+	public static function locate( string $membership_id ) {
+		$membership = Memberships::get( $membership_id );
+
+		return null === $membership ? null : array(
+			'client_id'      => (string) $membership['client_id'],
+			'client_site_id' => (string) $membership['client_site_id'],
 		);
 	}
 
@@ -96,7 +131,7 @@ final class MembershipsController {
 		$client_id = (string) $request['client_id'];
 
 		if ( null === Clients::get( $client_id ) ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		$status = (string) $request->get_param( 'status' );
@@ -120,7 +155,7 @@ final class MembershipsController {
 		$client    = Clients::get( $client_id );
 
 		if ( null === $client ) {
-			return Errors::rest( 'unknown_client', __( 'There is no such client.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client' );
 		}
 
 		if ( 'active' !== (string) $client['status'] ) {
@@ -232,7 +267,7 @@ final class MembershipsController {
 		$membership = Memberships::get( (string) $request['membership_id'] );
 
 		if ( null === $membership ) {
-			return Errors::rest( 'unknown_membership', __( 'There is no such membership.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'membership' );
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );
@@ -332,7 +367,7 @@ final class MembershipsController {
 		$site = ClientSites::get( $client_site_id );
 
 		if ( null === $site ) {
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		if ( (string) $site['client_id'] !== $client_id ) {
@@ -342,7 +377,7 @@ final class MembershipsController {
 			 * to look identical, or the API confirms which ids are real for
 			 * clients the caller has nothing to do with.
 			 */
-			return Errors::rest( 'unknown_client_site', __( 'There is no such client site.', 'blueworx-forge' ), 404 );
+			return Boundary::absent( 'client_site' );
 		}
 
 		return null;
