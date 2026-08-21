@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.15.1] - 2026-08-21
+
+### Fixed
+
+- An item history is shown in the order things actually happened. Anything
+  recorded in the same second — the four entries one edit across four fields
+  writes, or a move and the return that follows it — could previously come back
+  in any order, so a history read as though events happened in an order they did
+  not. Comments and the record of who did what at each gate were affected the
+  same way.
+
 ## [2.15.0] - 2026-08-20
 
 ### Added
