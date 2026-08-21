@@ -61,6 +61,14 @@ export interface WorkItem {
   derived_state?: 'empty' | 'not-started' | 'in-progress' | 'completed';
   derived_start?: string;
   derived_due?: string;
+
+  /*
+   * The ids this waits on (#120). Sent with every item in a list rather than
+   * only on a single read, because a schedule needs the sequence for everything
+   * on screen at once and one request per bar is not a way to draw a chart.
+   * Ids only — the titles are already in the list holding this.
+   */
+  waits_on?: string[];
 }
 
 /**
@@ -93,7 +101,7 @@ export interface SavedView {
 }
 
 /** Which view of the work is on screen. */
-export type ViewName = 'board' | 'list';
+export type ViewName = 'board' | 'list' | 'gantt';
 
 /** One thing that has to be true before work leaves a stage. */
 export interface Requirement {

@@ -147,13 +147,32 @@ test.describe('views', () => {
 
     expect(inList).toBe(onBoard);
 
+    // The schedule shows the same work in two places rather than one: on the
+    // chart if it has dates, in the tray if it has none. The two together are
+    // the whole answer, and that sum is what has to match the other views —
+    // counting only the bars is exactly how a Gantt quietly loses the
+    // unscheduled work (#120).
+    await page.locator('[data-testid="bwx-view-gantt"]').click();
+    await expect(page.locator('[data-testid="bwx-gantt"]')).toBeVisible();
+    const drawn = await page.locator('[data-testid="bwx-gantt-row"]').count();
+    const untimed = await page.locator('[data-testid="bwx-gantt-tray-item"]').count();
+
+    expect(drawn + untimed).toBe(onBoard);
+
     // And again with a filter applied, because agreeing on everything is
     // easier than agreeing on a subset.
+    await page.locator('[data-testid="bwx-view-list"]').click();
     await page.fill('[data-testid="bwx-search"]', 'checkout');
     await expect(page.locator('[data-testid="bwx-row"]')).toHaveCount(1);
 
     await page.locator('[data-testid="bwx-view-board"]').click();
     await expect(page.locator('[data-testid="bwx-card"]')).toHaveCount(1);
+
+    await page.locator('[data-testid="bwx-view-gantt"]').click();
+    const drawnNow = await page.locator('[data-testid="bwx-gantt-row"]').count();
+    const untimedNow = await page.locator('[data-testid="bwx-gantt-tray-item"]').count();
+
+    expect(drawnNow + untimedNow).toBe(1);
   });
 
   // -------------------------------------------------------------------------

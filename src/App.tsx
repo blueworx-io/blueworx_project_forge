@@ -4,6 +4,7 @@ import { api, GateError, forgeData, isConnected, isDenied, messageFor } from './
 import { Board } from './components/Board';
 import { Filters } from './components/Filters';
 import { ItemPanel } from './components/ItemPanel';
+import { GanttView } from './components/GanttView';
 import { ListView } from './components/ListView';
 import { NewWork } from './components/NewWork';
 import { Screen } from './components/States';
@@ -307,6 +308,16 @@ export function App() {
           >
             List
           </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'gantt' === view ? undefined : 'quiet' }
+            data-testid="bwx-view-gantt"
+            aria-pressed={ 'gantt' === view }
+            onClick={ () => setView( 'gantt' ) }
+          >
+            Schedule
+          </button>
         </div>
 
         <span className="bwx-mono">{ items.length } { 1 === items.length ? 'item' : 'items' }</span>
@@ -465,6 +476,10 @@ export function App() {
 
           { 'list' === view && (
             <ListView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+          ) }
+
+          { 'gantt' === view && (
+            <GanttView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
           ) }
 
           { /*
