@@ -153,10 +153,84 @@ export function checkVersions(config) {
   ];
 }
 
+// The files that draw a client's work. #128 asks for something stronger than
+// hidden buttons — "the client build contains no transition control to hide" —
+// so the assertion is about what ships, not about a page somebody remembered to
+// look at. A control that is merely never rendered today is one a later change
+// starts rendering, and nobody notices until a client moves a card.
+//
+// Naming the files rather than scanning the whole artifact is deliberate. The
+// connection screen has a form and should: connecting a site is a thing a
+// client's administrator does. What may never appear is a control on the work
+// itself.
+export const READ_ONLY_VIEWS = [
+  'client/includes/Admin/BoardScreen.php',
+  'client/includes/Admin/TimelineScreen.php',
+  'client/includes/Admin/CalendarScreen.php',
+  'client/includes/Admin/WorkScreen.php',
+  'client/includes/Admin/Card.php',
+];
+
+// Anything a person could act through. Links are absent on purpose: going
+// somewhere is not changing something, and the calendar's month links are how
+// a client looks ahead.
+const CONTROLS = [
+  [/<button\b/i, 'a button'],
+  [/<select\b/i, 'a select — a stage picker is a transition control wearing a dropdown'],
+  [/<textarea\b/i, 'a textarea'],
+  [/<input\b/i, 'an input'],
+  [/<form\b/i, 'a form'],
+  [/\bdraggable\b/i, 'draggable — a board can move a card without ever drawing a button'],
+  [/\bdrag(start|over|end|enter|leave)\b/i, 'a drag handler'],
+  [/\bcontenteditable\b/i, 'contenteditable'],
+];
+
+/**
+ * Strips PHP and JavaScript comments, so prose about transitions is not
+ * mistaken for one. The word matters in the comments here — the files explain
+ * why they contain no controls — and a check that punished them would be a
+ * check people delete the explanation to satisfy.
+ *
+ * @param {string} source File contents.
+ * @returns {string} The same source with its comments blanked.
+ */
+function withoutComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+}
+
+/**
+ * Checks that no file which draws work contains a control.
+ *
+ * @param {{path: string, contents: string}[]} files The files, already read.
+ * @returns {string[]} One line per problem; empty when everything is in order.
+ */
+export function checkReadOnlyViews(files) {
+  const problems = [];
+
+  for (const { path, contents } of files) {
+    const code = withoutComments(contents);
+
+    for (const [pattern, what] of CONTROLS) {
+      if (pattern.test(code)) {
+        problems.push(
+          `${path} contains ${what}. A client sees work and has no authority over it (#128), and the guarantee is that the build holds no control to hide.`
+        );
+      }
+    }
+  }
+
+  return problems;
+}
+
 // Run as a script rather than imported by the tests.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const config = JSON.parse(readFileSync(resolve(ROOT, 'bin/artifacts.json'), 'utf8'));
-  const problems = [...checkArtifacts(config), ...checkVersions(config)];
+  const views = READ_ONLY_VIEWS.map((path) => ({
+    path,
+    contents: existsSync(resolve(ROOT, path)) ? readFileSync(resolve(ROOT, path), 'utf8') : '',
+  }));
+
+  const problems = [...checkArtifacts(config), ...checkVersions(config), ...checkReadOnlyViews(views)];
 
   if (problems.length > 0) {
     console.error('The build allowlists are not shippable:\n');

@@ -44,6 +44,18 @@ final class Nav {
 				'label' => __( 'Overview', 'blueworx-forge' ),
 			),
 			array(
+				'slug'  => BoardScreen::SLUG,
+				'label' => __( 'Board', 'blueworx-forge' ),
+			),
+			array(
+				'slug'  => TimelineScreen::SLUG,
+				'label' => __( 'Timeline', 'blueworx-forge' ),
+			),
+			array(
+				'slug'  => CalendarScreen::SLUG,
+				'label' => __( 'Calendar', 'blueworx-forge' ),
+			),
+			array(
 				'slug'  => ConnectionScreen::SLUG,
 				'label' => __( 'Connection', 'blueworx-forge' ),
 			),
