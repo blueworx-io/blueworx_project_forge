@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.22.0] - 2026-08-21
+
+### Added
+
+- The plugin on a client site now has a frame of its own: it says whose
+  workspace it is, and carries the navigation for the pages inside it. Somebody
+  looking after several client sites can tell which one they are on before they
+  act on it.
+- Nothing in that frame can be pointed at another client. The links carry a
+  page and nothing else, and a request that names somebody else is answered for
+  the site that signed it — so a hand-edited address changes nothing.
+
 ## [2.21.0] - 2026-08-21
 
 ### Added
