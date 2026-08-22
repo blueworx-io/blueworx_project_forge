@@ -54,8 +54,10 @@ final class Plugin {
 		add_action( 'admin_menu', array( Admin\BoardScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\TimelineScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\CalendarScreen::class, 'register' ) );
+		add_action( 'admin_menu', array( Admin\AskScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionScreen::class, 'register' ) );
 
+		Admin\AskActions::boot();
 		Admin\ConnectionActions::boot();
 
 		// So the studio's connection record knows what this site is running and

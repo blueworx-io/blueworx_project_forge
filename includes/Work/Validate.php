@@ -27,6 +27,74 @@ final class Validate {
 	public const MAX_TITLE = 191;
 
 	/**
+	 * What a client sent when they asked for something (#129).
+	 *
+	 * Everything a client may not decide is refused rather than dropped. The
+	 * difference matters: a dropped field lets somebody believe they set the
+	 * intake state, and find out weeks later that nobody read it as accepted.
+	 * A refusal is an answer.
+	 *
+	 * Nothing here names which client the submission is for. The site that
+	 * signed the request is the only site it can be from, so a client_id in the
+	 * body would be whatever the sender typed (D-2).
+	 *
+	 * @param array<string, mixed> $input What the client site sent.
+	 * @return array{values: array<string, mixed>, errors: array<string, string>}
+	 */
+	public static function submission( array $input ): array {
+		$values = array();
+		$errors = array();
+
+		foreach ( array( 'intake_state', 'response', 'converted_item_id' ) as $ours ) {
+			if ( array_key_exists( $ours, $input ) ) {
+				$errors[ $ours ] = 'That is the studio\'s answer, not part of the question.';
+			}
+		}
+
+		foreach ( array( 'client_id', 'client_site_id' ) as $named ) {
+			if ( array_key_exists( $named, $input ) ) {
+				$errors[ $named ] = 'A submission is for the site that sent it, and cannot name another.';
+			}
+		}
+
+		$type = trim( (string) ( $input['type'] ?? '' ) );
+
+		if ( ! Submissions::is_type( $type ) ) {
+			$errors['type'] = 'Choose a request, an idea or a suggestion.';
+		} else {
+			$values['type'] = $type;
+		}
+
+		$title = trim( (string) ( $input['title'] ?? '' ) );
+
+		if ( '' === $title ) {
+			$errors['title'] = 'Give this a short title.';
+		} elseif ( mb_strlen( $title ) > self::MAX_TITLE ) {
+			$errors['title'] = 'That title is too long.';
+		} else {
+			$values['title'] = $title;
+		}
+
+		$description = trim( (string) ( $input['description'] ?? '' ) );
+
+		if ( '' === $description ) {
+			$errors['description'] = 'Say what you are asking for.';
+		} else {
+			$values['description'] = $description;
+		}
+
+		// Optional, and optional on purpose. Somebody who knows what they want
+		// but not what good would look like should still be able to ask.
+		$values['desired_outcome'] = trim( (string) ( $input['desired_outcome'] ?? '' ) );
+		$values['evidence']        = trim( (string) ( $input['evidence'] ?? '' ) );
+
+		return array(
+			'values' => $values,
+			'errors' => $errors,
+		);
+	}
+
+	/**
 	 * Checks a work item.
 	 *
 	 * @param array<string, mixed> $input   Raw input.

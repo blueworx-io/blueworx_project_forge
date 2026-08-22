@@ -13,6 +13,8 @@ use Blueworx\Forge\Sites\Registry;
 use Blueworx\Forge\Work\ClientView;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
+use Blueworx\Forge\Work\Submissions;
+use Blueworx\Forge\Work\Validate as WorkValidate;
 use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Users;
@@ -86,6 +88,20 @@ final class ClientController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'board' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/submissions',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'submit' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
@@ -254,6 +270,77 @@ final class ClientController {
 				'generated' => bwx_forge_now(),
 				'stages'    => self::columns(),
 				'items'     => ClientView::items( $rows, array( Users::class, 'get' ) ),
+			)
+		);
+	}
+
+	/**
+	 * Records something the calling site is asking for (#129).
+	 *
+	 * A client may ask whether or not they pay for support. That is the point
+	 * of the record existing at all: work has a commercial life and a question
+	 * does not, so nothing here consults a package, and nothing here can be
+	 * refused for the want of one.
+	 *
+	 * The site is the one that signed the request, and the client is that
+	 * site's client. Neither is taken from the body, so a submission cannot be
+	 * filed against somebody else's client however it is addressed (D-2).
+	 *
+	 * What comes back is the whole stored record. The client site shows it as
+	 * the receipt, which is the moment their words become fixed (REQ-1).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function submit( WP_REST_Request $request ) {
+		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return Errors::rest(
+				'no_integration',
+				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		$body    = (array) $request->get_json_params();
+		$checked = WorkValidate::submission( $body );
+
+		if ( array() !== $checked['errors'] ) {
+			return Errors::rest(
+				'invalid_submission',
+				__( 'That could not be sent.', 'blueworx-forge' ),
+				400,
+				array( 'fields' => $checked['errors'] )
+			);
+		}
+
+		// Whoever the client site says was at the keyboard. Recorded as a name
+		// and used as a name: NOTIF-1 resolves who to write to from verified
+		// client records, never from something typed on the far side of a
+		// connection.
+		$by = trim( (string) ( $body['submitted_by'] ?? '' ) );
+
+		$stored = Submissions::create(
+			(string) $integration['client_site_id'],
+			(string) $integration['client_id'],
+			$checked['values'],
+			mb_substr( $by, 0, 191 )
+		);
+
+		if ( null === $stored ) {
+			return Errors::rest(
+				'submission_not_recorded',
+				__( 'That could not be recorded. Nothing has been sent.', 'blueworx-forge' ),
+				500
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'         => true,
+				'submission' => $stored,
 			)
 		);
 	}
