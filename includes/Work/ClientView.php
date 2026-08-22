@@ -79,6 +79,7 @@ final class ClientView {
 			'parent_id'      => (string) ( $row['parent_id'] ?? '' ),
 			'title'          => (string) ( $row['title'] ?? '' ),
 			'stage'          => (string) ( $row['stage'] ?? '' ),
+			'stage_label'    => Stages::label( (string) ( $row['stage'] ?? '' ) ),
 			'level'          => (string) ( $row['level'] ?? '' ),
 			'work_type'      => (string) ( $row['work_type'] ?? '' ),
 			'planned_start'  => (string) ( $row['planned_start'] ?? '' ),

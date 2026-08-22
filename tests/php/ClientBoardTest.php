@@ -48,7 +48,11 @@ final class ClientBoardTest extends TestCase {
 				array(
 					'ok'        => true,
 					'generated' => 5000,
-					'stages'    => array( 'future-idea', 'triage', 'in-development' ),
+					'stages'    => array(
+						array( 'slug' => 'future-idea', 'label' => 'Future idea' ),
+						array( 'slug' => 'triage', 'label' => 'Triage' ),
+						array( 'slug' => 'in-development', 'label' => 'In development' ),
+					),
 					'items'     => array(
 						array(
 							'id'            => 'wrk_1',
@@ -116,7 +120,8 @@ final class ClientBoardTest extends TestCase {
 
 		$view = Board::view();
 
-		$this->assertSame( array( 'future-idea', 'triage', 'in-development' ), $view['stages'] );
+		$this->assertSame( array( 'future-idea', 'triage', 'in-development' ), array_column( $view['stages'], 'slug' ) );
+		$this->assertSame( array( 'Future idea', 'Triage', 'In development' ), array_column( $view['stages'], 'label' ) );
 	}
 
 	/**

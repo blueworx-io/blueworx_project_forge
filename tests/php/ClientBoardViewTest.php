@@ -30,6 +30,7 @@ final class ClientBoardViewTest extends TestCase {
 		'parent_id',
 		'title',
 		'stage',
+		'stage_label',
 		'level',
 		'work_type',
 		'planned_start',
@@ -136,6 +137,17 @@ final class ClientBoardViewTest extends TestCase {
 		$this->assertArrayNotHasKey( 'internal_risk_note', $item );
 	}
 
+
+	/**
+	 * The stage arrives named as well as slugged. A client screen that has to
+	 * turn 'up-next' into words is a screen holding its own copy of the state
+	 * machine, in a second language, that nobody updates.
+	 */
+	public function test_the_stage_carries_the_name_the_studio_gives_it(): void {
+		$item = ClientView::item( $this->row(), $this->lookup() );
+
+		$this->assertSame( 'In development', $item['stage_label'] );
+	}
 	// -----------------------------------------------------------------------
 	// The people on a card.
 	// -----------------------------------------------------------------------

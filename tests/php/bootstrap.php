@@ -13,6 +13,9 @@ declare( strict_types = 1 );
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'BWX_FORGE_PATH', dirname( __DIR__, 2 ) . '/' );
 
+// Core's own, and the units under test do date arithmetic with it.
+define( 'DAY_IN_SECONDS', 86400 );
+
 $GLOBALS['bwx_forge_test_calls'] = array();
 
 /**

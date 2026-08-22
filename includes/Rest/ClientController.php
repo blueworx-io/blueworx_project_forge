@@ -252,12 +252,31 @@ final class ClientController {
 			array(
 				'ok'        => true,
 				'generated' => bwx_forge_now(),
-				'stages'    => Stages::ALL,
+				'stages'    => self::columns(),
 				'items'     => ClientView::items( $rows, array( Users::class, 'get' ) ),
 			)
 		);
 	}
 
+	/**
+	 * The board's columns: every stage, named as the studio names it.
+	 *
+	 * The names travel with the answer so the client artifact never holds its
+	 * own copy of the state machine. A client that translated 'up-next' into
+	 * words itself would be a second list to update, in a second language, that
+	 * nobody remembers on the day a stage changes.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	private static function columns(): array {
+		return array_map(
+			static fn( string $stage ): array => array(
+				'slug'  => $stage,
+				'label' => Stages::label( $stage ),
+			),
+			Stages::ALL
+		);
+	}
 	/**
 	 * Who the client's contact is here, as they may see it (#95).
 	 *
