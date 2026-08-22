@@ -98,6 +98,7 @@ final class CalendarScreen {
 	 * @return string The first of the month, as YYYY-MM-DD.
 	 */
 	private static function anchor(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Looking at a different month is a read: it changes nothing, and a nonce on it would only expire while somebody was reading.
 		$asked = isset( $_GET['bwx-month'] ) ? sanitize_text_field( wp_unslash( $_GET['bwx-month'] ) ) : '';
 
 		if ( 1 === preg_match( '/^\d{4}-\d{2}$/', $asked ) ) {

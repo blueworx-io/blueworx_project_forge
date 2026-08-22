@@ -145,11 +145,19 @@ final class Layout {
 		$first = gmdate( 'Y-m-01', self::stamp( $anchor ) );
 		$last  = gmdate( 'Y-m-t', self::stamp( $anchor ) );
 
-		$start = self::monday_of( $first );
-		$days  = array();
-		$day   = $start;
+		$days = array();
+		$day  = self::monday_of( $first );
 
-		while ( $day <= $last || 0 !== count( $days ) % 7 ) {
+		while ( $day <= $last ) {
+			$days[] = $day;
+			$day    = gmdate( 'Y-m-d', self::stamp( $day ) + DAY_IN_SECONDS );
+		}
+
+		// Filled out to whole weeks. A grid whose last row is three cells wide
+		// is a grid that reads as three days missing.
+		$short = count( $days ) % 7;
+
+		for ( $i = $short; $i > 0 && $i < 7; $i++ ) {
 			$days[] = $day;
 			$day    = gmdate( 'Y-m-d', self::stamp( $day ) + DAY_IN_SECONDS );
 		}
