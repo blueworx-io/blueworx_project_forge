@@ -49,6 +49,7 @@ final class WorkspaceTest extends TestCase {
 				array(
 					'ok'        => true,
 					'generated' => 5000,
+					'contact'   => array( 'display_name' => 'Ana Fielding' ),
 					'record'    => array(
 						'site_id'         => 'site_abc',
 						'name'            => $name,
@@ -100,6 +101,41 @@ final class WorkspaceTest extends TestCase {
 		$this->assertFalse( $view['sync']['stale'] );
 	}
 
+
+	/**
+	 * #127. The studio names who the client's contact is here, and the client
+	 * site shows it. Dropping it on the way through was the reason a workspace
+	 * screen could say everything about a connection and nothing about a
+	 * person.
+	 */
+	public function test_the_contact_travels_through_with_the_record(): void {
+		$this->studio_answers();
+
+		$view = Workspace::view();
+
+		$this->assertSame( array( 'display_name' => 'Ana Fielding' ), $view['contact'] );
+	}
+
+	/**
+	 * A client nobody has been assigned to gets no contact rather than a blank
+	 * person, so the screen can say somebody is being assigned instead of
+	 * printing an empty name.
+	 */
+	public function test_no_contact_is_empty_rather_than_blank(): void {
+		$GLOBALS['bwx_forge_test_http'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode(
+				array(
+					'ok'     => true,
+					'record' => array( 'name' => 'Acme Ltd' ),
+				)
+			),
+		);
+
+		$view = Workspace::view();
+
+		$this->assertSame( array(), $view['contact'] );
+	}
 	/**
 	 * A second read inside the staleness window is served locally. Without this
 	 * every page view on the client site is a round trip to the studio, which is

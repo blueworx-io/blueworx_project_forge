@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.24.0] - 2026-08-22
+
+### Added
+
+- The client's first screen is now a landing view rather than a connection
+  record: who their contact is, what needs attention, what is coming up, and
+  where their support stands.
+- Anything blocked or past its date is listed first, with the reason in words
+  rather than left for the reader to work out by comparing dates.
+
+### Changed
+
+- A brand-new client with no work now reads as new rather than broken. Every
+  section says which kind of empty it is — nobody assigned yet, nothing
+  scheduled yet, no support package yet — instead of leaving a heading over a
+  blank space.
+- The connection details moved to the bottom of that screen. They matter to
+  whoever set the site up and to nobody afterwards.
+
 ## [2.23.0] - 2026-08-22
 
 ### Added
