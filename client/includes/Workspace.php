@@ -18,6 +18,11 @@ namespace Blueworx\Forge\Client;
  * part that is this record's own: the studio answers with a `record`, and a
  * workspace with no record is not a workspace.
  *
+ * The contact rides along with it. Who to talk to is part of what a client
+ * needs from a landing view (#127), and it arrives in the same answer, so
+ * fetching it separately would mean two reads that can disagree about how old
+ * they are.
+ *
  * The STATE_ constants are kept as names on this class because screens and
  * tests already speak of them that way. They are the Sync ones — the same five
  * strings, defined once — rather than a second set that could drift.
@@ -68,9 +73,10 @@ final class Workspace {
 		$record  = is_array( $payload['record'] ?? null ) ? $payload['record'] : null;
 
 		return array(
-			'ok'     => null !== $record,
-			'record' => $record,
-			'sync'   => $read['sync'],
+			'ok'      => null !== $record,
+			'record'  => $record,
+			'contact' => is_array( $payload['contact'] ?? null ) ? $payload['contact'] : array(),
+			'sync'    => $read['sync'],
 		);
 	}
 
