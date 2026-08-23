@@ -51,6 +51,9 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\WorkspaceController::class, 'register_routes' ) );
 		add_action( 'admin_menu', array( Admin\Screen::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Admin\Screen::class, 'enqueue' ) );
+		add_action( 'admin_menu', array( Admin\BoardScreen::class, 'register' ) );
+		add_action( 'admin_menu', array( Admin\TimelineScreen::class, 'register' ) );
+		add_action( 'admin_menu', array( Admin\CalendarScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionScreen::class, 'register' ) );
 
 		Admin\ConnectionActions::boot();

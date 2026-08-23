@@ -10,6 +10,9 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\Registry;
+use Blueworx\Forge\Work\ClientView;
+use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Users;
@@ -69,6 +72,20 @@ final class ClientController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'workspace' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/board',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'board' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
@@ -193,6 +210,73 @@ final class ClientController {
 		);
 	}
 
+	/**
+	 * The calling site's board (#128).
+	 *
+	 * Everything the client site draws its three views from, in one read. The
+	 * site is the one that signed the request, resolved to its client the same
+	 * way the contact is — there is no site or client parameter here, so there
+	 * is nothing to edit into somebody else's (D-2).
+	 *
+	 * A connection with no integration record is turned away rather than
+	 * answered with an empty board. The two are not the same thing: an empty
+	 * board says "you have no work", and a key issued outside a Client Site has
+	 * no client whose work it could be describing.
+	 *
+	 * The stage list travels with the answer rather than being written down a
+	 * second time on the client. A board whose columns are its own copy of the
+	 * state machine is a board that goes wrong the day a stage is added, and
+	 * goes wrong quietly.
+	 *
+	 * Archived work is left out by Items::for_site()'s own default, which is
+	 * where that decision already lives.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function board( WP_REST_Request $request ) {
+		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return Errors::rest(
+				'no_integration',
+				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		$rows = Items::for_site( (string) $integration['client_site_id'] );
+
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'generated' => bwx_forge_now(),
+				'stages'    => self::columns(),
+				'items'     => ClientView::items( $rows, array( Users::class, 'get' ) ),
+			)
+		);
+	}
+
+	/**
+	 * The board's columns: every stage, named as the studio names it.
+	 *
+	 * The names travel with the answer so the client artifact never holds its
+	 * own copy of the state machine. A client that translated 'up-next' into
+	 * words itself would be a second list to update, in a second language, that
+	 * nobody remembers on the day a stage changes.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	private static function columns(): array {
+		return array_map(
+			static fn( string $stage ): array => array(
+				'slug'  => $stage,
+				'label' => Stages::label( $stage ),
+			),
+			Stages::ALL
+		);
+	}
 	/**
 	 * Who the client's contact is here, as they may see it (#95).
 	 *

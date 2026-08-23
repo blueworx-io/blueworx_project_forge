@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.23.0] - 2026-08-22
+
+### Added
+
+- A client site now shows the work itself: a board, a timeline and a calendar,
+  all read-only. It is the same work the studio sees, in the same stages, with
+  the same dates.
+- Work with no dates on it yet is listed on the timeline and the calendar
+  rather than left off them, so a client is never shown a schedule that quietly
+  omits half of what is going on.
+- A card names who is working on an item, who is reviewing it and who is
+  releasing it. It does not carry planned hours, priority or commercial class —
+  each of those is a conversation to have with a client rather than something
+  to spring on them from a screen.
+
+### Changed
+
+- When the studio cannot be reached, the client's views say so instead of
+  drawing empty columns. Empty columns would tell a client their work had been
+  deleted.
+
 ## [2.22.0] - 2026-08-21
 
 ### Added

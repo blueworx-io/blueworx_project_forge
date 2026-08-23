@@ -9,7 +9,6 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
-use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Workspace;
 
 /**
@@ -37,17 +36,56 @@ final class Screen {
 	public const STYLE = 'blueworx-forge-tokens';
 
 	/**
-	 * Loads the design tokens, on this screen only.
+	 * Every screen this plugin owns.
+	 *
+	 * @return array<int, string>
+	 */
+	private static function slugs(): array {
+		return array(
+			self::SLUG,
+			BoardScreen::SLUG,
+			TimelineScreen::SLUG,
+			CalendarScreen::SLUG,
+			ConnectionScreen::SLUG,
+		);
+	}
+
+	/**
+	 * Whether a screen being loaded is one of ours.
+	 *
+	 * Matched on the hook rather than on the requested page, because the hook
+	 * is WordPress telling us which screen it is about to render, and the
+	 * request is whatever somebody typed.
+	 *
+	 * @param string $hook The screen being loaded.
+	 * @return bool
+	 */
+	private static function ours( string $hook ): bool {
+		foreach ( self::slugs() as $slug ) {
+			if ( 'toplevel_page_' . $slug === $hook || str_ends_with( $hook, '_page_' . $slug ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Loads the design tokens, on this plugin's screens only.
 	 *
 	 * The tokens are shipped rather than compiled here: this artifact has no
 	 * build step of its own, and the file it loads is the same one the studio's
 	 * app compiles in (#85). One edit reaches both, and there is no second copy
 	 * to forget.
 	 *
+	 * The work views' own rules ride along inline for the same reason they are
+	 * not a file: what the client artifact may contain is a closed list, and the
+	 * guarantee that list gives is worth more than a tidier stylesheet (#128).
+	 *
 	 * @param string $hook The screen being loaded.
 	 */
 	public static function enqueue( string $hook ): void {
-		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
+		if ( ! self::ours( $hook ) ) {
 			return;
 		}
 
@@ -63,6 +101,8 @@ final class Screen {
 			array(),
 			(string) filemtime( $tokens )
 		);
+
+		wp_add_inline_style( self::STYLE, Styles::css() );
 	}
 
 	/**
@@ -88,22 +128,14 @@ final class Screen {
 			return;
 		}
 
-		// A refresh is a read, so this is a convenience rather than a state
-		// change — but it does cause a network call, so it still carries a nonce
-		// rather than being triggerable by any link anyone can put in front of an
-		// administrator.
-		$refresh = isset( $_GET['bwx-refresh'] )
-			&& isset( $_GET['_wpnonce'] )
-			&& wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'bwx-forge-client-refresh' );
-
-		$view = Workspace::view( (bool) $refresh );
+		$view = Workspace::view( SyncNotice::refresh_requested() );
 
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'Forge', 'blueworx-forge' ) . '</h1>';
 
 		Nav::render( self::SLUG, $view );
 
-		self::sync_notice( $view['sync'] );
+		SyncNotice::render( $view['sync'], self::SLUG );
 
 		if ( null === $view['record'] ) {
 			self::empty_state( (string) $view['sync']['state'] );
@@ -112,64 +144,6 @@ final class Screen {
 		}
 
 		echo '</div>';
-	}
-
-	/**
-	 * The last-sync line, and a warning when what is shown may be out of date.
-	 *
-	 * @param array<string, mixed> $sync The sync block from Workspace::view().
-	 */
-	private static function sync_notice( array $sync ): void {
-		$state      = (string) $sync['state'];
-		$fetched_at = (int) $sync['fetched_at'];
-		$ago        = $fetched_at > 0
-			/* translators: %s: human-readable duration, e.g. "2 mins". */
-			? sprintf( __( 'Last synced %s ago.', 'blueworx-forge' ), human_time_diff( $fetched_at ) )
-			: __( 'Never synced.', 'blueworx-forge' );
-
-		$class   = 'notice notice-info';
-		$message = $ago;
-
-		if ( Workspace::STATE_STALE === $state ) {
-			$class   = 'notice notice-warning';
-			$message = __( 'The studio could not be reached, so this is the copy this site last saw. It may be out of date.', 'blueworx-forge' ) . ' ' . $ago;
-		}
-
-		if ( Workspace::STATE_UNREACHABLE === $state ) {
-			$class   = 'notice notice-error';
-			$message = __( 'The studio could not be reached, and this site has nothing saved to show in the meantime.', 'blueworx-forge' );
-		}
-
-		if ( Workspace::STATE_NOT_CONFIGURED === $state ) {
-			$class   = 'notice notice-warning';
-			$message = __( 'This site has not been connected to the studio yet.', 'blueworx-forge' );
-		}
-
-		printf(
-			'<div class="%1$s" data-bwx-sync-state="%2$s"><p>%3$s %4$s</p></div>',
-			esc_attr( $class ),
-			esc_attr( $state ),
-			esc_html( $message ),
-			wp_kses_post( self::refresh_link() )
-		);
-	}
-
-	/**
-	 * The "check again" link.
-	 *
-	 * @return string
-	 */
-	private static function refresh_link(): string {
-		if ( ! Connection::is_configured() ) {
-			return '';
-		}
-
-		$url = wp_nonce_url(
-			add_query_arg( 'bwx-refresh', '1', admin_url( 'admin.php?page=' . self::SLUG ) ),
-			'bwx-forge-client-refresh'
-		);
-
-		return '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Check again', 'blueworx-forge' ) . '</a>';
 	}
 
 	/**
