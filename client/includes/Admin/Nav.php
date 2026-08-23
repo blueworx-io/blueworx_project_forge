@@ -60,6 +60,10 @@ final class Nav {
 				'label' => __( 'Ask for something', 'blueworx-forge' ),
 			),
 			array(
+				'slug'  => AskedScreen::SLUG,
+				'label' => __( 'What you asked for', 'blueworx-forge' ),
+			),
+			array(
 				'slug'  => ConnectionScreen::SLUG,
 				'label' => __( 'Connection', 'blueworx-forge' ),
 			),

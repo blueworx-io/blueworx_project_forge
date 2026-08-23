@@ -100,6 +100,20 @@ final class ClientController {
 			$route_namespace,
 			'/client/submissions',
 			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'submissions' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/submissions',
+			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'submit' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
@@ -275,6 +289,51 @@ final class ClientController {
 	}
 
 	/**
+	 * What the calling site has asked for, and what happened to it (#130).
+	 *
+	 * The mirror of the send, on the same route: a client who asks is owed a way
+	 * to see what became of it, and this is that. The site is the one that
+	 * signed the request, so a client reads their own submissions and there is
+	 * no parameter here through which they could ask for anybody else's (D-2).
+	 *
+	 * The state names travel with the answer, as the board's column names do.
+	 * A client artifact that turned 'in-review' into English itself would hold a
+	 * second copy of the studio's intake vocabulary, and that copy would be
+	 * wrong the day a state is added.
+	 *
+	 * The point of contact comes with it because this is the screen where
+	 * somebody wants to chase an answer, and a status with nobody's name against
+	 * it invites a reply into a support address nobody reads.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function submissions( WP_REST_Request $request ) {
+		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return Errors::rest(
+				'no_integration',
+				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		$rows = Submissions::for_site( (string) $integration['client_site_id'] );
+
+		return rest_ensure_response(
+			array(
+				'ok'          => true,
+				'generated'   => bwx_forge_now(),
+				'states'      => self::intake_states(),
+				'submissions' => ClientView::submissions( $rows, array( Items::class, 'get' ) ),
+				'contact'     => self::contact_for( $site_id ),
+			)
+		);
+	}
+
+	/**
 	 * Records something the calling site is asking for (#129).
 	 *
 	 * A client may ask whether or not they pay for support. That is the point
@@ -364,6 +423,24 @@ final class ClientController {
 			Stages::ALL
 		);
 	}
+	/**
+	 * Every intake state, named as the studio names it.
+	 *
+	 * Sent whole rather than only the states in use, so a client screen can put
+	 * words to a submission whatever it has since become without asking again.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	private static function intake_states(): array {
+		return array_map(
+			static fn( string $state ): array => array(
+				'slug'  => $state,
+				'label' => Submissions::label( $state ),
+			),
+			Submissions::STATES
+		);
+	}
+
 	/**
 	 * Who the client's contact is here, as they may see it (#95).
 	 *

@@ -112,6 +112,33 @@ final class Cache {
 	}
 
 	/**
+	 * Throws one route's copy away.
+	 *
+	 * For the case where this site has just done something that it knows makes
+	 * a record wrong — sending a submission, which adds a row to a list this
+	 * site is also showing. Waiting out the window there would show somebody the
+	 * list as it was before they pressed send, which reads as the send having
+	 * failed.
+	 *
+	 * One route rather than everything, because the rest of what is cached is
+	 * still perfectly good and a flush would make one write cost several reads.
+	 *
+	 * @param string $route Route within the studio namespace.
+	 */
+	public static function forget( string $route ): void {
+		$stored = get_option( self::OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+
+		if ( ! array_key_exists( $route, $stored ) ) {
+			return;
+		}
+
+		unset( $stored[ $route ] );
+
+		update_option( self::OPTION, $stored );
+	}
+
+	/**
 	 * How many seconds old an entry is.
 	 *
 	 * @param array{fetched_at: int} $entry Stored entry.

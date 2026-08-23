@@ -59,9 +59,14 @@ final class Card {
 	 *                                          already say it.
 	 */
 	public static function render( array $item, bool $with_stage = true ): void {
+		$id = (string) ( $item['id'] ?? '' );
+
+		// An anchor, not a control. "What you asked for" names the work a
+		// request became and has to be able to point at it, and the board has
+		// no page of its own per item to point at (#130).
 		printf(
-			'<article class="bwx-card" data-testid="bwx-card" data-bwx-item="%s">',
-			esc_attr( (string) ( $item['id'] ?? '' ) )
+			'<article class="bwx-card" data-testid="bwx-card" id="bwx-item-%1$s" data-bwx-item="%1$s">',
+			esc_attr( $id )
 		);
 
 		printf(
