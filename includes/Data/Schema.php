@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 8;
+	public const VERSION = 9;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -142,6 +142,17 @@ final class Schema {
 	}
 
 	/**
+	 * The request submissions table's full name.
+	 *
+	 * @return string
+	 */
+	public static function submissions_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_submissions';
+	}
+
+	/**
 	 * The comments table's full name.
 	 *
 	 * @return string
@@ -187,6 +198,7 @@ final class Schema {
 		$comments     = self::comments_table();
 		$contacts     = self::contacts_table();
 		$dependencies = self::dependencies_table();
+		$submissions  = self::submissions_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -430,6 +442,43 @@ final class Schema {
 	KEY level (level),
 	KEY archived (archived),
 	KEY terminal_outcome (terminal_outcome)
+) {$collate};",
+
+			/*
+			 * What a client asked for, kept as they asked it (REQ-1, #129).
+			 *
+			 * Separate from work items rather than an early stage of one,
+			 * because a question has no commercial life. Work has packages,
+			 * hours and gates; "could we have a booking form" has none of
+			 * those, and a client with no support package may still ask.
+			 *
+			 * The submitted text is never updated. converted_item_id is the
+			 * two-way link to whatever the request became, and is indexed
+			 * because the client's own status view reads it the other way
+			 * round — from the work back to what was asked.
+			 */
+			$submissions  => "CREATE TABLE {$submissions} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	type varchar(20) NOT NULL DEFAULT 'request',
+	title varchar(191) NOT NULL,
+	description text NOT NULL,
+	desired_outcome text NOT NULL,
+	evidence text NOT NULL,
+	submitted_by varchar(191) NOT NULL DEFAULT '',
+	intake_state varchar(20) NOT NULL DEFAULT 'received',
+	response text NOT NULL,
+	converted_item_id varchar(32) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY client_site_id (client_site_id),
+	KEY client_id (client_id),
+	KEY intake_state (intake_state),
+	KEY converted_item_id (converted_item_id)
 ) {$collate};",
 
 			/*

@@ -58,6 +58,7 @@ final class Screen {
 			BoardScreen::SLUG,
 			TimelineScreen::SLUG,
 			CalendarScreen::SLUG,
+			AskScreen::SLUG,
 			ConnectionScreen::SLUG,
 		);
 	}

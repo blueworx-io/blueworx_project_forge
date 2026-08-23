@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.25.0] - 2026-08-22
+
+### Added
+
+- Clients can now ask for things from their own site: a request, an idea or a
+  suggestion, with what they want, what good would look like, and anything that
+  helps.
+- This works whether or not the client has a support package. Having one
+  affects how quickly work can be scheduled, not whether they can ask.
+- What a client sends is kept exactly as they wrote it and can never be edited
+  afterwards — by them or by us. Changing your mind means sending another one,
+  and both stay visible.
+- A send that fails leaves the words in the boxes and says what went wrong, so
+  nobody retypes three paragraphs because a connection dropped.
+
 ## [2.24.0] - 2026-08-22
 
 ### Added
