@@ -92,6 +92,18 @@ final class Events {
 	public const CORRECTED = 'corrected';
 
 	/**
+	 * This work is what a client's request became (#132).
+	 *
+	 * Recorded on the work rather than only on the request, and that direction
+	 * is the point. The submission already carries the link forward — the
+	 * client reads "this became" on their own site — but somebody looking at a
+	 * card six months later wants the other direction: why does this exist, and
+	 * who asked for it. An entry here answers that from the item's own history
+	 * instead of from a join nobody thinks to make.
+	 */
+	public const CONVERTED = 'converted';
+
+	/**
 	 * Work was made to wait on other work (#103).
 	 */
 	public const DEPENDENCY_ADDED = 'dependency-added';
@@ -119,6 +131,7 @@ final class Events {
 		self::REOPENED,
 		self::OVERRIDDEN,
 		self::CORRECTED,
+		self::CONVERTED,
 		self::DEPENDENCY_ADDED,
 		self::DEPENDENCY_REMOVED,
 	);

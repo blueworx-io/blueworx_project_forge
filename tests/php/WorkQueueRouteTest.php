@@ -81,10 +81,72 @@ final class WorkQueueRouteTest extends TestCase {
 	 * test that says so out loud.
 	 */
 	public function test_both_endpoints_declare_who_may_call_them(): void {
-		foreach ( array( array( '/submissions', 'GET' ), array( '/submissions/(?P<submission_id>[A-Za-z0-9_\-]+)', 'PATCH' ) ) as $one ) {
+		foreach ( $this->endpoints() as $one ) {
 			$endpoint = $this->endpoint( $one[0], $one[1] );
 
 			$this->assertIsCallable( $endpoint['args']['permission_callback'] ?? null );
 		}
 	}
+
+	/**
+	 * A request can be turned into work (#132).
+	 */
+	public function test_a_request_can_be_converted(): void {
+		$this->assertIsArray( $this->endpoint( self::CONVERSION, 'POST' ) );
+	}
+
+	/**
+	 * The conversion route names no client and no site, and that absence is
+	 * D-40 rather than a tidy signature.
+	 *
+	 * The pipeline the work lands in comes off the submission, which got it
+	 * from the signature that carried it (#129). A route with a `client_site_id`
+	 * argument would make "never into another client's pipeline" a validation
+	 * rule somebody has to keep getting right; a route with no such argument
+	 * cannot get it wrong.
+	 */
+	public function test_the_conversion_route_takes_no_parameter_naming_a_client_or_site(): void {
+		$args = (array) ( $this->endpoint( self::CONVERSION, 'POST' )['args']['args'] ?? array() );
+
+		$naming = array_values(
+			array_filter(
+				array_keys( $args ),
+				static fn( $name ): bool => str_contains( (string) $name, 'client' )
+					|| str_contains( (string) $name, 'site' )
+			)
+		);
+
+		$this->assertSame( array(), $naming );
+	}
+
+	/**
+	 * It is a list scope with its reason written down, for the same reason the
+	 * triage write is: the submission has to be read before anybody can know
+	 * whose it is, so the callback does the reach check rather than the
+	 * boundary.
+	 */
+	public function test_the_conversion_route_says_how_it_is_scoped(): void {
+		$scope = $this->endpoint( self::CONVERSION, 'POST' )['args']['scope'];
+
+		$this->assertSame( Boundary::SCOPE_LIST, $scope['kind'] );
+		$this->assertNotSame( '', trim( (string) $scope['reason'] ) );
+	}
+
+	/**
+	 * The path this suite's three endpoints live at.
+	 *
+	 * @return array<int, array<int, string>>
+	 */
+	private function endpoints(): array {
+		return array(
+			array( '/submissions', 'GET' ),
+			array( '/submissions/(?P<submission_id>[A-Za-z0-9_\-]+)', 'PATCH' ),
+			array( self::CONVERSION, 'POST' ),
+		);
+	}
+
+	/**
+	 * The conversion route's path.
+	 */
+	private const CONVERSION = '/submissions/(?P<submission_id>[A-Za-z0-9_\-]+)/conversion';
 }

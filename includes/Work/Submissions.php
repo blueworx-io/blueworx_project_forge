@@ -241,6 +241,60 @@ final class Submissions {
 	}
 
 	/**
+	 * Links a request to the work it became (#132).
+	 *
+	 * Separate from {@see self::respond()} because the two are guarded by
+	 * different facts. A triage write is checked against the person doing it; a
+	 * conversion is checked against the *item* — it has to belong to the same
+	 * client site as the submission, and {@see self::changes()} cannot see an
+	 * item to check one. That is why `converted_item_id` is deliberately absent
+	 * from the allowlist there, and why the only way to set it is through here,
+	 * behind Work\Conversion's rules.
+	 *
+	 * It refuses a submission that has already been converted rather than
+	 * repointing it. A request becomes work once: rewriting the link would
+	 * silently change what the client reads under "this became" on their own
+	 * site, and would leave the work it used to point at with nothing recording
+	 * where it came from.
+	 *
+	 * The client's words are not among the columns written. That is the whole
+	 * point of the method being this small.
+	 *
+	 * @param string $id      Submission id.
+	 * @param string $item_id The work item it became.
+	 * @return array<string, mixed>|null The stored row, or null when there is no
+	 *                                   such submission, it is already
+	 *                                   converted, or the write failed.
+	 */
+	public static function mark_converted( string $id, string $item_id ): ?array {
+		global $wpdb;
+
+		$existing = self::get( $id );
+
+		if ( null === $existing || '' === $item_id || '' !== (string) $existing['converted_item_id'] ) {
+			return null;
+		}
+
+		$changes = array(
+			'converted_item_id' => $item_id,
+			'intake_state'      => 'converted',
+			'updated_at'        => bwx_forge_now(),
+			'record_version'    => ( (int) $existing['record_version'] ) + 1,
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- This plugin's own table; there is no core API for it.
+		$written = $wpdb->update(
+			Schema::submissions_table(),
+			$changes,
+			array( 'id' => $id ),
+			Formats::for_row( $changes ),
+			array( '%s' )
+		);
+
+		return false === $written ? null : self::get( $id );
+	}
+
+	/**
 	 * One submission.
 	 *
 	 * @param string $id Submission id.

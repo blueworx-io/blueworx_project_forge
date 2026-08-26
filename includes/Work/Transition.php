@@ -591,6 +591,88 @@ final class Transition {
 	}
 
 	/**
+	 * Records that this work is what a client's request became (#132).
+	 *
+	 * On the item rather than on the submission, because the submission's own
+	 * copy of the link is the client-facing one and this is ours. It says which
+	 * request, in the item's own history, next to the creation entry — so
+	 * "where did this come from" is answered by reading the card rather than by
+	 * knowing to look in the intake table.
+	 *
+	 * The client's words are not copied into the entry. A changelog is not the
+	 * place to keep a second copy of text that is fixed somewhere else (REQ-1);
+	 * the id is what makes the record findable, and the record is what has the
+	 * words in it.
+	 *
+	 * @param array<string, mixed> $item       The work, created or linked.
+	 * @param array<string, mixed> $submission The request it answers.
+	 * @param int                  $actor      WordPress user id of the converter.
+	 */
+	public static function record_conversion( array $item, array $submission, int $actor ): void {
+		Events::append(
+			array(
+				'item_id'        => (string) $item['id'],
+				'client_site_id' => (string) $item['client_site_id'],
+				'action'         => Events::CONVERTED,
+				'to_stage'       => (string) $item['stage'],
+				'reason'         => (string) ( $submission['title'] ?? '' ),
+				'detail'         => (string) ( $submission['id'] ?? '' ),
+				'cycle'          => (int) $item['cycle'],
+				'actor'          => $actor,
+			)
+		);
+	}
+
+	/**
+	 * Records what conversion itself established, as the Future Idea gate's own
+	 * requirements (#132).
+	 *
+	 * The three records written here are not a way round the gate; they are the
+	 * gate, answered. G-FUTURE-IDEA asks which site this is scoped to, where it
+	 * came from, and whether it has been submitted for triage — and a
+	 * conversion has just answered all three by definition. The site came off
+	 * the submission and could not have been anything else, the source is a
+	 * client request and the id says which, and choosing Triage as the entry
+	 * stage *is* submitting it.
+	 *
+	 * They are written as ordinary gate records, with the converting person's
+	 * name and the time on them, rather than by skipping the gate. That
+	 * distinction is the whole reason this is here and not a flag on move():
+	 * somebody reading the item afterwards sees three requirements completed by
+	 * a named person on a date, which is true, instead of a stage the system
+	 * silently allowed.
+	 *
+	 * The fourth requirement is the problem statement, and it is a field. It is
+	 * filled from the client's description when the item is created, so there
+	 * is nothing to record for it here.
+	 *
+	 * @param array<string, mixed> $item       The work just created.
+	 * @param array<string, mixed> $submission The request it answers.
+	 * @param int                  $actor      WordPress user id of the converter.
+	 */
+	public static function record_intake_gate( array $item, array $submission, int $actor ): void {
+		$answers = array(
+			'G-FUTURE-IDEA-2' => (string) $item['client_site_id'],
+			'G-FUTURE-IDEA-3' => 'client-request:' . (string) ( $submission['id'] ?? '' ),
+			'G-FUTURE-IDEA-4' => (string) ( $submission['title'] ?? '' ),
+		);
+
+		foreach ( $answers as $requirement => $value ) {
+			GateRecords::complete(
+				array(
+					'item_id'        => (string) $item['id'],
+					'client_site_id' => (string) $item['client_site_id'],
+					'requirement'    => $requirement,
+					'value'          => $value,
+					'cycle'          => (int) $item['cycle'],
+					'attempt'        => (int) $item['review_attempt'],
+					'actor'          => $actor,
+				)
+			);
+		}
+	}
+
+	/**
 	 * Records the creation of an item, so its history starts where it does.
 	 *
 	 * @param array<string, mixed> $item  The item as created.

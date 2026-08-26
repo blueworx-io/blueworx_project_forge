@@ -147,6 +147,32 @@ export interface Submission {
   updated_at: number;
 }
 
+/**
+ * What turning a request into work asks for (#132).
+ *
+ * There is no client and no site here, and there is no version of this type
+ * that has one. The pipeline the work lands in comes off the submission on the
+ * server; a field here that could name one would be the thing D-40 exists to
+ * make impossible.
+ */
+export interface ConversionRequest {
+  entry_stage: string;
+
+  /** Link work that already exists, instead of making some. */
+  item_id?: string;
+
+  /** Hang it under work that already exists… */
+  parent_id?: string;
+
+  /** …or under a parent made on the way. Both, and it is refused. */
+  parent_title?: string;
+  parent_level?: string;
+
+  /** The card's own title, where it should differ from what was asked. */
+  title?: string;
+  work_type?: string;
+}
+
 /** The queue's own filter set — not the board's, which filters work items. */
 export interface QueueFilters {
   client_id?: string[];
