@@ -118,6 +118,65 @@ final class Styles {
 .bwx-list li:last-child { border-bottom: 0; }
 [data-bwx-reason="blocked"] .bwx-card-key { color: var(--color-coral, #d63638); }
 .bwx-undated { margin-top: 1.5rem; }
+
+/* The workspace frame. Never had rules of its own, so every client screen has
+   been running its page links together into one word since #126. */
+.bwx-client-frame { margin: 0 0 1rem; }
+.bwx-client-scope { margin: 0 0 0.4rem; color: var(--text-muted, #646970); }
+
+.bwx-client-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1.25rem;
+	border-bottom: 1px solid var(--border-subtle, #dcdcde);
+	padding-bottom: 0.5rem;
+}
+
+.bwx-client-nav-item { text-decoration: none; padding: 0.15rem 0; }
+.bwx-client-nav-item[aria-current="page"] { color: var(--text-primary, #1d2327); font-weight: 600; box-shadow: inset 0 -2px 0 0 currentColor; }
+
+/* What you asked for (#130). An exchange, not a table: the request, then the
+   reply set in under it. */
+.bwx-asked { max-width: var(--content-max-width, 60rem); margin-top: 1rem; }
+
+.bwx-asked-entry {
+	background: var(--surface-card, #fff);
+	border: 1px solid var(--border-subtle, #dcdcde);
+	border-radius: var(--radius-cards, 8px);
+	padding: var(--card-padding-lg, 1rem);
+	margin: 0 0 0.75rem;
+}
+
+.bwx-asked-head { display: flex; gap: 0.75rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.bwx-asked-title { margin: 0; font-size: var(--text-heading-sm, 1rem); line-height: 1.3; }
+.bwx-asked-meta { margin: 0.15rem 0 0; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
+.bwx-asked-words { margin: 0.6rem 0 0; }
+.bwx-asked-words p { margin: 0 0 0.4rem; }
+.bwx-asked-words p:last-child { margin-bottom: 0; }
+
+.bwx-asked-reply {
+	margin: 0.75rem 0 0;
+	padding: 0.6rem 0 0.1rem 0.85rem;
+	border-left: 3px solid var(--surface-action, #2271b1);
+}
+
+.bwx-asked-reply p { margin: 0 0 0.35rem; }
+.bwx-asked-became { font-size: var(--text-small, 0.85rem); }
+.bwx-asked-waiting { margin-top: 0.75rem; }
+
+.bwx-status {
+	flex: none;
+	border-radius: var(--radius-pills, 999px);
+	padding: 0.1rem 0.6rem;
+	font-size: var(--text-small, 0.75rem);
+	white-space: nowrap;
+	background: var(--surface-muted, #f6f7f7);
+	color: var(--text-muted, #646970);
+	border: 1px solid var(--border-subtle, #dcdcde);
+}
+
+.bwx-status-going { color: var(--surface-action, #2271b1); border-color: currentColor; }
+.bwx-status-closed { color: var(--color-coral, #d63638); border-color: currentColor; }
 CSS;
 	}
 }

@@ -91,6 +91,99 @@ final class ClientView {
 	}
 
 	/**
+	 * A list of submissions, as the client who sent them may see them (#130).
+	 *
+	 * @param array<int, array<string, mixed>> $rows   Submission rows.
+	 * @param callable                         $lookup Takes a work item id,
+	 *                                                 returns the item or null.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function submissions( array $rows, callable $lookup ): array {
+		return array_values(
+			array_map(
+				static fn( array $row ): array => self::submission( $row, $lookup ),
+				$rows
+			)
+		);
+	}
+
+	/**
+	 * One submission, as the client who sent it may see it.
+	 *
+	 * An allowlist for the same reason as the item projection above, and one
+	 * addition: the id of the work this became is resolved rather than
+	 * published. An id tells a client nothing, and the act of resolving it is
+	 * where the tenancy check belongs.
+	 *
+	 * @param array<string, mixed> $row    A submission row.
+	 * @param callable             $lookup Takes a work item id, returns the item
+	 *                                     or null.
+	 * @return array<string, mixed>
+	 */
+	public static function submission( array $row, callable $lookup ): array {
+		$state = (string) ( $row['intake_state'] ?? '' );
+
+		return array(
+			'id'              => (string) ( $row['id'] ?? '' ),
+			'type'            => (string) ( $row['type'] ?? '' ),
+			'title'           => (string) ( $row['title'] ?? '' ),
+			'description'     => (string) ( $row['description'] ?? '' ),
+			'desired_outcome' => (string) ( $row['desired_outcome'] ?? '' ),
+			'evidence'        => (string) ( $row['evidence'] ?? '' ),
+			'submitted_by'    => (string) ( $row['submitted_by'] ?? '' ),
+			'intake_state'    => $state,
+			'intake_label'    => Submissions::label( $state ),
+			'response'        => (string) ( $row['response'] ?? '' ),
+			'converted'       => self::converted( $row, $lookup ),
+			'created_at'      => (int) ( $row['created_at'] ?? 0 ),
+			'updated_at'      => (int) ( $row['updated_at'] ?? 0 ),
+		);
+	}
+
+	/**
+	 * The work a submission became, where it became any of this client's.
+	 *
+	 * Three ways this comes back empty, and they are deliberately the same
+	 * answer: nothing was converted, the item has since gone, or the item
+	 * belongs to another client site. The last is the one that matters. A
+	 * conversion recorded against the wrong site is a studio mistake, and a
+	 * studio mistake must not become a hole a client reads another client's work
+	 * through — so the site the submission came from is checked here, every
+	 * read, rather than trusted to have been checked when it was written.
+	 *
+	 * @param array<string, mixed> $row    A submission row.
+	 * @param callable             $lookup Takes a work item id, returns the item
+	 *                                     or null.
+	 * @return array<string, string>
+	 */
+	private static function converted( array $row, callable $lookup ): array {
+		$id = (string) ( $row['converted_item_id'] ?? '' );
+
+		if ( '' === $id ) {
+			return array();
+		}
+
+		$item = $lookup( $id );
+
+		if ( ! is_array( $item ) ) {
+			return array();
+		}
+
+		if ( (string) ( $item['client_site_id'] ?? '' ) !== (string) ( $row['client_site_id'] ?? '' ) ) {
+			return array();
+		}
+
+		$stage = (string) ( $item['stage'] ?? '' );
+
+		return array(
+			'id'          => (string) ( $item['id'] ?? '' ),
+			'title'       => (string) ( $item['title'] ?? '' ),
+			'stage'       => $stage,
+			'stage_label' => Stages::label( $stage ),
+		);
+	}
+
+	/**
 	 * The three seats, each a display name or nothing.
 	 *
 	 * An empty seat and a seat naming somebody who has since been removed both

@@ -542,6 +542,30 @@ function wp_remote_get( string $url, array $args = array() ) {
 }
 
 /**
+ * Stub. The write half of the pair above, drawing on the same queue.
+ *
+ * One queue rather than two, so a test that expects a send followed by a read
+ * has to queue them in the order the code makes them. Two queues would let a
+ * test pass while the code called them the other way round.
+ *
+ * @param string               $url  Request URL.
+ * @param array<string, mixed> $args Request arguments.
+ * @return array<string, mixed>|WP_Error
+ */
+function wp_remote_post( string $url, array $args = array() ) {
+	$GLOBALS['bwx_forge_test_http_requests'][] = array(
+		'url'  => $url,
+		'args' => $args,
+	);
+
+	$queued = array_shift( $GLOBALS['bwx_forge_test_http'] );
+
+	return null === $queued
+		? new WP_Error( 'bwx_forge_test_no_response_queued', 'No response queued.' )
+		: $queued;
+}
+
+/**
  * Stub.
  *
  * @param mixed $thing Anything.

@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.26.0] - 2026-08-23
+
+### Added
+
+- Clients can now see what happened to everything they have asked for, on a new
+  "What you asked for" page on their own site.
+- Each request shows the words it was sent in, how far it has got, the studio's
+  reply once there is one, and a link through to the work it became.
+- A client who has asked for nothing is told so, and shown where to ask. A site
+  that cannot reach the studio says that instead, rather than showing an empty
+  list that reads as though the requests had vanished.
+
 ## [2.25.0] - 2026-08-22
 
 ### Added

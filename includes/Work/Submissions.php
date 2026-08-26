@@ -80,6 +80,39 @@ final class Submissions {
 	}
 
 	/**
+	 * What an intake state is called, in words a client reads (#130).
+	 *
+	 * The words live here, next to the states themselves, and travel out with
+	 * the record — the same rule the board's stages follow. A client screen that
+	 * turned 'in-review' into English itself would be a second copy of this
+	 * vocabulary, in a second place, that nobody updates the day a state is
+	 * added.
+	 *
+	 * An unrecognised state comes back as it arrived rather than as a guess.
+	 * Showing a slug is a small ugliness; inventing a status somebody acts on is
+	 * not.
+	 *
+	 * @param string $state One of STATES.
+	 * @return string
+	 */
+	public static function label( string $state ): string {
+		switch ( $state ) {
+			case 'received':
+				return __( 'Received', 'blueworx-forge' );
+			case 'in-review':
+				return __( 'Being looked at', 'blueworx-forge' );
+			case 'accepted':
+				return __( 'Accepted', 'blueworx-forge' );
+			case 'declined':
+				return __( 'Not going ahead', 'blueworx-forge' );
+			case 'converted':
+				return __( 'Became work', 'blueworx-forge' );
+			default:
+				return $state;
+		}
+	}
+
+	/**
 	 * Records a submission.
 	 *
 	 * The site and the client are passed in rather than read from the values,

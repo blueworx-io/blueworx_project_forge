@@ -66,6 +66,12 @@ final class Submission {
 			return self::failed( 'unreachable' );
 		}
 
+		// The list this site shows of what it has asked for is now a row short,
+		// and the person who just pressed send is about to go and look at it.
+		// Only on success: throwing the copy away after a failed send would buy
+		// a network round trip to learn what the site already knew.
+		Cache::forget( Submissions::ROUTE );
+
 		return array(
 			'ok'         => true,
 			'result'     => 'sent',
