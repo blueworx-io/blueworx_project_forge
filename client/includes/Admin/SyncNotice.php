@@ -49,11 +49,17 @@ final class SyncNotice {
 	/**
 	 * Renders the notice.
 	 *
-	 * @param array<string, mixed> $sync The sync block from a read-through view.
-	 * @param string               $slug The screen asking, so "check again"
-	 *                                   comes back to where the reader was.
+	 * @param array<string, mixed>  $sync The sync block from a read-through view.
+	 * @param string                $slug The screen asking, so "check again"
+	 *                                    comes back to where the reader was.
+	 * @param array<string, string> $keep Anything else the screen's URL needs to
+	 *                                    come back to the same place — a screen
+	 *                                    showing one record needs the id, and
+	 *                                    "check again" landing on an empty
+	 *                                    version of itself is worse than no
+	 *                                    link.
 	 */
-	public static function render( array $sync, string $slug ): void {
+	public static function render( array $sync, string $slug, array $keep = array() ): void {
 		$state      = (string) $sync['state'];
 		$fetched_at = (int) $sync['fetched_at'];
 		$ago        = $fetched_at > 0
@@ -79,28 +85,45 @@ final class SyncNotice {
 			$message = __( 'This site has not been connected to the studio yet.', 'blueworx-forge' );
 		}
 
+		/*
+		 * The studio answered, and the answer was no. Nothing here is out of
+		 * date, so nothing here should say "last synced" — and there is no
+		 * refresh link, because asking again gets the same answer and a control
+		 * that cannot help is the dead control #134 exists to remove.
+		 */
+		if ( Sync::STATE_REFUSED === $state ) {
+			printf(
+				'<div class="notice notice-warning" data-bwx-sync-state="%1$s"><p>%2$s</p></div>',
+				esc_attr( $state ),
+				esc_html__( 'The studio did not recognise this. Your connection is working — this is something this site cannot see.', 'blueworx-forge' )
+			);
+
+			return;
+		}
+
 		printf(
 			'<div class="%1$s" data-bwx-sync-state="%2$s"><p>%3$s %4$s</p></div>',
 			esc_attr( $class ),
 			esc_attr( $state ),
 			esc_html( $message ),
-			wp_kses_post( self::refresh_link( $slug ) )
+			wp_kses_post( self::refresh_link( $slug, $keep ) )
 		);
 	}
 
 	/**
 	 * A link that asks the studio again, now.
 	 *
-	 * @param string $slug The screen to come back to.
+	 * @param string                $slug The screen to come back to.
+	 * @param array<string, string> $keep Anything else that screen's URL needs.
 	 * @return string
 	 */
-	private static function refresh_link( string $slug ): string {
+	private static function refresh_link( string $slug, array $keep = array() ): string {
 		if ( ! Connection::is_configured() ) {
 			return '';
 		}
 
 		$url = wp_nonce_url(
-			add_query_arg( 'bwx-refresh', '1', admin_url( 'admin.php?page=' . $slug ) ),
+			add_query_arg( array_merge( $keep, array( 'bwx-refresh' => '1' ) ), admin_url( 'admin.php?page=' . $slug ) ),
 			self::NONCE
 		);
 

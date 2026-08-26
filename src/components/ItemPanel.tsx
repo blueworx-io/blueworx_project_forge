@@ -102,7 +102,19 @@ export function ItemPanel( {
   const [ blocker, setBlocker ] = useState< Record< string, string > >( {} );
   const [ resolution, setResolution ] = useState( '' );
   const [ ending, setEnding ] = useState( { outcome: '', reason: '', duplicate_of: '' } );
-  const [ comment, setComment ] = useState( { body: '', url: '', visibility: 'internal' } );
+  const [ comment, setComment ] = useState( {
+    body: '',
+    url: '',
+    visibility: 'internal',
+
+    /*
+     * Whether this is an information request rather than a remark (#133).
+     * A question is always client-visible — one they cannot see is a note to
+     * ourselves — so turning this on takes the visibility choice away rather
+     * than leaving a control that can only be set one way.
+     */
+    asking: false,
+  } );
   const closer = useRef< HTMLButtonElement >( null );
 
   const label = ( id: string ) => stages.find( ( stage ) => stage.id === id )?.label ?? id;
@@ -232,11 +244,11 @@ export function ItemPanel( {
         body: {
           body: comment.body,
           url: comment.url,
-          kind: '' === comment.url.trim() ? 'comment' : 'evidence',
+          kind: kindOf( comment ),
           visibility: comment.visibility,
         },
       } );
-      setComment( { body: '', url: '', visibility: comment.visibility } );
+      setComment( { body: '', url: '', visibility: comment.visibility, asking: false } );
       await load();
     } catch ( error ) {
       setNotice( messageFor( error, 'That comment could not be saved.' ) );
@@ -682,8 +694,8 @@ export function ItemPanel( {
                         </span>
                       ) }
                       <span className="bwx-comment-meta bwx-mono">
-                        { 'internal' === each.visibility ? 'internal' : 'client can see this' } ·{ ' ' }
-                        { each.author_name } · { when( each.created_at ) }
+                        { said( each ) } · { each.author_name || 'the client' } ·{ ' ' }
+                        { when( each.created_at ) }
                       </span>
                     </li>
                   ) ) }
@@ -711,6 +723,31 @@ export function ItemPanel( {
                 />
               </div>
               { staff && (
+                <div className="bwx-field">
+                  <label>
+                    <input
+                      type="checkbox"
+                      data-testid="bwx-comment-asking"
+                      checked={ comment.asking }
+                      onChange={ ( event ) =>
+                        setComment( { ...comment, asking: event.target.checked } )
+                      }
+                    />{ ' ' }
+                    I am asking the client for something
+                  </label>
+                  <p className="bwx-hint">
+                    It shows on their own site as waiting for an answer, until they give one.
+                  </p>
+                </div>
+              ) }
+
+              { /*
+                 The visibility choice disappears once this is a question,
+                 because a question the client cannot see is not a question. A
+                 select that can only be set one way is the dead control #134
+                 exists to get rid of.
+               */ }
+              { staff && ! comment.asking && (
                 <div className="bwx-field">
                   <label htmlFor="bwx-comment-visibility">Who can read it</label>
                   <select
@@ -883,4 +920,33 @@ function GateList( {
       ) ) }
     </div>
   );
+}
+
+/**
+ * What one entry on an item is, in a few words.
+ *
+ * Four states rather than the two visibility gave us, because since #133 an
+ * entry can also be a question we asked or an answer a client sent back, and
+ * "client can see this" says nothing useful about either. Whether the studio is
+ * waiting on somebody is the thing worth reading at a glance.
+ */
+function said( entry: Comment ): string {
+  if ( 'question' === entry.kind ) {
+    return 'asked the client';
+  }
+
+  if ( entry.from_client ) {
+    return '' === ( entry.answers ?? '' ) ? 'from the client' : 'the client answered';
+  }
+
+  return 'internal' === entry.visibility ? 'internal' : 'client can see this';
+}
+
+/** Which kind of entry the comment form is about to write. */
+function kindOf( draft: { url: string; asking: boolean } ): string {
+  if ( draft.asking ) {
+    return 'question';
+  }
+
+  return '' === draft.url.trim() ? 'comment' : 'evidence';
 }

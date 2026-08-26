@@ -184,6 +184,7 @@ final class Capabilities {
 	public const COMMENT             = 'comment';
 	public const WRITE_INTERNAL_NOTE = 'write_internal_note';
 	public const ATTACH_EVIDENCE     = 'attach_evidence';
+	public const ANSWER_INFORMATION  = 'answer_information_request';
 
 	// Transition.
 	public const MOVE_FORWARD    = 'move_forward';
@@ -352,6 +353,23 @@ final class Capabilities {
 				self::all_no()
 			),
 			self::ATTACH_EVIDENCE          => self::row(
+				array( self::YES, self::YES, self::YES, self::YES, self::NO ),
+				array( self::NO, self::NO, self::NO, self::YES, self::NO )
+			),
+
+			/*
+			 * Answering something we asked (#133). The matrix's own row, and it
+			 * is a row of its own rather than folded into `comment` because the
+			 * two are not the same permission: a viewer may comment and may not
+			 * answer, since an answer is a client speaking for their
+			 * organisation and a comment is somebody speaking for themselves.
+			 *
+			 * Like the two above it, this changes no stage. AUTH-2 puts all
+			 * three in the same sentence for that reason — they are what a
+			 * client may do at any stage precisely because none of them is a
+			 * move (§14).
+			 */
+			self::ANSWER_INFORMATION       => self::row(
 				array( self::YES, self::YES, self::YES, self::YES, self::NO ),
 				array( self::NO, self::NO, self::NO, self::YES, self::NO )
 			),

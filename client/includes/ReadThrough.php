@@ -18,11 +18,17 @@ namespace Blueworx\Forge\Client;
  * 2. A copy younger than the acceptable staleness — serve it without touching
  *    the network, which is what keeps ordinary browsing quick.
  * 3. Otherwise ask the studio, and store what comes back.
- * 4. If that fails and there is an older copy — serve it, and say plainly that
- *    it is old and how old (ARCH-4).
- * 5. If that fails and there is nothing — say the studio is unreachable. Never
- *    an empty record, which reads as "you have nothing" rather than "we cannot
- *    see your things right now".
+ * 4. If the studio answered and the answer was a refusal — say so, and throw
+ *    away whatever was cached. A refusal is not an outage: the connection
+ *    worked and the answer was no, either because the record is not there or
+ *    because it is not this site's (#134). Serving the old copy after that
+ *    would be showing a client something the studio has just said they may not
+ *    have, and calling it an outage would blame the network for a boundary.
+ * 5. If the studio could not be reached and there is an older copy — serve it,
+ *    and say plainly that it is old and how old (ARCH-4).
+ * 6. If it could not be reached and there is nothing — say the studio is
+ *    unreachable. Never an empty record, which reads as "you have nothing"
+ *    rather than "we cannot see your things right now".
  *
  * This is shared rather than copied because the distinction in 4 and 5 is the
  * whole point of it, and it is the kind of distinction that survives being
@@ -67,10 +73,24 @@ final class ReadThrough {
 		}
 
 		$data   = $fresh->get_error_data();
+		$status = (int) ( $data['status'] ?? 0 );
 		$reason = array(
 			'reason' => $fresh->get_error_code(),
-			'status' => (int) ( $data['status'] ?? 0 ),
+			'status' => $status,
 		);
+
+		if ( self::is_refusal( $status ) ) {
+			/*
+			 * The studio answered. Whatever this site had is gone rather than
+			 * held: a refusal is the studio saying this record is not there or
+			 * not ours, and keeping a copy of it would mean a client goes on
+			 * reading something they have just been told they may not have.
+			 * There is nothing to fall back to and nothing to be stale about.
+			 */
+			Cache::forget( $route );
+
+			return self::result( null, Sync::STATE_REFUSED, 0, $reason );
+		}
 
 		Cache::fail( $route, $reason );
 
@@ -79,6 +99,26 @@ final class ReadThrough {
 		}
 
 		return self::result( null, Sync::STATE_UNREACHABLE, 0, $reason );
+	}
+
+	/**
+	 * Whether a status means the studio answered rather than failed.
+	 *
+	 * The 4xx range and nothing else. A 500 is the studio being broken, which
+	 * is an outage as far as this site is concerned and behaves like one; a 429
+	 * is the studio saying "not now", which is also worth showing as itself
+	 * rather than as a record that has gone missing.
+	 *
+	 * A status of zero is not a refusal. That is what a request that never got
+	 * an answer looks like — DNS, a timeout, a certificate — and treating it as
+	 * one would throw away a perfectly good cached copy every time somebody's
+	 * network hiccups.
+	 *
+	 * @param int $status HTTP status the studio answered with.
+	 * @return bool
+	 */
+	private static function is_refusal( int $status ): bool {
+		return $status >= 400 && $status < 500;
 	}
 
 	/**

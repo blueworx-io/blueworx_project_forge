@@ -115,7 +115,15 @@ test('the workspace screen shows the record and how old it is', async ({ browser
   await client.context.close();
 });
 
-test('a cut-off site keeps showing what it last saw, and says it is old', async ({ browser }) => {
+// A revoked site used to be shown its last copy, labelled stale, on the grounds
+// that ARCH-4 keeps a client site working while the studio cannot be reached.
+// The studio *was* reached here and said no, which is a different thing
+// entirely: going on showing the record is a site reading with a key the studio
+// has already refused (D-7, D-8), and calling it an outage blames the network
+// for a boundary (#133, #134).
+test('a cut-off site stops showing what it last saw, and says it was refused', async ({
+  browser,
+}) => {
   const { studio, client, site } = await connectedPair(browser, 'Cut Off Ltd');
 
   await workspace(client);
@@ -130,17 +138,22 @@ test('a cut-off site keeps showing what it last saw, and says it is old', async 
   // what the screen's "Check again" link does.
   const view = await workspace(client, { refresh: true });
 
-  expect(view.record.name).toBe('Cut Off Ltd');
-  expect(view.sync.state).toBe('stale');
-  expect(view.sync.stale).toBe(true);
+  expect(view.record, 'a revoked site went on showing the record it last saw').toBeNull();
+  expect(view.sync.state).toBe('refused');
+  expect(view.sync.stale, 'a refusal has nothing to be out of date about').toBe(false);
   expect(view.sync.status).toBe(401);
 
   const page = await client.context.newPage();
   await page.goto(SCREEN);
-  await expect(page.locator('[data-bwx-sync-state="stale"]')).toContainText(
-    'The studio could not be reached'
+
+  // The screen says what happened, in a sentence that does not send anybody
+  // looking for a network problem.
+  await expect(page.locator('[data-bwx-sync-state="refused"]')).toContainText(
+    'Your connection is working'
   );
-  await expect(page.locator('[data-bwx-workspace]')).toContainText('Cut Off Ltd');
+
+  // And the record itself is gone rather than left on screen behind the notice.
+  await expect(page.locator('[data-bwx-workspace]')).toHaveCount(0);
 
   await page.close();
   await studio.context.close();

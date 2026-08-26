@@ -226,6 +226,18 @@ export interface Comment {
   url: string;
   author_name: string;
   created_at: number;
+
+  /**
+   * Which side of the connection it came from (#133).
+   *
+   * A person on a client's own site has no account here, so `author_name` is a
+   * name the client site told us and there is no user id behind it. This says
+   * so plainly rather than leaving a screen to infer it from an author of zero.
+   */
+  from_client?: boolean;
+
+  /** The question this answers, where it answers one. */
+  answers?: string;
 }
 
 export interface WorkEvent {

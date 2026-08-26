@@ -11,12 +11,16 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\Registry;
 use Blueworx\Forge\Work\ClientView;
+use Blueworx\Forge\Work\Comments;
+use Blueworx\Forge\Work\Contributions;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
 use Blueworx\Forge\Work\Validate as WorkValidate;
+use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Integrations;
+use Blueworx\Forge\Tenancy\Roles;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
@@ -120,6 +124,45 @@ final class ClientController {
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
 					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		/*
+		 * The two contribution routes (#133). They name a work item, unlike
+		 * every other route here, so each callback checks that item against the
+		 * signing site before doing anything with it — an id from another
+		 * client is answered as one that does not exist (D-1, D-2).
+		 *
+		 * There is deliberately no third route. A client site can read the
+		 * discussion on a piece of its own work and add to it, and that is the
+		 * whole surface: nothing here edits an entry, nothing deletes one, and
+		 * — the point of the issue — nothing moves the work.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/client/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/comments',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'discussion' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and the callback refuses any item that is not on it (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/comments',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'contribute' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and the callback refuses any item that is not on it (ARCH-6).',
 				),
 			)
 		);
@@ -401,6 +444,201 @@ final class ClientController {
 				'ok'         => true,
 				'submission' => $stored,
 			)
+		);
+	}
+
+	/**
+	 * The discussion on one piece of this site's work (#133).
+	 *
+	 * Client-visible entries only, and that is the query rather than a filter
+	 * this method applies — Work\Comments::for_item() in the client scope never
+	 * selects an internal note, so there is no argument this could pass and no
+	 * bug it could contain that would return one.
+	 *
+	 * The outstanding questions come with it. A client arriving at a piece of
+	 * their work should be told what is being waited on rather than have to
+	 * find it in a thread, and answering is the one contribution with a rule
+	 * attached — so the screen needs to know which questions are real before it
+	 * can offer to answer one.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function discussion( WP_REST_Request $request ) {
+		$item = self::their_item( $request );
+
+		if ( ! is_array( $item ) ) {
+			return $item;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'          => true,
+				'generated'   => bwx_forge_now(),
+				'item'        => ClientView::item( $item, array( Users::class, 'get' ) ),
+				'comments'    => Comments::for_item( (string) $item['id'], Comments::SCOPE_CLIENT ),
+				'outstanding' => Comments::outstanding( (string) $item['id'] ),
+
+				/*
+				 * What this client may do here, decided by the studio and sent
+				 * with the record rather than worked out on the far side. A
+				 * client artifact that decided for itself what it was allowed
+				 * to do would be a second copy of the permission matrix, and
+				 * the copy that is wrong is always the one nobody enforces.
+				 */
+				'may'         => self::client_may(),
+			)
+		);
+	}
+
+	/**
+	 * Records something the client has to say about their own work (#133).
+	 *
+	 * A comment, a piece of evidence, or an answer to something we asked. All
+	 * three are permitted at any stage (AUTH-2) and none of them is a stage
+	 * change — which is a fact about Work\Contributions rather than a check
+	 * made here: what arrives is read down to four keys, none of which is a
+	 * stage, and what leaves is a row in the comments table.
+	 *
+	 * **There is no transition anywhere in this path**, and that is what the
+	 * whole issue is closed on. Nothing below calls Work\Transition, touches
+	 * Work\Items, or writes a gate record. A client contribution is words, and
+	 * words do not move work (§14).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function contribute( WP_REST_Request $request ) {
+		$item = self::their_item( $request );
+
+		if ( ! is_array( $item ) ) {
+			return $item;
+		}
+
+		$body  = (array) $request->get_json_params();
+		$asked = Contributions::read( $body );
+
+		$refused = Contributions::refuse( $asked, Comments::outstanding( (string) $item['id'] ) );
+
+		if ( Contributions::ALLOWED !== $refused ) {
+			return Errors::rest( $refused, Contributions::reason( $refused ), 400 );
+		}
+
+		/*
+		 * The client administrator's own row of the matrix, asked for the
+		 * capability this particular contribution exercises. The connection has
+		 * already proved which site is calling; this proves that what is being
+		 * attempted is something a client may do at all, so the answer is the
+		 * same whether it arrives from the client's screen or from a script
+		 * somebody pointed at the route.
+		 */
+		$decision = Capabilities::decide(
+			Contributions::capability( $asked ),
+			array(
+				'role'      => Roles::CLIENT_ADMIN,
+				'interface' => Capabilities::CLIENT,
+				'own_site'  => true,
+			)
+		);
+
+		if ( ! $decision['allowed'] ) {
+			return Errors::rest( 'not_permitted', $decision['reason'], 403, array( 'denied_by' => $decision['code'] ) );
+		}
+
+		$recorded = Comments::add(
+			Contributions::entry(
+				$asked,
+				$item,
+				(string) $request->get_header( Signature::HEADER_SITE ),
+				(string) ( $body['author_name'] ?? '' )
+			),
+			Comments::SCOPE_CLIENT
+		);
+
+		if ( null === $recorded ) {
+			return Errors::rest(
+				'not_recorded',
+				__( 'That could not be recorded. Nothing has been sent.', 'blueworx-forge' ),
+				500
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'comment' => $recorded,
+
+				// The stage, echoed back deliberately. It is the same stage the
+				// item was at before, and a client screen showing it after a
+				// contribution is showing the guarantee rather than a value.
+				'stage'   => (string) $item['stage'],
+			)
+		);
+	}
+
+	/**
+	 * The work item this request names, if it belongs to the site that signed
+	 * for it.
+	 *
+	 * An item on another site gets the same answer as an id nobody has used.
+	 * This is the only place in this controller where a caller names a record
+	 * at all — every other route here describes the signing site itself — so it
+	 * is the only place D-1 and D-2 have anything to bite on, and the check is
+	 * made before the item is used for anything.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private static function their_item( WP_REST_Request $request ) {
+		$integration = Integrations::by_site_id( (string) $request->get_header( Signature::HEADER_SITE ) );
+
+		if ( null === $integration ) {
+			return Errors::rest(
+				'no_integration',
+				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		$item = Items::get( (string) $request->get_param( 'item_id' ) );
+
+		if ( null === $item || (string) $item['client_site_id'] !== (string) $integration['client_site_id'] ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		return $item;
+	}
+
+	/**
+	 * What a client administrator may do on their own site, as the matrix says.
+	 *
+	 * Sent with the discussion so the client artifact draws a control only
+	 * where there is something behind it (#134). Read from
+	 * Tenancy\Capabilities rather than written out here, because a hard-coded
+	 * "clients may comment" would be a second copy of the matrix that stays
+	 * true right up until the matrix changes.
+	 *
+	 * @return array<string, bool>
+	 */
+	private static function client_may(): array {
+		$context = array(
+			'role'      => Roles::CLIENT_ADMIN,
+			'interface' => Capabilities::CLIENT,
+			'own_site'  => true,
+		);
+
+		return array(
+			'comment'  => Capabilities::allows( Capabilities::COMMENT, $context ),
+			'evidence' => Capabilities::allows( Capabilities::ATTACH_EVIDENCE, $context ),
+			'answer'   => Capabilities::allows( Capabilities::ANSWER_INFORMATION, $context ),
+
+			/*
+			 * Stated rather than left out, because a screen that draws no move
+			 * controls and a screen that has not been told about them look the
+			 * same, and only one of them is a promise. §14: no client role
+			 * moves work, by any route, and the WF-5 override cannot open it.
+			 */
+			'move'     => Capabilities::allows( Capabilities::MOVE_FORWARD, $context ),
 		);
 	}
 

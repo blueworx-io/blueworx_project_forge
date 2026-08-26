@@ -177,6 +177,27 @@ final class Styles {
 
 .bwx-status-going { color: var(--surface-action, #2271b1); border-color: currentColor; }
 .bwx-status-closed { color: var(--color-coral, #d63638); border-color: currentColor; }
+
+/*
+ * The conversation on one item (#133). The client's own entries are indented
+ * and ruled, the studio's are not — the same shape "What you asked for" already
+ * uses for a reply to a letter, so the two screens read as one product rather
+ * than as two takes on a thread.
+ */
+.bwx-asked-entry[data-bwx-from="client"] {
+	margin-left: 1.25rem;
+	border-left: 3px solid var(--surface-action, #2271b1);
+}
+
+/* An outstanding question is the one thing on this page somebody has to act
+   on, so it is the one thing that is coloured. */
+[data-testid="bwx-questions"] .bwx-asked-entry {
+	border-left: 3px solid var(--color-coral, #d63638);
+}
+
+[data-testid="bwx-questions"] form { margin-top: 0.6rem; }
+.bwx-card-title a { text-decoration: none; }
+.bwx-card-title a:hover { text-decoration: underline; }
 CSS;
 	}
 }

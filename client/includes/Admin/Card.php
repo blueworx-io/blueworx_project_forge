@@ -16,10 +16,12 @@ namespace Blueworx\Forge\Client\Admin;
  * more of an item on the calendar than on the board. What a client may see is
  * decided once, in the studio's projection, and drawn once, here.
  *
- * Nothing on this card is a control. There is no link into an editor, no
- * select, no button — not because they are hidden on a client site but because
- * this artifact contains no code that could render one, which is what #128 asks
- * for and what the artifact check enforces.
+ * Nothing on this card is a control. Since #133 the title is a link, and it is
+ * worth being precise about why that is still true: it opens a page that reads
+ * the same item and offers somewhere to write a comment. There is no select, no
+ * button that changes where the work sits, and no code on this artifact that
+ * could render one — which is what #128 asks for and what the artifact check
+ * enforces.
  */
 final class Card {
 
@@ -57,22 +59,37 @@ final class Card {
 	 * @param bool                 $with_stage  Whether to name the stage. The
 	 *                                          board puts items in columns that
 	 *                                          already say it.
+	 * @param bool                 $linked      Whether the title opens the item.
+	 *                                          False on the item's own page,
+	 *                                          where a link back to where the
+	 *                                          reader already is is noise.
 	 */
-	public static function render( array $item, bool $with_stage = true ): void {
+	public static function render( array $item, bool $with_stage = true, bool $linked = true ): void {
 		$id = (string) ( $item['id'] ?? '' );
 
-		// An anchor, not a control. "What you asked for" names the work a
-		// request became and has to be able to point at it, and the board has
-		// no page of its own per item to point at (#130).
+		// The anchor stays whether or not the title is a link. "What you asked
+		// for" points at the work a request became, and it points at the board
+		// (#130) — a card that only had a link would leave that pointing at
+		// nothing.
 		printf(
 			'<article class="bwx-card" data-testid="bwx-card" id="bwx-item-%1$s" data-bwx-item="%1$s">',
 			esc_attr( $id )
 		);
 
-		printf(
-			'<h3 class="bwx-card-title" data-testid="bwx-card-title">%s</h3>',
-			esc_html( (string) ( $item['title'] ?? '' ) )
-		);
+		$title = (string) ( $item['title'] ?? '' );
+
+		if ( $linked && '' !== $id ) {
+			printf(
+				'<h3 class="bwx-card-title" data-testid="bwx-card-title"><a href="%s">%s</a></h3>',
+				esc_url( ItemScreen::url( $id ) ),
+				esc_html( $title )
+			);
+		} else {
+			printf(
+				'<h3 class="bwx-card-title" data-testid="bwx-card-title">%s</h3>',
+				esc_html( $title )
+			);
+		}
 
 		if ( $with_stage ) {
 			printf(
