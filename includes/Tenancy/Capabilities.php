@@ -178,6 +178,7 @@ final class Capabilities {
 	public const EDIT_COMMERCIAL     = 'edit_commercial_fields';
 	public const EDIT_DERIVED_STATE  = 'edit_derived_state';
 	public const EDIT_APPEND_ONLY    = 'edit_append_only_record';
+	public const REVIEW_SUBMISSION   = 'review_submission';
 
 	// Comment and evidence.
 	public const COMMENT             = 'comment';
@@ -323,6 +324,22 @@ final class Capabilities {
 			 */
 			self::EDIT_DERIVED_STATE       => self::row( self::all_no(), self::all_no() ),
 			self::EDIT_APPEND_ONLY         => self::row( self::all_no(), self::all_no() ),
+
+			/*
+			 * Triage (#131): setting where a request has got to, and writing
+			 * the reply the client reads on their own site.
+			 *
+			 * Studio only, and studio staff only. A client administrator may
+			 * send a request and read the answer; writing the answer is
+			 * answering oneself. The client column is `no` for the usual ARCH-1
+			 * reason — the client plugin contains no studio code — but it is
+			 * stated rather than left implied, because this capability writes
+			 * to the one record a client is otherwise the author of.
+			 */
+			self::REVIEW_SUBMISSION        => self::row(
+				array( self::YES, self::YES, self::YES, self::NO, self::NO ),
+				self::all_no()
+			),
 
 			// ---- Comment and evidence ------------------------------------
 

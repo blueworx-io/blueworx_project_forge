@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.27.0] - 2026-08-26
+
+### Added
+
+- A Requests screen in Forge, listing everything every client has asked for in
+  one place, so nothing sits waiting on somebody remembering to look.
+- Each request opens to show exactly what the client sent, with two things you
+  can do about it: say where it has got to, and write the reply they read back
+  on their own site.
+- Filter the queue by client, status, kind of request, or by searching what was
+  written.
+- Somebody who only works with certain clients sees only those clients'
+  requests. Seeing all of them takes the cross-client access.
+
+### Changed
+
+- Forge now has two screens rather than four views of one. Work is the board,
+  list, schedule and calendar as before; Requests is the new queue. The site
+  picker and the work filters only appear where they mean something.
+- A client's reply on their "What you asked for" page is now written by the
+  studio rather than standing in as test data.
+
 ## [2.26.0] - 2026-08-23
 
 ### Added

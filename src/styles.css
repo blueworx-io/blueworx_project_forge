@@ -1009,3 +1009,91 @@ body {
   color: var( --color-fog );
   font-size: var( --text-small );
 }
+
+/* ---- Shell bar and the request queue (#131) ---- */
+
+/* The wordmark and the screen switch, above whichever screen is open. Quieter
+   than a screen's own header: this bar says where you are, and the header
+   below it says what you can do here. */
+.bwx-shellbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var( --color-snow );
+  border-bottom: 1px solid var( --color-chalk );
+  flex-wrap: wrap;
+}
+
+.bwx-queue {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+/* The rail down the left of each row, carrying the intake state — the same
+   device the board's cards and the list's rows use for a work stage, so the
+   queue reads as part of the same application rather than a screen bolted on.
+
+   Waiting states are the loud ones. Received and Being looked at are the rows
+   somebody has to do something about; the three settled states are deliberately
+   quiet, because a queue where every row shouts is a queue nobody scans. */
+.bwx-queue .bwx-row {
+  --intake-received: var( --color-signal-blue );
+  --intake-in-review: var( --color-warning );
+  --intake-accepted: var( --color-success );
+  --intake-declined: var( --color-chalk );
+  --intake-converted: var( --color-chalk );
+}
+
+.bwx-queue .bwx-chip[data-state='in-review'] {
+  --chip-bg: var( --color-warning-bg );
+  --chip-border: var( --color-warning-border );
+  --chip-ink: var( --color-graphite );
+}
+
+.bwx-queue .bwx-chip[data-state='accepted'] {
+  --chip-bg: var( --color-success-bg );
+  --chip-border: var( --color-success-border );
+  --chip-ink: var( --color-graphite );
+}
+
+.bwx-queue .bwx-chip[data-state='declined'] {
+  --chip-bg: var( --color-danger-bg );
+  --chip-border: var( --color-danger-border );
+  --chip-ink: var( --color-graphite );
+}
+
+/* ---- The request panel ---- */
+
+/* What the client wrote, set apart from what the studio may change. No box, no
+   border, nothing that reads as a field — their words are a record, not an
+   input, and the panel should not suggest otherwise (REQ-1). */
+.bwx-said {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var( --color-chalk );
+}
+
+.bwx-said-body {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.bwx-said-by {
+  margin: 4px 0 0;
+}
+
+.bwx-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bwx-hint {
+  margin: 0;
+  font-size: var( --text-small );
+  color: var( --color-fog );
+}

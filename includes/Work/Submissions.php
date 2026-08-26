@@ -155,6 +155,92 @@ final class Submissions {
 	}
 
 	/**
+	 * What triage is allowed to write (#131).
+	 *
+	 * The studio's answer, and nothing that was in the client's message. This
+	 * is the one place that decides it, rather than each write path filtering
+	 * its own input: a controller that sanitised its own body would be one
+	 * refactor away from a second controller that forgot to, and the failure
+	 * would be silent — a request quietly rewritten to match what was
+	 * delivered, with the client's own copy of their words gone.
+	 *
+	 * `converted_item_id` is deliberately absent. Conversion (#132) has to
+	 * create the work item for the same client as the submission, and this
+	 * write cannot check that. A triage write able to set the id would be a way
+	 * to point a client's request at another client's work.
+	 *
+	 * A key carrying null means "not sent" rather than "set it to empty". That
+	 * distinction is load-bearing: a save that changes only the state arrives
+	 * with the response key present and null, and reading it as an empty string
+	 * would delete a reply the client has already read. Sending an empty string
+	 * deliberately still clears it — somebody who deletes what they wrote and
+	 * saves means it.
+	 *
+	 * @param array<string, mixed> $input Whatever arrived.
+	 * @return array<string, mixed> Only what may be written; possibly nothing.
+	 */
+	public static function changes( array $input ): array {
+		$changes = array();
+
+		if ( null !== ( $input['intake_state'] ?? null ) ) {
+			$state = (string) $input['intake_state'];
+
+			if ( self::is_state( $state ) ) {
+				$changes['intake_state'] = $state;
+			}
+		}
+
+		if ( null !== ( $input['response'] ?? null ) ) {
+			$changes['response'] = (string) $input['response'];
+		}
+
+		return $changes;
+	}
+
+	/**
+	 * Records the studio's answer to a request.
+	 *
+	 * Returns the submission unchanged when there is nothing to write, rather
+	 * than performing an empty update: the client is shown when their request
+	 * was last touched, and a save that changed nothing should not tell them
+	 * something happened.
+	 *
+	 * @param string               $id    Submission id.
+	 * @param array<string, mixed> $input Whatever arrived.
+	 * @return array<string, mixed>|null The stored row, or null if it is gone
+	 *                                   or could not be written.
+	 */
+	public static function respond( string $id, array $input ): ?array {
+		global $wpdb;
+
+		$existing = self::get( $id );
+
+		if ( null === $existing ) {
+			return null;
+		}
+
+		$changes = self::changes( $input );
+
+		if ( array() === $changes ) {
+			return $existing;
+		}
+
+		$changes['updated_at']     = bwx_forge_now();
+		$changes['record_version'] = ( (int) $existing['record_version'] ) + 1;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- This plugin's own table; there is no core API for it.
+		$written = $wpdb->update(
+			Schema::submissions_table(),
+			$changes,
+			array( 'id' => $id ),
+			Formats::for_row( $changes ),
+			array( '%s' )
+		);
+
+		return false === $written ? null : self::get( $id );
+	}
+
+	/**
 	 * One submission.
 	 *
 	 * @param string $id Submission id.
@@ -188,6 +274,33 @@ final class Submissions {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The table name is this class's own literal.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s ORDER BY created_at DESC", $client_site_id ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * Every submission there is, newest first (#131).
+	 *
+	 * Unscoped on purpose, and never handed to a screen as it stands: the
+	 * caller filters it with {@see Queue::visible()} before anything else
+	 * touches it. Splitting the read from the scoping is what lets the scoping
+	 * live in one tested place instead of inside a query string.
+	 *
+	 * It reads the whole table. At intake volumes that is the right trade for
+	 * keeping the boundary in PHP where it is provable, and the queue is a
+	 * screen somebody works rather than one that sits open. If it ever stops
+	 * being the right trade, that is the query-count pass (#183), not a reason
+	 * to push the tenant check into SQL now.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function all(): array {
+		global $wpdb;
+
+		$table = Schema::submissions_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The table name is this class's own literal, and there is nothing to interpolate.
+		$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC", ARRAY_A );
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
 	}
