@@ -82,11 +82,17 @@ or a Primary administrator (MEET-1).
 | Edit commercial fields | yes | no | no | no | no | no | no | no | no | no |
 | Edit a parent's derived status | no | no | no | no | no | no | no | no | no | no |
 | Edit a changelog or ledger entry | no | no | no | no | no | no | no | no | no | no |
+| Triage a request and write the reply | yes | yes | yes | no | no | no | no | no | no | no |
 
 Conditions: client editing of definition fields ends when the item leaves
 Documentation Period, after which it is comment-and-request-change only (AUTH-2).
 Derived status and append-only records are editable by nobody, including the
 Primary administrator (WORK-2, COMM-3, NOTIF-5).
+
+Triage sets a request's intake state and the reply the client reads (#131). It
+never edits what the client wrote — that is fixed at submission (REQ-1) and is
+denial D-39 below. A client administrator may send a request and read the answer;
+writing the answer is answering oneself.
 
 ### Comment and evidence
 

@@ -112,6 +112,49 @@ export interface SavedView {
 /** Which view of the work is on screen. */
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
+/** Which screen of the studio is on screen (#131). */
+export type ScreenName = 'work' | 'requests';
+
+/** An intake state, with the words a person reads for it. */
+export interface IntakeState {
+  slug: string;
+  label: string;
+}
+
+/**
+ * Something a client has asked for (#129), as the studio's queue sees it.
+ *
+ * The first five fields are the client's own words and are never editable
+ * anywhere — not here, not by them (REQ-1). The studio writes `intake_state`
+ * and `response`, and nothing else on this record.
+ */
+export interface Submission {
+  id: string;
+  client_id: string;
+  client_site_id: string;
+  client_name: string;
+  type: string;
+  title: string;
+  description: string;
+  desired_outcome: string;
+  evidence: string;
+  submitted_by: string;
+  intake_state: string;
+  intake_label: string;
+  response: string;
+  converted_item_id: string;
+  created_at: number;
+  updated_at: number;
+}
+
+/** The queue's own filter set — not the board's, which filters work items. */
+export interface QueueFilters {
+  client_id?: string[];
+  intake_state?: string[];
+  type?: string[];
+  search?: string;
+}
+
 /** One thing that has to be true before work leaves a stage. */
 export interface Requirement {
   id: string;

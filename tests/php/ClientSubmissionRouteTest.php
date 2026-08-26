@@ -92,11 +92,21 @@ final class ClientSubmissionRouteTest extends TestCase {
 	// -----------------------------------------------------------------------
 
 	/**
-	 * REQ-1: the submission is fixed at submission. Nothing anywhere in the API
-	 * updates or deletes one, so a client cannot quietly rewrite what they
-	 * asked for once they have seen the answer — and neither can anybody else.
+	 * REQ-1: what the client wrote is fixed at submission.
+	 *
+	 * This was written for #129 as an absence — no route anywhere updates or
+	 * deletes a submission — because a route that does not exist cannot be
+	 * called, and that is a stronger guarantee than a rule somebody writes a
+	 * reasonable-looking exception to.
+	 *
+	 * #131 is that exception, and it is the one the brief always intended: the
+	 * studio has to be able to answer. So the absence has narrowed rather than
+	 * gone. Nothing replaces a submission wholesale and nothing deletes one —
+	 * both still tested here, as absences. What a triage write may touch is an
+	 * allowlist of the studio's own two columns, tested in
+	 * WorkSubmissionTriageTest, and the client's words are not on it.
 	 */
-	public function test_no_route_anywhere_edits_or_deletes_a_submission(): void {
+	public function test_nothing_replaces_or_deletes_a_submission(): void {
 		$writes = array();
 
 		foreach ( $this->routes() as $route ) {
@@ -104,6 +114,33 @@ final class ClientSubmissionRouteTest extends TestCase {
 			$method = (string) ( $route['args']['methods'] ?? '' );
 
 			if ( ! str_contains( $path, 'submission' ) ) {
+				continue;
+			}
+
+			if ( in_array( $method, array( 'PUT', 'DELETE' ), true ) ) {
+				$writes[] = $method . ' ' . $path;
+			}
+		}
+
+		$this->assertSame( array(), $writes );
+	}
+
+	/**
+	 * And the one write that does exist is the studio's, not the client's.
+	 *
+	 * The client interface reaches Forge through `/client/…` routes and only
+	 * those. A PATCH appearing under that prefix would mean a client site could
+	 * reach the triage write — which is the shape REQ-1 is actually protecting
+	 * against, now that a triage write exists at all.
+	 */
+	public function test_no_client_route_writes_to_a_submission(): void {
+		$writes = array();
+
+		foreach ( $this->routes() as $route ) {
+			$path   = (string) $route['route'];
+			$method = (string) ( $route['args']['methods'] ?? '' );
+
+			if ( ! str_starts_with( $path, '/client/' ) || ! str_contains( $path, 'submission' ) ) {
 				continue;
 			}
 

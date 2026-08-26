@@ -4,12 +4,10 @@ import { test, expect } from '@playwright/test';
 // #130, proven across two real WordPress sites: a client sees what happened to
 // what they asked for, and sees nobody else's.
 //
-// Two of the four things this screen shows — the studio's reply, and the work a
-// request became — are written by screens that do not exist yet (#131 triages,
-// #132 converts). Rather than leave those untested until then, the one test
-// that needs them writes the two columns straight into the studio's database
-// and lets the whole read path run for real from there. When #131 and #132
-// land, that seeding is replaced by their routes and nothing else here changes.
+// The studio's reply now arrives through the studio's own triage route (#131),
+// so the reply column here is proof of the whole loop rather than proof of a
+// fixture. The id of the work a request became is still seeded, because nothing
+// writes it until #132 lands.
 //
 // The work item a submission points at is made through the studio's own route
 // rather than seeded, because which client site it belongs to is exactly what
@@ -111,9 +109,36 @@ async function send(page, title, { type = 'request', description = 'Because it w
   await expect(page.locator('[data-bwx-result="sent"]')).toHaveCount(1);
 }
 
-// Stands in for #131 and #132 until they exist: writes the studio's own answer
-// onto a submission it has already stored, by title.
-function studioAnswers(title, { state, response = '', convertedItemId = '' }) {
+// The studio answers, through the route the studio's own queue uses (#131).
+// This was seeded straight into the database until that route existed; it now
+// runs for real, which is what makes this screen's reply column proof of
+// something rather than proof of a fixture.
+async function studioAnswers(studio, title, { state, response = '' }) {
+  const queue = await (
+    await studio.context.request.get('/wp-json/blueworx-forge/v1/submissions', {
+      headers: { 'X-WP-Nonce': studio.nonce },
+    })
+  ).json();
+
+  const submission = queue.submissions.find((one) => one.title === title);
+
+  expect(submission, `no submission titled ${title} in the studio queue`).toBeTruthy();
+
+  const answered = await studio.context.request.patch(
+    `/wp-json/blueworx-forge/v1/submissions/${submission.id}`,
+    {
+      headers: { 'X-WP-Nonce': studio.nonce },
+      data: { intake_state: state, response },
+    }
+  );
+
+  expect(answered.status(), await answered.text()).toBe(200);
+}
+
+// Still stands in for #132, which does not exist: nothing yet writes the id of
+// the work a request became. When it does, this goes the same way as the
+// helper above.
+function studioConverts(title, itemId) {
   execFileSync(
     'php',
     [
@@ -123,18 +148,12 @@ function studioAnswers(title, { state, response = '', convertedItemId = '' }) {
        global $wpdb;
        $updated = $wpdb->update(
          $wpdb->prefix . "bwx_forge_submissions",
-         array(
-           "intake_state"      => $argv[2],
-           "response"          => $argv[3],
-           "converted_item_id" => $argv[4],
-         ),
+         array( "converted_item_id" => $argv[2] ),
          array( "title" => $argv[1] )
        );
        if ( 1 !== $updated ) { fwrite( STDERR, "seeded {$updated} rows, expected 1" ); exit( 1 ); }`,
       title,
-      state,
-      response,
-      convertedItemId,
+      itemId,
     ],
     { stdio: 'pipe' }
   );
@@ -185,11 +204,12 @@ test.describe('a client seeing what happened to what they asked for', () => {
       work_type: 'feature',
     });
 
-    studioAnswers(title, {
+    await studioAnswers(studio, title, {
       state: 'converted',
       response: 'Yes — going into the October release.',
-      convertedItemId: work.id,
     });
+
+    studioConverts(title, work.id);
 
     await page.goto(STATUS);
 
