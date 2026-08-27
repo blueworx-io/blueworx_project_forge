@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Client Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: The client-side workspace for Blueworx Forge.
- * Version:     2.31.0
+ * Version:     2.32.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -39,11 +39,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_CLIENT_VERSION', '2.31.0' );
+define( 'BWX_FORGE_CLIENT_VERSION', '2.32.0' );
 define( 'BWX_FORGE_CLIENT_SLUG', 'blueworx-forge-client' );
 define( 'BWX_FORGE_CLIENT_FILE', __FILE__ );
 define( 'BWX_FORGE_CLIENT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWX_FORGE_CLIENT_URL', plugin_dir_url( __FILE__ ) );
+
+require_once BWX_FORGE_CLIENT_PATH . 'includes/functions.php';
+require_once BWX_FORGE_CLIENT_PATH . 'includes/autoload.php';
+
+// Registered before the update checker below, which asks Updates for the token
+// this site should authenticate with.
+bwx_forge_client_register_autoloader( BWX_FORGE_CLIENT_PATH . 'includes' );
 
 require_once BWX_FORGE_CLIENT_PATH . 'plugin-update-checker/plugin-update-checker.php';
 
@@ -60,19 +67,17 @@ $bwx_forge_client_update_checker = PucFactory::buildUpdateChecker(
 );
 
 /*
- * The repo is private, so a site needs a token to see releases at all. It lives
- * in wp-config.php — never in the plugin, never in the repo.
+ * The repo is private, so a site needs a token to see releases at all. It can
+ * be set on this site's Forge connection screen, or fixed in wp-config.php,
+ * which wins — a secret in a file does not travel in a database export.
  */
-if ( defined( 'BLUEWORX_PLUGIN_UPDATE_TOKEN' ) && BLUEWORX_PLUGIN_UPDATE_TOKEN ) {
-	$bwx_forge_client_update_checker->setAuthentication( BLUEWORX_PLUGIN_UPDATE_TOKEN );
+$bwx_forge_client_update_token = \Blueworx\Forge\Client\Updates::token();
+
+if ( '' !== $bwx_forge_client_update_token ) {
+	$bwx_forge_client_update_checker->setAuthentication( $bwx_forge_client_update_token );
 }
 
 $bwx_forge_client_update_checker->getVcsApi()->enableReleaseAssets();
-
-require_once BWX_FORGE_CLIENT_PATH . 'includes/functions.php';
-require_once BWX_FORGE_CLIENT_PATH . 'includes/autoload.php';
-
-bwx_forge_client_register_autoloader( BWX_FORGE_CLIENT_PATH . 'includes' );
 
 register_activation_hook( BWX_FORGE_CLIENT_FILE, array( \Blueworx\Forge\Client\Plugin::instance(), 'activate' ) );
 register_deactivation_hook( BWX_FORGE_CLIENT_FILE, array( \Blueworx\Forge\Client\Plugin::instance(), 'deactivate' ) );
