@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.32.1] - 2026-08-27
+
+### Fixed
+
+- The two-site test suite runs again from the two commands the project
+  documents. It needed three settings that only the build server was passing,
+  so on anyone's own machine every test failed before it did anything — which
+  read as a run that started and then died partway through. The suite now
+  defaults them from the same place it builds the sites.
+- Stopping the two test sites now stops the right ones. It was reconciling
+  against a port neither of them uses, so a server left over from an
+  interrupted run survived being told to stop, and another project's test site
+  was liable to be shut down instead.
+- A test in that suite is no longer cut off while it is still working. The
+  limit was close enough to how long these tests genuinely take that it was
+  ending healthy runs, and which test it landed on varied.
+
+### Added
+
+- `npm run wp:pair:reset` rebuilds both test sites from empty databases. They
+  are reused between runs on purpose, but what builds up in them makes runs
+  slower over time, and there was no way back short of deleting directories by
+  hand.
+
 ## [2.32.0] - 2026-08-27
 
 ### Added

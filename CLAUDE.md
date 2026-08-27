@@ -209,7 +209,17 @@ The instance lives in `.wp-test/` (git-ignored) and ships its own `admin` /
 npm run wp:pair:up    # studio on :8892, client on :8893
 npm run test:pair     # the two-instance suite
 npm run wp:pair:down
+npm run wp:pair:reset # both again, from empty databases
 ```
+
+`test:pair` needs no environment variables — `playwright.pair.config.js`
+defaults the two addresses and the login from the same constants
+`bin/wp-pair.mjs` builds the sites with, and anything already set still wins.
+
+Both sites are reused between runs, which is what keeps the loop fast. What the
+suite leaves behind does cost something — on a week-old instance the same spec
+file took 5.4 minutes against 4.4 on a fresh one — so `wp:pair:reset` when a
+run starts feeling slow.
 
 Two separate installs, same throwaway `admin` / `wptest-admin-pw` login on both.
 The studio site links this repo, so edits are live. The client site links a
