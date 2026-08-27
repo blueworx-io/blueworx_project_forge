@@ -213,6 +213,14 @@ Routes tested for each: **(a)** UI control, **(b)** direct REST call, **(c)**
 filter or ID parameter, **(d)** replayed signed request, **(e)** sync or webhook
 event.
 
+Each denial also records the milestone whose suite proves it, in
+`Tenancy\Denials`. That is what makes "exhaustive, not illustrative" checkable:
+`DenialCoverageTest` reads the two-instance specs and fails if a denial this
+milestone owes is not named by one of them. The denials waiting on a later
+milestone are the ones whose subject is not built yet — packages and balances
+are M8's, the onboarding checklist is M9's — and they say so on the denial
+rather than being quietly absent from a count.
+
 ### Tenant and site boundary
 
 | # | Must be refused | Routes |

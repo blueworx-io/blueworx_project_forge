@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.31.0] - 2026-08-27
+
+### Fixed
+
+- A client site whose site record or client is closed can no longer read or
+  write anything. Revoking its key already stopped it; ending the arrangement
+  did not, because nothing on that path had ever read the status. What the site
+  did while it was active is untouched and still attributed to it.
+
+### Added
+
+- The twenty-seven things a client must be refused are now each proved against
+  the real client plugin on its own WordPress, rather than against a role set up
+  on ours. Everything from reading another client's work to moving a card, and
+  every route each could be tried through.
+- The list of what must be refused now says which milestone proves each one, and
+  a check fails the build if something this milestone owes has no test. A denial
+  nobody has written a test for is now a failing count rather than nothing at
+  all.
+
 ## [2.30.0] - 2026-08-26
 
 ### Changed
