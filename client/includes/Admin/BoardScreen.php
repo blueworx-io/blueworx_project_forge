@@ -44,9 +44,25 @@ final class BoardScreen {
 	}
 
 	/**
-	 * Renders the screen.
+	 * Renders the screen, or one card of it.
+	 *
+	 * The item view is a query argument on this page rather than a page of its
+	 * own (#133). A screen about one record cannot have a standing menu entry —
+	 * it would point at whichever card somebody last opened — and WordPress's
+	 * two ways of registering a page that is not in the menu are a deprecated
+	 * null parent and a `remove_submenu_page` that takes the capability check
+	 * with it. Dispatching here needs neither, and it is also what actually
+	 * happens: clicking a card takes you to the board, zoomed in.
 	 */
 	public static function render(): void {
+		$item = ItemScreen::requested();
+
+		if ( '' !== $item ) {
+			ItemScreen::render( $item );
+
+			return;
+		}
+
 		WorkScreen::render(
 			self::SLUG,
 			__( 'Forge — board', 'blueworx-forge' ),

@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.29.0] - 2026-08-26
+
+### Added
+
+- Clients can now open a piece of their work from their own board and say
+  something about it — a comment, or a link to a page, a screenshot or an error
+  message that helps.
+- You can ask a client a question against a piece of work. It shows at the top
+  of their screen as waiting for an answer, and stops asking once they give one.
+- None of it moves anything. What a client adds reaches you without changing
+  where the work sits, and there is no control on their site that could.
+- A client never sees an internal note, and never sees another client's work —
+  an id that is not theirs reads exactly like one that does not exist.
+
+### Changed
+
+- When the studio turns a client site away — a revoked key, or a record that is
+  not theirs — their site now says so instead of reporting a connection problem,
+  and stops showing the copy it had. Being refused and being offline were
+  reading as the same thing.
+
 ## [2.28.0] - 2026-08-26
 
 ### Added

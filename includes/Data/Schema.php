@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 9;
+	public const VERSION = 10;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -550,6 +550,20 @@ final class Schema {
 			 * note and a client-visible comment are the same shape and differ by
 			 * one column, so every read filters on it and no caller is handed a
 			 * query it could widen.
+			 *
+			 * `author_site` is how a contribution from a client's own site is
+			 * attributed (#133). It is not a second way of saying who wrote
+			 * something — `author` is a WordPress user on *our* install, and a
+			 * person typing on their own site has no account here. So the two
+			 * are different facts and both are stored: exactly one of them is
+			 * set on any row, and which one says which side of the connection
+			 * the words came from. Folding the client's site id into `author`
+			 * would have meant a number that means a user id on some rows and
+			 * something else on others.
+			 *
+			 * `answers` links a client's reply to the question it answers, so
+			 * "has anybody come back on this" is a query rather than a person
+			 * reading a thread (AUTH-2's information requests).
 			 */
 			$comments     => "CREATE TABLE {$comments} (
 	id varchar(32) NOT NULL,
@@ -562,11 +576,14 @@ final class Schema {
 	url varchar(255) NOT NULL DEFAULT '',
 	author bigint(20) unsigned NOT NULL,
 	author_name varchar(191) NOT NULL DEFAULT '',
+	author_site varchar(32) NOT NULL DEFAULT '',
+	answers varchar(32) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL,
 	PRIMARY KEY  (id),
 	KEY item_id (item_id),
 	KEY client_site_id (client_site_id),
-	KEY visibility (visibility)
+	KEY visibility (visibility),
+	KEY answers (answers)
 ) {$collate};",
 		);
 	}

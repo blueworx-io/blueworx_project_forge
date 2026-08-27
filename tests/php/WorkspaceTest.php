@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 use Blueworx\Forge\Client\Cache;
 use Blueworx\Forge\Client\Connection;
+use Blueworx\Forge\Client\Sync;
 use Blueworx\Forge\Client\Workspace;
 use PHPUnit\Framework\TestCase;
 
@@ -220,10 +221,21 @@ final class WorkspaceTest extends TestCase {
 	}
 
 	/**
-	 * A refusal is not an outage, and the answer carries the status so the
-	 * screen can tell a revoked site from a studio that is down.
+	 * A refusal is not an outage, and it is no longer shown as one.
+	 *
+	 * This used to fall back to the cached copy and call it stale, on the
+	 * grounds that ARCH-4 keeps a client site working while the studio cannot
+	 * be reached. The studio *was* reached here — a 401 is what a revoked or
+	 * rotated key gets — and the two are not the same thing at all. Going on
+	 * showing the last workspace after that is a site reading a record with a
+	 * key the studio has already refused (D-7, D-8), and telling the person
+	 * their connection is down is blaming the network for a boundary (#134).
+	 *
+	 * So the copy is dropped and the state says what happened. The status and
+	 * the reason still travel with it, which is what lets a screen tell a
+	 * revoked site from a studio that is merely broken.
 	 */
-	public function test_a_refused_read_reports_the_refusal(): void {
+	public function test_a_refused_read_is_not_shown_as_an_outage(): void {
 		$this->studio_answers();
 		Workspace::view();
 
@@ -235,9 +247,35 @@ final class WorkspaceTest extends TestCase {
 
 		$view = Workspace::view();
 
-		$this->assertSame( Workspace::STATE_STALE, $view['sync']['state'] );
+		$this->assertSame( Sync::STATE_REFUSED, $view['sync']['state'] );
+		$this->assertNull( $view['record'], 'a refused site went on showing the record it last saw' );
+		$this->assertFalse( $view['sync']['stale'], 'a refusal has nothing to be out of date about' );
 		$this->assertSame( 401, $view['sync']['status'] );
 		$this->assertSame( 'bwx_forge_client_refused', $view['sync']['reason'] );
+	}
+
+	/**
+	 * A studio that is broken is still an outage, and still falls back.
+	 *
+	 * The other side of the rule above, and the reason it is drawn at 4xx
+	 * rather than at "anything that is not a 200". A 500 is the studio failing
+	 * rather than answering, and ARCH-4's whole promise is that a client site
+	 * keeps working through exactly that.
+	 */
+	public function test_a_broken_studio_still_falls_back_to_the_last_copy(): void {
+		$this->studio_answers();
+		Workspace::view();
+
+		$this->wait( Cache::MAX_AGE );
+		$GLOBALS['bwx_forge_test_http'][] = array(
+			'response' => array( 'code' => 500 ),
+			'body'     => '{"code":"internal_server_error"}',
+		);
+
+		$view = Workspace::view();
+
+		$this->assertSame( Sync::STATE_STALE, $view['sync']['state'] );
+		$this->assertSame( 'Acme Ltd', $view['record']['name'] );
 	}
 
 	/**
