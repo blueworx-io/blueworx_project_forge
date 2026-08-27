@@ -1,7 +1,7 @@
 {
   "name": "blueworx-forge",
   "private": true,
-  "version": "2.32.0",
+  "version": "2.32.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,7 +20,8 @@
     "build:zip:client": "bash bin/build-zip.sh client",
     "wp:pair:up": "node bin/wp-pair.mjs up",
     "wp:pair:down": "node bin/wp-pair.mjs down",
-    "test:pair": "playwright test -c playwright.pair.config.js && node bin/check-tests-ran.mjs playwright-pair-report.json"
+    "test:pair": "playwright test -c playwright.pair.config.js && node bin/check-tests-ran.mjs playwright-pair-report.json",
+    "wp:pair:reset": "node bin/wp-pair.mjs reset"
   },
   "dependencies": {},
   "devDependencies": {
