@@ -46,18 +46,23 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 12, $definitions );
+		$this->assertCount( 14, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
 		// table is the other kind of exception — a row is created and removed
-		// and never edited, so there is no version for a write to quote.
+		// and never edited, so there is no version for a write to quote. The
+		// two capacity tables are both: an hours correction appends another
+		// statement rather than editing the one that was wrong, and a leave
+		// record is added or taken away and never amended.
 		$append_only = array(
 			Schema::work_events_table(),
 			Schema::gate_records_table(),
 			Schema::comments_table(),
 			Schema::contacts_table(),
 			Schema::dependencies_table(),
+			Schema::availability_patterns_table(),
+			Schema::unavailability_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
