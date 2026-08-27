@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.33.0] - 2026-08-27
+
+### Added
+
+- A new Availability screen under Forge, where each person's working week is
+  set and their time off is recorded. This is the first half of capacity: what
+  somebody's time actually is, before anything is committed against it.
+- Hours are set from a date and leave everything before that date alone, so
+  moving somebody to four days in March does not quietly rewrite what February
+  was. Correcting a mistake records the correction rather than erasing what was
+  believed at the time, and both are shown.
+- Leave, public holidays and training take whole days out, counting the last
+  day as time off — "away from the 3rd to the 7th" is five days. Two records
+  covering the same day take it out once.
+- A person nobody has set up says so, rather than showing no available time.
+  Those are different things and only one of them needs acting on. The same
+  goes for the days behind the total: a Saturday reads as a non-working day,
+  not as leave.
+
 ## [2.32.1] - 2026-08-27
 
 ### Fixed

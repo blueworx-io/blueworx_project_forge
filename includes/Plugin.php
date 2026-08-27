@@ -64,6 +64,10 @@ final class Plugin {
 
 		Admin\UpdatesActions::boot();
 
+		add_action( 'admin_menu', array( Admin\AvailabilityScreen::class, 'register' ) );
+
+		Admin\AvailabilityActions::boot();
+
 		Tenancy\IntegrationEvents::boot();
 	}
 

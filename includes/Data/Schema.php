@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 10;
+	public const VERSION = 11;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -164,6 +164,28 @@ final class Schema {
 	}
 
 	/**
+	 * The availability patterns table's full name.
+	 *
+	 * @return string
+	 */
+	public static function availability_patterns_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_availability_patterns';
+	}
+
+	/**
+	 * The unavailability table's full name.
+	 *
+	 * @return string
+	 */
+	public static function unavailability_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_unavailability';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -199,6 +221,8 @@ final class Schema {
 		$contacts     = self::contacts_table();
 		$dependencies = self::dependencies_table();
 		$submissions  = self::submissions_table();
+		$patterns     = self::availability_patterns_table();
+		$unavailable  = self::unavailability_table();
 
 		return array(
 			$clients      => "CREATE TABLE {$clients} (
@@ -584,6 +608,72 @@ final class Schema {
 	KEY client_site_id (client_site_id),
 	KEY visibility (visibility),
 	KEY answers (answers)
+) {$collate};",
+
+			/*
+			 * #136, CAP-1. What somebody's working week is, from a date.
+			 *
+			 * Effective-dated rather than a single editable row, because hours
+			 * change and history must not change with them. Somebody who went
+			 * to four days in March was full time in February, and a capacity
+			 * figure for February that quietly recalculates itself the moment
+			 * their hours are edited is worse than no figure — it disagrees
+			 * with what was decided at the time and nothing says why.
+			 *
+			 * A row is a weekly pattern rather than seven rows, because a week
+			 * is the unit people actually state their hours in, and the seven
+			 * days are always set together.
+			 *
+			 * Append-only, and there is no unique index on the person and date.
+			 * Correcting hours writes another row rather than editing the one
+			 * that was wrong: a table whose entire purpose is that history does
+			 * not change is the last place to erase what was previously
+			 * believed. The latest row wins when two share an effective date,
+			 * which is what makes a correction a correction.
+			 */
+			$patterns     => "CREATE TABLE {$patterns} (
+	id varchar(32) NOT NULL,
+	user_id varchar(32) NOT NULL,
+	effective_from varchar(10) NOT NULL,
+	hours_mon decimal(5,2) NOT NULL DEFAULT 0,
+	hours_tue decimal(5,2) NOT NULL DEFAULT 0,
+	hours_wed decimal(5,2) NOT NULL DEFAULT 0,
+	hours_thu decimal(5,2) NOT NULL DEFAULT 0,
+	hours_fri decimal(5,2) NOT NULL DEFAULT 0,
+	hours_sat decimal(5,2) NOT NULL DEFAULT 0,
+	hours_sun decimal(5,2) NOT NULL DEFAULT 0,
+	note varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY user_effective (user_id, effective_from)
+) {$collate};",
+
+			/*
+			 * #136, CAP-1. Dated time somebody is not available for.
+			 *
+			 * Leave, and anything else that takes a day out. Whole days: the
+			 * decision says dated records, and a half day is expressible as an
+			 * hours change if it ever needs to be. Both ends are inclusive,
+			 * because "off from the 3rd to the 7th" is five days to everyone
+			 * who says it.
+			 *
+			 * No unique index. Two records covering the same day is not a
+			 * mistake to prevent — it is somebody on leave during a shutdown —
+			 * and the calculation takes a day out once however many records
+			 * cover it.
+			 */
+			$unavailable  => "CREATE TABLE {$unavailable} (
+	id varchar(32) NOT NULL,
+	user_id varchar(32) NOT NULL,
+	starts_on varchar(10) NOT NULL,
+	ends_on varchar(10) NOT NULL,
+	kind varchar(20) NOT NULL DEFAULT 'leave',
+	note varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY user_dates (user_id, starts_on, ends_on)
 ) {$collate};",
 		);
 	}
