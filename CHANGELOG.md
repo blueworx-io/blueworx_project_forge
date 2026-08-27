@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.32.0] - 2026-08-27
+
+### Added
+
+- A site can now be given its update token in the dashboard instead of by
+  editing `wp-config.php` on the server. The studio's is on a new Forge →
+  Updates screen; a client site's is on the connection screen it already has.
+  Setting it in `wp-config.php` still wins, and where that is done the field
+  says so rather than quietly overriding it.
+- Both screens now state whether updates can actually be fetched, and name the
+  latest release when they can. A site without a token used to be
+  indistinguishable from a site that was up to date — the releases are in a
+  private repository, so it was told there was nothing to see rather than that
+  it had been refused, and could sit months behind with nothing to notice. A
+  token that has expired, or that was scoped to the wrong repository, now reads
+  as a refusal instead of as silence.
+
 ## [2.31.0] - 2026-08-27
 
 ### Fixed

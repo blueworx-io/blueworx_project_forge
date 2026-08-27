@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Parent Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     2.31.0
+ * Version:     2.32.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_VERSION', '2.31.0' );
+define( 'BWX_FORGE_VERSION', '2.32.0' );
 define( 'BWX_FORGE_SLUG', 'blueworx-forge' );
 define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );
@@ -56,13 +56,17 @@ $bwx_forge_update_checker = PucFactory::buildUpdateChecker(
 );
 
 /*
- * The repo is private, so a site needs a token to see releases at all. It lives
- * in wp-config.php — never in the plugin, never in the repo:
+ * The repo is private, so a site needs a token to see releases at all. It can
+ * be set on the Forge → Updates screen, or fixed in wp-config.php, which wins
+ * and is the better home on a real site because a secret in a file does not
+ * travel in a database export:
  *
  *     define( 'BLUEWORX_PLUGIN_UPDATE_TOKEN', 'github_pat_...' );
  */
-if ( defined( 'BLUEWORX_PLUGIN_UPDATE_TOKEN' ) && BLUEWORX_PLUGIN_UPDATE_TOKEN ) {
-	$bwx_forge_update_checker->setAuthentication( BLUEWORX_PLUGIN_UPDATE_TOKEN );
+$bwx_forge_update_token = \Blueworx\Forge\Updates::token();
+
+if ( '' !== $bwx_forge_update_token ) {
+	$bwx_forge_update_checker->setAuthentication( $bwx_forge_update_token );
 }
 
 /*

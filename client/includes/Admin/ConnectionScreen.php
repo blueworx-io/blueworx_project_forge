@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Connection;
+use Blueworx\Forge\Client\Updates;
 
 /**
  * Pointing this site at the studio, in the browser.
@@ -76,6 +77,7 @@ final class ConnectionScreen {
 		self::result_notice();
 		self::status();
 		self::form();
+		self::updates();
 
 		echo '</div>';
 	}
@@ -90,9 +92,16 @@ final class ConnectionScreen {
 		$result = isset( $_GET['bwx-result'] ) ? sanitize_key( wp_unslash( $_GET['bwx-result'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reporting the outcome of an action that carried its own nonce.
 
 		$messages = array(
-			'connected'    => array( 'success', __( 'Saved. The connection is checked below.', 'blueworx-forge' ) ),
-			'disconnected' => array( 'success', __( 'This site no longer holds any credentials for the studio.', 'blueworx-forge' ) ),
-			'incomplete'   => array( 'error', __( 'The studio address, the site id and the key are all needed.', 'blueworx-forge' ) ),
+			'connected'       => array( 'success', __( 'Saved. The connection is checked below.', 'blueworx-forge' ) ),
+			'disconnected'    => array( 'success', __( 'This site no longer holds any credentials for the studio.', 'blueworx-forge' ) ),
+			'incomplete'      => array( 'error', __( 'The studio address, the site id and the key are all needed.', 'blueworx-forge' ) ),
+
+			// The update token (#200). Its own codes rather than reusing the
+			// three above, so the screen never reports a saved token as a saved
+			// connection — they are different credentials for different places.
+			'token_saved'     => array( 'success', __( 'Saved. Whether updates can be fetched is reported below.', 'blueworx-forge' ) ),
+			'token_forgotten' => array( 'success', __( 'This site no longer holds an update token.', 'blueworx-forge' ) ),
+			'token_empty'     => array( 'error', __( 'No update token was entered.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
@@ -209,6 +218,86 @@ final class ConnectionScreen {
 	}
 
 	/**
+	 * The update token, and whether it works (#200).
+	 *
+	 * On this screen rather than one of its own because it is the same kind of
+	 * thing as everything else here: a credential this site was given, settable
+	 * in the browser or fixed in wp-config.php. It points somewhere different —
+	 * at the repository releases come from, not at the studio — so it says so,
+	 * and it reports its own state separately.
+	 */
+	private static function updates(): void {
+		echo '<h2>' . esc_html__( 'Updates', 'blueworx-forge' ) . '</h2>';
+		echo '<p>' . esc_html__( 'This plugin updates itself from a private repository, so the site needs a read-only token to see releases at all. Without one it will never offer an update.', 'blueworx-forge' ) . '</p>';
+
+		$status = Updates::status();
+		$class  = 'ok' === $status['state'] ? 'success' : ( 'none' === $status['state'] ? 'warning' : 'error' );
+
+		echo '<div class="notice notice-' . esc_attr( $class ) . '" data-bwx-updates="' . esc_attr( $status['state'] ) . '"><p>';
+		echo esc_html( $status['message'] );
+
+		if ( '' !== $status['release'] ) {
+			echo ' ';
+			printf(
+				/* translators: %s: the latest release tag, such as v2.31.0. */
+				esc_html__( 'The latest release is %s.', 'blueworx-forge' ),
+				'<strong data-bwx-latest-release="1">' . esc_html( $status['release'] ) . '</strong>'
+			);
+		}
+
+		echo '</p></div>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-update-token="1">';
+		wp_nonce_field( 'bwx_forge_client_save_update_token' );
+		echo '<input type="hidden" name="action" value="bwx_forge_client_save_update_token">';
+		echo '<table class="form-table"><tbody>';
+
+		// Never the token itself, for the same reason the key above is never
+		// rendered: a field that prints a credential puts it in the page source
+		// of every visit to this screen.
+		$hint = '' === Updates::stored_token()
+			? __( 'A GitHub token with read-only access to the plugin repository.', 'blueworx-forge' )
+			: __( 'A token is stored. Type a new one to replace it; leave blank to keep it.', 'blueworx-forge' );
+
+		self::field(
+			'bwx-update-token',
+			'update_token',
+			__( 'Update token', 'blueworx-forge' ),
+			'',
+			'password',
+			Updates::is_fixed(),
+			$hint
+		);
+
+		echo '</tbody></table>';
+
+		if ( ! Updates::is_fixed() ) {
+			submit_button( __( 'Save', 'blueworx-forge' ) );
+		}
+
+		echo '</form>';
+
+		self::forget_token_button();
+	}
+
+	/**
+	 * The button that forgets the stored update token.
+	 */
+	private static function forget_token_button(): void {
+		if ( '' === Updates::stored_token() ) {
+			return;
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_client_forget_update_token' );
+		echo '<input type="hidden" name="action" value="bwx_forge_client_forget_update_token">';
+		echo '<button type="submit" class="button" data-bwx-action="bwx_forge_client_forget_update_token">';
+		echo esc_html__( 'Remove the stored token', 'blueworx-forge' );
+		echo '</button>';
+		echo '</form>';
+	}
+
+	/**
 	 * One row of the form.
 	 *
 	 * @param string $id          Field id.
@@ -223,7 +312,12 @@ final class ConnectionScreen {
 		echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
 
 		if ( $fixed ) {
-			echo '<code data-bwx-fixed="' . esc_attr( $name ) . '">' . esc_html( 'key' === $name ? __( 'set in wp-config.php', 'blueworx-forge' ) : $value ) . '</code>';
+			// A secret is never printed back, even when wp-config.php is where it
+			// came from — saying it is set is the whole of what this row needs
+			// to say. The others are addresses and ids, which are worth showing.
+			$secret = in_array( $name, array( 'key', 'update_token' ), true );
+
+			echo '<code data-bwx-fixed="' . esc_attr( $name ) . '">' . esc_html( $secret ? __( 'set in wp-config.php', 'blueworx-forge' ) : $value ) . '</code>';
 			echo '<p class="description">' . esc_html__( 'Set in wp-config.php, so it cannot be changed here.', 'blueworx-forge' ) . '</p>';
 			echo '</td></tr>';
 

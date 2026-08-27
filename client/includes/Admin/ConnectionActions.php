@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Connection;
+use Blueworx\Forge\Client\Updates;
 
 /**
  * Saving and forgetting this site's studio credentials.
@@ -27,6 +28,8 @@ final class ConnectionActions {
 	public static function boot(): void {
 		add_action( 'admin_post_bwx_forge_client_connect', array( self::class, 'connect' ) );
 		add_action( 'admin_post_bwx_forge_client_disconnect', array( self::class, 'disconnect' ) );
+		add_action( 'admin_post_bwx_forge_client_save_update_token', array( self::class, 'save_update_token' ) );
+		add_action( 'admin_post_bwx_forge_client_forget_update_token', array( self::class, 'forget_update_token' ) );
 	}
 
 	/**
@@ -74,6 +77,46 @@ final class ConnectionActions {
 		Connection::forget();
 
 		self::back( 'disconnected' );
+	}
+
+	/**
+	 * Stores the token this site fetches its own updates with (#200).
+	 */
+	public static function save_update_token(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_client_save_update_token' );
+
+		// wp-config.php wins, and the form does not offer the field at all when
+		// it is set. Refuse rather than store something that would never be
+		// read, which would leave the screen disagreeing with itself.
+		if ( Updates::is_fixed() ) {
+			self::back( 'token_saved' );
+		}
+
+		$token = isset( $_POST['update_token'] ) ? sanitize_text_field( wp_unslash( $_POST['update_token'] ) ) : '';
+
+		// An empty field means "leave the stored token alone", not "delete it":
+		// the field is never filled in for editing, so an untouched form posts
+		// it empty every time. Removing one is its own button.
+		if ( '' === $token ) {
+			self::back( '' === Updates::stored_token() ? 'token_empty' : 'token_saved' );
+		}
+
+		Updates::store( $token );
+
+		self::back( 'token_saved' );
+	}
+
+	/**
+	 * Forgets it.
+	 */
+	public static function forget_update_token(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_client_forget_update_token' );
+
+		Updates::forget();
+
+		self::back( 'token_forgotten' );
 	}
 
 	/**
