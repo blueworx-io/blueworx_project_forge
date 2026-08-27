@@ -235,8 +235,14 @@ test.describe('the client dashboard', () => {
     await page.goto(HOME);
 
     // No record means the page says so once, rather than drawing four sections
-    // full of things it cannot see.
-    await expect(page.locator('[data-bwx-empty="1"]')).toContainText('studio can be reached');
+    // full of things it cannot see — and says which kind of nothing it is,
+    // rather than a sentence that would fit an outage and a refusal equally
+    // badly (#134).
+    const denial = page.getByTestId('bwx-workspace-unavailable');
+
+    await expect(denial).toContainText('cannot be read from the studio');
+    await expect(denial).toContainText('Nothing has been lost');
+    await expect(denial).toHaveAttribute('data-bwx-denial', 'unreachable');
 
     await page.close();
   });

@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Discussion;
 use Blueworx\Forge\Client\Sync;
 
@@ -135,15 +136,33 @@ final class ItemScreen {
 			SyncNotice::render( $view['sync'], self::SLUG, array( self::PARAM => $item_id ) );
 		}
 
+		/*
+		 * Three ways there is nothing to draw, and they get two answers.
+		 *
+		 * A refusal and an answer with no item in it are one sentence, because
+		 * they are one fact: this is not work this site can see. Which of the
+		 * two it was — an id that never existed, or one belonging to another
+		 * client — is exactly what the studio's matching 404s exist to hide
+		 * (D-1, D-2), and a client screen is not the place to give it back.
+		 *
+		 * A studio that could not be reached is the other, and gets its own.
+		 */
 		if ( Sync::is_refusal( $state ) || ( $view['ok'] && array() === $item ) ) {
-			self::no_item();
+			/*
+			 * Told as a refusal either way, including the case where the read
+			 * itself succeeded. From this screen's side they are the same fact:
+			 * the studio answered, and there is no such work here. A separate
+			 * sentence for "answered, but empty" would only ever differ by
+			 * saying something the refusal is careful not to.
+			 */
+			Denial::render( Sync::STATE_REFUSED, Denial::ITEM, 'bwx-item-missing' );
 			echo '</div>';
 
 			return;
 		}
 
 		if ( ! $view['ok'] ) {
-			self::unavailable( $state );
+			Denial::render( $state, Denial::ITEM, 'bwx-item-unavailable' );
 			echo '</div>';
 
 			return;
@@ -464,38 +483,5 @@ final class ItemScreen {
 		}
 
 		return $who . ' · ' . date_i18n( (string) get_option( 'date_format', 'j F Y' ), $at );
-	}
-
-	/**
-	 * A URL naming no work, or work this site cannot see.
-	 *
-	 * One sentence for both, and that is the tenant boundary rather than
-	 * laziness: a client site reads its own work and nothing else, so an id
-	 * belonging to somebody else has to look exactly like an id belonging to
-	 * nobody.
-	 */
-	private static function no_item(): void {
-		printf(
-			'<p class="bwx-empty" data-testid="bwx-item-missing">%s <a href="%s">%s</a>.</p>',
-			esc_html__( 'There is no such work.', 'blueworx-forge' ),
-			esc_url( admin_url( 'admin.php?page=' . BoardScreen::SLUG ) ),
-			esc_html__( 'Back to the board', 'blueworx-forge' )
-		);
-	}
-
-	/**
-	 * What to show when the studio could not be asked.
-	 *
-	 * Never an empty conversation. "Nobody has said anything" and "we cannot
-	 * see what was said" are different sentences, and only one of them is true.
-	 *
-	 * @param string $state One of the Sync STATE_ constants.
-	 */
-	private static function unavailable( string $state ): void {
-		$message = Sync::STATE_NOT_CONFIGURED === $state
-			? __( 'Once this site is connected to the studio, your work and everything said about it appears here.', 'blueworx-forge' )
-			: __( 'This work cannot be read from the studio right now. Nothing has been lost.', 'blueworx-forge' );
-
-		printf( '<p class="bwx-empty" data-testid="bwx-item-unavailable">%s</p>', esc_html( $message ) );
 	}
 }
