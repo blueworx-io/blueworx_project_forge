@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { asSite } from '../../helpers/signing.js';
 
 // The preamble every two-instance spec pays before it can assert anything:
 // sign in to both sites, register a client and a site on the studio, issue a
@@ -83,6 +84,21 @@ export async function studioSite(studio, label, runId) {
   ).json();
 
   return { client: client.client, site: site.site, issued };
+}
+
+/**
+ * A caller that speaks to the studio as one client site, with its real key.
+ *
+ * The denial suite needs this rather than a browser, and the reason is the
+ * whole of ARCH-6: a client site's authority is its signature, so the only way
+ * to prove it cannot reach something is to reach for it *with that signature*.
+ * A refusal handed to an unsigned request proves nothing — plenty of things
+ * refuse strangers.
+ *
+ * `request` is Playwright's context-free API fixture, pointed at the studio.
+ */
+export function asClientSite(request, issued) {
+  return asSite(request, issued.key, issued.integration.registry_site_id);
 }
 
 /** Points the client site at the studio with one of those keys. */

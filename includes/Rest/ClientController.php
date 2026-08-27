@@ -19,6 +19,8 @@ use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
 use Blueworx\Forge\Work\Validate as WorkValidate;
 use Blueworx\Forge\Tenancy\Capabilities;
+use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Roles;
@@ -262,11 +264,35 @@ final class ClientController {
 	 * this is what shows that.
 	 *
 	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response
+	 * @return WP_REST_Response|WP_Error
 	 */
-	public static function workspace( WP_REST_Request $request ): WP_REST_Response {
+	public static function workspace( WP_REST_Request $request ) {
 		$site_id = (string) $request->get_header( Signature::HEADER_SITE );
-		$site    = Registry::get( $site_id );
+
+		/*
+		 * Guarded, but by the narrower of the two checks (D-7).
+		 *
+		 * This is the read every client screen makes, so a workspace that went
+		 * on answering after a site was closed would be the one place
+		 * deactivation still leaked — and the only place somebody would look to
+		 * find out whether anything was wrong.
+		 *
+		 * It does not require an integration, though, unlike the routes that
+		 * serve a client's records. Everything in this answer comes from the
+		 * registry: which site this is, what it is called, when it connected.
+		 * A key issued through M1's routes rather than against a Client Site
+		 * has no client whose *work* it could describe — which is why the board
+		 * turns one away — but it is still a registered site, and refusing to
+		 * tell it its own name would break the connection screen it is
+		 * diagnosed from.
+		 */
+		$ended = self::refuse_if_ended( $site_id );
+
+		if ( null !== $ended ) {
+			return $ended;
+		}
+
+		$site = Registry::get( $site_id );
 
 		return rest_ensure_response(
 			array(
@@ -310,14 +336,10 @@ final class ClientController {
 	 */
 	public static function board( WP_REST_Request $request ) {
 		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
-		$integration = Integrations::by_site_id( $site_id );
+		$integration = self::connection( $site_id );
 
-		if ( null === $integration ) {
-			return Errors::rest(
-				'no_integration',
-				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
-				409
-			);
+		if ( ! is_array( $integration ) ) {
+			return $integration;
 		}
 
 		$rows = Items::for_site( (string) $integration['client_site_id'] );
@@ -354,14 +376,10 @@ final class ClientController {
 	 */
 	public static function submissions( WP_REST_Request $request ) {
 		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
-		$integration = Integrations::by_site_id( $site_id );
+		$integration = self::connection( $site_id );
 
-		if ( null === $integration ) {
-			return Errors::rest(
-				'no_integration',
-				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
-				409
-			);
+		if ( ! is_array( $integration ) ) {
+			return $integration;
 		}
 
 		$rows = Submissions::for_site( (string) $integration['client_site_id'] );
@@ -397,14 +415,10 @@ final class ClientController {
 	 */
 	public static function submit( WP_REST_Request $request ) {
 		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
-		$integration = Integrations::by_site_id( $site_id );
+		$integration = self::connection( $site_id );
 
-		if ( null === $integration ) {
-			return Errors::rest(
-				'no_integration',
-				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
-				409
-			);
+		if ( ! is_array( $integration ) ) {
+			return $integration;
 		}
 
 		$body    = (array) $request->get_json_params();
@@ -600,14 +614,10 @@ final class ClientController {
 	 * @return array<string, mixed>|\WP_Error
 	 */
 	private static function their_item( WP_REST_Request $request ) {
-		$integration = Integrations::by_site_id( (string) $request->get_header( Signature::HEADER_SITE ) );
+		$integration = self::connection( (string) $request->get_header( Signature::HEADER_SITE ) );
 
-		if ( null === $integration ) {
-			return Errors::rest(
-				'no_integration',
-				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
-				409
-			);
+		if ( ! is_array( $integration ) ) {
+			return $integration;
 		}
 
 		$id   = (string) $request->get_param( 'item_id' );
@@ -728,6 +738,111 @@ final class ClientController {
 				'label' => Submissions::label( $state ),
 			),
 			Submissions::STATES
+		);
+	}
+
+	/**
+	 * The connection this request is entitled to act through.
+	 *
+	 * Four things have to be true before a signed request means anything, and
+	 * only the first was ever checked here:
+	 *
+	 * 1. The signature is valid, which Permissions::client_site has already
+	 *    settled by the time any of this runs.
+	 * 2. The signing site is joined to a Client Site. A key issued through M1's
+	 *    routes rather than against one has no client whose records it could be
+	 *    describing, and is turned away rather than given an empty answer.
+	 * 3. **That Client Site is still active.**
+	 * 4. **So is the client above it.**
+	 *
+	 * The last two are D-7 — act after deactivation — and they were the gap the
+	 * denial suite found (#135). A signature outlives the relationship it was
+	 * issued for: revoking the key stops a site (D-8), but closing a site or a
+	 * client did not, because nothing on this path had ever read their status.
+	 * A relationship that has ended and a credential that still works are
+	 * exactly the pair that lets somebody go on reading for months.
+	 *
+	 * Refused with 403 rather than 404. The caller has proved which site it is,
+	 * so there is nothing left to hide from it — and a client site told "you do
+	 * not exist" would report a broken connection, when what has happened is
+	 * that somebody at the studio ended the arrangement (#134).
+	 *
+	 * **Deactivation stops acting, not attribution.** Nothing here deletes or
+	 * rewrites what the site did while it was active, and the audit trail keeps
+	 * naming it — which is the other half of D-7 and the half that gets
+	 * dropped.
+	 *
+	 * @param string $site_id The registry site that signed the request.
+	 * @return array<string, mixed>|\WP_Error The integration, or the refusal.
+	 */
+	private static function connection( string $site_id ) {
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return Errors::rest(
+				'no_integration',
+				__( 'This site is not connected to a client site.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		$ended = self::refuse_if_ended( $site_id );
+
+		return null === $ended ? $integration : $ended;
+	}
+
+	/**
+	 * The refusal for a site whose arrangement with the studio has ended, if it
+	 * has.
+	 *
+	 * Split from {@see self::connection()} because the two questions are not
+	 * the same and only one of them is D-7. "Is there a client behind this key"
+	 * decides whether there are records to serve; "is that client still with
+	 * us" decides whether anything may be served at all. A site with no client
+	 * has not been deactivated — it was never activated — and answering it with
+	 * "no longer active" would be telling somebody diagnosing a half-finished
+	 * setup that something had been taken away.
+	 *
+	 * @param string $site_id The registry site that signed the request.
+	 * @return \WP_Error|null Null when there is nothing to refuse.
+	 */
+	private static function refuse_if_ended( string $site_id ) {
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return null;
+		}
+
+		$client_site = ClientSites::get( (string) $integration['client_site_id'] );
+
+		if ( null === $client_site || 'active' !== (string) $client_site['status'] ) {
+			return self::ended();
+		}
+
+		$client = Clients::get( (string) $client_site['client_id'] );
+
+		if ( null === $client || 'active' !== (string) $client['status'] ) {
+			return self::ended();
+		}
+
+		return null;
+	}
+
+	/**
+	 * The answer for a site whose arrangement with the studio has ended.
+	 *
+	 * One sentence for a closed site and a closed client, because from the far
+	 * side they are the same fact and the difference is ours. It says the
+	 * connection itself is fine, so nobody spends a week looking at their
+	 * network for something that was a decision (#134).
+	 *
+	 * @return \WP_Error
+	 */
+	private static function ended() {
+		return Errors::rest(
+			'connection_ended',
+			__( 'This site is no longer active with the studio.', 'blueworx-forge' ),
+			403
 		);
 	}
 

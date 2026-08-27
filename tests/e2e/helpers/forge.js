@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { asSite } from '../../helpers/signing.js';
 
 // What every workflow spec needs to get an item as far as the thing it is
 // actually testing.
@@ -251,51 +252,17 @@ export async function team(api, browser, baseURL, clientId) {
  *
  * ARCH-6 says a client site proves who it is with a signature rather than with
  * a login, so anything a spec wants to do *as a client site* has to be signed.
- * The canonical form is duplicated here for the same reason it is duplicated in
- * the client plugin's Signer: there is no file both sides can load, and
- * tests/php/SignerConformanceTest is what stops the copies drifting. A third
- * copy is one more thing that test does not cover, so it is worth saying out
- * loud that this one is proved by the requests it makes rather than by a check
- * of its own — a spec whose signing is wrong fails immediately and loudly.
+ * The signing itself lives in tests/helpers/signing.js, above both suites,
+ * because the two-instance suite needs exactly the same thing and a second copy
+ * would be a second thing to get wrong.
  */
 export async function asClientSite(api, siteId, request) {
-  const { createHmac, createHash, randomBytes } = await import('node:crypto');
-
   const issued = await (await api.post(`/client-sites/${siteId}/integration/key`, {})).json();
-  const key = issued.key;
-  const registrySiteId = issued.integration.registry_site_id;
-
-  const headersFor = (method, route, body) => {
-    const path = `${BASE.replace('/wp-json', '')}${route}`;
-    const timestamp = String(Math.floor(Date.now() / 1000));
-    const nonce = randomBytes(16).toString('hex');
-    const canonical = [
-      registrySiteId,
-      method.toUpperCase(),
-      path,
-      timestamp,
-      nonce,
-      createHash('sha256').update(body).digest('hex'),
-    ].join('\n');
-
-    return {
-      'X-BWX-Site': registrySiteId,
-      'X-BWX-Timestamp': timestamp,
-      'X-BWX-Nonce': nonce,
-      'X-BWX-Signature': createHmac('sha256', key).update(canonical).digest('hex'),
-      'Content-Type': 'application/json',
-    };
-  };
 
   return {
-    key,
-    registrySiteId,
-    get: (route) => request.get(`${BASE}${route}`, { headers: headersFor('GET', route, '') }),
-    post: (route, data) => {
-      const body = JSON.stringify(data);
-
-      return request.post(`${BASE}${route}`, { headers: headersFor('POST', route, body), data: body });
-    },
+    key: issued.key,
+    registrySiteId: issued.integration.registry_site_id,
+    ...asSite(request, issued.key, issued.integration.registry_site_id),
   };
 }
 
