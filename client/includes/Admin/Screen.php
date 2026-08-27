@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Board;
+use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Digest;
 use Blueworx\Forge\Client\Workspace;
 
@@ -216,7 +217,7 @@ final class Screen {
 		self::open( __( 'Needs attention', 'blueworx-forge' ), 'attention' );
 
 		if ( ! $board['ok'] ) {
-			self::work_unavailable();
+			self::work_unavailable( (string) $board['sync']['state'] );
 			self::close();
 
 			return;
@@ -258,7 +259,7 @@ final class Screen {
 		self::open( __( 'Coming up', 'blueworx-forge' ), 'upcoming' );
 
 		if ( ! $board['ok'] ) {
-			self::work_unavailable();
+			self::work_unavailable( (string) $board['sync']['state'] );
 			self::close();
 
 			return;
@@ -328,12 +329,16 @@ final class Screen {
 
 	/**
 	 * What a work section says when the work could not be read.
+	 *
+	 * Which sentence that is belongs to Denial (#134) rather than to this
+	 * screen. Two sections here say it, three other screens say something like
+	 * it, and while they each wrote their own one of them was always going to
+	 * be the one that never learned about a new way of failing.
+	 *
+	 * @param string $state One of the Sync STATE_ constants.
 	 */
-	private static function work_unavailable(): void {
-		printf(
-			'<p class="bwx-empty" data-bwx-work-unavailable="1">%s</p>',
-			esc_html__( 'Your work cannot be read from the studio right now. Nothing has been lost.', 'blueworx-forge' )
-		);
+	private static function work_unavailable( string $state ): void {
+		Denial::render( $state, Denial::WORK, 'bwx-work-unavailable' );
 	}
 
 	/**
@@ -410,10 +415,6 @@ final class Screen {
 	 * @param string $state One of Workspace's STATE_ constants.
 	 */
 	private static function empty_state( string $state ): void {
-		$message = Workspace::STATE_NOT_CONFIGURED === $state
-			? __( 'Once this site is connected, its workspace appears here.', 'blueworx-forge' )
-			: __( 'Nothing can be shown until the studio can be reached again.', 'blueworx-forge' );
-
-		echo '<p data-bwx-empty="1">' . esc_html( $message ) . '</p>';
+		Denial::render( $state, Denial::WORKSPACE, 'bwx-workspace-unavailable' );
 	}
 }

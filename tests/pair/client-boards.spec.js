@@ -286,7 +286,13 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(BOARD);
 
-    await expect(page.locator('[data-bwx-empty="1"]')).toContainText('cannot be shown');
+    const denial = page.getByTestId('bwx-work-unavailable');
+
+    await expect(denial).toContainText('cannot be read from the studio');
+    await expect(denial, 'the board reads as an outage rather than a refusal').toHaveAttribute(
+      'data-bwx-denial',
+      'unreachable'
+    );
     await expect(page.locator('[data-testid="bwx-column"]')).toHaveCount(0);
 
     await page.close();

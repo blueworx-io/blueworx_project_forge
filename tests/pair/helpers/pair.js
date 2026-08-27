@@ -99,6 +99,34 @@ export async function connect(client, issued) {
   expect(response.status(), await response.text()).toBe(200);
 }
 
+/**
+ * Makes the client site forget its credentials, the way a person would.
+ *
+ * Through the screen rather than through a route, because there is no route:
+ * forgetting credentials is a thing somebody does on their own site, behind a
+ * confirm dialog, and a spec that reached past it would be testing a door the
+ * product does not have.
+ */
+export async function disconnect(clientSite) {
+  const page = await clientSite.context.newPage();
+
+  page.on('dialog', (dialog) => dialog.accept());
+
+  await page.goto('/wp-admin/admin.php?page=blueworx-forge-client-connection');
+
+  const button = page.locator('[data-bwx-action="bwx_forge_client_disconnect"]');
+
+  // A site with no credentials has no button to forget them with, which is the
+  // state this was asked for anyway. Both sites here are shared and long-lived,
+  // so a spec that insisted on the button would fail whenever it ran second.
+  if (0 < (await button.count())) {
+    await button.click();
+    await expect(page.locator('[data-bwx-result="disconnected"]')).toHaveCount(1);
+  }
+
+  await page.close();
+}
+
 /** A piece of work on one of those sites, made by the studio. */
 export async function makeItem(studio, siteId, data = {}) {
   const created = await studio.post('/work-items', {

@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\Registry;
+use Blueworx\Forge\Sites\SecurityLog;
 use Blueworx\Forge\Work\ClientView;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Contributions;
@@ -542,6 +543,15 @@ final class ClientController {
 		);
 
 		if ( ! $decision['allowed'] ) {
+			self::log_refusal(
+				(string) $request->get_header( Signature::HEADER_SITE ),
+				(string) $decision['code'],
+				array(
+					'capability' => Contributions::capability( $asked ),
+					'item_id'    => (string) $item['id'],
+				)
+			);
+
 			return Errors::rest( 'not_permitted', $decision['reason'], 403, array( 'denied_by' => $decision['code'] ) );
 		}
 
@@ -600,13 +610,55 @@ final class ClientController {
 			);
 		}
 
-		$item = Items::get( (string) $request->get_param( 'item_id' ) );
+		$id   = (string) $request->get_param( 'item_id' );
+		$item = Items::get( $id );
 
 		if ( null === $item || (string) $item['client_site_id'] !== (string) $integration['client_site_id'] ) {
+			/*
+			 * Logged as two different reasons, and answered as one (#134).
+			 *
+			 * The answer a client site gets has to be identical either way —
+			 * that is the whole of D-1 and D-2, and it is why Boundary::absent
+			 * is the same call for both. But on our side of the connection they
+			 * are not remotely the same event: a site asking for an id that
+			 * does not exist is a stale bookmark, and a site asking for an id
+			 * that belongs to somebody else is worth a look. The permission
+			 * matrix requires every refusal be recorded with the site, the item
+			 * and the time, and a log that flattened these two together would
+			 * be a log nobody can find the second one in.
+			 */
+			self::log_refusal(
+				(string) $request->get_header( Signature::HEADER_SITE ),
+				null === $item ? 'unknown_work_item' : 'not_your_work_item',
+				array( 'item_id' => $id )
+			);
+
 			return Boundary::absent( 'work_item' );
 		}
 
 		return $item;
+	}
+
+	/**
+	 * Records a refusal made to a client site.
+	 *
+	 * Studio-side refusals are logged by Rest\Access, which reads a logged-in
+	 * person out of the request. Nobody is logged in here — the caller is a
+	 * machine holding a key — so the entry names the site instead, and says it
+	 * came from the client interface. Two writers rather than one because the
+	 * two have genuinely different facts to record, and a shared one would have
+	 * to invent a user id for half its callers.
+	 *
+	 * @param string               $site_id The registry site that signed the request.
+	 * @param string               $reason  Machine-readable reason.
+	 * @param array<string, mixed> $context Anything else worth keeping.
+	 */
+	private static function log_refusal( string $site_id, string $reason, array $context = array() ): void {
+		SecurityLog::refused(
+			$site_id,
+			$reason,
+			array_merge( $context, array( 'interface' => Capabilities::CLIENT ) )
+		);
 	}
 
 	/**

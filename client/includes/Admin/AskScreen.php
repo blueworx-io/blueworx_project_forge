@@ -9,6 +9,10 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Connection;
+use Blueworx\Forge\Client\Denial;
+use Blueworx\Forge\Client\Sync;
+
 /**
  * The form a client asks through (#129).
  *
@@ -80,6 +84,25 @@ final class AskScreen {
 		Nav::render( self::SLUG );
 
 		self::result_notice();
+
+		/*
+		 * No form on a site with nowhere to send it (#134).
+		 *
+		 * This used to draw the whole thing and refuse on submit, which is the
+		 * worst of both: somebody writes three paragraphs into boxes that were
+		 * never going to work, and finds out at the end. A control that cannot
+		 * succeed is not a control, so it is not drawn — and what replaces it
+		 * says why and where to fix it, rather than leaving somebody looking at
+		 * a page that has quietly lost its form.
+		 */
+		if ( ! Connection::is_configured() ) {
+			Denial::render( Sync::STATE_NOT_CONFIGURED, Denial::ASKING, 'bwx-ask-unavailable' );
+
+			echo '</div>';
+
+			return;
+		}
+
 		self::form();
 
 		echo '</div>';

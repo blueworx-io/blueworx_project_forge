@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.30.0] - 2026-08-26
+
+### Changed
+
+- Every client screen now says which kind of nothing it is showing. Not
+  connected yet, cannot reach the studio, and turned away by the studio are
+  three different problems with three different things to do about them, and
+  they used to read as one.
+- A screen with nothing to show because the site is not connected now says where
+  to connect it, rather than leaving somebody looking at a blank section.
+- The "ask for something" form is no longer drawn on a site with nowhere to send
+  it. It used to accept three paragraphs and refuse them on send.
+- "Check again" no longer appears where asking again gets the same answer.
+- A refusal made to a client site is now recorded in the studio's security log —
+  with the site, the item and the time — and a site asking for work that is not
+  theirs is logged separately from one asking for work that does not exist, even
+  though both are answered identically.
+
 ## [2.29.0] - 2026-08-26
 
 ### Added

@@ -9,8 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Submissions;
-use Blueworx\Forge\Client\Sync;
 
 /**
  * The other half of asking (#130).
@@ -83,7 +83,7 @@ final class AskedScreen {
 		SyncNotice::render( $view['sync'], self::SLUG );
 
 		if ( ! $view['ok'] ) {
-			self::unavailable( (string) $view['sync']['state'] );
+			Denial::render( (string) $view['sync']['state'], Denial::REQUESTS, 'bwx-asked-unavailable' );
 			echo '</div>';
 
 			return;
@@ -292,21 +292,5 @@ final class AskedScreen {
 			esc_url( admin_url( 'admin.php?page=' . AskScreen::SLUG ) ),
 			esc_html__( 'Ask for something', 'blueworx-forge' )
 		);
-	}
-
-	/**
-	 * What to show when the list could not be read.
-	 *
-	 * Never an empty list. "You have asked for nothing" and "we cannot see what
-	 * you asked for" are different sentences, and only one of them is true.
-	 *
-	 * @param string $state One of the Sync STATE_ constants.
-	 */
-	private static function unavailable( string $state ): void {
-		$message = Sync::STATE_NOT_CONFIGURED === $state
-			? __( 'Once this site is connected, everything you have asked for appears here.', 'blueworx-forge' )
-			: __( 'What you have asked for cannot be read from the studio right now. Nothing has been lost.', 'blueworx-forge' );
-
-		printf( '<p class="bwx-empty" data-testid="bwx-asked-unavailable">%s</p>', esc_html( $message ) );
 	}
 }

@@ -10,7 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Board;
-use Blueworx\Forge\Client\Sync;
+use Blueworx\Forge\Client\Denial;
 
 /**
  * Everything the board, timeline and calendar do identically (#128).
@@ -46,31 +46,12 @@ final class WorkScreen {
 		echo '<div class="bwx-work">';
 
 		if ( ! $view['ok'] ) {
-			self::nothing_to_show( (string) $view['sync']['state'] );
+			Denial::render( (string) $view['sync']['state'], Denial::WORK, 'bwx-work-unavailable' );
 		} else {
 			$draw( $view );
 		}
 
 		echo '</div></div>';
-	}
-
-	/**
-	 * What to show when there is no board.
-	 *
-	 * Never empty columns. "You have no work" and "we cannot see your work
-	 * right now" are different sentences, and drawing the first when the second
-	 * is true tells a client their work has been deleted.
-	 *
-	 * @param string $state One of the Sync STATE_ constants.
-	 */
-	private static function nothing_to_show( string $state ): void {
-		if ( Sync::STATE_NOT_CONFIGURED === $state ) {
-			$message = __( 'Once this site is connected to the studio, your work appears here.', 'blueworx-forge' );
-		} else {
-			$message = __( 'Your work cannot be shown until the studio can be reached again. Nothing has been lost.', 'blueworx-forge' );
-		}
-
-		printf( '<p class="bwx-empty" data-bwx-empty="1">%s</p>', esc_html( $message ) );
 	}
 
 	/**
