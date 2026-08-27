@@ -245,3 +245,71 @@ export async function team(api, browser, baseURL, clientId) {
     },
   };
 }
+
+/**
+ * A client site's signing key, and a caller that speaks as that site.
+ *
+ * ARCH-6 says a client site proves who it is with a signature rather than with
+ * a login, so anything a spec wants to do *as a client site* has to be signed.
+ * The canonical form is duplicated here for the same reason it is duplicated in
+ * the client plugin's Signer: there is no file both sides can load, and
+ * tests/php/SignerConformanceTest is what stops the copies drifting. A third
+ * copy is one more thing that test does not cover, so it is worth saying out
+ * loud that this one is proved by the requests it makes rather than by a check
+ * of its own — a spec whose signing is wrong fails immediately and loudly.
+ */
+export async function asClientSite(api, siteId, request) {
+  const { createHmac, createHash, randomBytes } = await import('node:crypto');
+
+  const issued = await (await api.post(`/client-sites/${siteId}/integration/key`, {})).json();
+  const key = issued.key;
+  const registrySiteId = issued.integration.registry_site_id;
+
+  const headersFor = (method, route, body) => {
+    const path = `${BASE.replace('/wp-json', '')}${route}`;
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const nonce = randomBytes(16).toString('hex');
+    const canonical = [
+      registrySiteId,
+      method.toUpperCase(),
+      path,
+      timestamp,
+      nonce,
+      createHash('sha256').update(body).digest('hex'),
+    ].join('\n');
+
+    return {
+      'X-BWX-Site': registrySiteId,
+      'X-BWX-Timestamp': timestamp,
+      'X-BWX-Nonce': nonce,
+      'X-BWX-Signature': createHmac('sha256', key).update(canonical).digest('hex'),
+      'Content-Type': 'application/json',
+    };
+  };
+
+  return {
+    key,
+    registrySiteId,
+    get: (route) => request.get(`${BASE}${route}`, { headers: headersFor('GET', route, '') }),
+    post: (route, data) => {
+      const body = JSON.stringify(data);
+
+      return request.post(`${BASE}${route}`, { headers: headersFor('POST', route, body), data: body });
+    },
+  };
+}
+
+/** Something a client site has asked for, sent the way a client site sends it. */
+export async function makeSubmission(site, values) {
+  const sent = await site.post('/client/submissions', {
+    type: 'request',
+    title: 'A booking form that takes deposits',
+    description: 'People ring up to pay and half of them never call back.',
+    submitted_by: 'Someone at the client',
+    ...values,
+  });
+
+  expect(sent.status(), await sent.text()).toBe(200);
+
+  return (await sent.json()).submission;
+}

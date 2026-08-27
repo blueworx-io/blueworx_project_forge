@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.28.0] - 2026-08-26
+
+### Added
+
+- A request you have accepted can now be turned into real work from the Requests
+  screen, without retyping it into the board.
+- Choose what it hangs under, or create a new parent on the way. Work that
+  answers a request somebody has already started can be linked to it instead of
+  making a second card for the same job.
+- New work starts at Future Idea, or goes straight into Triage — where the three
+  things the conversion has already decided are recorded against you, so nothing
+  is waved through.
+- What the client wrote stays exactly as they wrote it. The card can be called
+  something else without touching their words, and they see what their request
+  became on their own site.
+- Work can only ever land in the pipeline of the client who asked. There is no
+  way to point a conversion at another client's site, and anything belonging to
+  one is answered as though it does not exist.
+
 ## [2.27.0] - 2026-08-26
 
 ### Added
