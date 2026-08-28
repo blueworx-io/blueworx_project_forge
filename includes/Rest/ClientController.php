@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Capacity\ClientAnswer;
 use Blueworx\Forge\Sites\Registry;
 use Blueworx\Forge\Sites\SecurityLog;
 use Blueworx\Forge\Work\ClientView;
@@ -95,6 +96,20 @@ final class ClientController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'board' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/availability',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'availability' ),
 				'permission_callback' => array( Permissions::class, 'client_site' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
@@ -352,6 +367,52 @@ final class ClientController {
 				'items'     => ClientView::items( $rows, array( Users::class, 'get' ) ),
 			)
 		);
+	}
+
+	/**
+	 * Whether there is room, in a form that says nothing about anybody else.
+	 *
+	 * The signature says which site is calling and the answer ignores it, which
+	 * is exactly the point (#140): two clients asking on the same day get the
+	 * same sentence, so there is nothing in it that is about either of them.
+	 * There is therefore no site to look up here and nothing to scope, which
+	 * makes this the one client route with no `connection()` call in it.
+	 *
+	 * The window is clamped rather than refused. A client site asking for
+	 * something odd gets a sensible answer instead of an error it has no way to
+	 * act on, and the window it was actually answered for comes back with it.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function availability( WP_REST_Request $request ): WP_REST_Response {
+		$from = (string) $request->get_param( 'from' );
+		$to   = (string) $request->get_param( 'to' );
+
+		if ( ! self::is_date( $from ) ) {
+			$from = gmdate( 'Y-m-d' );
+		}
+
+		$furthest = gmdate(
+			'Y-m-d',
+			(int) strtotime( $from . ' 00:00:00 UTC' ) + ( ClientAnswer::DEFAULT_DAYS * DAY_IN_SECONDS )
+		);
+
+		if ( ! self::is_date( $to ) || $to < $from || $to > $furthest ) {
+			$to = $furthest;
+		}
+
+		return rest_ensure_response( ClientAnswer::for_window( $from, $to ) );
+	}
+
+	/**
+	 * Whether a string is a date this can work with.
+	 *
+	 * @param string $date Candidate.
+	 * @return bool
+	 */
+	private static function is_date( string $date ): bool {
+		return 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date );
 	}
 
 	/**
