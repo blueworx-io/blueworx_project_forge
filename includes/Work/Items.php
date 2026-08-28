@@ -48,7 +48,7 @@ final class Items {
 
 		$row = array_merge(
 			self::defaults(),
-			self::writable( $values ),
+			RoleHours::seed( self::writable( $values ) ),
 			array(
 				'id'             => Ids::create( self::PREFIX ),
 				'client_site_id' => $client_site_id,
@@ -167,7 +167,13 @@ final class Items {
 	public static function update( string $id, array $values, int $sent_version ): ?array {
 		global $wpdb;
 
-		$changes = self::writable( $values );
+		/*
+		 * The item is read first so a seeded default cannot overwrite a figure
+		 * already on it (CAP-2). One extra read on the rare write that changes
+		 * an estimate, against silently re-deciding somebody's review time
+		 * every time the estimate moves.
+		 */
+		$changes = RoleHours::seed( self::writable( $values ), (array) self::get( $id ) );
 
 		if ( array() === $changes ) {
 			// Nothing to write. Returning the row rather than a failure: an edit
