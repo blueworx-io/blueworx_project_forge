@@ -119,14 +119,14 @@ nothing — an unassigned seat is not a commitment against nobody.
 allocation's hours across days, given that person's availability for the window.
 No database, so the spreading rule is testable directly.
 
-`Allocations::for_people( array $user_ids, string $from, string $to ): array`
+`Commitments::live( string $from, string $to ): array`
 reads every qualifying item across every client in one query and returns the
 allocations, keyed by person. One query rather than one per person, because the
 capacity view asks for everybody at once.
 
 ### `Capacity\Commitments` — the cross-client total
 
-`Commitments::by_day( string $user_id, string $from, string $to ): array` and
+`Commitments::for_people( array $user_ids, string $from, string $to ): array` and
 `Commitments::hours(...)`, mirroring `Availability`'s two methods so the two
 sides of every figure are read the same way.
 
@@ -140,7 +140,7 @@ One place where the two sides meet, so "they had no time" and "their time was
 spoken for" are never confused, and so the view, the gates and the client answer
 cannot disagree.
 
-`Position::for_person( string $user_id, string $from, string $to ): array`
+`Position::for_people( array $user_ids, string $from, string $to ): array`
 returns available, committed, remaining, a status band, and whether the person's
 hours have been recorded at all. Bands: `clear` under 80% committed, `tight` at
 80% to 100%, `over` above 100%, and `unrecorded` where no pattern exists — which
@@ -149,7 +149,7 @@ rather than "they have no room".
 
 ### `Capacity\ClientAnswer` — what a client is told
 
-`ClientAnswer::for_client( string $client_id, string $from, string $to ): array`
+`ClientAnswer::for_window( string $from, string $to ): array`
 returns `{ availability: 'room' | 'tight' | 'none', earliest: 'YYYY-MM-DD' or empty }`
 and nothing else. Written as an explicit construction rather than a filtered
 position, so a field added to `Position` cannot appear here by accident — the
