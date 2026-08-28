@@ -51,6 +51,69 @@ final class CapacityPositionTest extends TestCase {
 		$this->assertSame( Position::OVER, Position::calculate( 0.0, 3.0, true )['band'] );
 	}
 
+	/**
+	 * Days as Availability reports them.
+	 *
+	 * @param array<string, float> $hours Date to hours.
+	 * @param string               $reason Reason on every zero day.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function days( array $hours, string $reason = '' ): array {
+		$days = array();
+
+		foreach ( $hours as $date => $value ) {
+			$days[] = array(
+				'date'       => (string) $date,
+				'hours'      => $value,
+				'base_hours' => $value,
+				'reason'     => $value > 0 ? '' : $reason,
+			);
+		}
+
+		return $days;
+	}
+
+	public function test_a_window_inside_the_range_is_a_sum_not_another_read(): void {
+		$days = $this->days(
+			array(
+				'2026-09-07' => 8.0,
+				'2026-09-08' => 8.0,
+				'2026-09-14' => 8.0,
+			)
+		);
+
+		$committed = array(
+			'2026-09-07' => 4.0,
+			'2026-09-14' => 7.0,
+		);
+
+		$first = Position::over( $days, $committed, '2026-09-07', '2026-09-13' );
+
+		$this->assertSame( 16.0, $first['available'], 'only the days in the window' );
+		$this->assertSame( 4.0, $first['committed'] );
+
+		$second = Position::over( $days, $committed, '2026-09-14', '2026-09-20' );
+
+		$this->assertSame( 8.0, $second['available'] );
+		$this->assertSame( 7.0, $second['committed'] );
+		$this->assertSame( Position::TIGHT, $second['band'] );
+	}
+
+	public function test_a_person_with_no_pattern_reads_as_unrecorded(): void {
+		$days = $this->days( array( '2026-09-07' => 0.0, '2026-09-08' => 0.0 ), 'no-pattern' );
+
+		$this->assertSame( Position::UNRECORDED, Position::over( $days, array(), '2026-09-07', '2026-09-08' )['band'] );
+	}
+
+	public function test_a_week_entirely_on_leave_is_recorded_and_clear(): void {
+		$days = $this->days( array( '2026-09-07' => 0.0, '2026-09-08' => 0.0 ), 'leave' );
+
+		$position = Position::over( $days, array(), '2026-09-07', '2026-09-08' );
+
+		$this->assertSame( Position::CLEAR, $position['band'], 'being away is a plan, not a gap in the records' );
+		$this->assertSame( 0.0, $position['available'] );
+	}
+
 	public function test_a_range_splits_into_weeks_starting_monday(): void {
 		$weeks = Periods::weeks( '2026-09-09', '2026-09-22' );
 

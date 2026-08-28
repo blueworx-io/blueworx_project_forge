@@ -163,6 +163,45 @@ final class Patterns {
 	}
 
 	/**
+	 * Every pattern for several people, newest first within each.
+	 *
+	 * One query rather than one per person, for the same reason as
+	 * Unavailability::for_people(): the capacity view asks about the whole
+	 * studio at once (#139).
+	 *
+	 * @param array<int, string> $user_ids The people.
+	 * @return array<string, array<int, array<string, mixed>>> Keyed by person, everybody present.
+	 */
+	public static function for_people( array $user_ids ): array {
+		global $wpdb;
+
+		$out = array_fill_keys( $user_ids, array() );
+
+		if ( array() === $user_ids ) {
+			return $out;
+		}
+
+		$table = Schema::availability_patterns_table();
+		$slots = implode( ', ', array_fill( 0, count( $user_ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the id placeholders are counted above.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE user_id IN ({$slots}) ORDER BY effective_from DESC, created_at DESC", array_values( $user_ids ) ),
+			ARRAY_A
+		);
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$user_id = (string) $row['user_id'];
+
+			if ( isset( $out[ $user_id ] ) ) {
+				$out[ $user_id ][] = self::hydrate( $row );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
 	 * The hours a pattern gives for a date's weekday.
 	 *
 	 * @param array<string, mixed> $pattern A hydrated pattern.

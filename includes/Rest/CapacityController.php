@@ -111,51 +111,37 @@ final class CapacityController {
 		list( $from, $to ) = $window;
 
 		$people = Users::all( 'active' );
-		$ids    = array();
-		$rows   = array();
+		$ids    = array_map(
+			static fn( array $person ): string => (string) $person['id'],
+			$people
+		);
+
+		$weeks = Periods::weeks( $from, $to );
+
+		/*
+		 * One call for the whole grid. Asking week by week meant reading every
+		 * person's availability once per column, which on a quarter and a full
+		 * studio was hundreds of queries and a screen that never arrived.
+		 */
+		$grid = Position::grid( $ids, $weeks, $from, $to );
+		$rows = array();
 
 		foreach ( $people as $person ) {
-			$id    = (string) $person['id'];
-			$ids[] = $id;
+			$id = (string) $person['id'];
 
 			$rows[] = array(
 				'user_id'      => $id,
 				'display_name' => (string) $person['display_name'],
-				'weeks'        => array(),
-				'total'        => array(),
+				'weeks'        => $grid[ $id ]['weeks'],
+				'total'        => $grid[ $id ]['total'],
 			);
-		}
-
-		/*
-		 * A pass per week rather than a pass per person, because the commitment
-		 * read is one query for everybody and doing it the other way round runs
-		 * that query once per person per week.
-		 */
-		foreach ( Periods::weeks( $from, $to ) as $week ) {
-			$positions = Position::for_people( $ids, $week['from'], $week['to'] );
-
-			foreach ( $rows as $index => $row ) {
-				$rows[ $index ]['weeks'][] = array_merge(
-					array(
-						'from' => $week['from'],
-						'to'   => $week['to'],
-					),
-					$positions[ $row['user_id'] ]
-				);
-			}
-		}
-
-		$totals = Position::for_people( $ids, $from, $to );
-
-		foreach ( $rows as $index => $row ) {
-			$rows[ $index ]['total'] = $totals[ $row['user_id'] ];
 		}
 
 		return new WP_REST_Response(
 			array(
 				'from'   => $from,
 				'to'     => $to,
-				'weeks'  => Periods::weeks( $from, $to ),
+				'weeks'  => $weeks,
 				'people' => $rows,
 			),
 			200

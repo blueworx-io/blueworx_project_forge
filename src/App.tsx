@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ScreenName } from './types';
 import { forgeData, isConnected } from './api';
+import { CapacityScreen } from './components/CapacityScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
@@ -68,6 +69,16 @@ export function App() {
           >
             Requests
           </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'capacity' === screen ? undefined : 'quiet' }
+            data-testid="bwx-screen-capacity"
+            aria-pressed={ 'capacity' === screen }
+            onClick={ () => setScreen( 'capacity' ) }
+          >
+            Capacity
+          </button>
         </div>
 
         <span className="bwx-header-spacer" />
@@ -81,7 +92,9 @@ export function App() {
          background is a queue showing answers somebody else gave ten minutes
          ago.
        */ }
-      { 'work' === screen ? <WorkScreen /> : <QueueScreen /> }
+      { 'work' === screen && <WorkScreen /> }
+      { 'requests' === screen && <QueueScreen /> }
+      { 'capacity' === screen && <CapacityScreen /> }
     </main>
   );
 }

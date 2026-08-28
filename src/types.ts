@@ -112,8 +112,73 @@ export interface SavedView {
 /** Which view of the work is on screen. */
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
-/** Which screen of the studio is on screen (#131). */
-export type ScreenName = 'work' | 'requests';
+/** Which screen of the studio is on screen (#131, #139). */
+export type ScreenName = 'work' | 'requests' | 'capacity';
+
+/** What to call a person's position in a period (#139). */
+export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
+
+/** Available against committed, for one person over one period. */
+export interface CapacityPosition {
+  available: number;
+  committed: number;
+  remaining: number;
+  band: CapacityBand;
+}
+
+/** One cell of the grid: a position, and the week it covers. */
+export interface CapacityCell extends CapacityPosition {
+  from: string;
+  to: string;
+}
+
+/** One row of the grid. */
+export interface CapacityPerson {
+  user_id: string;
+  display_name: string;
+  weeks: CapacityCell[];
+  total: CapacityPosition;
+}
+
+/** The capacity read. */
+export interface CapacityResponse {
+  from: string;
+  to: string;
+  weeks: { from: string; to: string }[];
+  people: CapacityPerson[];
+}
+
+/** One piece of work behind a committed figure. */
+export interface CapacityAllocation {
+  item_id: string;
+  title: string;
+  client_id: string;
+  role: 'primary' | 'review' | 'delivery';
+  covering: string;
+  hours: number;
+  from: string;
+  to: string;
+}
+
+/** One day of somebody's availability, with the reason for any zero. */
+export interface CapacityDay {
+  date: string;
+  hours: number;
+  base_hours: number;
+  reason: string;
+}
+
+/** Everything behind one person's numbers. */
+export interface CapacityDrilldown {
+  user_id: string;
+  display_name: string;
+  from: string;
+  to: string;
+  days: CapacityDay[];
+  committed_by_day: Record< string, number >;
+  allocations: CapacityAllocation[];
+  position: CapacityPosition;
+}
 
 /** An intake state, with the words a person reads for it. */
 export interface IntakeState {
