@@ -11,8 +11,8 @@ namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Denial;
-use Blueworx\Forge\Client\ReadThrough;
 use Blueworx\Forge\Client\Sync;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * The form a client asks through (#129).
@@ -123,12 +123,14 @@ final class AskScreen {
 	 * it anyway — the studio would rather have the conversation than have a
 	 * client quietly decide not to bother.
 	 *
-	 * Read through the same cache every other client screen reads through, so
-	 * opening this page is not a call to the studio.
+	 * Taken from the workspace record this site already holds, never fetched on
+	 * its own. A form whose job is to accept what somebody types must not pause
+	 * on a studio call before it will draw itself — and it would pause longest
+	 * exactly when the studio is unreachable, which is the worst moment to make
+	 * somebody wait to tell us something.
 	 */
 	private static function availability(): void {
-		$answer = ReadThrough::view( '/client/availability' );
-		$result = is_array( $answer['payload'] ) ? $answer['payload'] : array();
+		$result = Workspace::availability_if_known();
 		$band   = (string) ( $result['availability'] ?? '' );
 
 		if ( '' === $band ) {

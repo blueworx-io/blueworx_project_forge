@@ -321,8 +321,31 @@ final class ClientController {
 					'connected_since' => (int) ( $site['created_at'] ?? 0 ),
 				),
 				'contact'   => self::contact_for( $site_id ),
+
+				/*
+				 * Carried here rather than fetched separately (#140). Every
+				 * client screen already reads the workspace, so this costs no
+				 * extra round trip and no extra wait — and the screen that
+				 * wants it is the Ask form, whose whole job is to accept what
+				 * somebody types. A form that pauses on a studio call before it
+				 * will draw itself is a worse form, and it is worst exactly
+				 * when the studio is unreachable.
+				 *
+				 * Same answer as /client/availability, which stays for a site
+				 * that wants to ask the question on its own.
+				 */
+				'availability' => ClientAnswer::for_window( gmdate( 'Y-m-d' ), self::default_horizon() ),
 			)
 		);
+	}
+
+	/**
+	 * How far ahead an availability answer looks by default.
+	 *
+	 * @return string YYYY-MM-DD.
+	 */
+	private static function default_horizon(): string {
+		return gmdate( 'Y-m-d', (int) strtotime( gmdate( 'Y-m-d' ) . ' 00:00:00 UTC' ) + ( ClientAnswer::DEFAULT_DAYS * DAY_IN_SECONDS ) );
 	}
 
 	/**
