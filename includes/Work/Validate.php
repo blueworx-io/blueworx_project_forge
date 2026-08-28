@@ -181,7 +181,17 @@ final class Validate {
 	 * @param array<string, string> $errors Errors, by reference.
 	 */
 	private static function seats( array $input, array &$values, array &$errors ): void {
-		foreach ( array_merge( Fields::ACCOUNTABILITY, Fields::SUBSTITUTES ) as $field ) {
+		/*
+		 * The hours live inside the accountability group so that "may this
+		 * person set the accountability fields" stays one question, which is
+		 * right. It also walked them into this loop, where every field is
+		 * required to be a person id — so no hours figure could be written at
+		 * all. They have rules of their own in planning_fields(); here they are
+		 * simply not seats.
+		 */
+		$seats = array_merge( array_diff( Fields::ACCOUNTABILITY, Fields::HOURS ), Fields::SUBSTITUTES );
+
+		foreach ( $seats as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
 				continue;
 			}

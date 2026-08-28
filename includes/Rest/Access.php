@@ -135,6 +135,50 @@ final class Access {
 	}
 
 	/**
+	 * Whether the current user holds a capability anywhere at all.
+	 *
+	 * For the one read whose subject is not a client's records (#138). Capacity
+	 * spans every client by definition, so asking "do they hold this for client
+	 * X" has no X to name — and asking it of no client at all would refuse
+	 * every member of staff who is not a WordPress administrator.
+	 *
+	 * Holding it under any active membership is enough. Somebody who may see
+	 * staff capacity for one client is not being shown anything new by seeing
+	 * it for all of them: the answer is about the studio's own people and their
+	 * own hours, not about anybody's work.
+	 *
+	 * @param string $capability Capability.
+	 * @return bool
+	 */
+	public static function allows_anywhere( string $capability ): bool {
+		$wp_user = get_current_user_id();
+
+		if ( current_user_can( 'manage_options' ) ) {
+			// The studio's own WordPress administrator is the Primary
+			// administrator here, exactly as in context().
+			return true;
+		}
+
+		$user = $wp_user > 0 ? Users::by_wp_user( $wp_user ) : null;
+
+		if ( null === $user ) {
+			return false;
+		}
+
+		$user_id = (string) $user['id'];
+
+		foreach ( Memberships::for_user( $user_id ) as $membership ) {
+			$context = self::build( (string) $membership['role'], $user_id, null, true, $membership );
+
+			if ( Capabilities::allows( $capability, $context ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Records a refusal: who, what, where from, and when.
 	 *
 	 * @param string                    $capability What was attempted.

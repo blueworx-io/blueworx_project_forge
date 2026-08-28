@@ -113,6 +113,33 @@ final class WorkAuthorityTest extends TestCase {
 	}
 
 	/**
+	 * The planned hours are hours, not seats.
+	 *
+	 * They sit inside the accountability group so that "may this person set the
+	 * accountability fields" stays one question — which is right, and which
+	 * also put them in front of the check that every accountability field holds
+	 * a person id. The effect was that no hours figure could be written at all,
+	 * which M7 needs before it can plan anything.
+	 */
+	public function test_planned_hours_are_not_asked_to_be_people(): void {
+		$hours = Validate::item(
+			array(
+				'hours_primary'  => 6,
+				'hours_review'   => 1.2,
+				'hours_delivery' => 0.6,
+			),
+			true
+		);
+
+		$this->assertSame( array(), $hours['errors'] );
+		$this->assertSame( 6.0, $hours['values']['hours_primary'] );
+
+		// The rule they do have is still theirs: hours cannot be negative.
+		$negative = Validate::item( array( 'hours_primary' => -1 ), true );
+		$this->assertArrayHasKey( 'hours_primary', $negative['errors'] );
+	}
+
+	/**
 	 * #113. Finished work reopens, and only from where it is finished.
 	 */
 	public function test_only_finished_work_reopens(): void {
