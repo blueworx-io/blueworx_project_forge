@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.34.0] - 2026-08-28
+
+### Added
+
+- A Capacity screen, beside Work and Requests. People down the side, weeks
+  across the top, and how much of each week is already spoken for. Every figure
+  opens to the work behind it, so a number can always be taken apart.
+- Somebody working for two clients now shows one combined commitment. Nobody
+  can look free on one client while they are committed on another.
+- Committed time is spread across the days somebody actually works, so a job
+  running over a month reads as a month of steady load rather than a wall in
+  week one, and a week of leave carries none of it.
+- The reviewer's and deliverer's hours are filled in from the estimate when
+  work is planned, and stay editable. A figure somebody has set is never
+  overwritten, including a deliberate zero.
+- A client site can now ask whether there is room. It gets an answer and, where
+  there is none yet, the earliest date we expect some — and nothing at all
+  about anybody else's work. The answer is the same whichever client asks.
+- The client's own Ask screen shows that answer above the form, so somebody
+  knows what is possible before they write, and is always told to ask anyway.
+
+### Fixed
+
+- Planned hours could not be saved. They were being checked against the rule
+  that says a seat holds a person, so any figure was refused as "not a person",
+  which meant no work could carry an estimate at all.
+
 ## [2.33.0] - 2026-08-27
 
 ### Added

@@ -116,10 +116,24 @@ export function CapacityScreen() {
     }
   }, [ range.from, range.to ] );
 
+  // Reading on mount, the same way the other screens do — and again when the
+  // dates change, which is the one difference: the range is a control here, so
+  // load() is a dependency rather than an empty list.
   useEffect( () => {
-    setState( 'loading' );
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  /*
+   * Changing the dates is what starts a read, so it is what says the screen is
+   * loading. Saying so from inside the effect instead would set state during a
+   * render pass the effect is already reacting to, which is a cascade React
+   * asks you not to write.
+   */
+  function ask( next: { from: string; to: string } ) {
+    setState( 'loading' );
+    setRange( next );
+  }
 
   async function openCell( userId: string, from: string, to: string ) {
     try {
@@ -141,7 +155,7 @@ export function CapacityScreen() {
             className="bwx-input"
             data-testid="bwx-capacity-from"
             value={ range.from }
-            onChange={ ( event ) => setRange( { ...range, from: event.target.value } ) }
+            onChange={ ( event ) => ask( { ...range, from: event.target.value } ) }
           />
         </label>
 
@@ -152,7 +166,7 @@ export function CapacityScreen() {
             className="bwx-input"
             data-testid="bwx-capacity-to"
             value={ range.to }
-            onChange={ ( event ) => setRange( { ...range, to: event.target.value } ) }
+            onChange={ ( event ) => ask( { ...range, to: event.target.value } ) }
           />
         </label>
 

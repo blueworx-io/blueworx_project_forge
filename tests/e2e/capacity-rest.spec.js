@@ -30,6 +30,12 @@ async function setHoursThroughTheScreen(page, name, hours) {
   await page.selectOption('#bwx-person', { label: name });
   await page.click('form[data-bwx-person-picker] input[type="submit"]');
 
+  // Wait for the person's page, not just for the click. Picking somebody is a
+  // form post, so filling the hours straight afterwards can run against the
+  // page that is still on screen — which fails as a missing field rather than
+  // as anything that names the real problem.
+  await expect(page.locator('[data-bwx-person-name]')).toHaveText(name);
+
   await page.fill('#bwx-effective-from', '2020-01-01');
 
   for (const day of DAYS) {
