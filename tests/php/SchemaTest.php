@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 14, $definitions );
+		$this->assertCount( 19, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -55,6 +55,11 @@ final class SchemaTest extends TestCase {
 		// two capacity tables are both: an hours correction appends another
 		// statement rather than editing the one that was wrong, and a leave
 		// record is added or taken away and never amended.
+		//
+		// A site's onboarding assignment is the same kind of thing: it says
+		// which checklist a client was given on the day they were given it, and
+		// that never becomes untrue (#160). A step's history is append-only for
+		// the same reason every other history here is.
 		$append_only = array(
 			Schema::work_events_table(),
 			Schema::gate_records_table(),
@@ -63,6 +68,8 @@ final class SchemaTest extends TestCase {
 			Schema::dependencies_table(),
 			Schema::availability_patterns_table(),
 			Schema::unavailability_table(),
+			Schema::site_onboarding_table(),
+			Schema::onboarding_step_events_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
@@ -134,6 +141,60 @@ final class SchemaTest extends TestCase {
 	 * The signing key is not among the integration's columns. ARCH-6 keeps it in
 	 * the register, issued once and never read back, and #89 does not move it.
 	 */
+	/**
+	 * The onboarding tables exist, and the template is the one that is not
+	 * scoped to anybody (#159, #160, #161).
+	 */
+	public function test_onboarding_has_its_tables_and_the_template_belongs_to_nobody(): void {
+		$definitions = Schema::definitions();
+
+		foreach (
+			array(
+				Schema::onboarding_templates_table(),
+				Schema::onboarding_template_steps_table(),
+				Schema::site_onboarding_table(),
+				Schema::onboarding_steps_table(),
+				Schema::onboarding_step_events_table(),
+			) as $table
+		) {
+			$this->assertArrayHasKey( $table, $definitions );
+		}
+
+		$templates = $definitions[ Schema::onboarding_templates_table() ];
+
+		// A template is the studio's. A client or site column here would make
+		// it somebody's, and the assignment in #160 pointless.
+		$this->assertStringNotContainsString( 'client_id', $templates );
+		$this->assertStringNotContainsString( 'client_site_id', $templates );
+	}
+
+	/**
+	 * ONB-3, written as a test rather than as a comment. Forge stores which
+	 * provider, which account and whether access was verified — and has
+	 * nowhere at all to put the secret itself. A rule in a controller can be
+	 * forgotten by the next caller; a column that does not exist cannot.
+	 */
+	public function test_an_onboarding_step_has_nowhere_to_put_a_credential(): void {
+		$steps = Schema::definitions()[ Schema::onboarding_steps_table() ];
+
+		foreach ( array( 'password', 'secret', 'token', 'credential', 'api_key', 'private_key' ) as $forbidden ) {
+			$this->assertStringNotContainsString( $forbidden, $steps );
+		}
+
+		// What it does store instead.
+		$this->assertStringContainsString( 'provider', $steps );
+		$this->assertStringContainsString( 'invitation_status', $steps );
+		$this->assertStringContainsString( 'verification_outcome', $steps );
+	}
+
+	/**
+	 * Overdue is worked out, never written down (#161). A column here would
+	 * need a nightly sweep to stay true, and would be wrong in between.
+	 */
+	public function test_a_step_does_not_store_whether_it_is_late(): void {
+		$this->assertStringNotContainsString( 'overdue', Schema::definitions()[ Schema::onboarding_steps_table() ] );
+	}
+
 	public function test_the_integration_does_not_store_the_key(): void {
 		$integrations = Schema::definitions()[ Schema::integrations_table() ];
 
