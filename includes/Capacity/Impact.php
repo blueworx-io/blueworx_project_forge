@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Capacity;
 
+use Blueworx\Forge\Tenancy\Users;
+
 /**
  * CAP-E1: the one place that answers "would this over-book anybody?" (#141).
  *
@@ -63,13 +65,37 @@ final class Impact {
 
 		$user_ids = array_values( array_unique( array_column( $proposed, 'user_id' ) ) );
 
-		return self::assess(
-			$proposed,
-			Commitments::live( $from, $to ),
-			Availability::for_people( $user_ids, $from, $to ),
-			$from,
-			$to
+		return self::named(
+			self::assess(
+				$proposed,
+				Commitments::live( $from, $to ),
+				Availability::for_people( $user_ids, $from, $to ),
+				$from,
+				$to
+			)
 		);
+	}
+
+	/**
+	 * The same assessment with each person's name on it.
+	 *
+	 * Added here rather than left to the screen. A refusal that says an id is
+	 * over-booked is a refusal nobody can act on, and every screen that had to
+	 * look the name up separately would be one more place to get it wrong.
+	 *
+	 * @param array<string, mixed> $impact An assessment.
+	 * @return array{over: array<int, array<string, mixed>>, window: array{from: string, to: string}}
+	 */
+	private static function named( array $impact ): array {
+		foreach ( $impact['over'] as $index => $entry ) {
+			$person = Users::get( (string) $entry['user_id'] );
+
+			$impact['over'][ $index ]['display_name'] = null === $person
+				? (string) $entry['user_id']
+				: (string) $person['display_name'];
+		}
+
+		return $impact;
 	}
 
 	/**
