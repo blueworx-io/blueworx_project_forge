@@ -65,8 +65,10 @@ final class Plugin {
 		Admin\UpdatesActions::boot();
 
 		add_action( 'admin_menu', array( Admin\AvailabilityScreen::class, 'register' ) );
+		add_action( 'admin_menu', array( Admin\OnboardingTemplateScreen::class, 'register' ) );
 
 		Admin\AvailabilityActions::boot();
+		Admin\OnboardingTemplateActions::boot();
 
 		Tenancy\IntegrationEvents::boot();
 	}

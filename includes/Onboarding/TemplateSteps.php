@@ -126,6 +126,52 @@ final class TemplateSteps {
 	}
 
 	/**
+	 * Takes a step out of a draft.
+	 *
+	 * Refused on a published version for the same reason adding is: a version
+	 * that could lose a step after it was issued would leave two clients on the
+	 * same version number with different checklists.
+	 *
+	 * @param string $id The step.
+	 * @return bool Whether it was removed.
+	 */
+	public static function remove( string $id ): bool {
+		global $wpdb;
+
+		$step = self::get( $id );
+
+		if ( null === $step ) {
+			return false;
+		}
+
+		$template = Templates::get( (string) $step['template_id'] );
+
+		if ( null === $template || ! Templates::may_edit( $template ) ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
+		return (bool) $wpdb->delete( Schema::onboarding_template_steps_table(), array( 'id' => $id ), array( '%s' ) );
+	}
+
+	/**
+	 * One step definition.
+	 *
+	 * @param string $id Step id.
+	 * @return array<string, mixed>|null
+	 */
+	public static function get( string $id ): ?array {
+		global $wpdb;
+
+		$table = Schema::onboarding_template_steps_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %s", $id ), ARRAY_A );
+
+		return is_array( $row ) ? self::hydrate( $row ) : null;
+	}
+
+	/**
 	 * Copies every step of one version into another.
 	 *
 	 * How a published version is edited: the draft starts as what the last one
