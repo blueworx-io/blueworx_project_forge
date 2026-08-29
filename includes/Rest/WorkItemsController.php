@@ -177,6 +177,19 @@ final class WorkItemsController {
 						'type'     => 'string',
 						'required' => true,
 					),
+
+					/*
+					 * Why an over-allocation is going ahead anyway (CAP-4). It
+					 * travels with the move rather than being set on the item
+					 * beforehand, because it answers the capacity picture as it
+					 * stands at the moment of the move — a reason recorded when
+					 * the plan was made was about a different week.
+					 */
+					'capacity_reason' => array(
+						'type'              => 'string',
+						'required'          => false,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
 					Versioning::PARAM => array(
 						'type'     => 'integer',
 						'required' => false,
@@ -1033,6 +1046,23 @@ final class WorkItemsController {
 			return $refused;
 		}
 
+		$reason = trim( (string) $request->get_param( 'capacity_reason' ) );
+
+		/*
+		 * Over-booking somebody is not a decision everybody who may move work
+		 * gets to make. CAP-4 puts it with the studio administrators, as WF-5
+		 * does — so the reason is refused here rather than quietly ignored,
+		 * which would leave somebody believing they had made a decision that
+		 * never happened.
+		 */
+		if ( '' !== $reason ) {
+			$refused = self::permit( Capabilities::OVERRIDE, $item );
+
+			if ( null !== $refused ) {
+				return $refused;
+			}
+		}
+
 		$context = Access::context( (string) $item['client_id'], $item );
 
 		return self::answer(
@@ -1041,7 +1071,8 @@ final class WorkItemsController {
 				$to,
 				(int) $sent,
 				get_current_user_id(),
-				empty( $context['acting_as_substitute'] ) ? '' : Events::VIA_SUBSTITUTE
+				empty( $context['acting_as_substitute'] ) ? '' : Events::VIA_SUBSTITUTE,
+				$reason
 			)
 		);
 	}

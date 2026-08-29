@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 11;
+	public const VERSION = 12;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -441,6 +441,8 @@ final class Schema {
 	self_reviewed tinyint(1) NOT NULL DEFAULT 0,
 	override_used tinyint(1) NOT NULL DEFAULT 0,
 	override_reason varchar(191) NOT NULL DEFAULT '',
+	capacity_override_used tinyint(1) NOT NULL DEFAULT 0,
+	capacity_override_reason varchar(191) NOT NULL DEFAULT '',
 	commercial_class varchar(20) NOT NULL DEFAULT 'unclassified',
 	delivered_by_forge tinyint(1) NOT NULL DEFAULT 0,
 	priority varchar(20) NOT NULL DEFAULT '',

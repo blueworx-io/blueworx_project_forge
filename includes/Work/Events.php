@@ -77,6 +77,16 @@ final class Events {
 	public const OVERRIDDEN = 'overridden';
 
 	/**
+	 * Somebody was over-booked, deliberately and with a reason (CAP-4, #143).
+	 *
+	 * Its own action rather than an OVERRIDDEN with a note, so "how often are
+	 * we over-committing people" is a query. It is the question the capacity
+	 * report exists to answer, and a report that has to read reasons to answer
+	 * it is a report nobody runs.
+	 */
+	public const OVER_ALLOCATED = 'over-allocated';
+
+	/**
 	 * A field was changed (#99).
 	 */
 	public const EDITED = 'edited';
@@ -130,6 +140,7 @@ final class Events {
 		self::ARCHIVED,
 		self::REOPENED,
 		self::OVERRIDDEN,
+		self::OVER_ALLOCATED,
 		self::CORRECTED,
 		self::CONVERTED,
 		self::DEPENDENCY_ADDED,
