@@ -175,6 +175,7 @@ final class Allocations {
 				'client_site_id' => (string) ( $item['client_site_id'] ?? '' ),
 				'role'           => $role,
 				'user_id'        => $who,
+
 				/*
 				 * Who is being covered, where somebody is standing in. The
 				 * commitment follows whoever is doing the work (AUTH-4 records
