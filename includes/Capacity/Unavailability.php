@@ -70,7 +70,20 @@ final class Unavailability {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
 		$inserted = $wpdb->insert( Schema::unavailability_table(), $row, Formats::for_row( $row ) );
 
-		return $inserted ? self::hydrate( $row ) : null;
+		if ( ! $inserted ) {
+			return null;
+		}
+
+		// #144. Time off takes days out of weeks that work is already committed
+		// to, and the work should say so rather than only going red.
+		Trail::record(
+			$user_id,
+			$starts_on,
+			$ends_on,
+			__( 'Somebody in a seat had time off recorded against them.', 'blueworx-forge' )
+		);
+
+		return self::hydrate( $row );
 	}
 
 	/**
@@ -82,8 +95,30 @@ final class Unavailability {
 	public static function remove( string $id ): bool {
 		global $wpdb;
 
+		$table = Schema::unavailability_table();
+
+		/*
+		 * Read before deleting, because the record is what says whose time it
+		 * was and which weeks it covered — and after the delete there is
+		 * nothing left to ask. Cancelled leave changes the picture as surely as
+		 * booked leave does; it just changes it the other way.
+		 */
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %s", $id ), ARRAY_A );
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
-		return (bool) $wpdb->delete( Schema::unavailability_table(), array( 'id' => $id ), array( '%s' ) );
+		$removed = (bool) $wpdb->delete( $table, array( 'id' => $id ), array( '%s' ) );
+
+		if ( $removed && is_array( $row ) ) {
+			Trail::record(
+				(string) $row['user_id'],
+				(string) $row['starts_on'],
+				(string) $row['ends_on'],
+				__( 'Time off booked for somebody in a seat was cancelled.', 'blueworx-forge' )
+			);
+		}
+
+		return $removed;
 	}
 
 	/**
