@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.36.0] - 2026-08-29
+
+### Added
+
+- A launch checklist, written in one place and versioned. Correcting it is an
+  edit rather than a release, so a checklist that turns out to be wrong gets
+  fixed the same day.
+- Once a version is issued it never changes again. A client working through
+  theirs is never rewritten underneath them, and changing the checklist means
+  opening a copy and issuing that as the next version.
+- Giving a client their checklist fixes it there and then. What they see is
+  what they were handed on the day, whatever the template does afterwards.
+- Every change to a step records who made it and when, permanently, and a
+  change with nobody's name on it is refused rather than stored.
+- The checklist has nowhere to put a password or a key. Access is granted by
+  inviting us to a provider, and what gets recorded is which account, what was
+  asked for, and whether it was verified.
+
+### Note
+
+The starter checklist is not finished. Five of its twelve categories are
+written — the ones that gate a launch — and it will not be issued to anybody
+until the rest are supplied. Everything above works; only the starting content
+is outstanding.
+
 ## [2.35.0] - 2026-08-29
 
 ### Added

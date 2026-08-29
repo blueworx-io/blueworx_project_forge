@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 12;
+	public const VERSION = 13;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -186,6 +186,67 @@ final class Schema {
 	}
 
 	/**
+	 * The onboarding template versions table's full name.
+	 *
+	 * Global, and the only table here that is. A template is the studio's, not
+	 * a client's: every site is assigned one of these and none of them owns it.
+	 * So there is deliberately no client or site column, and anything reading
+	 * this table is crossing the tenant boundary knowingly rather than by
+	 * accident.
+	 *
+	 * @return string
+	 */
+	public static function onboarding_templates_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_onboarding_templates';
+	}
+
+	/**
+	 * The onboarding template steps table's full name.
+	 *
+	 * @return string
+	 */
+	public static function onboarding_template_steps_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_onboarding_template_steps';
+	}
+
+	/**
+	 * The site onboarding table's full name.
+	 *
+	 * @return string
+	 */
+	public static function site_onboarding_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_site_onboarding';
+	}
+
+	/**
+	 * The onboarding steps table's full name.
+	 *
+	 * @return string
+	 */
+	public static function onboarding_steps_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_onboarding_steps';
+	}
+
+	/**
+	 * The onboarding step events table's full name.
+	 *
+	 * @return string
+	 */
+	public static function onboarding_step_events_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_onboarding_step_events';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -224,8 +285,14 @@ final class Schema {
 		$patterns     = self::availability_patterns_table();
 		$unavailable  = self::unavailability_table();
 
+		$templates       = self::onboarding_templates_table();
+		$template_steps  = self::onboarding_template_steps_table();
+		$site_onboarding = self::site_onboarding_table();
+		$steps           = self::onboarding_steps_table();
+		$step_events     = self::onboarding_step_events_table();
+
 		return array(
-			$clients      => "CREATE TABLE {$clients} (
+			$clients         => "CREATE TABLE {$clients} (
 	id varchar(32) NOT NULL,
 	display_name varchar(191) NOT NULL,
 	legal_name varchar(191) NOT NULL DEFAULT '',
@@ -239,7 +306,7 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY status (status)
 ) {$collate};",
-			$sites        => "CREATE TABLE {$sites} (
+			$sites           => "CREATE TABLE {$sites} (
 	id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
 	name varchar(191) NOT NULL,
@@ -267,7 +334,7 @@ final class Schema {
 			 * cast to an integer whatever its declared type, storing 0 and
 			 * reporting success. Do not rename it back.
 			 */
-			$integrations => "CREATE TABLE {$integrations} (
+			$integrations    => "CREATE TABLE {$integrations} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -304,7 +371,7 @@ final class Schema {
 			 * somebody who already has an account quietly creates a second
 			 * person, and capacity counts them twice for ever after.
 			 */
-			$users        => "CREATE TABLE {$users} (
+			$users           => "CREATE TABLE {$users} (
 	id varchar(32) NOT NULL,
 	email varchar(191) NOT NULL,
 	display_name varchar(191) NOT NULL,
@@ -333,7 +400,7 @@ final class Schema {
 			 * The unique index is the honest kind of duplicate prevention —
 			 * saying the same thing twice is not two dependencies.
 			 */
-			$dependencies => "CREATE TABLE {$dependencies} (
+			$dependencies    => "CREATE TABLE {$dependencies} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	depends_on_id varchar(32) NOT NULL,
@@ -362,7 +429,7 @@ final class Schema {
 			 * with no contact is indistinguishable from a client whose contact
 			 * was never set, and #95 asks for one of those to be flagged.
 			 */
-			$contacts     => "CREATE TABLE {$contacts} (
+			$contacts        => "CREATE TABLE {$contacts} (
 	id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL DEFAULT '',
@@ -381,7 +448,7 @@ final class Schema {
 			 * stops one person holding two roles in one place, which #91 would
 			 * then have to choose between.
 			 */
-			$memberships  => "CREATE TABLE {$memberships} (
+			$memberships     => "CREATE TABLE {$memberships} (
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -410,7 +477,7 @@ final class Schema {
 			 * has any business setting it, and Work\Validate refuses an edit
 			 * that names it.
 			 */
-			$work_items   => "CREATE TABLE {$work_items} (
+			$work_items      => "CREATE TABLE {$work_items} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -483,7 +550,7 @@ final class Schema {
 			 * because the client's own status view reads it the other way
 			 * round — from the work back to what was asked.
 			 */
-			$submissions  => "CREATE TABLE {$submissions} (
+			$submissions     => "CREATE TABLE {$submissions} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -512,7 +579,7 @@ final class Schema {
 			 * now because #106 promises a move is recorded atomically, and that
 			 * is not true without somewhere for the record to go.
 			 */
-			$work_events  => "CREATE TABLE {$work_events} (
+			$work_events     => "CREATE TABLE {$work_events} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -551,7 +618,7 @@ final class Schema {
 			 * is — #108 requires it preserved, and deleting the old records to
 			 * "reset" the gate is the obvious implementation and the wrong one.
 			 */
-			$gate_records => "CREATE TABLE {$gate_records} (
+			$gate_records    => "CREATE TABLE {$gate_records} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -591,7 +658,7 @@ final class Schema {
 			 * "has anybody come back on this" is a query rather than a person
 			 * reading a thread (AUTH-2's information requests).
 			 */
-			$comments     => "CREATE TABLE {$comments} (
+			$comments        => "CREATE TABLE {$comments} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -633,7 +700,7 @@ final class Schema {
 			 * believed. The latest row wins when two share an effective date,
 			 * which is what makes a correction a correction.
 			 */
-			$patterns     => "CREATE TABLE {$patterns} (
+			$patterns        => "CREATE TABLE {$patterns} (
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	effective_from varchar(10) NOT NULL,
@@ -665,7 +732,7 @@ final class Schema {
 			 * and the calculation takes a day out once however many records
 			 * cover it.
 			 */
-			$unavailable  => "CREATE TABLE {$unavailable} (
+			$unavailable     => "CREATE TABLE {$unavailable} (
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	starts_on varchar(10) NOT NULL,
@@ -676,6 +743,157 @@ final class Schema {
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id),
 	KEY user_dates (user_id, starts_on, ends_on)
+) {$collate};",
+
+			/*
+			 * #159, ONB-1. One version of the launch checklist.
+			 *
+			 * A version is draft or published, and **published is for ever**.
+			 * That is the whole reason a site's assignment (#160) is worth
+			 * anything: a client's checklist points at a version, and a version
+			 * that could be edited underneath them would make the pointer a
+			 * lie. Editing a published version opens a draft copy, which
+			 * becomes the next version when it is published.
+			 */
+			$templates       => "CREATE TABLE {$templates} (
+	id varchar(32) NOT NULL,
+	version smallint(5) unsigned NOT NULL DEFAULT 0,
+	name varchar(191) NOT NULL DEFAULT '',
+	status varchar(20) NOT NULL DEFAULT 'draft',
+	published_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	published_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY status_version (status, version)
+) {$collate};",
+
+			/*
+			 * #159. One step, as the template defines it.
+			 *
+			 * `depends_on` names other template steps in the same version,
+			 * comma separated. A join table would be tidier and would buy
+			 * nothing: a version cannot change once published, so these
+			 * references can never come to dangle, and nothing ever queries
+			 * backwards from a dependency to the steps that named it.
+			 */
+			$template_steps  => "CREATE TABLE {$template_steps} (
+	id varchar(32) NOT NULL,
+	template_id varchar(32) NOT NULL,
+	section varchar(20) NOT NULL DEFAULT 'foundations',
+	category varchar(100) NOT NULL DEFAULT '',
+	title varchar(191) NOT NULL DEFAULT '',
+	description text NOT NULL,
+	owner_side varchar(10) NOT NULL DEFAULT 'client',
+	optional tinyint(1) NOT NULL DEFAULT 0,
+	launch_critical tinyint(1) NOT NULL DEFAULT 0,
+	allows_not_applicable tinyint(1) NOT NULL DEFAULT 0,
+	depends_on text NOT NULL,
+	position smallint(5) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY template_position (template_id, position)
+) {$collate};",
+
+			/*
+			 * #160. Which version a site was given, and when.
+			 *
+			 * The version is recorded here as well as being copied into the
+			 * steps, so "which checklist did this client actually get" is still
+			 * answerable long after their own steps have diverged from it.
+			 *
+			 * One per site, enforced by the index rather than by whoever calls:
+			 * a second assignment would silently give a client two checklists
+			 * and no way to say which one counts.
+			 */
+			$site_onboarding => "CREATE TABLE {$site_onboarding} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	template_id varchar(32) NOT NULL,
+	template_version smallint(5) unsigned NOT NULL DEFAULT 0,
+	assigned_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	assigned_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY one_per_site (client_site_id)
+) {$collate};",
+
+			/*
+			 * #161, ONB-3. A live step on a client's checklist.
+			 *
+			 * **There is no credential column, and that absence is the
+			 * enforcement.** ONB-3 says Forge stores who the provider is, which
+			 * account, what access was asked for and whether it was verified —
+			 * never the secret itself. A rule written in a controller can be
+			 * forgotten by the next caller; a column that does not exist cannot
+			 * be written to by anybody.
+			 *
+			 * No `overdue` column either. It is worked out from `due_on`
+			 * against today by Onboarding\Statuses, because a stored one needs
+			 * a nightly sweep and is wrong in between.
+			 */
+			$steps           => "CREATE TABLE {$steps} (
+	id varchar(32) NOT NULL,
+	site_onboarding_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	template_step_id varchar(32) NOT NULL,
+	section varchar(20) NOT NULL DEFAULT 'foundations',
+	title varchar(191) NOT NULL DEFAULT '',
+	status varchar(20) NOT NULL DEFAULT 'not-started',
+	owner_side varchar(10) NOT NULL DEFAULT 'client',
+	owner_id varchar(32) NOT NULL DEFAULT '',
+	reviewer_id varchar(32) NOT NULL DEFAULT '',
+	launch_critical tinyint(1) NOT NULL DEFAULT 0,
+	optional tinyint(1) NOT NULL DEFAULT 0,
+	allows_not_applicable tinyint(1) NOT NULL DEFAULT 0,
+	due_on varchar(10) NOT NULL DEFAULT '',
+	response text NOT NULL,
+	provider varchar(191) NOT NULL DEFAULT '',
+	account_identifier varchar(191) NOT NULL DEFAULT '',
+	account_owner varchar(191) NOT NULL DEFAULT '',
+	access_role varchar(100) NOT NULL DEFAULT '',
+	invitation_status varchar(20) NOT NULL DEFAULT '',
+	verification_outcome varchar(20) NOT NULL DEFAULT '',
+	position smallint(5) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY site_position (client_site_id, position),
+	KEY site_status (client_site_id, status)
+) {$collate};",
+
+			/*
+			 * #161. What happened to a step, and who did it.
+			 *
+			 * Its own table rather than the work changelog: an onboarding step
+			 * is not a work item, has no cycle or review attempt, and putting
+			 * it in the work events table would leave an `item_id` that
+			 * sometimes means a work item and sometimes does not — which every
+			 * reader of that table would then have to know about.
+			 *
+			 * Nothing here is ever edited or deleted. A correction is a further
+			 * entry, as everywhere else in this product.
+			 */
+			$step_events     => "CREATE TABLE {$step_events} (
+	id varchar(32) NOT NULL,
+	step_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	action varchar(30) NOT NULL DEFAULT '',
+	from_status varchar(20) NOT NULL DEFAULT '',
+	to_status varchar(20) NOT NULL DEFAULT '',
+	reason text NOT NULL,
+	actor bigint(20) unsigned NOT NULL DEFAULT 0,
+	source_interface varchar(20) NOT NULL DEFAULT '',
+	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY step_time (step_id, occurred_at)
 ) {$collate};",
 		);
 	}

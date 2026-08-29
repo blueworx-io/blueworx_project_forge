@@ -65,8 +65,10 @@ final class Plugin {
 		Admin\UpdatesActions::boot();
 
 		add_action( 'admin_menu', array( Admin\AvailabilityScreen::class, 'register' ) );
+		add_action( 'admin_menu', array( Admin\OnboardingTemplateScreen::class, 'register' ) );
 
 		Admin\AvailabilityActions::boot();
+		Admin\OnboardingTemplateActions::boot();
 
 		Tenancy\IntegrationEvents::boot();
 	}
@@ -76,6 +78,16 @@ final class Plugin {
 	 */
 	public function activate(): void {
 		Data\Schema::maybe_upgrade();
+
+		/*
+		 * A fresh install gets a working launch checklist without anybody
+		 * having to build one (ONB-E1). It does nothing once a version exists,
+		 * so this is safe on every activation rather than only the first — a
+		 * plugin reactivated a year in never disturbs a checklist somebody is
+		 * halfway through.
+		 */
+		Onboarding\Version1::seed( get_current_user_id() );
+
 		Frontend::instance()->create_app_page();
 		flush_rewrite_rules();
 	}
