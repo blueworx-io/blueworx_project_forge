@@ -76,6 +76,36 @@ final class Availability {
 	}
 
 	/**
+	 * The same answer, for several people at once.
+	 *
+	 * Two queries for the whole studio rather than two per person. The rule
+	 * itself is unchanged — every person still goes through {@see self::calculate()}
+	 * — but the capacity view asks this for everybody over a quarter, and a pair
+	 * of reads each was the difference between a screen and a wait (#139).
+	 *
+	 * @param array<int, string> $user_ids The people.
+	 * @param string             $from     YYYY-MM-DD, inclusive.
+	 * @param string             $to       YYYY-MM-DD, inclusive.
+	 * @return array<string, array<int, array{date: string, hours: float, base_hours: float, reason: string}>>
+	 */
+	public static function for_people( array $user_ids, string $from, string $to ): array {
+		$patterns = Patterns::for_people( $user_ids );
+		$away     = Unavailability::for_people( $user_ids, $from, $to );
+		$out      = array();
+
+		foreach ( $user_ids as $user_id ) {
+			$out[ $user_id ] = self::calculate(
+				$patterns[ $user_id ] ?? array(),
+				$away[ $user_id ] ?? array(),
+				$from,
+				$to
+			);
+		}
+
+		return $out;
+	}
+
+	/**
 	 * The same answer, worked out from records already in hand.
 	 *
 	 * The whole rule lives here and nowhere else, with no database in it, so

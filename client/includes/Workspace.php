@@ -73,11 +73,43 @@ final class Workspace {
 		$record  = is_array( $payload['record'] ?? null ) ? $payload['record'] : null;
 
 		return array(
-			'ok'      => null !== $record,
-			'record'  => $record,
-			'contact' => is_array( $payload['contact'] ?? null ) ? $payload['contact'] : array(),
-			'sync'    => $read['sync'],
+			'ok'           => null !== $record,
+			'record'       => $record,
+			'contact'      => is_array( $payload['contact'] ?? null ) ? $payload['contact'] : array(),
+			// Whether the studio has room (#140). It rides on this record
+			// rather than being fetched on its own, so the screen that shows it
+			// never waits on a call of its own.
+			'availability' => is_array( $payload['availability'] ?? null ) ? $payload['availability'] : array(),
+			'sync'         => $read['sync'],
 		);
+	}
+
+	/**
+	 * Whether the studio has room, if this site already knows (#140).
+	 *
+	 * Reads what is cached and never asks. That is the whole point of it: the
+	 * one screen that shows this is the Ask form, whose job is to accept what
+	 * somebody types, and a form that pauses on a studio call before it will
+	 * draw itself is a worse form — worst of all when the studio is
+	 * unreachable, which is the longest pause and the worst moment to make
+	 * somebody wait to tell us something.
+	 *
+	 * So it shows what the last workspace read brought back, and shows nothing
+	 * until there has been one. Every other client screen reads the workspace,
+	 * so in practice there has been.
+	 *
+	 * @return array<string, mixed> Empty when nothing is known yet.
+	 */
+	public static function availability_if_known(): array {
+		$entry = Cache::get( self::ROUTE );
+
+		if ( null === $entry ) {
+			return array();
+		}
+
+		$answer = $entry['payload']['availability'] ?? null;
+
+		return is_array( $answer ) ? $answer : array();
 	}
 
 	/**

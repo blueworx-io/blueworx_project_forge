@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Client\Admin;
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Sync;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * The form a client asks through (#129).
@@ -103,9 +104,72 @@ final class AskScreen {
 			return;
 		}
 
+		self::availability();
 		self::form();
 
 		echo '</div>';
+	}
+
+	/**
+	 * Whether the studio has room, said plainly (#140).
+	 *
+	 * Above the form rather than after it, because it changes what somebody
+	 * writes. "There is room from mid-September" is the difference between
+	 * asking for something now and asking for it with a date attached, and a
+	 * client who finds out afterwards has already written three paragraphs
+	 * against the wrong assumption.
+	 *
+	 * It never discourages the ask. Even at its worst the sentence says to send
+	 * it anyway — the studio would rather have the conversation than have a
+	 * client quietly decide not to bother.
+	 *
+	 * Taken from the workspace record this site already holds, never fetched on
+	 * its own. A form whose job is to accept what somebody types must not pause
+	 * on a studio call before it will draw itself — and it would pause longest
+	 * exactly when the studio is unreachable, which is the worst moment to make
+	 * somebody wait to tell us something.
+	 */
+	private static function availability(): void {
+		$result = Workspace::availability_if_known();
+		$band   = (string) ( $result['availability'] ?? '' );
+
+		if ( '' === $band ) {
+			// Nothing to say, and nothing is better than a guess. The sync
+			// notice elsewhere on the screen already reports a studio that
+			// cannot be reached.
+			return;
+		}
+
+		echo '<div class="notice notice-info inline" data-bwx-availability="' . esc_attr( $band ) . '"><p>'
+			. esc_html( self::availability_sentence( $band, (string) ( $result['earliest'] ?? '' ) ) )
+			. '</p></div>';
+	}
+
+	/**
+	 * The sentence a band is shown as.
+	 *
+	 * @param string $band     One of room, tight, none.
+	 * @param string $earliest YYYY-MM-DD, or empty.
+	 * @return string
+	 */
+	private static function availability_sentence( string $band, string $earliest ): string {
+		if ( 'room' === $band ) {
+			return __( 'There is room for new work at the moment.', 'blueworx-forge' );
+		}
+
+		if ( 'tight' === $band ) {
+			return __( 'The next few weeks are tight. Ask anyway, and we will tell you what is possible.', 'blueworx-forge' );
+		}
+
+		if ( '' === $earliest ) {
+			return __( 'There is no room in the next couple of months. Ask anyway, and we will talk about timing.', 'blueworx-forge' );
+		}
+
+		return sprintf(
+			/* translators: %s: a date, as YYYY-MM-DD. */
+			__( 'There is no room right now. The earliest we expect room is %s.', 'blueworx-forge' ),
+			$earliest
+		);
 	}
 
 	/**

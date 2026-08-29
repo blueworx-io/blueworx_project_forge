@@ -1097,3 +1097,197 @@ body {
   font-size: var( --text-small );
   color: var( --color-fog );
 }
+
+/* ---- Capacity (#139) ---- */
+
+/* A label that only the screen reader needs. The grid's caption says what the
+   numbers are, which the visible header cannot without repeating itself in
+   every column. */
+.bwx-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset( 50% );
+  white-space: nowrap;
+}
+
+.bwx-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+.bwx-capacity {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+.bwx-capacity-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+}
+
+.bwx-capacity-grid th {
+  text-align: left;
+  font-size: var( --text-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+  padding: 0 10px 6px;
+  white-space: nowrap;
+}
+
+.bwx-capacity-grid td {
+  padding: 0;
+  border-top: 1px solid var( --color-chalk );
+  background: var( --color-snow );
+}
+
+/* The person's name stays put while the weeks scroll: a row of figures with the
+   name scrolled off is a row nobody can act on. */
+/* Scoped through the grid so it outranks the header rule above: a name is a
+   name, and .bwx-capacity-grid th would otherwise shout every one of them. */
+.bwx-capacity-grid tbody .bwx-capacity-person {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var( --color-mist );
+  padding-right: 16px;
+  text-transform: none;
+  font-size: var( --text-ui );
+  color: var( --text-primary );
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
+.bwx-capacity-grid thead .bwx-capacity-person {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var( --color-mist );
+  padding-right: 16px;
+}
+
+/* Every cell is the same height whether or not it draws a bar, so a row of
+   figures lines up with the row above it. A grid where the baseline moves is a
+   grid people misread. */
+.bwx-capacity-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  min-block-size: 40px;
+  inline-size: 100%;
+  min-inline-size: 84px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 9px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bwx-capacity-cell:hover {
+  background: var( --alpha-fill );
+}
+
+.bwx-capacity-cell:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: -2px;
+}
+
+/* The bar is the point of the screen: a row of them is the shape of somebody's
+   quarter, readable before any number is. */
+.bwx-capacity-bar {
+  display: block;
+  block-size: 4px;
+  border-radius: 2px;
+  background: var( --color-chalk );
+  overflow: hidden;
+}
+
+.bwx-capacity-bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 2px;
+  background: var( --color-steel );
+  transition: inline-size var( --motion-fast ) var( --ease-out );
+}
+
+.bwx-capacity-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var( --font-mono );
+  font-size: var( --text-caption );
+}
+
+.bwx-capacity-committed {
+  color: var( --text-primary );
+}
+
+.bwx-capacity-of {
+  color: var( --color-fog );
+}
+
+.bwx-capacity-unset {
+  font-size: var( --text-caption );
+  color: var( --color-fog );
+  font-style: italic;
+}
+
+.bwx-capacity-total td,
+td.bwx-capacity-total {
+  border-left: 1px solid var( --color-chalk );
+  padding: 9px 10px;
+}
+
+/* Colour says the same thing the bar's length and the panel's words already
+   say. Nothing here is carried by hue alone. */
+[ data-band='tight' ] .bwx-capacity-bar-fill {
+  background: var( --color-warning );
+}
+
+[ data-band='over' ] .bwx-capacity-bar-fill {
+  background: var( --color-over );
+}
+
+[ data-band='clear' ] .bwx-capacity-bar-fill {
+  background: var( --color-success );
+}
+
+td[ data-band='tight' ] {
+  background: var( --color-warning-bg );
+}
+
+td[ data-band='over' ] {
+  background: var( --color-over-bg );
+}
+
+.bwx-capacity-summary {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --color-chalk );
+  background: var( --color-mist );
+  font-size: var( --text-small );
+}
+
+.bwx-capacity-summary[ data-band='tight' ] {
+  border-color: var( --color-warning-border );
+  background: var( --color-warning-bg );
+}
+
+.bwx-capacity-summary[ data-band='over' ] {
+  border-color: var( --color-over-border );
+  background: var( --color-over-bg );
+}
