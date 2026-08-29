@@ -533,6 +533,14 @@ final class WorkItemsController {
 				'returns'      => Returns::targets( $item, $history ),
 				'outcomes'     => Outcomes::available_for( $item ),
 				'can_archive'  => Outcomes::may_archive( $item ),
+
+				/*
+				 * Whether this person may go ahead with an over-allocation
+				 * (CAP-4). Sent so the screen does not draw a control that was
+				 * always going to be refused — being shown a way through and
+				 * then told no is worse than never being shown one.
+				 */
+				'can_override' => Access::allows( Capabilities::OVERRIDE, (string) $item['client_id'], $item ),
 				'records'      => GateRecords::current_for( $item ),
 				'comments'     => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
 				'scope'        => $scope,
