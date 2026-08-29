@@ -13,7 +13,24 @@ import { signedIn, signInPage, makeSite, makeItem } from './helpers/forge.js';
 const RUN = `cal${ Date.now() }`;
 
 const DAY = 86400000;
-const on = ( offset ) => new Date( Date.now() + offset * DAY ).toISOString().slice( 0, 10 );
+
+/**
+ * A day of this week, Monday being 0.
+ *
+ * Not "today plus n". The month view draws whole weeks, so it runs from the
+ * Monday on or before the 1st to the Sunday on or after the last — which means
+ * today's own week is always drawn in full, and a day counted forward from
+ * today is not. A fixture dated today + 9 sits outside the grid whenever today
+ * falls in the last week of a month, and the spec then fails on those days and
+ * only those days.
+ */
+const on = ( index ) => {
+  const now = new Date();
+  const midnight = Date.UTC( now.getFullYear(), now.getMonth(), now.getDate() );
+  const monday = midnight - ( ( new Date( midnight ).getUTCDay() + 6 ) % 7 ) * DAY;
+
+  return new Date( monday + index * DAY ).toISOString().slice( 0, 10 );
+};
 
 test.describe( 'the calendar', () => {
   test.describe.configure( { mode: 'serial' } );
@@ -40,18 +57,18 @@ test.describe( 'the calendar', () => {
     // can be found on a day of its own.
     const full = await make( {
       title: `${ RUN } full dates`,
-      planned_start: on( 1 ),
-      planned_due: on( 3 ),
-      review_target: on( 5 ),
-      release_target: on( 7 ),
+      planned_start: on( 0 ),
+      planned_due: on( 1 ),
+      review_target: on( 2 ),
+      release_target: on( 3 ),
     } );
 
     // Two dates, so "appears once per date" is a claim about the same item
     // rather than about two different ones.
     const twice = await make( {
       title: `${ RUN } twice over`,
-      planned_start: on( 2 ),
-      planned_due: on( 9 ),
+      planned_start: on( 4 ),
+      planned_due: on( 5 ),
     } );
 
     // No dates. It is on the board and it is not on the calendar, and that is
@@ -93,10 +110,10 @@ test.describe( 'the calendar', () => {
     await openCalendar( page );
 
     for ( const [ kind, date ] of [
-      [ 'starts', on( 1 ) ],
-      [ 'due', on( 3 ) ],
-      [ 'review', on( 5 ) ],
-      [ 'release', on( 7 ) ],
+      [ 'starts', on( 0 ) ],
+      [ 'due', on( 1 ) ],
+      [ 'review', on( 2 ) ],
+      [ 'release', on( 3 ) ],
     ] ) {
       const entry = page.locator(
         `[data-testid="bwx-calendar-day"][data-date="${ date }"] [data-testid="bwx-calendar-entry"][data-item="${ world.full.id }"][data-kind="${ kind }"]`
@@ -128,13 +145,13 @@ test.describe( 'the calendar', () => {
     // one mode would be three calendars rather than one.
     for ( const mode of [ 'month', 'week', 'day' ] ) {
       await page.locator( `[data-testid="bwx-calendar-mode-${ mode }"]` ).click();
-      await page.locator( '[data-testid="bwx-calendar-goto"]' ).fill( on( 3 ) );
+      await page.locator( '[data-testid="bwx-calendar-goto"]' ).fill( on( 1 ) );
 
       await expect(
         page.locator(
-          `[data-testid="bwx-calendar-day"][data-date="${ on( 3 ) }"] [data-testid="bwx-calendar-entry"][data-item="${ world.full.id }"][data-kind="due"]`
+          `[data-testid="bwx-calendar-day"][data-date="${ on( 1 ) }"] [data-testid="bwx-calendar-entry"][data-item="${ world.full.id }"][data-kind="due"]`
         ),
-        `the due date should be on ${ on( 3 ) } in ${ mode }`
+        `the due date should be on ${ on( 1 ) } in ${ mode }`
       ).toHaveCount( 1 );
     }
   } );
