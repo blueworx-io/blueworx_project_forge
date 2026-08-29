@@ -83,7 +83,24 @@ final class Patterns {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
 		$inserted = $wpdb->insert( Schema::availability_patterns_table(), $row, Formats::for_row( $row ) );
 
-		return $inserted ? self::hydrate( $row ) : null;
+		if ( ! $inserted ) {
+			return null;
+		}
+
+		/*
+		 * #144. Nothing is recalculated — the figures are read when they are
+		 * asked for. What the work needs is to say that a person's hours moved
+		 * underneath it, so a week that has turned red can be traced to what
+		 * turned it. An hours change is open-ended, so it has no end date.
+		 */
+		Trail::record(
+			$user_id,
+			$effective_from,
+			'',
+			__( 'Somebody in a seat had their working hours changed.', 'blueworx-forge' )
+		);
+
+		return self::hydrate( $row );
 	}
 
 	/**
