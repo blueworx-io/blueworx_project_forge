@@ -167,7 +167,7 @@ final class Gates {
 				self::field( 'G-UP-NEXT-5', 'Planned start and due date', 'date', array( 'planned_start', 'planned_due' ), 'Set a planned start and a planned due date.' ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
 				self::record( 'G-UP-NEXT-7', 'Dependencies confirmed', 'reference', 'Confirm the dependencies.' ),
-				self::deferred( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'The capacity model arrives with CAP-4; until it does this reports as passed.' ),
+				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of the planned dates, unless the over-allocation is given a reason.' ),
 				self::deferred( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The support-hours ledger arrives with COMM-3; until it does this reports as passed.' ),
 			),
 			'G-IN-DEVELOPMENT'  => array(
@@ -341,7 +341,16 @@ final class Gates {
 					continue;
 				}
 
-				$unmet[] = self::as_unmet( $requirement );
+				$failure = self::as_unmet( $requirement );
+
+				if ( 'capacity' === (string) $requirement['check'] ) {
+					// Who and in which week, so a screen can name them rather
+					// than saying "no room" and leaving somebody to go looking.
+					$capacity        = (array) ( $context['capacity'] ?? array() );
+					$failure['over'] = array_values( (array) ( $capacity['over'] ?? array() ) );
+				}
+
+				$unmet[] = $failure;
 				continue;
 			}
 
@@ -435,6 +444,27 @@ final class Gates {
 				 * held open forever by a child somebody deliberately stopped.
 				 */
 				return Derived::may_complete( (array) ( $context['children'] ?? array() ) );
+
+			case 'capacity':
+				/*
+				 * CAP-4: over-allocation does not block, it costs a reason. The
+				 * figures are worked out by Capacity\Impact and handed in
+				 * through the context, the same way children are — this class
+				 * stays free of the database, which is what lets every rule in
+				 * it be stated in a test.
+				 *
+				 * The reason is read from the context and never from the item.
+				 * A reason given when the plan was made was given about a
+				 * picture that has since changed, and #142 is the requirement
+				 * that it be asked again.
+				 */
+				$capacity = (array) ( $context['capacity'] ?? array() );
+
+				if ( array() === (array) ( $capacity['over'] ?? array() ) ) {
+					return true;
+				}
+
+				return '' !== trim( (string) ( $capacity['reason'] ?? '' ) );
 
 			case 'prior_stage':
 			case 'blocked_elapsed':
