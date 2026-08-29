@@ -246,6 +246,17 @@ export interface QueueFilters {
   search?: string;
 }
 
+/** One person with more committed than they have time for, in one week. */
+export interface OverBooked {
+  user_id: string;
+  display_name: string;
+  week_from: string;
+  week_to: string;
+  available: number;
+  committed: number;
+  excess: number;
+}
+
 /** One thing that has to be true before work leaves a stage. */
 export interface Requirement {
   id: string;
@@ -257,6 +268,12 @@ export interface Requirement {
   /** Whether it is satisfied by a field, a recorded completion, or the system. */
   by: 'field' | 'record' | 'system';
   fields: string[];
+  /**
+   * Who the capacity check found no room for, and in which weeks. Only the
+   * capacity requirement carries it — a refusal that named nobody would leave
+   * somebody to go looking for the person it meant.
+   */
+  over?: OverBooked[];
 }
 
 /** A check the system runs for itself, always reported either way. */

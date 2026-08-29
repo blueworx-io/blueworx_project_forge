@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.35.0] - 2026-08-29
+
+### Added
+
+- Work can no longer start when there is no room for it. Moving something into
+  development now checks whether the people in its seats actually have the
+  hours, week by week, and says who does not and which week — alongside
+  everything else the move is still missing, so a plan is fixed in one pass
+  rather than refused six times over.
+- Over-booking somebody is still allowed. It is a call a manager makes on
+  better information than a spreadsheet has, so it is not blocked — it costs a
+  reason, it is limited to studio administrators, and the work says afterwards
+  that it happened and why.
+- The reason covers that one move and no more. Work sitting in the queue for a
+  fortnight is weighed again when it finally starts, because by then the weeks
+  have moved.
+- Changing somebody's hours, booking their leave or cancelling it now leaves a
+  note on every piece of live work it affects, so a week that has turned red
+  can be traced to whatever turned it.
+
 ## [2.34.0] - 2026-08-28
 
 ### Added

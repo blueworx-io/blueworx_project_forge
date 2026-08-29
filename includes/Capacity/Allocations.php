@@ -111,14 +111,47 @@ final class Allocations {
 			return array();
 		}
 
+		return self::seats_of( $item );
+	}
+
+	/**
+	 * The commitments an item *would* make, asked before it makes them.
+	 *
+	 * The stage test is deliberately not run. COMMITTING begins at Up Next, so
+	 * an item on its way there is not committing anything yet — which is
+	 * exactly the move #141 has to weigh. Asking from_item() would return
+	 * nothing and permit everything.
+	 *
+	 * Archived and finished work is still refused: neither is a move anybody
+	 * is making.
+	 *
+	 * @param array<string, mixed> $item A hydrated work item.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function proposed( array $item ): array {
+		if ( ! empty( $item['archived'] ) || '' !== (string) ( $item['terminal_outcome'] ?? '' ) ) {
+			return array();
+		}
+
+		return self::seats_of( $item );
+	}
+
+	/**
+	 * Each filled seat on an item, as an allocation.
+	 *
+	 * @param array<string, mixed> $item A hydrated work item.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function seats_of( array $item ): array {
 		$window = self::window( $item );
 
 		if ( array() === $window ) {
 			/*
 			 * Hours with no dates are a plan nobody has finished making. #141
-			 * makes both mandatory before Up Next; until then, an item like
-			 * this is left out rather than guessed at, because a guessed date
-			 * puts somebody's week in the wrong month.
+			 * makes both mandatory before Up Next, as its own requirement with
+			 * its own message — so an item like this is left out here rather
+			 * than guessed at, and the person is told about the missing dates
+			 * rather than about a capacity figure derived from a guess.
 			 */
 			return array();
 		}
@@ -142,6 +175,7 @@ final class Allocations {
 				'client_site_id' => (string) ( $item['client_site_id'] ?? '' ),
 				'role'           => $role,
 				'user_id'        => $who,
+
 				/*
 				 * Who is being covered, where somebody is standing in. The
 				 * commitment follows whoever is doing the work (AUTH-4 records

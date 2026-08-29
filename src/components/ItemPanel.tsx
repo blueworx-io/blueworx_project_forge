@@ -21,6 +21,7 @@ interface Detail {
   returns: string[];
   outcomes: string[];
   can_archive: boolean;
+  can_override: boolean;
   records: Record< string, GateRecord >;
   comments: Comment[];
   scope: string;
@@ -51,6 +52,20 @@ const BLOCKER_FIELDS = [
 
 function when( seconds: number ): string {
   return new Date( seconds * 1000 ).toLocaleString();
+}
+
+/** A week, said the way somebody planning a week would say it. */
+function weekOf( date: string ): string {
+  return new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  } );
+}
+
+/** Hours, without a trailing decimal nobody needs. */
+function hours( value: number ): string {
+  return `${ Math.round( value * 10 ) / 10 }`;
 }
 
 /** Blocked time, said the way a person would say it. */
@@ -99,6 +114,16 @@ export function ItemPanel( {
   const [ busy, setBusy ] = useState( false );
   const [ showing, setShowing ] = useState( '' );
   const [ back, setBack ] = useState( { to: '', reason: '', feedback: '' } );
+
+  /**
+   * The move the capacity check refused, and the reason offered for going ahead
+   * anyway. Held against the stage that was attempted, because the reason
+   * belongs to that one crossing — it is not a setting on the item.
+   */
+  const [ overrun, setOverrun ] = useState( { to: '', reason: '' } );
+
+  /** Whether the refusal we are showing includes somebody having no room. */
+  const overBooked = unmet.some( ( requirement ) => 0 < ( requirement.over?.length ?? 0 ) );
   const [ blocker, setBlocker ] = useState< Record< string, string > >( {} );
   const [ resolution, setResolution ] = useState( '' );
   const [ ending, setEnding ] = useState( { outcome: '', reason: '', duplicate_of: '' } );
@@ -177,11 +202,16 @@ export function ItemPanel( {
       await load();
       onChanged();
       setShowing( '' );
+      setOverrun( { to: '', reason: '' } );
       setNotice( done );
     } catch ( error ) {
       if ( error instanceof GateError ) {
         setUnmet( error.unmet );
         setChecks( error.checks );
+
+        // Which crossing was refused, so a reason given now is given about the
+        // move that was actually attempted.
+        setOverrun( { to: error.attempted, reason: '' } );
         setNotice( error.message );
       } else {
         setNotice( messageFor( error, 'That did not work.' ) );
@@ -342,6 +372,19 @@ export function ItemPanel( {
                 <li key={ requirement.id } data-requirement={ requirement.id }>
                   <span className="bwx-unmet-label">{ requirement.label }</span>
                   <span className="bwx-unmet-how">{ requirement.satisfied_by }</span>
+                  { 0 < ( requirement.over?.length ?? 0 ) && (
+                    <ul className="bwx-over" data-testid="bwx-over">
+                      { requirement.over?.map( ( person ) => (
+                        <li key={ `${ person.user_id }-${ person.week_from }` } data-user={ person.user_id }>
+                          <span className="bwx-over-who">{ person.display_name }</span>
+                          <span className="bwx-over-when">week of { weekOf( person.week_from ) }</span>
+                          <span className="bwx-mono bwx-over-much">
+                            { hours( person.committed ) } of { hours( person.available ) } hours
+                          </span>
+                        </li>
+                      ) ) }
+                    </ul>
+                  ) }
                 </li>
               ) ) }
             </ul>
@@ -351,6 +394,42 @@ export function ItemPanel( {
                 <span className="bwx-mono">{ check.result }</span>
               </p>
             ) ) }
+
+            { /*
+                CAP-4: over-booking somebody does not block, it costs a reason.
+                Shown only where there is an over-allocation to explain and the
+                person may explain it — being offered a way through and then
+                refused is worse than never being offered one.
+             */ }
+            { overBooked && detail?.can_override && (
+              <div className="bwx-overrun" data-testid="bwx-overrun">
+                <div className="bwx-field">
+                  <label htmlFor="bwx-overrun-reason">Why this week will take it</label>
+                  <input
+                    id="bwx-overrun-reason"
+                    className="bwx-input"
+                    data-testid="bwx-overrun-reason"
+                    value={ overrun.reason }
+                    onChange={ ( event ) => setOverrun( { ...overrun, reason: event.target.value } ) }
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="bwx-button"
+                  data-testid="bwx-overrun-go"
+                  disabled={ busy || '' === overrun.reason.trim() }
+                  onClick={ () =>
+                    void act(
+                      '/transition',
+                      { to: overrun.to, capacity_reason: overrun.reason.trim() },
+                      `Moved to ${ label( overrun.to ) }, over-booked on purpose.`
+                    )
+                  }
+                >
+                  Go ahead anyway
+                </button>
+              </div>
+            ) }
           </div>
         ) }
 
@@ -816,6 +895,10 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       return `Ended as ${ event.outcome }`;
     case 'archived':
       return 'Archived';
+    case 'over-allocated':
+      // CAP-4. The reason sits beside it in the entry, so the line says what
+      // was done and the reason says why.
+      return 'Somebody was over-booked on purpose';
     default:
       return `${ label( event.from_stage ) } → ${ label( event.to_stage ) }`;
   }

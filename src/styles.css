@@ -552,6 +552,45 @@ body {
   color: var( --color-steel );
 }
 
+/*
+ * Who has no room, sitting under the requirement that said so. Indented rather
+ * than boxed again: it is the detail of one refusal, not a second one, and a
+ * second box would read as a second problem.
+ */
+.bwx-over {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0 0 0 10px;
+  border-left: 1px solid var( --color-chalk );
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bwx-over li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.bwx-over-who {
+  color: var( --color-ink );
+  font-weight: var( --font-weight-label );
+}
+
+.bwx-over-when,
+.bwx-over-much {
+  color: var( --color-steel );
+}
+
+.bwx-overrun {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* ---- Comments ---- */
 
 .bwx-comments {

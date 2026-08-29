@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Work;
 
+use Blueworx\Forge\Capacity\Impact;
 use WP_Error;
 
 /**
@@ -59,9 +60,14 @@ final class Transition {
 	 * @param string               $via          How the actor was entitled to make
 	 *                                           it, where it was not their own
 	 *                                           authority: Events::VIA_SUBSTITUTE.
+	 * @param string               $reason       Why an over-allocation is going
+	 *                                           ahead anyway (CAP-4). Offered with
+	 *                                           the move rather than remembered
+	 *                                           from the item, because it answers
+	 *                                           the picture as it is now.
 	 * @return array<string, mixed>|WP_Error The item as it now stands.
 	 */
-	public static function move( array $item, string $to, int $sent_version, int $actor, string $via = '' ) {
+	public static function move( array $item, string $to, int $sent_version, int $actor, string $via = '', string $reason = '' ) {
 		$from = (string) $item['stage'];
 
 		$refusal = self::refuse_bad_target( $item, $to );
@@ -90,7 +96,7 @@ final class Transition {
 		}
 
 		$gate    = Transitions::gate_for( $from, $to );
-		$blocked = self::gate_refusal( $item, $to, array( $gate, Transitions::entry_gate_for( $to ) ) );
+		$blocked = self::gate_refusal( $item, $to, array( $gate, Transitions::entry_gate_for( $to ) ), $reason );
 
 		if ( null !== $blocked ) {
 			return $blocked;
@@ -99,7 +105,7 @@ final class Transition {
 		return self::commit(
 			$item,
 			$to,
-			array(),
+			self::over_allocation( $item, $to, $reason, $actor ),
 			array(
 				'action' => Events::MOVED,
 				'gate'   => $gate,
@@ -702,12 +708,13 @@ final class Transition {
 	 * @param array<string, mixed>             $item     The item, as read.
 	 * @param string                           $to       Where it would go.
 	 * @param array<int, array<string, mixed>> $children Its children.
+	 * @param string                           $reason   An over-allocation reason offered with the move.
 	 * @return array{unmet: array<int, array<string, mixed>>, checks: array<int, array<string, mixed>>}
 	 */
-	public static function readiness( array $item, string $to, array $children = array() ): array {
+	public static function readiness( array $item, string $to, array $children = array(), string $reason = '' ): array {
 		$gates = array( Transitions::gate_for( (string) $item['stage'], $to ), Transitions::entry_gate_for( $to ) );
 
-		return self::evaluate( $item, $gates, $children );
+		return self::evaluate( $item, $gates, $children, $reason );
 	}
 
 	/**
@@ -716,15 +723,35 @@ final class Transition {
 	 * @param array<string, mixed>             $item     The item, as read.
 	 * @param array<int, string>               $gates    Gate names; blanks skipped.
 	 * @param array<int, array<string, mixed>> $children Its children.
+	 * @param string                           $reason   An over-allocation reason offered with the move.
 	 * @return array{unmet: array<int, array<string, mixed>>, checks: array<int, array<string, mixed>>}
 	 */
-	private static function evaluate( array $item, array $gates, array $children ): array {
+	private static function evaluate( array $item, array $gates, array $children, string $reason = '' ): array {
 		$records = GateRecords::current_for( $item );
 		$unmet   = array();
 		$checks  = array();
+		$gates   = array_unique( array_filter( $gates ) );
 
-		foreach ( array_unique( array_filter( $gates ) ) as $gate ) {
-			$result = Gates::evaluate( $gate, $item, $records, array( 'children' => $children ) );
+		$context = array(
+			'children' => $children,
+			'capacity' => array(
+				'over'   => array(),
+				'reason' => $reason,
+			),
+		);
+
+		/*
+		 * Worked out once for the whole evaluation rather than once per gate. A
+		 * move can run an exit gate and an entry gate, both of which may ask,
+		 * and the answer cannot differ between them — it is the same item over
+		 * the same weeks.
+		 */
+		if ( self::asks_about_capacity( $gates ) ) {
+			$context['capacity']['over'] = Impact::of( $item )['over'];
+		}
+
+		foreach ( $gates as $gate ) {
+			$result = Gates::evaluate( $gate, $item, $records, $context );
 			$unmet  = array_merge( $unmet, $result['unmet'] );
 			$checks = array_merge( $checks, $result['checks'] );
 		}
@@ -736,15 +763,72 @@ final class Transition {
 	}
 
 	/**
+	 * Whether any gate in this move runs the capacity check.
+	 *
+	 * Asked before the reading rather than after. Impact::of() is two queries
+	 * across every client, and most moves in the workflow have nothing to do
+	 * with capacity.
+	 *
+	 * @param array<int, string> $gates Gate names.
+	 * @return bool
+	 */
+	private static function asks_about_capacity( array $gates ): bool {
+		foreach ( $gates as $gate ) {
+			foreach ( Gates::requirements( $gate ) as $requirement ) {
+				if ( 'capacity' === (string) ( $requirement['check'] ?? '' ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The mark and the record left by going ahead with an over-allocation.
+	 *
+	 * A reason only reaches here when the gate actually needed one — an
+	 * over-allocation offered without a reason is refused above, and a reason
+	 * offered when nobody was over-booked is not a decision anybody made. So
+	 * this asks the same question the gate asked before writing anything down.
+	 *
+	 * @param array<string, mixed> $item   The item, as read.
+	 * @param string               $to     Where it is going.
+	 * @param string               $reason Why the week will take it.
+	 * @param int                  $actor  Who decided.
+	 * @return array<string, mixed> What to write onto the item.
+	 */
+	private static function over_allocation( array $item, string $to, string $reason, int $actor ): array {
+		if ( '' === trim( $reason ) || Impact::clear( Impact::of( $item ) ) ) {
+			return array();
+		}
+
+		Events::append(
+			array(
+				'item_id'        => (string) $item['id'],
+				'client_site_id' => (string) $item['client_site_id'],
+				'action'         => Events::OVER_ALLOCATED,
+				'from_stage'     => (string) $item['stage'],
+				'to_stage'       => $to,
+				'reason'         => $reason,
+				'actor'          => $actor,
+			)
+		);
+
+		return CapacityOverride::mark( $reason );
+	}
+
+	/**
 	 * The gate refusal for a move, or null when the gates are satisfied.
 	 *
 	 * @param array<string, mixed> $item  The item, as read.
 	 * @param string               $to    Where it would go.
 	 * @param array<int, string>   $gates Gate names.
+	 * @param string               $reason An over-allocation reason offered with the move.
 	 * @return WP_Error|null
 	 */
-	private static function gate_refusal( array $item, string $to, array $gates ): ?WP_Error {
-		$result = self::evaluate( $item, $gates, Items::children( (string) $item['id'] ) );
+	private static function gate_refusal( array $item, string $to, array $gates, string $reason = '' ): ?WP_Error {
+		$result = self::evaluate( $item, $gates, Items::children( (string) $item['id'] ), $reason );
 
 		if ( array() === $result['unmet'] ) {
 			return null;
