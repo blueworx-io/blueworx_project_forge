@@ -9,6 +9,10 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Admin;
 
+use Blueworx\Forge\Onboarding\Assignment;
+use Blueworx\Forge\Onboarding\Progress;
+use Blueworx\Forge\Onboarding\Steps;
+use Blueworx\Forge\Onboarding\Templates;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Contacts;
@@ -172,10 +176,13 @@ final class ClientsScreen {
 		$result = isset( $_GET['bwx_notice'] ) ? sanitize_key( wp_unslash( $_GET['bwx_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reporting the outcome of an action that carried its own nonce.
 
 		$messages = array(
-			'added'   => array( 'success', __( 'Saved.', 'blueworx-forge' ) ),
-			'invalid' => array( 'error', __( 'That could not be saved.', 'blueworx-forge' ) ),
-			'stale'   => array( 'error', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
-			'unknown' => array( 'error', __( 'No such record.', 'blueworx-forge' ) ),
+			'added'              => array( 'success', __( 'Saved.', 'blueworx-forge' ) ),
+			'invalid'            => array( 'error', __( 'That could not be saved.', 'blueworx-forge' ) ),
+			'stale'              => array( 'error', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
+			'unknown'            => array( 'error', __( 'No such record.', 'blueworx-forge' ) ),
+			'onboarding-started' => array( 'success', __( 'Onboarding started. Their checklist is fixed at this version.', 'blueworx-forge' ) ),
+			'already-onboarding' => array( 'error', __( 'That site already has a checklist. A client onboards once.', 'blueworx-forge' ) ),
+			'no-checklist'       => array( 'error', __( 'There is no published checklist to give them yet.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
@@ -333,6 +340,8 @@ final class ClientsScreen {
 
 			self::connection( $site, $integrations[ (string) $site['id'] ] ?? null );
 
+			self::onboarding( $site );
+
 			self::deactivate_site_form( $site );
 
 			self::edit_site_form( $site );
@@ -341,6 +350,83 @@ final class ClientsScreen {
 		}
 
 		echo '</ul>';
+	}
+
+	/**
+	 * Where a site is with its onboarding, and the form that starts it (#160).
+	 *
+	 * On the site's own row because onboarding belongs to a site rather than to
+	 * a client (ARCH-3): two sites for the same client launch separately and
+	 * have their own checklists.
+	 *
+	 * Assignment is offered once and then never again. ONB-1 fixes a client's
+	 * checklist at the moment they are given it, so there is deliberately no
+	 * control here to change it afterwards or to move them to a newer version —
+	 * a client onboards once.
+	 *
+	 * @param array<string, mixed> $site The site row.
+	 */
+	private static function onboarding( array $site ): void {
+		$site_id    = (string) $site['id'];
+		$onboarding = Assignment::for_site( $site_id );
+
+		if ( null !== $onboarding ) {
+			$progress = Progress::of( Steps::for_site( $site_id ) );
+
+			printf(
+				' <span data-bwx-onboarding="%1$s" data-bwx-onboarding-ready="%2$s">%3$s</span>',
+				esc_attr( $site_id ),
+				esc_attr( $progress['launch_ready'] ? 'yes' : 'no' ),
+				esc_html(
+					sprintf(
+						/* translators: 1: checklist version, 2: percentage complete. */
+						__( 'Checklist v%1$d — %2$s%% done', 'blueworx-forge' ),
+						(int) $onboarding['template_version'],
+						(string) $progress['completion']
+					)
+				)
+			);
+
+			if ( ! $progress['launch_ready'] ) {
+				echo ' <span data-bwx-onboarding-blocking="' . esc_attr( (string) count( $progress['blocking'] ) ) . '">';
+				echo esc_html(
+					array() === $progress['blocking']
+						? __( 'not ready to launch', 'blueworx-forge' )
+						: sprintf(
+							/* translators: %d: how many steps are outstanding. */
+							_n( '%d thing still needed to launch', '%d things still needed to launch', count( $progress['blocking'] ), 'blueworx-forge' ),
+							count( $progress['blocking'] )
+						)
+				);
+				echo '</span>';
+			}
+
+			return;
+		}
+
+		$template = Templates::current();
+
+		if ( null === $template ) {
+			echo ' <span data-bwx-onboarding-unavailable="1">' . esc_html__( 'No checklist published yet', 'blueworx-forge' ) . '</span>';
+
+			return;
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline" data-bwx-assign-onboarding="1">';
+		wp_nonce_field( 'bwx_forge_assign_onboarding_' . $site_id );
+		echo '<input type="hidden" name="action" value="bwx_forge_assign_onboarding">';
+		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
+		echo '<button type="submit" class="button" data-bwx-action="bwx_forge_assign_onboarding"';
+		echo ' onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Give this site the current checklist? It is fixed at this version and cannot be changed afterwards.', 'blueworx-forge' ) ) ) . ')">';
+		echo esc_html(
+			sprintf(
+				/* translators: %d: the checklist version number. */
+				__( 'Start onboarding (v%d)', 'blueworx-forge' ),
+				(int) $template['version']
+			)
+		);
+		echo '</button> ';
+		echo '</form>';
 	}
 
 	/**

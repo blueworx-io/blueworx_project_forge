@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Admin;
 
+use Blueworx\Forge\Onboarding\Assignment;
+use Blueworx\Forge\Onboarding\Templates;
 use Blueworx\Forge\Rest\IntegrationsController;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
@@ -44,6 +46,7 @@ final class ClientActions {
 		add_action( 'admin_post_bwx_forge_issue_site_key', array( self::class, 'issue_site_key' ) );
 		add_action( 'admin_post_bwx_forge_revoke_site_key', array( self::class, 'revoke_site_key' ) );
 		add_action( 'admin_post_bwx_forge_assign_contact', array( self::class, 'assign_contact' ) );
+		add_action( 'admin_post_bwx_forge_assign_onboarding', array( self::class, 'assign_onboarding' ) );
 	}
 
 	/**
@@ -292,6 +295,43 @@ final class ClientActions {
 		$version = (int) self::field( 'record_version' );
 
 		self::back( null === ClientSites::update( $site_id, $checked['values'], $version ) ? 'stale' : 'added' );
+	}
+
+	/**
+	 * Gives a site the current checklist (#160).
+	 *
+	 * Once, and then never again. ONB-1 fixes a client's checklist at the
+	 * moment they are given it, so there is no handler here to change it
+	 * afterwards — Assignment refuses a second one as well, because a rule kept
+	 * only at the screen is a rule that lasts until the next caller.
+	 */
+	public static function assign_onboarding(): void {
+		self::require_admin();
+
+		$site_id = self::field( 'site_id' );
+
+		check_admin_referer( 'bwx_forge_assign_onboarding_' . $site_id );
+
+		$site = ClientSites::get( $site_id );
+
+		if ( null === $site ) {
+			self::back( 'unknown' );
+		}
+
+		$template = Templates::current();
+
+		if ( null === $template ) {
+			self::back( 'no-checklist' );
+		}
+
+		$assigned = Assignment::assign(
+			$site_id,
+			(string) $site['client_id'],
+			(string) $template['id'],
+			get_current_user_id()
+		);
+
+		self::back( null === $assigned ? 'already-onboarding' : 'onboarding-started' );
 	}
 
 	/**
