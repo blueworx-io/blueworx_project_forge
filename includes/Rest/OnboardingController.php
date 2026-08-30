@@ -12,6 +12,8 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\Onboarding\Answers;
 use Blueworx\Forge\Onboarding\Evidence;
 use Blueworx\Forge\Onboarding\EvidenceStore;
+use Blueworx\Forge\Onboarding\Review;
+use Blueworx\Forge\Onboarding\StepEvents;
 use Blueworx\Forge\Onboarding\Steps;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
@@ -99,6 +101,24 @@ final class OnboardingController {
 			)
 		);
 
+		/*
+		 * The review decision (#163). Its own route rather than a status on the
+		 * answer route above, because the two are different acts by different
+		 * people: answering is somebody saying what they did, and reviewing is
+		 * somebody deciding whether it counts. Folding them together would have
+		 * meant one route whose permissions depended on which field was set.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/onboarding/steps/(?P<step_id>[A-Za-z0-9_\-]+)/review',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'review' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => $by_record( 'a step' ),
+			)
+		);
+
 		Server::register_route(
 			$route_namespace,
 			'/onboarding/evidence/(?P<evidence_id>[A-Za-z0-9_\-]+)',
@@ -124,8 +144,15 @@ final class OnboardingController {
 		$steps = array();
 
 		foreach ( Steps::for_site( $site_id ) as $step ) {
+			$history = StepEvents::for_step( (string) $step['id'] );
+
 			$step             = Steps::with_lateness( $step, $today );
 			$step['evidence'] = Evidence::for_step( (string) $step['id'], $site_id );
+			$step['history']  = $history;
+
+			// The same value the client is shown, from the same call, so the two
+			// screens cannot disagree about what we asked for.
+			$step['feedback'] = Review::feedback_from( (string) $step['status'], $history );
 
 			$steps[] = $step;
 		}
@@ -172,6 +199,45 @@ final class OnboardingController {
 				400,
 				array( 'field' => (string) ( $result['field'] ?? '' ) )
 			);
+		}
+
+		return rest_ensure_response( array( 'step' => $result['step'] ) );
+	}
+
+	/**
+	 * Decides whether a step is done (#163).
+	 *
+	 * Approving is a review capability rather than an answering one, which is
+	 * the whole difference between this route and the one above: a person who
+	 * may say what they did is not automatically a person who may say it counts.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function review( WP_REST_Request $request ) {
+		$step = self::their_step( $request );
+
+		if ( ! is_array( $step ) ) {
+			return $step;
+		}
+
+		$refused = Access::refuse_unless( Capabilities::REVIEW_SUBMISSION, self::client_of( (string) $step['client_site_id'] ) );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$body = (array) $request->get_json_params();
+
+		$result = Review::record(
+			$step,
+			(string) ( $body['decision'] ?? '' ),
+			(string) ( $body['reason'] ?? '' ),
+			get_current_user_id()
+		);
+
+		if ( ! isset( $result['step'] ) ) {
+			return Errors::rest( 'review_refused', (string) ( $result['message'] ?? '' ), 400 );
 		}
 
 		return rest_ensure_response( array( 'step' => $result['step'] ) );

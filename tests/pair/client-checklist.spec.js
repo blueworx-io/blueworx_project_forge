@@ -244,6 +244,92 @@ test.describe('a client working through their checklist', () => {
     await page.close();
   });
 
+  test('a step we send back shows the client what we asked for', async ({ browser }) => {
+    test.slow();
+
+    // #163, and the whole reason returning is a decision of its own: the
+    // feedback has to arrive on the client's own screen. Without it, "needs
+    // another look" is an instruction with no content.
+    const title = `Give us access to the hosting ${RUN}`;
+    const { studio, client, mine } = await readyClient(browser, 'Sent Back Co', [title]);
+
+    const page = await client.context.newPage();
+    await page.goto(CHECKLIST);
+
+    await page
+      .locator('[data-testid="bwx-checklist-response"]')
+      .first()
+      .fill('I think that is done.');
+    await page.locator('[data-testid="bwx-checklist-submit"]').first().click();
+    await expect(page.locator('[data-testid="bwx-checklist-status"]').first()).toContainText(
+      'With us to check'
+    );
+
+    const listed = await (
+      await studio.context.request.get(
+        `/wp-json/blueworx-forge/v1/onboarding/sites/${mine.site.id}/steps`,
+        { headers: { 'X-WP-Nonce': studio.nonce } }
+      )
+    ).json();
+
+    const step = listed.steps.find((each) => each.title === title);
+    expect(step, 'the studio should see the step it issued').toBeTruthy();
+
+    // Sending it back with nothing to say is refused, not silently accepted.
+    const empty = await studio.context.request.post(
+      `/wp-json/blueworx-forge/v1/onboarding/steps/${step.id}/review`,
+      {
+        headers: { 'X-WP-Nonce': studio.nonce },
+        data: { decision: 'return', reason: '' },
+      }
+    );
+
+    expect(empty.status()).toBe(400);
+
+    const returned = await studio.context.request.post(
+      `/wp-json/blueworx-forge/v1/onboarding/steps/${step.id}/review`,
+      {
+        headers: { 'X-WP-Nonce': studio.nonce },
+        data: { decision: 'return', reason: 'The invitation has not arrived — please resend it.' },
+      }
+    );
+
+    expect(returned.status(), await returned.text()).toBe(200);
+
+    // The client site holds its copy for a minute (Cache::MAX_AGE), and the
+    // studio's decision happened outside it, so this waits the window out
+    // rather than forcing a refresh. Slower, but it is the real path a client
+    // takes — nobody clicks anything to be told their step came back.
+    //
+    // count() rather than textContent(): a locator that matches nothing makes
+    // textContent() wait for it, so the predicate never returns and the poll
+    // never gets a second go. count() answers immediately with zero.
+    await expect
+      .poll(
+        async () => {
+          await page.goto(CHECKLIST);
+
+          return page.locator('[data-testid="bwx-checklist-feedback"]').count();
+        },
+        { timeout: 120000, intervals: [5000] }
+      )
+      .toBeGreaterThan(0);
+
+    await expect(page.locator('[data-testid="bwx-checklist-feedback"]').first()).toContainText(
+      'The invitation has not arrived'
+    );
+
+    // And it is theirs to do again, with what they wrote still there.
+    await expect(page.locator('[data-testid="bwx-checklist-status"]').first()).toContainText(
+      'Needs another look'
+    );
+    await expect(page.locator('[data-testid="bwx-checklist-response"]').first()).toHaveValue(
+      /I think that is done/
+    );
+
+    await page.close();
+  });
+
   test('a file we will not hold is turned away, and a real one is kept', async ({ browser }) => {
     test.slow();
 

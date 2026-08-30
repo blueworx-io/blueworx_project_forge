@@ -13,6 +13,7 @@ use Blueworx\Forge\Capacity\ClientAnswer;
 use Blueworx\Forge\Onboarding\Answers;
 use Blueworx\Forge\Onboarding\Evidence;
 use Blueworx\Forge\Onboarding\Progress;
+use Blueworx\Forge\Onboarding\Review;
 use Blueworx\Forge\Onboarding\StepEvents;
 use Blueworx\Forge\Onboarding\Steps;
 use Blueworx\Forge\Sites\Registry;
@@ -271,9 +272,19 @@ final class ClientController {
 		$steps = array();
 
 		foreach ( Steps::for_site( $site_id ) as $step ) {
+			$history = StepEvents::for_step( (string) $step['id'] );
+
 			$step             = Steps::with_lateness( $step, $today );
 			$step['evidence'] = Evidence::for_step( (string) $step['id'], $site_id );
-			$step['history']  = StepEvents::for_step( (string) $step['id'] );
+			$step['history']  = $history;
+
+			/*
+			 * #163. What we asked to be changed, worked out from the history
+			 * rather than stored on the step — see Onboarding\Review for why.
+			 * Sent to the client rather than kept internal because a step sent
+			 * back with no visible reason is an instruction with no content.
+			 */
+			$step['feedback'] = Review::feedback_from( (string) $step['status'], $history );
 
 			$steps[] = $step;
 		}
