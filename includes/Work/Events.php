@@ -290,4 +290,31 @@ final class Events {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE item_id = %s", $item_id ) );
 	}
+
+	/**
+	 * Whether anything has ever gone live on this site (#166).
+	 *
+	 * Asked of the history rather than of the items, and the difference matters:
+	 * an item that was released and later archived has still been released, and
+	 * a site that went live a year ago is live whatever its board looks like
+	 * today. The current stage of anything answers a different question.
+	 *
+	 * @param string $client_site_id The site.
+	 * @param string $stage          The stage that counts as live.
+	 * @return bool
+	 */
+	public static function has_ever_reached( string $client_site_id, string $stage ): bool {
+		global $wpdb;
+
+		if ( '' === $client_site_id || '' === $stage ) {
+			return false;
+		}
+
+		$table = Schema::work_events_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$found = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE client_site_id = %s AND to_stage = %s LIMIT 1", $client_site_id, $stage ) );
+
+		return null !== $found && '' !== (string) $found;
+	}
 }

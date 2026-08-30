@@ -62,6 +62,13 @@ final class Stages {
 	public const BLOCKED = 'blocked';
 
 	/**
+	 * Live on the client's site. Named because #166 gates the first arrival
+	 * here, and a stage compared by string literal in two files is a stage that
+	 * eventually gets misspelled in one of them.
+	 */
+	public const RELEASED = 'released';
+
+	/**
 	 * The twelve, in the order the state machine gives them.
 	 */
 	public const ALL = array(

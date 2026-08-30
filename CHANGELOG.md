@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.41.0] - 2026-08-30
+
+### Added
+
+- A site cannot go live until the things its checklist marks as needed before
+  launch are done. The refusal names them, so nobody has to go looking for what
+  is in the way.
+- Once a site is live, nothing after that is held up by its checklist. An
+  unticked box should never stop a bug fix months later.
+
 ## [2.40.0] - 2026-08-30
 
 ### Added
