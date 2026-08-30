@@ -10,6 +10,9 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 use Blueworx\Forge\Capacity\Impact;
+use Blueworx\Forge\Onboarding\LaunchGate;
+use Blueworx\Forge\Onboarding\Progress;
+use Blueworx\Forge\Onboarding\Steps;
 use WP_Error;
 
 /**
@@ -100,6 +103,12 @@ final class Transition {
 
 		if ( null !== $blocked ) {
 			return $blocked;
+		}
+
+		$onboarding = self::onboarding_refusal( $item, $to );
+
+		if ( null !== $onboarding ) {
+			return $onboarding;
 		}
 
 		return self::commit(
@@ -835,6 +844,38 @@ final class Transition {
 		}
 
 		return self::gate_error( $item, $to, $result['unmet'], $result['checks'] );
+	}
+
+	/**
+	 * Refuses a site's *first* go-live while its onboarding is unfinished (#166).
+	 *
+	 * Separate from the workflow gates above rather than added to them, because
+	 * it is not a fact about this item. Every gate in Work\Gates asks whether
+	 * this piece of work is ready; this asks whether the *site* is, and two
+	 * items on the same site get the same answer. Folding it into the gate table
+	 * would have meant a requirement whose evidence lives on another record
+	 * entirely.
+	 *
+	 * It refuses in the gate's own shape, because a board already draws unmet
+	 * requirements and a second shape would need a second thing to render it.
+	 *
+	 * @param array<string, mixed> $item The item being moved.
+	 * @param string               $to   The stage it is moving to.
+	 * @return WP_Error|null Null when nothing is in the way.
+	 */
+	private static function onboarding_refusal( array $item, string $to ) {
+		if ( Stages::RELEASED !== $to ) {
+			return null;
+		}
+
+		$site_id  = (string) ( $item['client_site_id'] ?? '' );
+		$progress = Progress::of( Steps::for_site( $site_id ) );
+
+		if ( ! LaunchGate::refuses( $progress, Events::has_ever_reached( $site_id, Stages::RELEASED ) ) ) {
+			return null;
+		}
+
+		return self::gate_error( $item, $to, LaunchGate::unmet( $progress ), array() );
 	}
 
 	/**
