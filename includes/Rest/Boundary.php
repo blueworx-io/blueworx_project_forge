@@ -113,10 +113,12 @@ final class Boundary {
 	 * drifting apart again.
 	 */
 	public const RECORDS = array(
-		'work_item'   => 'unknown_work_item',
-		'client_site' => 'unknown_client_site',
-		'client'      => 'unknown_client',
-		'membership'  => 'unknown_membership',
+		'work_item'         => 'unknown_work_item',
+		'client_site'       => 'unknown_client_site',
+		'client'            => 'unknown_client',
+		'membership'        => 'unknown_membership',
+		'onboarding_step'   => 'unknown_onboarding_step',
+		'onboarding_upload' => 'unknown_onboarding_upload',
 	);
 
 	/**
@@ -373,6 +375,10 @@ final class Boundary {
 				return __( 'There is no such client.', 'blueworx-forge' );
 			case 'membership':
 				return __( 'There is no such membership.', 'blueworx-forge' );
+			case 'onboarding_step':
+				return __( 'There is no such onboarding step.', 'blueworx-forge' );
+			case 'onboarding_upload':
+				return __( 'There is no such attachment.', 'blueworx-forge' );
 			default:
 				return __( 'There is no such record.', 'blueworx-forge' );
 		}

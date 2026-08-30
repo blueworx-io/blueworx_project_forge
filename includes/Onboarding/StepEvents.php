@@ -75,35 +75,48 @@ final class StepEvents {
 	public const MAX_REASON = 2000;
 
 	/**
-	 * Appends an entry.
+	 * Builds an entry, or refuses it.
+	 *
+	 * Separate from writing it so that what makes an entry attributable can be
+	 * read, and tested, without a database.
 	 *
 	 * @param array<string, mixed> $entry step_id, client_site_id, action,
 	 *                                    from_status, to_status, reason, actor,
-	 *                                    source_interface.
-	 * @return bool Whether it was written.
+	 *                                    actor_site, source_interface.
+	 * @return array<string, mixed> Empty when it may not be written.
 	 */
-	public static function append( array $entry ): bool {
-		global $wpdb;
-
+	public static function row_from( array $entry ): array {
 		$actor  = (int) ( $entry['actor'] ?? 0 );
+		$site   = trim( (string) ( $entry['actor_site'] ?? '' ) );
 		$action = (string) ( $entry['action'] ?? '' );
 
 		/*
-		 * No actor, no entry. See the class comment: this is the rule rather
-		 * than a tidiness check, and it is enforced here rather than at each
-		 * caller so that no second one can get round it.
+		 * Somebody, or something, has to be named. See the class comment: this
+		 * is the rule rather than a tidiness check, and it is enforced here
+		 * rather than at each caller so that no second one can get round it.
+		 *
+		 * A client site counts, because it is not a person here — it holds a
+		 * key, not an account — and #162 lets one answer a step. Work\Comments
+		 * met the same problem first and this is deliberately the same answer,
+		 * down to refusing a row that claims to be both: two different stories
+		 * could be told about such an entry, and the point of a history is that
+		 * only one can.
 		 */
-		if ( $actor <= 0 || ! in_array( $action, self::ACTIONS, true ) ) {
-			return false;
+		if ( ( $actor <= 0 && '' === $site ) || ( $actor > 0 && '' !== $site ) ) {
+			return array();
+		}
+
+		if ( ! in_array( $action, self::ACTIONS, true ) ) {
+			return array();
 		}
 
 		$step_id = (string) ( $entry['step_id'] ?? '' );
 
 		if ( '' === $step_id ) {
-			return false;
+			return array();
 		}
 
-		$row = array(
+		return array(
 			'id'               => Ids::create( self::PREFIX ),
 			'step_id'          => $step_id,
 			'client_site_id'   => (string) ( $entry['client_site_id'] ?? '' ),
@@ -112,9 +125,26 @@ final class StepEvents {
 			'to_status'        => (string) ( $entry['to_status'] ?? '' ),
 			'reason'           => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, self::MAX_REASON ),
 			'actor'            => $actor,
+			'actor_site'       => mb_substr( $site, 0, 32 ),
 			'source_interface' => (string) ( $entry['source_interface'] ?? '' ),
 			'occurred_at'      => bwx_forge_now(),
 		);
+	}
+
+	/**
+	 * Appends an entry.
+	 *
+	 * @param array<string, mixed> $entry As {@see self::row_from()} takes.
+	 * @return bool Whether it was written.
+	 */
+	public static function append( array $entry ): bool {
+		global $wpdb;
+
+		$row = self::row_from( $entry );
+
+		if ( array() === $row ) {
+			return false;
+		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
 		return (bool) $wpdb->insert( Schema::onboarding_step_events_table(), $row, Formats::for_row( $row ) );
@@ -154,6 +184,8 @@ final class StepEvents {
 			'to_status'        => (string) ( $row['to_status'] ?? '' ),
 			'reason'           => (string) ( $row['reason'] ?? '' ),
 			'actor'            => (int) ( $row['actor'] ?? 0 ),
+			'actor_site'       => (string) ( $row['actor_site'] ?? '' ),
+			'from_client'      => '' !== (string) ( $row['actor_site'] ?? '' ),
 			'source_interface' => (string) ( $row['source_interface'] ?? '' ),
 			'occurred_at'      => (int) ( $row['occurred_at'] ?? 0 ),
 		);
