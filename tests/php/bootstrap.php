@@ -606,16 +606,27 @@ function wp_json_encode( $data ) {
 }
 
 /**
- * Stub. Identity — no filters are registered in a unit run, so a filtered value
- * is its default. A test that needs a filter to have changed something sets the
- * value it is filtering directly.
+ * Stub. Identity by default — nothing is hooked in a unit run, so a filtered
+ * value is its default.
+ *
+ * A test that needs to prove the *hook itself* is offered, rather than what a
+ * caller does with the value, registers a callable in
+ * `$GLOBALS['bwx_forge_test_filters']` under the hook name. That is how #168
+ * shows a host with a malware scanner can refuse an upload: there is no way to
+ * demonstrate an extension point exists except by extending it.
  *
  * @param string $hook  Hook name.
  * @param mixed  $value Value being filtered.
+ * @param mixed  ...$args Further arguments passed to the callback.
  * @return mixed
  */
-function apply_filters( string $hook, $value ) {
-	unset( $hook );
+function apply_filters( string $hook, $value, ...$args ) {
+	$registered = $GLOBALS['bwx_forge_test_filters'][ $hook ] ?? null;
+
+	if ( is_callable( $registered ) ) {
+		return $registered( $value, ...$args );
+	}
+
 	return $value;
 }
 

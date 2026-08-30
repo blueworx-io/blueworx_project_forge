@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.38.0] - 2026-08-30
+
+### Added
+
+- Clients can attach evidence to an onboarding step — a PDF, an image, or a text
+  or CSV file. Files are kept where nobody outside that client can reach them,
+  and they are never served from a web address anybody could guess.
+
+### Security
+
+- Anything that looks like a password, an access key or a card number is now
+  refused when somebody tries to put it on an onboarding step, whichever side
+  they are typing on. They are told to invite our account instead, which is how
+  access was always meant to be handed over.
+- Only a short list of file types is accepted, and a file has to be the kind of
+  file it says it is. There is no promise of virus scanning: a plugin cannot
+  keep that promise on ordinary hosting, so a host that has its own scanner can
+  hook one in, and what we actually guarantee is not accepting the file at all.
+
 ## [2.37.1] - 2026-08-30
 
 ### Added

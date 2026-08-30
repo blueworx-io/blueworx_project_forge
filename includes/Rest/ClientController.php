@@ -10,6 +10,11 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Capacity\ClientAnswer;
+use Blueworx\Forge\Onboarding\Answers;
+use Blueworx\Forge\Onboarding\Evidence;
+use Blueworx\Forge\Onboarding\Progress;
+use Blueworx\Forge\Onboarding\StepEvents;
+use Blueworx\Forge\Onboarding\Steps;
 use Blueworx\Forge\Sites\Registry;
 use Blueworx\Forge\Sites\SecurityLog;
 use Blueworx\Forge\Work\ClientView;
@@ -184,6 +189,278 @@ final class ClientController {
 				),
 			)
 		);
+
+		/*
+		 * The onboarding checklist (#162, #167, #168). Read it, answer a step,
+		 * attach something to a step.
+		 *
+		 * **Three routes, and no fourth.** A client may not create a step,
+		 * delete one, reorder them or approve one, and the way that is enforced
+		 * is that no route exists to do any of it — the same shape as the
+		 * contribution routes above. What a client sends to the two writes is
+		 * narrowed again inside Onboarding\Answers, so a route that does exist
+		 * still cannot be talked into changing a due date or a reviewer.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/client/onboarding',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'checklist' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		/*
+		 * An answer is posted, not patched, and that is a statement rather than
+		 * a style. No client route edits anything (see
+		 * ClientContributionRouteTest, which enforces it) — a client adds, and
+		 * what they add here is an answer, which lands in the append-only step
+		 * history exactly as a contribution lands in the comments table. That
+		 * the step row moves on as a consequence is our doing, not theirs.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/client/onboarding/steps/(?P<step_id>[A-Za-z0-9_\-]+)/answer',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'answer_step' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and the callback refuses any step that is not on it (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/onboarding/steps/(?P<step_id>[A-Za-z0-9_\-]+)/evidence',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'attach_to_step' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and the callback refuses any step that is not on it (ARCH-6).',
+				),
+			)
+		);
+	}
+
+	/**
+	 * The signing site's own checklist.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function checklist( WP_REST_Request $request ) {
+		$integration = self::connection( (string) $request->get_header( Signature::HEADER_SITE ) );
+
+		if ( ! is_array( $integration ) ) {
+			return $integration;
+		}
+
+		$site_id = (string) $integration['client_site_id'];
+		$today   = gmdate( 'Y-m-d', bwx_forge_now() );
+
+		$steps = array();
+
+		foreach ( Steps::for_site( $site_id ) as $step ) {
+			$step             = Steps::with_lateness( $step, $today );
+			$step['evidence'] = Evidence::for_step( (string) $step['id'], $site_id );
+			$step['history']  = StepEvents::for_step( (string) $step['id'] );
+
+			$steps[] = $step;
+		}
+
+		return rest_ensure_response(
+			array(
+				'steps'    => $steps,
+
+				/*
+				 * Worked out from the steps just read, rather than asked for
+				 * separately. #164 settles that completion is never stored, and
+				 * a second read here could disagree with the list beside it.
+				 */
+				'progress' => Progress::of( $steps ),
+			)
+		);
+	}
+
+	/**
+	 * Records the client's answer to one of their steps.
+	 *
+	 * The credential rule (#167, ONB-3) is not in this method, and that is the
+	 * point of it being written down anywhere: it lives on the write path in
+	 * Onboarding\Answers, so this route and the studio's own route cannot come
+	 * to different conclusions about the same password.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function answer_step( WP_REST_Request $request ) {
+		$step = self::their_step( $request );
+
+		if ( ! is_array( $step ) ) {
+			return $step;
+		}
+
+		$body   = (array) $request->get_json_params();
+		$moving = (string) ( $body['status'] ?? '' );
+
+		/*
+		 * ONB-2: a client may never approve their own step, even one they own,
+		 * because self-certification makes the launch gate meaningless. Refused
+		 * here rather than left to fail quietly, so the screen can say why.
+		 */
+		if ( '' !== $moving && ! Answers::client_may_move_to( $moving ) ) {
+			self::log_refusal(
+				(string) $request->get_header( Signature::HEADER_SITE ),
+				'client_may_not_set_onboarding_status',
+				array(
+					'step_id' => (string) $step['id'],
+					'status'  => $moving,
+				)
+			);
+
+			return Errors::rest(
+				'not_permitted',
+				__( 'Send a step back to us for review and we will approve it. A step cannot be approved on your own site.', 'blueworx-forge' ),
+				403
+			);
+		}
+
+		$refused = self::refuse_client_unless( Capabilities::ANSWER_INFORMATION, $request, (string) $step['id'] );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$result = Answers::record(
+			$step,
+			$body,
+			$moving,
+			0,
+			Capabilities::CLIENT,
+			(string) $request->get_header( Signature::HEADER_SITE )
+		);
+
+		if ( ! isset( $result['step'] ) ) {
+			return Errors::rest(
+				'answer_refused',
+				(string) ( $result['message'] ?? '' ),
+				400,
+				array( 'field' => (string) ( $result['field'] ?? '' ) )
+			);
+		}
+
+		return rest_ensure_response( array( 'step' => $result['step'] ) );
+	}
+
+	/**
+	 * Attaches a file the client sent to one of their steps.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function attach_to_step( WP_REST_Request $request ) {
+		$step = self::their_step( $request );
+
+		if ( ! is_array( $step ) ) {
+			return $step;
+		}
+
+		$refused = self::refuse_client_unless( Capabilities::ATTACH_EVIDENCE, $request, (string) $step['id'] );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		return OnboardingController::keep(
+			$step,
+			(array) $request->get_json_params(),
+			0,
+			(string) $request->get_header( Signature::HEADER_SITE ),
+			Capabilities::CLIENT
+		);
+	}
+
+	/**
+	 * Asks the matrix whether a client may do this at all.
+	 *
+	 * The connection has already proved which site is calling. This proves that
+	 * what is being attempted is something a client may do, so the answer is
+	 * the same whether it arrives from their screen or from a script somebody
+	 * pointed at the route — the same reasoning, and the same shape, as
+	 * {@see self::contribute()}.
+	 *
+	 * @param string          $capability What is being exercised.
+	 * @param WP_REST_Request $request    Request.
+	 * @param string          $step_id    The step, for the refusal log.
+	 * @return \WP_Error|null Null when it is allowed.
+	 */
+	private static function refuse_client_unless( string $capability, WP_REST_Request $request, string $step_id ) {
+		$decision = Capabilities::decide(
+			$capability,
+			array(
+				'role'      => Roles::CLIENT_ADMIN,
+				'interface' => Capabilities::CLIENT,
+				'own_site'  => true,
+			)
+		);
+
+		if ( $decision['allowed'] ) {
+			return null;
+		}
+
+		self::log_refusal(
+			(string) $request->get_header( Signature::HEADER_SITE ),
+			(string) $decision['code'],
+			array(
+				'capability' => $capability,
+				'step_id'    => $step_id,
+			)
+		);
+
+		return Errors::rest( 'not_permitted', $decision['reason'], 403, array( 'denied_by' => $decision['code'] ) );
+	}
+
+	/**
+	 * The onboarding step this request names, if it is on the signing site.
+	 *
+	 * The same shape, and the same two-reasons-one-answer logging, as
+	 * {@see self::their_item()}. A step belonging to another client is answered
+	 * exactly as a step id nobody has ever used (D-1, D-2).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private static function their_step( WP_REST_Request $request ) {
+		$integration = self::connection( (string) $request->get_header( Signature::HEADER_SITE ) );
+
+		if ( ! is_array( $integration ) ) {
+			return $integration;
+		}
+
+		$id   = (string) $request->get_param( 'step_id' );
+		$step = Steps::get( $id );
+
+		if ( null === $step || (string) $step['client_site_id'] !== (string) $integration['client_site_id'] ) {
+			self::log_refusal(
+				(string) $request->get_header( Signature::HEADER_SITE ),
+				null === $step ? 'unknown_onboarding_step' : 'not_your_onboarding_step',
+				array( 'step_id' => $id )
+			);
+
+			return Boundary::absent( 'onboarding_step' );
+		}
+
+		return $step;
 	}
 
 	/**

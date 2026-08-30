@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 13;
+	public const VERSION = 14;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -247,6 +247,17 @@ final class Schema {
 	}
 
 	/**
+	 * The onboarding evidence table's full name.
+	 *
+	 * @return string
+	 */
+	public static function onboarding_evidence_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_onboarding_evidence';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -290,6 +301,7 @@ final class Schema {
 		$site_onboarding = self::site_onboarding_table();
 		$steps           = self::onboarding_steps_table();
 		$step_events     = self::onboarding_step_events_table();
+		$evidence        = self::onboarding_evidence_table();
 
 		return array(
 			$clients         => "CREATE TABLE {$clients} (
@@ -890,10 +902,50 @@ final class Schema {
 	to_status varchar(20) NOT NULL DEFAULT '',
 	reason text NOT NULL,
 	actor bigint(20) unsigned NOT NULL DEFAULT 0,
+	actor_site varchar(32) NOT NULL DEFAULT '',
 	source_interface varchar(20) NOT NULL DEFAULT '',
 	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id),
 	KEY step_time (step_id, occurred_at)
+) {$collate};",
+
+			/*
+			 * #168. A file attached to an onboarding step.
+			 *
+			 * `client_site_id` is on the row rather than reached through the
+			 * step, and every read names it. Tenant isolation is then a WHERE
+			 * clause instead of a check somebody has to remember to write, and
+			 * a caller holding only an id gets nothing back.
+			 *
+			 * `stored_name` is the only thing that touches the filesystem, and
+			 * the uploader never chooses it. `original_name` is a label shown
+			 * beside a download and is read as a path by nothing.
+			 *
+			 * Append-only. Replacing evidence writes another row and leaves the
+			 * first, which is what makes the submission history worth reading.
+			 * `retention_until` records when a documented manual deletion
+			 * becomes permitted (NOTIF-5) — nothing acts on it automatically,
+			 * because a purge running through records with audit history is the
+			 * foot-gun that decision exists to refuse.
+			 */
+			$evidence        => "CREATE TABLE {$evidence} (
+	id varchar(32) NOT NULL,
+	step_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL DEFAULT '',
+	original_name varchar(191) NOT NULL DEFAULT '',
+	stored_name varchar(191) NOT NULL DEFAULT '',
+	mime_type varchar(100) NOT NULL DEFAULT '',
+	size_bytes bigint(20) unsigned NOT NULL DEFAULT 0,
+	checksum varchar(64) NOT NULL DEFAULT '',
+	uploaded_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	uploaded_site varchar(32) NOT NULL DEFAULT '',
+	source_interface varchar(20) NOT NULL DEFAULT '',
+	uploaded_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	retention_until bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY step_site (step_id, client_site_id),
+	KEY site_time (client_site_id, uploaded_at)
 ) {$collate};",
 		);
 	}

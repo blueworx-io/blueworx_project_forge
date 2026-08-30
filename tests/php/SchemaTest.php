@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 19, $definitions );
+		$this->assertCount( 20, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -70,6 +70,10 @@ final class SchemaTest extends TestCase {
 			Schema::unavailability_table(),
 			Schema::site_onboarding_table(),
 			Schema::onboarding_step_events_table(),
+			// Evidence is the same (#168): replacing an attachment writes
+			// another row and leaves the first, so the submission history still
+			// shows what was sent the first time.
+			Schema::onboarding_evidence_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
@@ -185,6 +189,23 @@ final class SchemaTest extends TestCase {
 		$this->assertStringContainsString( 'provider', $steps );
 		$this->assertStringContainsString( 'invitation_status', $steps );
 		$this->assertStringContainsString( 'verification_outcome', $steps );
+	}
+
+	/**
+	 * #168. Evidence carries its own site, so that isolating one client's files
+	 * from another's is a WHERE clause rather than a check somebody has to
+	 * remember to write in each new caller.
+	 */
+	public function test_evidence_carries_the_site_it_belongs_to(): void {
+		$evidence = Schema::definitions()[ Schema::onboarding_evidence_table() ];
+
+		$this->assertStringContainsString( 'client_site_id varchar(32) NOT NULL', $evidence );
+		$this->assertStringContainsString( 'KEY step_site (step_id, client_site_id)', $evidence );
+
+		// The name on disk and the name a person recognises are two different
+		// columns, because only one of them is ever a path.
+		$this->assertStringContainsString( 'stored_name', $evidence );
+		$this->assertStringContainsString( 'original_name', $evidence );
 	}
 
 	/**
