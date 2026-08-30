@@ -56,6 +56,10 @@ final class Nav {
 				'label' => __( 'Calendar', 'blueworx-forge' ),
 			),
 			array(
+				'slug'  => ChecklistScreen::SLUG,
+				'label' => __( 'Getting you live', 'blueworx-forge' ),
+			),
+			array(
 				'slug'  => AskScreen::SLUG,
 				'label' => __( 'Ask for something', 'blueworx-forge' ),
 			),

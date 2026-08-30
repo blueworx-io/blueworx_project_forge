@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.39.0] - 2026-08-30
+
+### Added
+
+- Clients now have a "Getting you live" page on their own site. It opens with
+  the one thing waiting on them, groups the rest into when each happens, and
+  lets them write what they did and attach something showing it.
+- A step we send back shows what we asked to be changed, on their page, so
+  nobody has to email to ask what we meant.
+
+### Changed
+
+- A client's page shows our steps as well as theirs, as text rather than
+  something to fill in. Somebody waiting to go live wants to see that we are
+  getting on with our half.
+
 ## [2.38.0] - 2026-08-30
 
 ### Added
