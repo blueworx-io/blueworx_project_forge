@@ -90,6 +90,47 @@ final class Steps {
 	}
 
 	/**
+	 * Moves a step to a status.
+	 *
+	 * Called only by Onboarding\Review, which is what also writes the history
+	 * entry — hence the name, and hence its being the one method here that
+	 * touches the status. A caller that could move a step without writing an
+	 * entry is a caller that can make a step's history untrue.
+	 *
+	 * @param string $id           Step id.
+	 * @param string $status       The status moved to.
+	 * @param int    $sent_version Version the decision was made against.
+	 * @return bool Whether the row moved.
+	 */
+	public static function apply_status( string $id, string $status, int $sent_version ): bool {
+		global $wpdb;
+
+		if ( '' === $id || ! Statuses::exists( $status ) ) {
+			return false;
+		}
+
+		$changes = array(
+			'status'         => $status,
+			'updated_at'     => bwx_forge_now(),
+			'record_version' => $sent_version + 1,
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
+		$changed = $wpdb->update(
+			Schema::onboarding_steps_table(),
+			$changes,
+			array(
+				'id'             => $id,
+				'record_version' => $sent_version,
+			),
+			Formats::for_row( $changes ),
+			array( '%s', '%d' )
+		);
+
+		return (bool) $changed;
+	}
+
+	/**
 	 * A step with the question nobody stores answered: is it late?
 	 *
 	 * @param array<string, mixed> $step  The step, as read.

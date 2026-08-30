@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.40.0] - 2026-08-30
+
+### Added
+
+- We can now approve a step a client has sent us, send it back saying what needs
+  changing, or mark it as not applying to them. Sending one back without saying
+  why is refused — the client sees whatever we write, and "have another look" on
+  its own tells them nothing.
+- Marking a step as not applicable needs a reason too, and only works where the
+  checklist allows that step to be waived at all.
+
+### Changed
+
+- A returned step shows what we asked for on the client's own page, and stops
+  showing it once the step moves on. Nobody sees last month's comment against
+  work that has since been approved.
+
 ## [2.39.0] - 2026-08-30
 
 ### Added
