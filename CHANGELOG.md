@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.37.0] - 2026-08-30
+
+### Added
+
+- How far through a client's onboarding is, worked out from their own steps
+  rather than typed in by anybody. There is no figure to edit, so it can never
+  drift from the checklist it describes.
+- Whether a site is ready to go live is asked separately from how far through
+  it is. A client at 95% with their domain still unapproved is not nearly
+  ready, and one number would say otherwise in exactly the case where being
+  wrong costs the most. Steps that are in the way are named, not counted.
+
 ## [2.36.0] - 2026-08-29
 
 ### Added
