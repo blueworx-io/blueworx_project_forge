@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.37.1] - 2026-08-30
+
+### Added
+
+- A way to actually start a client's onboarding, from the clients screen. The
+  checklist machinery shipped last release without anything to trigger it, so
+  none of it was reachable. It is offered once per site and then shows how far
+  along they are.
+
 ## [2.37.0] - 2026-08-30
 
 ### Added
