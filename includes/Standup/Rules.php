@@ -267,12 +267,52 @@ final class Rules {
 		 * because deciding it means running the workflow engine, and a second
 		 * implementation of the gates inside the standup rules is exactly the
 		 * disagreement this product keeps refusing to create.
+		 *
+		 * Narrowed in #251, and the narrowing is the point of the rule rather
+		 * than a tidy-up. Unnarrowed it matched almost everything — 171 of 204
+		 * cards on a real board — because work that is not finished nearly
+		 * always has something it has not done yet, and a list that long is one
+		 * nobody reads. See {@see self::gate_is_news()}.
 		 */
-		if ( ! $finished && array() !== (array) ( $item['unmet'] ?? array() ) ) {
+		if ( ! $finished && array() !== (array) ( $item['unmet'] ?? array() ) && self::gate_is_news( $stage, $cards ) ) {
 			$cards[] = self::work_card( self::GATE_UNMET, $item, array( 'unmet' => (array) $item['unmet'] ) );
 		}
 
 		return $cards;
+	}
+
+	/**
+	 * Whether an unmet requirement is worth telling somebody about.
+	 *
+	 * Two questions, and both are about the reader rather than the record.
+	 *
+	 * *Has anybody committed to this?* An idea in triage has not failed to meet
+	 * a requirement — nothing has been agreed for it yet, and every field it is
+	 * missing is missing on purpose. Only work that has been scheduled or
+	 * picked up is trying to move, and only work that is trying to move can be
+	 * stuck.
+	 *
+	 * *Has the board already said it?* Work that is blocked, with a reviewer,
+	 * waiting to go out or handed back already carries a card saying what is
+	 * holding it up. A second card for the same item adds no information and
+	 * costs a line of a list that has to fit on a screen.
+	 *
+	 * @param string                           $stage The item's stage.
+	 * @param array<int, array<string, mixed>> $cards What this item has matched so far.
+	 * @return bool
+	 */
+	private static function gate_is_news( string $stage, array $cards ): bool {
+		if ( ! in_array( $stage, self::COMMITTED, true ) ) {
+			return false;
+		}
+
+		foreach ( $cards as $card ) {
+			if ( in_array( (string) $card['rule'], self::EXPLAINED, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -383,6 +423,30 @@ final class Rules {
 	 * @var array<int, string>
 	 */
 	private const FINISHED = array( 'released' );
+
+	/**
+	 * The stages at which somebody has committed to the work (#251).
+	 *
+	 * Everything earlier — an idea, a triage queue, a bug being tracked, an
+	 * audit, a documentation period, a design still being drawn — is work
+	 * nobody has promised to deliver yet, so there is nothing there for a
+	 * requirement to be standing in the way of.
+	 *
+	 * @var array<int, string>
+	 */
+	private const COMMITTED = array( 'up-next', 'in-development', 'in-review', 'completed' );
+
+	/**
+	 * Rules that already account for why an item is not moving (#251).
+	 *
+	 * @var array<int, string>
+	 */
+	private const EXPLAINED = array(
+		self::BLOCKED,
+		self::AWAITING_REVIEW,
+		self::AWAITING_RELEASE,
+		self::RETURNED,
+	);
 
 	/**
 	 * A card about a piece of work.
