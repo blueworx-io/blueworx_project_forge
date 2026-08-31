@@ -68,6 +68,10 @@ final class Plugin {
 		// whether it can email anybody (#89).
 		Mail::boot();
 		Report::boot();
+
+		// And so this site sends the client's own email, from the client's own
+		// domain, using the mail settings they already have (#173).
+		Notifications::boot();
 	}
 
 	/**
@@ -86,8 +90,9 @@ final class Plugin {
 	 * Runs on deactivation.
 	 */
 	public function deactivate(): void {
-		// The daily report is the one thing that would otherwise keep firing
-		// into a plugin that is no longer here.
+		// The two scheduled jobs are what would otherwise keep firing into a
+		// plugin that is no longer here.
 		Report::unschedule();
+		Notifications::unschedule();
 	}
 }

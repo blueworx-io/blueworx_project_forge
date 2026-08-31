@@ -234,6 +234,68 @@ final class Register {
 	}
 
 	/**
+	 * Everything raised about several records, grouped by which.
+	 *
+	 * One query, because the caller is a list screen. Asking per row is how a
+	 * queue of forty requests becomes forty extra queries for a column most
+	 * people never look at.
+	 *
+	 * @param array<int, string> $subject_ids The records.
+	 * @return array<string, array<int, array<string, mixed>>> Keyed by subject id.
+	 */
+	public static function for_subjects( array $subject_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $subject_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::notification_events_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id placeholders are built above from the ids themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE subject_id IN ({$slots}) ORDER BY raised_at ASC, id ASC", $ids ), ARRAY_A );
+
+		$grouped = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$grouped[ (string) $row['subject_id'] ][] = self::hydrate( $row );
+		}
+
+		return $grouped;
+	}
+
+	/**
+	 * What one site still has to send, oldest first.
+	 *
+	 * Oldest first because these are told in the order they happened: a client
+	 * receiving "now live" before "ready to go live" has been told the story
+	 * backwards, and the second email then reads as a mistake.
+	 *
+	 * Bounded, because this is answered to a client site asking what it should
+	 * send now. A site that has been offline for a month has a month of these,
+	 * and handing it all of them in one response is how a cron run times out
+	 * and never gets through any of them.
+	 *
+	 * @param string $client_site_id The site.
+	 * @param int    $limit          How many at most.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function pending_for_site( string $client_site_id, int $limit = 20 ): array {
+		global $wpdb;
+
+		$table = Schema::notification_events_table();
+		$limit = max( 1, min( 100, $limit ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s AND outcome = %s ORDER BY raised_at ASC, id ASC LIMIT %d", $client_site_id, self::RAISED, $limit ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * What a sender's answer means.
 	 *
 	 * A sender may say exactly which outcome it reached, or answer true or

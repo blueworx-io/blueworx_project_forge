@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.44.0] - 2026-08-31
+
+### Added
+
+- Clients now get emails, sent from their own site using their own mail
+  settings — so it arrives from a domain they recognise, and we hold no mail
+  passwords at all.
+- Three of them: we have your request, your work is ready to go live, and your
+  work is live. Ready and live are deliberately different messages.
+- A client who has asked for something hears that we have it.
+- The request queue now shows what each client has been told, and how it went.
+
 ## [2.43.0] - 2026-08-31
 
 ### Added

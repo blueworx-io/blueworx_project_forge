@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
@@ -142,6 +143,18 @@ final class SubmissionsController {
 
 		$visible = Queue::visible( $reach, Submissions::all() );
 		$rows    = Queue::keep( $visible, Queue::sanitise( $request->get_query_params() ) );
+		$shown   = Queue::rows( $rows, array( Clients::class, 'get' ) );
+
+		/*
+		 * What the client has been told about each one, and how it ended up
+		 * (#172, #173). One query for the whole queue rather than one per row —
+		 * a column most people never look at must not cost forty queries.
+		 */
+		$told = Notifications::for_subjects( array_column( $shown, 'id' ) );
+
+		foreach ( $shown as $index => $one ) {
+			$shown[ $index ]['notifications'] = $told[ (string) $one['id'] ] ?? array();
+		}
 
 		return rest_ensure_response(
 			array(
@@ -150,7 +163,7 @@ final class SubmissionsController {
 				'generated'   => bwx_forge_now(),
 				'states'      => self::states(),
 				'total'       => count( $visible ),
-				'submissions' => Queue::rows( $rows, array( Clients::class, 'get' ) ),
+				'submissions' => $shown,
 			)
 		);
 	}

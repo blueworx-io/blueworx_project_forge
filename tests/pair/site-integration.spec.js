@@ -105,7 +105,23 @@ test('a connected client site fills in its own connection record', async ({ brow
   expect(record.health).toBe('connected');
   expect(record.last_seen_at).toBeGreaterThan(0);
   expect(record.last_report_at).toBeGreaterThan(0);
-  expect(record.mail_capable).toBe('yes');
+  /*
+   * Reported, rather than reported as one particular answer.
+   *
+   * This asserted 'yes' until the client site started actually sending (#173),
+   * and it only passed because nothing had ever tried. Mail::capability() says
+   * no once a send has failed, and on a test instance with no mail transport
+   * every send fails — so the answer here now depends on whether another spec
+   * has posted a request to this client first, which is not something this
+   * spec is about.
+   *
+   * The product behaviour is right either way: a site that genuinely cannot
+   * deliver should say so, and one good send clears it again. What matters
+   * here, and is what this test was ever really about, is that the site
+   * volunteered an answer at all.
+   */
+  expect(['yes', 'no']).toContain(record.mail_capable);
+  expect(record.mail_detail).not.toBe('');
   expect(record.wp_version).not.toBe('');
   expect(record.php_version).not.toBe('');
   expect(record.home_url).toContain('127.0.0.1');
