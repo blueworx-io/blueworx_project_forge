@@ -132,13 +132,17 @@ test.describe('the client site sends the client the email', () => {
     expect(settled[0].id).toBe(raised[0].id);
 
     /*
-     * Sent, or failed because this instance has no mail transport. Both mean
-     * the client's site asked for the envelope, gave it to its own wp_mail and
-     * said what happened — which is the thing under test. What must never
-     * appear is `suppressed`: that would mean there was nobody to write to, and
-     * a person was created above precisely so there is.
+     * Sent, or not sent because this instance has no mail transport. All three
+     * mean the client's site asked for the envelope, gave it to its own
+     * wp_mail and said what happened — which is the thing under test.
+     *
+     * `retrying` is the usual answer here rather than `failed`, and only since
+     * #174: a first failure has three attempts left, so it is not somebody's
+     * problem yet. What must never appear is `suppressed` — that would mean
+     * there was nobody to write to, and a person was created above precisely so
+     * that there is.
      */
-    expect(['sent', 'failed']).toContain(settled[0].outcome);
+    expect(['sent', 'retrying', 'failed']).toContain(settled[0].outcome);
 
     // And the person the studio addressed it to is the client's own.
     expect(person.email).toContain('@example.test');
