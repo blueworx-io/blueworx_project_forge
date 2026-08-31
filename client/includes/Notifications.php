@@ -154,9 +154,16 @@ final class Notifications {
 
 			$went = self::deliver( $envelope );
 
+			/*
+			 * #174. What the mailer complained about travels back with the
+			 * failure. Without it the studio knows an email did not go and
+			 * nothing about why, which is the difference between a problem
+			 * somebody can fix and one they can only watch.
+			 */
 			$outcomes[] = array(
 				'event_id' => $id,
 				'sent'     => $went,
+				'detail'   => $went ? '' : Mail::last_failure(),
 			);
 
 			if ( $went ) {

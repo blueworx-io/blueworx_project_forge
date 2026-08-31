@@ -52,7 +52,17 @@ final class Register {
 	public const SENT = 'sent';
 
 	/**
-	 * It did not go, and will not be tried again.
+	 * It did not go, and will be tried again (#174).
+	 *
+	 * Separate from failed on purpose. Standup reports the failures, and an
+	 * event due to be tried again in five minutes is not something to ask a
+	 * person to look at — one name for both would fill the daily list with
+	 * problems that fix themselves.
+	 */
+	public const RETRYING = 'retrying';
+
+	/**
+	 * It did not go, the ladder ran out, and it is somebody's now.
 	 */
 	public const FAILED = 'failed';
 
@@ -71,9 +81,33 @@ final class Register {
 	public const OUTCOMES = array(
 		self::RAISED,
 		self::SENT,
+		self::RETRYING,
 		self::FAILED,
 		self::SUPPRESSED,
 	);
+
+	/**
+	 * The outcomes that mean nobody is waiting on this any more.
+	 *
+	 * `retrying` is deliberately absent: it looks settled and is not, and a
+	 * caller treating it as finished would stop asking a site to send an email
+	 * that is still owed.
+	 *
+	 * @var array<int, string>
+	 */
+	public const SETTLED = array(
+		self::SENT,
+		self::FAILED,
+		self::SUPPRESSED,
+	);
+
+	/**
+	 * Longest a mailer's complaint may be kept.
+	 *
+	 * It lands in a varchar, and a mailer that hands back a page of SMTP
+	 * transcript must not be able to fail the write that records the failure.
+	 */
+	public const MAX_DETAIL = 191;
 
 	/**
 	 * Claims an event, if nobody has already.
@@ -97,16 +131,19 @@ final class Register {
 		}
 
 		$row = array(
-			'id'             => $id,
-			'event_kind'     => $kind,
-			'subject_type'   => Events::subject_type( $kind ),
-			'subject_id'     => $subject,
-			'client_id'      => (string) ( $event['client_id'] ?? '' ),
-			'client_site_id' => (string) ( $event['client_site_id'] ?? '' ),
-			'occurrence'     => $occurrence,
-			'outcome'        => self::RAISED,
-			'raised_at'      => bwx_forge_now(),
-			'settled_at'     => 0,
+			'id'              => $id,
+			'event_kind'      => $kind,
+			'subject_type'    => Events::subject_type( $kind ),
+			'subject_id'      => $subject,
+			'client_id'       => (string) ( $event['client_id'] ?? '' ),
+			'client_site_id'  => (string) ( $event['client_site_id'] ?? '' ),
+			'occurrence'      => $occurrence,
+			'outcome'         => self::RAISED,
+			'attempts'        => 0,
+			'next_attempt_at' => 0,
+			'last_detail'     => '',
+			'raised_at'       => bwx_forge_now(),
+			'settled_at'      => 0,
 		);
 
 		/*
@@ -197,6 +234,54 @@ final class Register {
 			Formats::for_row( $changes ),
 			array( '%s' )
 		);
+	}
+
+	/**
+	 * Records one attempt at sending, and decides what happens next (#174).
+	 *
+	 * The counting is done in the database rather than here — `attempts =
+	 * attempts + 1` — because two client sites running their cron at the same
+	 * moment would otherwise both read three and both write four, and the
+	 * ladder would skip a rung. It is the same argument as {@see self::claim()}
+	 * makes about racing inserts, applied to a number.
+	 *
+	 * A success settles it and stops there. A failure asks {@see Retries} what
+	 * to do, and the answer is either a time to try again or a person to tell.
+	 *
+	 * @param string $id     Event id.
+	 * @param bool   $sent   Whether it went.
+	 * @param string $detail What the mailer said, where it said anything.
+	 * @return string The outcome recorded, or '' where the event is not there.
+	 */
+	public static function attempted( string $id, bool $sent, string $detail = '' ): string {
+		global $wpdb;
+
+		$event = self::get( $id );
+
+		if ( null === $event ) {
+			return '';
+		}
+
+		$attempts = (int) $event['attempts'] + 1;
+		$now      = bwx_forge_now();
+		$outcome  = $sent ? self::SENT : Retries::outcome_after( $attempts );
+		$due      = $sent ? 0 : Retries::due_at( $attempts, $now );
+
+		$table = Schema::notification_events_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; every value is prepared, and the counter is incremented in SQL so two sites reporting at once cannot skip a rung.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET attempts = attempts + 1, outcome = %s, next_attempt_at = %d, last_detail = %s, settled_at = %d WHERE id = %s",
+				$outcome,
+				$due,
+				mb_substr( trim( $detail ), 0, self::MAX_DETAIL ),
+				self::RETRYING === $outcome ? 0 : $now,
+				$id
+			)
+		);
+
+		return $outcome;
 	}
 
 	/**
@@ -318,8 +403,28 @@ final class Register {
 		$table = Schema::notification_events_table();
 		$limit = max( 1, min( 100, $limit ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s AND outcome = %s ORDER BY raised_at ASC, id ASC LIMIT %d", $client_site_id, self::RAISED, $limit ), ARRAY_A );
+		/*
+		 * Never sent, or failed and now due again (#174). The `next_attempt_at`
+		 * test is what makes the retry ladder a ladder: a site asking two
+		 * minutes after a failure is told there is nothing to send, and the same
+		 * site asking after five minutes is given it back.
+		 *
+		 * A permanently failed event is absent from both halves, which is what
+		 * ends the ladder — from here on it is on Standup and waiting for a
+		 * person, not for another attempt.
+		 */
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; every value is prepared.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE client_site_id = %s AND ( outcome = %s OR ( outcome = %s AND next_attempt_at <= %d ) ) ORDER BY raised_at ASC, id ASC LIMIT %d",
+				$client_site_id,
+				self::RAISED,
+				self::RETRYING,
+				bwx_forge_now(),
+				$limit
+			),
+			ARRAY_A
+		);
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
 	}
@@ -358,9 +463,12 @@ final class Register {
 			'client_id'      => (string) ( $row['client_id'] ?? '' ),
 			'client_site_id' => (string) ( $row['client_site_id'] ?? '' ),
 			'occurrence'     => (int) ( $row['occurrence'] ?? 1 ),
-			'outcome'        => (string) ( $row['outcome'] ?? self::RAISED ),
-			'raised_at'      => (int) ( $row['raised_at'] ?? 0 ),
-			'settled_at'     => (int) ( $row['settled_at'] ?? 0 ),
+			'outcome'         => (string) ( $row['outcome'] ?? self::RAISED ),
+			'attempts'        => (int) ( $row['attempts'] ?? 0 ),
+			'next_attempt_at' => (int) ( $row['next_attempt_at'] ?? 0 ),
+			'last_detail'     => (string) ( $row['last_detail'] ?? '' ),
+			'raised_at'       => (int) ( $row['raised_at'] ?? 0 ),
+			'settled_at'      => (int) ( $row['settled_at'] ?? 0 ),
 		);
 	}
 }

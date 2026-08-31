@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Capacity\ClientAnswer;
+use Blueworx\Forge\Notifications\Log as NotificationLog;
 use Blueworx\Forge\Notifications\Outbox;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Onboarding\Answers;
@@ -610,9 +611,20 @@ final class ClientController {
 				continue;
 			}
 
-			$sent = ! empty( $one['sent'] );
+			/*
+			 * #174. Recorded as an attempt rather than as a final answer: a
+			 * failure is tried again at five, thirty and a hundred and twenty
+			 * minutes, and only becomes somebody's problem when the ladder runs
+			 * out. What the client site reports is what happened this time; how
+			 * many times that makes, and what to do about it, is ours.
+			 */
+			$outcome = NotificationLog::attempt(
+				$id,
+				! empty( $one['sent'] ),
+				(string) ( $one['detail'] ?? '' )
+			);
 
-			if ( Notifications::settle( $id, $sent ? Notifications::SENT : Notifications::FAILED ) ) {
+			if ( '' !== $outcome ) {
 				++$recorded;
 			}
 		}

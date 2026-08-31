@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.47.0] - 2026-08-31
+
+### Added
+
+- An email that does not go is tried again after five minutes, then thirty,
+  then two hours. If it still has not gone, it stops being the product’s
+  problem and appears on the Today list for somebody to deal with — carrying
+  what the mail server actually said, so it is something you can act on.
+- Every attempt is written on the work item’s own history, so “did the client
+  ever hear about this” is answerable while looking at the work.
+- An email with nobody to send it to is recorded as such rather than counted
+  as a failure. No amount of retrying fixes a client with nobody set up.
+
 ## [2.46.0] - 2026-08-31
 
 ### Added

@@ -71,7 +71,7 @@ final class Outbox {
 				 * failed, because "there was nobody to write to" and "we tried
 				 * and it bounced" need different things done about them.
 				 */
-				Register::settle( (string) $event['id'], Register::SUPPRESSED );
+				Log::suppressed( (string) $event['id'], 'Nobody on this client to write to.' );
 				continue;
 			}
 
