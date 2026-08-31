@@ -113,7 +113,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'work' | 'requests' | 'capacity' | 'onboarding';
+export type ScreenName = 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -450,4 +450,29 @@ export interface OnboardingFilters {
   overdue?: 'yes';
   blocked?: 'yes';
   launch?: 'ready' | 'not-ready';
+}
+
+/* ---- Standup (#169, #170) ---- */
+
+/**
+ * One thing needing attention, and why.
+ *
+ * There is no "seen" or "dismissed" field, and there is not going to be one.
+ * A card exists because a condition is true; the server works the list out
+ * fresh every time it is asked, so anything stored here would be a second
+ * answer to a question that already has one.
+ */
+export interface StandupCard {
+  rule: string;
+  subject_type: string;
+  subject_id: string;
+  detail: Record< string, unknown >;
+}
+
+export interface StandupList {
+  denied?: boolean;
+  today: string;
+  generated: number;
+  rules: string[];
+  cards: StandupCard[];
 }

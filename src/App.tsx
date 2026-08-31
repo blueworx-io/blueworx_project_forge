@@ -4,6 +4,7 @@ import { forgeData, isConnected } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { QueueScreen } from './components/QueueScreen';
+import { StandupScreen } from './components/StandupScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
 
@@ -91,6 +92,16 @@ export function App() {
           >
             Onboarding
           </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'standup' === screen ? undefined : 'quiet' }
+            data-testid="bwx-screen-standup"
+            aria-pressed={ 'standup' === screen }
+            onClick={ () => setScreen( 'standup' ) }
+          >
+            Today
+          </button>
         </div>
 
         <span className="bwx-header-spacer" />
@@ -108,6 +119,7 @@ export function App() {
       { 'requests' === screen && <QueueScreen /> }
       { 'capacity' === screen && <CapacityScreen /> }
       { 'onboarding' === screen && <OnboardingScreen /> }
+      { 'standup' === screen && <StandupScreen /> }
     </main>
   );
 }

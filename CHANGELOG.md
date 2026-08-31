@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.46.0] - 2026-08-31
+
+### Added
+
+- A Today screen: everything needing attention, in four sections — work, what
+  is sitting on a person, what clients are waiting on us for, and the studio’s
+  own problems.
+- Cards can be hidden to get them out of the way, and hiding one never hides
+  the work. The count beside each section is always the real one and says how
+  many are hidden, nothing is recorded anywhere, and a reload brings them all
+  back. A card goes for good only when the thing that put it there is dealt
+  with.
+
 ## [2.45.0] - 2026-08-31
 
 ### Added
