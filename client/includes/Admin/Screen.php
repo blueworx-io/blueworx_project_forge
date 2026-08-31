@@ -104,6 +104,15 @@ final class Screen {
 			return;
 		}
 
+		/*
+		 * Somebody is on a Forge screen. Announced rather than acted on here,
+		 * because what wants to know is not this file's business: #173 uses it
+		 * to top up the mail queue, on the grounds that WP-Cron on a quiet site
+		 * only fires when somebody visits, and a client site can be quiet for
+		 * days. Whoever listens is responsible for not doing it too often.
+		 */
+		do_action( 'bwx_forge_client_screen_loaded', $hook );
+
 		$tokens = BWX_FORGE_CLIENT_PATH . 'tokens/forge.css';
 
 		if ( ! file_exists( $tokens ) ) {

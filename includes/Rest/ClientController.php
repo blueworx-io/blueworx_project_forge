@@ -10,6 +10,8 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Capacity\ClientAnswer;
+use Blueworx\Forge\Notifications\Outbox;
+use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Onboarding\Answers;
 use Blueworx\Forge\Onboarding\Evidence;
 use Blueworx\Forge\Onboarding\Progress;
@@ -78,6 +80,44 @@ final class ClientController {
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
 					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, so the boundary is the signature (ARCH-6).',
+				),
+			)
+		);
+
+		/*
+		 * The client site's outbox (#173). It asks what it should send, sends
+		 * it with its own `wp_mail`, and says what happened.
+		 *
+		 * Two routes rather than one that does both, because the two are
+		 * separated by the send itself and by whatever the client's mail
+		 * provider does in between. A single call would have to hold a
+		 * connection open across all of that, and a timed-out request would
+		 * leave the studio not knowing whether the emails went.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/client/notifications',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'notifications' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and only that site\'s pending emails are answered (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/notifications',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'notified' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and an outcome is only accepted for an event raised for that site (ARCH-6).',
 				),
 			)
 		);
@@ -500,6 +540,87 @@ final class ClientController {
 				'status'      => $site['status'] ?? '',
 				'server_time' => bwx_forge_now(),
 				'version'     => BWX_FORGE_VERSION,
+			)
+		);
+	}
+
+	/**
+	 * What this site should send now (#173).
+	 *
+	 * Finished envelopes: who, what it says, and which event each one settles.
+	 * The site decides nothing about the content — two implementations of what
+	 * an email says is two versions of what we told a client.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function notifications( WP_REST_Request $request ) {
+		/*
+		 * Resolved through the integration rather than used as it arrives. The
+		 * signature names the *registry* site — the connection — and the events
+		 * are recorded against the Client Site it belongs to. They are two
+		 * different ids, and treating one as the other silently answers with an
+		 * empty outbox, which looks exactly like having nothing to send.
+		 */
+		$integration = self::connection( (string) $request->get_header( Signature::HEADER_SITE ) );
+
+		if ( ! is_array( $integration ) ) {
+			return $integration;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'send'  => Outbox::for_site( (string) $integration['client_site_id'] ),
+				'batch' => Outbox::BATCH,
+			)
+		);
+	}
+
+	/**
+	 * What happened to them.
+	 *
+	 * **Every outcome is checked against the site that raised it**, not taken
+	 * on the word of the caller. A signature proves which site is speaking; it
+	 * does not make that site's claims about other people's events true, and an
+	 * event id is the sort of thing that could be guessed at. So an id this
+	 * site was never asked to send is ignored rather than recorded — quietly,
+	 * because the honest cause is a race with a site that has just been moved
+	 * to another client, not an attack.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function notified( WP_REST_Request $request ) {
+		$integration = self::connection( (string) $request->get_header( Signature::HEADER_SITE ) );
+
+		if ( ! is_array( $integration ) ) {
+			return $integration;
+		}
+
+		$site_id  = (string) $integration['client_site_id'];
+		$body     = (array) $request->get_json_params();
+		$recorded = 0;
+
+		foreach ( (array) ( $body['outcomes'] ?? array() ) as $one ) {
+			$id    = (string) ( is_array( $one ) ? ( $one['event_id'] ?? '' ) : '' );
+			$event = '' === $id ? null : Notifications::get( $id );
+
+			if ( null === $event || (string) $event['client_site_id'] !== $site_id ) {
+				continue;
+			}
+
+			$sent = ! empty( $one['sent'] );
+
+			if ( Notifications::settle( $id, $sent ? Notifications::SENT : Notifications::FAILED ) ) {
+				++$recorded;
+			}
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'recorded' => $recorded,
 			)
 		);
 	}

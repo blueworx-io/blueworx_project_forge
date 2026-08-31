@@ -11,6 +11,13 @@ namespace Blueworx\Forge\Work;
 
 use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
+
+/*
+ * Aliased because Notifications\Events sitting beside Work\Events would be two
+ * classes of one name in the reader's head, in a file that uses both ideas.
+ */
+use Blueworx\Forge\Notifications\Events as Notifications;
+use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Tenancy\Ids;
 
 /**
@@ -151,7 +158,31 @@ final class Submissions {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- This plugin's own table; there is no core API for it, and an intake record is read rarely enough that caching it would only add a way to be wrong.
 		$written = $wpdb->insert( Schema::submissions_table(), $row, Formats::for_row( $row ) );
 
-		return false === $written ? null : self::get( $row['id'] );
+		if ( false === $written ) {
+			return null;
+		}
+
+		/*
+		 * #172, #173. A client who has just asked us for something should hear
+		 * that we have it, and hear it once.
+		 *
+		 * Raised here rather than in the controller because this is the one
+		 * door a submission comes through, and a second door added later would
+		 * be a second place to remember. The claim is by the submission's own
+		 * id, so a client site that genuinely asks twice gets two
+		 * acknowledgements — they did ask twice — while a replay of one
+		 * submission produces one of each.
+		 */
+		Register::claim(
+			array(
+				'kind'           => Notifications::RECEIVED,
+				'subject_id'     => (string) $row['id'],
+				'client_id'      => $client_id,
+				'client_site_id' => $client_site_id,
+			)
+		);
+
+		return self::get( $row['id'] );
 	}
 
 	/**
