@@ -10,6 +10,13 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 use Blueworx\Forge\Capacity\Impact;
+
+/*
+ * Aliased because this file already has an Events — the changelog's — and two
+ * classes of that name in one file is how the wrong one gets called.
+ */
+use Blueworx\Forge\Notifications\Events as Notifications;
+use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Onboarding\LaunchGate;
 use Blueworx\Forge\Onboarding\Progress;
 use Blueworx\Forge\Onboarding\Steps;
@@ -1078,6 +1085,34 @@ final class Transition {
 				'bwx_forge_write_failed',
 				__( 'That move could not be recorded, so it was not made.', 'blueworx-forge' ),
 				array( 'status' => 500 )
+			);
+		}
+
+		/*
+		 * #172. Arriving somewhere the client hears about raises the event that
+		 * will become their email, inside the same transaction as the move.
+		 *
+		 * Inside, for the same reason the changelog entry is: a move the client
+		 * is never told about is a move that half happened. Outside, a crash
+		 * between the two would leave work released and nobody informed, and
+		 * nothing later would know to look.
+		 *
+		 * A refused claim is not a failure and must not roll anything back. It
+		 * means this release was already noticed — by a sync, a retry, or
+		 * somebody's second click — and the whole point of the event id is that
+		 * the second one quietly does nothing.
+		 */
+		$raises = Notifications::for_stage( $to );
+
+		if ( '' !== $raises ) {
+			Register::claim(
+				array(
+					'kind'           => $raises,
+					'subject_id'     => (string) $item['id'],
+					'occurrence'     => (int) $item['cycle'],
+					'client_id'      => (string) ( $item['client_id'] ?? '' ),
+					'client_site_id' => (string) $item['client_site_id'],
+				)
 			);
 		}
 

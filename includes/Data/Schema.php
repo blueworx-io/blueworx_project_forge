@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 14;
+	public const VERSION = 15;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -258,6 +258,17 @@ final class Schema {
 	}
 
 	/**
+	 * The notification events table's full name.
+	 *
+	 * @return string
+	 */
+	public static function notification_events_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_notification_events';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -302,6 +313,8 @@ final class Schema {
 		$steps           = self::onboarding_steps_table();
 		$step_events     = self::onboarding_step_events_table();
 		$evidence        = self::onboarding_evidence_table();
+
+		$notifications = self::notification_events_table();
 
 		return array(
 			$clients         => "CREATE TABLE {$clients} (
@@ -946,6 +959,22 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY step_site (step_id, client_site_id),
 	KEY site_time (client_site_id, uploaded_at)
+) {$collate};",
+
+			$notifications   => "CREATE TABLE {$notifications} (
+	id varchar(32) NOT NULL,
+	event_kind varchar(40) NOT NULL,
+	subject_type varchar(20) NOT NULL,
+	subject_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL DEFAULT '',
+	client_site_id varchar(32) NOT NULL DEFAULT '',
+	occurrence int(11) unsigned NOT NULL DEFAULT 1,
+	outcome varchar(20) NOT NULL DEFAULT 'raised',
+	raised_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	settled_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY subject (subject_type,subject_id),
+	KEY outcome_kind (outcome,event_kind)
 ) {$collate};",
 		);
 	}

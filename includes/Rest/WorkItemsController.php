@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Work\Changelog;
@@ -519,20 +520,20 @@ final class WorkItemsController {
 
 		return rest_ensure_response(
 			array(
-				'ok'           => true,
+				'ok'            => true,
 
 				// #101. What the children make it, filled in on the way out
 				// rather than stored — there is no column for anybody to write.
-				'item'         => array_merge( $item, Derived::fields( $children ) ),
-				'children'     => $children,
-				'history'      => $history,
-				'available'    => array_keys( $readiness ),
+				'item'          => array_merge( $item, Derived::fields( $children ) ),
+				'children'      => $children,
+				'history'       => $history,
+				'available'     => array_keys( $readiness ),
 				// What each of those moves is still waiting on, so a person can
 				// see the gate before it refuses them rather than after.
-				'readiness'    => $readiness,
-				'returns'      => Returns::targets( $item, $history ),
-				'outcomes'     => Outcomes::available_for( $item ),
-				'can_archive'  => Outcomes::may_archive( $item ),
+				'readiness'     => $readiness,
+				'returns'       => Returns::targets( $item, $history ),
+				'outcomes'      => Outcomes::available_for( $item ),
+				'can_archive'   => Outcomes::may_archive( $item ),
 
 				/*
 				 * Whether this person may go ahead with an over-allocation
@@ -540,14 +541,26 @@ final class WorkItemsController {
 				 * always going to be refused — being shown a way through and
 				 * then told no is worse than never being shown one.
 				 */
-				'can_override' => Access::allows( Capabilities::OVERRIDE, (string) $item['client_id'], $item ),
-				'records'      => GateRecords::current_for( $item ),
-				'comments'     => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
-				'scope'        => $scope,
+				'can_override'  => Access::allows( Capabilities::OVERRIDE, (string) $item['client_id'], $item ),
+				'records'       => GateRecords::current_for( $item ),
+				'comments'      => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
+				'scope'         => $scope,
 
 				// #103. What this waits on, what waits on it, and which of the
 				// first are not going to move on their own.
-				'dependencies' => self::dependency_view( $item ),
+				'dependencies'  => self::dependency_view( $item ),
+
+				/*
+				 * #172. What the client has been told about this item, and how
+				 * each telling ended up. Here rather than on a route of its own
+				 * because it is a fact about the item, and putting it here means
+				 * it is scoped by the item's own boundary rather than by a
+				 * second copy of that reasoning.
+				 *
+				 * One entry per qualifying event, however many times the event
+				 * was noticed — which is the whole of what this list is for.
+				 */
+				'notifications' => Notifications::for_subject( (string) $item['id'] ),
 			)
 		);
 	}

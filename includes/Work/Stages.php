@@ -62,6 +62,14 @@ final class Stages {
 	public const BLOCKED = 'blocked';
 
 	/**
+	 * Approved and ready, but not yet live. Named for the same reason as the
+	 * one below, and because NOTIF-2 turns on the difference between the two:
+	 * this one tells a client their work is ready, and only the next one tells
+	 * them it is done.
+	 */
+	public const COMPLETED = 'completed';
+
+	/**
 	 * Live on the client's site. Named because #166 gates the first arrival
 	 * here, and a stage compared by string literal in two files is a stage that
 	 * eventually gets misspelled in one of them.
