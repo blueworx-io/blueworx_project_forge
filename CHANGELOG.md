@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.50.0] - 2026-08-31
+
+### Added
+
+- Forge now tells you what has happened lately, next to the wordmark on every
+  screen. A colleague moving your work on, sending it back, blocking it, going
+  through a gate or committing somebody past their hours, and a client asking
+  for something — with a count of what is new since you last looked. Your own
+  doing is left out, because a list of things you did an hour ago is a list you
+  stop reading. Nothing is filed against you: the list is worked out each time
+  from records you may read right now, so losing access to a client takes its
+  history off your list with it.
+
 ## [2.49.0] - 2026-08-31
 
 ### Added

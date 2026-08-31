@@ -262,31 +262,78 @@ final class Events {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE item_id = %s ORDER BY occurred_at ASC, id ASC", $item_id ), ARRAY_A );
 
-		return array_map(
-			static function ( array $row ): array {
-				return array(
-					'id'          => (string) $row['id'],
-					'item_id'     => (string) $row['item_id'],
-					'action'      => (string) $row['action'],
-					'from_stage'  => (string) $row['from_stage'],
-					'to_stage'    => (string) $row['to_stage'],
-					'gate'        => (string) $row['gate'],
-					'outcome'     => (string) $row['outcome'],
-					'via'              => (string) $row['via'],
-					'field'            => (string) ( $row['field'] ?? '' ),
-					'previous_value'   => (string) ( $row['previous_value'] ?? '' ),
-					'new_value'        => (string) ( $row['new_value'] ?? '' ),
-					'source_interface' => (string) ( $row['source_interface'] ?? '' ),
-					'timezone'         => (string) ( $row['timezone'] ?? '' ),
-					'reason'           => (string) $row['reason'],
-					'detail'           => (string) $row['detail'],
-					'cycle'            => (int) $row['cycle'],
-					'attempt'          => (int) $row['attempt'],
-					'actor'            => (int) $row['actor'],
-					'occurred_at'      => (int) $row['occurred_at'],
-				);
-			},
-			is_array( $rows ) ? $rows : array()
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * What has happened lately across several sites, newest first.
+	 *
+	 * For the in-product signals (#175). Everything else here reads one item's
+	 * history; this reads across them, which is a different question and needs
+	 * a different bound — a studio's history is unbounded, and a query with no
+	 * ceiling on it is a page that gets slower every month it runs.
+	 *
+	 * Two bounds, both deliberate. A start time, because something that happened
+	 * in March is not a signal; and a limit, because a site that had a busy
+	 * afternoon must not be able to make this the slowest query in the product.
+	 * The actions are filtered in SQL rather than after, so a studio that edits
+	 * fields all day does not pay to fetch and throw them away.
+	 *
+	 * @param array<int, string> $client_site_ids Sites to read.
+	 * @param array<int, string> $actions         Which actions count.
+	 * @param int                $since           Unix time; nothing older.
+	 * @param int                $limit           How many at most.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function recent_for_sites( array $client_site_ids, array $actions, int $since, int $limit = 100 ): array {
+		global $wpdb;
+
+		$ids  = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+		$kept = array_values( array_unique( array_filter( array_map( 'strval', $actions ) ) ) );
+
+		if ( array() === $ids || array() === $kept ) {
+			return array();
+		}
+
+		$table  = Schema::work_events_table();
+		$sites  = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+		$doings = implode( ', ', array_fill( 0, count( $kept ), '%s' ) );
+		$args   = array_merge( $ids, $kept, array( $since, max( 1, min( 200, $limit ) ) ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id and action placeholders are built above from the values themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$sites}) AND action IN ({$doings}) AND occurred_at >= %d ORDER BY occurred_at DESC, id DESC LIMIT %d", $args ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * A stored row, with its numbers as numbers.
+	 *
+	 * @param array<string, mixed> $row As the database returned it.
+	 * @return array<string, mixed>
+	 */
+	private static function hydrate( array $row ): array {
+		return array(
+			'id'               => (string) $row['id'],
+			'item_id'          => (string) $row['item_id'],
+			'client_site_id'   => (string) $row['client_site_id'],
+			'action'           => (string) $row['action'],
+			'from_stage'       => (string) $row['from_stage'],
+			'to_stage'         => (string) $row['to_stage'],
+			'gate'             => (string) $row['gate'],
+			'outcome'          => (string) $row['outcome'],
+			'via'              => (string) $row['via'],
+			'field'            => (string) ( $row['field'] ?? '' ),
+			'previous_value'   => (string) ( $row['previous_value'] ?? '' ),
+			'new_value'        => (string) ( $row['new_value'] ?? '' ),
+			'source_interface' => (string) ( $row['source_interface'] ?? '' ),
+			'timezone'         => (string) ( $row['timezone'] ?? '' ),
+			'reason'           => (string) $row['reason'],
+			'detail'           => (string) $row['detail'],
+			'cycle'            => (int) $row['cycle'],
+			'attempt'          => (int) $row['attempt'],
+			'actor'            => (int) $row['actor'],
+			'occurred_at'      => (int) $row['occurred_at'],
 		);
 	}
 

@@ -136,6 +136,53 @@ final class Items {
 	}
 
 	/**
+	 * Just enough about several items to name them, keyed by id.
+	 *
+	 * For lists built from something other than the items themselves — the
+	 * in-product signals (#175) are built from the history, and a history entry
+	 * knows which item it is about but not what that item is called. Fetching
+	 * each one in turn would be a query per row of the list.
+	 *
+	 * Deliberately not the whole record. A caller that wants an item wants
+	 * {@see self::get()}; this exists so a list can print a title without
+	 * pulling a hundred rows of everything.
+	 *
+	 * @param array<int, string> $ids Item ids.
+	 * @return array<string, array<string, mixed>> Keyed by id.
+	 */
+	public static function summaries_for( array $ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::work_items_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id placeholders are built above from the ids themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, title, stage, level, work_type, client_id, client_site_id FROM {$table} WHERE id IN ({$slots})", $wanted ), ARRAY_A );
+
+		$summaries = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$summaries[ (string) $row['id'] ] = array(
+				'id'             => (string) $row['id'],
+				'title'          => (string) $row['title'],
+				'stage'          => (string) $row['stage'],
+				'level'          => (string) $row['level'],
+				'work_type'      => (string) $row['work_type'],
+				'client_id'      => (string) $row['client_id'],
+				'client_site_id' => (string) $row['client_site_id'],
+			);
+		}
+
+		return $summaries;
+	}
+
+	/**
 	 * The children of one item.
 	 *
 	 * @param string $parent_id Parent item id.
