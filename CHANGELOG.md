@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.45.0] - 2026-08-31
+
+### Added
+
+- The rules behind a daily list of what needs attention: work that is late,
+  due today, blocked, stuck at a requirement, waiting to be reviewed or
+  released, or sent back; client requests nobody has answered; onboarding
+  steps waiting on us or overdue; anybody over their hours this week; and
+  emails or client sites that need somebody to step in.
+- Nothing is marked as seen and nothing can be dismissed. An item is on the
+  list because something is true about it, and it leaves when that stops
+  being true — so the list can never quietly hide work that is still
+  outstanding.
+
 ## [2.44.0] - 2026-08-31
 
 ### Added

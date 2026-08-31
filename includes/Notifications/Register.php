@@ -268,6 +268,35 @@ final class Register {
 	}
 
 	/**
+	 * The emails that did not go, across several sites.
+	 *
+	 * For the daily list (#169). An email that failed is invisible by nature —
+	 * the failure is that nothing happened — so something has to go looking for
+	 * them, and the alternative to a query is nobody ever finding out.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<int, array<string, mixed>> Oldest failure first.
+	 */
+	public static function failed_for_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::notification_events_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+		$args  = array_merge( $ids, array( self::FAILED ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id placeholders are built above from the ids themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$slots}) AND outcome = %s ORDER BY settled_at ASC, id ASC", $args ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * What one site still has to send, oldest first.
 	 *
 	 * Oldest first because these are told in the order they happened: a client
