@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.43.0] - 2026-08-31
+
+### Added
+
+- Groundwork for client emails: each thing worth telling a client about now
+  gets one record, and gets it once. A sync arriving twice, a send being
+  retried, or work reaching the same point again after a failed review all
+  produce the same single record, so none of them can turn into a second
+  email.
+- Work reopened and released a second time is a second thing worth telling
+  them about, and is recorded as one.
+- A work item now reports what the client has been told about it, and how each
+  of those ended up.
+
 ## [2.42.0] - 2026-08-31
 
 ### Added

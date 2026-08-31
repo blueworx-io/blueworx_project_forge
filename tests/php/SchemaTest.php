@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 20, $definitions );
+		$this->assertCount( 21, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -74,6 +74,16 @@ final class SchemaTest extends TestCase {
 			// another row and leaves the first, so the submission history still
 			// shows what was sent the first time.
 			Schema::onboarding_evidence_table(),
+
+			/*
+			 * A notification event (#172) is written once and settled once, and
+			 * carries no version on purpose. ARCH-5's version exists to refuse a
+			 * write made against a stale copy, and there is no such write here:
+			 * the only race is over creating the row at all, and the primary key
+			 * settles that one — which is the whole mechanism. A version column
+			 * would suggest an edit somebody could lose, and there is none.
+			 */
+			Schema::notification_events_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
