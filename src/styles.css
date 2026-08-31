@@ -1508,3 +1508,109 @@ td[ data-band='over' ] {
   color: var( --color-steel );
   white-space: pre-wrap;
 }
+
+/* ---- Standup (#170) ---- */
+
+.bwx-standup {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.bwx-standup-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.bwx-standup-section-title {
+  font-size: var( --text-subheading );
+  line-height: 1;
+  letter-spacing: var( --tracking-subheading );
+  font-weight: var( --font-weight-label );
+  margin: 0;
+}
+
+.bwx-standup-blurb {
+  margin: 4px 0 12px;
+  font-size: var( --text-small );
+  color: var( --color-fog );
+}
+
+.bwx-standup-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat( auto-fill, minmax( 280px, 1fr ) );
+  gap: 10px;
+}
+
+/* A rail rather than a filled card. Three tones across twelve rules, because a
+   board where every card shouts is a board where none of them does. */
+.bwx-standup-card {
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-inline-start: 3px solid var( --card-rail, var( --color-chalk ) );
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bwx-standup-card[ data-tone='late' ] {
+  --card-rail: var( --overdue-accent );
+}
+
+.bwx-standup-card[ data-tone='stopped' ] {
+  --card-rail: var( --blocked-accent );
+}
+
+.bwx-standup-card[ data-tone='waiting' ] {
+  --card-rail: var( --color-info );
+}
+
+.bwx-standup-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bwx-standup-card-title {
+  font-weight: var( --font-weight-label );
+  overflow-wrap: anywhere;
+}
+
+.bwx-standup-card-detail {
+  font-size: var( --text-small );
+  color: var( --color-steel );
+  overflow-wrap: anywhere;
+}
+
+/* Quiet, and it stays quiet. Hiding a card is a convenience, not an action —
+   nothing is recorded and a reload brings it back — so it must not look like
+   one of the buttons that changes something. */
+.bwx-standup-dismiss {
+  font: inherit;
+  font-size: var( --text-caption );
+  color: var( --color-fog );
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.bwx-standup-dismiss:hover {
+  color: var( --color-steel );
+  background: var( --color-mist );
+}
+
+.bwx-standup-dismiss:focus-visible {
+  outline: 2px solid var( --color-ring-blue );
+  outline-offset: 1px;
+}
