@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 15;
+	public const VERSION = 16;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -970,11 +970,14 @@ final class Schema {
 	client_site_id varchar(32) NOT NULL DEFAULT '',
 	occurrence int(11) unsigned NOT NULL DEFAULT 1,
 	outcome varchar(20) NOT NULL DEFAULT 'raised',
+	attempts int(11) unsigned NOT NULL DEFAULT 0,
+	next_attempt_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_detail varchar(191) NOT NULL DEFAULT '',
 	raised_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	settled_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id),
 	KEY subject (subject_type,subject_id),
-	KEY outcome_kind (outcome,event_kind)
+	KEY outcome_due (outcome,next_attempt_at)
 ) {$collate};",
 		);
 	}

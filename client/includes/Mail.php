@@ -67,6 +67,20 @@ final class Mail {
 	}
 
 	/**
+	 * What the last failure said, if there was one.
+	 *
+	 * Read rather than inferred: WordPress tells us why through
+	 * `wp_mail_failed`, and passing that sentence back to the studio (#174) is
+	 * the difference between a problem somebody can fix and one they can only
+	 * watch. "Could not send" is not actionable; "SMTP connect() failed" is.
+	 *
+	 * @return string
+	 */
+	public static function last_failure(): string {
+		return (string) get_option( self::OPTION_FAILURE, '' );
+	}
+
+	/**
 	 * Records that a send failed.
 	 *
 	 * @param mixed $error The WP_Error wp_mail_failed carries.

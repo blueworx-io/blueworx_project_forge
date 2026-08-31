@@ -124,6 +124,20 @@ final class Events {
 	public const DEPENDENCY_REMOVED = 'dependency-removed';
 
 	/**
+	 * What happened when we tried to tell the client about this (#174).
+	 *
+	 * On the item's own changelog rather than only in the notification record,
+	 * because "did the client ever hear about this" is a question asked while
+	 * looking at the work — usually in the middle of a conversation with them.
+	 * An answer that lives somewhere else is one nobody finds in time.
+	 *
+	 * The outcome column carries which it was: sent, retrying, failed or
+	 * suppressed. One action rather than four, so the history reads as a
+	 * sequence of attempts at one thing, which is what it is.
+	 */
+	public const NOTIFIED = 'notified';
+
+	/**
 	 * Every action an entry can record.
 	 *
 	 * Listed so a reader can see the whole vocabulary at once, and so the test
@@ -145,6 +159,7 @@ final class Events {
 		self::CONVERTED,
 		self::DEPENDENCY_ADDED,
 		self::DEPENDENCY_REMOVED,
+		self::NOTIFIED,
 	);
 
 	/**

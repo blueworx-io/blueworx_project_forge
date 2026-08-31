@@ -219,6 +219,15 @@ final class Board {
 				'subject_type' => 'notification',
 				'about'        => (string) $event['subject_id'],
 				'kind'         => (string) $event['event_kind'],
+
+				/*
+				 * What the mailer complained about (#174). Carried onto the card
+				 * because "an email failed" is not something anybody can act on
+				 * and "SMTP connect() failed" is, and the person reading this
+				 * list is the person who has to act on it.
+				 */
+				'detail'       => (string) $event['last_detail'],
+				'attempts'     => (int) $event['attempts'],
 				'since'        => (int) $event['settled_at'],
 			);
 		}
