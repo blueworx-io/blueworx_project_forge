@@ -89,5 +89,6 @@ final class Server {
 		SubmissionsController::register_routes( self::NAMESPACE );
 		CapacityController::register_routes( self::NAMESPACE );
 		OnboardingController::register_routes( self::NAMESPACE );
+		StandupController::register_routes( self::NAMESPACE );
 	}
 }
