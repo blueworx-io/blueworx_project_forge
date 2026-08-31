@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.42.0] - 2026-08-31
+
+### Added
+
+- An Onboarding screen showing every client we are onboarding at once: how far
+  through each one is, whether it can go live yet, and what is waiting on us.
+- It filters by client, checklist, point of contact, owner, step status, and
+  whether something is overdue, blocked or ready to launch. Filtering changes
+  what is listed and never what is counted, so a client's progress reads the
+  same whatever is switched on.
+- Steps a client has sent us are approved or sent back from here. Those
+  decisions already worked and had nowhere to be made from.
+
 ## [2.41.0] - 2026-08-30
 
 ### Added

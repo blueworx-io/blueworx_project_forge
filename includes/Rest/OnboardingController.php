@@ -10,24 +10,36 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Onboarding\Answers;
+use Blueworx\Forge\Onboarding\Assignment;
+use Blueworx\Forge\Onboarding\Board;
 use Blueworx\Forge\Onboarding\Evidence;
 use Blueworx\Forge\Onboarding\EvidenceStore;
 use Blueworx\Forge\Onboarding\Review;
+use Blueworx\Forge\Onboarding\Statuses;
 use Blueworx\Forge\Onboarding\StepEvents;
 use Blueworx\Forge\Onboarding\Steps;
+use Blueworx\Forge\Onboarding\Templates;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
 use WP_REST_Response;
 
 /**
  * #167, #168. The studio's half of a client's checklist.
  *
- * Three of these routes name a step or an attachment rather than a site, so
+ * Most of these routes name a step or an attachment rather than a site, so
  * they declare themselves list-scoped and do the tenant check in the callback:
  * the boundary cannot resolve a client from an id it does not know the shape
  * of, and the callback has to read the record anyway to know whose it is.
+ *
+ * The board (#165) is list-scoped for the opposite reason: it names nothing at
+ * all, because it is about every client onboarding at once. See
+ * {@see self::board()} for the order that read is done in, which is the part of
+ * it that carries the isolation.
  *
  * **Every read of an attachment names the site as well as the record**, and
  * that is done inside {@see Evidence}, not here. A route is one caller; a WHERE
@@ -119,6 +131,30 @@ final class OnboardingController {
 			)
 		);
 
+		/*
+		 * The cross-client board (#165). A list scope, like the request queue's
+		 * read and for the same reason: the route names no site, so there is no
+		 * one record for the boundary to check, and the callback scopes itself
+		 * by reach before it does anything else.
+		 *
+		 * The filters are not declared as arguments here. They are a closed
+		 * list decided by Onboarding\Board, and a second copy of that list in
+		 * this file would be wrong the first time one of them changed.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/onboarding/board',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'board' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_LIST,
+					'reason' => 'The board spans clients by design (#165): onboarding is a thing a client does once, so the question is which of the several in flight is slipping. It names no site, and the callback filters every row by reach before any of the caller\'s own filters run.',
+				),
+			)
+		);
+
 		Server::register_route(
 			$route_namespace,
 			'/onboarding/evidence/(?P<evidence_id>[A-Za-z0-9_\-]+)',
@@ -158,6 +194,206 @@ final class OnboardingController {
 		}
 
 		return rest_ensure_response( array( 'steps' => $steps ) );
+	}
+
+	/**
+	 * Every client's launch readiness, in one answer (#165).
+	 *
+	 * The order of what happens here is the part that matters. Reach is applied
+	 * to the onboarding rows first, on its own, before the caller's filters are
+	 * so much as read — so what the rest of this method works with is already
+	 * only what this person may see. A queue that leaks leaks one site; a board
+	 * that leaks leaks every client at once, so the scoping is never folded in
+	 * beside the filtering where a mistake in one could widen the other.
+	 *
+	 * Somebody who reaches nothing is told so rather than shown an empty board
+	 * (#125). "Not yours to see" and "nobody is onboarding" look identical as a
+	 * blank screen and need entirely different things done about them.
+	 *
+	 * Everything the rows are drawn from is read once, up front, and looked up
+	 * in memory afterwards. Six clients and forty steps each is a perfectly
+	 * ordinary board and would otherwise be several hundred queries.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function board( WP_REST_Request $request ): WP_REST_Response {
+		$reach = Boundary::current();
+
+		if ( Reach::is_nothing( $reach ) ) {
+			return rest_ensure_response(
+				array(
+					'ok'       => true,
+					'denied'   => true,
+					'sites'    => array(),
+					'statuses' => Statuses::ALL,
+					'total'    => 0,
+					'totals'   => Board::totals( array() ),
+					'facets'   => self::facets( array(), array(), array() ),
+				)
+			);
+		}
+
+		$visible = Reach::keep_sites( $reach, Assignment::all() );
+
+		$clients   = self::keyed( Clients::all( null ) );
+		$sites     = self::keyed( ClientSites::all( null ) );
+		$templates = self::keyed( Templates::all() );
+		$people    = self::keyed( Users::all( null ) );
+		$contacts  = Contacts::current_by_client();
+
+		$steps   = Steps::for_sites( array_column( $visible, 'client_site_id' ) );
+		$filters = Board::sanitise( $request->get_query_params() );
+		$today   = gmdate( 'Y-m-d', bwx_forge_now() );
+
+		$rows = array();
+
+		/*
+		 * Whether this person may decide a step, worked out once per client
+		 * rather than once per row. The capability is held on a membership, so
+		 * every site under one client has the same answer, and asking again for
+		 * each of them was two queries a row for an answer already known.
+		 */
+		$may_review = array();
+
+		foreach ( $visible as $onboarding ) {
+			$client_id = (string) $onboarding['client_id'];
+			$site_id   = (string) $onboarding['client_site_id'];
+			$contact   = (string) ( $contacts[ $client_id ]['user_id'] ?? '' );
+
+			if ( ! array_key_exists( $client_id, $may_review ) ) {
+				$may_review[ $client_id ] = Access::allows( Capabilities::REVIEW_SUBMISSION, $client_id );
+			}
+
+			$rows[] = Board::row(
+				array(
+					'client_id'        => $client_id,
+					'client_name'      => (string) ( $clients[ $client_id ]['display_name'] ?? '' ),
+					'client_site_id'   => $site_id,
+					'site_name'        => (string) ( $sites[ $site_id ]['name'] ?? '' ),
+					'site_url'         => (string) ( $sites[ $site_id ]['url'] ?? '' ),
+					'template_id'      => (string) $onboarding['template_id'],
+					'template_name'    => (string) ( $templates[ (string) $onboarding['template_id'] ]['name'] ?? '' ),
+					'template_version' => (int) $onboarding['template_version'],
+					'contact_id'       => $contact,
+					'contact_name'     => (string) ( $people[ $contact ]['display_name'] ?? '' ),
+					'assigned_at'      => (int) $onboarding['assigned_at'],
+
+					/*
+					 * The screen uses this to decide what to draw. The review
+					 * route asks the same question again before it saves
+					 * anything, so a false here hides a button and a false
+					 * there refuses — this is never the check.
+					 */
+					'may_review'       => $may_review[ $client_id ],
+				),
+				// A site whose checklist was assigned this morning has no steps
+				// yet, and is exactly the row somebody is looking for.
+				$steps[ $site_id ] ?? array(),
+				$filters,
+				$today
+			);
+		}
+
+		$kept = Board::keep( $rows, $filters );
+
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'denied'    => false,
+				'generated' => bwx_forge_now(),
+
+				/*
+				 * The dropdowns are built from everything in reach, not from
+				 * what survived the filters — and from every step rather than
+				 * the matching ones, which is why the raw steps are passed in
+				 * rather than read off the rows. A filter set that emptied its
+				 * own dropdown would be one nobody could undo.
+				 */
+				'facets'    => self::facets( $rows, $steps, $people ),
+				'statuses'  => Statuses::ALL,
+				'total'     => count( $rows ),
+				'totals'    => Board::totals( $kept ),
+				'sites'     => $kept,
+			)
+		);
+	}
+
+	/**
+	 * What the board's dropdowns are allowed to offer.
+	 *
+	 * Drawn from the rows rather than from the tables. A staff member with two
+	 * clients should be offered two clients, and offering them every client
+	 * there is — greyed out or not — would name clients they have no business
+	 * knowing exist.
+	 *
+	 * @param array<int, array<string, mixed>>                $rows   Every row in reach.
+	 * @param array<string, array<int, array<string, mixed>>> $steps  Every step, keyed by site.
+	 * @param array<string, array<string, mixed>>             $people Users keyed by id.
+	 * @return array<string, array<int, array<string, string>>>
+	 */
+	private static function facets( array $rows, array $steps, array $people ): array {
+		$clients   = array();
+		$templates = array();
+		$contacts  = array();
+		$owners    = array();
+
+		foreach ( $rows as $row ) {
+			$clients[ (string) $row['client_id'] ]     = (string) $row['client_name'];
+			$templates[ (string) $row['template_id'] ] = trim( $row['template_name'] . ' v' . $row['template_version'] );
+
+			if ( '' !== (string) $row['contact_id'] ) {
+				$contacts[ (string) $row['contact_id'] ] = (string) $row['contact_name'];
+			}
+		}
+
+		foreach ( $steps as $of_site ) {
+			foreach ( $of_site as $step ) {
+				$owner = (string) $step['owner_id'];
+
+				if ( '' !== $owner ) {
+					$owners[ $owner ] = (string) ( $people[ $owner ]['display_name'] ?? $owner );
+				}
+			}
+		}
+
+		return array(
+			'clients'   => self::choices( $clients ),
+			'templates' => self::choices( $templates ),
+			'contacts'  => self::choices( $contacts ),
+			'owners'    => self::choices( $owners ),
+		);
+	}
+
+	/**
+	 * A map of id to label, as a list a select can be built from.
+	 *
+	 * @param array<string, string> $map Ids to labels.
+	 * @return array<int, array<string, string>>
+	 */
+	private static function choices( array $map ): array {
+		asort( $map );
+
+		$choices = array();
+
+		foreach ( $map as $id => $label ) {
+			$choices[] = array(
+				'id'    => (string) $id,
+				'label' => '' === trim( $label ) ? (string) $id : $label,
+			);
+		}
+
+		return $choices;
+	}
+
+	/**
+	 * Rows keyed by their own id, for looking one up without another query.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Any rows carrying an id.
+	 * @return array<string, array<string, mixed>>
+	 */
+	private static function keyed( array $rows ): array {
+		return array_column( $rows, null, 'id' );
 	}
 
 	/**

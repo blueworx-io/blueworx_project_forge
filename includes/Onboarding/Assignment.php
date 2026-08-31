@@ -183,6 +183,26 @@ final class Assignment {
 	}
 
 	/**
+	 * Every site that has been given a checklist.
+	 *
+	 * Newest first: onboarding is a thing a client does once and then never
+	 * again, so the ones started most recently are the ones anybody is actually
+	 * working on.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function all(): array {
+		global $wpdb;
+
+		$table = Schema::site_onboarding_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; no user input.
+		$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY assigned_at DESC", ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * A row, as the rest of the product reads it.
 	 *
 	 * @param array<string, mixed> $row The row.
