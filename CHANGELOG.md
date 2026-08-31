@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.48.0] - 2026-08-31
+
+### Added
+
+- You can fix the thing from the day's list. A card about a piece of work opens
+  that work, and a card saying something is outstanding lists what is
+  outstanding with a way to record it there and then. Nothing anybody may not do
+  becomes possible: the day's list asks the same question of the same place as
+  every other screen, so a refusal here is the refusal you would get anywhere,
+  in the same words.
+
 ## [2.47.1] - 2026-08-31
 
 ### Fixed

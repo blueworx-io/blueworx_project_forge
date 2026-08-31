@@ -911,7 +911,7 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
  * "what does this stage want" rather than "what is left" — and a person who can
  * see the two things already recorded knows the list is being kept.
  */
-function GateList( {
+export function GateList( {
   heading,
   readiness,
   records,
