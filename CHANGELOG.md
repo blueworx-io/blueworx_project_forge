@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.49.0] - 2026-08-31
+
+### Added
+
+- A screen that says which client sites have stopped talking to us. The ones
+  needing somebody come first, each saying what is wrong, how long it has been
+  wrong and what to try; every site is listed underneath, so an empty queue
+  reads as "all of them are fine" rather than "the check is broken". A site
+  that has gone quiet for days, or is sitting on email it has not collected,
+  now counts as needing somebody — not just one that is actively failing. The
+  day's list reads the same answer, so the two cannot disagree.
+
 ## [2.48.0] - 2026-08-31
 
 ### Added
