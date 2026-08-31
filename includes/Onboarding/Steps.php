@@ -54,6 +54,47 @@ final class Steps {
 	}
 
 	/**
+	 * Every step on several sites' checklists, grouped by site.
+	 *
+	 * One query for the whole board (#165), rather than {@see self::for_site()}
+	 * once per site. Six clients onboarding at forty steps each is a screen
+	 * either way; it is the number of round trips that decides whether it
+	 * arrives, and the same mistake made the capacity grid unusable before
+	 * Capacity\Position::grid() was written the same way.
+	 *
+	 * Sites with no steps are absent from the answer rather than present and
+	 * empty, so a caller has to say what it wants for them. The board wants a
+	 * row — a checklist assigned this morning is exactly what somebody is
+	 * looking for — and says so at the point it reads this.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array<int, array<string, mixed>>> Keyed by site id.
+	 */
+	public static function for_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::onboarding_steps_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id placeholders are built above and counted from the ids themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$slots}) ORDER BY position ASC", $ids ), ARRAY_A );
+
+		$grouped = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$grouped[ (string) $row['client_site_id'] ][] = self::hydrate( $row );
+		}
+
+		return $grouped;
+	}
+
+	/**
 	 * One step.
 	 *
 	 * @param string $id Step id.

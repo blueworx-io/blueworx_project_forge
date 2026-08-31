@@ -113,7 +113,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'work' | 'requests' | 'capacity';
+export type ScreenName = 'work' | 'requests' | 'capacity' | 'onboarding';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -345,4 +345,109 @@ export interface Client {
   id: string;
   display_name: string;
   status: string;
+}
+
+/* ---- Onboarding board (#165) ---- */
+
+/** One step on one client's checklist, as the studio's board reads it. */
+export interface OnboardingStep {
+  id: string;
+  client_site_id: string;
+  section: string;
+  title: string;
+  status: string;
+  owner_side: string;
+  owner_id: string;
+  launch_critical: number;
+  optional: number;
+  allows_not_applicable: number;
+  due_on: string;
+  response: string;
+  position: number;
+  record_version: number;
+
+  /** Worked out from today's date, never stored (Onboarding\Statuses). */
+  overdue: boolean;
+}
+
+/**
+ * One site's row on the board.
+ *
+ * Every figure here describes the whole checklist, and `steps` is the part that
+ * narrows when somebody filters. Reading a figure off the length of `steps`
+ * would give the same client a different completion depending on what was last
+ * clicked, which is the one thing this screen must never do.
+ */
+export interface OnboardingSite {
+  client_id: string;
+  client_name: string;
+  client_site_id: string;
+  site_name: string;
+  site_url: string;
+  template_id: string;
+  template_name: string;
+  template_version: number;
+  contact_id: string;
+  contact_name: string;
+  assigned_at: number;
+  may_review: boolean;
+
+  required: number;
+  approved: number;
+  completion: number;
+  launch_ready: boolean;
+  blocking: { id: string; title: string }[];
+  total: number;
+  awaiting_review: number;
+  overdue: number;
+  blocked: number;
+  next_due: string;
+
+  steps: OnboardingStep[];
+}
+
+/** One option in one of the board's dropdowns. */
+export interface OnboardingChoice {
+  id: string;
+  label: string;
+}
+
+export interface OnboardingBoard {
+  denied?: boolean;
+  sites: OnboardingSite[];
+  statuses: string[];
+  total: number;
+  totals: {
+    sites: number;
+    launch_ready: number;
+    awaiting_review: number;
+    overdue: number;
+    blocked: number;
+  };
+  facets: {
+    clients: OnboardingChoice[];
+    templates: OnboardingChoice[];
+    contacts: OnboardingChoice[];
+    owners: OnboardingChoice[];
+  };
+}
+
+/**
+ * The board's own filter set.
+ *
+ * Sent to the server rather than applied here, unlike the request queue's. The
+ * board's figures are worked out from every step a site has, including the ones
+ * a filter hides, so filtering in the browser would mean shipping every step of
+ * every client to draw a screen showing four of them.
+ */
+export interface OnboardingFilters {
+  client_id?: string;
+  template_id?: string;
+  contact_id?: string;
+  owner_id?: string;
+  owner_side?: string;
+  status?: string;
+  overdue?: 'yes';
+  blocked?: 'yes';
+  launch?: 'ready' | 'not-ready';
 }

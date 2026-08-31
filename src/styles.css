@@ -1330,3 +1330,181 @@ td[ data-band='over' ] {
   border-color: var( --color-over-border );
   background: var( --color-over-bg );
 }
+
+/* ---- Onboarding board (#165) ---- */
+
+.bwx-onboarding {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+
+/* The one line somebody reads before they read anything else. Numbers first,
+   because the question this screen answers is "how many, and how bad". */
+.bwx-onboarding-summary {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --color-chalk );
+  background: var( --color-snow );
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+.bwx-onboarding-summary strong {
+  font-weight: var( --font-weight-label );
+  color: var( --color-graphite );
+  font-variant-numeric: tabular-nums;
+}
+
+/* Completion as a bar with the figures under it, the same shape the capacity
+   cell uses — a row can be read as a shape at a glance, and the exact numbers
+   are still there when the shape raises a question. */
+.bwx-progress {
+  display: block;
+  block-size: 4px;
+  inline-size: 100%;
+  min-inline-size: 90px;
+  border-radius: 999px;
+  background: var( --color-chalk );
+  overflow: hidden;
+  margin-block-end: 5px;
+}
+
+.bwx-progress-fill {
+  display: block;
+  block-size: 100%;
+  background: var( --brand-500 );
+  border-radius: 999px;
+}
+
+.bwx-progress-figures {
+  font-family: var( --font-mono );
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bwx-progress-share {
+  color: var( --color-fog );
+}
+
+/* A ready site is the only green thing on the screen, so "ready" is legible
+   without reading. Everything else stays quiet: a board where four states
+   compete for attention is a board where none of them gets it. */
+.bwx-chip[ data-launch='ready' ] {
+  --chip-border: var( --color-success-border );
+  --chip-bg: var( --color-success-bg );
+  --chip-ink: var( --color-success );
+}
+
+.bwx-chip[ data-attention='review' ] {
+  --chip-border: var( --color-info-border );
+  --chip-bg: var( --color-info-bg );
+  --chip-ink: var( --color-info );
+}
+
+.bwx-chip[ data-attention='overdue' ] {
+  --chip-border: var( --color-danger-border );
+  --chip-bg: var( --color-danger-bg );
+  --chip-ink: var( --color-danger );
+}
+
+.bwx-chip[ data-attention='blocked' ] {
+  --chip-border: var( --color-warning-border );
+  --chip-bg: var( --color-warning-bg );
+  --chip-ink: var( --color-warning );
+}
+
+/* Waiting on us reads as ours to do; the client's states stay plain. Approved
+   is deliberately not green here: on a checklist most things end up approved,
+   and a panel of green ticks hides the two that are not. */
+.bwx-chip[ data-status='submitted' ] {
+  --chip-border: var( --color-info-border );
+  --chip-bg: var( --color-info-bg );
+  --chip-ink: var( --color-info );
+}
+
+.bwx-chip[ data-status='blocked' ],
+.bwx-chip[ data-status='returned' ] {
+  --chip-border: var( --color-warning-border );
+  --chip-bg: var( --color-warning-bg );
+  --chip-ink: var( --color-warning );
+}
+
+.bwx-chip[ data-critical='yes' ] {
+  --chip-border: var( --border-accent );
+  --chip-ink: var( --text-accent );
+}
+
+/* ---- Onboarding panel ---- */
+
+.bwx-onboarding-position {
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --color-chalk );
+  background: var( --color-mist );
+  font-size: var( --text-small );
+}
+
+.bwx-onboarding-position[ data-launch='ready' ] {
+  border-color: var( --color-success-border );
+  background: var( --color-success-bg );
+}
+
+.bwx-onboarding-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bwx-onboarding-steps li {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --color-chalk );
+  background: var( --color-snow );
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The two states somebody is here to do something about get a rail; the rest
+   of the list stays flat, so the eye lands on them. */
+.bwx-onboarding-steps li[ data-status='submitted' ] {
+  border-inline-start: 3px solid var( --color-info );
+}
+
+.bwx-onboarding-steps li[ data-status='blocked' ] {
+  border-inline-start: 3px solid var( --blocked-accent );
+}
+
+.bwx-onboarding-step-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bwx-onboarding-step-head strong {
+  font-weight: var( --font-weight-label );
+}
+
+.bwx-mono[ data-overdue='yes' ] {
+  color: var( --overdue-accent );
+}
+
+/* What the client actually wrote. Quoted rather than styled as body copy: it is
+   somebody else's words, and a reviewer should be able to tell at a glance. */
+.bwx-onboarding-answer {
+  margin: 0;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var( --color-chalk );
+  font-size: var( --text-small );
+  color: var( --color-steel );
+  white-space: pre-wrap;
+}

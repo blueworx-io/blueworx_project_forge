@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ScreenName } from './types';
 import { forgeData, isConnected } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
+import { OnboardingScreen } from './components/OnboardingScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
@@ -14,11 +15,12 @@ import { WorkScreen } from './components/WorkScreen';
  * else. Each screen brings its own header controls, because a site picker means
  * something on one of them and nothing on the other.
  *
- * There are two screens rather than five views for the same reason (#131). The
- * board, list, schedule and calendar are four ways of drawing one site's work,
- * and they share a filter set and a site. The request queue spans clients and
- * shares neither. Making it a fifth view would have put a site picker and six
- * inert work filters above a list they do not apply to.
+ * There are separate screens rather than more views for the same reason (#131).
+ * The board, list, schedule and calendar are four ways of drawing one site's
+ * work, and they share a filter set and a site. The request queue, capacity and
+ * onboarding each span clients and share neither. Making any of them a fifth
+ * view would have put a site picker and six inert work filters above a list
+ * they do not apply to.
  */
 export function App() {
   const data = forgeData();
@@ -79,6 +81,16 @@ export function App() {
           >
             Capacity
           </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'onboarding' === screen ? undefined : 'quiet' }
+            data-testid="bwx-screen-onboarding"
+            aria-pressed={ 'onboarding' === screen }
+            onClick={ () => setScreen( 'onboarding' ) }
+          >
+            Onboarding
+          </button>
         </div>
 
         <span className="bwx-header-spacer" />
@@ -95,6 +107,7 @@ export function App() {
       { 'work' === screen && <WorkScreen /> }
       { 'requests' === screen && <QueueScreen /> }
       { 'capacity' === screen && <CapacityScreen /> }
+      { 'onboarding' === screen && <OnboardingScreen /> }
     </main>
   );
 }
