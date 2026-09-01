@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.51.0] - 2026-09-01
+
+### Added
+
+- The promises Forge is supposed to keep are now written down as a list, and the
+  build fails if one of them stops being tested. Twelve of them are covered by
+  new tests that run against a real studio and a real client site together:
+  work cannot skip a step it is not ready for, every move is recorded with who
+  made it, only the named reviewer approves and only the named deliverer
+  releases, a failed review comes back with its feedback, blocked work returns
+  to exactly where it paused, a client's request reaches us once however many
+  times it is sent, our edits reach only that client's site, nobody else can see
+  or guess at their work, a client cannot move work by any route, somebody's
+  time is counted once across every client they work for, and overbooking
+  somebody costs a written reason. The commercial promises are on the list too,
+  marked as waiting on the work that builds them.
+
 ## [2.50.0] - 2026-08-31
 
 ### Added
