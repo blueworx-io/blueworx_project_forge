@@ -28,6 +28,50 @@ add_filter(
 );
 `;
 
+// #183 needs a query count per request, and a budget nobody can measure is a
+// budget nobody keeps. WordPress can record every query with SAVEQUERIES, but
+// that has to be defined before the database is touched, which is earlier than
+// anything this repo controls in a harness it did not write.
+//
+// So this counts instead of records: the `query` filter runs for every query
+// wpdb makes, and the count goes back on the REST response as a header. It
+// misses the handful WordPress makes before must-use plugins load, which is
+// core's own overhead and constant; what it captures is everything the request
+// itself does, which is the thing under budget.
+//
+// Test-only, and written here beside the specs that read it, for the same
+// reason the offline plugin is: nothing about this belongs in the product.
+const MU_COUNTER = `<?php
+/**
+ * Test-only: written by tests/global-setup.js. Counts the queries a REST
+ * request makes and returns the number as X-Bwx-Queries.
+ */
+
+$GLOBALS['bwx_forge_query_count'] = 0;
+
+add_filter(
+	'query',
+	static function ( $query ) {
+		++$GLOBALS['bwx_forge_query_count'];
+
+		return $query;
+	},
+	0
+);
+
+add_filter(
+	'rest_post_dispatch',
+	static function ( $response ) {
+		if ( $response instanceof WP_REST_Response ) {
+			$response->header( 'X-Bwx-Queries', (string) ( $GLOBALS['bwx_forge_query_count'] ?? 0 ) );
+		}
+
+		return $response;
+	},
+	100
+);
+`;
+
 export default function globalSetup() {
   const contentDir = path.resolve(HERE, '..', '.wp-test', 'wp', 'wp-content');
   const muDir = path.join(contentDir, 'mu-plugins');
@@ -39,6 +83,7 @@ export default function globalSetup() {
 
   fs.mkdirSync(muDir, { recursive: true });
   fs.writeFileSync(path.join(muDir, 'bwx-forge-test-offline.php'), MU_PLUGIN);
+  fs.writeFileSync(path.join(muDir, 'bwx-forge-test-queries.php'), MU_COUNTER);
 
   installClientArtifact(path.join(contentDir, 'plugins'));
 }

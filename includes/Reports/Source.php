@@ -12,7 +12,6 @@ namespace Blueworx\Forge\Reports;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
-use Blueworx\Forge\Work\Items;
 
 /**
  * #176. The reading half: {@see Delivery} decides, this fetches.
@@ -29,10 +28,12 @@ use Blueworx\Forge\Work\Items;
  * pass where a mistake in the arithmetic could widen what is visible rather
  * than narrow it. The same order Standup\Board uses, for the same reason.
  *
- * **Two queries, whatever the window.** The log is fetched once for every site
- * in reach rather than once per item, because a report over a quarter can span
- * thousands of items and a query each is how a screen becomes a screen nobody
- * opens. #183 is where that gets measured properly.
+ * **Two queries, whatever the window and however many clients.** One for the
+ * work and one for the log, both across every site in reach at once. A read
+ * that costs a query per client is fine on the two a developer has and unusable
+ * on forty, and nothing says so until then — which is not hypothetical here:
+ * this fetched per site until tests/e2e/performance measured it (#183) and
+ * found a hundred and sixteen queries where there should have been two.
  */
 final class Source {
 
@@ -56,30 +57,45 @@ final class Source {
 			return Delivery::compute( array(), array(), $from, $to );
 		}
 
-		return Delivery::compute( self::items( $sites ), self::events( $site_ids, $from, $to ), $from, $to );
+		return Delivery::compute( self::items( $site_ids ), self::events( $site_ids, $from, $to ), $from, $to );
 	}
 
 	/**
-	 * The work on those sites.
+	 * The work on those sites, in one query.
 	 *
-	 * Everything, including released. Standup drops released work because none
-	 * of it can ever need attention; a delivery report is largely *about* the
-	 * released work, so the same shortcut here would leave the throughput at
+	 * One query rather than one per site, which is the whole point of #183: a
+	 * read that costs a query per client is fine on the two a developer has and
+	 * unusable on forty, and nothing says so until then. tests/e2e/performance
+	 * holds this to a budget, and caught exactly that here.
+	 *
+	 * Everything, including released work. Standup drops released work because
+	 * none of it can ever need attention; a delivery report is largely *about*
+	 * the released work, so the same shortcut would leave the throughput at
 	 * nothing.
 	 *
-	 * @param array<int, array<string, mixed>> $sites Sites in reach.
+	 * Only the columns the reports read. A report over a quarter can span
+	 * thousands of rows and none of it needs the prose.
+	 *
+	 * @param array<int, string> $site_ids Sites in reach.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function items( array $sites ): array {
-		$items = array();
+	private static function items( array $site_ids ): array {
+		global $wpdb;
 
-		foreach ( $sites as $site ) {
-			foreach ( Items::for_site( (string) $site['id'] ) as $item ) {
-				$items[] = $item;
-			}
-		}
+		$table        = Schema::work_items_table();
+		$placeholders = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
 
-		return $items;
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, stage, planned_due, title FROM {$table} WHERE client_site_id IN ({$placeholders}) AND archived = '0'",
+				$site_ids
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return is_array( $rows ) ? $rows : array();
 	}
 
 	/**

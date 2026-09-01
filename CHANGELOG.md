@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.54.1] - 2026-09-01
+
+### Fixed
+
+- The Reports screen was reading each client's work separately, which is fine
+  on a handful of clients and slow on a lot of them. It now reads everything at
+  once — around ten times less work for the database, and it no longer gets
+  dearer as clients are added.
+
+### Added
+
+- Every screen that spans clients is now measured against a budget on each pull
+  request, with eight clients' worth of data behind it, so this kind of thing
+  fails the build rather than being noticed by whoever has the most clients.
+
 ## [2.54.0] - 2026-09-01
 
 ### Changed
