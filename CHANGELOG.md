@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.47.1] - 2026-08-31
+
+### Fixed
+
+- The day's list is readable again. "Waiting on a requirement" was appearing
+  against nearly every piece of work, because work that is not finished usually
+  has something it has not done yet. It now only appears on work somebody has
+  committed to, and never on work that is already on the list as blocked, with a
+  reviewer, waiting to go out or handed back — those already say what is holding
+  them up. Nothing that needs a person has stopped appearing.
+
 ## [2.47.0] - 2026-08-31
 
 ### Added

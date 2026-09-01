@@ -215,6 +215,178 @@ final class StandupRulesTest extends TestCase {
 		);
 	}
 
+	/* ------------------------------------------- and only when it is worth saying */
+
+	/*
+	 * #251. The rule as first written matched 171 of 204 cards on a real board,
+	 * which is the same as matching nothing: the list stopped being readable and
+	 * took every other rule down with it. What follows is the narrowing, and the
+	 * last two tests are the ones that matter most — a narrowing that quietly
+	 * drops work somebody does need to look at is worse than the flood.
+	 */
+
+	public function test_an_idea_nobody_has_committed_to_is_not_stuck(): void {
+		// Nothing has been agreed for it, so everything it is missing is missing
+		// on purpose.
+		$this->assertSame(
+			array(),
+			Rules::for_item(
+				$this->item(
+					array(
+						'stage' => 'triage',
+						'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+					)
+				),
+				self::TODAY
+			)
+		);
+	}
+
+	public function test_no_early_stage_reports_a_requirement(): void {
+		$early = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'technical-audit', 'design-process' );
+
+		foreach ( $early as $stage ) {
+			$cards = Rules::for_item(
+				$this->item(
+					array(
+						'stage' => $stage,
+						'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+					)
+				),
+				self::TODAY
+			);
+
+			$this->assertNotContains( Rules::GATE_UNMET, $this->rules( $cards ), $stage );
+		}
+	}
+
+	public function test_work_that_has_been_scheduled_does_report_one(): void {
+		$this->assertSame(
+			array( Rules::GATE_UNMET ),
+			$this->rules(
+				Rules::for_item(
+					$this->item(
+						array(
+							'stage' => 'up-next',
+							'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+						)
+					),
+					self::TODAY
+				)
+			)
+		);
+	}
+
+	public function test_blocked_work_is_not_also_reported_as_stuck(): void {
+		// It already has a card saying what is holding it up. A second one adds
+		// nothing and costs a line of a list that has to fit on a screen.
+		$this->assertSame(
+			array( Rules::BLOCKED ),
+			$this->rules(
+				Rules::for_item(
+					$this->item(
+						array(
+							'stage' => 'blocked',
+							'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+						)
+					),
+					self::TODAY
+				)
+			)
+		);
+	}
+
+	public function test_work_with_a_reviewer_is_not_also_reported_as_stuck(): void {
+		$this->assertSame(
+			array( Rules::AWAITING_REVIEW ),
+			$this->rules(
+				Rules::for_item(
+					$this->item(
+						array(
+							'stage' => 'in-review',
+							'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+						)
+					),
+					self::TODAY
+				)
+			)
+		);
+	}
+
+	public function test_work_waiting_to_go_out_is_not_also_reported_as_stuck(): void {
+		$this->assertSame(
+			array( Rules::AWAITING_RELEASE ),
+			$this->rules(
+				Rules::for_item(
+					$this->item(
+						array(
+							'stage' => 'completed',
+							'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+						)
+					),
+					self::TODAY
+				)
+			)
+		);
+	}
+
+	public function test_work_handed_back_is_not_also_reported_as_stuck(): void {
+		$this->assertSame(
+			array( Rules::RETURNED ),
+			$this->rules(
+				Rules::for_item(
+					$this->item(
+						array(
+							'was_returned' => 1,
+							'unmet'        => array( array( 'id' => 'scope-agreed' ) ),
+						)
+					),
+					self::TODAY
+				)
+			)
+		);
+	}
+
+	public function test_late_work_still_says_what_is_holding_it_up(): void {
+		/*
+		 * The one the narrowing must not break. Work that is late *and* stuck is
+		 * the most urgent thing on the board, and the date alone does not tell
+		 * whoever picks it up what to do about it.
+		 */
+		$this->assertSame(
+			array( Rules::OVERDUE, Rules::GATE_UNMET ),
+			$this->rules(
+				Rules::for_item(
+					$this->item(
+						array(
+							'planned_due' => '2026-03-01',
+							'unmet'       => array( array( 'id' => 'scope-agreed' ) ),
+						)
+					),
+					self::TODAY
+				)
+			)
+		);
+	}
+
+	public function test_the_narrowing_never_hides_a_card_of_another_rule(): void {
+		// Whatever else changes, the other eleven rules answer exactly as they
+		// did. A gate is allowed to go quiet; nothing else is.
+		$cards = Rules::for_item(
+			$this->item(
+				array(
+					'stage'        => 'blocked',
+					'planned_due'  => '2026-03-01',
+					'was_returned' => 1,
+					'unmet'        => array( array( 'id' => 'scope-agreed' ) ),
+				)
+			),
+			self::TODAY
+		);
+
+		$this->assertSame( array( Rules::OVERDUE, Rules::BLOCKED, Rules::RETURNED ), $this->rules( $cards ) );
+	}
+
 	/* ------------------------------------------------------- what clients want */
 
 	public function test_an_unanswered_request_is_waiting_on_us(): void {
