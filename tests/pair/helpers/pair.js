@@ -55,6 +55,11 @@ export async function signedIn(browser, baseURL) {
   return {
     context,
     nonce,
+    // Carried so the helpers the single-instance suite already has — the ones
+    // that make a person, or walk an item up the board — can be pointed at this
+    // caller rather than growing a second copy of themselves here.
+    headers: { 'X-WP-Nonce': nonce },
+    request: context.request,
     get: (path) =>
       context.request
         .get(`${STUDIO_API}${path}`, { headers: { 'X-WP-Nonce': nonce } })
