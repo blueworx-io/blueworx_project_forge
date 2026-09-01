@@ -14,9 +14,8 @@ use Blueworx\Forge\Capacity\Position;
 use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Onboarding\Steps;
 use Blueworx\Forge\Tenancy\ClientSites;
-use Blueworx\Forge\Tenancy\Health;
-use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Sync;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
@@ -206,6 +205,13 @@ final class Board {
 	 * nothing happened — so a list of what needs attention is exactly where
 	 * they belong.
 	 *
+	 * The sites come from {@see Sync::all()} rather than from a check of
+	 * their own (#177). There is one definition of a connection being in
+	 * trouble, held in one place, and the daily list and the sync screen both
+	 * read it — a board saying a site is fine while the screen next door says it
+	 * has been silent for a week is the disagreement this product keeps refusing
+	 * to create.
+	 *
 	 * @param array<string, mixed> $reach    The caller's reach.
 	 * @param array<int, string>   $site_ids Sites in reach.
 	 * @return array<int, array<string, mixed>>
@@ -232,19 +238,24 @@ final class Board {
 			);
 		}
 
-		foreach ( Reach::keep_sites( $reach, Integrations::all() ) as $integration ) {
-			$state = Health::state( $integration );
-
-			if ( ! Health::needs_attention( $state ) ) {
-				continue;
-			}
-
+		foreach ( Sync::queue( Reach::keep_sites( $reach, Sync::all() ) ) as $site ) {
 			$problems[] = array(
-				'id'           => (string) $integration['id'],
+				'id'           => (string) $site['id'],
 				'subject_type' => 'client_site',
-				'about'        => (string) $integration['client_site_id'],
-				'kind'         => $state,
-				'since'        => (int) ( $integration['last_report_at'] ?? 0 ),
+				'about'        => (string) $site['client_site_id'],
+
+				/*
+				 * The worst thing wrong with it, and the rest listed under it.
+				 * A card has one heading and a site can be broken, silent and
+				 * behind at once; naming only the first would send somebody to
+				 * fix the smaller half of it, and naming all three in the
+				 * heading would make the card unreadable.
+				 */
+				'kind'         => (string) ( $site['reasons'][0] ?? '' ),
+				'detail'       => Sync::label( (string) ( $site['reasons'][0] ?? '' ) ),
+				'reasons'      => (array) $site['reasons'],
+				'waiting'      => (int) $site['waiting'],
+				'since'        => (int) $site['last_seen_at'],
 			);
 		}
 

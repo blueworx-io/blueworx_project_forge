@@ -382,6 +382,51 @@ final class Register {
 	}
 
 	/**
+	 * How much each site has not come and collected, and since when.
+	 *
+	 * For #177. The count on its own says nothing — a site given an email a
+	 * minute ago has not collected it either — so the age of the oldest is
+	 * returned with it, and that is the number that decides whether a site is
+	 * late or merely busy.
+	 *
+	 * Unsettled rather than raised: an event being retried is still owed to the
+	 * client, and a site that keeps taking work and failing to send it would
+	 * otherwise look like a site with nothing waiting.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array{count: int, oldest: int}> Keyed by site id;
+	 *                                                       absent when a site
+	 *                                                       owes nothing.
+	 */
+	public static function waiting_for_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::notification_events_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+		$args  = array_merge( $ids, array( self::RAISED, self::RETRYING ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id placeholders are built above from the ids themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, COUNT(*) AS waiting, MIN(raised_at) AS oldest FROM {$table} WHERE client_site_id IN ({$slots}) AND outcome IN ( %s, %s ) GROUP BY client_site_id", $args ), ARRAY_A );
+
+		$waiting = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$waiting[ (string) $row['client_site_id'] ] = array(
+				'count'  => (int) $row['waiting'],
+				'oldest' => (int) $row['oldest'],
+			);
+		}
+
+		return $waiting;
+	}
+
+	/**
 	 * What one site still has to send, oldest first.
 	 *
 	 * Oldest first because these are told in the order they happened: a client
