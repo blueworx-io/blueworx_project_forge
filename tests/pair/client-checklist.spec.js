@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { publishChecklist, giveChecklistTo } from './helpers/onboarding.js';
 
 // #162, #167, proven across two real WordPress sites.
 //
@@ -16,8 +17,6 @@ const ADMIN_USER = process.env.WP_ADMIN_USER;
 const ADMIN_PASS = process.env.WP_ADMIN_PASS;
 
 const CHECKLIST = '/wp-admin/admin.php?page=blueworx-forge-client-checklist';
-const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
-const CLIENTS = '/wp-admin/admin.php?page=blueworx-forge-clients';
 
 const RUN = `chk${Date.now()}`;
 
@@ -88,96 +87,13 @@ async function connect(client, issued) {
   expect(response.status(), await response.text()).toBe(200);
 }
 
-// Publishes a checklist whose newest version carries the steps named here.
-//
-// Built through the studio's own screens rather than seeded, for two reasons:
-// the seeded version 1 is deliberately not ready to publish until its remaining
-// categories are written (#159), and these two sites are reused between runs,
-// so the state this starts from is whatever the last run left. Hence the three
-// ways in below — start a first draft, open a copy of what is published, or
-// pick up a draft somebody already left open.
-async function publishChecklist(studio, titles) {
-  const page = await studio.context.newPage();
-
-  await page.goto(TEMPLATE);
-
-  if (!(await page.locator('[data-bwx-add-step="1"]').count())) {
-    const start = page.locator('[data-bwx-start-draft="1"]');
-    const copy = page.locator('[data-bwx-copy-template="1"]');
-
-    if (await start.count()) {
-      await start.locator('input[name="name"]').fill(`Launch checklist ${RUN}`);
-      await start.locator('input[type="submit"]').click();
-    } else {
-      await copy.first().locator('input[type="submit"]').click();
-    }
-
-    await page.waitForLoadState();
-  }
-
-  const addStep = page.locator('[data-bwx-add-step="1"]');
-  await expect(addStep).toHaveCount(1);
-
-  // Empty the draft first. These two sites are reused between runs, so a copy
-  // of what is published carries whatever earlier runs left on it — and a step
-  // from last week sorting above this one is how "what is next for you" ends up
-  // naming something this test never created.
-  for (let guard = 0; guard < 50; guard += 1) {
-    const remove = page.locator('[data-bwx-remove-step="1"]');
-
-    if (!(await remove.count())) {
-      break;
-    }
-
-    await remove.first().locator('input[type="submit"]').click();
-    await page.waitForLoadState();
-  }
-
-  for (const [index, title] of titles.entries()) {
-    await addStep.locator('#bwx-step-title').fill(title);
-    await addStep.locator('#bwx-step-section').selectOption('foundations');
-    await addStep.locator('#bwx-step-owner').selectOption('client');
-    await addStep.locator('#bwx-step-position').fill(String((index + 1) * 10));
-    await addStep.locator('input[type="submit"]').click();
-    await page.waitForLoadState();
-  }
-
-  const publish = page.locator('[data-bwx-publish-template="1"]');
-  await expect(publish).toHaveCount(1);
-  await publish.locator('input[type="submit"]').click();
-  await page.waitForLoadState();
-
-  await page.close();
-}
-
-// The site row is an <li> keyed by site id, and the control is a <button> with
-// a confirm on it. Both matter: keying on the id rather than the name means a
-// second client called something similar cannot be clicked by mistake.
-async function giveChecklistTo(studio, siteId) {
-  const page = await studio.context.newPage();
-
-  page.on('dialog', (dialog) => dialog.accept());
-
-  await page.goto(CLIENTS);
-
-  const row = page.locator(`[data-bwx-site="${siteId}"]`);
-  await expect(row).toHaveCount(1);
-
-  await row.locator('[data-bwx-action="bwx_forge_assign_onboarding"]').click();
-  await page.waitForLoadState();
-
-  await expect(page.locator(`[data-bwx-onboarding="${siteId}"]`)).toHaveCount(1);
-
-  await page.close();
-}
-
 async function readyClient(browser, label, titles) {
   const studio = await signedIn(browser, STUDIO_URL);
   const client = await signedIn(browser, CLIENT_URL);
   const mine = await studioSite(studio, label);
 
   await connect(client, mine.issued);
-  await publishChecklist(studio, titles);
+  await publishChecklist(studio, titles, RUN);
   await giveChecklistTo(studio, mine.site.id);
 
   return { studio, client, mine };

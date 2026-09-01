@@ -11,8 +11,8 @@ use Blueworx\Forge\Acceptance\Criteria;
 use PHPUnit\Framework\TestCase;
 
 /**
- * #178, #179, #180. The brief's §16 acceptance criteria are the manifest, and
- * this is what holds the suite to them.
+ * #178, #179, #180, #181. The brief's §16 acceptance criteria are the
+ * manifest, and this is what holds the suite to them.
  *
  * The same argument DenialCoverageTest makes, about a different list. M11 is
  * "the brief's acceptance criteria turned into tests", and until now the only
@@ -34,13 +34,12 @@ final class AcceptanceCoverageTest extends TestCase {
 	 * The programme slots whose specs have been written.
 	 *
 	 * Widening this is the last step of the issue that writes the specs, and it
-	 * is deliberately a decision rather than a count: M11-4 is #181's onboarding
-	 * and operations criteria, and M8 is #246's commercial ones, which test
-	 * rules M8 has not built yet.
+	 * is deliberately a decision rather than a count: M8 is #246's commercial
+	 * criteria, which test rules M8 has not built yet, and M8 runs last.
 	 *
 	 * @var array<int, string>
 	 */
-	private const LANDED = array( 'M11-1', 'M11-2', 'M11-3' );
+	private const LANDED = array( 'M11-1', 'M11-2', 'M11-3', 'M11-4' );
 
 	/**
 	 * Where the specs that run against a real client site live.
