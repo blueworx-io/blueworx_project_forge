@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { asClientSite, connectedPair, requireEnvironment, STUDIO_URL } from './helpers/pair.js';
+import {
+  asClientSite,
+  connectedPair,
+  requireEnvironment,
+  signedIn,
+  studioSite,
+  STUDIO_URL,
+} from './helpers/pair.js';
 import { giveChecklistTo, publishChecklist } from './helpers/onboarding.js';
 import * as Forge from '../e2e/helpers/forge.js';
 import { asSite } from '../helpers/signing.js';
@@ -325,8 +332,21 @@ test.describe('the onboarding and operations acceptance criteria', () => {
   }) => {
     test.slow();
 
-    const pair = await connectedPair(browser, 'Stalled Co', RUN);
-    const speaking = asClientSite(request, pair.issued);
+    /*
+     * A registered site with a key, and deliberately not a connected one.
+     *
+     * Broken means the last failure came strictly after the last success, and
+     * Tenancy\Health resolves a tie in favour of the success on purpose — these
+     * are whole seconds, and a busy site produces ties routinely. Connecting the
+     * real client site first would put a success and this failure in the same
+     * second on a fast machine, which is a race in the spec rather than
+     * anything wrong with the product. The criterion is about the studio
+     * noticing, and the studio does not need the far side to be listening in
+     * order to notice it has stopped.
+     */
+    const studio = await signedIn(browser, STUDIO_URL);
+    const registered = await studioSite(studio, 'Stalled Co', RUN);
+    const speaking = asClientSite(request, registered.issued);
 
     // The commonest real fault, produced the real way: a well-formed request
     // signed with a key the studio does not hold. Nothing is written into the
@@ -335,16 +355,16 @@ test.describe('the onboarding and operations acceptance criteria', () => {
     const wrong = asSite(
       request,
       'not-the-key-this-site-was-given',
-      pair.issued.integration.registry_site_id
+      registered.issued.integration.registry_site_id
     );
 
     expect((await wrong.get('/client/notifications')).status()).toBe(401);
 
-    const page = await pair.studio.context.newPage();
+    const page = await studio.context.newPage();
 
     await page.goto(SYNC);
 
-    const entry = page.locator(`[data-bwx-sync-site="${pair.site.id}"]`);
+    const entry = page.locator(`[data-bwx-sync-site="${registered.site.id}"]`);
 
     await expect(entry).toBeVisible();
     await expect(entry).toHaveAttribute('data-bwx-sync-reasons', /broken/);
@@ -360,13 +380,13 @@ test.describe('the onboarding and operations acceptance criteria', () => {
 
     await page.goto(SYNC);
 
-    await expect(page.locator(`[data-bwx-sync-site="${pair.site.id}"]`)).toHaveCount(0);
-    await expect(page.locator(`[data-bwx-sync-row="${pair.site.id}"]`)).toHaveAttribute(
+    await expect(page.locator(`[data-bwx-sync-site="${registered.site.id}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-bwx-sync-row="${registered.site.id}"]`)).toHaveAttribute(
       'data-bwx-sync-state',
       'connected'
     );
 
     await page.close();
-    await pair.close();
+    await studio.context.close();
   });
 });
