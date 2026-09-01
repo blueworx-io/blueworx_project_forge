@@ -90,6 +90,7 @@ final class Server {
 		CapacityController::register_routes( self::NAMESPACE );
 		OnboardingController::register_routes( self::NAMESPACE );
 		StandupController::register_routes( self::NAMESPACE );
+		ReportsController::register_routes( self::NAMESPACE );
 		SignalsController::register_routes( self::NAMESPACE );
 	}
 }

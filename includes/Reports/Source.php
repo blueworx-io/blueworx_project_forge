@@ -1,0 +1,142 @@
+<?php
+/**
+ * Gathering what the delivery numbers are worked out from.
+ *
+ * @package Blueworx\Forge
+ */
+
+declare( strict_types = 1 );
+
+namespace Blueworx\Forge\Reports;
+
+use Blueworx\Forge\Data\Schema;
+use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Work\Items;
+
+/**
+ * #176. The reading half: {@see Delivery} decides, this fetches.
+ *
+ * The split is the point of both files. Delivery is pure and can be argued with
+ * in a test against a known log; this knows about tables and knows nothing
+ * about what any of it means. When the two are one class, "why does the report
+ * say eleven days" can only be answered by running it against a database.
+ *
+ * **Reach is applied first and on its own.** Reports span clients by design —
+ * that is what a delivery report is — so the scoping is the only thing standing
+ * between one person's numbers and every client's work. It narrows the sites
+ * first, and everything else is fetched for those sites; never one combined
+ * pass where a mistake in the arithmetic could widen what is visible rather
+ * than narrow it. The same order Standup\Board uses, for the same reason.
+ *
+ * **Two queries, whatever the window.** The log is fetched once for every site
+ * in reach rather than once per item, because a report over a quarter can span
+ * thousands of items and a query each is how a screen becomes a screen nobody
+ * opens. #183 is where that gets measured properly.
+ */
+final class Source {
+
+	/**
+	 * Every report, for whoever is asking, over one window.
+	 *
+	 * @param array<string, mixed> $reach The caller's reach.
+	 * @param int                  $from  Window start, a timestamp.
+	 * @param int                  $to    Window end, a timestamp.
+	 * @return array<string, mixed>
+	 */
+	public static function for_reach( array $reach, int $from, int $to ): array {
+		if ( Reach::is_nothing( $reach ) ) {
+			return Delivery::compute( array(), array(), $from, $to );
+		}
+
+		$sites    = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
+		$site_ids = array_column( $sites, 'id' );
+
+		if ( array() === $site_ids ) {
+			return Delivery::compute( array(), array(), $from, $to );
+		}
+
+		return Delivery::compute( self::items( $sites ), self::events( $site_ids, $from, $to ), $from, $to );
+	}
+
+	/**
+	 * The work on those sites.
+	 *
+	 * Everything, including released. Standup drops released work because none
+	 * of it can ever need attention; a delivery report is largely *about* the
+	 * released work, so the same shortcut here would leave the throughput at
+	 * nothing.
+	 *
+	 * @param array<int, array<string, mixed>> $sites Sites in reach.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function items( array $sites ): array {
+		$items = array();
+
+		foreach ( $sites as $site ) {
+			foreach ( Items::for_site( (string) $site['id'] ) as $item ) {
+				$items[] = $item;
+			}
+		}
+
+		return $items;
+	}
+
+	/**
+	 * The changelog for those sites, oldest first.
+	 *
+	 * Reaching back before the window rather than starting at it, because a stay
+	 * that began earlier has to be measured from somewhere. Delivery clips those
+	 * to the window; what it cannot do is invent an arrival it was never handed.
+	 *
+	 * The reach-back is bounded so a report on a year-old site does not read the
+	 * whole log to find one arrival.
+	 *
+	 * @param array<int, string> $site_ids Sites in reach.
+	 * @param int                $from     Window start.
+	 * @param int                $to       Window end.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function events( array $site_ids, int $from, int $to ): array {
+		global $wpdb;
+
+		$table = Schema::work_events_table();
+
+		$placeholders = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
+		$arguments    = array_merge( $site_ids, array( $from - self::REACH_BACK, $to ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT item_id, action, from_stage, to_stage, occurred_at FROM {$table} WHERE client_site_id IN ({$placeholders}) AND occurred_at >= %d AND occurred_at <= %d ORDER BY occurred_at ASC, id ASC",
+				$arguments
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return array_map(
+			static function ( array $row ): array {
+				return array(
+					'item_id'     => (string) $row['item_id'],
+					'action'      => (string) $row['action'],
+					'from_stage'  => (string) $row['from_stage'],
+					'to_stage'    => (string) $row['to_stage'],
+					'occurred_at' => (int) $row['occurred_at'],
+				);
+			},
+			is_array( $rows ) ? $rows : array()
+		);
+	}
+
+	/**
+	 * How far before the window the log is read.
+	 *
+	 * A quarter. Long enough that an ordinary stay spanning the start of the
+	 * window is measured from its real arrival, short enough that a report on a
+	 * site with years of history does not read all of it. Work that arrived
+	 * somewhere longer ago than this is clipped to the window start, which is
+	 * what Delivery would have done to it anyway.
+	 */
+	private const REACH_BACK = 7776000;
+}
