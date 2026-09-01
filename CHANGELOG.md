@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.52.0] - 2026-09-01
+
+### Added
+
+- The last six promises on the list are now tested too, so every one of them
+  that can be tested today is: work appears on the day's list when it needs
+  attention and goes when it no longer does, a client's answer to an onboarding
+  step comes back to them with our decision and our reason, a site cannot go
+  live while a step it needs is outstanding, a client is emailed once however
+  many times their site asks, the same piece of work reads the same on every
+  view of it, and a site that has stopped talking to us is visible with what to
+  try and clears itself when it is fixed. Only the commercial promises are
+  left, and they are waiting on the work that builds them.
+
 ## [2.51.0] - 2026-09-01
 
 ### Added
