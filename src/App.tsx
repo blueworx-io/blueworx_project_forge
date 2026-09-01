@@ -4,6 +4,7 @@ import { forgeData, isConnected } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { QueueScreen } from './components/QueueScreen';
+import { Signals } from './components/Signals';
 import { StandupScreen } from './components/StandupScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
@@ -11,10 +12,16 @@ import { WorkScreen } from './components/WorkScreen';
 /**
  * The studio application shell.
  *
- * Thin on purpose. It owns the three things that are true whichever screen is
- * open — the wordmark, which screen that is, and the version — and nothing
- * else. Each screen brings its own header controls, because a site picker means
- * something on one of them and nothing on the other.
+ * Thin on purpose. It owns the four things that are true whichever screen is
+ * open — the wordmark, which screen that is, what has happened lately, and the
+ * version — and nothing else. Each screen brings its own header controls,
+ * because a site picker means something on one of them and nothing on the
+ * other.
+ *
+ * What has happened lately (#175) is up here rather than being a sixth screen
+ * because a request arriving, or your work coming back, matters the same amount
+ * whichever screen somebody is looking at — and nobody goes anywhere to check
+ * whether something happened.
  *
  * There are separate screens rather than more views for the same reason (#131).
  * The board, list, schedule and calendar are four ways of drawing one site's
@@ -105,6 +112,8 @@ export function App() {
         </div>
 
         <span className="bwx-header-spacer" />
+
+        <Signals />
 
         <span className="bwx-mono">v{ data?.version ?? '' }</span>
       </div>

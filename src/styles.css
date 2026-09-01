@@ -1540,6 +1540,101 @@ td[ data-band='over' ] {
   color: var( --color-fog );
 }
 
+/* What has happened lately (#175). A panel over the page rather than a screen,
+   so it is anchored to its button and floats above everything. */
+.bwx-signals {
+  position: relative;
+}
+
+.bwx-signals-count {
+  display: inline-block;
+  margin-inline-start: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var( --color-info );
+  color: var( --color-snow );
+  font-size: var( --text-caption );
+  font-variant-numeric: tabular-nums;
+}
+
+.bwx-signals-panel {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: calc( 100% + 6px );
+  z-index: 20;
+  width: min( 420px, calc( 100vw - 32px ) );
+  max-height: min( 60vh, 520px );
+  overflow-y: auto;
+  padding: 10px;
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgb( 0 0 0 / 12% );
+}
+
+.bwx-signals-empty {
+  margin: 0;
+  padding: 6px 4px;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+.bwx-signals-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bwx-signals-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  border: 1px solid var( --color-chalk );
+  border-inline-start: 3px solid var( --card-rail, var( --color-chalk ) );
+  border-radius: 8px;
+}
+
+.bwx-signals-row[ data-tone='late' ] {
+  --card-rail: var( --overdue-accent );
+}
+
+.bwx-signals-row[ data-tone='stopped' ] {
+  --card-rail: var( --blocked-accent );
+}
+
+.bwx-signals-row[ data-tone='waiting' ] {
+  --card-rail: var( --color-info );
+}
+
+/* Read rows stay, quietly. Removing them would make the panel useless the
+   second time somebody opens it in a morning. */
+.bwx-signals-row[ data-unread='false' ] {
+  opacity: 0.66;
+}
+
+.bwx-signals-title {
+  font-weight: var( --font-weight-label );
+  overflow-wrap: anywhere;
+}
+
+.bwx-signals-detail {
+  grid-column: 1 / -1;
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+  overflow-wrap: anywhere;
+}
+
+.bwx-signals-when {
+  font-size: var( --text-caption );
+  color: var( --color-fog );
+  white-space: nowrap;
+}
+
 .bwx-standup-cards {
   list-style: none;
   margin: 0;

@@ -462,6 +462,33 @@ export interface OnboardingFilters {
  * fresh every time it is asked, so anything stored here would be a second
  * answer to a question that already has one.
  */
+export interface Signal {
+  id: string;
+  /** work_item or submission. */
+  kind: string;
+  action: string;
+  subject_id: string;
+  title: string;
+  client_id: string;
+  client_site_id: string;
+  at: number;
+  actor: number;
+  detail: string;
+  /** One the studio agreed would be visible when it happened — WF-5, CAP-4. */
+  governance: boolean;
+  unread: boolean;
+}
+
+export interface SignalList {
+  denied?: boolean;
+  /** The moment this answer was worked out, handed back when marking it read. */
+  generated: number;
+  seen_at: number;
+  unread: number;
+  kinds: string[];
+  signals: Signal[];
+}
+
 export interface StandupCard {
   rule: string;
   subject_type: string;
