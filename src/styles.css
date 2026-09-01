@@ -1591,6 +1591,31 @@ td[ data-band='over' ] {
   overflow-wrap: anywhere;
 }
 
+/* What can be done about this card, from this card (#171). Bottom-aligned so a
+   row of cards of different heights still has its buttons on one line. */
+.bwx-standup-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-block-start: auto;
+  padding-block-start: 4px;
+}
+
+/* The requirement list is the panel's, drawn in a card. It only needs to be
+   told it is in a narrower place than it was designed for. */
+.bwx-standup-card [ data-testid='bwx-gate' ] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bwx-standup-card .bwx-unmet {
+  gap: 6px;
+}
+
+.bwx-standup-card .bwx-unmet li {
+  font-size: var( --text-caption );
+}
+
 /* Quiet, and it stays quiet. Hiding a card is a convenience, not an action —
    nothing is recorded and a reload brings it back — so it must not look like
    one of the buttons that changes something. */
