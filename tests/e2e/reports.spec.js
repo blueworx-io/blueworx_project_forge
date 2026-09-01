@@ -117,6 +117,12 @@ test('the screen draws what the route answers', async ({ browser, baseURL }) => 
 
   // The window the screen asks for by default is twelve weeks, which contains
   // the item just made.
+  // The counting is done when the screen is asked for it, so how long it takes
+  // depends on how much work the instance has on it — and these instances are
+  // reused, so that grows. Waiting for the loading state to clear rather than
+  // for a default five seconds.
+  await expect( page.locator( '[data-state="loading"]' ) ).toHaveCount( 0, { timeout: 60_000 } );
+
   const table = page.getByTestId( 'bwx-report-stage-distribution' );
 
   await expect( table ).toBeVisible();
