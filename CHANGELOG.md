@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.54.0] - 2026-09-01
+
+### Changed
+
+- Quiet text and status labels are darker, so they can actually be read. The
+  greys used for secondary text failed the readable-contrast standard against
+  our own backgrounds, as did the green, red and pink used on status chips. The
+  colours themselves are unchanged where they sit on white; only the versions
+  that sit on a tinted background moved.
+
+### Added
+
+- Every screen of both plugins is now checked for accessibility on every pull
+  request — readable contrast, real form labels, heading order, names on
+  controls — plus checks that the whole app can be driven from the keyboard and
+  that a client can complete a checklist step without a mouse. A screen added
+  without being added to the check fails the build.
+
 ## [2.53.0] - 2026-09-01
 
 ### Added
