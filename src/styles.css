@@ -1734,3 +1734,91 @@ td[ data-band='over' ] {
   outline: 2px solid var( --color-ring-blue );
   outline-offset: 1px;
 }
+
+/* ---- Reports (#176) ---- */
+
+/* Sections down the page rather than a dashboard grid. These are read in
+   order — how long, where things are, how long each stage, promises, what
+   shipped — and a grid of tiles invites reading them as unrelated scores. */
+.bwx-reports {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.bwx-report-title {
+  font-size: var( --text-ui );
+  font-weight: var( --font-weight-label );
+  color: var( --color-graphite );
+  margin: 0 0 12px;
+}
+
+.bwx-report-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.bwx-report-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 180px;
+  padding: 12px 16px;
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-radius: 8px;
+}
+
+.bwx-report-number {
+  font-size: var( --text-heading );
+  font-weight: var( --font-weight );
+  color: var( --color-graphite );
+}
+
+/* The sample size, deliberately quiet and deliberately always there. A median
+   with nothing beside it is a number that gets quoted. */
+.bwx-report-count {
+  font-size: var( --text-caption );
+  color: var( --color-fog );
+}
+
+.bwx-report-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  background: var( --color-snow );
+  border: 1px solid var( --color-chalk );
+  border-radius: 8px;
+}
+
+.bwx-report-table th,
+.bwx-report-table td {
+  text-align: start;
+  padding: 6px 12px;
+  border-block-end: 1px solid var( --color-chalk );
+}
+
+.bwx-report-table tr:last-child th,
+.bwx-report-table tr:last-child td {
+  border-block-end: 0;
+}
+
+/* Row headings are a stage name, not a shout. */
+.bwx-report-table tbody th {
+  font-weight: var( --font-weight );
+  color: var( --color-steel );
+}
+
+/* The bar carries the shape and the figure beside it carries the fact, so a
+   row still reads correctly with no colour at all. */
+.bwx-report-bar {
+  display: inline-block;
+  block-size: 8px;
+  min-inline-size: 2px;
+  margin-inline-end: 8px;
+  vertical-align: middle;
+  background: var( --color-ring-blue );
+  border-radius: 4px;
+}

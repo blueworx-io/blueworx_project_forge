@@ -113,7 +113,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup';
+export type ScreenName = 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -503,3 +503,41 @@ export interface StandupList {
   rules: string[];
   cards: StandupCard[];
 }
+
+/**
+ * One summarised duration: the middle of a set, and how many were in it.
+ *
+ * The count travels with the median rather than being fetched separately,
+ * because a median without its sample size is a number people quote.
+ */
+export type ReportSummary = {
+  median_hours: number | null;
+  count: number;
+};
+
+/** The delivery numbers (#176), exactly as the server counts them. */
+export type Reports = {
+  empty: boolean;
+  from: number;
+  to: number;
+  stage_distribution: Record< string, number >;
+  time_in_stage: Record< string, ReportSummary >;
+  cycle_time: ReportSummary;
+  blocked_time: ReportSummary;
+  review_turnaround: ReportSummary;
+  planned_vs_actual: {
+    count: number;
+    on_time: number;
+    late: number;
+    median_days_late: number | null;
+  };
+  throughput: {
+    weeks: Array< { from: number; to: number; released: number } >;
+  };
+};
+
+export type ReportsResponse = {
+  ok: boolean;
+  generated: number;
+  reports: Reports;
+};

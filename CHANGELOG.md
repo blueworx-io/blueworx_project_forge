@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.53.0] - 2026-09-01
+
+### Added
+
+- A Reports screen that answers whether delivery is working: how long work
+  takes start to finish, how long reviews take, how long things sit blocked,
+  where work is piling up, how long each stage takes, how often we hit the date
+  we promised, and what shipped each week. Pick any window up to a year.
+- The numbers are counted from the record of what actually happened, every time
+  you open the screen, so a figure can never quietly disagree with the work
+  behind it. That also means the reports already cover months of history rather
+  than starting from today.
+- Where there is not enough work behind a figure to mean anything, it says so
+  instead of showing a number. A window with nothing in it says that too,
+  rather than drawing a screen of zeroes.
+
 ## [2.52.0] - 2026-09-01
 
 ### Added
