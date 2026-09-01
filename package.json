@@ -1,7 +1,7 @@
 {
   "name": "blueworx-forge",
   "private": true,
-  "version": "2.53.0",
+  "version": "2.54.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,8 +23,8 @@
     "test:pair": "playwright test -c playwright.pair.config.js && node bin/check-tests-ran.mjs playwright-pair-report.json",
     "wp:pair:reset": "node bin/wp-pair.mjs reset"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.49.0",
     "@tailwindcss/vite": "4.1.12",

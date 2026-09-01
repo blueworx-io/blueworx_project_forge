@@ -11,8 +11,8 @@
 --color-haze:#f1f5f9;
 --color-chalk:#e2e8f0;
 --color-ash:#cbd5e1;
---color-fog:#94a3b8;
---color-steel:#64748b;
+--color-fog:#5f6d80;
+--color-steel:#5a6880;
 --color-smoke:#475569;
 --color-slate:#334155;
 --color-charcoal:#1e293b;
@@ -50,11 +50,15 @@
 --alpha-fill:rgba(26,31,54,0.04);
 --alpha-fill-hover:rgba(26,31,54,0.07);
 --alpha-inset:rgba(255,255,255,0.7);
-/* Semantic status — solid tints, so a signal reads the same on card, wash or canvas */
---color-success:var(--color-mint);
+/* Semantic status — solid tints, so a signal reads the same on card, wash or canvas.
+   The ink is a step darker than the hue it belongs to, because each of these is
+   read on its own tinted background and the hue itself does not clear 4.5:1
+   against it (#182). The hues are unchanged: they are still correct on white,
+   which is where the rest of the product uses them. */
+--color-success:var(--color-fern);
 --color-success-bg:#ecfdf5;
 --color-success-border:#a7f3d0;
---color-danger:var(--color-coral);
+--color-danger:#b91c1c;
 --color-danger-bg:#fef2f2;
 --color-danger-border:#fecaca;
 --color-warning:var(--color-ember);
@@ -63,7 +67,7 @@
 --color-info:var(--brand-600);
 --color-info-bg:var(--brand-50);
 --color-info-border:var(--brand-200);
---color-over:var(--color-rose);
+--color-over:#be123c;
 --color-over-bg:#fff1f2;
 --color-over-border:#fecdd3;
 /* Text */
