@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makePerson, makeItem, walkTo, satisfy } from './helpers/forge.js';
+import { signedIn, makeSite, makePerson, makeItem, walkTo, satisfy, onSupport } from './helpers/forge.js';
 
 // #141, #142 and #143 against a real WordPress. The gate at the end of Up Next
 // refuses work there is no room for, names who and when, and lets a studio
@@ -59,6 +59,12 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 
   const where = await makeSite(api, 'Capacity gate', RUN_ID);
+
+  // #149. Chargeable work reserves its hours the moment it is planned, and
+  // the ledger will not take a site below nought — so a site with no package
+  // cannot plan work at all, whatever the spec is really about.
+  await onSupport({ context }, where.site.id, 400);
+
   const person = await makePerson(api, where.client.id, 'staff', PERSON);
   const reviewer = await makePerson(api, where.client.id, 'staff', `gatereviewer${STAMP}`);
   const deliverer = await makePerson(api, where.client.id, 'staff', `gatedeliverer${STAMP}`);
@@ -141,6 +147,9 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
   const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 
   const where = await makeSite(api, 'Capacity gate fits', RUN_ID);
+
+  await onSupport({ context }, where.site.id, 400);
+
   const person = await makePerson(api, where.client.id, 'staff', `roomy${STAMP}`);
   const reviewer = await makePerson(api, where.client.id, 'staff', `roomyreviewer${STAMP}`);
   const deliverer = await makePerson(api, where.client.id, 'staff', `roomydeliverer${STAMP}`);

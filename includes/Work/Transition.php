@@ -10,6 +10,9 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 use Blueworx\Forge\Capacity\Impact;
+use Blueworx\Forge\Commerce\Ledger;
+use Blueworx\Forge\Commerce\WorkHours;
+use Blueworx\Forge\Commerce\WorkLedger;
 
 /*
  * Aliased because this file already has an Events — the changelog's — and two
@@ -1092,6 +1095,40 @@ final class Transition {
 		}
 
 		/*
+		 * #149, COMM-3. The move is made, so the hours it commits or gives back
+		 * are settled here, in the same transaction — which is what "atomic
+		 * with the Sub-item's allocation" means. There is no window in which
+		 * the item has moved and the ledger has not caught up.
+		 *
+		 * Asked on every move rather than on the ones that sound commercial,
+		 * because Commerce\WorkHours decides from where the item now is, not
+		 * from which move brought it there. A move that changes nothing about
+		 * hours writes nothing, and a path nobody thought of is handled by the
+		 * same rule as the three that were.
+		 *
+		 * A refusal rolls the move back. #149 asks that no sequence of moves
+		 * leaves the ledger and the item disagreeing, and when the ledger will
+		 * not take the entry the only way to keep that is for the move not to
+		 * have happened either.
+		 */
+		$moved_item = Items::get( (string) $item['id'] );
+
+		if ( null === $moved_item || ! WorkLedger::reconcile( $moved_item, $actor ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
+			$wpdb->query( 'ROLLBACK' );
+
+			return new WP_Error(
+				'bwx_forge_hours_not_available',
+				__( 'That move needs more support hours than the site has left.', 'blueworx-forge' ),
+				array(
+					'status'  => 409,
+					'needed'  => WorkHours::planned( $item ),
+					'balance' => Ledger::balance( (string) $item['client_site_id'] ),
+				)
+			);
+		}
+
+		/*
 		 * #172. Arriving somewhere the client hears about raises the event that
 		 * will become their email, inside the same transaction as the move.
 		 *
@@ -1122,6 +1159,6 @@ final class Transition {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'COMMIT' );
 
-		return Items::get( (string) $item['id'] );
+		return $moved_item;
 	}
 }

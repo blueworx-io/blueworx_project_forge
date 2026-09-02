@@ -280,3 +280,66 @@ export async function makeSubmission(site, values) {
 
   return (await sent.json()).submission;
 }
+
+/**
+ * Puts a site on a package with enough hours to plan work against.
+ *
+ * #149. Chargeable work reserves its hours the moment it reaches Up Next, and
+ * the ledger refuses an entry that would take a site below nought — so a spec
+ * that plans real hours against a site with no package is refused, whatever it
+ * was actually about. This is the one line that stops that being every spec's
+ * problem.
+ *
+ * A package of its own each time, because the instance is shared between runs
+ * and a name reused across specs leaves several identical options in the list
+ * with no way to say which is this one's.
+ */
+export async function onSupport(admin, siteId, hours = 200) {
+  const label = `Hours ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const page = await admin.context.newPage();
+
+  await page.goto('/wp-admin/admin.php?page=blueworx-forge-packages');
+
+  const form = page.locator('form').filter({ has: page.locator('input[value="bwx_forge_add_package"]') });
+
+  await form.locator('input[name="name"]').fill(label);
+  await form.locator('input[name="hours"]').fill(String(hours));
+  await form.locator('input[name="price"]').fill('1000');
+  await form.locator('input[name="validity_months"]').fill('12');
+  await form.locator('#bwx-add').click();
+  await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
+
+  await page.goto(`/wp-admin/admin.php?page=blueworx-forge-support&site=${siteId}`);
+
+  const option = page.locator('#bwx-assign-package option', { hasText: label });
+  const value = await option.getAttribute('value');
+
+  expect(value, 'the package just added is on offer').toBeTruthy();
+
+  await page.locator('#bwx-assign-package').selectOption(value);
+  await page.locator('#bwx-assign-from').fill(new Date().toISOString().slice(0, 10));
+  await page.locator('#bwx-assign').click();
+
+  await expect(page.locator('[data-bwx-support-state="active"]')).toBeVisible();
+
+  await page.close();
+
+  return { label, hours };
+}
+
+/** What the ledger holds against one site, read from the studio's own screen. */
+export async function hourLedger(admin, siteId) {
+  const page = await admin.context.newPage();
+
+  await page.goto(`/wp-admin/admin.php?page=blueworx-forge-support&site=${siteId}`);
+  await expect(page.locator('[data-bwx-support-state]')).toBeVisible();
+
+  const balance = await page.locator('[data-bwx-balance]').getAttribute('data-bwx-balance');
+  const entries = await page.locator('[data-bwx-entry]').evaluateAll((rows) =>
+    rows.map((row) => [row.getAttribute('data-bwx-entry'), Number(row.getAttribute('data-bwx-entry-hours'))])
+  );
+
+  await page.close();
+
+  return { balance: Number(balance), entries };
+}

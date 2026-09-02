@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makePerson, makeItem, walkTo } from './helpers/forge.js';
+import { signedIn, makeSite, makePerson, makeItem, walkTo, onSupport } from './helpers/forge.js';
 
 // #138's acceptance in one spec: a person on two clients shows one combined
 // commitment, not two pictures that each look comfortable. Nothing here is
@@ -60,6 +60,13 @@ test('a person on two clients shows one combined commitment', async ({ browser, 
   // possible if capacity is read per client.
   const first = await makeSite(api, 'Capacity one', RUN_ID);
   const second = await makeSite(api, 'Capacity two', RUN_ID);
+
+  // #149. Chargeable work reserves its hours the moment it is planned, and
+  // the ledger will not take a site below nought — so a site with no package
+  // cannot plan work at all, whatever the spec is really about.
+  await onSupport({ context }, first.site.id, 400);
+  await onSupport({ context }, second.site.id, 400);
+
 
   const person = await makePerson(api, first.client.id, 'staff', PERSON);
 
