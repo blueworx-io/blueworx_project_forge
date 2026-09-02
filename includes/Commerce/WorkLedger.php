@@ -68,38 +68,12 @@ final class WorkLedger {
 	}
 
 	/**
-	 * Whether an item's hours could be brought into line, without doing it.
-	 *
-	 * For the caller that has to decide before it writes rather than after. It
-	 * asks the ledger the same question {@see Ledger::append()} would — would
-	 * this take the site below nought — rather than guessing at the answer.
-	 *
-	 * @param array<string, mixed> $item The item as it would stand.
-	 * @return bool
-	 */
-	public static function affordable( array $item ): bool {
-		$id      = (string) ( $item['id'] ?? '' );
-		$site    = (string) ( $item['client_site_id'] ?? '' );
-		$balance = Ledger::balance( $site );
-
-		foreach ( WorkHours::plan( $item, self::entries( $id ) ) as $entry ) {
-			$balance = round( $balance + Entries::signed( (string) $entry['event_type'], (float) $entry['hours'] ), 2 );
-
-			if ( $balance < 0 ) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
 	 * What the ledger holds against one item.
 	 *
 	 * @param string $item_id The item.
 	 * @return array{reserved: float, used: float}
 	 */
-	public static function position( string $item_id ): array {
+	private static function position( string $item_id ): array {
 		return WorkHours::position( self::entries( $item_id ) );
 	}
 

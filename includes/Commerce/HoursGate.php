@@ -69,7 +69,15 @@ final class HoursGate {
 		$available = round( $balance + $held, 2 );
 		$state     = (string) ( $entitlement['state'] ?? Support::NONE );
 
-		$because = self::because( $needed, $available, (bool) ( $entitlement['may_use_hours'] ?? false ) );
+		/*
+		 * Asked of Commerce\Restrictions rather than read from the entitlement's
+		 * own may_use_hours (#151). They are the same answer, and that is the
+		 * problem: the client is *told* what its position permits from that one
+		 * list, and a gate that decided it separately would be a second copy of
+		 * the rule that could refuse work a client had just been told it could
+		 * have.
+		 */
+		$because = self::because( $needed, $available, Restrictions::allows( $state, Restrictions::CHARGEABLE_WORK ) );
 
 		return array(
 			'needed'     => $needed,
@@ -135,33 +143,5 @@ final class HoursGate {
 		}
 
 		return $available >= $needed ? self::CLEAR : self::NOT_ENOUGH;
-	}
-
-	/**
-	 * How a refusal reads to a person.
-	 *
-	 * @param array<string, mixed> $assessment What {@see self::assess()} found.
-	 * @return string
-	 */
-	public static function label( array $assessment ): string {
-		switch ( (string) ( $assessment['because'] ?? self::CLEAR ) ) {
-			case self::NO_PACKAGE:
-				return sprintf(
-					/* translators: %s: how the site's support position reads. */
-					__( 'This site cannot draw on support hours: %s.', 'blueworx-forge' ),
-					Support::label( (string) $assessment['state'] )
-				);
-
-			case self::NOT_ENOUGH:
-				return sprintf(
-					/* translators: 1: hours short, 2: hours the work needs. */
-					__( '%1$s hours short of the %2$s this work needs.', 'blueworx-forge' ),
-					number_format( (float) $assessment['shortfall'], 2 ),
-					number_format( (float) $assessment['needed'], 2 )
-				);
-
-			default:
-				return __( 'The site has the hours for this work.', 'blueworx-forge' );
-		}
 	}
 }

@@ -60,7 +60,7 @@ final class Validate {
 		$type = trim( (string) ( $input['type'] ?? '' ) );
 
 		if ( ! Submissions::is_type( $type ) ) {
-			$errors['type'] = 'Choose a request, an idea or a suggestion.';
+			$errors['type'] = 'Choose a bug, a request, an idea or a suggestion.';
 		} else {
 			$values['type'] = $type;
 		}

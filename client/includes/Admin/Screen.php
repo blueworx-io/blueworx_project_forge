@@ -176,7 +176,7 @@ final class Screen {
 		self::contact( (array) $view['contact'] );
 		self::attention( $board );
 		self::upcoming( $board );
-		self::support();
+		self::support( (array) $view['support'] );
 		self::record( (array) $view['record'] );
 
 		echo '</div>';
@@ -302,20 +302,59 @@ final class Screen {
 	}
 
 	/**
-	 * The support summary.
+	 * The support position, and what it leaves open (#151).
 	 *
-	 * Support packages are M8's, and are not built. This says so rather than
-	 * leaving a heading over nothing: a client reading "Support" above a blank
-	 * has no way to tell whether they have no package or the screen is broken,
-	 * and those are very different things to be told.
+	 * **A client with no package is told, and told what they can still do.**
+	 * Hiding the section, or leaving a heading over a blank, is the version of
+	 * this that reads as a broken screen — and a client who thinks the page is
+	 * broken does not ring up to buy a package.
+	 *
+	 * What is printed is what the studio sent. Whether a position permits
+	 * chargeable work is a commercial rule and it is answered on the studio's
+	 * server; a copy of it here would be a second answer to the same question,
+	 * running where the client can see it and nobody would think to change it.
+	 *
+	 * An empty answer is not "no package" — it is a site that has never reached
+	 * the studio, which the sync notice at the top of the page already explains.
+	 *
+	 * @param array<string, mixed> $support The position, as the studio sent it.
 	 */
-	private static function support(): void {
+	private static function support( array $support ): void {
+		$state = (string) ( $support['state'] ?? '' );
+
 		self::open( __( 'Support', 'blueworx-forge' ), 'support' );
 
+		if ( '' === $state ) {
+			printf(
+				'<p class="bwx-empty">%s</p>',
+				esc_html__( 'Your support position has not been read from the studio yet.', 'blueworx-forge' )
+			);
+			self::close();
+
+			return;
+		}
+
 		printf(
-			'<p class="bwx-empty">%s</p>',
-			esc_html__( 'Support packages and hours are not set up yet. When they are, your balance appears here.', 'blueworx-forge' )
+			'<p data-testid="bwx-support-state" data-bwx-support-state="%1$s">%2$s</p>',
+			esc_attr( $state ),
+			esc_html( (string) ( $support['label'] ?? '' ) )
 		);
+
+		if ( in_array( 'chargeable-work', (array) ( $support['refused'] ?? array() ), true ) ) {
+			/*
+			 * The one sentence this issue exists for. It says what is not
+			 * available, and in the same breath the two things that are — so
+			 * the restriction reads as a conversation to have rather than as a
+			 * door that has been shut.
+			 */
+			printf(
+				'<p class="bwx-empty" data-testid="bwx-support-refused">%s</p>',
+				esc_html__(
+					'New chargeable work cannot be scheduled until a support package is in place. You can still report anything that is broken, ask for something, and talk to your contact about a package.',
+					'blueworx-forge'
+				)
+			);
+		}
 
 		self::close();
 	}

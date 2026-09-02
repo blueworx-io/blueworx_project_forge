@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.61.0] - 2026-09-02
+
+### Added
+
+- A client with no support package is now told so on their own screen, and
+  told what they can still do: report anything broken, ask for something, and
+  talk to their contact about buying a package. Nothing is quietly hidden —
+  the studio decides what the position allows and sends it, so a client site
+  cannot show one thing while the studio believes another. New chargeable work
+  is refused by the service itself, not just left off a menu.
+- Clients can now report that something is broken, in those words. The intake
+  offered a request, an idea or a suggestion, so a broken site had to be filed
+  as a request and queued behind things people merely wanted.
+
 ## [2.60.0] - 2026-09-02
 
 ### Added

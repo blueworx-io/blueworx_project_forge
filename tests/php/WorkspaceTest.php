@@ -51,6 +51,12 @@ final class WorkspaceTest extends TestCase {
 					'ok'        => true,
 					'generated' => 5000,
 					'contact'   => array( 'display_name' => 'Ana Fielding' ),
+					'support'   => array(
+						'state'   => 'none',
+						'label'   => 'No support package',
+						'allowed' => array( 'bug-intake', 'request-intake', 'sales', 'point-of-contact', 'discussion' ),
+						'refused' => array( 'chargeable-work' ),
+					),
 					'record'    => array(
 						'site_id'         => 'site_abc',
 						'name'            => $name,
@@ -122,6 +128,40 @@ final class WorkspaceTest extends TestCase {
 	 * person, so the screen can say somebody is being assigned instead of
 	 * printing an empty name.
 	 */
+	/**
+	 * #151. The package position travels through the same way, and is taken as
+	 * the studio sent it.
+	 */
+	public function test_the_support_position_travels_through_with_the_record(): void {
+		$this->studio_answers();
+
+		$view = Workspace::view();
+
+		$this->assertSame( 'none', $view['support']['state'] );
+		$this->assertSame( array( 'chargeable-work' ), $view['support']['refused'] );
+		$this->assertContains( 'bug-intake', $view['support']['allowed'] );
+	}
+
+	/**
+	 * A studio that has never been reached leaves it empty — which the screen
+	 * has to be able to tell apart from a client who has no package. One is a
+	 * fact about the client and the other is a fact about the connection, and
+	 * showing the second as the first tells a paying client they have nothing.
+	 */
+	public function test_an_answer_with_no_position_in_it_is_empty_rather_than_no_package(): void {
+		$GLOBALS['bwx_forge_test_http'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => (string) wp_json_encode(
+				array(
+					'ok'     => true,
+					'record' => array( 'name' => 'Acme Ltd' ),
+				)
+			),
+		);
+
+		$this->assertSame( array(), Workspace::view()['support'] );
+	}
+
 	public function test_no_contact_is_empty_rather_than_blank(): void {
 		$GLOBALS['bwx_forge_test_http'][] = array(
 			'response' => array( 'code' => 200 ),

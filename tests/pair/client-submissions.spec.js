@@ -138,18 +138,18 @@ test.describe('a client asking for something', () => {
     await page.close();
   });
 
-  test('all three kinds can be sent', async ({ browser }) => {
+  test('all four kinds can be sent', async ({ browser }) => {
     test.slow();
 
     const studio = await signedIn(browser, STUDIO_URL);
     const client = await signedIn(browser, CLIENT_URL);
-    const mine = await studioSite(studio, 'Three Kinds Co');
+    const mine = await studioSite(studio, 'Four Kinds Co');
 
     await connect(client, mine.issued);
 
     const page = await client.context.newPage();
 
-    for (const type of ['request', 'idea', 'suggestion']) {
+    for (const type of ['bug', 'request', 'idea', 'suggestion']) {
       await fillAndSend(page, { type, title: `A ${type} ${RUN}` });
       await expect(page.locator('[data-bwx-result="sent"]')).toHaveCount(1);
     }

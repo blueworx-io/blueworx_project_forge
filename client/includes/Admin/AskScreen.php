@@ -258,6 +258,17 @@ final class AskScreen {
 		// does not recognise comes back as a refusal on the field, which is a
 		// safe way for the two to disagree.
 		$types = array(
+
+			/*
+			 * First on the list on purpose (#151). Something already broken is
+			 * the most urgent thing anybody comes to this form with, and it is
+			 * the one a client with no support package can always send — so it
+			 * is the first thing offered rather than the fourth.
+			 */
+			'bug'        => array(
+				__( 'Something is broken', 'blueworx-forge' ),
+				__( 'Something that used to work, or does not do what it should.', 'blueworx-forge' ),
+			),
 			'request'    => array(
 				__( 'A request', 'blueworx-forge' ),
 				__( 'Something you would like us to do.', 'blueworx-forge' ),

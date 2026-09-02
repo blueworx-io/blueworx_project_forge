@@ -10,6 +10,9 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Capacity\ClientAnswer;
+use Blueworx\Forge\Commerce\Assignments;
+use Blueworx\Forge\Commerce\Restrictions;
+use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Notifications\Log as NotificationLog;
 use Blueworx\Forge\Notifications\Outbox;
 use Blueworx\Forge\Notifications\Register as Notifications;
@@ -744,6 +747,20 @@ final class ClientController {
 				'contact'      => self::contact_for( $site_id ),
 
 				/*
+				 * #151, COMM-2. What this site's package lets it do, decided
+				 * here and sent, rather than left for the client artifact to
+				 * work out from its own copy of the rule.
+				 *
+				 * That is the whole difference between being restricted by the
+				 * service and being restricted by a hidden menu. A client site
+				 * that decided for itself which of its buttons to draw would be
+				 * a second implementation of a commercial rule, running on
+				 * somebody else's server, and the two would disagree the first
+				 * time one of them changed.
+				 */
+				'support'      => self::support_for( $site_id ),
+
+				/*
 				 * Carried here rather than fetched separately (#140). Every
 				 * client screen already reads the workspace, so this costs no
 				 * extra round trip and no extra wait — and the screen that
@@ -1380,5 +1397,28 @@ final class ClientController {
 		$state = Contacts::resolve( $assignment, $person );
 
 		return $state['needs_reassignment'] ? array() : Contacts::for_client( $state['contact'] );
+	}
+
+	/**
+	 * A site's support position, and what it permits (#151).
+	 *
+	 * A site with no Client Site behind it — a key issued through M1's routes,
+	 * which the workspace still answers so the connection screen can be
+	 * diagnosed — has never been on a package, and "none" is the true answer
+	 * rather than a missing one.
+	 *
+	 * @param string $site_id The registry site.
+	 * @return array<string, mixed>
+	 */
+	private static function support_for( string $site_id ): array {
+		$integration = Integrations::by_site_id( $site_id );
+
+		if ( null === $integration ) {
+			return Restrictions::for_state( Support::NONE );
+		}
+
+		$entitlement = Assignments::entitlement_on( (string) $integration['client_site_id'], gmdate( 'Y-m-d' ) );
+
+		return Restrictions::for_state( (string) $entitlement['state'] );
 	}
 }
