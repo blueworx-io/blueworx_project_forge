@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 23, $definitions );
+		$this->assertCount( 24, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -94,6 +94,15 @@ final class SchemaTest extends TestCase {
 			 * come, and none may.
 			 */
 			Schema::package_versions_table(),
+
+			/*
+			 * The hour ledger (#148) is the strictest of the lot. A balance is
+			 * the sum of its entries and nothing else, so a correction is
+			 * another entry with a reason on it — there is no row anybody may
+			 * write twice, and no stored total to drift away from what the
+			 * entries add up to.
+			 */
+			Schema::hour_ledger_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
