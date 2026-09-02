@@ -69,8 +69,14 @@ final class Hours {
 	 * @return int How many entries were written.
 	 */
 	public static function settle( array $series, array $meeting, string $term_ends_on, string $today, int $actor ): int {
-		$state = MeetingHours::state_of( $meeting, $today, $term_ends_on );
-		$id    = (string) ( $meeting['id'] ?? '' );
+		/*
+		 * A stopped series holds nothing. Its meetings are not going to happen,
+		 * so whatever they were holding goes back — which is why the series'
+		 * state travels with the meeting rather than being assumed.
+		 */
+		$running = Series::ACTIVE === (string) ( $series['state'] ?? '' );
+		$state   = MeetingHours::state_of( $meeting, $today, $term_ends_on, $running );
+		$id      = (string) ( $meeting['id'] ?? '' );
 
 		/*
 		 * A meeting only earns a row when it costs something. A forecast writes
@@ -93,7 +99,7 @@ final class Hours {
 			$meeting = array_merge( $meeting, array( 'id' => $id ) );
 		}
 
-		$plan    = MeetingHours::plan( $meeting, self::entries_for( $id ), $today, $term_ends_on );
+		$plan    = MeetingHours::plan( $meeting, self::entries_for( $id ), $today, $term_ends_on, $running );
 		$written = 0;
 
 		foreach ( $plan as $entry ) {
