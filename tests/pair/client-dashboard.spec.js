@@ -122,7 +122,16 @@ test.describe('the client dashboard', () => {
     await expect(page.locator('[data-bwx-panel="upcoming"]')).toContainText(
       'Nothing has a date on it yet'
     );
-    await expect(page.locator('[data-bwx-panel="support"]')).toContainText('not set up yet');
+    /*
+     * #151. A brand-new client has no package, and the section now says which
+     * position that is rather than that the feature is unbuilt — and says what
+     * is still open, so "no package" reads as a conversation to have rather
+     * than as a screen that failed.
+     */
+    await expect(page.locator('[data-bwx-panel="support"]')).toContainText('No support package');
+    await expect(page.locator('[data-bwx-panel="support"]')).toContainText(
+      'report anything that is broken'
+    );
 
     // And nothing anywhere that reads as a failure.
     await expect(page.locator('.notice-error')).toHaveCount(0);

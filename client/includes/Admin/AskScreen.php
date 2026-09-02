@@ -258,6 +258,7 @@ final class AskScreen {
 		// does not recognise comes back as a refusal on the field, which is a
 		// safe way for the two to disagree.
 		$types = array(
+
 			/*
 			 * First on the list on purpose (#151). Something already broken is
 			 * the most urgent thing anybody comes to this form with, and it is
