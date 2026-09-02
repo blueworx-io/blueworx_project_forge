@@ -144,32 +144,4 @@ final class HoursGate {
 
 		return $available >= $needed ? self::CLEAR : self::NOT_ENOUGH;
 	}
-
-	/**
-	 * How a refusal reads to a person.
-	 *
-	 * @param array<string, mixed> $assessment What {@see self::assess()} found.
-	 * @return string
-	 */
-	public static function label( array $assessment ): string {
-		switch ( (string) ( $assessment['because'] ?? self::CLEAR ) ) {
-			case self::NO_PACKAGE:
-				return sprintf(
-					/* translators: %s: how the site's support position reads. */
-					__( 'This site cannot draw on support hours: %s.', 'blueworx-forge' ),
-					Support::label( (string) $assessment['state'] )
-				);
-
-			case self::NOT_ENOUGH:
-				return sprintf(
-					/* translators: 1: hours short, 2: hours the work needs. */
-					__( '%1$s hours short of the %2$s this work needs.', 'blueworx-forge' ),
-					number_format( (float) $assessment['shortfall'], 2 ),
-					number_format( (float) $assessment['needed'], 2 )
-				);
-
-			default:
-				return __( 'The site has the hours for this work.', 'blueworx-forge' );
-		}
-	}
 }
