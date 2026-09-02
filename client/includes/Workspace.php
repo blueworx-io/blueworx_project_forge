@@ -76,6 +76,20 @@ final class Workspace {
 			'ok'           => null !== $record,
 			'record'       => $record,
 			'contact'      => is_array( $payload['contact'] ?? null ) ? $payload['contact'] : array(),
+
+			/*
+			 * The package position, and what it permits (#151). Taken as the
+			 * studio sent it and never worked out here: whether a client with
+			 * no package may have chargeable work done is a commercial rule,
+			 * and a copy of it running on the client's own server would be a
+			 * second answer to the same question.
+			 *
+			 * Empty when the studio has never been reached, which the screen
+			 * has to be able to tell apart from "no package" — one is a fact
+			 * about the client and the other is a fact about the connection.
+			 */
+			'support'      => is_array( $payload['support'] ?? null ) ? $payload['support'] : array(),
+
 			// Whether the studio has room (#140). It rides on this record
 			// rather than being fetched on its own, so the screen that shows it
 			// never waits on a call of its own.

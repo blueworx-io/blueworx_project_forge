@@ -39,15 +39,22 @@ use Blueworx\Forge\Tenancy\Ids;
 final class Submissions {
 
 	/**
-	 * What a client may be asking for.
+	 * What a client may be telling us.
 	 *
-	 * Three rather than one, because "can we have this", "here is a thought"
-	 * and "this could be better" are triaged differently and arrive with very
-	 * different expectations of an answer.
+	 * Four rather than one, because "this is broken", "can we have this",
+	 * "here is a thought" and "this could be better" are triaged differently
+	 * and arrive with very different expectations of an answer.
+	 *
+	 * **The bug is the one that had to exist by name** (#151). A client with no
+	 * support package can still report something broken, and COMM-5 may make
+	 * fixing it free — but neither is any use if the only way to say it is to
+	 * file a request, because a request is a thing we might do and a bug is a
+	 * thing that is already wrong. Filed as a request it queues behind wants,
+	 * and the client who most needs to be heard is the one being ignored.
 	 *
 	 * @var array<int, string>
 	 */
-	public const TYPES = array( 'request', 'idea', 'suggestion' );
+	public const TYPES = array( 'bug', 'request', 'idea', 'suggestion' );
 
 	/**
 	 * Where a submission has got to.

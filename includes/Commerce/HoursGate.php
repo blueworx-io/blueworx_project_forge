@@ -69,7 +69,15 @@ final class HoursGate {
 		$available = round( $balance + $held, 2 );
 		$state     = (string) ( $entitlement['state'] ?? Support::NONE );
 
-		$because = self::because( $needed, $available, (bool) ( $entitlement['may_use_hours'] ?? false ) );
+		/*
+		 * Asked of Commerce\Restrictions rather than read from the entitlement's
+		 * own may_use_hours (#151). They are the same answer, and that is the
+		 * problem: the client is *told* what its position permits from that one
+		 * list, and a gate that decided it separately would be a second copy of
+		 * the rule that could refuse work a client had just been told it could
+		 * have.
+		 */
+		$because = self::because( $needed, $available, Restrictions::allows( $state, Restrictions::CHARGEABLE_WORK ) );
 
 		return array(
 			'needed'     => $needed,

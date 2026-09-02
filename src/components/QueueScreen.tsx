@@ -308,6 +308,10 @@ export function QueueScreen() {
 /** What a client chose to call it, in the studio's words. */
 function kindOf( type: string ): string {
   switch ( type ) {
+    // #151. Its own word, never the 'Request' fallback: a queue that shows a
+    // broken site as a request has hidden the one thing about it that matters.
+    case 'bug':
+      return 'Something broken';
     case 'idea':
       return 'Idea';
     case 'suggestion':

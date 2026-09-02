@@ -265,11 +265,18 @@ final class AskedScreen {
 	/**
 	 * What a client called the thing they sent.
 	 *
-	 * @param string $type One of the three kinds the form offers.
+	 * @param string $type One of the four kinds the form offers.
 	 * @return string
 	 */
 	private static function type_label( string $type ): string {
 		switch ( $type ) {
+			/*
+			 * #151. Never allowed to fall through to 'Request'. A client who
+			 * said something was broken and is shown their own words back as a
+			 * request has been quietly told we did not hear the urgent part.
+			 */
+			case 'bug':
+				return __( 'Something broken', 'blueworx-forge' );
 			case 'idea':
 				return __( 'Idea', 'blueworx-forge' );
 			case 'suggestion':
