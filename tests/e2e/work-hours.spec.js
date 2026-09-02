@@ -51,7 +51,10 @@ function planFor(people, hours = PRIMARY_HOURS) {
 
 /** Only the entries one item put through the ledger. */
 function ofWork(entries) {
-  return entries.filter(([type]) => type.startsWith('work-'));
+  // Kind and hours only. Each row also carries what it was against (#158), and
+  // that is a different assertion from this one — a source id changes every run
+  // and would make every comparison here a moving target.
+  return entries.filter(([type]) => type.startsWith('work-')).map(([type, hours]) => [type, hours]);
 }
 
 /**
