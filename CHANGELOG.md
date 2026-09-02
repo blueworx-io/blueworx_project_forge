@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.64.0] - 2026-09-02
+
+### Added
+
+- Meetings now draw on the same hours as everything else, and only when they
+  actually happen. Hours are set aside for meetings in the next twelve weeks
+  and spent when the host says the meeting was held. A meeting that was
+  cancelled, that nobody came to, or that everyone simply forgot all leave the
+  balance untouched — there is no late-cancellation charge and no no-show
+  charge. Meetings further out are shown but not held, so a client's balance
+  is not spoken for by things a year away.
+
 ## [2.63.0] - 2026-09-02
 
 ### Added

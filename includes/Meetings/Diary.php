@@ -132,6 +132,94 @@ final class Diary {
 	}
 
 	/**
+	 * Gives a meeting a row of its own, without claiming anything happened.
+	 *
+	 * A meeting inside the reservation horizon has hours committed against it,
+	 * and a ledger entry has to name what it is against — so a meeting that
+	 * costs something needs a row whether or not anybody has touched it.
+	 *
+	 * Deliberately writes no history entry. {@see Events} is the record of what
+	 * *people* did to a meeting, and filling it with rows the bookkeeping
+	 * created would bury the three entries somebody actually wants to read.
+	 *
+	 * @param array<string, mixed> $series  The series it belongs to.
+	 * @param array<string, mixed> $meeting One merged occurrence.
+	 * @param int                  $actor   Whose action caused this.
+	 * @return array<string, mixed>|null The stored row.
+	 */
+	public static function materialise( array $series, array $meeting, int $actor ): ?array {
+		if ( '' !== (string) ( $meeting['id'] ?? '' ) ) {
+			return self::get( (string) $meeting['id'] );
+		}
+
+		$slot = (string) ( $meeting['on'] ?? '' );
+
+		if ( '' === $slot ) {
+			return null;
+		}
+
+		return self::write(
+			$series,
+			$slot,
+			array(
+				'on'            => $slot,
+				'at'            => (string) ( $meeting['at'] ?? '' ),
+				'starts_at'     => (int) ( $meeting['starts_at'] ?? 0 ),
+				'ends_at'       => (int) ( $meeting['ends_at'] ?? 0 ),
+				'status'        => (string) ( $meeting['status'] ?? Occurrence::SCHEDULED ),
+				'planned_hours' => (float) ( $meeting['planned_hours'] ?? 0 ),
+			),
+			$actor
+		);
+	}
+
+	/**
+	 * Every meeting on a site that is still holding hours, whenever it is.
+	 *
+	 * The date is deliberately not part of this. A meeting that has been and
+	 * gone unheld still holds its reservation until something writes the
+	 * release, and looking only at a window ahead would never find it — which
+	 * is exactly how a client ends up with hours committed to a meeting that
+	 * happened last March.
+	 *
+	 * @param string $client_site_id The site.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function holding( string $client_site_id ): array {
+		global $wpdb;
+
+		$table = Schema::meeting_occurrences_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s AND ledger_state = %s ORDER BY on_date ASC, id ASC", $client_site_id, MeetingHours::RESERVED ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * Records what the ledger now holds against a meeting.
+	 *
+	 * @param string $id    The occurrence.
+	 * @param string $state One of {@see MeetingHours}' four.
+	 * @return bool
+	 */
+	public static function set_ledger_state( string $id, string $state ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		return false !== $wpdb->update(
+			Schema::meeting_occurrences_table(),
+			array(
+				'ledger_state' => $state,
+				'updated_at'   => bwx_forge_now(),
+			),
+			array( 'id' => $id ),
+			array( '%s', '%d' ),
+			array( '%s' )
+		);
+	}
+
+	/**
 	 * One slot's stored exception, if it has one.
 	 *
 	 * @param string $series_id The series.
