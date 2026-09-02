@@ -73,6 +73,12 @@ final class Plugin {
 
 		add_action( 'admin_menu', array( Admin\SupportScreen::class, 'register' ) );
 
+		/*
+		 * #157. The one studio screen that spans clients on purpose: who needs
+		 * selling to, before the next thing they ask for is refused.
+		 */
+		add_action( 'admin_menu', array( Admin\SalesScreen::class, 'register' ) );
+
 		Admin\SupportActions::boot();
 
 		/*
