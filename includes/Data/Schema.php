@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 17;
+	public const VERSION = 18;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -258,6 +258,17 @@ final class Schema {
 	}
 
 	/**
+	 * The hour ledger table's full name.
+	 *
+	 * @return string
+	 */
+	public static function hour_ledger_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_hour_ledger';
+	}
+
+	/**
 	 * The support package catalogue table's full name.
 	 *
 	 * @return string
@@ -340,6 +351,7 @@ final class Schema {
 
 		$packages         = self::packages_table();
 		$package_versions = self::package_versions_table();
+		$ledger           = self::hour_ledger_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -984,6 +996,48 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY step_site (step_id, client_site_id),
 	KEY site_time (client_site_id, uploaded_at)
+) {$collate};",
+
+			/*
+			 * #148, COMM-3. Every hour a client has, and every hour they spend.
+			 *
+			 * Append-only, and more strictly than anything else here. A balance
+			 * is the sum of its entries and nothing else — there is no stored
+			 * total to drift, no correction that edits a row, and no way to
+			 * reach a figure the entries do not add up to. A correction is
+			 * another entry with a reason on it.
+			 *
+			 * So there is no record_version and no updated_at, and their
+			 * absence is the mechanism rather than an omission: a column that
+			 * says a row might be written again is an invitation to write it,
+			 * and this is the record the studio and the client are both
+			 * reading when they disagree about a bill.
+			 *
+			 * Scoped to the site, per ARCH-3: hours belong to a site, not to a
+			 * client, so a client with three sites has three balances and no
+			 * way for one site's work to quietly draw on another's.
+			 *
+			 * `expires_at` is meaningful on top-ups alone (COMM-4) and is
+			 * indexed with the site because the consumption order — soonest to
+			 * expire first — is a query over exactly those two columns.
+			 */
+			$ledger           => "CREATE TABLE {$ledger} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	event_type varchar(30) NOT NULL,
+	hours decimal(10,2) NOT NULL DEFAULT 0,
+	source_type varchar(20) NOT NULL DEFAULT '',
+	source_id varchar(32) NOT NULL DEFAULT '',
+	reason varchar(191) NOT NULL DEFAULT '',
+	expires_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	actor bigint(20) unsigned NOT NULL DEFAULT 0,
+	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY site_time (client_site_id, occurred_at),
+	KEY site_expiry (client_site_id, expires_at),
+	KEY source (source_type, source_id)
 ) {$collate};",
 
 			/*

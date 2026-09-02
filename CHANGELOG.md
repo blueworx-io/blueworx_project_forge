@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.56.0] - 2026-09-02
+
+### Added
+
+- One record every support hour passes through. A site's balance is the sum of
+  its entries and nothing else — there is no stored total to drift, and no way
+  to change an entry once it is written. A correction is another entry with a
+  reason on it, so "what did this client's balance look like in March" has an
+  answer. Reserving work and then starting it charges the hours once rather
+  than twice, hours about to lapse are spent before hours that never will, and
+  a balance cannot go below nought without somebody saying why.
+
 ## [2.55.1] - 2026-09-02
 
 ### Fixed
