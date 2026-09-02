@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.68.0] - 2026-09-03
+
+### Added
+
+- Clients can now see their own hours on their own site: where they stand, how
+  many are left, what they have been given or bought, and what else is
+  available. The figure is the studio's — read from the same place, not kept
+  in step — so the two can never quietly disagree. Nothing on the screen
+  charges anybody for anything; asking for more hours starts a conversation.
+  A balance that has never been read says so, rather than showing nought and
+  telling a client with forty hours that they have none.
+
 ## [2.67.0] - 2026-09-03
 
 ### Added
@@ -57,7 +69,6 @@ commits and pull requests.
   balance untouched — there is no late-cancellation charge and no no-show
   charge. Meetings further out are shown but not held, so a client's balance
   is not spoken for by things a year away.
-
 ## [2.63.0] - 2026-09-02
 
 ### Added
