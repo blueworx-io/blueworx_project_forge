@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.65.0] - 2026-09-02
+
+### Added
+
+- Standing meetings now count against the time their host has available. A
+  meeting never appears on a board and nobody moves it through a workflow, so
+  it was the easiest commitment to lose — and losing it made weeks look freer
+  than they were. Two hours a fortnight is a working day a quarter. Cancelled
+  meetings and no-shows take nobody's time; a meeting that was held still did.
+
 ## [2.64.0] - 2026-09-02
 
 ### Added

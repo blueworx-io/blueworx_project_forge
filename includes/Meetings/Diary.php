@@ -293,6 +293,50 @@ final class Diary {
 	}
 
 	/**
+	 * Every stored exception touching a window, on any series.
+	 *
+	 * One query rather than one per series. The cross-client capacity read asks
+	 * this for every running series at once, and a query each would make the
+	 * capacity screen cost a round trip per client with a standing meeting.
+	 *
+	 * Unscoped, for the reason {@see Series::running_between()} gives.
+	 *
+	 * @param string $from YYYY-MM-DD, inclusive.
+	 * @param string $to   YYYY-MM-DD, inclusive.
+	 * @return array<string, array<int, array<string, mixed>>> Keyed by series id.
+	 */
+	public static function stored_between( string $from, string $to ): array {
+		global $wpdb;
+
+		if ( '' === $from || '' === $to || $to < $from ) {
+			return array();
+		}
+
+		$table = Schema::meeting_occurrences_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE ( excepted_from >= %s AND excepted_from <= %s ) OR ( on_date >= %s AND on_date <= %s ) ORDER BY on_date ASC, id ASC",
+				$from,
+				$to,
+				$from,
+				$to
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$by_series = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_series[ (string) $row['series_id'] ][] = self::hydrate( $row );
+		}
+
+		return $by_series;
+	}
+
+	/**
 	 * Writes the first exception against a slot.
 	 *
 	 * @param array<string, mixed> $series  The series.

@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Capacity;
 
 use Blueworx\Forge\Data\Schema;
+use Blueworx\Forge\Meetings\Load;
 use Blueworx\Forge\Work\Stages;
 
 /**
@@ -89,7 +90,20 @@ final class Commitments {
 			}
 		}
 
-		return $out;
+		/*
+		 * #155. Standing meetings, in the same shape and the same list.
+		 *
+		 * A support meeting never appears on a board and nobody moves it
+		 * through a workflow, so it is the easiest commitment in the studio to
+		 * leave out — and leaving it out is wrong in the one direction that
+		 * costs, because it says there is room. Two hours a fortnight is a
+		 * working day a quarter.
+		 *
+		 * Added here rather than by each caller, so the capacity screen, the
+		 * gate at Up Next and the answer a client gets about room all count it
+		 * without any of them learning what a meeting is.
+		 */
+		return array_merge( $out, Load::across( $from, $to ) );
 	}
 
 	/**

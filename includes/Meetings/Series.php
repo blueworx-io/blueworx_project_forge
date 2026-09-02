@@ -187,6 +187,43 @@ final class Series {
 	}
 
 	/**
+	 * Every running series that could put a meeting in a window, on any client.
+	 *
+	 * **Deliberately unscoped**, like {@see \Blueworx\Forge\Capacity\Commitments}
+	 * and for the same reason: a person cannot look free on one client while
+	 * sitting in another client's meeting, so the read that answers "is there
+	 * room" has to span tenants. It is reachable from the studio only, and the
+	 * routes that expose what it feeds say so.
+	 *
+	 * @param string $from YYYY-MM-DD, inclusive.
+	 * @param string $to   YYYY-MM-DD, inclusive.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function running_between( string $from, string $to ): array {
+		global $wpdb;
+
+		if ( '' === $from || '' === $to || $to < $from ) {
+			return array();
+		}
+
+		$table = Schema::meeting_series_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE state = %s AND starts_on <> '' AND starts_on <= %s AND ( ends_on = '' OR ends_on >= %s ) ORDER BY id ASC",
+				self::ACTIVE,
+				$to,
+				$from
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * What a series means, as dates, inside a window.
 	 *
 	 * The series' own hours figure is carried onto each one, so a caller never
