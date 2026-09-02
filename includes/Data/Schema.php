@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 19;
+	public const VERSION = 20;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -302,6 +302,17 @@ final class Schema {
 	}
 
 	/**
+	 * The support meeting series table's full name.
+	 *
+	 * @return string
+	 */
+	public static function meeting_series_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_meeting_series';
+	}
+
+	/**
 	 * The notification events table's full name.
 	 *
 	 * @return string
@@ -364,6 +375,7 @@ final class Schema {
 		$package_versions = self::package_versions_table();
 		$ledger           = self::hour_ledger_table();
 		$site_packages    = self::site_packages_table();
+		$meeting_series   = self::meeting_series_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1183,6 +1195,52 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY subject (subject_type,subject_id),
 	KEY outcome_due (outcome,next_attempt_at)
+) {$collate};",
+
+			/*
+			 * #152, MEET-1 and MEET-2. The standing meetings a client's package
+			 * includes: the arrangement, not the meetings themselves.
+			 *
+			 * The rule is stored, never the dates it implies. Occurrences are
+			 * derived from it (#153), so changing "every Tuesday" to "every
+			 * other Tuesday" is one edit rather than a rewrite of every future
+			 * date — and a date that was moved by hand stays moved, because it
+			 * is an exception recorded against the rule rather than a row the
+			 * rule would overwrite.
+			 *
+			 * `timezone` is the series' own and is copied from the client when
+			 * one is created rather than read from it afterwards. A client that
+			 * moves office should not silently move every meeting it has ever
+			 * held, and a past occurrence has to keep answering for the clock
+			 * it actually happened on.
+			 *
+			 * `planned_hours` at nought means "work it out from the length"
+			 * (MEET-3). Stored as an override rather than as a copy of the
+			 * derived figure, so a series whose duration changes updates its
+			 * cost unless somebody has deliberately said otherwise.
+			 */
+			$meeting_series   => "CREATE TABLE {$meeting_series} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	title varchar(191) NOT NULL DEFAULT '',
+	frequency varchar(20) NOT NULL DEFAULT 'weekly',
+	starts_on varchar(10) NOT NULL DEFAULT '',
+	ends_on varchar(10) NOT NULL DEFAULT '',
+	time_of_day varchar(5) NOT NULL DEFAULT '09:00',
+	duration_mins smallint(5) unsigned NOT NULL DEFAULT 60,
+	timezone varchar(64) NOT NULL DEFAULT 'UTC',
+	host_user_id varchar(32) NOT NULL DEFAULT '',
+	attendees text NOT NULL,
+	planned_hours decimal(8,2) NOT NULL DEFAULT 0,
+	state varchar(20) NOT NULL DEFAULT 'active',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY site_state (client_site_id, state),
+	KEY client_id (client_id)
 ) {$collate};",
 		);
 	}
