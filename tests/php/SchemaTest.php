@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 26, $definitions );
+		$this->assertCount( 28, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -103,6 +103,13 @@ final class SchemaTest extends TestCase {
 			 * entries add up to.
 			 */
 			Schema::hour_ledger_table(),
+
+			/*
+			 * #153. A meeting's history, and the same rule: the occurrence row
+			 * says where a meeting is now, and this says how it got there. A
+			 * row anybody could edit would let the second story be told.
+			 */
+			Schema::meeting_events_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
