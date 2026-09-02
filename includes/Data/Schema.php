@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 20;
+	public const VERSION = 21;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -313,6 +313,28 @@ final class Schema {
 	}
 
 	/**
+	 * The meeting occurrences table's full name.
+	 *
+	 * @return string
+	 */
+	public static function meeting_occurrences_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_meeting_occurrences';
+	}
+
+	/**
+	 * The meeting events table's full name.
+	 *
+	 * @return string
+	 */
+	public static function meeting_events_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_meeting_events';
+	}
+
+	/**
 	 * The notification events table's full name.
 	 *
 	 * @return string
@@ -376,6 +398,8 @@ final class Schema {
 		$ledger           = self::hour_ledger_table();
 		$site_packages    = self::site_packages_table();
 		$meeting_series   = self::meeting_series_table();
+		$occurrences      = self::meeting_occurrences_table();
+		$meeting_events   = self::meeting_events_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1241,6 +1265,84 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY site_state (client_site_id, state),
 	KEY client_id (client_id)
+) {$collate};",
+
+			/*
+			 * #153, MEET-2 and MEET-5. A meeting something has happened to.
+			 *
+			 * **Most meetings are not in here.** A weekly series running for two
+			 * years is one row in the table above, and the hundred meetings it
+			 * implies are worked out when somebody asks. A meeting earns a row
+			 * only when it moves, is cancelled, is held, or has its hours
+			 * changed by hand — which keeps this table proportional to what
+			 * actually happened rather than to how long a client has been with
+			 * us.
+			 *
+			 * `excepted_from` is the date the *rule* put the meeting on, and the
+			 * unique key is on that rather than on where it ended up. Two things
+			 * follow. One slot can only have one exception, so a meeting cannot
+			 * be moved into existing twice. And a meeting stays tied to the slot
+			 * it came from when the rule changes underneath it — keying on the
+			 * date it landed would quietly re-point the exception at whichever
+			 * meeting the new rule happens to put there.
+			 *
+			 * `ledger_state` is #154's and is here from the start rather than
+			 * added later: an occurrence that reserved hours has to be able to
+			 * say so, and a column added afterwards would have no answer for
+			 * every row already written.
+			 */
+			$occurrences      => "CREATE TABLE {$occurrences} (
+	id varchar(32) NOT NULL,
+	series_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	excepted_from varchar(10) NOT NULL DEFAULT '',
+	on_date varchar(10) NOT NULL DEFAULT '',
+	at_time varchar(5) NOT NULL DEFAULT '',
+	starts_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	ends_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	status varchar(20) NOT NULL DEFAULT 'scheduled',
+	planned_hours decimal(8,2) NOT NULL DEFAULT 0,
+	ledger_state varchar(20) NOT NULL DEFAULT 'forecast',
+	meeting_link varchar(255) NOT NULL DEFAULT '',
+	held_marked_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	held_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	UNIQUE KEY series_slot (series_id, excepted_from),
+	KEY site_date (client_site_id, on_date),
+	KEY series_date (series_id, on_date)
+) {$collate};",
+
+			/*
+			 * #153. Everything that has been done to a meeting, in order.
+			 *
+			 * Append-only, like every other history here. The occurrence row
+			 * says where a meeting is now; this says how it got there — moved
+			 * twice, cancelled and reinstated, marked held by whom. Without it
+			 * the row alone can only ever answer for the last thing that
+			 * happened, and "when was this moved, and who agreed it" is exactly
+			 * the question a client asks.
+			 */
+			$meeting_events   => "CREATE TABLE {$meeting_events} (
+	id varchar(32) NOT NULL,
+	occurrence_id varchar(32) NOT NULL,
+	series_id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	action varchar(30) NOT NULL DEFAULT '',
+	from_status varchar(20) NOT NULL DEFAULT '',
+	to_status varchar(20) NOT NULL DEFAULT '',
+	from_date varchar(10) NOT NULL DEFAULT '',
+	to_date varchar(10) NOT NULL DEFAULT '',
+	reason text NOT NULL,
+	actor bigint(20) unsigned NOT NULL DEFAULT 0,
+	occurred_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY occurrence_time (occurrence_id, occurred_at),
+	KEY series_time (series_id, occurred_at)
 ) {$collate};",
 		);
 	}

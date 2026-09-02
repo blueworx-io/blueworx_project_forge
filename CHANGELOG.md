@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.63.0] - 2026-09-02
+
+### Added
+
+- A single meeting can now be moved, cancelled or marked as held without
+  touching the arrangement it came from. Moving one meeting moves one meeting:
+  not the rule, not the ones after it. A cancelled meeting stays on the list
+  saying it was cancelled rather than vanishing, and everything done to a
+  meeting is kept — who moved it, when, and from what — so a question about
+  something three months ago has an answer.
+
 ## [2.62.0] - 2026-09-02
 
 ### Added
