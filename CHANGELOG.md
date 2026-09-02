@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.70.0] - 2026-09-03
+
+### Added
+
+- Four of the five commercial promises in the brief are now proved by tests
+  that run against a real studio and a real client site on every change: a
+  package granting exactly the hours it says, hours set aside and spent
+  without drift, a client with no package being refused chargeable work while
+  still able to report a bug and reach us, and both sides showing the same
+  balance. The fifth, about meeting hours, arrives with the meetings screen.
+
 ## [2.69.0] - 2026-09-03
 
 ### Added
