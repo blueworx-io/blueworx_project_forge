@@ -71,6 +71,10 @@ final class Plugin {
 
 		Admin\PackageActions::boot();
 
+		add_action( 'admin_menu', array( Admin\SupportScreen::class, 'register' ) );
+
+		Admin\SupportActions::boot();
+
 		Admin\AvailabilityActions::boot();
 		Admin\OnboardingTemplateActions::boot();
 

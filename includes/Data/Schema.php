@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 18;
+	public const VERSION = 19;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -258,6 +258,17 @@ final class Schema {
 	}
 
 	/**
+	 * The site package periods table's full name.
+	 *
+	 * @return string
+	 */
+	public static function site_packages_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_site_packages';
+	}
+
+	/**
 	 * The hour ledger table's full name.
 	 *
 	 * @return string
@@ -352,6 +363,7 @@ final class Schema {
 		$packages         = self::packages_table();
 		$package_versions = self::package_versions_table();
 		$ledger           = self::hour_ledger_table();
+		$site_packages    = self::site_packages_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -996,6 +1008,58 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY step_site (step_id, client_site_id),
 	KEY site_time (client_site_id, uploaded_at)
+) {$collate};",
+
+			/*
+			 * #146, COMM-1. A site's commercial position, as a run of dated periods.
+			 *
+			 * One row per period rather than one per assignment, and that is the
+			 * whole design. "What was this client entitled to on the fourteenth
+			 * of March" is then a question with one answer and no reasoning
+			 * behind it: whichever period covers that date. Suspending ends a
+			 * period and starts another; resuming does the same; so does
+			 * renewing and replacing. Nothing is ever back-edited to make the
+			 * past look different.
+			 *
+			 * The alternative — one row per assignment with a suspended flag on
+			 * it — cannot answer the question at all once a client has been
+			 * suspended twice, because the row only remembers the last time.
+			 *
+			 * `package_version_id` points at a frozen version (#145), never at
+			 * the catalogue entry, so a price rise cannot reach back into what
+			 * this client was sold. `hours_granted` and `price_charged` are
+			 * copied in as well: they are the pro-rata result (#147) for this
+			 * period specifically, and a full year's figures on the version
+			 * cannot answer for a part year.
+			 *
+			 * `ends_on` empty means open — running now, with no end date set.
+			 * Dates are calendar dates rather than timestamps because
+			 * entitlement is a matter of days, and a client whose cover starts
+			 * "at 14:32" is a client nobody can bill.
+			 */
+			$site_packages    => "CREATE TABLE {$site_packages} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	package_version_id varchar(32) NOT NULL DEFAULT '',
+	state varchar(20) NOT NULL DEFAULT 'active',
+	starts_on varchar(10) NOT NULL DEFAULT '',
+	ends_on varchar(10) NOT NULL DEFAULT '',
+	term_ends_on varchar(10) NOT NULL DEFAULT '',
+	began_because varchar(20) NOT NULL DEFAULT 'assigned',
+	ended_because varchar(20) NOT NULL DEFAULT '',
+	hours_granted decimal(10,2) NOT NULL DEFAULT 0,
+	price_charged int(11) unsigned NOT NULL DEFAULT 0,
+	currency varchar(3) NOT NULL DEFAULT 'GBP',
+	prorated tinyint(1) NOT NULL DEFAULT 0,
+	note varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY site_dates (client_site_id, starts_on),
+	KEY client_id (client_id)
 ) {$collate};",
 
 			/*
