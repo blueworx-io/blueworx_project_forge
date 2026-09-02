@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.62.0] - 2026-09-02
+
+### Added
+
+- The standing meetings a client's package includes can now be described: how
+  often, at what time, for how long, in the client's own clock, and who hosts
+  them. Weekly, fortnightly, four-weekly or monthly on the same date. The
+  arrangement is what gets stored, so the dates come out of it rather than
+  being written down once and going stale — and a ten o'clock meeting stays at
+  ten o'clock when the clocks change, which is the bug this was built to avoid.
+
 ## [2.61.0] - 2026-09-02
 
 ### Added
