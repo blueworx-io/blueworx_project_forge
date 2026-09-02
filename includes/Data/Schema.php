@@ -342,7 +342,7 @@ final class Schema {
 		$package_versions = self::package_versions_table();
 
 		return array(
-			$clients         => "CREATE TABLE {$clients} (
+			$clients          => "CREATE TABLE {$clients} (
 	id varchar(32) NOT NULL,
 	display_name varchar(191) NOT NULL,
 	legal_name varchar(191) NOT NULL DEFAULT '',
@@ -356,7 +356,7 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY status (status)
 ) {$collate};",
-			$sites           => "CREATE TABLE {$sites} (
+			$sites            => "CREATE TABLE {$sites} (
 	id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
 	name varchar(191) NOT NULL,
@@ -384,7 +384,7 @@ final class Schema {
 			 * cast to an integer whatever its declared type, storing 0 and
 			 * reporting success. Do not rename it back.
 			 */
-			$integrations    => "CREATE TABLE {$integrations} (
+			$integrations     => "CREATE TABLE {$integrations} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -421,7 +421,7 @@ final class Schema {
 			 * somebody who already has an account quietly creates a second
 			 * person, and capacity counts them twice for ever after.
 			 */
-			$users           => "CREATE TABLE {$users} (
+			$users            => "CREATE TABLE {$users} (
 	id varchar(32) NOT NULL,
 	email varchar(191) NOT NULL,
 	display_name varchar(191) NOT NULL,
@@ -450,7 +450,7 @@ final class Schema {
 			 * The unique index is the honest kind of duplicate prevention —
 			 * saying the same thing twice is not two dependencies.
 			 */
-			$dependencies    => "CREATE TABLE {$dependencies} (
+			$dependencies     => "CREATE TABLE {$dependencies} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	depends_on_id varchar(32) NOT NULL,
@@ -479,7 +479,7 @@ final class Schema {
 			 * with no contact is indistinguishable from a client whose contact
 			 * was never set, and #95 asks for one of those to be flagged.
 			 */
-			$contacts        => "CREATE TABLE {$contacts} (
+			$contacts         => "CREATE TABLE {$contacts} (
 	id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL DEFAULT '',
@@ -498,7 +498,7 @@ final class Schema {
 			 * stops one person holding two roles in one place, which #91 would
 			 * then have to choose between.
 			 */
-			$memberships     => "CREATE TABLE {$memberships} (
+			$memberships      => "CREATE TABLE {$memberships} (
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -527,7 +527,7 @@ final class Schema {
 			 * has any business setting it, and Work\Validate refuses an edit
 			 * that names it.
 			 */
-			$work_items      => "CREATE TABLE {$work_items} (
+			$work_items       => "CREATE TABLE {$work_items} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -600,7 +600,7 @@ final class Schema {
 			 * because the client's own status view reads it the other way
 			 * round — from the work back to what was asked.
 			 */
-			$submissions     => "CREATE TABLE {$submissions} (
+			$submissions      => "CREATE TABLE {$submissions} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -629,7 +629,7 @@ final class Schema {
 			 * now because #106 promises a move is recorded atomically, and that
 			 * is not true without somewhere for the record to go.
 			 */
-			$work_events     => "CREATE TABLE {$work_events} (
+			$work_events      => "CREATE TABLE {$work_events} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -668,7 +668,7 @@ final class Schema {
 			 * is — #108 requires it preserved, and deleting the old records to
 			 * "reset" the gate is the obvious implementation and the wrong one.
 			 */
-			$gate_records    => "CREATE TABLE {$gate_records} (
+			$gate_records     => "CREATE TABLE {$gate_records} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -708,7 +708,7 @@ final class Schema {
 			 * "has anybody come back on this" is a query rather than a person
 			 * reading a thread (AUTH-2's information requests).
 			 */
-			$comments        => "CREATE TABLE {$comments} (
+			$comments         => "CREATE TABLE {$comments} (
 	id varchar(32) NOT NULL,
 	item_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -750,7 +750,7 @@ final class Schema {
 			 * believed. The latest row wins when two share an effective date,
 			 * which is what makes a correction a correction.
 			 */
-			$patterns        => "CREATE TABLE {$patterns} (
+			$patterns         => "CREATE TABLE {$patterns} (
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	effective_from varchar(10) NOT NULL,
@@ -782,7 +782,7 @@ final class Schema {
 			 * and the calculation takes a day out once however many records
 			 * cover it.
 			 */
-			$unavailable     => "CREATE TABLE {$unavailable} (
+			$unavailable      => "CREATE TABLE {$unavailable} (
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	starts_on varchar(10) NOT NULL,
@@ -805,7 +805,7 @@ final class Schema {
 			 * lie. Editing a published version opens a draft copy, which
 			 * becomes the next version when it is published.
 			 */
-			$templates       => "CREATE TABLE {$templates} (
+			$templates        => "CREATE TABLE {$templates} (
 	id varchar(32) NOT NULL,
 	version smallint(5) unsigned NOT NULL DEFAULT 0,
 	name varchar(191) NOT NULL DEFAULT '',
@@ -829,7 +829,7 @@ final class Schema {
 			 * references can never come to dangle, and nothing ever queries
 			 * backwards from a dependency to the steps that named it.
 			 */
-			$template_steps  => "CREATE TABLE {$template_steps} (
+			$template_steps   => "CREATE TABLE {$template_steps} (
 	id varchar(32) NOT NULL,
 	template_id varchar(32) NOT NULL,
 	section varchar(20) NOT NULL DEFAULT 'foundations',
@@ -861,7 +861,7 @@ final class Schema {
 			 * a second assignment would silently give a client two checklists
 			 * and no way to say which one counts.
 			 */
-			$site_onboarding => "CREATE TABLE {$site_onboarding} (
+			$site_onboarding  => "CREATE TABLE {$site_onboarding} (
 	id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
@@ -887,7 +887,7 @@ final class Schema {
 			 * against today by Onboarding\Statuses, because a stored one needs
 			 * a nightly sweep and is wrong in between.
 			 */
-			$steps           => "CREATE TABLE {$steps} (
+			$steps            => "CREATE TABLE {$steps} (
 	id varchar(32) NOT NULL,
 	site_onboarding_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -931,7 +931,7 @@ final class Schema {
 			 * Nothing here is ever edited or deleted. A correction is a further
 			 * entry, as everywhere else in this product.
 			 */
-			$step_events     => "CREATE TABLE {$step_events} (
+			$step_events      => "CREATE TABLE {$step_events} (
 	id varchar(32) NOT NULL,
 	step_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -966,7 +966,7 @@ final class Schema {
 			 * because a purge running through records with audit history is the
 			 * foot-gun that decision exists to refuse.
 			 */
-			$evidence        => "CREATE TABLE {$evidence} (
+			$evidence         => "CREATE TABLE {$evidence} (
 	id varchar(32) NOT NULL,
 	step_id varchar(32) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
@@ -1048,7 +1048,7 @@ final class Schema {
 	UNIQUE KEY package_version (package_id, version)
 ) {$collate};",
 
-			$notifications   => "CREATE TABLE {$notifications} (
+			$notifications    => "CREATE TABLE {$notifications} (
 	id varchar(32) NOT NULL,
 	event_kind varchar(40) NOT NULL,
 	subject_type varchar(20) NOT NULL,

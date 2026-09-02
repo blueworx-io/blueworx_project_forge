@@ -176,11 +176,12 @@ final class Unavailability {
 		$values[] = $to;
 		$values[] = $from;
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the id placeholders are counted above.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the id placeholders are counted above.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare( "SELECT * FROM {$table} WHERE user_id IN ({$slots}) AND starts_on <= %s AND ends_on >= %s ORDER BY starts_on ASC", $values ),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			$user_id = (string) $row['user_id'];

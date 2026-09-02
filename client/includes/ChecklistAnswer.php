@@ -111,7 +111,7 @@ final class ChecklistAnswer {
 			return self::failed( 'too_big' );
 		}
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_get_contents -- Reading PHP's own upload temp file; WP_Filesystem is not initialised on admin-post.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading PHP's own upload temp file; WP_Filesystem is not initialised on admin-post.
 		$contents = file_get_contents( $path );
 
 		if ( ! is_string( $contents ) ) {

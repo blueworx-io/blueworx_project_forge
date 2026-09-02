@@ -185,14 +185,14 @@ final class Events {
 		global $wpdb;
 
 		$row = array(
-			'id'             => Ids::create( self::PREFIX ),
-			'item_id'        => (string) ( $entry['item_id'] ?? '' ),
-			'client_site_id' => (string) ( $entry['client_site_id'] ?? '' ),
-			'action'         => (string) ( $entry['action'] ?? '' ),
-			'from_stage'     => (string) ( $entry['from_stage'] ?? '' ),
-			'to_stage'       => (string) ( $entry['to_stage'] ?? '' ),
-			'gate'           => (string) ( $entry['gate'] ?? '' ),
-			'outcome'        => (string) ( $entry['outcome'] ?? '' ),
+			'id'               => Ids::create( self::PREFIX ),
+			'item_id'          => (string) ( $entry['item_id'] ?? '' ),
+			'client_site_id'   => (string) ( $entry['client_site_id'] ?? '' ),
+			'action'           => (string) ( $entry['action'] ?? '' ),
+			'from_stage'       => (string) ( $entry['from_stage'] ?? '' ),
+			'to_stage'         => (string) ( $entry['to_stage'] ?? '' ),
+			'gate'             => (string) ( $entry['gate'] ?? '' ),
+			'outcome'          => (string) ( $entry['outcome'] ?? '' ),
 
 			/*
 			 * How the actor was entitled to do this, where it was not simply
@@ -201,7 +201,7 @@ final class Events {
 			 * a column rather than a note in the reason — "which of these were
 			 * done by a substitute" has to be a query.
 			 */
-			'via'            => (string) ( $entry['via'] ?? '' ),
+			'via'              => (string) ( $entry['via'] ?? '' ),
 
 			/*
 			 * #99. Which field changed and both sides of the change, so an entry
@@ -227,7 +227,7 @@ final class Events {
 			'timezone'         => (string) ( $entry['timezone'] ?? '' ),
 			// Bounded because it lands in a varchar and comes from a person
 			// typing a reason into a box.
-			'reason'         => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, 191 ),
+			'reason'           => mb_substr( (string) ( $entry['reason'] ?? '' ), 0, 191 ),
 
 			/*
 			 * Whatever the action needs beyond a reason: a reviewer's feedback,
@@ -236,11 +236,11 @@ final class Events {
 			 * thing here somebody genuinely writes paragraphs of, and truncating
 			 * that would throw away the part the developer needs.
 			 */
-			'detail'         => (string) ( $entry['detail'] ?? '' ),
-			'cycle'          => max( 1, (int) ( $entry['cycle'] ?? 1 ) ),
-			'attempt'        => max( 1, (int) ( $entry['attempt'] ?? 1 ) ),
-			'actor'          => (int) ( $entry['actor'] ?? 0 ),
-			'occurred_at'    => bwx_forge_now(),
+			'detail'           => (string) ( $entry['detail'] ?? '' ),
+			'cycle'            => max( 1, (int) ( $entry['cycle'] ?? 1 ) ),
+			'attempt'          => max( 1, (int) ( $entry['attempt'] ?? 1 ) ),
+			'actor'            => (int) ( $entry['actor'] ?? 0 ),
+			'occurred_at'      => bwx_forge_now(),
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
@@ -300,7 +300,7 @@ final class Events {
 		$doings = implode( ', ', array_fill( 0, count( $kept ), '%s' ) );
 		$args   = array_merge( $ids, $kept, array( $since, max( 1, min( 200, $limit ) ) ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id and action placeholders are built above from the values themselves; every value is still prepared.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder, and the id and action placeholders are built above from the values themselves; every value is still prepared.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$sites}) AND action IN ({$doings}) AND occurred_at >= %d ORDER BY occurred_at DESC, id DESC LIMIT %d", $args ), ARRAY_A );
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );

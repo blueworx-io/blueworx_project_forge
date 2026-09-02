@@ -1041,11 +1041,13 @@ final class Transition {
 
 		$from = (string) $item['stage'];
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'START TRANSACTION' );
 
 		$moved = Items::apply_stage( (string) $item['id'], $to, $sent_version, $also );
 
 		if ( ! $moved ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 			$wpdb->query( 'ROLLBACK' );
 
 			// Either somebody moved it first, or the write failed. Both are the
@@ -1079,6 +1081,7 @@ final class Transition {
 		if ( ! $recorded ) {
 			// A move nobody can account for afterwards is worse than a move that
 			// did not happen, so the stage change goes back too.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 			$wpdb->query( 'ROLLBACK' );
 
 			return new WP_Error(
@@ -1116,6 +1119,7 @@ final class Transition {
 			);
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'COMMIT' );
 
 		return Items::get( (string) $item['id'] );

@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.55.1] - 2026-09-02
+
+### Fixed
+
+- The PHP coding standard is checked again. The shared build had been skipping
+  it since this repo was set up, so the code had drifted out of line with the
+  standard it says it follows; everything it flagged is now fixed or has a
+  written reason beside it. No behaviour changed.
+
 ## [2.55.0] - 2026-09-01
 
 ### Added

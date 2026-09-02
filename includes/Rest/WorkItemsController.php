@@ -89,6 +89,7 @@ final class WorkItemsController {
 					'param'  => 'client_site_id',
 					'record' => 'client_site',
 				),
+
 				/*
 				 * Only the site is declared. The filters are not, deliberately:
 				 * they are a closed list decided by Work\Filters, and declaring
