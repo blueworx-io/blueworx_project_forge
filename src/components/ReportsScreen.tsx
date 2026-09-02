@@ -57,6 +57,22 @@ function round( value: number ): number {
   return Math.round( value * 10 ) / 10;
 }
 
+/**
+ * A number of support hours, as hours (#261).
+ *
+ * Deliberately not `duration`, which turns anything over two days into days.
+ * Support hours are what a client is billed in, and "four days" is not a figure
+ * anybody can check against an invoice.
+ */
+function hours( value: number ): string {
+  return `${ round( value ) } ${ 1 === round( value ) ? 'hour' : 'hours' }`;
+}
+
+/** A share, as a whole percentage — nobody acts on a decimal place here. */
+function share( value: number ): string {
+  return `${ Math.round( value * 100 ) }%`;
+}
+
 /** The date a week bucket starts, without a year repeated down the column. */
 function weekLabel( from: number ): string {
   const date = new Date( from * 1000 );
@@ -347,6 +363,146 @@ export function ReportsScreen() {
                 ) ) }
               </tbody>
             </table>
+          </section>
+
+          <section className="bwx-report" aria-labelledby="bwx-report-capacity">
+            <h2 id="bwx-report-capacity" className="bwx-report-title">
+              How full people are
+            </h2>
+
+            <p data-testid="bwx-report-capacity">
+              { null === reports.capacity_utilisation.share ? (
+                'Nobody has their working hours set up yet, so there is nothing to be full of.'
+              ) : (
+                <>
+                  <strong className="bwx-report-number">
+                    { share( reports.capacity_utilisation.share ) }
+                  </strong>{ ' ' }
+                  of the studio&rsquo;s time is spoken for —{ ' ' }
+                  { hours( reports.capacity_utilisation.committed ) } of{ ' ' }
+                  { hours( reports.capacity_utilisation.available ) } across{ ' ' }
+                  { reports.capacity_utilisation.people } people.
+                  { 0 < reports.capacity_utilisation.over &&
+                    ` ${ reports.capacity_utilisation.over } of them are over their hours.` }
+                </>
+              ) }
+            </p>
+          </section>
+
+          <section className="bwx-report" aria-labelledby="bwx-report-overrides">
+            <h2 id="bwx-report-overrides" className="bwx-report-title">
+              When we went past our own rules
+            </h2>
+
+            <p data-testid="bwx-report-overrides">
+              <strong className="bwx-report-number">{ reports.overrides.occasions }</strong>{ ' ' }
+              { 1 === reports.overrides.occasions ? 'decision' : 'decisions' } to go ahead with an
+              over-booked week, across { reports.overrides.capacity }{ ' ' }
+              { 1 === reports.overrides.capacity ? 'job' : 'jobs' }.{ ' ' }
+              { reports.overrides.workflow } went round a gate.
+            </p>
+          </section>
+
+          <section className="bwx-report" aria-labelledby="bwx-report-hours">
+            <h2 id="bwx-report-hours" className="bwx-report-title">
+              Where clients&rsquo; hours went
+            </h2>
+
+            <table className="bwx-report-table" data-testid="bwx-report-hours">
+              <caption className="bwx-visually-hidden">Support hours granted, spent and held</caption>
+              <tbody>
+                <tr>
+                  <th scope="row">Bought</th>
+                  <td className="bwx-mono">{ hours( reports.hours.granted ) }</td>
+                </tr>
+                <tr>
+                  <th scope="row">Spent on work</th>
+                  <td className="bwx-mono">{ hours( reports.hours.work_used ) }</td>
+                </tr>
+                <tr>
+                  <th scope="row">Spent in meetings</th>
+                  <td className="bwx-mono">{ hours( reports.hours.meeting_used ) }</td>
+                </tr>
+                <tr>
+                  <th scope="row">Set aside, not yet spent</th>
+                  <td className="bwx-mono">{ hours( reports.hours.held ) }</td>
+                </tr>
+                <tr>
+                  <th scope="row">Corrected by hand</th>
+                  <td className="bwx-mono">{ hours( reports.hours.adjusted ) }</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section className="bwx-report" aria-labelledby="bwx-report-onboarding">
+            <h2 id="bwx-report-onboarding" className="bwx-report-title">
+              Sites still getting live
+            </h2>
+
+            <p data-testid="bwx-report-onboarding">
+              { 0 === reports.onboarding_readiness.sites ? (
+                'No site has a checklist yet.'
+              ) : (
+                <>
+                  <strong className="bwx-report-number">
+                    { reports.onboarding_readiness.not_ready }
+                  </strong>{ ' ' }
+                  of { reports.onboarding_readiness.sites }{ ' ' }
+                  { 1 === reports.onboarding_readiness.sites ? 'site is' : 'sites are' } not ready to
+                  go live.
+                  { null !== reports.onboarding_readiness.median &&
+                    ` The middle one is ${ share(
+                      reports.onboarding_readiness.median
+                    ) } of the way through.` }
+                </>
+              ) }
+            </p>
+          </section>
+
+          <section className="bwx-report" aria-labelledby="bwx-report-funnel">
+            <h2 id="bwx-report-funnel" className="bwx-report-title">
+              What clients asked for
+            </h2>
+
+            <table className="bwx-report-table" data-testid="bwx-report-funnel">
+              <caption className="bwx-visually-hidden">Requests by what became of them</caption>
+              <thead>
+                <tr>
+                  <th scope="col">State</th>
+                  <th scope="col">Requests</th>
+                </tr>
+              </thead>
+              <tbody>
+                { Object.entries( reports.request_funnel.states ).map( ( [ state, count ] ) => (
+                  <tr key={ state }>
+                    <th scope="row">{ state }</th>
+                    <td className="bwx-mono">{ count }</td>
+                  </tr>
+                ) ) }
+              </tbody>
+            </table>
+          </section>
+
+          <section className="bwx-report" aria-labelledby="bwx-report-email">
+            <h2 id="bwx-report-email" className="bwx-report-title">
+              Whether our email arrived
+            </h2>
+
+            <p data-testid="bwx-report-email">
+              { null === reports.email_delivery.share ? (
+                'Nothing was sent in this window, so there is nothing to report.'
+              ) : (
+                <>
+                  <strong className="bwx-report-number">
+                    { share( reports.email_delivery.share ) }
+                  </strong>{ ' ' }
+                  of { reports.email_delivery.total } arrived.
+                  { 0 < reports.email_delivery.failed &&
+                    ` ${ reports.email_delivery.failed } failed.` }
+                </>
+              ) }
+            </p>
           </section>
         </div>
       ) }

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.71.0] - 2026-09-03
+
+### Added
+
+- Six more numbers on the reports screen: how full people are, how often we
+  went past our own rules, where clients hours went, which sites are still
+  getting live, what became of what clients asked for, and whether our email
+  arrived. Like the others, none of them is stored — each is the records
+  counted when you ask, so it cannot drift from what it is counting.
+
 ## [2.70.0] - 2026-09-03
 
 ### Added

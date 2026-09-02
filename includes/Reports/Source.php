@@ -9,9 +9,12 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Reports;
 
+use Blueworx\Forge\Capacity\Position;
 use Blueworx\Forge\Data\Schema;
+use Blueworx\Forge\Onboarding\Steps;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Users;
 
 /**
  * #176. The reading half: {@see Delivery} decides, this fetches.
@@ -57,7 +60,122 @@ final class Source {
 			return Delivery::compute( array(), array(), $from, $to );
 		}
 
-		return Delivery::compute( self::items( $site_ids ), self::events( $site_ids, $from, $to ), $from, $to );
+		$items  = self::items( $site_ids );
+		$events = self::events( $site_ids, $from, $to );
+
+		/*
+		 * #261. The operational six, merged into the same answer rather than
+		 * given a route of their own. One read, one scope check, one window —
+		 * two endpoints would mean two chances to get the tenant boundary
+		 * wrong, and a screen that has to reconcile two windows before it can
+		 * draw anything.
+		 */
+		return array_merge(
+			Delivery::compute( $items, $events, $from, $to ),
+			Operations::compute(
+				array(
+					'items'         => $items,
+					'events'        => $events,
+					'capacity'      => self::capacity( $from, $to ),
+					'ledger'        => self::ledger( $site_ids ),
+					'onboarding'    => Steps::for_sites( $site_ids ),
+					'submissions'   => self::submissions( $site_ids ),
+					'notifications' => self::notifications( $site_ids, $from, $to ),
+				)
+			)
+		);
+	}
+
+	/**
+	 * Everybody's position over the window.
+	 *
+	 * **Deliberately not scoped to the caller's reach**, and this is the one
+	 * read here that is not. A person cannot look free on one client while
+	 * committed on another, so the utilisation figure is only true across
+	 * tenants — the same reason Capacity\Commitments spans them. What is
+	 * reported is a total and a count, never whose time it is or which client
+	 * it is for, so nothing crosses the boundary that a figure could be traced
+	 * back through.
+	 *
+	 * @param int $from Window start, a timestamp.
+	 * @param int $to   Window end, a timestamp.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function capacity( int $from, int $to ): array {
+		$people = array_column( Users::all( 'active' ), 'id' );
+
+		if ( array() === $people ) {
+			return array();
+		}
+
+		return array_values(
+			Position::for_people( $people, gmdate( 'Y-m-d', $from ), gmdate( 'Y-m-d', $to ) )
+		);
+	}
+
+	/**
+	 * The hour ledger for the sites in reach, in one query.
+	 *
+	 * Every entry, not a window: what a client has been granted is usually
+	 * outside any window somebody is reporting on, and a "hours granted" figure
+	 * that only counted this quarter's allocations would be nonsense.
+	 *
+	 * @param array<int, string> $site_ids Sites in reach.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function ledger( array $site_ids ): array {
+		global $wpdb;
+
+		$table = Schema::hour_ledger_table();
+		$slots = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT event_type, hours FROM {$table} WHERE client_site_id IN ({$slots})", $site_ids ), ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * What clients have asked for, in one query.
+	 *
+	 * @param array<int, string> $site_ids Sites in reach.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function submissions( array $site_ids ): array {
+		global $wpdb;
+
+		$table = Schema::submissions_table();
+		$slots = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT type, intake_state FROM {$table} WHERE client_site_id IN ({$slots})", $site_ids ), ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * What became of the notifications raised in the window, in one query.
+	 *
+	 * Windowed, unlike the ledger: whether email is arriving is a question
+	 * about now, and a share dragged down by a broken week last year would keep
+	 * a screen red long after it was fixed.
+	 *
+	 * @param array<int, string> $site_ids Sites in reach.
+	 * @param int                $from     Window start, a timestamp.
+	 * @param int                $to       Window end, a timestamp.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function notifications( array $site_ids, int $from, int $to ): array {
+		global $wpdb;
+
+		$table  = Schema::notification_events_table();
+		$slots  = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
+		$values = array_merge( $site_ids, array( $from, $to ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT outcome FROM {$table} WHERE client_site_id IN ({$slots}) AND raised_at >= %d AND raised_at <= %d", $values ), ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
 	}
 
 	/**

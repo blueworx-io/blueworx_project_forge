@@ -552,6 +552,58 @@ export type Reports = {
   throughput: {
     weeks: Array< { from: number; to: number; released: number } >;
   };
+
+  /**
+   * The operational six (#261) — the numbers about running the studio rather
+   * than about delivering work. They arrive in the same answer as the delivery
+   * set because they are one read over one window: two endpoints would be two
+   * chances to get the tenant boundary wrong.
+   */
+  capacity_utilisation: {
+    people: number;
+    committed: number;
+    available: number;
+    /** Null when nobody has hours set up — not nought, and not one. */
+    share: number | null;
+    over: number;
+  };
+  overrides: {
+    workflow: number;
+    capacity: number;
+    /** Times, not items: one job pushed through three times is three decisions. */
+    occasions: number;
+    items: number;
+  };
+  hours: {
+    granted: number;
+    work_used: number;
+    meeting_used: number;
+    work_held: number;
+    meeting_held: number;
+    adjusted: number;
+    spent: number;
+    /** Committed and not yet spent. Deliberately not added to `spent`. */
+    held: number;
+  };
+  onboarding_readiness: {
+    sites: number;
+    ready: number;
+    not_ready: number;
+    median: number | null;
+  };
+  request_funnel: {
+    total: number;
+    states: Record< string, number >;
+    kinds: Record< string, number >;
+  };
+  email_delivery: {
+    total: number;
+    outcomes: Record< string, number >;
+    delivered: number;
+    failed: number;
+    /** Null when nothing was sent: a hundred per cent of nothing reassures wrongly. */
+    share: number | null;
+  };
 };
 
 export type ReportsResponse = {
