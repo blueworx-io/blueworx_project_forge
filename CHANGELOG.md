@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.57.0] - 2026-09-02
+
+### Added
+
+- Part-year package assignments work out to exactly the right hours. Real
+  calendar days rather than whole months, so February is however long it
+  actually was and a leap day counts; hours to the nearest half hour and price
+  by the same share, both rounded once at the end. The figure somebody is shown
+  before agreeing is the figure the hour record receives — one sum, done once,
+  carried forward. Upgrading mid-term credits what is left of the outgoing
+  package, worked out the same way the charge was.
+
 ## [2.56.0] - 2026-09-02
 
 ### Added
