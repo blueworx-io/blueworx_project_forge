@@ -179,10 +179,12 @@ final class CapacityGateTest extends TestCase {
 		$this->assertContains( 'G-UP-NEXT-8', array_column( $result['unmet'], 'id' ) );
 	}
 
-	public function test_support_hours_is_still_a_placeholder(): void {
+	public function test_support_hours_is_a_question_this_gate_does_not_answer(): void {
 		/*
-		 * M8 owns it. Until then it reports and refuses nothing, and #141 must
-		 * not have quietly made it real.
+		 * #150 made it real, and SupportHoursGateTest is where its rules are
+		 * argued. What matters here is that the two checks stayed independent:
+		 * a capacity context alone leaves the hours answer to whoever supplies
+		 * one, rather than #141 quietly deciding it from the room.
 		 */
 		$result = Gates::evaluate( 'G-UP-NEXT', $this->ready_item(), $this->records(), $this->room() );
 		$checks = array_column( $result['checks'], null, 'id' );
