@@ -60,6 +60,7 @@ final class SubmissionsController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
+
 				/*
 				 * A list, filtered by the callback. The filters themselves are
 				 * not declared here for the same reason the board's are not:

@@ -201,11 +201,12 @@ final class Patterns {
 		$table = Schema::availability_patterns_table();
 		$slots = implode( ', ', array_fill( 0, count( $user_ids ), '%s' ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the id placeholders are counted above.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the id placeholders are counted above.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare( "SELECT * FROM {$table} WHERE user_id IN ({$slots}) ORDER BY effective_from DESC, created_at DESC", array_values( $user_ids ) ),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			$user_id = (string) $row['user_id'];

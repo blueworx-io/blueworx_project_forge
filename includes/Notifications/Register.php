@@ -269,7 +269,7 @@ final class Register {
 
 		$table = Schema::notification_events_table();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; every value is prepared, and the counter is incremented in SQL so two sites reporting at once cannot skip a rung.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; every value is prepared, and the counter is incremented in SQL so two sites reporting at once cannot skip a rung.
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$table} SET attempts = attempts + 1, outcome = %s, next_attempt_at = %d, last_detail = %s, settled_at = %d WHERE id = %s",
@@ -280,6 +280,7 @@ final class Register {
 				$id
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return $outcome;
 	}
@@ -411,7 +412,7 @@ final class Register {
 		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
 		$args  = array_merge( $ids, array( self::RAISED, self::RETRYING ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder, and the id placeholders are built above from the ids themselves; every value is still prepared.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder, and the id placeholders are built above from the ids themselves; every value is still prepared.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, COUNT(*) AS waiting, MIN(raised_at) AS oldest FROM {$table} WHERE client_site_id IN ({$slots}) AND outcome IN ( %s, %s ) GROUP BY client_site_id", $args ), ARRAY_A );
 
 		$waiting = array();
@@ -458,7 +459,7 @@ final class Register {
 		 * ends the ladder — from here on it is on Standup and waiting for a
 		 * person, not for another attempt.
 		 */
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; every value is prepared.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; every value is prepared.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$table} WHERE client_site_id = %s AND ( outcome = %s OR ( outcome = %s AND next_attempt_at <= %d ) ) ORDER BY raised_at ASC, id ASC LIMIT %d",
@@ -470,6 +471,7 @@ final class Register {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
 	}
@@ -501,13 +503,13 @@ final class Register {
 	 */
 	private static function hydrate( array $row ): array {
 		return array(
-			'id'             => (string) $row['id'],
-			'event_kind'     => (string) ( $row['event_kind'] ?? '' ),
-			'subject_type'   => (string) ( $row['subject_type'] ?? '' ),
-			'subject_id'     => (string) ( $row['subject_id'] ?? '' ),
-			'client_id'      => (string) ( $row['client_id'] ?? '' ),
-			'client_site_id' => (string) ( $row['client_site_id'] ?? '' ),
-			'occurrence'     => (int) ( $row['occurrence'] ?? 1 ),
+			'id'              => (string) $row['id'],
+			'event_kind'      => (string) ( $row['event_kind'] ?? '' ),
+			'subject_type'    => (string) ( $row['subject_type'] ?? '' ),
+			'subject_id'      => (string) ( $row['subject_id'] ?? '' ),
+			'client_id'       => (string) ( $row['client_id'] ?? '' ),
+			'client_site_id'  => (string) ( $row['client_site_id'] ?? '' ),
+			'occurrence'      => (int) ( $row['occurrence'] ?? 1 ),
 			'outcome'         => (string) ( $row['outcome'] ?? self::RAISED ),
 			'attempts'        => (int) ( $row['attempts'] ?? 0 ),
 			'next_attempt_at' => (int) ( $row['next_attempt_at'] ?? 0 ),

@@ -103,7 +103,7 @@ final class PackageActions {
 		self::require_admin();
 		check_admin_referer( 'bwx_forge_reorder_packages' );
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- checked immediately above.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- the nonce is checked immediately above, and every id and place is sanitised in the loop below, which the sniff cannot follow.
 		$submitted = isset( $_POST['order'] ) && is_array( $_POST['order'] ) ? wp_unslash( $_POST['order'] ) : array();
 		$wanted    = array();
 

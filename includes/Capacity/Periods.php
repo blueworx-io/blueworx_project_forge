@@ -43,8 +43,9 @@ final class Periods {
 
 		$weeks = array();
 		$start = $from;
+		$made  = 0;
 
-		while ( $start <= $to && count( $weeks ) < self::MAX_WEEKS ) {
+		while ( $start <= $to && $made < self::MAX_WEEKS ) {
 			$end = self::sunday_of( $start );
 
 			$weeks[] = array(
@@ -53,6 +54,7 @@ final class Periods {
 			);
 
 			$start = self::next_day( $end );
+			++$made;
 		}
 
 		return $weeks;

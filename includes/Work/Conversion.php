@@ -212,14 +212,14 @@ final class Conversion {
 	 *
 	 * @param array<string, mixed>      $submission The request being converted.
 	 * @param array<string, mixed>      $asked      Already through read().
-	 * @param array<string, mixed>|null $parent     The proposed parent, if one
+	 * @param array<string, mixed>|null $proposed   The proposed parent, if one
 	 *                                              was named and found.
 	 * @param array<string, mixed>|null $target     The work being linked, if one
 	 *                                              was named and found.
 	 * @return string One of the codes above; ALLOWED when there is nothing to
 	 *                refuse.
 	 */
-	public static function refuse( array $submission, array $asked, ?array $parent = null, ?array $target = null ): string {
+	public static function refuse( array $submission, array $asked, ?array $proposed = null, ?array $target = null ): string {
 		if ( '' !== (string) ( $submission['converted_item_id'] ?? '' ) ) {
 			return self::ALREADY_CONVERTED;
 		}
@@ -249,7 +249,7 @@ final class Conversion {
 			return self::refuse_record( $target, $site, self::UNKNOWN_TARGET );
 		}
 
-		return self::refuse_parent( $asked, $parent, $site );
+		return self::refuse_parent( $asked, $proposed, $site );
 	}
 
 	/**
@@ -365,11 +365,11 @@ final class Conversion {
 	 * not a missing field.
 	 *
 	 * @param array<string, mixed>      $asked  Already through read().
-	 * @param array<string, mixed>|null $parent The proposed parent, if found.
+	 * @param array<string, mixed>|null $proposed The proposed parent, if found.
 	 * @param string                    $site   The submission's own site.
 	 * @return string
 	 */
-	private static function refuse_parent( array $asked, ?array $parent, string $site ): string {
+	private static function refuse_parent( array $asked, ?array $proposed, string $site ): string {
 		$named   = (string) $asked['parent_id'];
 		$creates = self::creates_parent( $asked );
 
@@ -391,13 +391,13 @@ final class Conversion {
 			return self::ALLOWED;
 		}
 
-		$refusal = self::refuse_record( $parent, $site, self::UNKNOWN_PARENT );
+		$refusal = self::refuse_record( $proposed, $site, self::UNKNOWN_PARENT );
 
 		if ( self::ALLOWED !== $refusal ) {
 			return $refusal;
 		}
 
-		return Levels::may_parent( (string) ( $parent['level'] ?? '' ), self::LEVEL )
+		return Levels::may_parent( (string) ( $proposed['level'] ?? '' ), self::LEVEL )
 			? self::ALLOWED
 			: self::BAD_PARENT_LEVEL;
 	}

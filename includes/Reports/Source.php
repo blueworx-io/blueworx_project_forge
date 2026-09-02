@@ -85,7 +85,7 @@ final class Source {
 		$table        = Schema::work_items_table();
 		$placeholders = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own table, and the table name cannot be a placeholder; the site placeholders are built above from the values themselves and every value is still prepared.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT id, stage, planned_due, title FROM {$table} WHERE client_site_id IN ({$placeholders}) AND archived = '0'",
@@ -93,7 +93,7 @@ final class Source {
 			),
 			ARRAY_A
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		return is_array( $rows ) ? $rows : array();
 	}

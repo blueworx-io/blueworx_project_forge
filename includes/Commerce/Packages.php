@@ -187,7 +187,7 @@ final class Packages {
 
 		$now     = bwx_forge_now();
 		$changes = array(
-			'status' => $status,
+			'status'         => $status,
 
 			// When it came off the shelf, kept so "how long has nobody been
 			// able to buy this" is answerable. Cleared on the way back, so it

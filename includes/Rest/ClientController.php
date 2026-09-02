@@ -732,16 +732,16 @@ final class ClientController {
 
 		return rest_ensure_response(
 			array(
-				'ok'        => true,
-				'generated' => bwx_forge_now(),
-				'record'    => array(
+				'ok'           => true,
+				'generated'    => bwx_forge_now(),
+				'record'       => array(
 					'site_id'         => $site_id,
 					'name'            => $site['name'] ?? '',
 					'url'             => $site['url'] ?? '',
 					'status'          => $site['status'] ?? '',
 					'connected_since' => (int) ( $site['created_at'] ?? 0 ),
 				),
-				'contact'   => self::contact_for( $site_id ),
+				'contact'      => self::contact_for( $site_id ),
 
 				/*
 				 * Carried here rather than fetched separately (#140). Every

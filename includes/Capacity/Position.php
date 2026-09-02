@@ -153,10 +153,10 @@ final class Position {
 	 * the cost is. Everything is read once for the whole range and every cell
 	 * is a sum over what is already in memory.
 	 *
-	 * @param array<int, string>                        $user_ids The people.
+	 * @param array<int, string>                          $user_ids The people.
 	 * @param array<int, array{from: string, to: string}> $weeks  The columns.
-	 * @param string                                    $from     YYYY-MM-DD, inclusive.
-	 * @param string                                    $to       YYYY-MM-DD, inclusive.
+	 * @param string                                      $from     YYYY-MM-DD, inclusive.
+	 * @param string                                      $to       YYYY-MM-DD, inclusive.
 	 * @return array<string, array{weeks: array<int, array<string, mixed>>, total: array<string, mixed>}>
 	 */
 	public static function grid( array $user_ids, array $weeks, string $from, string $to ): array {
