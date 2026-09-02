@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 21, $definitions );
+		$this->assertCount( 23, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -84,6 +84,16 @@ final class SchemaTest extends TestCase {
 			 * would suggest an edit somebody could lose, and there is none.
 			 */
 			Schema::notification_events_table(),
+
+			/*
+			 * A package version (#145) is the strongest case of the lot. It is
+			 * the terms a client was sold, frozen at the moment they were sold
+			 * them, and COMM-1 is the rule the whole commercial record rests
+			 * on: editing a package appends the next version and leaves this
+			 * row exactly as it is. A record_version would say a write might
+			 * come, and none may.
+			 */
+			Schema::package_versions_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
@@ -113,6 +123,31 @@ final class SchemaTest extends TestCase {
 		$this->assertStringNotContainsString( 'record_version', $events );
 		$this->assertStringNotContainsString( 'updated_at', $events );
 		$this->assertStringContainsString( 'occurred_at', $events );
+	}
+
+	/**
+	 * A package version is frozen the moment it exists (#145, COMM-1).
+	 *
+	 * The catalogue row next to it is freely editable and carries everything an
+	 * edit needs; this one carries no version and no updated_at, because a
+	 * column suggesting it could be written twice is an invitation to rewrite
+	 * what a client was sold. The pair is the feature.
+	 */
+	public function test_a_package_version_cannot_be_edited(): void {
+		$version = Schema::definitions()[ Schema::package_versions_table() ];
+
+		$this->assertStringNotContainsString( 'record_version', $version );
+		$this->assertStringNotContainsString( 'updated_at', $version );
+
+		// One row per package per number, enforced by the index rather than by
+		// whoever calls: two rows claiming to be version 3 would leave "which
+		// terms is this client on" with two answers.
+		$this->assertStringContainsString( 'UNIQUE KEY package_version (package_id, version)', $version );
+
+		$catalogue = Schema::definitions()[ Schema::packages_table() ];
+
+		$this->assertStringContainsString( 'record_version', $catalogue );
+		$this->assertStringContainsString( 'updated_at', $catalogue );
 	}
 
 	/**

@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 16;
+	public const VERSION = 17;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -258,6 +258,28 @@ final class Schema {
 	}
 
 	/**
+	 * The support package catalogue table's full name.
+	 *
+	 * @return string
+	 */
+	public static function packages_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_packages';
+	}
+
+	/**
+	 * The package versions table's full name.
+	 *
+	 * @return string
+	 */
+	public static function package_versions_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_package_versions';
+	}
+
+	/**
 	 * The notification events table's full name.
 	 *
 	 * @return string
@@ -315,6 +337,9 @@ final class Schema {
 		$evidence        = self::onboarding_evidence_table();
 
 		$notifications = self::notification_events_table();
+
+		$packages         = self::packages_table();
+		$package_versions = self::package_versions_table();
 
 		return array(
 			$clients         => "CREATE TABLE {$clients} (
@@ -959,6 +984,68 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY step_site (step_id, client_site_id),
 	KEY site_time (client_site_id, uploaded_at)
+) {$collate};",
+
+			/*
+			 * #145. A package as it stands today: what it is called, whether it
+			 * is still on offer, and where it sits in the list.
+			 *
+			 * Deliberately thin. Everything a client is actually sold — hours,
+			 * price, how long it runs, the terms — lives on the version below,
+			 * and nothing on this row is ever quoted back to a client. That
+			 * split is the whole feature: this row can be edited freely because
+			 * editing it cannot change anybody's terms.
+			 *
+			 * Global rather than per client, like the onboarding template. A
+			 * package is the studio's; every site is offered the same ones.
+			 */
+			$packages         => "CREATE TABLE {$packages} (
+	id varchar(32) NOT NULL,
+	name varchar(191) NOT NULL DEFAULT '',
+	status varchar(20) NOT NULL DEFAULT 'active',
+	position smallint(5) unsigned NOT NULL DEFAULT 0,
+	retired_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY status_position (status, position)
+) {$collate};",
+
+			/*
+			 * #145, COMM-1. What a package *was*, frozen.
+			 *
+			 * Written once and never touched again. There is no updated_at and
+			 * no record_version, and their absence is the point: an optimistic
+			 * lock is for a row two people might write at once, and nothing may
+			 * write this row twice. Editing a package appends the next version;
+			 * an assignment points at whichever version was current when it was
+			 * made, so a catalogue edit next year cannot rewrite what somebody
+			 * bought last year.
+			 *
+			 * The name is copied in rather than left on the catalogue row for
+			 * exactly that reason. Renaming "Standard" to "Essentials" must not
+			 * change what a client's own paperwork says they are on.
+			 *
+			 * Price is whole currency units, per COMM-2's rounding: there are no
+			 * fractional prices to store, and an integer cannot drift the way a
+			 * float quietly does when a year of them are added up.
+			 */
+			$package_versions => "CREATE TABLE {$package_versions} (
+	id varchar(32) NOT NULL,
+	package_id varchar(32) NOT NULL,
+	version smallint(5) unsigned NOT NULL DEFAULT 1,
+	name varchar(191) NOT NULL DEFAULT '',
+	hours decimal(8,2) NOT NULL DEFAULT 0,
+	price int(11) unsigned NOT NULL DEFAULT 0,
+	currency varchar(3) NOT NULL DEFAULT 'GBP',
+	validity_months smallint(5) unsigned NOT NULL DEFAULT 12,
+	terms text NOT NULL,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY package_version (package_id, version)
 ) {$collate};",
 
 			$notifications   => "CREATE TABLE {$notifications} (

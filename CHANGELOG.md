@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.55.0] - 2026-09-01
+
+### Added
+
+- The support packages you sell, set up in one place, with a rule the screen
+  makes plain: editing a package writes a new version and leaves every earlier
+  one exactly as it was. A client stays on the terms they were given, whatever
+  the price does afterwards. Every version a package has ever had is listed
+  underneath it. A save that changes nothing writes nothing, and retiring a
+  package stops it being sold without touching anybody already on it.
+
 ## [2.54.1] - 2026-09-01
 
 ### Fixed
