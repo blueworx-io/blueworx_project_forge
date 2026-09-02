@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.69.0] - 2026-09-03
+
+### Added
+
+- The hour record is now checked against itself, and a disagreement fails the
+  build rather than waiting to be found in an invoice query. The balance the
+  studio shows and the one the client shows are compared at every step of a
+  piece of work, and the entries behind each job have to hold together on
+  their own — hours released twice, charged twice, or quietly handed back are
+  each caught by name.
+- Every hour entry now says what it was against, so a line on the ledger reads
+  as the piece of work it came from rather than as a bare number.
+
 ## [2.68.0] - 2026-09-03
 
 ### Added
