@@ -584,6 +584,19 @@ body {
   color: var( --color-steel );
 }
 
+/*
+ * How many hours short, in the same indented place under its own requirement.
+ * Deliberately the same treatment as .bwx-over rather than a louder one: they
+ * are two details of the same refusal, and giving the money one more weight
+ * would say the client's package is the real problem when either might be.
+ */
+.bwx-short {
+  margin: 6px 0 0;
+  padding: 0 0 0 10px;
+  border-left: 1px solid var( --color-chalk );
+  color: var( --color-steel );
+}
+
 .bwx-overrun {
   margin-top: 10px;
   display: flex;

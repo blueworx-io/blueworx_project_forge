@@ -104,6 +104,33 @@ final class WorkLedger {
 	}
 
 	/**
+	 * The support-hours answer for one item, for the gate at Up Next (#150).
+	 *
+	 * The three readings {@see HoursGate} needs and cannot take for itself: what
+	 * the site is entitled to today, what it has left, and what this item is
+	 * already holding of that.
+	 *
+	 * @param array<string, mixed> $item The work, as read.
+	 * @return array<string, mixed>
+	 */
+	public static function gate( array $item ): array {
+		// Work that costs nothing has its answer already, and the three reads
+		// below are per item on a screen that draws many of them.
+		if ( ! HoursGate::chargeable( $item ) ) {
+			return HoursGate::free();
+		}
+
+		$site = (string) ( $item['client_site_id'] ?? '' );
+
+		return HoursGate::assess(
+			$item,
+			Assignments::entitlement_on( $site, gmdate( 'Y-m-d' ) ),
+			Ledger::balance( $site ),
+			(float) self::position( (string) ( $item['id'] ?? '' ) )['reserved']
+		);
+	}
+
+	/**
 	 * One item's ledger entries.
 	 *
 	 * @param string $item_id The item.

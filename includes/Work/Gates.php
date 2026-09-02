@@ -168,7 +168,7 @@ final class Gates {
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
 				self::record( 'G-UP-NEXT-7', 'Dependencies confirmed', 'reference', 'Confirm the dependencies.' ),
 				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of the planned dates, unless the over-allocation is given a reason.' ),
-				self::deferred( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The support-hours ledger arrives with COMM-3; until it does this reports as passed.' ),
+				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
 			'G-IN-DEVELOPMENT'  => array(
 				self::record( 'G-IN-DEVELOPMENT-1', 'Requirements confirmed implemented', 'checklist', 'Confirm each documented requirement is implemented.', self::PU ),
@@ -350,6 +350,16 @@ final class Gates {
 					$failure['over'] = array_values( (array) ( $capacity['over'] ?? array() ) );
 				}
 
+				if ( 'support_hours' === (string) $requirement['check'] ) {
+					/*
+					 * The figures, for the same reason: "not enough hours" is
+					 * not something anybody can act on. Whether it is four
+					 * hours short or a lapsed package decides whether this is a
+					 * top-up to sell or a renewal to chase.
+					 */
+					$failure['hours'] = (array) ( $context['support_hours'] ?? array() );
+				}
+
 				$unmet[] = $failure;
 				continue;
 			}
@@ -465,6 +475,25 @@ final class Gates {
 				}
 
 				return '' !== trim( (string) ( $capacity['reason'] ?? '' ) );
+
+			case 'support_hours':
+				/*
+				 * COMM-3 (#150). Worked out by Commerce\HoursGate and handed in
+				 * through the context, exactly as capacity is, so this class
+				 * stays free of the database.
+				 *
+				 * Deliberately *not* reading the capacity reason. The two
+				 * checks are separate questions with separate answers, and a
+				 * reason given about our own people's week is not a decision
+				 * anybody made about the client's money.
+				 *
+				 * Absent context passes. A gate evaluated without it is being
+				 * asked about something else — the caller that means this
+				 * question always supplies the answer.
+				 */
+				$hours = (array) ( $context['support_hours'] ?? array() );
+
+				return ! array_key_exists( 'sufficient', $hours ) || (bool) $hours['sufficient'];
 
 			case 'prior_stage':
 			case 'blocked_elapsed':
@@ -608,11 +637,12 @@ final class Gates {
 	/**
 	 * A system check whose subject is not built yet.
 	 *
-	 * It is here rather than absent on purpose. The specification says both the
-	 * capacity and support-hours results are always reported, so they exist in
-	 * the response from the first day and gain teeth when CAP-4 and COMM-3
-	 * arrive — rather than being remembered and added later, which is how a
-	 * requirement goes missing.
+	 * It is here rather than absent on purpose. A requirement whose subject is
+	 * not built yet is in the response from the first day and gains teeth when
+	 * its subject lands, rather than being remembered and added later, which is
+	 * how a requirement goes missing. Both of the checks at Up Next were
+	 * declared this way and both have since become real — capacity with CAP-4
+	 * (#141) and support hours with COMM-3 (#150).
 	 *
 	 * @param string $id    Requirement id.
 	 * @param string $label How it reads.

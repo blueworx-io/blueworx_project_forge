@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.60.0] - 2026-09-02
+
+### Added
+
+- Whether a client has the hours is now asked separately from whether anybody
+  has the time, and both answers come back together. Work is refused if the
+  site is short — and told by how many hours — or if its package has lapsed or
+  was never bought, even though a lapsed client's hours are still sitting
+  there. Free bugs are exempt. Agreeing to over-book a week no longer quietly
+  authorises spending a client's hours as well; they are two decisions and
+  they stay two decisions.
+
 ## [2.59.0] - 2026-09-02
 
 ### Added

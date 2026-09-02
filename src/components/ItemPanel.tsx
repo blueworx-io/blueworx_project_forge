@@ -385,6 +385,15 @@ export function ItemPanel( {
                       ) ) }
                     </ul>
                   ) }
+                  { requirement.hours && ! requirement.hours.sufficient && (
+                    <p className="bwx-short" data-testid="bwx-short" data-because={ requirement.hours.because }>
+                      { 'no_package' === requirement.hours.because
+                        ? 'This site cannot draw on support hours yet.'
+                        : `${ hours( requirement.hours.shortfall ) } hours short of the ${ hours(
+                            requirement.hours.needed
+                          ) } this work needs.` }
+                    </p>
+                  ) }
                 </li>
               ) ) }
             </ul>

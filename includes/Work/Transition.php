@@ -765,8 +765,18 @@ final class Transition {
 		 * and the answer cannot differ between them — it is the same item over
 		 * the same weeks.
 		 */
-		if ( self::asks_about_capacity( $gates ) ) {
+		if ( self::asks_about( $gates, 'capacity' ) ) {
 			$context['capacity']['over'] = Impact::of( $item )['over'];
+		}
+
+		/*
+		 * #150. The second question, read separately and answered separately.
+		 * Both are always in the context by the time the gates run, so a gate
+		 * that fails one still reports the other — which is the whole point of
+		 * this one and the reason it is not folded into the capacity result.
+		 */
+		if ( self::asks_about( $gates, 'support_hours' ) ) {
+			$context['support_hours'] = WorkLedger::gate( $item );
 		}
 
 		foreach ( $gates as $gate ) {
@@ -782,19 +792,23 @@ final class Transition {
 	}
 
 	/**
-	 * Whether any gate in this move runs the capacity check.
+	 * Whether any gate in this move runs a given system check.
 	 *
-	 * Asked before the reading rather than after. Impact::of() is two queries
-	 * across every client, and most moves in the workflow have nothing to do
-	 * with capacity.
+	 * Asked before the reading rather than after. Both of the checks this
+	 * guards are several queries — Impact::of() reads across every client, and
+	 * the hours answer reads a site's whole ledger — and most moves in the
+	 * workflow have nothing to do with either.
 	 *
 	 * @param array<int, string> $gates Gate names.
+	 * @param string             $check Which system check.
 	 * @return bool
 	 */
-	private static function asks_about_capacity( array $gates ): bool {
+	private static function asks_about( array $gates, string $check ): bool {
 		foreach ( $gates as $gate ) {
 			foreach ( Gates::requirements( $gate ) as $requirement ) {
-				if ( 'capacity' === (string) ( $requirement['check'] ?? '' ) ) {
+				$asks = (string) ( $requirement['check'] ?? '' );
+
+				if ( $asks === $check ) {
 					return true;
 				}
 			}

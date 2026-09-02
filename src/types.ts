@@ -274,6 +274,24 @@ export interface Requirement {
    * somebody to go looking for the person it meant.
    */
   over?: OverBooked[];
+  /**
+   * What the support-hours check found: how many hours the work needs, how many
+   * the site could draw on, and why it was refused. Only the support-hours
+   * requirement carries it, and it is separate from `over` on purpose — the two
+   * fail for different reasons and are fixed by different people.
+   */
+  hours?: SupportHours;
+}
+
+/** Why a site cannot pay for a piece of work as planned. */
+export interface SupportHours {
+  needed: number;
+  held: number;
+  available: number;
+  shortfall: number;
+  state: string;
+  because: '' | 'not_enough' | 'no_package';
+  sufficient: boolean;
 }
 
 /** A check the system runs for itself, always reported either way. */
