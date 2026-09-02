@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.59.0] - 2026-09-02
+
+### Added
+
+- Hours now move on their own. Planning a piece of work sets its hours aside,
+  starting it spends them, and stopping it hands back whatever had not been
+  spent — including the paths nobody thinks about, like work sent back down the
+  board or cancelled while it was blocked. Changing the plan writes the
+  difference rather than the new total, so the record still adds up. Free bugs
+  never touch a client's hours, and work a site has not got the hours for does
+  not move at all rather than moving and leaving the sums short.
+
 ## [2.58.0] - 2026-09-02
 
 ### Added

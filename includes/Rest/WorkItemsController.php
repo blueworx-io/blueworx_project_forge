@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Commerce\Ledger;
+use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
@@ -932,6 +934,8 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function update( WP_REST_Request $request ) {
+		global $wpdb;
+
 		$item = Items::get( (string) $request['item_id'] );
 
 		if ( null === $item ) {
@@ -972,9 +976,22 @@ final class WorkItemsController {
 			}
 		}
 
+		/*
+		 * #149. The planned hours are what the ledger reserves, so an edit that
+		 * changes them moves hours — and has to move them in the same
+		 * transaction as the edit, exactly as a stage change does. Outside it,
+		 * an item saying twenty hours and a ledger holding thirteen is a
+		 * disagreement nothing afterwards would notice.
+		 */
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'START TRANSACTION' );
+
 		$updated = Items::update( $item['id'], $checked['values'], (int) $sent );
 
 		if ( null === $updated ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+			$wpdb->query( 'ROLLBACK' );
+
 			$current = Items::get( $item['id'] );
 
 			$mismatch = Versioning::check(
@@ -1000,6 +1017,21 @@ final class WorkItemsController {
 		foreach ( Changelog::for_edit( $item, $checked['values'], self::change_context( $request ) ) as $entry ) {
 			Events::append( $entry );
 		}
+
+		if ( ! WorkLedger::reconcile( $updated, get_current_user_id() ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+			$wpdb->query( 'ROLLBACK' );
+
+			return Errors::rest(
+				'hours_not_available',
+				__( 'That change needs more support hours than the site has left.', 'blueworx-forge' ),
+				409,
+				array( 'balance' => Ledger::balance( (string) $item['client_site_id'] ) )
+			);
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'COMMIT' );
 
 		return rest_ensure_response(
 			array(

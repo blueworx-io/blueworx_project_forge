@@ -107,6 +107,11 @@ test.describe('the capacity acceptance criteria', () => {
       const reviewer = await Forge.makePerson(pair.studio, where.clientId, 'staff', `rev${STAMP}`);
       const deliverer = await Forge.makePerson(pair.studio, where.clientId, 'staff', `del${STAMP}`);
 
+      // #149. Chargeable work reserves its hours the moment it is planned, and
+      // the ledger will not take a site below nought — so a site with no package
+      // cannot plan work at all, whatever the spec is really about.
+      await Forge.onSupport(pair.studio, where.siteId, 400);
+
       const item = await makeItem(pair.studio, where.siteId, { title: `Capacity work ${RUN}` });
 
       await Forge.walkTo(pair.studio, item, TO_UP_NEXT, {
@@ -159,6 +164,11 @@ test.describe('the capacity acceptance criteria', () => {
     const page = await pair.studio.context.newPage();
     await setHoursThroughTheScreen(page, `over${STAMP}`, 8);
     await page.close();
+
+    // #149. Chargeable work reserves its hours the moment it is planned, and
+    // the ledger will not take a site below nought — so a site with no package
+    // cannot plan work at all, whatever the spec is really about.
+    await Forge.onSupport(pair.studio, pair.site.id, 600);
 
     const item = await makeItem(pair.studio, pair.site.id, { title: `Too much work ${RUN}` });
 
