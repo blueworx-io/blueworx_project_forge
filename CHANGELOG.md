@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.58.0] - 2026-09-02
+
+### Added
+
+- A site's commercial position, and every hour behind it, on one screen. Put a
+  site on a package, suspend it, put it back, cancel it — each written as a
+  dated period, so what a client was entitled to on any past date is a matter
+  of looking rather than working out. Assigning grants the hours through the
+  hour record, which is now visible with the reason on every entry; and a
+  part-year assignment grants the pro-rated figure rather than a full year.
+  Suspending and cancelling leave the remaining hours alone: hours a client
+  paid for are theirs, and writing them off is a separate decision with a
+  reason on it.
+
 ## [2.57.0] - 2026-09-02
 
 ### Added
