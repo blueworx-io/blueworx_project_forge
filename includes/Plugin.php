@@ -50,6 +50,9 @@ final class Plugin {
 		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Admin\SitesScreen::class, 'enqueue' ) );
 
+		// The board lives on the front end, so the admin menu needs a door to it.
+		Admin\BoardLink::boot();
+
 		Admin\SiteActions::boot();
 
 		add_action( 'admin_menu', array( Admin\ClientsScreen::class, 'register' ) );
