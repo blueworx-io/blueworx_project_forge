@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Parent Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     2.72.0
+ * Version:     2.73.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_VERSION', '2.72.0' );
+define( 'BWX_FORGE_VERSION', '2.73.0' );
 define( 'BWX_FORGE_SLUG', 'blueworx-forge' );
 define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );
@@ -73,5 +73,21 @@ if ( '' !== $bwx_forge_update_token ) {
  * Install the zip attached to the Release, not GitHub's auto-generated source
  * tarball, whose folder is named <repo>-<version> — WordPress would treat that
  * as a different plugin, and it ships every dev file in the repo.
+ *
+ * **Named, because every Release carries two zips.** One repo publishes both
+ * the studio plugin and the client one, and with no filter the checker takes
+ * whichever asset GitHub happens to list first — so a site could be offered
+ * the other plugin under this one's name and install it over itself. The
+ * pattern matches this artifact and cannot match the client's, whose name
+ * carries "client-" before the version.
+ *
+ * Required rather than preferred: if the named asset is missing from a
+ * Release, no update is offered at all. The alternative is falling back to the
+ * source tarball, which is the failure described above.
  */
-$bwx_forge_update_checker->getVcsApi()->enableReleaseAssets();
+$bwx_forge_update_api = $bwx_forge_update_checker->getVcsApi();
+
+$bwx_forge_update_api->enableReleaseAssets(
+	'/^blueworx-forge-\d+\.\d+\.\d+\.zip$/',
+	$bwx_forge_update_api::REQUIRE_RELEASE_ASSETS
+);
