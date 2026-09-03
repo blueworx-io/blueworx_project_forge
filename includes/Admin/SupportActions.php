@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Admin;
 use Blueworx\Forge\Commerce\Assignments;
 use Blueworx\Forge\Commerce\Packages;
 use Blueworx\Forge\Commerce\ProRata;
+use Blueworx\Forge\Commerce\Sales;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Tenancy\ClientSites;
 
@@ -38,6 +39,8 @@ final class SupportActions {
 		add_action( 'admin_post_bwx_forge_suspend_support', array( self::class, 'suspend' ) );
 		add_action( 'admin_post_bwx_forge_resume_support', array( self::class, 'resume' ) );
 		add_action( 'admin_post_bwx_forge_cancel_support', array( self::class, 'cancel' ) );
+		add_action( 'admin_post_bwx_forge_top_up', array( self::class, 'top_up' ) );
+		add_action( 'admin_post_bwx_forge_adjust', array( self::class, 'adjust' ) );
 	}
 
 	/**
@@ -154,6 +157,53 @@ final class SupportActions {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You cannot change a site\'s support package.', 'blueworx-forge' ), '', array( 'response' => 403 ) );
 		}
+	}
+
+	/**
+	 * Sells a site more hours (#157).
+	 */
+	public static function top_up(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_top_up' );
+
+		$site_id = self::text( 'site' );
+
+		if ( null === ClientSites::get( $site_id ) ) {
+			self::back( $site_id, 'unknown' );
+		}
+
+		$added = Sales::top_up( $site_id, (float) self::text( 'hours' ), self::text( 'reason' ), get_current_user_id() );
+
+		self::back( $site_id, null === $added ? 'refused' : 'topped-up' );
+	}
+
+	/**
+	 * Corrects a balance by hand, for a stated reason (#157).
+	 */
+	public static function adjust(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_adjust' );
+
+		$site_id = self::text( 'site' );
+		$reason  = self::text( 'reason' );
+
+		if ( null === ClientSites::get( $site_id ) ) {
+			self::back( $site_id, 'unknown' );
+		}
+
+		/*
+		 * Refused here as well as in the ledger, so the person gets a sentence
+		 * about the reason rather than a flat "that could not be done". The
+		 * ledger is still the thing that enforces it — this is the message, not
+		 * the rule.
+		 */
+		if ( '' === $reason ) {
+			self::back( $site_id, 'no-reason' );
+		}
+
+		$made = Sales::adjust( $site_id, (float) self::text( 'hours' ), $reason, get_current_user_id() );
+
+		self::back( $site_id, null === $made ? 'refused' : 'adjusted' );
 	}
 
 	/**

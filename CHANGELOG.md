@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.67.0] - 2026-09-03
+
+### Added
+
+- Sell a client more hours, or correct their balance by hand. A correction
+  will not go through without a reason, and the reason is shown on the same
+  screen the client's balance is queried from — a number nobody can account
+  for is the one thing the hour record cannot survive.
+- A Sales screen listing every client who needs something doing about their
+  package: never bought one, let one lapse, running out of hours, or running
+  out of term. Four different conversations, kept apart, because they are four
+  different jobs. A site drops off the list when it no longer needs anything.
+
 ## [2.66.0] - 2026-09-02
 
 ### Added

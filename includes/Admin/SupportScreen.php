@@ -102,6 +102,7 @@ final class SupportScreen {
 		self::position( $site );
 		self::history( $site );
 		self::hours( $site );
+		self::sales_forms( $site );
 		self::assign_form( $site );
 
 		echo '</div>';
@@ -120,6 +121,9 @@ final class SupportScreen {
 			'assigned'  => array( 'success', __( 'Assigned. The hours are on the ledger below.', 'blueworx-forge' ) ),
 			'suspended' => array( 'success', __( 'Suspended. The remaining hours are untouched.', 'blueworx-forge' ) ),
 			'resumed'   => array( 'success', __( 'Back on support.', 'blueworx-forge' ) ),
+			'topped-up' => array( 'success', __( 'Hours added. They last twelve months.', 'blueworx-forge' ) ),
+			'adjusted'  => array( 'success', __( 'Adjusted. The reason is on the entry.', 'blueworx-forge' ) ),
+			'no-reason' => array( 'error', __( 'An adjustment needs a reason. It is what the client is shown.', 'blueworx-forge' ) ),
 			'cancelled' => array( 'success', __( 'Cancelled. The remaining hours are untouched — write them off with an adjustment if that is what was agreed.', 'blueworx-forge' ) ),
 			'refused'   => array( 'error', __( 'That could not be done. Check the package and the date.', 'blueworx-forge' ) ),
 			'unknown'   => array( 'error', __( 'There is no such site.', 'blueworx-forge' ) ),
@@ -344,6 +348,45 @@ final class SupportScreen {
 		}
 
 		echo '</tbody></table>';
+	}
+
+	/**
+	 * Selling more hours, and correcting the record (#157).
+	 *
+	 * Two forms rather than one, because they are two different things and the
+	 * ledger has to be able to tell them apart afterwards. A top-up is hours
+	 * somebody bought, with an expiry of their own; an adjustment is a decision
+	 * with a reason, going either way. A write-off entered as a negative top-up
+	 * would still add up and would no longer say what happened.
+	 *
+	 * @param array<string, mixed> $site The site.
+	 */
+	private static function sales_forms( array $site ): void {
+		echo '<h3>' . esc_html__( 'Sell more hours', 'blueworx-forge' ) . '</h3>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_top_up' );
+		echo '<input type="hidden" name="action" value="bwx_forge_top_up">';
+		echo '<input type="hidden" name="site" value="' . esc_attr( (string) $site['id'] ) . '">';
+		echo '<label for="bwx-top-up-hours" class="screen-reader-text">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</label>';
+		echo '<input type="number" step="0.25" min="0.25" id="bwx-top-up-hours" name="hours" placeholder="' . esc_attr__( 'Hours', 'blueworx-forge' ) . '" required> ';
+		echo '<label for="bwx-top-up-note" class="screen-reader-text">' . esc_html__( 'What was bought', 'blueworx-forge' ) . '</label>';
+		echo '<input type="text" class="regular-text" id="bwx-top-up-note" name="reason" placeholder="' . esc_attr__( 'What was bought', 'blueworx-forge' ) . '"> ';
+		submit_button( __( 'Add hours', 'blueworx-forge' ), 'secondary', 'bwx-top-up', false );
+		echo '<p class="description">' . esc_html__( 'Bought hours last twelve months from today, and are used after the package\'s own (COMM-4).', 'blueworx-forge' ) . '</p>';
+		echo '</form>';
+
+		echo '<h3>' . esc_html__( 'Correct the record', 'blueworx-forge' ) . '</h3>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_adjust' );
+		echo '<input type="hidden" name="action" value="bwx_forge_adjust">';
+		echo '<input type="hidden" name="site" value="' . esc_attr( (string) $site['id'] ) . '">';
+		echo '<label for="bwx-adjust-hours" class="screen-reader-text">' . esc_html__( 'Hours, negative to take away', 'blueworx-forge' ) . '</label>';
+		echo '<input type="number" step="0.25" id="bwx-adjust-hours" name="hours" placeholder="' . esc_attr__( '± hours', 'blueworx-forge' ) . '" required> ';
+		echo '<label for="bwx-adjust-reason" class="screen-reader-text">' . esc_html__( 'Reason', 'blueworx-forge' ) . '</label>';
+		echo '<input type="text" class="regular-text" id="bwx-adjust-reason" name="reason" placeholder="' . esc_attr__( 'Why — required', 'blueworx-forge' ) . '" required> ';
+		submit_button( __( 'Adjust', 'blueworx-forge' ), 'secondary', 'bwx-adjust', false );
+		echo '<p class="description">' . esc_html__( 'The reason is not optional: it is what the client is shown, and what anybody asking six months later has to go on.', 'blueworx-forge' ) . '</p>';
+		echo '</form>';
 	}
 
 	/**
