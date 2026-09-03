@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.66.0] - 2026-09-02
+
+### Added
+
+- A screen for a client's standing meetings: set one up, see the next twelve
+  weeks, move a single meeting without disturbing the rest, and say whether
+  each one was held, cancelled or missed. Hours settle as you look, so the
+  balance on screen is the balance the client has.
+
+### Fixed
+
+- Ending a standing meeting now gives back the hours its future meetings were
+  holding. They stayed committed, against meetings that were never going to
+  happen.
+
 ## [2.65.0] - 2026-09-02
 
 ### Added

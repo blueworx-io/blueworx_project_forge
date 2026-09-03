@@ -154,6 +154,39 @@ final class MeetingHoursTest extends TestCase {
 		);
 	}
 
+	public function test_a_stopped_series_holds_nothing(): void {
+		/*
+		 * Found by the browser suite, which is the only place it could be: the
+		 * rule and the meeting both look perfectly ordinary, and it is the
+		 * *series* that has stopped. Ending one and leaving its meetings
+		 * holding hours commits a client's balance to meetings nobody will ever
+		 * hold, and nothing afterwards would notice.
+		 */
+		$this->assertSame(
+			MeetingHours::RELEASED,
+			MeetingHours::state_of( $this->meeting(), self::TODAY, '', false )
+		);
+
+		$plan = MeetingHours::plan(
+			$this->meeting(),
+			array( $this->entry( Entries::MEETING_RESERVATION, 2 ) ),
+			self::TODAY,
+			'',
+			false
+		);
+
+		$this->assertSame( array( array( Entries::MEETING_RELEASE, 2.0 ) ), $this->pairs( $plan ) );
+	}
+
+	public function test_stopping_a_series_does_not_un_hold_a_meeting_that_happened(): void {
+		// Spend is still a floor. A meeting that was held was held, whatever
+		// became of the arrangement afterwards.
+		$this->assertSame(
+			MeetingHours::USED,
+			MeetingHours::state_of( $this->meeting( array( 'status' => Occurrence::HELD ) ), self::TODAY, '', false )
+		);
+	}
+
 	public function test_a_meeting_today_still_holds_its_hours(): void {
 		// It has not been and gone until the day has. Releasing at midnight
 		// would free the hours of a meeting happening that afternoon.

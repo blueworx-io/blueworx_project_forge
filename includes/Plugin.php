@@ -75,6 +75,15 @@ final class Plugin {
 
 		Admin\SupportActions::boot();
 
+		/*
+		 * #152 to #155. Standing meetings are something you configure about a
+		 * client, like their package and their people — so under ARCH-7 they
+		 * get a WordPress admin page rather than a place on the board.
+		 */
+		add_action( 'admin_menu', array( Admin\MeetingsScreen::class, 'register' ) );
+
+		Admin\MeetingActions::boot();
+
 		Admin\AvailabilityActions::boot();
 		Admin\OnboardingTemplateActions::boot();
 

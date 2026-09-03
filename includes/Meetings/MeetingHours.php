@@ -87,9 +87,10 @@ final class MeetingHours {
 	 * @param string               $today        YYYY-MM-DD.
 	 * @param string               $term_ends_on Last day of the active term, or
 	 *                                           '' where there is no end.
+	 * @param bool                 $running      Whether the series is still on.
 	 * @return string One of FORECAST, RESERVED, USED, RELEASED.
 	 */
-	public static function state_of( array $meeting, string $today, string $term_ends_on ): string {
+	public static function state_of( array $meeting, string $today, string $term_ends_on, bool $running = true ): string {
 		$status = (string) ( $meeting['status'] ?? Occurrence::SCHEDULED );
 
 		if ( Occurrence::draws_hours( $status ) ) {
@@ -98,6 +99,17 @@ final class MeetingHours {
 
 		// Called off, or nobody came. MEET-5: neither costs anything.
 		if ( Occurrence::settled( $status ) ) {
+			return self::RELEASED;
+		}
+
+		/*
+		 * The series was stopped. Its meetings are not going to happen, so the
+		 * hours they were holding go back — and this is asked here rather than
+		 * left to whoever ends a series, because a client's balance still
+		 * committed to meetings nobody will ever hold is a fault nothing
+		 * afterwards would notice.
+		 */
+		if ( ! $running ) {
 			return self::RELEASED;
 		}
 
@@ -170,16 +182,17 @@ final class MeetingHours {
 	 * @param array<int, array<string, mixed>> $entries      Its ledger entries so far.
 	 * @param string                           $today        YYYY-MM-DD.
 	 * @param string                           $term_ends_on Last day of the term, or ''.
+	 * @param bool                             $running      Whether the series is still on.
 	 * @return array<int, array{event_type: string, hours: float}>
 	 */
-	public static function plan( array $meeting, array $entries, string $today, string $term_ends_on ): array {
+	public static function plan( array $meeting, array $entries, string $today, string $term_ends_on, bool $running = true ): array {
 		$hours = round( (float) ( $meeting['planned_hours'] ?? 0 ), 2 );
 
 		if ( $hours <= 0 ) {
 			return array();
 		}
 
-		$state    = self::state_of( $meeting, $today, $term_ends_on );
+		$state    = self::state_of( $meeting, $today, $term_ends_on, $running );
 		$position = self::position( $entries );
 		$plan     = array();
 
