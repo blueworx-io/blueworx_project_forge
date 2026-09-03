@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.74.0] - 2026-09-03
+
+### Added
+
+- A **Board** link at the top of the Forge menu, so the board is reachable from
+  the admin instead of being somewhere you had to know the address of. It
+  opens in a new tab, and carries the arrow that says so before you click it.
+
 ## [2.73.0] - 2026-09-03
 
 ### Fixed
