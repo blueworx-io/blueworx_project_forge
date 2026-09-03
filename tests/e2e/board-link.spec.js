@@ -36,6 +36,18 @@ test('the Forge menu links out to the board, in a new tab', async ({ browser, ba
   await expect(link.locator('.dashicons-external')).toHaveCount(1);
   await expect(link).toContainText('opens in a new tab');
 
+  /*
+   * And the Forge menu itself still goes to the admin.
+   *
+   * WordPress gives a top-level menu the address of its first submenu entry,
+   * so putting the board first quietly turned "Forge" into a way out of the
+   * admin — you opened the menu and left the site you were configuring.
+   */
+  const parent = page.locator('#toplevel_page_blueworx-forge-sites > a');
+
+  await expect(parent).toHaveAttribute('href', /^admin\.php\?page=blueworx-forge-/);
+  await expect(parent).not.toHaveAttribute('target', '_blank');
+
   // The page it points at is really the app, rather than a 404 that happens to
   // have the right address.
   const board = await admin.context.newPage();

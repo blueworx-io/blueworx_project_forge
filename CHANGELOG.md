@@ -12,8 +12,8 @@ commits and pull requests.
 
 ### Added
 
-- A **Board** link at the top of the Forge menu, so the board is reachable from
-  the admin instead of being somewhere you had to know the address of. It
+- A **Board** link near the top of the Forge menu, so the board is reachable
+  from the admin instead of being somewhere you had to know the address of. It
   opens in a new tab, and carries the arrow that says so before you click it.
 
 ## [2.73.0] - 2026-09-03

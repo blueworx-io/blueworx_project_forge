@@ -49,10 +49,13 @@ final class BoardLink {
 	}
 
 	/**
-	 * Puts it first in the Forge menu.
+	 * Puts it near the top of the Forge menu, but never at the top.
 	 *
-	 * First because it is the one thing in that menu somebody opens every day;
-	 * everything else under it is set up once and revisited occasionally.
+	 * **Second, and this is load-bearing.** WordPress gives a top-level menu
+	 * the address of its *first* submenu entry, so a board link placed first
+	 * silently becomes what clicking "Forge" does — which takes somebody out of
+	 * the admin when all they did was open the menu. Second is as high as it
+	 * can go without doing that.
 	 */
 	public static function register(): void {
 		add_submenu_page(
@@ -62,7 +65,7 @@ final class BoardLink {
 			'manage_options',
 			Frontend::instance()->app_page_url(),
 			'',
-			0
+			1
 		);
 	}
 
