@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.72.0] - 2026-09-03
+
+### Added
+
+- The last of the commercial promises in the brief is now proved by a test on
+  every change: a standing meeting holds a client’s hours before it happens,
+  takes them only when the meeting is actually held, and gives them straight
+  back when it is called off or nobody comes. With it, every promise the brief
+  makes is a test rather than an intention.
+
 ## [2.71.0] - 2026-09-03
 
 ### Added

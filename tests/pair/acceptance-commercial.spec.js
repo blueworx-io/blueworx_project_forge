@@ -13,13 +13,6 @@ import * as Forge from '../e2e/helpers/forge.js';
 // Each test states one criterion in the words it is written in. They are slow
 // for the honest reason: hours only move when work or a meeting actually moves,
 // so the only way to assert what a client is charged is to charge them.
-//
-// AC-15, the meeting-hour criterion, is not here yet. It can only be asserted
-// through the meetings screen, and that screen is still waiting to be looked at
-// — so it arrives with it rather than being written against something that does
-// not exist. AcceptanceCriteria still lists it, and AcceptanceCoverageTest
-// still refuses to count M8 as landed until it does, which is what keeps this a
-// gap somebody can see rather than one they have to remember.
 
 const RUN = `comm${Date.now()}`;
 const STAMP = RUN.replace(/[^a-z0-9]/gi, '');
@@ -27,6 +20,7 @@ const GRANTED = 200;
 
 const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';
 const PACKAGES = '/wp-admin/admin.php?page=blueworx-forge-packages';
+const MEETINGS = '/wp-admin/admin.php?page=blueworx-forge-meetings';
 
 const TO_UP_NEXT = [
   'triage',
@@ -52,6 +46,22 @@ async function seatsFor(pair, label, hours = 10) {
     planned_due: '2026-11-06',
     hours_primary: hours,
   };
+}
+
+/** Monday a fortnight out, so a series always has meetings ahead of it. */
+function comingMonday() {
+  const day = new Date(Date.now() + 14 * 86400000);
+
+  day.setUTCDate(day.getUTCDate() + ((8 - day.getUTCDay()) % 7));
+
+  return day.toISOString().slice(0, 10);
+}
+
+/** What the meetings on a site have actually cost, by kind of entry. */
+function meetingHours(ledger, kind) {
+  return ledger.entries
+    .filter(([type]) => kind === type)
+    .reduce((total, [, hours]) => total + Math.abs(hours), 0);
 }
 
 test.describe('the commercial acceptance criteria', () => {
@@ -154,6 +164,75 @@ test.describe('the commercial acceptance criteria', () => {
       'without drift'
     ).toBe(GRANTED - 13);
 
+    await pair.close();
+  });
+
+  test('AC-15: a meeting reserves its hours, spends them only when it is held, and releases them when it is not', async ({
+    browser,
+  }) => {
+    test.setTimeout(600_000);
+
+    const pair = await connectedPair(browser, 'Meeting hours', RUN);
+
+    await Forge.onSupport(pair.studio, pair.site.id, GRANTED);
+
+    const host = await Forge.makePerson(pair.studio, pair.client.id, 'staff', `ac15h${STAMP}`);
+    const page = await pair.studio.context.newPage();
+
+    await page.goto(`${MEETINGS}&site=${pair.site.id}`);
+
+    // A weekly two-hour meeting, which is the ordinary shape of the thing.
+    await page.fill('#bwx-title', `Weekly catch-up ${RUN}`);
+    await page.selectOption('#bwx-frequency', 'weekly');
+    await page.fill('#bwx-starts_on', comingMonday());
+    await page.fill('#bwx-time_of_day', '10:00');
+    await page.fill('#bwx-duration_mins', '120');
+    await page.fill('#bwx-timezone', 'Europe/London');
+    await page.selectOption('#bwx-host', host.id);
+    await page.click('#bwx-add-series');
+
+    await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
+
+    // Reserved, before anybody has met: the hours are held against meetings
+    // that have not happened, which is what makes a balance mean anything.
+    await expect(page.locator('[data-bwx-ledger-state="reserved"]').first()).toBeVisible();
+
+    const reserved = await Forge.hourLedger(pair.studio, pair.site.id);
+
+    expect(reserved.balance, 'held against the meetings to come').toBeLessThan(GRANTED);
+    expect(meetingHours(reserved, 'meeting-usage'), 'and nothing spent yet').toBe(0);
+
+    const dates = await page
+      .locator('[data-bwx-meeting]')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-bwx-meeting')));
+
+    // Held: two hours, and only those two.
+    await page.locator(`[data-bwx-meeting="${dates[0]}"] [data-bwx-settle="held"]`).click();
+    await expect(page.locator('[data-bwx-result="held"]')).toBeVisible();
+
+    const afterHeld = await Forge.hourLedger(pair.studio, pair.site.id);
+
+    expect(meetingHours(afterHeld, 'meeting-usage'), 'spent only when it is held').toBe(2);
+
+    /*
+     * And released when it is not. Two meetings that did not happen — one
+     * called off, one nobody came to — give back exactly the four hours they
+     * were holding. Asserted as the movement rather than as a total, because
+     * every meeting still ahead is legitimately holding its own hours and a
+     * total moves for that second reason too.
+     */
+    await page.locator(`[data-bwx-meeting="${dates[1]}"] [data-bwx-settle="cancelled"]`).click();
+    await expect(page.locator('[data-bwx-result="cancelled"]')).toBeVisible();
+
+    await page.locator(`[data-bwx-meeting="${dates[2]}"] [data-bwx-settle="no-show"]`).click();
+    await expect(page.locator('[data-bwx-result="no-show"]')).toBeVisible();
+
+    const afterMissed = await Forge.hourLedger(pair.studio, pair.site.id);
+
+    expect(afterMissed.balance - afterHeld.balance, 'given back, both of them').toBeCloseTo(4, 2);
+    expect(meetingHours(afterMissed, 'meeting-usage'), 'and neither one charged').toBe(2);
+
+    await page.close();
     await pair.close();
   });
 

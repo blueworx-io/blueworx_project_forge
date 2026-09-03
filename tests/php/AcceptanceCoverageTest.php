@@ -34,12 +34,14 @@ final class AcceptanceCoverageTest extends TestCase {
 	 * The programme slots whose specs have been written.
 	 *
 	 * Widening this is the last step of the issue that writes the specs, and it
-	 * is deliberately a decision rather than a count: M8 is #246's commercial
-	 * criteria, which test rules M8 has not built yet, and M8 runs last.
+	 * is deliberately a decision rather than a count: M8's five are the
+	 * commercial criteria, and they only became real tests once M8 had built
+	 * the rules they assert. It has, so every slot in the programme is here and
+	 * every criterion in the manifest is owed a spec.
 	 *
 	 * @var array<int, string>
 	 */
-	private const LANDED = array( 'M11-1', 'M11-2', 'M11-3', 'M11-4' );
+	private const LANDED = array( 'M11-1', 'M11-2', 'M11-3', 'M11-4', 'M8' );
 
 	/**
 	 * Where the specs that run against a real client site live.
