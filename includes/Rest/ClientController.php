@@ -11,8 +11,12 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Capacity\ClientAnswer;
 use Blueworx\Forge\Commerce\Assignments;
+use Blueworx\Forge\Commerce\Entries;
+use Blueworx\Forge\Commerce\Ledger;
+use Blueworx\Forge\Commerce\Packages;
 use Blueworx\Forge\Commerce\Restrictions;
 use Blueworx\Forge\Commerce\Support;
+use Blueworx\Forge\Commerce\Terms;
 use Blueworx\Forge\Notifications\Log as NotificationLog;
 use Blueworx\Forge\Notifications\Outbox;
 use Blueworx\Forge\Notifications\Register as Notifications;
@@ -122,6 +126,20 @@ final class ClientController {
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
 					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and an outcome is only accepted for an event raised for that site (ARCH-6).',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client/sales',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'sales' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and only that site\'s entitlement and hours are answered (ARCH-6).',
 				),
 			)
 		);
@@ -1397,6 +1415,115 @@ final class ClientController {
 		$state = Contacts::resolve( $assignment, $person );
 
 		return $state['needs_reassignment'] ? array() : Contacts::for_client( $state['contact'] );
+	}
+
+	/**
+	 * What a client has, and what they could buy (#156).
+	 *
+	 * **The same figures the studio reads, from the same place.** The balance
+	 * here is Ledger::balance and nothing else — not a copy kept in step, not a
+	 * total worked out a second way for the client's benefit. #158 asks that
+	 * the two interfaces never disagree about money, and the only way to be
+	 * certain of that is for there to be one figure.
+	 *
+	 * Purchase history is the entries that *added* hours: what was granted and
+	 * what was bought. Deliberately not the whole ledger — a client asking what
+	 * they have paid for should not have to read every hour they have spent to
+	 * find out, and the full record is on their own board item by item.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function sales( WP_REST_Request $request ) {
+		$site_id     = (string) $request->get_header( Signature::HEADER_SITE );
+		$integration = self::connection( $site_id );
+
+		if ( ! is_array( $integration ) ) {
+			return $integration;
+		}
+
+		$client_site = (string) $integration['client_site_id'];
+		$today       = gmdate( 'Y-m-d' );
+		$position    = Assignments::entitlement_on( $client_site, $today );
+
+		return rest_ensure_response(
+			array(
+				'ok'          => true,
+				'generated'   => bwx_forge_now(),
+				'entitlement' => array(
+					'state'         => (string) $position['state'],
+					'label'         => Support::label( (string) $position['state'] ),
+					'may_use_hours' => (bool) $position['may_use_hours'],
+					'hours_granted' => (float) $position['hours_granted'],
+					'starts_on'     => (string) $position['starts_on'],
+					'ends_on'       => (string) $position['ends_on'],
+					'term_ends_on'  => (string) $position['term_ends_on'],
+				),
+
+				// One figure, read once, from the record both sides read.
+				'balance'     => Ledger::balance( $client_site ),
+				'support'     => Restrictions::for_state( (string) $position['state'] ),
+				'purchases'   => self::purchases( $client_site ),
+				'packages'    => self::packages_on_offer(),
+			)
+		);
+	}
+
+	/**
+	 * What a client has been given or has bought, newest first.
+	 *
+	 * @param string $client_site_id The site.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function purchases( string $client_site_id ): array {
+		$bought = array();
+
+		foreach ( Ledger::for_site( $client_site_id ) as $entry ) {
+			if ( ! in_array( (string) $entry['event_type'], array( Entries::ALLOCATION, Entries::TOP_UP ), true ) ) {
+				continue;
+			}
+
+			$bought[] = array(
+				'on'         => gmdate( 'Y-m-d', (int) $entry['occurred_at'] ),
+				'kind'       => (string) $entry['event_type'],
+				'hours'      => (float) $entry['hours'],
+				'reason'     => (string) $entry['reason'],
+				'expires_at' => (int) $entry['expires_at'],
+			);
+		}
+
+		return array_reverse( $bought );
+	}
+
+	/**
+	 * The packages a client could ask to move to.
+	 *
+	 * Names, hours and prices only. A client seeing what is on offer is a sales
+	 * conversation starting, not a checkout — COMM-2 keeps assignment manual,
+	 * and there is deliberately nothing here that could be mistaken for buying.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function packages_on_offer(): array {
+		$offered = array();
+
+		foreach ( Packages::all( Terms::ACTIVE ) as $package ) {
+			$version = Packages::current_version( (string) $package['id'] );
+
+			if ( null === $version ) {
+				continue;
+			}
+
+			$offered[] = array(
+				'name'            => (string) $version['name'],
+				'hours'           => (float) $version['hours'],
+				'price'           => (int) $version['price'],
+				'currency'        => (string) $version['currency'],
+				'validity_months' => (int) $version['validity_months'],
+			);
+		}
+
+		return $offered;
 	}
 
 	/**
