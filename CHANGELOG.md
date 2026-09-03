@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.75.0] - 2026-09-03
+
+### Added
+
+- Work can now be planned on the screen it is opened in. Who is doing it, who
+  is reviewing it, who is delivering it, the hours against each of them, the
+  dates, the priority, who pays for it and what was released are all set in the
+  item itself, beside everything else about it. Each field says which stage it
+  is holding up, once that stage is the one the work is in.
+
+### Fixed
+
+- An item could not be moved past Triage without calling the API by hand. The
+  fields every stage after it asks for existed in the record and had no control
+  anywhere, so the panel would say what was missing and offer nowhere to put
+  it.
+- A refused save now says which field was refused and why, instead of only
+  that it could not be saved.
+
 ## [2.74.0] - 2026-09-03
 
 ### Added

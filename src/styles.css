@@ -429,6 +429,70 @@ body {
   flex-wrap: wrap;
 }
 
+/* ---- Who and when ---- */
+
+/* Where the seats, the hours, the dates and the classification are set.
+   Divided from the prose above it by a rule rather than wrapped in a card: it
+   is the same item and the same Save, and a box around half a form implies two
+   forms. */
+.bwx-assign {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var( --color-chalk );
+}
+
+.bwx-pair {
+  display: grid;
+  grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+  gap: 12px;
+}
+
+/* A seat and the hours planned against it are one answer, so they sit on one
+   line. The hours stay narrow: it is a number, and a full-width box invites a
+   sentence. */
+.bwx-seat {
+  display: grid;
+  grid-template-columns: minmax( 0, 1fr ) 96px;
+  gap: 12px;
+  align-items: end;
+}
+
+/* Selects are capped at 340px everywhere else, which inside a grid column
+   leaves the hours box stranded halfway across the panel. In here the column is
+   the cap. */
+.bwx-seat .bwx-select,
+.bwx-pair .bwx-select {
+  max-width: none;
+}
+
+.bwx-tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var( --text-small );
+  color: var( --color-steel );
+}
+
+/* Which field is holding the work up, said beside that field rather than only
+   in the list further down. Amber because nothing is broken — something is
+   outstanding. */
+/* Parenthesised and a size down, so it reads as a note about the field rather
+   than as part of what the field is called. */
+.bwx-needed {
+  color: var( --color-warning );
+  font-size: var( --text-caption );
+  margin-left: 6px;
+}
+
+@media ( max-width: 640px ) {
+  .bwx-pair,
+  .bwx-seat {
+    grid-template-columns: minmax( 0, 1fr );
+  }
+}
+
 .bwx-history {
   list-style: none;
   margin: 0;

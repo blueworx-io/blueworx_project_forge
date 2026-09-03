@@ -3,13 +3,14 @@ import type {
   Comment,
   GateCheck,
   GateRecord,
+  Person,
   Readiness,
   Requirement,
   Stage,
   WorkEvent,
   WorkItem,
 } from '../types';
-import { api, GateError, isDenied, messageFor } from '../api';
+import { api, ApiError, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
 import { Inline, Screen } from './States';
 
@@ -49,6 +50,151 @@ const BLOCKER_FIELDS = [
   { field: 'target_date', label: 'Target resolution date' },
   { field: 'next_action', label: 'Next action' },
 ] as const;
+
+/**
+ * The three seats, named for what the person does.
+ *
+ * "Primary User" is what the field is called; "doing the work" is the question
+ * being answered, and the second is what belongs on a screen. Each carries the
+ * hours planned against it, because who is reviewing this and how long we said
+ * the review would take are one conversation (#98).
+ */
+const SEATS = [
+  { field: 'primary_user_id', hours: 'hours_primary', label: 'Doing the work' },
+  { field: 'reviewer_id', hours: 'hours_review', label: 'Reviewing it' },
+  { field: 'deliverer_id', hours: 'hours_delivery', label: 'Delivering it' },
+] as const;
+
+/** How work is classified commercially (COMM-5). */
+const CLASSES = [
+  { value: 'unclassified', label: 'Nobody has decided yet' },
+  { value: 'chargeable', label: 'Chargeable' },
+  { value: 'free-bug', label: 'Free bug — we delivered the thing that broke' },
+] as const;
+
+const PRIORITIES = [ 'low', 'normal', 'high', 'urgent' ] as const;
+
+const RELEASE_METHODS = [
+  { value: 'software', label: 'Software' },
+  { value: 'content', label: 'Content' },
+  { value: 'design', label: 'Design' },
+  { value: 'infrastructure', label: 'Infrastructure' },
+  { value: 'non-deployment', label: 'Nothing was deployed' },
+] as const;
+
+const DATES = [
+  { field: 'planned_start', label: 'Starts', needed: 'up-next' },
+  { field: 'planned_due', label: 'Due', needed: 'up-next' },
+  { field: 'review_target', label: 'Review by', needed: '' },
+  { field: 'release_target', label: 'Release by', needed: '' },
+] as const;
+
+/**
+ * Everything this section writes, and every field the draft therefore holds.
+ *
+ * Kept as one list so the draft, the save and the reset cannot disagree about
+ * what the section owns.
+ */
+const ASSIGNMENT = [
+  'commercial_class',
+  'delivered_by_forge',
+  'priority',
+  'remaining_estimate',
+  'release_method',
+  'release_destination',
+  ...SEATS.flatMap( ( seat ) => [ seat.field, seat.hours ] ),
+  ...DATES.map( ( date ) => date.field ),
+] as const;
+
+/**
+ * Which stage a field has to be filled in by, from Work\Fields::REQUIRED_FROM.
+ *
+ * Repeated here rather than sent, because the server enforces it and this only
+ * says so out loud — a copy that drifted would mislabel a field, never let one
+ * through. The gates remain the thing that refuses.
+ */
+const NEEDED_FROM: Record< string, string > = {
+  commercial_class: 'triage',
+  priority: 'triage',
+  primary_user_id: 'up-next',
+  reviewer_id: 'up-next',
+  deliverer_id: 'up-next',
+  planned_start: 'up-next',
+  planned_due: 'up-next',
+  remaining_estimate: 'in-development',
+  release_method: 'completed',
+  release_destination: 'completed',
+};
+
+/**
+ * The studio's people, fetched once and shared by every panel.
+ *
+ * The seat pickers want the same list every time an item is opened, and it
+ * changes about as often as somebody is hired — so one request, held here,
+ * rather than one per panel. A failed read is not cached, so the next panel
+ * tries again.
+ */
+let roster: Promise< Person[] > | null = null;
+
+function everybody(): Promise< Person[] > {
+  if ( null === roster ) {
+    roster = api< { users: Person[] } >( '/users?status=active' )
+      .then( ( answer ) => answer.users )
+      .catch( () => {
+        roster = null;
+
+        return [];
+      } );
+  }
+
+  return roster;
+}
+
+/**
+ * The item's editable values, as the strings its inputs hold.
+ *
+ * Zero becomes empty on purpose. Every item starts with no planned hours, and a
+ * box reading "0" says somebody decided the review would take no time; empty
+ * says what is actually true, which is that nobody has said yet.
+ */
+function asDraft( item: WorkItem ): Record< string, string > {
+  const draft: Record< string, string > = Object.fromEntries(
+    EDITABLE.map( ( { field } ) => [ field, String( item[ field ] ?? '' ) ] )
+  );
+
+  for ( const field of ASSIGNMENT ) {
+    const value = ( item as unknown as Record< string, unknown > )[ field ];
+
+    if ( 'number' === typeof value ) {
+      draft[ field ] = 0 === value ? '' : String( value );
+    } else if ( 'boolean' === typeof value ) {
+      draft[ field ] = value ? '1' : '';
+    } else {
+      draft[ field ] = String( value ?? '' );
+    }
+  }
+
+  return draft;
+}
+
+/**
+ * Why a save was refused, in the words the server used.
+ *
+ * The API answers a bad value with a message for each field it rejected — "a
+ * reviewer has to be somebody other than the person who did the work" — and
+ * losing those behind "that change could not be saved" is how somebody clicks
+ * Save twice and then goes and asks somebody.
+ */
+function refusal( error: unknown ): string {
+  const fields = error instanceof ApiError ? error.data.fields : null;
+
+  const said =
+    'object' === typeof fields && null !== fields
+      ? Object.values( fields as Record< string, string > )
+      : [];
+
+  return 0 < said.length ? said.join( ' ' ) : messageFor( error, 'That change could not be saved.' );
+}
 
 function when( seconds: number ): string {
   return new Date( seconds * 1000 ).toLocaleString();
@@ -142,6 +288,9 @@ export function ItemPanel( {
   } );
   const closer = useRef< HTMLButtonElement >( null );
 
+  /** Who can hold a seat. Empty until the list arrives, and harmless if it never does. */
+  const [ staffList, setStaffList ] = useState< Person[] >( [] );
+
   const label = ( id: string ) => stages.find( ( stage ) => stage.id === id )?.label ?? id;
   const staff = 'staff' === detail?.scope;
 
@@ -150,11 +299,7 @@ export function ItemPanel( {
       const loaded = await api< Detail >( `/work-items/${ itemId }` );
       setDetail( loaded );
       setLoadState( 'ready' );
-      setDraft(
-        Object.fromEntries(
-          EDITABLE.map( ( { field } ) => [ field, String( loaded.item[ field ] ?? '' ) ] )
-        )
-      );
+      setDraft( asDraft( loaded.item ) );
     } catch ( error ) {
       // Told apart deliberately: "we could not load this" and "this is not
       // yours to read" are different problems with different next steps.
@@ -169,6 +314,9 @@ export function ItemPanel( {
     // for.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+
+    // The people who could hold a seat, so the pickers have names in them.
+    void everybody().then( setStaffList );
 
     // Focus lands in the panel when it opens, so a keyboard user is not left
     // behind on the board underneath it.
@@ -238,7 +386,7 @@ export function ItemPanel( {
       onChanged();
       setNotice( 'Saved.' );
     } catch ( error ) {
-      setNotice( messageFor( error, 'That change could not be saved.' ) );
+      setNotice( refusal( error ) );
     } finally {
       setBusy( false );
     }
@@ -290,6 +438,97 @@ export function ItemPanel( {
   const item = detail?.item;
   const blocked = 'blocked' === item?.stage;
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
+
+  /*
+   * The stages work passes through, in order, with Blocked left out — it is an
+   * exception state rather than a step, so an item sitting in it is measured
+   * from the stage it came out of.
+   */
+  const order = stages.filter( ( stage ) => 'exception' !== stage.kind ).map( ( stage ) => stage.id );
+  const standing = ( blocked ? item?.prior_stage : item?.stage ) ?? '';
+
+  /** Whether the item has got as far as a given stage. */
+  const reached = ( stage: string ) =>
+    -1 !== order.indexOf( standing ) && order.indexOf( standing ) >= order.indexOf( stage );
+
+  /** Whether a field is still waiting to be filled in, as its own rules count empty. */
+  const blank = ( field: string ) => {
+    const value = draft[ field ] ?? '';
+
+    if ( 'commercial_class' === field ) {
+      // The column's default means nobody has classified it, which is the
+      // opposite of an answer — Gates counts it as empty and so does this.
+      return '' === value || 'unclassified' === value;
+    }
+
+    if ( 'remaining_estimate' === field ) {
+      return 0 >= Number( value || 0 );
+    }
+
+    return '' === value;
+  };
+
+  /**
+   * The stage a field is holding up, if it is holding one up now.
+   *
+   * Only once the item has reached the stage that wants it. Warning somebody at
+   * Triage that Up Next will want three seats and two dates would put a marker
+   * on almost every field of a brand-new item, and a screen where everything is
+   * flagged flags nothing.
+   */
+  const holdingUp = ( field: string ) => {
+    const by = NEEDED_FROM[ field ] ?? '';
+
+    return '' !== by && blank( field ) && reached( by ) ? label( by ) : '';
+  };
+
+  /** A field's label, plus the stage it is holding up. */
+  const naming = ( field: string, name: string ) => (
+    <label htmlFor={ `bwx-${ field }` }>
+      { name }
+      { '' !== holdingUp( field ) && (
+        <span className="bwx-needed" data-testid="bwx-needed" data-field={ field }>
+          { `(needed to leave ${ holdingUp( field ) })` }
+        </span>
+      ) }
+    </label>
+  );
+
+  /** One seat's picker, with the people who could sit in it. */
+  const pick = ( field: string, name: string ) => (
+    <div className="bwx-field">
+      { naming( field, name ) }
+      <select
+        id={ `bwx-${ field }` }
+        className="bwx-select"
+        value={ draft[ field ] ?? '' }
+        onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+      >
+        <option value="">Nobody yet</option>
+        { staffList.map( ( person ) => (
+          <option key={ person.id } value={ person.id }>
+            { person.display_name }
+          </option>
+        ) ) }
+      </select>
+    </div>
+  );
+
+  /** An hours box. Half hours, because that is how the work is planned. */
+  const measure = ( field: string, name: string ) => (
+    <div className="bwx-field">
+      { naming( field, name ) }
+      <input
+        id={ `bwx-${ field }` }
+        className="bwx-input"
+        type="number"
+        min="0"
+        step="0.5"
+        value={ draft[ field ] ?? '' }
+        onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+      />
+    </div>
+  );
 
   return (
     <div
@@ -746,6 +985,143 @@ export function ItemPanel( {
                 ) }
               </div>
             ) ) }
+
+            { /*
+                Who does the work, what it costs and when it happens.
+
+                Every field here has been in the record and in the API since
+                M3, and until now none of them had a control anywhere: the
+                panel listed what a stage was waiting for and gave nobody a
+                place to put it, so no item could be moved past Triage without
+                calling the API by hand.
+
+                All of it is shown from the start, rather than only the fields
+                the current stage wants, because planning happens before it is
+                demanded — you set a due date when you know it, not when a gate
+                asks. What changes with the stage is only the marker saying
+                which field is holding the work up now.
+
+                Staff only. The seats are who answers for the work, and ARCH-7
+                keeps that the studio's own answer.
+             */ }
+            { staff && ! ended && (
+              <div className="bwx-assign" data-testid="bwx-assign">
+                <p className="bwx-eyebrow">Who and when</p>
+
+                <div className="bwx-pair">
+                  <div className="bwx-field">
+                    { naming( 'commercial_class', 'Who pays for it' ) }
+                    <select
+                      id="bwx-commercial_class"
+                      className="bwx-select"
+                      value={ draft.commercial_class ?? '' }
+                      onChange={ ( event ) =>
+                        setDraft( { ...draft, commercial_class: event.target.value } )
+                      }
+                    >
+                      { CLASSES.map( ( option ) => (
+                        <option key={ option.value } value={ option.value }>
+                          { option.label }
+                        </option>
+                      ) ) }
+                    </select>
+                  </div>
+
+                  <div className="bwx-field">
+                    { naming( 'priority', 'Priority' ) }
+                    <select
+                      id="bwx-priority"
+                      className="bwx-select"
+                      value={ draft.priority ?? '' }
+                      onChange={ ( event ) => setDraft( { ...draft, priority: event.target.value } ) }
+                    >
+                      <option value="">Not set</option>
+                      { PRIORITIES.map( ( value ) => (
+                        <option key={ value } value={ value }>
+                          { value.charAt( 0 ).toUpperCase() + value.slice( 1 ) }
+                        </option>
+                      ) ) }
+                    </select>
+                  </div>
+                </div>
+
+                { /* COMM-5: a bug is free when we delivered the thing that broke. */ }
+                <label className="bwx-tick" htmlFor="bwx-delivered_by_forge">
+                  <input
+                    id="bwx-delivered_by_forge"
+                    type="checkbox"
+                    checked={ '' !== ( draft.delivered_by_forge ?? '' ) }
+                    onChange={ ( event ) =>
+                      setDraft( { ...draft, delivered_by_forge: event.target.checked ? '1' : '' } )
+                    }
+                  />
+                  <span>We delivered the thing that broke</span>
+                </label>
+
+                { SEATS.map( ( seat ) => (
+                  <div className="bwx-seat" key={ seat.field }>
+                    { pick( seat.field, seat.label ) }
+                    { measure( seat.hours, 'Hours' ) }
+                  </div>
+                ) ) }
+
+                <div className="bwx-pair">
+                  { DATES.map( ( date ) => (
+                    <div className="bwx-field" key={ date.field }>
+                      { naming( date.field, date.label ) }
+                      <input
+                        id={ `bwx-${ date.field }` }
+                        className="bwx-input"
+                        type="date"
+                        value={ draft[ date.field ] ?? '' }
+                        onChange={ ( event ) =>
+                          setDraft( { ...draft, [ date.field ]: event.target.value } )
+                        }
+                      />
+                    </div>
+                  ) ) }
+                </div>
+
+                { /* Only once there is work under way to have any left. */ }
+                { reached( 'in-development' ) && measure( 'remaining_estimate', 'Hours still to do' ) }
+
+                { /* WF-6, and only once something has actually been delivered. */ }
+                { reached( 'completed' ) && (
+                  <div className="bwx-pair">
+                    <div className="bwx-field">
+                      { naming( 'release_method', 'How it was released' ) }
+                      <select
+                        id="bwx-release_method"
+                        className="bwx-select"
+                        value={ draft.release_method ?? '' }
+                        onChange={ ( event ) =>
+                          setDraft( { ...draft, release_method: event.target.value } )
+                        }
+                      >
+                        <option value="">Not set</option>
+                        { RELEASE_METHODS.map( ( option ) => (
+                          <option key={ option.value } value={ option.value }>
+                            { option.label }
+                          </option>
+                        ) ) }
+                      </select>
+                    </div>
+
+                    <div className="bwx-field">
+                      { naming( 'release_destination', 'Where it went' ) }
+                      <input
+                        id="bwx-release_destination"
+                        className="bwx-input"
+                        value={ draft.release_destination ?? '' }
+                        onChange={ ( event ) =>
+                          setDraft( { ...draft, release_destination: event.target.value } )
+                        }
+                      />
+                    </div>
+                  </div>
+                ) }
+              </div>
+            ) }
 
             <div className="bwx-moves">
               <button

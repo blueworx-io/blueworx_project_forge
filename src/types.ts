@@ -61,6 +61,23 @@ export interface WorkItem {
   updated_at: number;
 
   /*
+   * The seats, the hours against each, and what the work costs to finish.
+   * Every one of these has been in the record and in the API since M3; they
+   * are declared here because the item panel now sets them, and until it did
+   * the only thing that ever wrote them was a test calling the API.
+   */
+  primary_user_id: string;
+  reviewer_id: string;
+  deliverer_id: string;
+  hours_primary: number;
+  hours_review: number;
+  hours_delivery: number;
+  remaining_estimate: number;
+  delivered_by_forge: boolean;
+  release_method: string;
+  release_destination: string;
+
+  /*
    * What the children beneath it make it (#101). Filled in by the API on the
    * way out and never stored, so there is nothing here anybody can write —
    * which is why these are optional: an item read from a response that predates
@@ -611,3 +628,16 @@ export type ReportsResponse = {
   generated: number;
   reports: Reports;
 };
+
+/**
+ * Somebody who can hold a seat on a piece of work.
+ *
+ * The studio's own people, not a client's — a seat is answerable for the work
+ * and the studio is what answers for it. Read from /users, which is the same
+ * list the People screen manages.
+ */
+export interface Person {
+  id: string;
+  display_name: string;
+  status: string;
+}
