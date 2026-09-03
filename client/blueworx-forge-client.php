@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Client Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: The client-side workspace for Blueworx Forge.
- * Version:     2.72.0
+ * Version:     2.73.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_CLIENT_VERSION', '2.72.0' );
+define( 'BWX_FORGE_CLIENT_VERSION', '2.73.0' );
 define( 'BWX_FORGE_CLIENT_SLUG', 'blueworx-forge-client' );
 define( 'BWX_FORGE_CLIENT_FILE', __FILE__ );
 define( 'BWX_FORGE_CLIENT_PATH', plugin_dir_path( __FILE__ ) );
@@ -77,7 +77,21 @@ if ( '' !== $bwx_forge_client_update_token ) {
 	$bwx_forge_client_update_checker->setAuthentication( $bwx_forge_client_update_token );
 }
 
-$bwx_forge_client_update_checker->getVcsApi()->enableReleaseAssets();
+/*
+ * The client zip, by name. Every Release carries both plugins, and an
+ * unfiltered checker takes whichever asset GitHub lists first — which on this
+ * repo is the studio plugin, and installing that over a client site is the one
+ * update failure that would reach every client at once.
+ *
+ * Required rather than preferred, so a Release missing this asset offers no
+ * update instead of falling back to the source tarball.
+ */
+$bwx_forge_client_update_api = $bwx_forge_client_update_checker->getVcsApi();
+
+$bwx_forge_client_update_api->enableReleaseAssets(
+	'/^blueworx-forge-client-\d+\.\d+\.\d+\.zip$/',
+	$bwx_forge_client_update_api::REQUIRE_RELEASE_ASSETS
+);
 
 register_activation_hook( BWX_FORGE_CLIENT_FILE, array( \Blueworx\Forge\Client\Plugin::instance(), 'activate' ) );
 register_deactivation_hook( BWX_FORGE_CLIENT_FILE, array( \Blueworx\Forge\Client\Plugin::instance(), 'deactivate' ) );

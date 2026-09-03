@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.73.0] - 2026-09-03
+
+### Fixed
+
+- A site being offered the wrong plugin when it updated itself. One release
+  carries both the studio plugin and the client one, and each site was taking
+  whichever of the two happened to be listed first — so a client site could
+  have installed the studio plugin over itself and been switched off for it.
+  Each now asks for its own file by name, and offers nothing at all rather than
+  falling back to something else.
+
+### Added
+
+- A short note on moving work across from the old Forge by hand: what order to
+  set things up in, what to copy, and what deliberately does not come with it.
+
 ## [2.72.0] - 2026-09-03
 
 ### Added
