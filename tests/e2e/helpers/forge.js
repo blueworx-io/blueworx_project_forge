@@ -336,7 +336,11 @@ export async function hourLedger(admin, siteId) {
 
   const balance = await page.locator('[data-bwx-balance]').getAttribute('data-bwx-balance');
   const entries = await page.locator('[data-bwx-entry]').evaluateAll((rows) =>
-    rows.map((row) => [row.getAttribute('data-bwx-entry'), Number(row.getAttribute('data-bwx-entry-hours'))])
+    rows.map((row) => [
+      row.getAttribute('data-bwx-entry'),
+      Number(row.getAttribute('data-bwx-entry-hours')),
+      row.getAttribute('data-bwx-entry-source') ?? '',
+    ])
   );
 
   await page.close();

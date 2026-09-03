@@ -339,7 +339,16 @@ final class SupportScreen {
 
 		foreach ( $entries as $entry ) {
 			echo '<tr data-bwx-entry="' . esc_attr( (string) $entry['event_type'] ) . '"';
-			echo ' data-bwx-entry-hours="' . esc_attr( (string) $entry['hours'] ) . '">';
+			echo ' data-bwx-entry-hours="' . esc_attr( (string) $entry['hours'] ) . '"';
+
+			/*
+			 * What the entry was against (#158). On screen it is what turns
+			 * "minus thirteen hours" into "that piece of work", which is the
+			 * question anybody reading this table is actually asking — and it
+			 * is what lets the drill-down be checked against the ledger rather
+			 * than taken on trust.
+			 */
+			echo ' data-bwx-entry-source="' . esc_attr( (string) $entry['source_type'] . ':' . (string) $entry['source_id'] ) . '">';
 			echo '<td>' . esc_html( gmdate( 'Y-m-d', (int) $entry['occurred_at'] ) ) . '</td>';
 			echo '<td>' . esc_html( (string) $entry['event_type'] ) . '</td>';
 			echo '<td>' . esc_html( number_format( (float) $entry['hours'], 2 ) ) . '</td>';
