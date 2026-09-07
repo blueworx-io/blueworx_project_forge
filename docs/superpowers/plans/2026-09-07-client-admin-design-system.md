@@ -824,6 +824,14 @@ Expected: FAIL — class `bw-tabs` not present.
 In `client/includes/Admin/Nav.php`, replace the markup inside `render()`. The scope line becomes the page header's eyebrow rather than a paragraph of its own, and the links become tabs.
 
 ```php
+		// Appearance from the design system's tabs; semantics from what this
+		// actually is. The system's Tabs component renders role="tablist" with
+		// role="tab" buttons, which is right for switching panels inside one
+		// screen and wrong here — these are links to separate admin pages, and
+		// a tablist tells a screen reader to expect panels that never arrive.
+		// So: a <nav> with aria-current, wearing bw-tabs. The stylesheet
+		// supports it — .bw-tab already sets text-decoration:none, so it is
+		// built to dress an <a> as well as a <button>.
 		printf(
 			'<nav class="bw-tabs" data-testid="bwx-client-nav" aria-label="%s">',
 			esc_attr__( 'Workspace', 'blueworx-forge' )
@@ -836,7 +844,7 @@ In `client/includes/Admin/Nav.php`, replace the markup inside `render()`. The sc
 
 			printf(
 				'<a class="bw-tab%s" data-testid="bwx-client-nav-item" href="%s"%s>%s</a>',
-				$current_page ? ' is-current' : '',
+				$current_page ? ' is-active' : '',
 				esc_url( admin_url( 'admin.php?page=' . $page['slug'] ) ),
 				$current_page ? ' aria-current="page"' : '',
 				esc_html( $page['label'] )
