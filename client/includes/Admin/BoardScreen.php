@@ -139,7 +139,7 @@ final class BoardScreen {
 	 */
 	private static function nothing_here(): void {
 		echo '<div class="bw-empty">';
-		echo '<i class="bw-icon bw-empty__icon" data-lucide="inbox"></i>';
+		echo '<i class="bw-icon bw-empty__icon" data-lucide="archive"></i>';
 		printf( '<h3 class="bw-empty__title">%s</h3>', esc_html__( 'Nothing here', 'blueworx-forge' ) );
 		echo '</div>';
 	}
