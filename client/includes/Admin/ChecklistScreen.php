@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Checklist;
 use Blueworx\Forge\Client\Denial;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * Getting a client's site launched, from their side (#162).
@@ -66,17 +67,26 @@ final class ChecklistScreen {
 	);
 
 	/**
-	 * The statuses worth colouring, and the class each gets.
+	 * The statuses worth colouring, and the bw-badge tone each gets.
 	 *
-	 * Three of seven. A screen where every row is coloured tells somebody
-	 * nothing about which row to read first.
+	 * Chosen for what the status means, the same way Card::stage_tone() picks a
+	 * tone: approved is a finished, positive outcome, the same shape as a
+	 * released item, so it reads success. Blocked is a step that has stalled
+	 * outright with nothing left for the client to do until somebody unsticks
+	 * it — the one thing on this screen that needs attention, the same reading
+	 * Card gives its own "blocked" stage — so it is the one danger tone here.
+	 * Returned sits between the two: it is work coming back to the client, not
+	 * work that has stopped, so it warns rather than alarms. Everything else —
+	 * not started, in progress, submitted, not applicable — is left neutral,
+	 * because a screen where every row is coloured tells somebody nothing about
+	 * which row to read first.
 	 *
 	 * @var array<string, string>
 	 */
 	private const TONES = array(
-		'approved' => 'done',
-		'returned' => 'attention',
-		'blocked'  => 'attention',
+		'approved' => 'success',
+		'returned' => 'warning',
+		'blocked'  => 'danger',
 	);
 
 	/**
@@ -113,10 +123,10 @@ final class ChecklistScreen {
 			return;
 		}
 
-		$view = Checklist::view( SyncNotice::refresh_requested() );
+		$view      = Checklist::view( SyncNotice::refresh_requested() );
+		$workspace = Workspace::view( false );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Getting you live', 'blueworx-forge' ) . '</h1>';
+		Page::open( __( 'Getting you live', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		Nav::render( self::SLUG );
 
@@ -126,14 +136,14 @@ final class ChecklistScreen {
 
 		if ( ! $view['ok'] ) {
 			Denial::render( (string) $view['sync']['state'], Denial::REQUESTS, 'bwx-checklist-unavailable' );
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
 
 		if ( array() === $view['steps'] ) {
 			self::nothing_yet();
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
@@ -147,11 +157,20 @@ final class ChecklistScreen {
 			self::section( (string) $section, (array) $steps );
 		}
 
-		echo '</div></div>';
+		echo '</div>';
+
+		Page::close();
 	}
 
 	/**
 	 * How far along they are.
+	 *
+	 * The design system's ProgressBar. The visible count reads exactly as it
+	 * did before conversion ("N of M done") so nothing here changes what a
+	 * client is being told, only how it looks; the percentage alongside it is
+	 * new. The track carries a progressbar role of its own, valued against the
+	 * step counts rather than the rounded percentage, because that is the more
+	 * precise of the two numbers this screen actually has.
 	 *
 	 * @param array<string, mixed> $progress As the studio worked it out (#164).
 	 */
@@ -163,17 +182,28 @@ final class ChecklistScreen {
 			return;
 		}
 
-		printf(
-			'<p class="bwx-checklist-progress" data-testid="bwx-checklist-progress">%s</p>',
-			esc_html(
-				sprintf(
-					/* translators: 1: steps done, 2: steps in total. */
-					__( '%1$d of %2$d done', 'blueworx-forge' ),
-					$done,
-					$total
-				)
-			)
+		$text = sprintf(
+			/* translators: 1: steps done, 2: steps in total. */
+			__( '%1$d of %2$d done', 'blueworx-forge' ),
+			$done,
+			$total
 		);
+		$pct = (int) round( ( $done / $total ) * 100 );
+
+		echo '<div class="bw-progress" data-testid="bwx-checklist-progress">';
+		echo '<div class="bw-progress__row">';
+		printf( '<span class="bw-progress__label">%s</span>', esc_html( $text ) );
+		printf( '<p class="bw-progress__pct">%s%%</p>', esc_html( (string) $pct ) );
+		echo '</div>';
+		printf(
+			'<div class="bw-progress__track" role="progressbar" aria-valuenow="%1$s" aria-valuemin="0" aria-valuemax="%2$s" aria-label="%3$s">',
+			esc_attr( (string) $done ),
+			esc_attr( (string) $total ),
+			esc_attr( $text )
+		);
+		printf( '<div class="bw-progress__bar" style="width:%s%%"></div>', esc_attr( (string) $pct ) );
+		echo '</div>';
+		echo '</div>';
 	}
 
 	/**
@@ -183,18 +213,28 @@ final class ChecklistScreen {
 	 * has. Nothing outstanding is worth saying too — it is the difference
 	 * between "we are waiting on you" and "we are getting on with it".
 	 *
+	 * A bw-card--intro: the design system's own rules for that modifier drop
+	 * the head's dividing border when the head is the card's only child, and
+	 * drop a note's own trailing margin when it is — which is exactly the two
+	 * shapes the two branches below draw, so nothing here is fighting the card
+	 * for space.
+	 *
 	 * @param array<string, mixed> $step The step, or empty.
 	 */
 	private static function next( array $step ): void {
-		echo '<div class="bwx-checklist-next" data-testid="bwx-checklist-next">';
+		echo '<div class="bw-card bw-card--intro" data-testid="bwx-checklist-next">';
 
 		if ( array() === $step ) {
-			echo '<p>' . esc_html__( 'Nothing is waiting on you right now.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-card__body">';
+			echo '<p class="bw-card__note">' . esc_html__( 'Nothing is waiting on you right now.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
 		} else {
-			echo '<p class="bwx-checklist-next-label">' . esc_html__( 'Next for you', 'blueworx-forge' ) . '</p>';
-			echo '<p class="bwx-checklist-next-title"><a href="#' . esc_attr( self::anchor( $step ) ) . '">';
+			echo '<div class="bw-card__head"><div class="bw-card__titles">';
+			echo '<p class="bw-card__eyebrow">' . esc_html__( 'Next for you', 'blueworx-forge' ) . '</p>';
+			echo '<h2 class="bw-card__title"><a href="#' . esc_attr( self::anchor( $step ) ) . '">';
 			echo esc_html( (string) ( $step['title'] ?? '' ) );
-			echo '</a></p>';
+			echo '</a></h2>';
+			echo '</div></div>';
 		}
 
 		echo '</div>';
@@ -231,17 +271,23 @@ final class ChecklistScreen {
 		$theirs = Checklist::is_theirs( $step );
 
 		printf(
-			'<article class="bwx-checklist-step" data-testid="bwx-checklist-step" id="%s" data-status="%s">',
+			'<article class="bw-card" data-testid="bwx-checklist-step" id="%s" data-status="%s">',
 			esc_attr( self::anchor( $step ) ),
 			esc_attr( $status )
 		);
 
-		echo '<h3>' . esc_html( (string) ( $step['title'] ?? '' ) ) . '</h3>';
-
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		echo '<h3 class="bw-card__title">' . esc_html( (string) ( $step['title'] ?? '' ) ) . '</h3>';
+		echo '</div>';
+		echo '<div class="bw-card__actions">';
 		self::badges( $step, $status );
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="bw-card__body">';
 
 		if ( '' !== (string) ( $step['description'] ?? '' ) ) {
-			echo '<p class="bwx-checklist-step-description">' . esc_html( (string) $step['description'] ) . '</p>';
+			echo '<p class="bw-card__note">' . esc_html( (string) $step['description'] ) . '</p>';
 		}
 
 		self::feedback( $step );
@@ -253,39 +299,50 @@ final class ChecklistScreen {
 			self::waiting( $step, $status );
 		}
 
+		echo '</div>';
+
 		echo '</article>';
 	}
 
 	/**
-	 * The small print beside a step's title.
+	 * The small badges beside a step's title.
+	 *
+	 * The two flags read as different kinds of urgent, and are toned
+	 * differently on purpose. "Needed before you can go live" is a standing
+	 * fact about the step — true on the day it is created and true every day
+	 * after, whether or not anyone is behind — so it is informational rather
+	 * than alarming, the same way the original markup never coloured it at
+	 * all. "Overdue" is a live, time-sensitive problem, the one the original
+	 * markup already coloured (bwx-tone-attention) precisely because it
+	 * changes and demands notice, so it carries the strongest tone this screen
+	 * has. Giving them the same tone would flatten "this matters" and "this is
+	 * late" into one signal, when a client's next action differs for each.
 	 *
 	 * @param array<string, mixed> $step   The step.
 	 * @param string               $status Where it is.
 	 */
 	private static function badges( array $step, string $status ): void {
-		echo '<p class="bwx-checklist-step-meta">';
-
 		printf(
-			'<span class="bwx-checklist-status bwx-tone-%s" data-testid="bwx-checklist-status">%s</span>',
-			esc_attr( self::TONES[ $status ] ?? 'quiet' ),
+			'<span class="bw-badge bw-badge--%1$s bwx-checklist-status" data-testid="bwx-checklist-status">%2$s</span>',
+			esc_attr( self::TONES[ $status ] ?? 'neutral' ),
 			esc_html( self::READS[ $status ] ?? $status )
 		);
 
 		if ( ! empty( $step['launch_critical'] ) ) {
-			// Said plainly, because it is the difference between a step that
-			// delays a launch and one that does not.
-			echo '<span class="bwx-checklist-flag">' . esc_html__( 'Needed before you can go live', 'blueworx-forge' ) . '</span>';
+			echo '<span class="bw-badge bw-badge--neutral">' . esc_html__( 'Needed before you can go live', 'blueworx-forge' ) . '</span>';
 		}
 
 		if ( ! empty( $step['overdue'] ) ) {
-			echo '<span class="bwx-checklist-flag bwx-tone-attention">' . esc_html__( 'Overdue', 'blueworx-forge' ) . '</span>';
+			echo '<span class="bw-badge bw-badge--danger">' . esc_html__( 'Overdue', 'blueworx-forge' ) . '</span>';
 		}
-
-		echo '</p>';
 	}
 
 	/**
 	 * What we said when we sent a step back.
+	 *
+	 * A Notice, toned as something the client needs to act on rather than as an
+	 * error — nothing here is broken, a person just needs to look again — so it
+	 * warns rather than alarms, the same distinction badges() draws above.
 	 *
 	 * The reason a returned step is worth returning: without the feedback on
 	 * the client's own screen, "needs another look" is an instruction with no
@@ -300,14 +357,24 @@ final class ChecklistScreen {
 			return;
 		}
 
-		echo '<div class="bwx-checklist-feedback" data-testid="bwx-checklist-feedback">';
-		echo '<p class="bwx-checklist-feedback-label">' . esc_html__( 'What we need changed', 'blueworx-forge' ) . '</p>';
-		echo '<p>' . esc_html( $feedback ) . '</p>';
+		echo '<div class="bw-notice bw-notice--warning" data-testid="bwx-checklist-feedback" role="status">';
+		printf( '<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert" style="color:var(--bw-warning-deep)"></i>' );
+		echo '<div class="bw-notice__body">';
+		echo '<p class="bw-notice__title">' . esc_html__( 'What we need changed', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-notice__text">' . esc_html( $feedback ) . '</p>';
+		echo '</div>';
 		echo '</div>';
 	}
 
 	/**
 	 * What has been attached so far.
+	 *
+	 * A plain list rather than bw-chip: a chip is a compact, reference-only
+	 * pill for a short value like a seat or a filter (see Card::people()), and
+	 * reads oddly stretched across a filename that can run to forty characters
+	 * with an extension on the end. A named row with the design system's own
+	 * icon-plus-text note is the closer fit, and is what Card already uses for
+	 * exactly this shape of thing (its own dated fieldnotes).
 	 *
 	 * Named, dated and not linked. The file is readable through the studio by
 	 * somebody it belongs to, and putting a link on this screen would mean this
@@ -324,7 +391,10 @@ final class ChecklistScreen {
 		echo '<ul class="bwx-checklist-evidence" data-testid="bwx-checklist-evidence">';
 
 		foreach ( $evidence as $file ) {
-			echo '<li>' . esc_html( (string) ( $file['original_name'] ?? '' ) ) . '</li>';
+			printf(
+				'<li class="bw-fieldnote"><i class="bw-icon" data-lucide="file"></i>%s</li>',
+				esc_html( (string) ( $file['original_name'] ?? '' ) )
+			);
 		}
 
 		echo '</ul>';
@@ -338,13 +408,13 @@ final class ChecklistScreen {
 	 */
 	private static function waiting( array $step, string $status ): void {
 		if ( 'submitted' === $status ) {
-			echo '<p class="bwx-checklist-waiting">' . esc_html__( 'Sent to us. We will come back to you.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-fieldnote"><i class="bw-icon" data-lucide="clock"></i>' . esc_html__( 'Sent to us. We will come back to you.', 'blueworx-forge' ) . '</p>';
 
 			return;
 		}
 
 		if ( 'client' !== (string) ( $step['owner_side'] ?? '' ) ) {
-			echo '<p class="bwx-checklist-waiting">' . esc_html__( 'This one is ours to do.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-fieldnote"><i class="bw-icon" data-lucide="user"></i>' . esc_html__( 'This one is ours to do.', 'blueworx-forge' ) . '</p>';
 		}
 	}
 
@@ -354,6 +424,19 @@ final class ChecklistScreen {
 	 * Two things a person can send: what they did, and a file showing it. The
 	 * two are separate submits rather than one, because a file that fails to
 	 * upload must not take somebody's typed answer down with it.
+	 *
+	 * The posting mechanism is untouched by this conversion: method, action,
+	 * enctype, nonce, the hidden action/step_id inputs, every name and id, and
+	 * the submit button's own name/value are exactly what ChecklistActions
+	 * expects. Only the presentation around them changes.
+	 *
+	 * The file input stays a plain `<input type="file">` rather than the
+	 * design system's UploadField: that component keeps its choose/drag state
+	 * in React and never wires its own `<input>` to a working change handler
+	 * (it renders hidden and readonly, with selection left to JavaScript this
+	 * plugin does not ship for its server-rendered admin screens). Reaching
+	 * for its class on a plain input would look styled but not function, which
+	 * is worse than the unstyled control this screen already had.
 	 *
 	 * @param array<string, mixed> $step The step.
 	 */
@@ -367,14 +450,15 @@ final class ChecklistScreen {
 		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( ChecklistActions::ACTION ) );
 		printf( '<input type="hidden" name="step_id" value="%s" />', esc_attr( $id ) );
 
+		echo '<div class="bw-formrow">';
 		printf(
-			'<label class="bwx-checklist-label" for="response-%1$s">%2$s</label>',
+			'<label class="bw-formrow__label" for="response-%1$s">%2$s</label>',
 			esc_attr( $id ),
 			esc_html__( 'What have you done?', 'blueworx-forge' )
 		);
-
+		echo '<div class="bw-formrow__control">';
 		printf(
-			'<textarea id="response-%1$s" name="response" rows="3" data-testid="bwx-checklist-response">%2$s</textarea>',
+			'<textarea id="response-%1$s" name="response" rows="3" class="bw-textarea" data-testid="bwx-checklist-response">%2$s</textarea>',
 			esc_attr( $id ),
 			esc_textarea( (string) ( $step['response'] ?? '' ) )
 		);
@@ -384,28 +468,36 @@ final class ChecklistScreen {
 		 * is a rule about what we will hold, and a person who has just had a
 		 * password rejected without warning tends to email it to us instead.
 		 */
-		echo '<p class="bwx-checklist-hint">' . esc_html__( 'Please do not put passwords or keys here — invite our account instead, and tell us which account you invited.', 'blueworx-forge' ) . '</p>';
-
 		printf(
-			'<label class="bwx-checklist-label" for="evidence-%1$s">%2$s</label>',
+			'<p class="bw-formrow__help">%s</p>',
+			esc_html__( 'Please do not put passwords or keys here — invite our account instead, and tell us which account you invited.', 'blueworx-forge' )
+		);
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="bw-formrow">';
+		printf(
+			'<label class="bw-formrow__label" for="evidence-%1$s">%2$s</label>',
 			esc_attr( $id ),
 			esc_html__( 'Attach something (optional)', 'blueworx-forge' )
 		);
-
+		echo '<div class="bw-formrow__control">';
 		printf(
 			'<input type="file" id="evidence-%s" name="evidence" data-testid="bwx-checklist-file" />',
 			esc_attr( $id )
 		);
+		echo '</div>';
+		echo '</div>';
 
 		echo '<p class="bwx-checklist-actions">';
 
 		printf(
-			'<button type="submit" name="intent" value="save" class="button" data-testid="bwx-checklist-save">%s</button> ',
+			'<button type="submit" name="intent" value="save" class="bw-btn bw-btn--secondary" data-testid="bwx-checklist-save">%s</button> ',
 			esc_html__( 'Save', 'blueworx-forge' )
 		);
 
 		printf(
-			'<button type="submit" name="intent" value="submit" class="button button-primary" data-testid="bwx-checklist-submit">%s</button>',
+			'<button type="submit" name="intent" value="submit" class="bw-btn bw-btn--primary" data-testid="bwx-checklist-submit">%s</button>',
 			esc_html__( 'Send to us', 'blueworx-forge' )
 		);
 
@@ -416,9 +508,11 @@ final class ChecklistScreen {
 	 * A connected site with no checklist on it yet.
 	 */
 	private static function nothing_yet(): void {
-		echo '<p class="bwx-checklist-empty" data-testid="bwx-checklist-empty">';
-		echo esc_html__( 'There is no checklist on this site yet. We will send one over when your build starts.', 'blueworx-forge' );
-		echo '</p>';
+		echo '<div class="bw-empty" data-testid="bwx-checklist-empty">';
+		echo '<i class="bw-icon bw-empty__icon" data-lucide="package"></i>';
+		echo '<h3 class="bw-empty__title">' . esc_html__( 'Nothing here yet', 'blueworx-forge' ) . '</h3>';
+		echo '<p class="bw-empty__text">' . esc_html__( 'There is no checklist on this site yet. We will send one over when your build starts.', 'blueworx-forge' ) . '</p>';
+		echo '</div>';
 	}
 
 	/**
