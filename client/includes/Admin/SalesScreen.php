@@ -10,8 +10,10 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Connection;
+use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Sales;
 use Blueworx\Forge\Client\Sync;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * #156, COMM-2. The client's own view of their support hours.
@@ -71,14 +73,20 @@ final class SalesScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Your hours', 'blueworx-forge' ) . '</h1>';
+		// Not a new read: it is cached the same as any other read-through view
+		// (the same reasoning AskScreen's and AskedScreen's own eyebrow rests
+		// on) — this screen needs it only for whose workspace the eyebrow
+		// names.
+		$workspace = Workspace::view( false );
+
+		Page::open( __( 'Your hours', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		Nav::render( self::SLUG );
 
 		if ( ! Connection::is_configured() ) {
 			Denial::render( Sync::STATE_NOT_CONFIGURED, Denial::WORKSPACE, 'bwx-sales-unavailable' );
-			echo '</div>';
+
+			Page::close();
 
 			return;
 		}
@@ -91,7 +99,7 @@ final class SalesScreen {
 		self::purchases( $view );
 		self::offer( $view );
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -102,43 +110,67 @@ final class SalesScreen {
 	private static function position( array $view ): void {
 		$entitlement = (array) $view['entitlement'];
 
-		echo '<section class="bwx-panel" data-testid="bwx-panel" data-bwx-panel="hours">';
-		echo '<h2>' . esc_html__( 'Where you stand', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Where you stand', 'blueworx-forge' ), 'hours' );
 
 		if ( array() === $entitlement ) {
-			echo '<p class="bwx-empty">' . esc_html__( 'Your hours have not been read from the studio yet.', 'blueworx-forge' ) . '</p>';
-			echo '</section>';
+			echo '<div class="bw-empty">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="clock"></i>';
+			printf( '<h3 class="bw-empty__title">%s</h3>', esc_html__( 'Not read yet', 'blueworx-forge' ) );
+			printf(
+				'<p class="bw-empty__text">%s</p>',
+				esc_html__( 'Your hours have not been read from the studio yet.', 'blueworx-forge' )
+			);
+			echo '</div>';
+
+			Page::panel_close();
 
 			return;
 		}
 
+		self::position_summary( $view, $entitlement );
+
+		Page::panel_close();
+	}
+
+	/**
+	 * The three figures that make up "where you stand", as one strip.
+	 *
+	 * Status, balance and term all belong to the same question and change
+	 * together, so they read as one `bw-summary` — the design system's own
+	 * shape for a persistent band of derived figures — rather than as three
+	 * loose paragraphs that happen to sit near each other.
+	 *
+	 * @param array<string, mixed> $view        What Sales::view() returned.
+	 * @param array<string, mixed> $entitlement The non-empty entitlement.
+	 */
+	private static function position_summary( array $view, array $entitlement ): void {
+		echo '<div class="bw-summary">';
+
 		printf(
-			'<p data-bwx-state="%1$s">%2$s</p>',
+			'<div class="bw-summary__cell"><span class="bw-summary__label">%1$s</span><span class="bw-summary__value" data-bwx-state="%2$s">%3$s</span></div>',
+			esc_html__( 'Status', 'blueworx-forge' ),
 			esc_attr( (string) ( $entitlement['state'] ?? '' ) ),
 			esc_html( (string) ( $entitlement['label'] ?? '' ) )
 		);
 
 		printf(
-			'<p class="bwx-balance" data-bwx-balance="%1$s">%2$s</p>',
+			'<div class="bw-summary__cell"><span class="bw-summary__label">%1$s</span><span class="bw-summary__value" data-bwx-balance="%2$s">%3$s</span></div>',
+			esc_html__( 'Balance', 'blueworx-forge' ),
 			esc_attr( null === $view['balance'] ? '' : (string) $view['balance'] ),
 			esc_html( Sales::balance_label( $view ) )
 		);
 
 		if ( '' !== (string) ( $entitlement['term_ends_on'] ?? '' ) ) {
 			printf(
-				'<p class="bwx-card-value" data-bwx-term-ends="%1$s">%2$s</p>',
+				'<div class="bw-summary__cell"><span class="bw-summary__label">%1$s</span><span class="bw-summary__value" data-bwx-term-ends="%2$s">%3$s</span><span class="bw-summary__foot">%4$s</span></div>',
+				esc_html__( 'Term ends', 'blueworx-forge' ),
 				esc_attr( (string) $entitlement['term_ends_on'] ),
-				esc_html(
-					sprintf(
-						/* translators: %s: a date. */
-						__( 'Your current term runs to %s.', 'blueworx-forge' ),
-						(string) $entitlement['term_ends_on']
-					)
-				)
+				esc_html( (string) $entitlement['term_ends_on'] ),
+				esc_html__( 'Your current term', 'blueworx-forge' )
 			);
 		}
 
-		echo '</section>';
+		echo '</div>';
 	}
 
 	/**
@@ -149,20 +181,27 @@ final class SalesScreen {
 	private static function purchases( array $view ): void {
 		$purchases = (array) $view['purchases'];
 
-		echo '<section class="bwx-panel" data-testid="bwx-panel" data-bwx-panel="purchases">';
-		echo '<h2>' . esc_html__( 'What you have bought', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'What you have bought', 'blueworx-forge' ), 'purchases' );
 
 		if ( array() === $purchases ) {
-			echo '<p class="bwx-empty" data-bwx-purchases="0">' . esc_html__( 'Nothing yet. Hours appear here as soon as a package is set up for you.', 'blueworx-forge' ) . '</p>';
-			echo '</section>';
+			echo '<div class="bw-empty" data-bwx-purchases="0">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="package"></i>';
+			printf( '<h3 class="bw-empty__title">%s</h3>', esc_html__( 'Nothing yet', 'blueworx-forge' ) );
+			printf(
+				'<p class="bw-empty__text">%s</p>',
+				esc_html__( 'Hours appear here as soon as a package is set up for you.', 'blueworx-forge' )
+			);
+			echo '</div>';
+
+			Page::panel_close();
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-purchases="' . esc_attr( (string) count( $purchases ) ) . '"><thead><tr>';
+		echo '<table class="bw-table" data-bwx-purchases="' . esc_attr( (string) count( $purchases ) ) . '"><thead><tr>';
 		echo '<th>' . esc_html__( 'When', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'What', 'blueworx-forge' ) . '</th>';
-		echo '<th>' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__num">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Runs out', 'blueworx-forge' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
@@ -172,13 +211,14 @@ final class SalesScreen {
 			echo '<tr data-bwx-purchase="' . esc_attr( (string) ( $bought['kind'] ?? '' ) ) . '">';
 			echo '<td>' . esc_html( (string) ( $bought['on'] ?? '' ) ) . '</td>';
 			echo '<td>' . esc_html( self::kind_label( (string) ( $bought['kind'] ?? '' ), (string) ( $bought['reason'] ?? '' ) ) ) . '</td>';
-			echo '<td>' . esc_html( number_format( (float) ( $bought['hours'] ?? 0 ), 2 ) ) . '</td>';
+			echo '<td class="bw-table__num">' . esc_html( number_format( (float) ( $bought['hours'] ?? 0 ), 2 ) ) . '</td>';
 			echo '<td>' . esc_html( 0 === $expires ? __( 'With your package', 'blueworx-forge' ) : gmdate( 'Y-m-d', $expires ) ) . '</td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
-		echo '</section>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -204,22 +244,21 @@ final class SalesScreen {
 	private static function offer( array $view ): void {
 		$packages = (array) $view['packages'];
 
-		echo '<section class="bwx-panel" data-testid="bwx-panel" data-bwx-panel="offer">';
-		echo '<h2>' . esc_html__( 'More hours', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'More hours', 'blueworx-forge' ), 'offer' );
 
 		if ( array() !== $packages ) {
-			echo '<table class="widefat striped" data-bwx-packages="' . esc_attr( (string) count( $packages ) ) . '"><thead><tr>';
+			echo '<table class="bw-table" data-bwx-packages="' . esc_attr( (string) count( $packages ) ) . '"><thead><tr>';
 			echo '<th>' . esc_html__( 'Package', 'blueworx-forge' ) . '</th>';
-			echo '<th>' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
-			echo '<th>' . esc_html__( 'Price', 'blueworx-forge' ) . '</th>';
+			echo '<th class="bw-table__num">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
+			echo '<th class="bw-table__num">' . esc_html__( 'Price', 'blueworx-forge' ) . '</th>';
 			echo '<th>' . esc_html__( 'Runs for', 'blueworx-forge' ) . '</th>';
 			echo '</tr></thead><tbody>';
 
 			foreach ( $packages as $package ) {
 				echo '<tr data-bwx-package="' . esc_attr( (string) ( $package['name'] ?? '' ) ) . '">';
 				echo '<td>' . esc_html( (string) ( $package['name'] ?? '' ) ) . '</td>';
-				echo '<td>' . esc_html( number_format( (float) ( $package['hours'] ?? 0 ), 2 ) ) . '</td>';
-				echo '<td>' . esc_html( self::money( (int) ( $package['price'] ?? 0 ), (string) ( $package['currency'] ?? 'GBP' ) ) ) . '</td>';
+				echo '<td class="bw-table__num">' . esc_html( number_format( (float) ( $package['hours'] ?? 0 ), 2 ) ) . '</td>';
+				echo '<td class="bw-table__num">' . esc_html( self::money( (int) ( $package['price'] ?? 0 ), (string) ( $package['currency'] ?? 'GBP' ) ) ) . '</td>';
 				echo '<td>' . esc_html(
 					sprintf(
 						/* translators: %d: a number of months. */
@@ -239,15 +278,18 @@ final class SalesScreen {
 		 * deliberately nothing on this screen that could be mistaken for having
 		 * bought something.
 		 */
-		echo '<p>' . esc_html__( 'Ask for more hours, or to move to a different package, and we will sort it out with you. Nothing here charges you for anything.', 'blueworx-forge' ) . '</p>';
+		printf(
+			'<p class="bw-card__note">%s</p>',
+			esc_html__( 'Ask for more hours, or to move to a different package, and we will sort it out with you. Nothing here charges you for anything.', 'blueworx-forge' )
+		);
 
 		printf(
-			'<a class="button button-primary" data-bwx-ask-hours="1" href="%1$s">%2$s</a>',
+			'<a class="bw-btn bw-btn--primary" data-bwx-ask-hours="1" href="%1$s">%2$s</a>',
 			esc_url( AskScreen::url() ),
 			esc_html__( 'Ask about hours', 'blueworx-forge' )
 		);
 
-		echo '</section>';
+		Page::panel_close();
 	}
 
 	/**

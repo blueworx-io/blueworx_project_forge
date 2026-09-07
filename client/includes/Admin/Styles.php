@@ -63,7 +63,6 @@ final class Styles {
 }
 
 .bwx-card-key { color: var(--text-muted, #646970); }
-.bwx-card-value { color: var(--text-primary, #1d2327); text-align: right; }
 
 .bwx-empty { color: var(--text-muted, #646970); font-style: italic; margin: 0; }
 
@@ -86,16 +85,6 @@ final class Styles {
 
 .bwx-months { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.75rem; }
 
-.bwx-panel {
-	background: var(--surface-card, #fff);
-	border: 1px solid var(--border-subtle, #dcdcde);
-	border-radius: var(--radius-cards, 8px);
-	padding: var(--card-padding-lg, 1rem);
-	margin: 0 0 1rem;
-	max-width: var(--content-max-width, 60rem);
-}
-
-.bwx-panel h2 { margin: 0 0 0.5rem; font-size: var(--text-heading-sm, 1rem); }
 .bwx-lede { margin: 0 0 0.25rem; font-size: var(--text-heading, 1.15rem); color: var(--text-primary, #1d2327); }
 .bwx-undated { margin-top: 1.5rem; }
 
