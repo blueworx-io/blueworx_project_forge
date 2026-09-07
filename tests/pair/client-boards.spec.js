@@ -271,6 +271,36 @@ test.describe('the client read-only views', () => {
     await page.close();
   });
 
+  test('a work item card is built from the design system', async ({ browser }) => {
+    test.slow();
+
+    const studio = await signedIn(browser, STUDIO_URL);
+    const client = await signedIn(browser, CLIENT_URL);
+    const mine = await studioSite(studio, 'Design System Co');
+
+    const item = await addWork(studio, mine.site.id, {
+      title: `Drawn from the design system ${RUN}`,
+      level: 'feature',
+      work_type: 'feature',
+    });
+
+    await connect(client, mine.issued);
+
+    const page = await client.context.newPage();
+    await page.goto(BOARD);
+
+    const card = page.locator('[data-testid="bwx-column"] .bw-card').first();
+    await expect(card).toBeVisible();
+
+    // The board deliberately leaves the stage badge off a card — the column
+    // it sits in already names the stage — so the badge is proved on the
+    // item's own page, where Card::render() always names it.
+    await page.goto(`${BOARD}&item=${item.id}`);
+    await expect(page.locator('.bw-card .bw-badge').first()).toBeVisible();
+
+    await page.close();
+  });
+
   test('an unreachable studio says so rather than drawing an empty board', async ({ browser }) => {
     test.slow();
 

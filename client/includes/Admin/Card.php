@@ -22,6 +22,13 @@ namespace Blueworx\Forge\Client\Admin;
  * button that changes where the work sits, and no code on this artifact that
  * could render one — which is what #128 asks for and what the artifact check
  * enforces.
+ *
+ * Drawn from the shared design system (docs #ARCH-...): the card shell is
+ * `bw-card`, the stage is a `bw-badge` toned by what the stage means rather
+ * than at random, and each seat is a `bw-chip` — read-only reference data, not
+ * a value anybody here could change. The date line has no dedicated component
+ * of its own in the system; `bw-fieldnote` (a small muted note, optionally with
+ * an icon) is the closest honest fit and is used for it.
  */
 final class Card {
 
@@ -53,6 +60,41 @@ final class Card {
 	}
 
 	/**
+	 * The badge tone a stage reads as, chosen for what the stage means rather
+	 * than assigned in list order.
+	 *
+	 * Blocked (Work\Stages::EXCEPTION) is the one thing on a board that needs
+	 * attention, so it is the one danger tone. Bug tracking is conditional and
+	 * itself a signal something is wrong, so it warns. Completed and released
+	 * are both finished, but only released is live on the client's own site
+	 * (NOTIF-2) — completed is "ready", released is "done" — so completed reads
+	 * as info and released as success. In development and in review are the
+	 * stages work actually moves through, so they carry the brand accent.
+	 * Everything earlier than that — still being planned rather than built — is
+	 * left neutral.
+	 *
+	 * @param string $stage A stage slug from Work\Stages::ALL.
+	 * @return string One of the bw-badge tones.
+	 */
+	private static function stage_tone( string $stage ): string {
+		switch ( $stage ) {
+			case 'blocked':
+				return 'danger';
+			case 'bug-tracking':
+				return 'warning';
+			case 'in-development':
+			case 'in-review':
+				return 'accent';
+			case 'completed':
+				return 'info';
+			case 'released':
+				return 'success';
+			default:
+				return 'neutral';
+		}
+	}
+
+	/**
 	 * Renders one card.
 	 *
 	 * @param array<string, mixed> $item        A board item.
@@ -72,34 +114,45 @@ final class Card {
 		// (#130) — a card that only had a link would leave that pointing at
 		// nothing.
 		printf(
-			'<article class="bwx-card" data-testid="bwx-card" id="bwx-item-%1$s" data-bwx-item="%1$s">',
+			'<article class="bw-card" data-testid="bwx-card" id="bwx-item-%1$s" data-bwx-item="%1$s">',
 			esc_attr( $id )
 		);
+
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
 
 		$title = (string) ( $item['title'] ?? '' );
 
 		if ( $linked && '' !== $id ) {
 			printf(
-				'<h3 class="bwx-card-title" data-testid="bwx-card-title"><a href="%s">%s</a></h3>',
+				'<h3 class="bw-card__title" data-testid="bwx-card-title"><a href="%s">%s</a></h3>',
 				esc_url( ItemScreen::url( $id ) ),
 				esc_html( $title )
 			);
 		} else {
 			printf(
-				'<h3 class="bwx-card-title" data-testid="bwx-card-title">%s</h3>',
+				'<h3 class="bw-card__title" data-testid="bwx-card-title">%s</h3>',
 				esc_html( $title )
 			);
 		}
 
+		echo '</div>';
+
 		if ( $with_stage ) {
 			printf(
-				'<p class="bwx-card-stage" data-testid="bwx-card-stage">%s</p>',
+				'<div class="bw-card__actions"><span class="bw-badge bw-badge--%1$s" data-testid="bwx-card-stage">%2$s</span></div>',
+				esc_attr( self::stage_tone( (string) ( $item['stage'] ?? '' ) ) ),
 				esc_html( (string) ( $item['stage_label'] ?? '' ) )
 			);
 		}
 
+		echo '</div>';
+
+		echo '<div class="bw-card__body">';
+
 		self::dates( $item );
 		self::people( $item );
+
+		echo '</div>';
 
 		echo '</article>';
 	}
@@ -114,31 +167,19 @@ final class Card {
 	 * @param array<string, mixed> $item A board item.
 	 */
 	private static function dates( array $item ): void {
-		$rows = array();
-
 		foreach ( self::date_labels() as $field => $label ) {
 			$date = (string) ( $item[ $field ] ?? '' );
 
-			if ( '' !== $date ) {
-				$rows[] = array( $label, $date );
+			if ( '' === $date ) {
+				continue;
 			}
-		}
 
-		if ( array() === $rows ) {
-			return;
-		}
-
-		echo '<ul class="bwx-card-dates">';
-
-		foreach ( $rows as $row ) {
 			printf(
-				'<li><span class="bwx-card-key">%1$s</span> <span class="bwx-card-value">%2$s</span></li>',
-				esc_html( $row[0] ),
-				esc_html( self::day( $row[1] ) )
+				'<p class="bw-fieldnote"><i class="bw-icon" data-lucide="calendar"></i>%1$s %2$s</p>',
+				esc_html( $label ),
+				esc_html( self::day( $date ) )
 			);
 		}
-
-		echo '</ul>';
 	}
 
 	/**
@@ -165,17 +206,17 @@ final class Card {
 			return;
 		}
 
-		echo '<ul class="bwx-card-people" data-testid="bwx-card-people">';
+		echo '<div class="bw-chips" data-testid="bwx-card-people">';
 
 		foreach ( $rows as $row ) {
 			printf(
-				'<li><span class="bwx-card-key">%1$s</span> <span class="bwx-card-value">%2$s</span></li>',
+				'<span class="bw-chip bw-chip--plain">%1$s: %2$s</span>',
 				esc_html( $row[0] ),
 				esc_html( $row[1] )
 			);
 		}
 
-		echo '</ul>';
+		echo '</div>';
 	}
 
 	/**

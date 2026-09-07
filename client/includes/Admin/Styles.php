@@ -47,6 +47,9 @@ final class Styles {
 	border: 1px solid var(--border-subtle, #dcdcde);
 	border-radius: var(--radius-cards, 8px);
 	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
 }
 
 .bwx-column-head {
@@ -61,23 +64,6 @@ final class Styles {
 
 .bwx-column-count { color: var(--text-muted, #646970); font-variant-numeric: tabular-nums; }
 
-.bwx-card {
-	background: var(--surface-card, #fff);
-	border: 1px solid var(--border-subtle, #dcdcde);
-	border-radius: var(--radius-cards, 8px);
-	box-shadow: var(--shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.06));
-	padding: var(--card-padding, 0.75rem);
-	margin-bottom: 0.6rem;
-}
-
-.bwx-card:last-child { margin-bottom: 0; }
-.bwx-card-title { margin: 0 0 0.25rem; font-size: var(--text-body, 0.95rem); line-height: 1.35; }
-.bwx-card-stage { margin: 0 0 0.4rem; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
-
-.bwx-card-dates,
-.bwx-card-people { margin: 0.35rem 0 0; padding: 0; list-style: none; font-size: var(--text-small, 0.8rem); }
-.bwx-card-dates li,
-.bwx-card-people li { display: flex; gap: 0.4rem; justify-content: space-between; }
 .bwx-card-key { color: var(--text-muted, #646970); }
 .bwx-card-value { color: var(--text-primary, #1d2327); text-align: right; }
 
@@ -180,9 +166,6 @@ final class Styles {
 }
 
 [data-testid="bwx-questions"] form { margin-top: 0.6rem; }
-.bwx-card-title a { text-decoration: none; }
-.bwx-card-title a:hover { text-decoration: underline; }
-
 .wrap.bw-wrap { margin: 0; }
 body.toplevel_page_blueworx-forge-client #wpcontent { padding-left: 0; }
 body.toplevel_page_blueworx-forge-client #wpbody-content { padding-bottom: 0; }
