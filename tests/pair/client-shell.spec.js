@@ -195,7 +195,7 @@ test.describe('the client workspace frame', () => {
     await expect(nav).toHaveClass(/bw-tabs/);
     await expect(nav.locator('[data-testid="bwx-client-nav-item"]')).not.toHaveCount(0);
     // Still a tab strip, still not a second navigation column.
-    await expect(page.locator('.bw-sectionnav')).toHaveCount(0);
+    await expect(page.locator('.bw-secnav')).toHaveCount(0);
 
     await page.close();
   });
