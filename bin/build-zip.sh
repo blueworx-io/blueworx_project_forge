@@ -117,10 +117,16 @@ done
 # The few paths both artifacts take from the repo root. Kept to a closed list in
 # bin/check-artifacts.mjs, because this is the one door out of the artifact's
 # own directory and widening it silently is how studio code reaches a client.
+#
+# The destination keeps the source's directory structure. Every shared path used
+# to sit at the repo root, where `cp -R src dest/` and "keep the structure" are
+# the same thing; assets/blueworx-admin-design.css is not, and it has to land
+# beside assets/fonts or the stylesheet cannot find its own fonts.
 for item in "${SHARED[@]}"; do
 	[ -n "$item" ] || continue
 	[ -e "$ROOT/$item" ] || die "shared path is missing from the repo: $item"
-	cp -R "$ROOT/$item" "$STAGE/$SLUG/"
+	mkdir -p "$STAGE/$SLUG/$(dirname "$item")"
+	cp -R "$ROOT/$item" "$STAGE/$SLUG/$item"
 done
 
 # --- build -------------------------------------------------------------------
