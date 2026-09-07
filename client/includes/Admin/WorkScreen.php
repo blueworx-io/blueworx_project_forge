@@ -43,7 +43,7 @@ final class WorkScreen {
 
 		SyncNotice::render( $view['sync'], $slug );
 
-		echo '<div class="bwx-work">';
+		echo '<div class="bwx-work" data-testid="bwx-work">';
 
 		if ( ! $view['ok'] ) {
 			Denial::render( (string) $view['sync']['state'], Denial::WORK, 'bwx-work-unavailable' );

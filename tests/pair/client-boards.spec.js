@@ -174,7 +174,7 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(BOARD);
 
-    const work = page.locator('.bwx-work');
+    const work = page.getByTestId('bwx-work');
     await expect(work).toContainText(`Not yours to move ${RUN}`);
 
     // Not "disabled" — absent. Anything a person could act through would be a
@@ -207,7 +207,7 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(BOARD);
 
-    const work = page.locator('.bwx-work');
+    const work = page.getByTestId('bwx-work');
     await expect(work).toContainText(`Quietly chargeable ${RUN}`);
 
     // Ruled out in the projection, so ruled out on the page. A client seeing
