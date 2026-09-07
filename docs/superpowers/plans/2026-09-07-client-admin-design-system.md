@@ -698,25 +698,30 @@ final class Page {
 	public static function open( string $title, string $eyebrow = '', string $lede = '' ): void {
 		echo '<div class="wrap bw-wrap"><div class="bw-admin bw-page">';
 		echo '<header class="bw-pagehead" data-testid="bwx-pagehead">';
+		echo '<div class="bw-pagehead__titles">';
 
 		if ( '' !== $eyebrow ) {
-			printf( '<p class="bw-pagehead-eyebrow">%s</p>', esc_html( $eyebrow ) );
+			printf( '<p class="bw-pagehead__eyebrow">%s</p>', esc_html( $eyebrow ) );
 		}
 
-		printf( '<h1 class="bw-pagehead-title">%s</h1>', esc_html( $title ) );
+		printf( '<h1 class="bw-pagehead__h1">%s</h1>', esc_html( $title ) );
 
 		if ( '' !== $lede ) {
-			printf( '<p class="bw-pagehead-lede">%s</p>', esc_html( $lede ) );
+			printf( '<p class="bw-pagehead__lede">%s</p>', esc_html( $lede ) );
 		}
 
-		echo '</header>';
+		echo '</div></header>';
+
+		// The panel column. ScreenLayout draws this as bw-panels when a screen
+		// has no sidebar, and no client screen has one.
+		echo '<div class="bw-panels">';
 	}
 
 	/**
 	 * Closes the page.
 	 */
 	public static function close(): void {
-		echo '</div></div>';
+		echo '</div></div></div>';
 	}
 
 	/**
@@ -734,14 +739,17 @@ final class Page {
 			'<section class="bw-card" data-testid="bwx-panel" data-bwx-panel="%s">',
 			esc_attr( $name )
 		);
-		printf( '<h2 class="bw-card-title">%s</h2>', esc_html( $heading ) );
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		printf( '<h2 class="bw-card__title">%s</h2>', esc_html( $heading ) );
+		echo '</div></div>';
+		echo '<div class="bw-card__body">';
 	}
 
 	/**
 	 * Closes a panel.
 	 */
 	public static function panel_close(): void {
-		echo '</section>';
+		echo '</div></section>';
 	}
 }
 ```
