@@ -44,7 +44,12 @@
       "shared": [
         "CHANGELOG.md",
         "plugin-update-checker",
-        "tokens"
+        "tokens",
+        "assets/blueworx-admin-design.css",
+        "assets/fonts",
+        "assets/blueworx-admin-icons.js",
+        "assets/blueworx-page-editor.js",
+        "blueworx-page-editor"
       ]
     }
   }

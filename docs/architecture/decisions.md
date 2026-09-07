@@ -106,6 +106,16 @@ never to change course.
 
 **Consequence if reversed:** Screens are built twice, and the studio views milestone grows by the whole of the configuration surface.
 
+### ARCH-8 — shareable-paths
+
+**Question:** What may cross the artifact boundary from the repo root into the client plugin?
+
+**Options considered:** Keep the list at three and give the client its own copy of the design system under `client/`, which honours the geography rule literally but leaves two copies to drift and only one of them watched by the foundation's check; drop the closed list for a rule such as "anything not under `includes/`", which is the kind of rule that reads as safe right up to the merge that makes it wrong; widen the closed list entry by entry, each one argued.
+
+**Decision:** The list stays closed and entry-by-entry. A path may join it only if it is appearance or shared machinery that knows nothing about clients, capacity, or any other client's data — the boundary ARCH-1 draws is command-centre code off a client site, not colours off it. A path that is a vendored copy of a foundation library, kept byte-identical by the foundation's drift check, cannot grow command-centre code without CI failing, and that is what makes it safe to share rather than a judgement about its contents today. Admitted on this basis: `assets/blueworx-admin-design.css`, `assets/fonts`, `assets/blueworx-admin-icons.js`, `assets/blueworx-page-editor.js`, `blueworx-page-editor`. Approved by Luke on 7 September 2026.
+
+**Consequence if reversed:** The client plugin keeps a second copy of the design system, the foundation's drift check watches only the studio's, and the two interfaces diverge without anything failing.
+
 ## Workflow
 
 ### WF-1 — conditional-and-exception-stages
