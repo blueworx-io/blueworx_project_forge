@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Submissions;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * The other half of asking (#130).
@@ -18,10 +19,10 @@ use Blueworx\Forge\Client\Submissions;
  * Somebody who sends a request wants to know one thing when they come back: did
  * anybody look at it, and what did they say. So the screen is built around that
  * exchange rather than around the record. Each entry puts the client's own
- * words first and the studio's reply underneath them, indented — the shape of a
- * reply to a letter, which is what it is. A table with a status column would
- * have flattened the two into equals, when the whole point of REQ-1 is that one
- * of them is fixed and the other is ours to add.
+ * words first and the studio's reply underneath them — the shape of a reply to
+ * a letter, which is what it is. A table with a status column would have
+ * flattened the two into equals, when the whole point of REQ-1 is that one of
+ * them is fixed and the other is ours to add.
  *
  * The status is the only coloured thing on the page, and only two of the five
  * states get a colour: work that is going ahead, and work that is not. The rest
@@ -41,14 +42,20 @@ final class AskedScreen {
 	public const SLUG = 'blueworx-forge-client-asked';
 
 	/**
-	 * The states worth colouring, and the class each gets.
+	 * The states worth colouring, and the bw-badge tone each gets.
+	 *
+	 * Grouped the same way the class doc above argues it: accepted and
+	 * converted are both "this is going ahead", so both read as success;
+	 * declined is the one negative outcome, so it is the one danger tone.
+	 * Received and in-review fall through to neutral — nothing has been
+	 * decided yet, so nothing here should look decided.
 	 *
 	 * @var array<string, string>
 	 */
 	private const TONES = array(
-		'converted' => 'going',
-		'accepted'  => 'going',
-		'declined'  => 'closed',
+		'converted' => 'success',
+		'accepted'  => 'success',
+		'declined'  => 'danger',
 	);
 
 	/**
@@ -75,8 +82,13 @@ final class AskedScreen {
 
 		$view = Submissions::view( SyncNotice::refresh_requested() );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'What you asked for', 'blueworx-forge' ) . '</h1>';
+		// The eyebrow needs the workspace's own read for whose workspace this
+		// is (#128, #126) — the same reason WorkScreen reads it separately
+		// from the board. Not a new read: it is cached the same as any other
+		// read-through view.
+		$workspace = Workspace::view( false );
+
+		Page::open( __( 'What you asked for', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		Nav::render( self::SLUG );
 
@@ -84,7 +96,7 @@ final class AskedScreen {
 
 		if ( ! $view['ok'] ) {
 			Denial::render( (string) $view['sync']['state'], Denial::REQUESTS, 'bwx-asked-unavailable' );
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
@@ -93,7 +105,7 @@ final class AskedScreen {
 
 		if ( array() === $view['submissions'] ) {
 			self::nothing_asked();
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
@@ -104,7 +116,9 @@ final class AskedScreen {
 			self::entry( (array) $submission );
 		}
 
-		echo '</div></div>';
+		echo '</div>';
+
+		Page::close();
 	}
 
 	/**
@@ -121,11 +135,17 @@ final class AskedScreen {
 		$name = (string) ( $contact['display_name'] ?? '' );
 
 		if ( '' === $name ) {
+			self::empty_state(
+				'user',
+				__( 'No contact assigned yet', 'blueworx-forge' ),
+				__( 'Nobody is assigned to you yet. The studio is sorting that out; anything urgent can go to whoever set this site up.', 'blueworx-forge' )
+			);
+
 			return;
 		}
 
 		printf(
-			'<p class="bwx-empty" data-testid="bwx-asked-contact">%s</p>',
+			'<p data-testid="bwx-asked-contact">%s</p>',
 			sprintf(
 				/* translators: %s: the name of the client's contact at the studio. */
 				esc_html__( 'Anything here you want to talk through, ask %s.', 'blueworx-forge' ),
@@ -143,28 +163,34 @@ final class AskedScreen {
 		$state = (string) ( $submission['intake_state'] ?? '' );
 
 		printf(
-			'<article class="bwx-asked-entry" data-testid="bwx-asked-entry" data-bwx-state="%s">',
+			'<article class="bw-card" data-testid="bwx-asked-entry" data-bwx-state="%s">',
 			esc_attr( $state )
 		);
 
-		echo '<header class="bwx-asked-head">';
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
 
 		printf(
-			'<h2 class="bwx-asked-title">%s</h2>',
+			'<h2 class="bw-card__title">%s</h2>',
 			esc_html( (string) ( $submission['title'] ?? '' ) )
 		);
 
+		echo '</div>';
+
 		printf(
-			'<span class="bwx-status bwx-status-%1$s" data-testid="bwx-asked-status">%2$s</span>',
-			esc_attr( self::TONES[ $state ] ?? 'open' ),
+			'<div class="bw-card__actions"><span class="bw-badge bw-badge--%1$s" data-testid="bwx-asked-status">%2$s</span></div>',
+			esc_attr( self::TONES[ $state ] ?? 'neutral' ),
 			esc_html( (string) ( $submission['intake_label'] ?? '' ) )
 		);
 
-		echo '</header>';
+		echo '</div>';
+
+		echo '<div class="bw-card__body">';
 
 		self::meta( $submission );
 		self::asked( $submission );
 		self::reply( $submission );
+
+		echo '</div>';
 
 		echo '</article>';
 	}
@@ -232,15 +258,14 @@ final class AskedScreen {
 		$converted = (array) ( $submission['converted'] ?? array() );
 
 		if ( '' === $response && array() === $converted ) {
-			printf(
-				'<p class="bwx-empty bwx-asked-waiting">%s</p>',
-				esc_html__( 'No reply yet.', 'blueworx-forge' )
+			self::empty_state(
+				'clock',
+				__( 'No reply yet', 'blueworx-forge' ),
+				__( 'The studio has not answered this one yet.', 'blueworx-forge' )
 			);
 
 			return;
 		}
-
-		echo '<div class="bwx-asked-reply">';
 
 		if ( '' !== $response ) {
 			printf(
@@ -251,14 +276,40 @@ final class AskedScreen {
 
 		if ( array() !== $converted ) {
 			printf(
-				'<p class="bwx-asked-became">%s <a class="bwx-asked-link" data-testid="bwx-asked-converted" href="%s">%s</a> <span class="bwx-card-key">%s</span></p>',
+				'<p>%s <a data-testid="bwx-asked-converted" href="%s">%s</a> (%s)</p>',
 				esc_html__( 'This became', 'blueworx-forge' ),
 				esc_url( admin_url( 'admin.php?page=' . BoardScreen::SLUG ) . '#bwx-item-' . rawurlencode( (string) ( $converted['id'] ?? '' ) ) ),
 				esc_html( (string) ( $converted['title'] ?? '' ) ),
 				esc_html( (string) ( $converted['stage_label'] ?? '' ) )
 			);
 		}
+	}
 
+	/**
+	 * The design system's EmptyState: an icon, a short heading, and the
+	 * fuller sentence underneath it.
+	 *
+	 * The same shape `Screen::nothing()` and `Denial::render()` already draw
+	 * — kept as its own small helper here rather than a shared one, because
+	 * this screen is the only one that needs to nest it inside a card body
+	 * rather than a panel.
+	 *
+	 * @param string $icon    A lucide icon name shipped with the design system.
+	 * @param string $title   Short label for what would appear here.
+	 * @param string $text    The fuller sentence, in plain text — escaped
+	 *                        here, so a caller who needs to fold in a link
+	 *                        (as {@see self::nothing_asked()} does) writes its
+	 *                        own markup instead of calling this.
+	 * @param string $test_id A hook for tests. Optional.
+	 */
+	private static function empty_state( string $icon, string $title, string $text, string $test_id = '' ): void {
+		printf(
+			'<div class="bw-empty"%s>',
+			'' === $test_id ? '' : sprintf( ' data-testid="%s"', esc_attr( $test_id ) )
+		);
+		printf( '<i class="bw-icon bw-empty__icon" data-lucide="%s"></i>', esc_attr( $icon ) );
+		printf( '<h3 class="bw-empty__title">%s</h3>', esc_html( $title ) );
+		printf( '<p class="bw-empty__text">%s</p>', esc_html( $text ) );
 		echo '</div>';
 	}
 
@@ -293,11 +344,21 @@ final class AskedScreen {
 	 * possible, so the empty state says where to do it.
 	 */
 	private static function nothing_asked(): void {
+		echo '<div class="bw-empty" data-testid="bwx-asked-empty">';
+		echo '<i class="bw-icon bw-empty__icon" data-lucide="message-square"></i>';
+
 		printf(
-			'<p class="bwx-empty" data-testid="bwx-asked-empty">%s <a href="%s">%s</a>.</p>',
-			esc_html__( "You haven't asked for anything yet. Whatever you send appears here, with what the studio said about it.", 'blueworx-forge' ),
+			'<h3 class="bw-empty__title">%s</h3>',
+			esc_html__( "You haven't asked for anything yet", 'blueworx-forge' )
+		);
+
+		printf(
+			'<p class="bw-empty__text">%s <a href="%s">%s</a>.</p>',
+			esc_html__( 'Whatever you send appears here, with what the studio said about it.', 'blueworx-forge' ),
 			esc_url( admin_url( 'admin.php?page=' . AskScreen::SLUG ) ),
 			esc_html__( 'Ask for something', 'blueworx-forge' )
 		);
+
+		echo '</div>';
 	}
 }

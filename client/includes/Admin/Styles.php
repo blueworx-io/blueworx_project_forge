@@ -100,9 +100,19 @@ final class Styles {
 .bwx-undated { margin-top: 1.5rem; }
 
 /* What you asked for (#130). An exchange, not a table: the request, then the
-   reply set in under it. */
+   reply set in under it. Each entry is a bw-card; this only adds the gap
+   between them, since bw-card carries no margin of its own. */
 .bwx-asked { max-width: var(--content-max-width, 60rem); margin-top: 1rem; }
+.bwx-asked > .bw-card { margin: 0 0 0.75rem; }
+.bwx-asked > .bw-card:last-child { margin-bottom: 0; }
 
+/*
+ * Still used by ItemScreen's own conversation views (#133), not yet
+ * converted — the client's own entries there are indented and ruled with
+ * this same box. "What you asked for" no longer draws its entries with it
+ * (they are a bw-card now); leave it for ItemScreen to retire when its turn
+ * comes.
+ */
 .bwx-asked-entry {
 	background: var(--surface-card, #fff);
 	border: 1px solid var(--border-subtle, #dcdcde);
@@ -111,42 +121,15 @@ final class Styles {
 	margin: 0 0 0.75rem;
 }
 
-.bwx-asked-head { display: flex; gap: 0.75rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-.bwx-asked-title { margin: 0; font-size: var(--text-heading-sm, 1rem); line-height: 1.3; }
 .bwx-asked-meta { margin: 0.15rem 0 0; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
 .bwx-asked-words { margin: 0.6rem 0 0; }
 .bwx-asked-words p { margin: 0 0 0.4rem; }
 .bwx-asked-words p:last-child { margin-bottom: 0; }
 
-.bwx-asked-reply {
-	margin: 0.75rem 0 0;
-	padding: 0.6rem 0 0.1rem 0.85rem;
-	border-left: 3px solid var(--surface-action, #2271b1);
-}
-
-.bwx-asked-reply p { margin: 0 0 0.35rem; }
-.bwx-asked-became { font-size: var(--text-small, 0.85rem); }
-.bwx-asked-waiting { margin-top: 0.75rem; }
-
-.bwx-status {
-	flex: none;
-	border-radius: var(--radius-pills, 999px);
-	padding: 0.1rem 0.6rem;
-	font-size: var(--text-small, 0.75rem);
-	white-space: nowrap;
-	background: var(--surface-muted, #f6f7f7);
-	color: var(--text-muted, #646970);
-	border: 1px solid var(--border-subtle, #dcdcde);
-}
-
-.bwx-status-going { color: var(--surface-action, #2271b1); border-color: currentColor; }
-.bwx-status-closed { color: var(--color-coral, #d63638); border-color: currentColor; }
-
 /*
  * The conversation on one item (#133). The client's own entries are indented
- * and ruled, the studio's are not — the same shape "What you asked for" already
- * uses for a reply to a letter, so the two screens read as one product rather
- * than as two takes on a thread.
+ * and ruled, the studio's are not — a letter and its reply, the same shape
+ * "What you asked for" reads as now that it draws its entries as a bw-card.
  */
 .bwx-asked-entry[data-bwx-from="client"] {
 	margin-left: 1.25rem;
