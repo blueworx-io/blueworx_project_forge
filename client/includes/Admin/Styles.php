@@ -99,10 +99,6 @@ final class Styles {
 
 .bwx-panel h2 { margin: 0 0 0.5rem; font-size: var(--text-heading-sm, 1rem); }
 .bwx-lede { margin: 0 0 0.25rem; font-size: var(--text-heading, 1.15rem); color: var(--text-primary, #1d2327); }
-.bwx-list { margin: 0; padding: 0; list-style: none; }
-.bwx-list li { padding: 0.35rem 0; border-bottom: 1px solid var(--border-subtle, #f0f0f1); display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: baseline; }
-.bwx-list li:last-child { border-bottom: 0; }
-[data-bwx-reason="blocked"] .bwx-card-key { color: var(--color-coral, #d63638); }
 .bwx-undated { margin-top: 1.5rem; }
 
 /* What you asked for (#130). An exchange, not a table: the request, then the
@@ -167,9 +163,9 @@ final class Styles {
 
 [data-testid="bwx-questions"] form { margin-top: 0.6rem; }
 .wrap.bw-wrap { margin: 0; }
-body.toplevel_page_blueworx-forge-client #wpcontent { padding-left: 0; }
-body.toplevel_page_blueworx-forge-client #wpbody-content { padding-bottom: 0; }
-body.toplevel_page_blueworx-forge-client #wpfooter { display: none; }
+body[class*="blueworx-forge-client"] #wpcontent { padding-left: 0; }
+body[class*="blueworx-forge-client"] #wpbody-content { padding-bottom: 0; }
+body[class*="blueworx-forge-client"] #wpfooter { display: none; }
 CSS;
 	}
 }

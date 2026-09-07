@@ -134,7 +134,7 @@ test.describe('the client dashboard', () => {
     );
 
     // And nothing anywhere that reads as a failure.
-    await expect(page.locator('.notice-error')).toHaveCount(0);
+    await expect(page.locator('.bw-notice--danger')).toHaveCount(0);
 
     await page.close();
   });

@@ -219,19 +219,34 @@ final class Screen {
 		Page::panel_open( __( 'Your contact', 'blueworx-forge' ), 'contact' );
 
 		if ( '' === $name ) {
-			printf(
-				'<p class="bwx-empty">%s</p>',
-				esc_html__( 'Nobody is assigned to you yet. The studio is sorting that out; anything urgent can go to whoever set this site up.', 'blueworx-forge' )
+			self::nothing(
+				'user',
+				__( 'No contact assigned yet', 'blueworx-forge' ),
+				__( 'Nobody is assigned to you yet. The studio is sorting that out; anything urgent can go to whoever set this site up.', 'blueworx-forge' )
 			);
 		} else {
 			printf( '<p class="bwx-lede" data-testid="bwx-contact-name">%s</p>', esc_html( $name ) );
 			printf(
-				'<p class="bwx-empty">%s</p>',
+				'<p class="bw-card__note">%s</p>',
 				esc_html__( 'Your point of contact at the studio.', 'blueworx-forge' )
 			);
 		}
 
 		Page::panel_close();
+	}
+
+	/**
+	 * A panel with nothing to show yet — the design system's EmptyState.
+	 *
+	 * @param string $icon  A lucide icon name shipped with the design system.
+	 * @param string $title Short label for what would appear here.
+	 * @param string $text  The fuller sentence explaining the absence.
+	 */
+	private static function nothing( string $icon, string $title, string $text ): void {
+		printf( '<div class="bw-empty"><i class="bw-icon bw-empty__icon" data-lucide="%s"></i>', esc_attr( $icon ) );
+		printf( '<h3 class="bw-empty__title">%s</h3>', esc_html( $title ) );
+		printf( '<p class="bw-empty__text">%s</p>', esc_html( $text ) );
+		echo '</div>';
 	}
 
 	/**
@@ -256,20 +271,21 @@ final class Screen {
 		$wanting = Digest::attention( (array) $board['items'], gmdate( 'Y-m-d' ) );
 
 		if ( array() === $wanting ) {
-			printf(
-				'<p class="bwx-empty">%s</p>',
-				esc_html__( 'Nothing is blocked or overdue.', 'blueworx-forge' )
+			self::nothing(
+				'circle-check',
+				__( 'Nothing needs attention', 'blueworx-forge' ),
+				__( 'Nothing is blocked or overdue.', 'blueworx-forge' )
 			);
 			Page::panel_close();
 
 			return;
 		}
 
-		echo '<ul class="bwx-list" data-testid="bwx-attention-list">';
+		echo '<ul data-testid="bwx-attention-list">';
 
 		foreach ( $wanting as $entry ) {
 			printf(
-				'<li data-bwx-reason="%1$s"><strong>%2$s</strong> <span class="bwx-card-key">%3$s</span></li>',
+				'<li data-bwx-reason="%1$s"><strong>%2$s</strong> <span>%3$s</span></li>',
 				esc_attr( (string) $entry['reason'] ),
 				esc_html( (string) ( $entry['item']['title'] ?? '' ) ),
 				esc_html( self::reason_label( (string) $entry['reason'], (array) $entry['item'] ) )
@@ -298,20 +314,21 @@ final class Screen {
 		$coming = Digest::upcoming( (array) $board['items'], gmdate( 'Y-m-d' ) );
 
 		if ( array() === $coming ) {
-			printf(
-				'<p class="bwx-empty">%s</p>',
-				esc_html__( 'Nothing has a date on it yet. Work appears here once it is scheduled.', 'blueworx-forge' )
+			self::nothing(
+				'calendar',
+				__( 'Nothing scheduled yet', 'blueworx-forge' ),
+				__( 'Nothing has a date on it yet. Work appears here once it is scheduled.', 'blueworx-forge' )
 			);
 			Page::panel_close();
 
 			return;
 		}
 
-		echo '<ul class="bwx-list" data-testid="bwx-upcoming-list">';
+		echo '<ul data-testid="bwx-upcoming-list">';
 
 		foreach ( $coming as $item ) {
 			printf(
-				'<li><strong>%1$s</strong> <span class="bwx-card-key">%2$s</span> <span class="bwx-card-value">%3$s</span></li>',
+				'<li><strong>%1$s</strong> <span>%2$s</span> <span>%3$s</span></li>',
 				esc_html( (string) ( $item['title'] ?? '' ) ),
 				esc_html( (string) ( $item['stage_label'] ?? '' ) ),
 				esc_html( Card::day( (string) ( $item['planned_due'] ?? '' ) ) )
@@ -346,9 +363,10 @@ final class Screen {
 		Page::panel_open( __( 'Support', 'blueworx-forge' ), 'support' );
 
 		if ( '' === $state ) {
-			printf(
-				'<p class="bwx-empty">%s</p>',
-				esc_html__( 'Your support position has not been read from the studio yet.', 'blueworx-forge' )
+			self::nothing(
+				'clock',
+				__( 'Not read yet', 'blueworx-forge' ),
+				__( 'Your support position has not been read from the studio yet.', 'blueworx-forge' )
 			);
 			Page::panel_close();
 
@@ -366,10 +384,13 @@ final class Screen {
 			 * The one sentence this issue exists for. It says what is not
 			 * available, and in the same breath the two things that are — so
 			 * the restriction reads as a conversation to have rather than as a
-			 * door that has been shut.
+			 * door that has been shut. A Notice, not an EmptyState: there is a
+			 * support position shown above, so nothing here is empty.
 			 */
 			printf(
-				'<p class="bwx-empty" data-testid="bwx-support-refused">%s</p>',
+				'<div class="bw-notice bw-notice--warning" data-testid="bwx-support-refused" role="status">' .
+				'<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert" style="color:var(--bw-warning-deep)"></i>' .
+				'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div></div>',
 				esc_html__(
 					'New chargeable work cannot be scheduled until a support package is in place. You can still report anything that is broken, ask for something, and talk to your contact about a package.',
 					'blueworx-forge'
@@ -423,35 +444,26 @@ final class Screen {
 
 		Page::panel_open( __( 'Your site', 'blueworx-forge' ), 'site' );
 
-		echo '<table class="widefat striped" data-bwx-workspace="1"><tbody>';
-
-		self::row( __( 'Site', 'blueworx-forge' ), (string) ( $record['name'] ?? '' ) );
-		self::row( __( 'Address', 'blueworx-forge' ), (string) ( $record['url'] ?? '' ) );
-		self::row( __( 'Status', 'blueworx-forge' ), (string) ( $record['status'] ?? '' ) );
-		self::row(
-			__( 'Connected since', 'blueworx-forge' ),
-			$connected > 0 ? gmdate( 'j F Y', $connected ) : ''
+		printf(
+			'<dl class="bw-dl" data-bwx-workspace="1">' .
+			'<dt>%1$s</dt><dd>%2$s</dd>' .
+			'<dt>%3$s</dt><dd>%4$s</dd>' .
+			'<dt>%5$s</dt><dd>%6$s</dd>' .
+			'<dt>%7$s</dt><dd>%8$s</dd>' .
+			'</dl>',
+			esc_html__( 'Site', 'blueworx-forge' ),
+			esc_html( (string) ( $record['name'] ?? '' ) ),
+			esc_html__( 'Address', 'blueworx-forge' ),
+			esc_html( (string) ( $record['url'] ?? '' ) ),
+			esc_html__( 'Status', 'blueworx-forge' ),
+			esc_html( (string) ( $record['status'] ?? '' ) ),
+			esc_html__( 'Connected since', 'blueworx-forge' ),
+			esc_html( $connected > 0 ? gmdate( 'j F Y', $connected ) : '' )
 		);
 
-		echo '</tbody></table>';
-
-		echo '<p class="bwx-empty">' . esc_html__( 'These details are held by the studio. This site shows them; it does not keep them.', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-card__note">' . esc_html__( 'These details are held by the studio. This site shows them; it does not keep them.', 'blueworx-forge' ) . '</p>';
 
 		Page::panel_close();
-	}
-
-	/**
-	 * One label-and-value row.
-	 *
-	 * @param string $label Row label.
-	 * @param string $value Row value.
-	 */
-	private static function row( string $label, string $value ): void {
-		printf(
-			'<tr><th scope="row">%1$s</th><td>%2$s</td></tr>',
-			esc_html( $label ),
-			esc_html( $value )
-		);
 	}
 
 	/**
