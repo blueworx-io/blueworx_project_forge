@@ -9,21 +9,18 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
-use Blueworx\Forge\Client\Workspace;
-
 /**
- * One frame every client screen sits inside (#126).
+ * The tab strip every client screen shows, and the text for whose
+ * workspace it is (#126).
  *
- * Two things, and they are nearly the same thing said twice: whose workspace
- * this is, and where else they can go inside it.
- *
- * The scope is not a filter and there is no control to change it. A client site
- * holds one site id and one signing key issued by the studio, and every read is
- * answered for whoever signed it — so this artifact has no credential for
- * another client and nothing typed into it can invent one. That is why the
- * links below carry a page and nothing else: a navigation that can name a
- * client is one somebody can edit to name a different client, and the safest
- * parameter is the one that was never there.
+ * The scope text is not a filter and there is no control to change it. A
+ * client site holds one site id and one signing key issued by the studio,
+ * and every read is answered for whoever signed it — so this artifact has
+ * no credential for another client and nothing typed into it can invent
+ * one. That is why the nav links below carry a page and nothing else: a
+ * navigation that can name a client is one somebody can edit to name a
+ * different client, and the safest parameter is the one that was never
+ * there.
  *
  * Saying whose workspace it is matters for the ordinary case rather than the
  * hostile one. Somebody administering several client sites has several tabs
@@ -79,54 +76,61 @@ final class Nav {
 	}
 
 	/**
-	 * Renders the frame's head: whose workspace, and the pages within it.
+	 * The text for whose workspace this is — the page header's eyebrow.
 	 *
-	 * The workspace record is passed in rather than read here. The screen
-	 * calling this has already read it, and a second read would be a second
-	 * chance for the two halves of one screen to disagree about how old what
-	 * they are showing is.
+	 * Takes the workspace record rather than reading one, for the same reason
+	 * render() used to: the caller has already read it, and a second read
+	 * would be a second chance for the eyebrow and the rest of the screen to
+	 * disagree about how old what they are showing is.
 	 *
-	 * @param string               $current The slug of the screen being rendered.
-	 * @param array<string, mixed> $view    The workspace as Workspace::view saw it.
+	 * @param array<string, mixed> $view The workspace as Workspace::view saw it.
 	 */
-	public static function render( string $current, array $view = array() ): void {
-		if ( array() === $view ) {
-			$view = Workspace::view( false );
-		}
-
+	public static function scope_text( array $view ): string {
 		$name = (string) ( $view['record']['name'] ?? '' );
-
-		echo '<div class="bwx-client-frame">';
-		echo '<p class="bwx-client-scope" data-testid="bwx-client-scope">';
 
 		if ( '' === $name ) {
 			// Not a failure to name the client — a workspace nobody has
 			// connected yet, which is worth saying plainly.
-			echo esc_html__( 'Not connected to a studio yet', 'blueworx-forge' );
-		} else {
-			echo esc_html__( 'Workspace for', 'blueworx-forge' ) . ' ';
-			echo '<strong>' . esc_html( $name ) . '</strong>';
+			return __( 'Not connected to a studio yet', 'blueworx-forge' );
 		}
 
-		echo '</p>';
+		return __( 'Workspace for', 'blueworx-forge' ) . ' ' . $name;
+	}
 
+	/**
+	 * Renders the pages within the frame, current one marked.
+	 *
+	 * Appearance from the design system's tabs; semantics from what this
+	 * actually is. The system's Tabs component renders role="tablist" with
+	 * role="tab" buttons, which is right for switching panels inside one
+	 * screen and wrong here — these are links to separate admin pages, and
+	 * a tablist tells a screen reader to expect panels that never arrive.
+	 * So: a <nav> with aria-current, wearing bw-tabs. The stylesheet
+	 * supports it — .bw-tab already sets text-decoration:none, so it is
+	 * built to dress an <a> as well as a <button>.
+	 *
+	 * @param string $current The slug of the screen being rendered.
+	 */
+	public static function render( string $current ): void {
 		printf(
-			'<nav class="bwx-client-nav" data-testid="bwx-client-nav" aria-label="%s">',
+			'<nav class="bw-tabs" data-testid="bwx-client-nav" aria-label="%s">',
 			esc_attr__( 'Workspace', 'blueworx-forge' )
 		);
 
 		// A page and nothing else in each href. Nothing here names a client or a
 		// site, so there is nothing here to edit into somebody else's.
 		foreach ( self::pages() as $page ) {
+			$current_page = $page['slug'] === $current;
+
 			printf(
-				'<a class="bwx-client-nav-item" data-testid="bwx-client-nav-item" href="%s"%s>%s</a>',
+				'<a class="bw-tab%s" data-testid="bwx-client-nav-item" href="%s"%s>%s</a>',
+				$current_page ? ' is-active' : '',
 				esc_url( admin_url( 'admin.php?page=' . $page['slug'] ) ),
-				$page['slug'] === $current ? ' aria-current="page"' : '',
+				$current_page ? ' aria-current="page"' : '',
 				esc_html( $page['label'] )
 			);
 		}
 
 		echo '</nav>';
-		echo '</div>';
 	}
 }

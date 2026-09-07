@@ -32,7 +32,13 @@ final class Page {
 		echo '<div class="bw-pagehead__titles">';
 
 		if ( '' !== $eyebrow ) {
-			printf( '<p class="bw-pagehead__eyebrow">%s</p>', esc_html( $eyebrow ) );
+			// data-testid carried over from Nav::render()'s old bwx-client-scope
+			// paragraph (#126): every client screen's eyebrow says whose
+			// workspace this is, so the pair suite's one test id still applies.
+			printf(
+				'<p class="bw-pagehead__eyebrow" data-testid="bwx-client-scope">%s</p>',
+				esc_html( $eyebrow )
+			);
 		}
 
 		printf( '<h1 class="bw-pagehead__h1">%s</h1>', esc_html( $title ) );

@@ -178,9 +178,9 @@ final class Screen {
 		$view    = Workspace::view( $refresh );
 		$board   = Board::view( $refresh );
 
-		Page::open( __( 'Forge', 'blueworx-forge' ) );
+		Page::open( __( 'Forge', 'blueworx-forge' ), Nav::scope_text( $view ) );
 
-		Nav::render( self::SLUG, $view );
+		Nav::render( self::SLUG );
 
 		// One notice, from the record the frame itself is drawn from. The work
 		// sections below say for themselves when the work could not be read,

@@ -119,22 +119,6 @@ final class Styles {
 [data-bwx-reason="blocked"] .bwx-card-key { color: var(--color-coral, #d63638); }
 .bwx-undated { margin-top: 1.5rem; }
 
-/* The workspace frame. Never had rules of its own, so every client screen has
-   been running its page links together into one word since #126. */
-.bwx-client-frame { margin: 0 0 1rem; }
-.bwx-client-scope { margin: 0 0 0.4rem; color: var(--text-muted, #646970); }
-
-.bwx-client-nav {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.25rem 1.25rem;
-	border-bottom: 1px solid var(--border-subtle, #dcdcde);
-	padding-bottom: 0.5rem;
-}
-
-.bwx-client-nav-item { text-decoration: none; padding: 0.15rem 0; }
-.bwx-client-nav-item[aria-current="page"] { color: var(--text-primary, #1d2327); font-weight: 600; box-shadow: inset 0 -2px 0 0 currentColor; }
-
 /* What you asked for (#130). An exchange, not a table: the request, then the
    reply set in under it. */
 .bwx-asked { max-width: var(--content-max-width, 60rem); margin-top: 1rem; }

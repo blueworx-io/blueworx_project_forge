@@ -105,6 +105,31 @@ test.describe('the client workspace frame', () => {
     await page.close();
   });
 
+  // Task 7 moved the scope line out of Nav::render() and into Page::open()'s
+  // eyebrow, which only the top-level screen (tested above, at HOME) is built
+  // on. The other nine screens, including the board, still render on the old
+  // <div class="wrap"><h1> markup and have no eyebrow to carry it, so this
+  // fails until the board converts to the shell in Task 10. Recorded as fixme
+  // per the controller's ruling rather than left untested, so the eyebrow
+  // move's real end state (every screen names its client) stays checked
+  // rather than assumed.
+  test.fixme(
+    'the board screen also names the client whose workspace it is',
+    async ({ browser }) => {
+      const { client } = await connectedPair(browser, `${RUN} board named`);
+      const page = await client.context.newPage();
+
+      await page.goto('/wp-admin/admin.php?page=blueworx-forge-client-board');
+
+      await expect(page.locator('[data-testid="bwx-client-scope"]')).toBeVisible();
+      await expect(page.locator('[data-testid="bwx-client-scope"]')).toContainText(
+        `${RUN} board named`
+      );
+
+      await page.close();
+    }
+  );
+
   test('no link in the frame carries a client or a site to address', async ({ browser }) => {
     const { client } = await connectedPair(browser, `${RUN} links`);
     const page = await client.context.newPage();
@@ -155,6 +180,22 @@ test.describe('the client workspace frame', () => {
       [...document.styleSheets].some((s) => (s.href || '').includes('blueworx-admin-design.css'))
     );
     expect(loaded, 'the design system stylesheet is enqueued').toBe(true);
+
+    await page.close();
+  });
+
+  test('the workspace nav is the design system tab strip', async ({ browser }) => {
+    const { client } = await connectedPair(browser, `${RUN} tabs`);
+    const page = await client.context.newPage();
+
+    await page.goto(HOME);
+
+    const nav = page.locator('[data-testid="bwx-client-nav"]');
+    await expect(nav).toBeVisible();
+    await expect(nav).toHaveClass(/bw-tabs/);
+    await expect(nav.locator('[data-testid="bwx-client-nav-item"]')).not.toHaveCount(0);
+    // Still a tab strip, still not a second navigation column.
+    await expect(page.locator('.bw-sectionnav')).toHaveCount(0);
 
     await page.close();
   });
