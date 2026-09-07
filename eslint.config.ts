@@ -32,6 +32,12 @@ export default defineConfig([
       "test-results/**",
       "playwright-report/**",
       "design/**",
+      // The vendored shared admin design system: byte-identical to the
+      // foundation's copy and never hand-edited, so it is a source we read
+      // from, not code we author or ship directly — the same reasoning as
+      // design/** above. Its shipped copies land in assets/ and
+      // blueworx-page-editor/, both already excluded.
+      ".claude/skills/blueworx-admin-design/**",
     ],
   },
   { files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"], plugins: { js }, extends: ["js/recommended"], languageOptions: { globals: globals.browser } },

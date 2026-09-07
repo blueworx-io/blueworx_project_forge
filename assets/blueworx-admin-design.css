@@ -1,0 +1,943 @@
+/* ============================================================================
+   BlueWorx Admin Design — styles.css
+   ----------------------------------------------------------------------------
+   ONE self-contained stylesheet. No @import, no build step, no minification.
+   Plugins copy this file verbatim to assets/blueworx-admin-design.css and
+   enqueue it; CI compares the two byte for byte, so do not edit the copy.
+
+   Cascade order below is deliberate: fonts, then token primitives, then
+   semantic aliases, then components, then element defaults last.
+
+   Webfonts load from "fonts/*.woff2", relative to this file. That resolves both
+   at the root of this folder and from a plugin's assets/blueworx-admin-design.css
+   sitting next to assets/fonts/ — copy the fonts/ folder along with this file.
+   ============================================================================ */
+
+/* --- Fonts — self-hosted BlueWorx webfonts ----------------------------------- */
+/* Self-hosted BlueWorx webfonts, latin subset. Copied from
+   blueworx-io/bluegroup_project_blueworx @ assets/fonts. Icons are not a font:
+   they are Lucide SVGs, in assets/icons/lucide-icons.js. */
+@font-face{font-family:"Sora";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/sora-400.woff2") format("woff2")}
+@font-face{font-family:"Sora";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/sora-600.woff2") format("woff2")}
+@font-face{font-family:"Sora";font-style:normal;font-weight:700;font-display:swap;src:url("fonts/sora-700.woff2") format("woff2")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/inter-400.woff2") format("woff2")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:500;font-display:swap;src:url("fonts/inter-500.woff2") format("woff2")}
+@font-face{font-family:"Inter";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/inter-600.woff2") format("woff2")}
+
+/* --- Tokens — brand + neutral palette ---------------------------------------- */
+/* Primitive colours. Brand values are the BlueWorx marketing palette
+   (bluegroup_project_blueworx/assets/css/public.css :root). Status hues are
+   WordPress core's admin notice colours — a plugin screen that invents its own
+   red reads as a different product to the site owner. */
+:root{
+  /* Brand */
+  --bw-ink:#0A0C29;
+  --bw-ink-soft:#5B5D74;
+  --bw-ink-dim:#9498AD;
+  --bw-brand:#4F46E5;
+  --bw-brand-deep:#4338CA;
+  --bw-brand-wash:#EEEDFC;
+  --bw-brand-line:#D8D5F8;
+
+  /* Neutrals */
+  --bw-white:#FFFFFF;
+  --bw-paper:#FFFFFF;
+  --bw-canvas:#F7F8FC;
+  --bw-field:#F5F6FB;
+  --bw-line:#ECEDF3;
+  --bw-line-strong:#DCDEE8;
+
+  /* Status — WordPress core admin hues */
+  --bw-success:#00A32A;
+  --bw-success-deep:#007017;
+  --bw-success-wash:#EDFAEF;
+  --bw-warning:#DBA617;
+  --bw-warning-deep:#8A6100;
+  --bw-warning-wash:#FDF6E3;
+  --bw-danger:#D63638;
+  --bw-danger-deep:#B32D2E;
+  --bw-danger-wash:#FCEFEF;
+  --bw-info:#2271B1;
+  --bw-info-deep:#135E96;
+  --bw-info-wash:#EDF4FA;
+
+  /* WordPress host chrome — the admin we live inside, not our brand.
+     Use only when recreating or aligning with wp-admin itself. */
+  --wp-admin-bg:#F0F0F1;
+  --wp-admin-menu:#1D2327;
+  --wp-admin-menu-hover:#2C3338;
+  --wp-admin-menu-text:#F0F0F1;
+  --wp-admin-blue:#2271B1;
+  --wp-admin-border:#C3C4C7;
+}
+
+/* --- Tokens — type scale ----------------------------------------------------- */
+/* Sora sets titles and numbers; Inter does every piece of interface text.
+   13px is the WordPress admin body size — matching it keeps a plugin screen
+   from looking oversized next to core screens. */
+:root{
+  --bw-font-display:"Sora",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --bw-font-body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --bw-font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  --bw-size-h1:28px;
+  --bw-size-h2:20px;
+  --bw-size-title:24px;
+  --bw-size-h3:18px;
+  --bw-size-lede:14px;
+  --bw-size-body:13px;
+  --bw-size-input:14px;
+  --bw-size-sm:12px;
+  --bw-size-2xs:10px;
+  --bw-size-xs:11px;
+  --bw-size-code:13px;
+
+  --bw-lh-tight:1.15; /* @kind other */
+  --bw-lh-heading:1.25; /* @kind other */
+  --bw-lh-body:1.55; /* @kind other */
+
+  --bw-weight-regular:400;
+  --bw-weight-medium:500;
+  --bw-weight-semibold:600;
+  --bw-weight-bold:700;
+
+  /* Eyebrows, field labels and table headers: 11px uppercase, wide tracking. */
+  --bw-track-label:.08em;
+  --bw-track-eyebrow:.14em;
+  --bw-track-panel:.11em;
+  --bw-track-tight:-.01em;
+}
+
+/* --- Tokens — spacing scale -------------------------------------------------- */
+/* 2px-based scale. --bw-pad is the page gutter every full-width admin
+   screen indents by; keep header, panels and save bar on the same value. */
+:root{
+  --bw-space-1:2px;
+  --bw-space-2:4px;
+  --bw-space-3:6px;
+  --bw-space-4:8px;
+  --bw-space-5:10px;
+  --bw-space-6:12px;
+  --bw-space-7:16px;
+  --bw-space-8:20px;
+  --bw-space-9:24px;
+  --bw-space-10:32px;
+  --bw-space-11:40px;
+  --bw-space-12:48px;
+
+  --bw-pad:24px;
+  --bw-panel-pad:24px;
+  --bw-field-gap:18px;
+  --bw-stack-gap:20px;
+
+  --bw-control-h:34px;
+  --bw-control-h-sm:28px;
+  /* A comfortable reading measure. No component applies it any more: body and
+     help text now run the width of whatever holds them and wrap only when the
+     screen makes them, which is what these admin screens are asked for. Kept as
+     a token so a screen with genuinely long prose can still opt into it. */
+  --bw-content-max:60ch;
+}
+
+/* --- Tokens — radius --------------------------------------------------------- */
+:root{
+  --bw-radius-xs:4px;
+  --bw-radius-sm:6px;
+  --bw-radius-md:8px;
+  --bw-radius-lg:12px;
+  --bw-radius-pill:999px;
+}
+
+/* --- Tokens — elevation ------------------------------------------------------ */
+/* Admin UI is flat: borders do the separating, shadow only signals that
+   something floats above the page. Never both a heavy border and a heavy shadow. */
+:root{
+  --bw-shadow-none:none;
+  --bw-shadow-card:0 1px 2px rgb(10 12 41 / .05);
+  --bw-shadow-raised:0 2px 6px -1px rgb(10 12 41 / .10);
+  --bw-shadow-overlay:0 24px 48px -16px rgb(10 12 41 / .28);
+  --bw-shadow-bar:0 -8px 20px -14px rgb(0 0 0 / .35);
+  --bw-focus-ring:0 0 0 2px var(--bw-brand);
+  --bw-scrim:rgb(10 12 41 / .45);
+}
+
+/* --- Tokens — motion --------------------------------------------------------- */
+/* Short and linear-ish. Admin work is repetitive: nothing bounces,
+   nothing slides in from off-screen, nothing animates longer than 300ms. */
+:root{
+  --bw-dur-fast:120ms; /* @kind other */
+  --bw-dur:200ms; /* @kind other */
+  --bw-dur-slow:300ms; /* @kind other */
+  --bw-ease:ease; /* @kind other */
+  --bw-ease-out:cubic-bezier(.2,.7,.3,1); /* @kind other */
+  --bw-transition-control:background var(--bw-dur) var(--bw-ease),border-color var(--bw-dur) var(--bw-ease),color var(--bw-dur) var(--bw-ease);
+}
+
+/* --- Tokens — semantic aliases ----------------------------------------------- */
+/* Semantic aliases — components reference these, never the primitives above.
+   Reskinning a plugin means overriding this file, not hunting through components. */
+:root{
+  /* Text */
+  --bw-text-heading:var(--bw-ink);
+  --bw-text-body:var(--bw-ink);
+  --bw-text-muted:var(--bw-ink-soft);
+  --bw-text-faint:var(--bw-ink-dim);
+  --bw-text-accent:var(--bw-brand-deep);
+  --bw-text-on-accent:#FFFFFF;
+  --bw-text-link:var(--bw-brand-deep);
+  --bw-text-link-hover:var(--bw-ink);
+  --bw-text-danger:var(--bw-danger-deep);
+
+  /* Surfaces */
+  --bw-surface-page:var(--bw-canvas);
+  --bw-surface-card:var(--bw-paper);
+  --bw-surface-sunken:var(--bw-field);
+  --bw-surface-accent:var(--bw-brand-wash);
+  --bw-surface-inverse:var(--bw-ink);
+
+  /* Lines */
+  --bw-border:var(--bw-line);
+  --bw-border-strong:var(--bw-line-strong);
+  --bw-border-accent:var(--bw-brand);
+  --bw-border-field:var(--bw-line-strong);
+
+  /* Controls */
+  --bw-control-bg:var(--bw-white);
+  --bw-control-bg-hover:var(--bw-field);
+  --bw-control-text:var(--bw-ink);
+  --bw-control-radius:var(--bw-radius-md);
+  --bw-primary-bg:var(--bw-brand);
+  --bw-primary-bg-hover:var(--bw-brand-deep);
+  --bw-primary-text:#FFFFFF;
+  --bw-danger-bg:var(--bw-danger);
+  --bw-danger-bg-hover:var(--bw-danger-deep);
+
+  /* Focus + disabled */
+  --bw-focus-color:var(--bw-brand);
+  --bw-focus-width:2px;
+  --bw-focus-offset:1px;
+  --bw-disabled-opacity:.5; /* @kind other */
+  /* Width below which a summary cell's label, figure and footnote stop reading
+     as one column and the strip wraps. A threshold, not a design value. */
+  --bw-summary-min:168px;
+  /* Timeline. The launch marker is the same ink as --bw-text-heading, declared
+     separately because here it is carrying a bar's meaning rather than text
+     colour, and the two must stay free to diverge. --bw-timeline-post is a
+     lighter indigo: the same family as the brand, read as later in time. */
+  --bw-timeline-launch:#0A0C29;
+  --bw-timeline-post:#8B84EA;
+  --bw-gantt-label-w:236px;
+  --bw-gantt-track-h:30px;
+  --bw-gantt-bar-inset:3px;
+  --bw-gantt-key-size:10px;
+  --bw-gantt-hidden-opacity:.45; /* @kind other */
+}
+
+/* --- Components — core (button, badge, chip, icon, avatar, tooltip) ---------- */
+/* Core controls */
+.bw-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--bw-space-3);height:var(--bw-control-h);padding:0 14px;border-radius:var(--bw-control-radius);border:1px solid transparent;font-family:var(--bw-font-body);font-size:var(--bw-size-body);font-weight:var(--bw-weight-medium);line-height:1;text-decoration:none;white-space:nowrap;cursor:pointer;transition:var(--bw-transition-control)}
+.bw-btn--primary{background:var(--bw-primary-bg);color:var(--bw-primary-text);border-color:var(--bw-primary-bg)}
+.bw-btn--primary:hover{background:var(--bw-primary-bg-hover);border-color:var(--bw-primary-bg-hover);color:var(--bw-primary-text)}
+.bw-btn--primary:active{background:var(--bw-primary-bg-hover)}
+.bw-btn--secondary{background:var(--bw-control-bg);color:var(--bw-control-text);border-color:var(--bw-border-field)}
+.bw-btn--secondary:hover{background:var(--bw-control-bg-hover);border-color:var(--bw-border-strong);color:var(--bw-control-text)}
+.bw-btn--ghost{background:transparent;color:var(--bw-text-muted);border-color:transparent}
+.bw-btn--ghost:hover{background:var(--bw-control-bg-hover);color:var(--bw-text-body)}
+.bw-btn--danger{background:var(--bw-danger-bg);color:#fff;border-color:var(--bw-danger-bg)}
+.bw-btn--danger:hover{background:var(--bw-danger-bg-hover);border-color:var(--bw-danger-bg-hover);color:#fff}
+.bw-btn--link{height:auto;padding:0;background:none;border:0;color:var(--bw-text-link);text-decoration:underline;text-underline-offset:2px;font-weight:var(--bw-weight-regular)}
+.bw-btn--link:hover{color:var(--bw-text-link-hover)}
+.bw-btn--sm{height:var(--bw-control-h-sm);padding:0 10px;font-size:var(--bw-size-sm)}
+.bw-btn--lg{height:40px;padding:0 18px;font-size:var(--bw-size-lede)}
+.bw-btn--block{display:flex;width:100%}
+.bw-btn[disabled],.bw-btn[aria-disabled="true"]{opacity:var(--bw-disabled-opacity);cursor:not-allowed;pointer-events:none}
+.bw-btn .bw-icon{width:16px;height:16px}
+.bw-btn--sm .bw-icon{width:14px;height:14px}
+
+.bw-iconbtn{display:inline-flex;align-items:center;justify-content:center;width:var(--bw-control-h);height:var(--bw-control-h);padding:0;border-radius:var(--bw-control-radius);border:1px solid transparent;background:transparent;color:var(--bw-text-muted);cursor:pointer;transition:var(--bw-transition-control)}
+.bw-iconbtn:hover{background:var(--bw-control-bg-hover);color:var(--bw-text-body)}
+.bw-iconbtn--outline{background:var(--bw-control-bg);border-color:var(--bw-border-field)}
+.bw-iconbtn--outline:hover{border-color:var(--bw-border-strong)}
+.bw-iconbtn--danger:hover{background:var(--bw-danger-wash);color:var(--bw-text-danger)}
+.bw-iconbtn--sm{width:var(--bw-control-h-sm);height:var(--bw-control-h-sm)}
+.bw-iconbtn[disabled]{opacity:var(--bw-disabled-opacity);cursor:not-allowed}
+
+.bw-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;line-height:0}
+.bw-icon>svg{display:block;width:100%;height:100%}
+.bw-icon--14{width:14px;height:14px}
+.bw-icon--18{width:18px;height:18px}
+.bw-icon--20{width:20px;height:20px}
+.bw-icon--22{width:22px;height:22px}
+.bw-icon--28{width:28px;height:28px}
+
+.bw-badge{display:inline-flex;align-items:center;gap:var(--bw-space-2);padding:3px 8px;border-radius:var(--bw-radius-pill);font-size:var(--bw-size-xs);font-weight:var(--bw-weight-semibold);letter-spacing:var(--bw-track-label);text-transform:uppercase;line-height:1.4;white-space:nowrap}
+.bw-badge--neutral{background:var(--bw-field);color:var(--bw-text-muted)}
+.bw-badge--accent{background:var(--bw-brand-wash);color:var(--bw-text-accent)}
+.bw-badge--success{background:var(--bw-success-wash);color:var(--bw-success-deep)}
+.bw-badge--warning{background:var(--bw-warning-wash);color:var(--bw-warning-deep)}
+.bw-badge--danger{background:var(--bw-danger-wash);color:var(--bw-danger-deep)}
+.bw-badge--info{background:var(--bw-info-wash);color:var(--bw-info-deep)}
+.bw-badge__dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+.bw-chip{display:inline-flex;align-items:center;gap:var(--bw-space-3);padding:3px 10px;border:1px solid var(--bw-border);border-radius:var(--bw-radius-pill);background:var(--bw-surface-accent);color:var(--bw-text-body);font-size:var(--bw-size-sm);line-height:1.4;white-space:nowrap}
+.bw-chip--plain{background:var(--bw-control-bg)}
+.bw-chip__x{display:inline-flex;border:0;background:none;padding:0;color:var(--bw-text-muted);cursor:pointer;line-height:1}
+.bw-chip__x:hover{color:var(--bw-text-danger)}
+.bw-chips{display:flex;flex-wrap:wrap;gap:var(--bw-space-3);align-items:center}
+
+/* --- Components — navigation ------------------------------------------------- */
+/* Wayfinding: breadcrumbs, pagination, steps, menus, row actions */
+.bw-crumbs{display:flex;align-items:center;gap:var(--bw-space-3);font-size:var(--bw-size-sm);color:var(--bw-text-muted);flex-wrap:wrap}
+.bw-crumbs a,.bw-crumbs button{color:var(--bw-text-muted);text-decoration:none;background:none;border:0;padding:0;font:inherit;cursor:pointer}
+.bw-crumbs a:hover,.bw-crumbs button:hover{color:var(--bw-text-link)}
+.bw-crumbs__sep{color:var(--bw-text-faint)}
+.bw-crumbs__current{color:var(--bw-text-body);font-weight:var(--bw-weight-medium)}
+
+.bw-pager{display:flex;align-items:center;gap:var(--bw-space-5);font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-pager__count{margin-right:var(--bw-space-3)}
+.bw-pager__btns{display:flex;gap:var(--bw-space-2)}
+.bw-pager__btn{display:inline-flex;align-items:center;justify-content:center;min-width:var(--bw-control-h-sm);height:var(--bw-control-h-sm);padding:0 8px;border:1px solid var(--bw-border-field);background:var(--bw-control-bg);border-radius:var(--bw-radius-sm);color:var(--bw-text-body);font:inherit;font-size:var(--bw-size-sm);cursor:pointer;transition:var(--bw-transition-control)}
+.bw-pager__btn:hover:not(:disabled){background:var(--bw-control-bg-hover);border-color:var(--bw-border-strong)}
+.bw-pager__btn:disabled{opacity:var(--bw-disabled-opacity);cursor:not-allowed}
+.bw-pager__btn.is-current{background:var(--bw-surface-inverse);border-color:var(--bw-surface-inverse);color:#fff}
+.bw-pager__of{font-variant-numeric:tabular-nums}
+
+.bw-steps{display:flex;align-items:center;gap:var(--bw-space-3);flex-wrap:wrap}
+.bw-step{display:flex;align-items:center;gap:var(--bw-space-4);padding:var(--bw-space-4) 12px;border:1px solid var(--bw-border);border-radius:var(--bw-radius-pill);background:var(--bw-control-bg);font-size:var(--bw-size-body);color:var(--bw-text-muted);cursor:pointer;font-family:inherit;transition:var(--bw-transition-control)}
+.bw-step:hover{border-color:var(--bw-border-strong);color:var(--bw-text-body)}
+.bw-step__n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--bw-field);color:var(--bw-text-muted);font-size:var(--bw-size-xs);font-weight:var(--bw-weight-semibold);flex:none}
+.bw-step.is-current{border-color:var(--bw-brand);background:var(--bw-brand-wash);color:var(--bw-text-accent);font-weight:var(--bw-weight-medium)}
+.bw-step.is-current .bw-step__n{background:var(--bw-brand);color:#fff}
+.bw-step.is-done .bw-step__n{background:var(--bw-success-wash);color:var(--bw-success-deep)}
+.bw-steps__sep{width:16px;height:1px;background:var(--bw-border-strong);flex:none}
+
+.bw-menu{position:relative;display:inline-flex}
+.bw-menu__panel{position:absolute;top:calc(100% + 4px);min-width:190px;background:var(--bw-surface-card);border:1px solid var(--bw-border);border-radius:var(--bw-radius-md);box-shadow:var(--bw-shadow-raised);padding:var(--bw-space-2);z-index:40}
+.bw-menu__panel--right{right:0}
+.bw-menu__panel--left{left:0}
+.bw-menu__item{display:flex;align-items:center;gap:var(--bw-space-4);width:100%;padding:var(--bw-space-4) var(--bw-space-5);border:0;background:none;border-radius:var(--bw-radius-sm);font:inherit;font-size:var(--bw-size-body);color:var(--bw-text-body);text-align:left;cursor:pointer;text-decoration:none;transition:var(--bw-transition-control)}
+.bw-menu__item:hover{background:var(--bw-control-bg-hover)}
+.bw-menu__item--danger{color:var(--bw-text-danger)}
+.bw-menu__item--danger:hover{background:var(--bw-danger-wash)}
+.bw-menu__item[disabled]{opacity:var(--bw-disabled-opacity);cursor:not-allowed}
+.bw-menu__sep{height:1px;background:var(--bw-border);margin:var(--bw-space-2) 0}
+.bw-menu__label{padding:var(--bw-space-4) var(--bw-space-5) var(--bw-space-2);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-faint);font-weight:var(--bw-weight-semibold)}
+
+.bw-rowactions{display:flex;align-items:center;gap:var(--bw-space-3);font-size:var(--bw-size-sm)}
+.bw-rowactions__link{border:0;background:none;padding:0;font:inherit;font-size:var(--bw-size-sm);color:var(--bw-text-link);cursor:pointer;text-decoration:none}
+.bw-rowactions__link:hover{text-decoration:underline}
+.bw-rowactions__link--danger{color:var(--bw-text-danger)}
+.bw-rowactions__sep{color:var(--bw-text-faint)}
+
+/* --- Components — forms ------------------------------------------------------ */
+/* Form controls */
+.bw-field{display:flex;flex-direction:column;gap:var(--bw-space-3)}
+.bw-field__label{font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold)}
+.bw-field__req{color:var(--bw-text-danger);margin-left:2px}
+.bw-field__help{font-size:var(--bw-size-sm);color:var(--bw-text-muted);margin:0}
+.bw-field__error{font-size:var(--bw-size-sm);color:var(--bw-text-danger);margin:0}
+.bw-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--bw-field-gap)}
+.bw-fields--single{grid-template-columns:1fr}
+.bw-field--wide{grid-column:1/-1}
+@media (max-width:782px){.bw-fields{grid-template-columns:1fr}}
+
+.bw-input,.bw-textarea,.bw-select__el{width:100%;font-family:var(--bw-font-body);font-size:var(--bw-size-input);color:var(--bw-control-text);background:var(--bw-control-bg);border:1px solid var(--bw-border-field);border-radius:var(--bw-control-radius);transition:var(--bw-transition-control)}
+.bw-input,.bw-select__el{height:var(--bw-control-h);padding:0 12px}
+.bw-textarea{padding:9px 12px;min-height:96px;line-height:var(--bw-lh-body);resize:vertical}
+.bw-input:hover,.bw-textarea:hover,.bw-select__el:hover{border-color:var(--bw-border-strong)}
+.bw-input:focus,.bw-textarea:focus,.bw-select__el:focus{border-color:var(--bw-focus-color);outline:var(--bw-focus-width) solid var(--bw-focus-color);outline-offset:var(--bw-focus-offset)}
+.bw-input::placeholder,.bw-textarea::placeholder{color:var(--bw-text-faint)}
+.bw-input[disabled],.bw-textarea[disabled],.bw-select__el[disabled]{background:var(--bw-surface-sunken);color:var(--bw-text-faint);cursor:not-allowed}
+.bw-input--invalid,.bw-textarea--invalid,.bw-select__el--invalid{border-color:var(--bw-danger)}
+.bw-input--mono,.bw-textarea--mono{font-family:var(--bw-font-mono);font-size:var(--bw-size-code)}
+.bw-input--sm{height:var(--bw-control-h-sm);font-size:var(--bw-size-body);padding:0 10px}
+/* WordPress styles every text input and textarea in wp-admin by attribute, and
+   input[type="text"] and its dozen siblings outweigh a single class — so a
+   .bw-input ends up wearing WordPress's 2px corner and grey border instead of
+   ours, and grows its own min-height and 16px type under 782px. The select
+   below has the same problem and takes the same answer: match on the element as
+   well, so this weighs what WordPress's rule weighs and sits later in the
+   cascade. */
+input.bw-input,textarea.bw-textarea{border:1px solid var(--bw-border-field);border-radius:var(--bw-control-radius);background-color:var(--bw-control-bg);color:var(--bw-control-text);font-size:var(--bw-size-input);box-shadow:none}
+input.bw-input{height:var(--bw-control-h);min-height:0;line-height:normal;padding:0 12px}
+input.bw-input--sm{height:var(--bw-control-h-sm);font-size:var(--bw-size-body);padding:0 10px}
+textarea.bw-textarea{min-height:96px;line-height:var(--bw-lh-body);padding:9px 12px}
+input.bw-input:hover,textarea.bw-textarea:hover{border-color:var(--bw-border-strong)}
+input.bw-input:focus,textarea.bw-textarea:focus{border-color:var(--bw-focus-color);box-shadow:none;outline:var(--bw-focus-width) solid var(--bw-focus-color);outline-offset:var(--bw-focus-offset)}
+input.bw-input[disabled],textarea.bw-textarea[disabled]{background-color:var(--bw-surface-sunken);color:var(--bw-text-faint)}
+input.bw-input--invalid,textarea.bw-textarea--invalid{border-color:var(--bw-danger)}
+input.bw-input--mono,textarea.bw-textarea--mono{font-family:var(--bw-font-mono);font-size:var(--bw-size-code)}
+
+.bw-inputwrap{position:relative;display:flex;align-items:center}
+.bw-inputwrap__icon{position:absolute;left:10px;color:var(--bw-text-faint);pointer-events:none}
+.bw-inputwrap__affix{position:absolute;right:12px;font-size:var(--bw-size-sm);color:var(--bw-text-faint)}
+
+.bw-select{position:relative;display:block}
+.bw-select__el{appearance:none;padding-right:32px;cursor:pointer}
+.bw-select__arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--bw-text-muted);pointer-events:none}
+/* WordPress styles every select inside .wp-core-ui itself: its own chevron as
+   a background image, a 25rem cap, a 40px min-height, a 2px radius and its own
+   border. A .wp-core-ui select rule outweighs the single class above, so
+   the control ends up wearing WordPress's arrow beside this one, and
+   WordPress's shape instead of this one. Same specificity, later in the
+   cascade — appearance:none cannot remove a background image. */
+.bw-select .bw-select__el{max-width:none;min-height:0;height:var(--bw-control-h);padding:0 32px 0 12px;line-height:normal;background-image:none;background-color:var(--bw-control-bg);color:var(--bw-control-text);border-color:var(--bw-border-field);border-radius:var(--bw-control-radius)}
+.bw-select .bw-select__el:hover{border-color:var(--bw-border-strong)}
+.bw-select .bw-select__el:focus{border-color:var(--bw-focus-color);box-shadow:none;outline:var(--bw-focus-width) solid var(--bw-focus-color);outline-offset:var(--bw-focus-offset)}
+/* WordPress puts its chevron back for the disabled state, from a rule that
+   outweighs the background-image:none above — and it arrives tiled, because
+   the shared .bw-input rule sets `background` as a shorthand, which resets
+   repeat, size and position to their defaults. So the image is refused again
+   here, and no-repeat is pinned on the control either way: any rule that gets
+   an image past this should still draw one arrow, not forty. */
+.bw-select .bw-select__el,.bw-select .bw-select__el:disabled{background-image:none;background-repeat:no-repeat}
+.bw-select .bw-select__el[disabled]{background-color:var(--bw-surface-sunken);color:var(--bw-text-faint)}
+
+.bw-check{display:inline-flex;align-items:flex-start;gap:var(--bw-space-4);cursor:pointer;font-size:var(--bw-size-body);color:var(--bw-text-body);line-height:1.4}
+.bw-check input{width:16px;height:16px;margin:0;flex:none;accent-color:var(--bw-brand);cursor:pointer}
+.bw-check__text{display:flex;flex-direction:column;gap:2px}
+.bw-check__help{font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-check[data-disabled="true"]{opacity:var(--bw-disabled-opacity);cursor:not-allowed}
+.bw-radiogroup{display:flex;flex-direction:column;gap:var(--bw-space-5)}
+.bw-radiogroup--row{flex-direction:row;gap:var(--bw-space-8);flex-wrap:wrap}
+
+.bw-switch{position:relative;display:inline-flex;align-items:center;gap:var(--bw-space-5);cursor:pointer;padding:6px 10px;border:1px solid var(--bw-border);border-radius:var(--bw-control-radius);background:var(--bw-control-bg);transition:var(--bw-transition-control)}
+.bw-switch:hover{border-color:var(--bw-border-strong)}
+.bw-switch--bare{padding:0;border:0;background:none}
+.bw-switch input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+.bw-switch__track{position:relative;width:40px;height:22px;border-radius:var(--bw-radius-pill);background:var(--bw-line-strong);flex:none;transition:background var(--bw-dur) var(--bw-ease)}
+.bw-switch__thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:var(--bw-shadow-card);transition:transform var(--bw-dur) var(--bw-ease)}
+.bw-switch input:checked+.bw-switch__track{background:var(--bw-brand)}
+.bw-switch input:checked+.bw-switch__track .bw-switch__thumb{transform:translateX(18px)}
+.bw-switch input:focus-visible+.bw-switch__track{outline:var(--bw-focus-width) solid var(--bw-focus-color);outline-offset:2px}
+.bw-switch input:disabled+.bw-switch__track{opacity:var(--bw-disabled-opacity)}
+.bw-switch__label{font-size:var(--bw-size-body);color:var(--bw-text-body)}
+.bw-switch__label small{display:block;font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+
+.bw-media{display:flex;align-items:center;gap:var(--bw-space-7);flex-wrap:wrap}
+.bw-media__img{display:block;max-height:56px;max-width:96px;border-radius:var(--bw-radius-sm);border:1px solid var(--bw-border)}
+.bw-media__empty{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:var(--bw-radius-sm);border:1px dashed var(--bw-border-strong);color:var(--bw-text-faint);flex:none;background:var(--bw-surface-sunken)}
+.bw-media__body{display:flex;flex-direction:column;gap:var(--bw-space-4)}
+.bw-media__hint{font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-media__actions{display:flex;gap:var(--bw-space-5);align-items:center}
+
+.bw-input[type="number"]::-webkit-inner-spin-button,.bw-input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.bw-input[type="number"]{appearance:textfield}
+.bw-inputwrap:has(.bw-inputwrap__affix) .bw-input{padding-right:76px}
+/* Room for the leading icon, and only when there is one: the icon's own left
+   offset, its width, then a gap before the text. An input with no icon keeps
+   the standard control padding rather than being indented twice — once here
+   and once by a raw override further down, which is what this replaced. */
+.bw-inputwrap .bw-inputwrap__icon ~ .bw-input{padding-left:calc(var(--bw-space-5) + var(--bw-space-7) + var(--bw-space-4))}
+
+/* --- Components — forms, extended controls ----------------------------------- */
+/* WP-style form rows, colour, copy, range, upload and repeaters */
+.bw-formrow{display:grid;grid-template-columns:200px minmax(0,1fr);gap:var(--bw-space-7);padding:var(--bw-space-7) 0;border-bottom:1px solid var(--bw-border);align-items:start}
+.bw-formrow:last-child{border-bottom:0}
+.bw-formrow:first-child{padding-top:0}
+.bw-formrow__label{font-size:var(--bw-size-body);font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);padding-top:8px;display:flex;align-items:center;gap:var(--bw-space-3)}
+.bw-formrow__req{color:var(--bw-text-danger)}
+.bw-formrow__control{display:flex;flex-direction:column;gap:var(--bw-space-4);min-width:0}
+.bw-formrow__help{font-size:var(--bw-size-sm);color:var(--bw-text-muted);margin:0}
+@media (max-width:782px){.bw-formrow{grid-template-columns:1fr;gap:var(--bw-space-4)}.bw-formrow__label{padding-top:0}}
+
+.bw-colorfield{display:flex;align-items:center;gap:var(--bw-space-5)}
+.bw-colorfield__swatch{width:var(--bw-control-h);height:var(--bw-control-h);border-radius:var(--bw-control-radius);border:1px solid var(--bw-border-field);flex:none;padding:0;cursor:pointer}
+/* input[type="color"] is on wp-admin's list too, so the swatch loses its corner
+   and its border the same way every other control here does. */
+input.bw-colorfield__swatch{border:1px solid var(--bw-border-field);border-radius:var(--bw-control-radius);min-height:0;padding:0;box-shadow:none}
+.bw-colorfield__hex{width:120px}
+.bw-colorfield__presets{display:flex;gap:var(--bw-space-3)}
+.bw-colorfield__preset{width:22px;height:22px;border-radius:var(--bw-radius-xs);border:1px solid rgb(10 12 41 / .12);padding:0;cursor:pointer}
+.bw-colorfield__preset.is-active{outline:2px solid var(--bw-brand);outline-offset:1px}
+
+.bw-copyfield{display:flex;align-items:stretch;gap:0}
+.bw-copyfield .bw-input{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
+.bw-copyfield__btn{border-top-left-radius:0;border-bottom-left-radius:0}
+
+.bw-range{display:flex;align-items:center;gap:var(--bw-space-6)}
+.bw-range input[type=range]{flex:1 1 auto;accent-color:var(--bw-brand);height:4px;cursor:pointer}
+.bw-range__value{font-family:var(--bw-font-mono);font-size:var(--bw-size-sm);color:var(--bw-text-body);min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
+
+.bw-upload{display:flex;align-items:center;gap:var(--bw-space-6);padding:var(--bw-space-7);border:1px dashed var(--bw-border-strong);border-radius:var(--bw-radius-md);background:var(--bw-surface-sunken)}
+.bw-upload.is-over{border-color:var(--bw-brand);background:var(--bw-brand-wash)}
+.bw-upload__icon{color:var(--bw-text-faint);flex:none}
+.bw-upload__body{flex:1 1 auto;min-width:0}
+.bw-upload__title{font-size:var(--bw-size-body);color:var(--bw-text-body);margin:0}
+.bw-upload__hint{font-size:var(--bw-size-sm);color:var(--bw-text-muted);margin:2px 0 0}
+
+/* A row is a card of its own, and its fields run down it one per line at full
+   width. They used to share a wrapping flex line, which put eight controls of
+   different heights across the screen at whatever width was left over — a
+   textarea two words wide beside a toggle in a box its own size. One field per
+   line costs height, which a page can scroll, and buys every control the width
+   its content actually needs. */
+.bw-repeater{display:flex;flex-direction:column;gap:var(--bw-space-6)}
+.bw-repeater__row{display:flex;flex-direction:column;gap:var(--bw-space-6);padding:var(--bw-panel-pad);border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);background:var(--bw-surface-card);box-shadow:var(--bw-shadow-card)}
+/* Reordering and removing sit in a bar above the fields. Beside a tall stack
+   they would float against nothing in particular; above it they read as
+   belonging to the whole row, which is what they act on. */
+.bw-repeater__bar{display:flex;align-items:center;justify-content:flex-end;gap:var(--bw-space-3)}
+.bw-repeater__grip{color:var(--bw-text-faint);cursor:grab;flex:none;display:flex;align-items:center;gap:var(--bw-space-3)}
+/* Reordering states. The system draws the grip and these two states; the
+   behaviour — HTML5 drag, keyboard arrows, whatever the screen needs — stays
+   with the screen, because what a reorder means differs every time. */
+.bw-repeater__row.is-dragging{opacity:var(--bw-disabled-opacity)}
+.bw-repeater__row.is-dragging .bw-repeater__grip{cursor:grabbing}
+.bw-repeater.is-drop-target{outline:2px dashed var(--bw-focus-color);outline-offset:var(--bw-space-3);border-radius:var(--bw-radius-md)}
+.bw-repeater__fields{display:flex;flex-direction:column;gap:var(--bw-space-6);min-width:0}
+.bw-repeater__fields>*{min-width:0}
+/* A switch is the one control that should not fill the line: it is its own
+   size, so it sits at the left of the line rather than stretching across it. */
+.bw-repeater__fields .bw-switch{align-self:flex-start}
+.bw-repeater__foot{display:flex;justify-content:space-between;align-items:center;gap:var(--bw-space-6)}
+.bw-repeater__empty{padding:var(--bw-space-7);border:1px dashed var(--bw-border-strong);border-radius:var(--bw-radius-md);background:var(--bw-surface-sunken);font-size:var(--bw-size-body);color:var(--bw-text-muted);text-align:center}
+
+/* --- Components — editor controls -------------------------------------------- */
+/* Rich text, tokens, capped lists, dependent fields, record title and slug */
+
+.bw-richtext{border:1px solid var(--bw-border-field);border-radius:var(--bw-radius-md);overflow:hidden;background:var(--bw-surface-card)}
+.bw-richtext__bar{display:flex;align-items:center;gap:var(--bw-space-1);padding:var(--bw-space-3);background:var(--bw-surface-sunken);border-bottom:1px solid var(--bw-border)}
+.bw-richtext__btn{display:inline-flex;align-items:center;justify-content:center;width:var(--bw-control-h-sm);height:var(--bw-control-h-sm);border:0;border-radius:var(--bw-radius-sm);background:none;color:var(--bw-text-muted);cursor:pointer;font-family:var(--bw-font-body);font-size:var(--bw-size-body);font-weight:var(--bw-weight-semibold)}
+.bw-richtext__btn:hover{background:var(--bw-surface-card);color:var(--bw-text-body)}
+.bw-richtext__btn.is-active{background:var(--bw-surface-accent);color:var(--bw-text-accent)}
+.bw-richtext__sep{width:1px;height:18px;background:var(--bw-border);margin:0 var(--bw-space-2)}
+.bw-richtext .bw-textarea{border:0;border-radius:0;min-height:120px}
+.bw-richtext .bw-textarea:focus{outline:0}
+
+.bw-tokens{display:flex;flex-wrap:wrap;gap:var(--bw-space-3);align-items:center;padding:var(--bw-space-3);border:1px solid var(--bw-border-field);border-radius:var(--bw-radius-md);background:var(--bw-surface-card)}
+.bw-tokens__input{flex:1 1 90px;min-width:90px;border:0;outline:0;padding:var(--bw-space-2) var(--bw-space-3);font-family:var(--bw-font-body);font-size:var(--bw-size-body);color:var(--bw-text-body);background:none}
+/* This one has to win to have no border at all: wp-admin's input[type="text"]
+   outweighs the single class above and puts a second bordered box inside the
+   token field. */
+input.bw-tokens__input{border:0;border-radius:0;background-color:transparent;min-height:0;padding:var(--bw-space-2) var(--bw-space-3);box-shadow:none}
+input.bw-tokens__input:focus{border:0;outline:0;box-shadow:none}
+
+.bw-scrolllist{max-height:168px;overflow-y:auto;display:flex;flex-direction:column;gap:var(--bw-space-5);padding:var(--bw-space-5) var(--bw-space-6);border:1px solid var(--bw-border-field);border-radius:var(--bw-radius-md);background:var(--bw-surface-card)}
+
+.bw-conditional{border-left:2px solid var(--bw-border-accent);background:var(--bw-surface-sunken);border-radius:0 var(--bw-radius-md) var(--bw-radius-md) 0;padding:var(--bw-space-7) var(--bw-space-8)}
+
+.bw-titleinput{width:100%;font-family:var(--bw-font-display);font-weight:var(--bw-weight-semibold);font-size:var(--bw-size-title);line-height:var(--bw-lh-heading);color:var(--bw-text-heading);background:var(--bw-surface-card);border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);padding:var(--bw-space-7) var(--bw-space-8)}
+.bw-titleinput::placeholder{color:var(--bw-text-faint)}
+.bw-titleinput:focus{outline:2px solid var(--bw-brand);outline-offset:1px;border-color:var(--bw-brand)}
+/* Outweighed by wp-admin's input[type="text"] the same way .bw-input is — see
+   the note above it. This one is the record's own title at the top of a screen,
+   so losing its 12px corner is the most visible of the lot. */
+input.bw-titleinput{border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);background-color:var(--bw-surface-card);color:var(--bw-text-heading);font-size:var(--bw-size-title);line-height:var(--bw-lh-heading);min-height:0;height:auto;padding:var(--bw-space-7) var(--bw-space-8);box-shadow:none}
+input.bw-titleinput:focus{border-color:var(--bw-brand);box-shadow:none}
+
+.bw-permalink{display:flex;align-items:center;flex-wrap:wrap;gap:var(--bw-space-3);margin-top:var(--bw-space-5);font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-permalink code{font-family:var(--bw-font-mono);font-size:var(--bw-size-sm);color:var(--bw-text-body)}
+
+.bw-fieldnote{display:flex;align-items:flex-start;gap:var(--bw-space-4);font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+
+/* --- Components — layout ----------------------------------------------------- */
+/* Page-level furniture */
+
+/* The hook a full-bleed admin screen attaches to WordPress's own .wrap
+   container, so the screen starts hard against wp-admin's chrome and supplies
+   its own gutter from there. Declared here, not only named in the readme's
+   copy-paste markup, so a plugin carrying styles.css alone still has it. */
+.bw-wrap{margin:0}
+
+.bw-page{display:flex;flex-direction:column;min-height:100vh;background:var(--bw-surface-page);color:var(--bw-text-body);font-family:var(--bw-font-body)}
+.bw-page__body{display:flex;align-items:flex-start;gap:var(--bw-space-9);padding:var(--bw-space-9) var(--bw-pad);flex:1 1 auto}
+.bw-panels{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--bw-stack-gap)}
+
+/* A panel column sitting straight on the page, with no .bw-page__body around
+   it to indent it — the shape the page editor renders. The header, tabs and
+   save bar above and below it all pad by --bw-pad, so without this the panels
+   alone would sit flush against the window. Scoped to a direct child so a
+   .bw-panels inside .bw-page__body, .bw-screen or .bw-panels-row still takes
+   its gutter from the container around it rather than doubling up. */
+.bw-page>.bw-panels{padding:var(--bw-space-9) var(--bw-pad)}
+
+/* One column, and narrow. A screen holding a single card is unreadable stretched
+   across a wide monitor — the card's own content stops long before its right
+   edge does. Modifier rather than a separate container so the gutter, the gap
+   and the responsive behaviour stay the page body's. */
+.bw-page__body--single{max-width:calc(760px + (var(--bw-pad) * 2))}
+
+.bw-pagehead{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;row-gap:var(--bw-space-7);gap:var(--bw-space-9);padding:var(--bw-space-10) var(--bw-pad) var(--bw-space-8);border-bottom:1px solid var(--bw-border);background:var(--bw-surface-card)}
+.bw-pagehead__titles{display:flex;flex-direction:column;min-width:0;flex:1 1 420px}
+.bw-pagehead__eyebrow{font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-eyebrow);text-transform:uppercase;color:var(--bw-text-accent);margin:0 0 var(--bw-space-3);font-weight:var(--bw-weight-semibold)}
+.bw-pagehead__h1{font-family:var(--bw-font-display);font-size:var(--bw-size-h1);font-weight:var(--bw-weight-semibold);line-height:var(--bw-lh-tight);margin:0;color:var(--bw-text-heading)}
+.bw-pagehead__lede{font-size:var(--bw-size-lede);color:var(--bw-text-muted);margin:var(--bw-space-4) 0 0}
+.bw-pagehead__actions{display:flex;align-items:center;gap:var(--bw-space-5);flex:0 1 auto;flex-wrap:wrap;row-gap:var(--bw-space-5);justify-content:flex-end;margin-left:auto}
+@media (max-width:782px){.bw-pagehead{flex-direction:column;align-items:flex-start}}
+
+.bw-card{background:var(--bw-surface-card);border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);box-shadow:var(--bw-shadow-card)}
+.bw-card__head{display:flex;justify-content:space-between;align-items:center;gap:var(--bw-space-7);padding:var(--bw-space-8) var(--bw-panel-pad);border-bottom:1px solid var(--bw-border)}
+.bw-card__titles{display:flex;flex-direction:column;gap:var(--bw-space-1);min-width:0}
+.bw-card__eyebrow{font-size:var(--bw-size-2xs);letter-spacing:var(--bw-track-panel);text-transform:uppercase;color:var(--bw-text-muted);margin:0;font-weight:var(--bw-weight-semibold)}
+.bw-card__title{font-family:var(--bw-font-display);font-size:var(--bw-size-h3);font-weight:var(--bw-weight-semibold);letter-spacing:var(--bw-track-tight);margin:0;color:var(--bw-text-heading)}
+.bw-card__actions{display:flex;align-items:center;gap:var(--bw-space-4);flex:none}
+/* A card head's actions are often a switch and its Save, wrapped in a form so
+   they post together. A form is a block box, so its children fall back to inline
+   layout and the gap between them becomes whatever whitespace the markup happens
+   to carry — visibly uneven beside the flex gap outside it. Laying the form out
+   the same way its container is laid out makes the spacing one value again. */
+.bw-card__actions form{display:flex;align-items:center;gap:var(--bw-space-4)}
+.bw-card__body{padding:var(--bw-panel-pad)}
+.bw-card__note{font-size:var(--bw-size-body);color:var(--bw-text-muted);margin:0 0 var(--bw-space-7)}
+.bw-card__foot{display:flex;justify-content:flex-end;align-items:center;gap:var(--bw-space-5);padding:var(--bw-space-7) var(--bw-panel-pad);border-top:1px solid var(--bw-border);background:var(--bw-surface-sunken);border-radius:0 0 var(--bw-radius-lg) var(--bw-radius-lg)}
+/* A panel that only introduces what follows it: heading, and the sentence
+   explaining it. What it introduces sits outside, in .bw-panel__loose, as its
+   own cards. */
+.bw-card--intro .bw-card__note{margin-bottom:0}
+.bw-card--intro .bw-card__head:only-child{border-bottom:0}
+.bw-panel__loose{display:flex;flex-direction:column;gap:var(--bw-space-5)}
+.bw-card--flush .bw-card__body{padding:0}
+.bw-card--sunken{background:var(--bw-surface-sunken);box-shadow:none}
+
+.bw-secnav{flex:0 0 220px;display:flex;flex-direction:column;gap:var(--bw-space-2)}
+.bw-secnav__item{display:flex;justify-content:space-between;align-items:center;gap:var(--bw-space-4);padding:var(--bw-space-5) 14px;border-radius:var(--bw-control-radius);border:1px solid transparent;font-size:var(--bw-size-body);color:var(--bw-text-muted);text-decoration:none;background:none;cursor:pointer;text-align:left;transition:var(--bw-transition-control)}
+.bw-secnav__item:hover{border-color:var(--bw-border);color:var(--bw-text-body)}
+.bw-secnav__item.is-active{background:linear-gradient(90deg,var(--bw-brand-wash),color-mix(in oklab,var(--bw-brand-wash) 45%,var(--bw-surface-card)));color:var(--bw-text-accent);border-color:var(--bw-brand);font-weight:var(--bw-weight-medium)}
+.bw-secnav__item.is-active:hover{border-color:var(--bw-brand);color:var(--bw-text-accent)}
+.bw-secnav__meta{font-size:var(--bw-size-xs);opacity:.7}
+@media (max-width:782px){.bw-page__body{flex-direction:column;align-items:stretch}.bw-secnav{flex:0 0 auto;flex-direction:row;flex-wrap:wrap;width:100%}}
+
+.bw-tabs{display:flex;gap:var(--bw-space-3);padding:14px var(--bw-pad) 0;border-bottom:1px solid var(--bw-border);overflow-x:auto;background:var(--bw-surface-card)}
+.bw-tabs--inset{padding-left:0;padding-right:0;background:none}
+.bw-tab{flex:none;appearance:none;border:0;background:transparent;font-family:var(--bw-font-body);font-size:var(--bw-size-sm);letter-spacing:.1em;text-transform:uppercase;font-weight:var(--bw-weight-medium);color:var(--bw-text-muted);padding:var(--bw-space-5) var(--bw-space-6);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;white-space:nowrap;transition:var(--bw-transition-control)}
+.bw-tab:hover{color:var(--bw-text-body)}
+.bw-tab.is-active{color:var(--bw-text-heading);border-bottom-color:var(--bw-brand)}
+.bw-tab__count{margin-left:var(--bw-space-3);font-size:var(--bw-size-xs);color:var(--bw-text-faint)}
+
+.bw-savebar{position:sticky;bottom:0;z-index:20;margin-top:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:var(--bw-space-7);padding:var(--bw-space-7) var(--bw-pad);background:var(--bw-surface-card);border-top:1px solid var(--bw-border);box-shadow:var(--bw-shadow-bar)}
+.bw-savebar__hint{margin:0 auto 0 0;font-size:var(--bw-size-body);color:var(--bw-text-muted);display:flex;align-items:center;gap:var(--bw-space-4)}
+
+/* --- Components — layout, extended ------------------------------------------- */
+/* Toolbar, collapsible panels, drawer, dividers, sidebar layout */
+.bw-toolbar--card{border-bottom:0;padding:0 0 var(--bw-space-7)}
+.bw-toolbar__group{display:flex;align-items:center;gap:var(--bw-space-4)}
+
+.bw-accordion{border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);background:var(--bw-surface-card);box-shadow:var(--bw-shadow-card);overflow:hidden}
+.bw-accordion+.bw-accordion{margin-top:var(--bw-space-5)}
+.bw-accordion__head{display:flex;align-items:center;gap:var(--bw-space-5);width:100%;padding:14px var(--bw-panel-pad);background:none;border:0;font:inherit;text-align:left;cursor:pointer;color:var(--bw-text-heading);transition:var(--bw-transition-control)}
+.bw-accordion__head:hover{background:var(--bw-surface-sunken)}
+.bw-accordion__title{font-family:var(--bw-font-display);font-size:var(--bw-size-h3);font-weight:var(--bw-weight-semibold);flex:1 1 auto;min-width:0}
+.bw-accordion__sub{font-size:var(--bw-size-sm);color:var(--bw-text-muted);font-family:var(--bw-font-body);font-weight:var(--bw-weight-regular);display:block;margin-top:2px}
+.bw-accordion__chev{color:var(--bw-text-muted);transition:transform var(--bw-dur) var(--bw-ease);flex:none}
+.bw-accordion.is-open .bw-accordion__chev{transform:rotate(180deg)}
+.bw-accordion__body{padding:var(--bw-panel-pad);border-top:1px solid var(--bw-border)}
+
+.bw-drawer{position:fixed;top:0;right:0;bottom:0;width:100%;max-width:460px;background:var(--bw-surface-card);box-shadow:var(--bw-shadow-overlay);display:flex;flex-direction:column;z-index:110}
+.bw-drawer--wide{max-width:640px}
+.bw-drawer__head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--bw-space-7);padding:var(--bw-space-8) var(--bw-panel-pad);border-bottom:1px solid var(--bw-border)}
+.bw-drawer__title{font-family:var(--bw-font-display);font-size:var(--bw-size-h2);font-weight:var(--bw-weight-semibold);margin:0}
+.bw-drawer__sub{font-size:var(--bw-size-body);color:var(--bw-text-muted);margin:var(--bw-space-3) 0 0}
+.bw-drawer__body{padding:var(--bw-panel-pad);overflow:auto;flex:1 1 auto}
+.bw-drawer__foot{display:flex;justify-content:flex-end;gap:var(--bw-space-5);padding:var(--bw-space-7) var(--bw-panel-pad);border-top:1px solid var(--bw-border);background:var(--bw-surface-sunken)}
+
+.bw-divider{border:0;border-top:1px solid var(--bw-border);margin:var(--bw-space-8) 0}
+.bw-divider--tight{margin:var(--bw-space-6) 0}
+.bw-divider__labelled{display:flex;align-items:center;gap:var(--bw-space-6);margin:var(--bw-space-8) 0;color:var(--bw-text-faint);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;font-weight:var(--bw-weight-semibold)}
+.bw-divider__labelled::before,.bw-divider__labelled::after{content:"";flex:1 1 auto;height:1px;background:var(--bw-border)}
+
+.bw-screen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--bw-stack-gap);align-items:start}
+.bw-screen--narrow-side{grid-template-columns:minmax(0,1fr) 260px}
+.bw-screen__side{display:flex;flex-direction:column;gap:var(--bw-stack-gap);position:sticky;top:var(--bw-space-9)}
+@media (max-width:1100px){.bw-screen{grid-template-columns:1fr}.bw-screen__side{position:static}}
+
+.bw-settingscard .bw-card__head{align-items:flex-start}
+.bw-settingscard__desc{font-size:var(--bw-size-body);color:var(--bw-text-muted);margin:var(--bw-space-3) 0 0}
+.bw-settingscard__body>.bw-formrow:first-child{padding-top:0}
+.bw-settingscard__body>.bw-formrow:last-child{padding-bottom:0}
+.bw-settingscard .bw-card__foot{gap:var(--bw-space-6)}
+.bw-settingscard .bw-card__foot>:first-child{margin-right:auto}
+
+/* --- Components — settings screens -------------------------------------------- */
+/* A settings screen that lists many independent functions, each with its own
+   settings. Built for a plugin with twenty-seven of them on one screen: the
+   section nav narrows the list, the section head says how many are on, and each
+   function card holds its own settings so nothing has to be read as a table. */
+
+.bw-panels-row{display:flex;align-items:flex-start;gap:var(--bw-space-9)}
+@media (max-width:900px){
+  .bw-panels-row{flex-direction:column}
+  .bw-panels-row>.bw-secnav{flex:0 0 auto;width:100%;flex-direction:row;flex-wrap:wrap}
+}
+
+/* Section head — a flush card above the stack, carrying the section name, how
+   many of its functions are on, and one action on that whole section. */
+.bw-sectionhead .bw-card__head{border-bottom:0}
+
+/* Function card — one switch, its name and description, and a settings panel
+   underneath that is only shown while the switch is on. The panel is sunken and
+   carries the brand rail, which is what ties it to the switch above it when
+   twenty-seven of these are stacked.
+
+   Three of its measurements are the card's own rather than the scale's: a 14px
+   gap, a 10px corner and 18px of row padding. That is how the design was drawn,
+   and the nearest tokens (space-6, radius-lg, space-7) land at 12, 12 and 16 —
+   close enough to read as a mistake in a stack of twenty-seven, far enough to
+   be one. Moving the tokens would move every component in every project to suit
+   one card, so the card carries the numbers instead. The clip goes with the
+   corner: without it the sunken panel's square corners sit outside the card's
+   rounder ones. */
+.bw-fnstack{display:flex;flex-direction:column;gap:14px}
+.bw-fncard{background:var(--bw-surface-card);border:1px solid var(--bw-border);border-radius:10px;overflow:hidden;box-shadow:var(--bw-shadow-card)}
+.bw-fncard__row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--bw-space-9);align-items:start;padding:18px var(--bw-panel-pad)}
+.bw-fncard__name{display:block;font-size:var(--bw-size-body);font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading)}
+.bw-fncard__desc{margin:var(--bw-space-2) 0 0;font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-fncard__panel{padding:0 var(--bw-panel-pad) var(--bw-space-8)}
+.bw-fncard__panel>.bw-card--sunken{border-left:2px solid var(--bw-brand)}
+.bw-fncard__panel .bw-card__eyebrow{margin-bottom:var(--bw-space-7)}
+
+/* Product tabs — a second, coarser level above .bw-tabs, for a screen whose
+   topics belong to more than one product. Pills rather than underlines, so the
+   two rows never read as one. */
+.bw-prodtabs{display:flex;align-items:center;flex-wrap:wrap;gap:var(--bw-space-4);padding:var(--bw-space-7) var(--bw-pad) 0}
+.bw-prodtabs--inset{padding-left:0;padding-right:0}
+.bw-prodtabs__label{margin-right:var(--bw-space-2);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;font-weight:var(--bw-weight-semibold);color:var(--bw-text-faint)}
+.bw-prodtab{display:inline-flex;align-items:center;gap:var(--bw-space-3);padding:var(--bw-space-4) var(--bw-space-7);border:1px solid var(--bw-border);border-radius:var(--bw-radius-pill);background:var(--bw-control-bg);font-family:inherit;font-size:var(--bw-size-sm);color:var(--bw-text-muted);text-decoration:none;cursor:pointer;white-space:nowrap;transition:var(--bw-transition-control)}
+.bw-prodtab:hover{border-color:var(--bw-border-strong);color:var(--bw-text-body)}
+.bw-prodtab.is-active{background:var(--bw-brand-wash);border-color:var(--bw-brand);color:var(--bw-text-accent);font-weight:var(--bw-weight-medium)}
+.bw-prodtab__count{font-size:var(--bw-size-xs);color:var(--bw-text-faint);font-variant-numeric:tabular-nums}
+.bw-prodtab.is-active .bw-prodtab__count{color:var(--bw-text-accent);opacity:.72}
+
+/* --- Components — feedback --------------------------------------------------- */
+/* Messaging and overlays */
+.bw-notice{display:flex;gap:var(--bw-space-6);align-items:flex-start;padding:var(--bw-space-6) 14px;border:1px solid var(--bw-border);border-radius:var(--bw-radius-md);background:var(--bw-surface-card)}
+.bw-notice__icon{flex:none;margin-top:1px}
+.bw-notice__body{flex:1 1 auto;min-width:0}
+.bw-notice__title{font-weight:var(--bw-weight-semibold);font-size:var(--bw-size-body);margin:0 0 2px;color:var(--bw-text-heading)}
+.bw-notice__text{margin:0;font-size:var(--bw-size-body);color:var(--bw-text-muted)}
+.bw-notice__actions{display:flex;gap:var(--bw-space-5);align-items:center;margin-top:var(--bw-space-5)}
+.bw-notice--info{background:var(--bw-info-wash);border-color:#CBDFF0}
+.bw-notice--success{background:var(--bw-success-wash);border-color:#C6E9CE}
+.bw-notice--warning{background:var(--bw-warning-wash);border-color:#F0DFA8}
+.bw-notice--danger{background:var(--bw-danger-wash);border-color:#F1C7C7}
+.bw-notice--accent{background:var(--bw-brand-wash);border-color:var(--bw-brand-line)}
+
+.bw-scrim{position:fixed;inset:0;background:var(--bw-scrim);display:flex;align-items:center;justify-content:center;padding:var(--bw-space-9);z-index:100}
+.bw-modal{width:100%;max-width:520px;background:var(--bw-surface-card);border-radius:var(--bw-radius-lg);box-shadow:var(--bw-shadow-overlay);display:flex;flex-direction:column;max-height:90vh}
+.bw-modal--wide{max-width:760px}
+.bw-modal__head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--bw-space-7);padding:var(--bw-space-8) var(--bw-panel-pad);border-bottom:1px solid var(--bw-border)}
+.bw-modal__title{font-family:var(--bw-font-display);font-size:var(--bw-size-h2);font-weight:var(--bw-weight-semibold);margin:0}
+.bw-modal__sub{font-size:var(--bw-size-body);color:var(--bw-text-muted);margin:var(--bw-space-3) 0 0}
+.bw-modal__body{padding:var(--bw-panel-pad);overflow:auto}
+.bw-modal__foot{display:flex;justify-content:flex-end;gap:var(--bw-space-5);padding:var(--bw-space-7) var(--bw-panel-pad);border-top:1px solid var(--bw-border);background:var(--bw-surface-sunken);border-radius:0 0 var(--bw-radius-lg) var(--bw-radius-lg)}
+
+.bw-progress{display:flex;flex-direction:column;gap:var(--bw-space-4)}
+.bw-progress__row{display:flex;justify-content:space-between;align-items:baseline;gap:var(--bw-space-6)}
+.bw-progress__label{font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-progress__pct{font-family:var(--bw-font-display);font-size:var(--bw-size-h3);color:var(--bw-text-accent);margin:0}
+.bw-progress__track{height:8px;border-radius:var(--bw-radius-pill);background:var(--bw-line);overflow:hidden}
+.bw-progress__bar{height:100%;background:var(--bw-brand);border-radius:var(--bw-radius-pill);transition:width var(--bw-dur-slow) var(--bw-ease)}
+.bw-progress--sm .bw-progress__track{height:4px}
+
+.bw-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--bw-space-5);padding:var(--bw-space-11) var(--bw-space-9);border:1px dashed var(--bw-border-strong);border-radius:var(--bw-radius-lg);background:var(--bw-surface-sunken);color:var(--bw-text-muted)}
+.bw-empty__icon{color:var(--bw-text-faint)}
+.bw-empty__title{font-family:var(--bw-font-display);font-size:var(--bw-size-h3);font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);margin:0}
+.bw-empty__text{margin:0;font-size:var(--bw-size-body);max-width:44ch}
+.bw-empty__actions{display:flex;gap:var(--bw-space-5);margin-top:var(--bw-space-3)}
+
+/* --- Components — feedback, extended ----------------------------------------- */
+/* Toasts, spinners, skeletons, help tips */
+.bw-toasts{position:fixed;bottom:var(--bw-space-9);right:var(--bw-space-9);display:flex;flex-direction:column;gap:var(--bw-space-5);z-index:120;max-width:380px}
+.bw-toast{display:flex;align-items:flex-start;gap:var(--bw-space-5);padding:12px 14px;border-radius:var(--bw-radius-md);background:var(--bw-surface-inverse);color:#fff;box-shadow:var(--bw-shadow-overlay);font-size:var(--bw-size-body)}
+.bw-toast__text{flex:1 1 auto;min-width:0}
+.bw-toast__action{border:0;background:none;padding:0;font:inherit;font-size:var(--bw-size-body);color:#fff;text-decoration:underline;cursor:pointer;flex:none}
+.bw-toast__close{border:0;background:none;padding:0;color:rgb(255 255 255 / .7);cursor:pointer;display:inline-flex;flex:none}
+.bw-toast__close:hover{color:#fff}
+
+.bw-spinner{display:inline-block;border-radius:50%;border:2px solid var(--bw-line-strong);border-top-color:var(--bw-brand);animation:bw-spin 700ms linear infinite;flex:none}
+@keyframes bw-spin{to{transform:rotate(360deg)}}
+.bw-loading{display:inline-flex;align-items:center;gap:var(--bw-space-5);font-size:var(--bw-size-body);color:var(--bw-text-muted)}
+
+.bw-skel{display:block;background:var(--bw-line);border-radius:var(--bw-radius-xs);animation:bw-pulse 1.4s var(--bw-ease) infinite}
+@keyframes bw-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.bw-skel--text{height:10px;margin:5px 0}
+.bw-skel--title{height:16px;border-radius:var(--bw-radius-sm)}
+.bw-skel--block{border-radius:var(--bw-radius-md)}
+.bw-skel--circle{border-radius:50%}
+.bw-skel-stack{display:flex;flex-direction:column;gap:var(--bw-space-4)}
+
+.bw-helptip{position:relative;display:inline-flex}
+.bw-helptip__btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:0;background:var(--bw-line);color:var(--bw-text-muted);font-size:10px;font-weight:var(--bw-weight-bold);cursor:help;padding:0;line-height:1}
+.bw-helptip__btn:hover{background:var(--bw-brand-wash);color:var(--bw-text-accent)}
+.bw-tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--bw-surface-inverse);color:#fff;font-size:var(--bw-size-sm);line-height:1.45;padding:8px 10px;border-radius:var(--bw-radius-sm);width:max-content;max-width:240px;box-shadow:var(--bw-shadow-raised);z-index:60;pointer-events:none;text-transform:none;letter-spacing:0;font-weight:var(--bw-weight-regular)}
+.bw-tip--below{bottom:auto;top:calc(100% + 6px)}
+.bw-tooltip{position:relative;display:inline-flex}
+
+/* --- Components — data display ----------------------------------------------- */
+/* Tables and figures */
+.bw-table{width:100%;border-collapse:collapse;font-size:var(--bw-size-body)}
+.bw-table thead th{text-align:left;font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold);padding:var(--bw-space-5) var(--bw-space-7);border-bottom:1px solid var(--bw-border);background:var(--bw-surface-sunken);white-space:nowrap}
+.bw-table tbody td{padding:14px var(--bw-space-7);border-bottom:1px solid var(--bw-border);vertical-align:middle;color:var(--bw-text-body)}
+.bw-table tbody tr:last-child td{border-bottom:0}
+.bw-table tbody tr:hover td{background:var(--bw-surface-sunken)}
+.bw-table__primary{font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);display:block}
+.bw-table__sub{display:block;font-size:var(--bw-size-sm);color:var(--bw-text-muted);margin-top:2px}
+.bw-table__num{text-align:right;font-variant-numeric:tabular-nums}
+.bw-table__actions{text-align:right;white-space:nowrap;opacity:0;transition:opacity var(--bw-dur) var(--bw-ease)}
+.bw-table tbody tr:hover .bw-table__actions,.bw-table tbody tr:focus-within .bw-table__actions{opacity:1}
+/* Row actions fade in on hover; the column heading is not a row action. Left
+   sharing the class, the header the column needs to be readable is invisible. */
+.bw-table thead th.bw-table__actions{opacity:1}
+/* A table narrower than its content scrolls inside its own card rather than
+   pushing its last column out past the edge of the page. */
+.bw-tablescroll{overflow-x:auto}
+.bw-table__check{width:36px;padding-right:0}
+.bw-table__check input{accent-color:var(--bw-brand);width:16px;height:16px;margin:0}
+/* Rows that fall into named groups — an estimate's phases, say. The group
+   header is a full-width row on the sunken surface carrying the group name and
+   its subtotal; the total row closes the table off. Both are ordinary rows, not
+   headers, so a screen reader reads them in document order with the rows they
+   belong to. A group's subtotal and the table's total are figures the caller
+   works out: the table never sums anything itself. */
+.bw-table__group>td{background:var(--bw-surface-sunken);padding:var(--bw-space-4) var(--bw-space-7)}
+.bw-table__group-title{font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;font-weight:var(--bw-weight-semibold);color:var(--bw-brand)}
+.bw-table__group-total{float:right;font-variant-numeric:tabular-nums;color:var(--bw-text-muted);font-weight:var(--bw-weight-regular);text-transform:none;letter-spacing:normal}
+.bw-table__total>td{border-top:1px solid var(--bw-border);padding:var(--bw-space-7)}
+.bw-table__total-label{font-family:var(--bw-font-display);font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading)}
+/* Neither a group header nor a total row is a record, so neither takes the
+   row hover the records above them use. */
+.bw-table tbody tr.bw-table__group:hover td,.bw-table tbody tr.bw-table__total:hover td{background:inherit}
+.bw-table__group:hover>td{background:var(--bw-surface-sunken)}
+/* An internal note on a row: for the administrator, never for the client. */
+.bw-table__note{display:flex;align-items:center;gap:var(--bw-space-3);font-size:var(--bw-size-sm);color:var(--bw-warning-deep)}
+.bw-table__legend{display:flex;flex-wrap:wrap;gap:var(--bw-space-7);font-size:var(--bw-size-sm);color:var(--bw-text-muted);padding:var(--bw-space-4) var(--bw-space-7)}
+
+.bw-toolbar{display:flex;align-items:center;gap:var(--bw-space-5);padding:var(--bw-space-6) var(--bw-space-7);border-bottom:1px solid var(--bw-border);flex-wrap:wrap}
+.bw-toolbar__search{flex:1 1 260px;max-width:320px}
+.bw-toolbar__spacer{flex:1 1 auto}
+.bw-tablefoot{display:flex;justify-content:space-between;align-items:center;gap:var(--bw-space-7);padding:var(--bw-space-6) var(--bw-space-7);border-top:1px solid var(--bw-border);font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+
+.bw-stat{display:flex;flex-direction:column;gap:var(--bw-space-3);padding:var(--bw-space-8);background:var(--bw-surface-card);border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);box-shadow:var(--bw-shadow-card)}
+.bw-stat__label{font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold);display:flex;align-items:center;gap:var(--bw-space-3)}
+.bw-stat__value{font-family:var(--bw-font-display);font-size:var(--bw-size-h1);font-weight:var(--bw-weight-semibold);line-height:1;color:var(--bw-text-heading);margin:0;font-variant-numeric:tabular-nums}
+.bw-stat__row{display:flex;align-items:baseline;gap:var(--bw-space-5);flex-wrap:wrap}
+.bw-stat__delta{font-size:var(--bw-size-sm);font-weight:var(--bw-weight-medium)}
+.bw-stat__delta--up{color:var(--bw-success-deep)}
+.bw-stat__delta--down{color:var(--bw-danger-deep)}
+.bw-stat__foot{font-size:var(--bw-size-sm);color:var(--bw-text-faint);margin:0}
+.bw-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--bw-space-7)}
+/* Summary strip — the band of derived figures that sits under a page header and
+   stays put while the tabs beneath it change. Not .bw-stats: that is a grid of
+   cards on the canvas, this is one white band flush with the header above it,
+   divided by hairlines. Figures only — nothing here is editable or a link. */
+.bw-summary{display:flex;flex-wrap:wrap;gap:0;background:var(--bw-surface-card);border-bottom:1px solid var(--bw-border);padding:0 var(--bw-pad)}
+.bw-summary__cell{display:flex;flex-direction:column;gap:var(--bw-space-2);min-width:var(--bw-summary-min);padding:var(--bw-space-7) var(--bw-space-10) var(--bw-space-7) 0;margin-right:var(--bw-space-10);border-right:1px solid var(--bw-border)}
+.bw-summary__cell:last-child{border-right:0;margin-right:0}
+.bw-summary__label{font-size:var(--bw-size-xs);line-height:var(--bw-lh-tight);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold)}
+.bw-summary__value{font-family:var(--bw-font-display);font-size:var(--bw-size-title);font-weight:var(--bw-weight-semibold);line-height:var(--bw-lh-tight);color:var(--bw-text-heading);font-variant-numeric:tabular-nums}
+.bw-summary__foot{font-size:var(--bw-size-sm);color:var(--bw-text-faint)}
+/* Gantt — phases positioned against a week or date scale. A bar's left and
+   width are the one thing a caller sets inline, because they are data, not
+   styling: they come from the phase's own start and end. Everything else about
+   a bar comes from its kind class. Weeks are authored, never derived from
+   estimated hours — a schedule is what the team can actually do. */
+.bw-gantt{display:flex;flex-direction:column;gap:var(--bw-space-5)}
+.bw-gantt__ruler{display:flex;gap:var(--bw-space-6);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-faint);font-weight:var(--bw-weight-semibold);padding-left:calc(var(--bw-gantt-label-w) + var(--bw-space-6))}
+.bw-gantt__tick{flex:1 1 0;min-width:0}
+.bw-gantt__rows{display:flex;flex-direction:column;gap:var(--bw-space-3)}
+.bw-gantt__row{display:flex;align-items:center;gap:var(--bw-space-6)}
+.bw-gantt__label{width:var(--bw-gantt-label-w);flex:none;display:flex;flex-direction:column;gap:var(--bw-space-1)}
+.bw-gantt__n{font-family:var(--bw-font-display);font-size:var(--bw-size-sm);color:var(--bw-text-faint)}
+.bw-gantt__title{font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);font-size:var(--bw-size-body);display:flex;align-items:center;gap:var(--bw-space-3)}
+.bw-gantt__range{font-size:var(--bw-size-sm);line-height:var(--bw-lh-body);color:var(--bw-text-muted)}
+.bw-gantt__track{flex:1 1 auto;height:var(--bw-gantt-track-h);border-radius:var(--bw-control-radius);background:var(--bw-surface-sunken);border:1px solid var(--bw-border);position:relative}
+.bw-gantt__bar{position:absolute;top:var(--bw-gantt-bar-inset);bottom:var(--bw-gantt-bar-inset);border-radius:var(--bw-radius-sm);color:var(--bw-text-on-accent);font-size:var(--bw-size-xs);display:flex;align-items:center;padding:0 var(--bw-space-4);overflow:hidden;white-space:nowrap;background:var(--bw-brand)}
+.bw-gantt__bar--pre{background:var(--bw-brand)}
+.bw-gantt__bar--launch{background:var(--bw-timeline-launch)}
+.bw-gantt__bar--post{background:var(--bw-timeline-post)}
+.bw-gantt__bar.is-hidden{opacity:var(--bw-gantt-hidden-opacity)}
+.bw-gantt__actions{flex:none;display:flex;gap:var(--bw-space-2)}
+.bw-gantt__legend{display:flex;gap:var(--bw-space-7);align-items:center;flex-wrap:wrap;font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+/* The swatch carries the colour, the label stays muted — so a legend key needs
+   no inline style, and the three kinds cannot drift from the bars they explain. */
+.bw-gantt__key{display:flex;gap:var(--bw-space-3);align-items:center}
+.bw-gantt__key::before{content:"";width:var(--bw-gantt-key-size);height:var(--bw-gantt-key-size);border-radius:var(--bw-radius-xs);background:var(--bw-brand);flex:none}
+.bw-gantt__key--launch::before{background:var(--bw-timeline-launch)}
+.bw-gantt__key--post::before{background:var(--bw-timeline-post)}
+
+/* A schedule that is read, not dragged. Shares the gantt's measurements on
+   purpose — same label column, same track height, same three bar colours — so
+   a screen showing one and a screen showing the other read as the same
+   picture. What it adds is the band: a heading across the rows that belong
+   together, so a plan running through a hand-off reads as two stretches end to
+   end rather than one long one. What it drops is every control. */
+.bw-schedule{display:flex;flex-direction:column;gap:var(--bw-space-3)}
+.bw-schedule__ruler{display:flex;gap:var(--bw-space-6);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-faint);font-weight:var(--bw-weight-semibold);padding-left:calc(var(--bw-gantt-label-w) + var(--bw-space-6));margin-bottom:var(--bw-space-3)}
+.bw-schedule__tick{flex:1 1 0;min-width:0}
+/* Names the band on screen and what it adds up to. Spans the whole width
+   rather than sitting over the track, because it names the rows under it and
+   not a stretch of the timeline. */
+.bw-schedule__head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--bw-space-5);padding-bottom:var(--bw-space-3)}
+.bw-schedule__band-title{font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading)}
+.bw-schedule__band-meta{font-size:var(--bw-size-sm);color:var(--bw-text-muted);font-variant-numeric:tabular-nums}
+.bw-schedule__row{display:flex;align-items:center;gap:var(--bw-space-6);padding:var(--bw-space-2) 0}
+.bw-schedule__label{width:var(--bw-gantt-label-w);flex:none;display:flex;flex-direction:column;gap:var(--bw-space-1)}
+.bw-schedule__title{font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);font-size:var(--bw-size-body);display:flex;align-items:center;gap:var(--bw-space-3)}
+.bw-schedule__range{font-size:var(--bw-size-sm);line-height:var(--bw-lh-body);color:var(--bw-text-muted)}
+.bw-schedule__track{flex:1 1 auto;height:var(--bw-gantt-track-h);border-radius:var(--bw-control-radius);background:var(--bw-surface-sunken);border:1px solid var(--bw-border);position:relative}
+.bw-schedule__bar{position:absolute;top:var(--bw-gantt-bar-inset);bottom:var(--bw-gantt-bar-inset);border-radius:var(--bw-radius-sm);color:var(--bw-text-on-accent);font-size:var(--bw-size-xs);display:flex;align-items:center;padding:0 var(--bw-space-4);overflow:hidden;white-space:nowrap;background:var(--bw-brand)}
+.bw-schedule__bar--pre{background:var(--bw-brand)}
+.bw-schedule__bar--launch{background:var(--bw-timeline-launch)}
+.bw-schedule__bar--post{background:var(--bw-timeline-post)}
+.bw-schedule__bar.is-hidden{opacity:var(--bw-gantt-hidden-opacity)}
+@media (max-width:782px){
+  .bw-schedule__ruler{display:none}
+  .bw-schedule__row{flex-direction:column;align-items:stretch;gap:var(--bw-space-2)}
+  .bw-schedule__label{width:auto}
+}
+
+/* Preview — a page of the site in a device frame, beside the fields that
+   change it. The stage scrolls rather than shrinking the frame: a preview
+   that scales to fit stops being a preview of anything real. */
+.bw-preview{display:flex;flex-direction:column;gap:var(--bw-space-6);border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);background:var(--bw-surface-sunken);overflow:hidden}
+.bw-preview__bar{display:flex;align-items:center;justify-content:space-between;gap:var(--bw-space-6);flex-wrap:wrap;padding:var(--bw-space-5) var(--bw-space-6);border-bottom:1px solid var(--bw-border);background:var(--bw-surface-card)}
+.bw-preview__devices{display:inline-flex;align-items:center;gap:var(--bw-space-2);padding:var(--bw-space-1);border:1px solid var(--bw-border);border-radius:var(--bw-radius-pill);background:var(--bw-surface-sunken)}
+.bw-preview__device{display:inline-flex;align-items:center;gap:var(--bw-space-3);padding:var(--bw-space-3) var(--bw-space-6);border:0;border-radius:var(--bw-radius-pill);background:transparent;color:var(--bw-text-muted);font-family:var(--bw-font-body);font-size:var(--bw-size-sm);font-weight:var(--bw-weight-semibold);cursor:pointer;transition:background var(--bw-dur) var(--bw-ease),color var(--bw-dur) var(--bw-ease)}
+.bw-preview__device:hover{color:var(--bw-text-body)}
+.bw-preview__device.is-current{background:var(--bw-surface-card);color:var(--bw-text-accent);box-shadow:var(--bw-shadow-card)}
+.bw-preview__actions{display:inline-flex;align-items:center;gap:var(--bw-space-5)}
+.bw-preview__stage{display:flex;justify-content:center;overflow:auto;padding:var(--bw-space-7);max-height:620px}
+.bw-preview__frame{flex:none;height:600px;border:1px solid var(--bw-border-strong);border-radius:var(--bw-radius-md);background:var(--bw-surface-card);box-shadow:var(--bw-shadow-card)}
+.bw-preview--empty{align-items:center;justify-content:center;gap:var(--bw-space-5);padding:var(--bw-space-11);text-align:center;color:var(--bw-text-muted)}
+.bw-preview__hint{margin:0;font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+/* --- Components — data display, extended ------------------------------------- */
+/* Detail lists, avatars, activity, bulk actions */
+.bw-dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--bw-space-5) var(--bw-space-8);font-size:var(--bw-size-body);margin:0}
+.bw-dl dt{color:var(--bw-text-muted);white-space:nowrap}
+.bw-dl dd{margin:0;color:var(--bw-text-body)}
+.bw-dl--stack{grid-template-columns:1fr;gap:var(--bw-space-2)}
+.bw-dl--stack dt{font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;font-weight:var(--bw-weight-semibold)}
+.bw-dl--stack dd+dt{margin-top:var(--bw-space-6)}
+
+.bw-avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bw-brand-wash);color:var(--bw-text-accent);font-weight:var(--bw-weight-semibold);overflow:hidden;flex:none;font-family:var(--bw-font-body)}
+.bw-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.bw-person{display:flex;align-items:center;gap:var(--bw-space-5);min-width:0}
+.bw-person__name{font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);display:block}
+.bw-person__sub{font-size:var(--bw-size-sm);color:var(--bw-text-muted);display:block}
+
+.bw-activity{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.bw-activity__item{display:flex;gap:var(--bw-space-6);padding-bottom:var(--bw-space-7);position:relative}
+.bw-activity__item:last-child{padding-bottom:0}
+.bw-activity__item:not(:last-child)::before{content:"";position:absolute;left:11px;top:24px;bottom:0;width:1px;background:var(--bw-border)}
+.bw-activity__dot{width:24px;height:24px;border-radius:50%;background:var(--bw-surface-sunken);border:1px solid var(--bw-border);display:flex;align-items:center;justify-content:center;flex:none;color:var(--bw-text-muted);z-index:1}
+.bw-activity__body{min-width:0;padding-top:2px}
+.bw-activity__text{margin:0;font-size:var(--bw-size-body);color:var(--bw-text-body)}
+.bw-activity__meta{margin:2px 0 0;font-size:var(--bw-size-sm);color:var(--bw-text-faint)}
+
+.bw-bulk{display:flex;align-items:center;gap:var(--bw-space-5);flex-wrap:wrap}
+.bw-bulk__count{font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-bulk__select{width:170px}
+
+/* --- Base — resets and element defaults -------------------------------------- */
+/* Minimal base. Scoped to .bw-admin so a plugin screen opts in and never
+   restyles the surrounding WordPress admin. */
+.bw-admin{font-family:var(--bw-font-body);font-size:var(--bw-size-body);line-height:var(--bw-lh-body);color:var(--bw-text-body);background:var(--bw-surface-page);-webkit-font-smoothing:antialiased}
+.bw-admin *,.bw-admin *::before,.bw-admin *::after{box-sizing:border-box}
+.bw-admin h1,.bw-admin h2,.bw-admin h3{font-family:var(--bw-font-display);color:var(--bw-text-heading);line-height:var(--bw-lh-heading);margin:0}
+/* :where() so this is a default, not a winner. A plain .bw-admin a beats
+   .bw-tab, .bw-secnav__item, .bw-menu__item and .bw-btn on specificity, which
+   underlines every tab, nav row and button rendered as an anchor. */
+:where(.bw-admin) a{color:var(--bw-text-link);text-decoration:underline;text-underline-offset:2px;transition:color var(--bw-dur) var(--bw-ease)}
+:where(.bw-admin) a:hover{color:var(--bw-text-link-hover)}
+.bw-admin a:focus-visible,.bw-admin button:focus-visible,.bw-admin input:focus-visible,.bw-admin select:focus-visible,.bw-admin textarea:focus-visible{outline:var(--bw-focus-width) solid var(--bw-focus-color);outline-offset:var(--bw-focus-offset)}
+.bw-admin code,.bw-admin kbd{font-family:var(--bw-font-mono);font-size:var(--bw-size-code)}

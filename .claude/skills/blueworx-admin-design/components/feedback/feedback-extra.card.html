@@ -1,0 +1,46 @@
+<!-- @dsCard group="Components" viewport="700x280" name="Feedback — toast, spinner, skeleton, help tip" subtitle="Transient confirmation, busy and loading states" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Feedback extras</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:#fff}#root{display:flex;flex-direction:column;gap:18px}.grp{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--bw-text-faint);width:74px;flex:none}</style></head>
+<body class="bw-admin" style="background:#fff"><div id="root"></div>
+<script type="text/babel">
+const { Toast, Spinner, Skeleton, HelpTip, Tooltip, Avatar, Person, Badge, Card } = window.BlueWorxAdminDesignSystem_75753e;
+function Demo() {
+  return (
+    <>
+      <div className="grp"><span className="k">Toast</span>
+        <div style={{ flex: '1 1 340px', maxWidth: 380 }}>
+          <Toast icon="circle-check" action={() => {}} actionLabel="Undo" onDismiss={() => {}}>Member removed.</Toast>
+        </div>
+      </div>
+      <div className="grp"><span className="k">Busy</span>
+        <Spinner size={14} />
+        <Spinner label="Checking licence…" />
+      </div>
+      <div className="grp"><span className="k">Loading</span>
+        <div style={{ flex: '1 1 300px', maxWidth: 340 }}>
+          <Skeleton variant="title" width="45%" />
+          <div style={{ height: 8 }} />
+          <Skeleton lines={3} />
+        </div>
+        <Skeleton variant="block" width={120} height={64} />
+        <Skeleton variant="circle" width={40} height={40} />
+      </div>
+      <div className="grp"><span className="k">Tips</span>
+        <span style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bw-text-muted)', fontWeight: 600, display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+          Webhook secret <HelpTip below>Rotating this breaks any integration using the old value.</HelpTip>
+        </span>
+        <Tooltip below label="Synced 4 minutes ago"><Badge tone="success" dot>Live</Badge></Tooltip>
+      </div>
+      <div className="grp"><span className="k">People</span>
+        <Avatar name="Priya Raman" size={28} />
+        <Person name="Tom Okafor" secondary="tom@example.com" />
+      </div>
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

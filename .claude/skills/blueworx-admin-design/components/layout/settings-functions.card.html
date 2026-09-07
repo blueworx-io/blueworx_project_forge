@@ -1,0 +1,108 @@
+<!-- @dsCard group="Components" viewport="760x560" name="Function cards & product tabs" subtitle="A settings screen listing many independent functions" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Function cards</title><link rel="stylesheet" href="../../styles.css">
+<script type="module">
+  import { lucideIcons, lucideStrokeWidth } from '../../assets/icons/lucide-icons.js';
+  for (const el of document.querySelectorAll('[data-lucide]')) {
+    const d = lucideIcons[el.dataset.lucide];
+    if (!d) continue;
+    el.innerHTML = '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="' + lucideStrokeWidth + '" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+  }
+</script>
+<style>html,body{margin:0;padding:0;background:var(--bw-canvas)}</style></head>
+<body class="bw-admin">
+
+<!-- Product tabs sit above the topic tabs, for a screen whose topics belong to
+     more than one product. Plain HTML: no bundle, no React. -->
+<nav class="bw-prodtabs" aria-label="Guide sections">
+  <span class="bw-prodtabs__label">Section:</span>
+  <a class="bw-prodtab is-active" href="#">BlueWorx<span class="bw-prodtab__count">9</span></a>
+  <a class="bw-prodtab" href="#">WordPress<span class="bw-prodtab__count">4</span></a>
+  <a class="bw-prodtab" href="#">SureCart<span class="bw-prodtab__count">3</span></a>
+</nav>
+
+<div class="bw-page__body">
+  <div class="bw-panels-row">
+
+    <nav class="bw-secnav" aria-label="Sections">
+      <a class="bw-secnav__item is-active" href="#"><span>Security &amp; Access</span><span class="bw-secnav__meta">9 / 12</span></a>
+      <a class="bw-secnav__item" href="#"><span>Content</span><span class="bw-secnav__meta">3 / 5</span></a>
+      <a class="bw-secnav__item" href="#"><span>Media</span><span class="bw-secnav__meta">1 / 1</span></a>
+    </nav>
+
+    <div class="bw-panels">
+
+      <section class="bw-card bw-card--flush bw-sectionhead">
+        <div class="bw-card__head">
+          <div class="bw-card__titles">
+            <p class="bw-card__eyebrow">Section</p>
+            <h2 class="bw-card__title">Security &amp; Access</h2>
+          </div>
+          <div class="bw-card__actions">
+            <span class="bw-badge bw-badge--neutral">9 on</span>
+            <button class="bw-btn bw-btn--ghost bw-btn--sm" type="button">Switch this section off</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="bw-fnstack">
+
+        <div class="bw-fncard">
+          <div class="bw-fncard__row">
+            <div>
+              <label class="bw-fncard__name" for="fn-login">Custom login and protection</label>
+              <p class="bw-fncard__desc">Moves login to a custom URL and blocks the default WordPress login and admin paths.</p>
+            </div>
+            <label class="bw-switch bw-switch--bare">
+              <input type="checkbox" id="fn-login" checked>
+              <span class="bw-switch__track"><span class="bw-switch__thumb"></span></span>
+            </label>
+          </div>
+          <div class="bw-fncard__panel">
+            <div class="bw-card bw-card--sunken">
+              <div class="bw-card__body">
+                <p class="bw-card__eyebrow">Settings for this function</p>
+                <div class="bw-field">
+                  <label class="bw-field__label" for="fn-login-url">Your login address</label>
+                  <div class="bw-copyfield">
+                    <input class="bw-input bw-input--mono" id="fn-login-url" type="text" value="https://example.com/studio-door" readonly>
+                    <button class="bw-btn bw-btn--secondary bw-copyfield__btn" type="button"><span class="bw-icon" data-lucide="copy" style="width:14px;height:14px"></span>Copy</button>
+                  </div>
+                  <p class="bw-field__help">Once you save, /wp-login.php stops working for everyone.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bw-fncard">
+          <div class="bw-fncard__row">
+            <div>
+              <label class="bw-fncard__name" for="fn-xmlrpc">XML-RPC disabled</label>
+              <p class="bw-fncard__desc">Closes the old remote-publishing endpoint that attackers use to guess passwords in bulk.</p>
+            </div>
+            <label class="bw-switch bw-switch--bare">
+              <input type="checkbox" id="fn-xmlrpc" checked>
+              <span class="bw-switch__track"><span class="bw-switch__thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bw-fncard">
+          <div class="bw-fncard__row">
+            <div>
+              <label class="bw-fncard__name" for="fn-authors">Hide usernames in author links</label>
+              <p class="bw-fncard__desc">Replaces the username in author page addresses with a meaningless code. Off by default because it changes those addresses.</p>
+            </div>
+            <label class="bw-switch bw-switch--bare">
+              <input type="checkbox" id="fn-authors">
+              <span class="bw-switch__track"><span class="bw-switch__thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</body></html>
