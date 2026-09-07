@@ -141,6 +141,24 @@ test.describe('the client workspace frame', () => {
     await page.close();
   });
 
+  test('the client screens are built on the shared design system shell', async ({ browser }) => {
+    const { client } = await connectedPair(browser, `${RUN} shell`);
+    const page = await client.context.newPage();
+
+    await page.goto(HOME);
+
+    await expect(page.locator('.bw-admin.bw-page')).toBeVisible();
+    await expect(page.locator('.bw-pagehead')).toBeVisible();
+
+    // The design system's stylesheet is actually on the page, not just referenced.
+    const loaded = await page.evaluate(() =>
+      [...document.styleSheets].some((s) => (s.href || '').includes('blueworx-admin-design.css'))
+    );
+    expect(loaded, 'the design system stylesheet is enqueued').toBe(true);
+
+    await page.close();
+  });
+
   test('the read ignores a site named in the request and answers for the signing site', async ({
     browser,
   }) => {

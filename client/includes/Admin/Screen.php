@@ -127,6 +127,28 @@ final class Screen {
 		);
 
 		wp_add_inline_style( self::STYLE, Styles::css() );
+
+		$design = BWX_FORGE_CLIENT_PATH . 'assets/blueworx-admin-design.css';
+
+		if ( file_exists( $design ) ) {
+			wp_enqueue_style(
+				'blueworx-admin-design',
+				BWX_FORGE_CLIENT_URL . 'assets/blueworx-admin-design.css',
+				array(),
+				(string) filemtime( $design )
+			);
+
+			$icons = BWX_FORGE_CLIENT_PATH . 'assets/blueworx-admin-icons.js';
+
+			if ( file_exists( $icons ) ) {
+				wp_enqueue_script_module(
+					'blueworx-admin-icons',
+					BWX_FORGE_CLIENT_URL . 'assets/blueworx-admin-icons.js',
+					array(),
+					(string) filemtime( $icons )
+				);
+			}
+		}
 	}
 
 	/**
@@ -156,8 +178,7 @@ final class Screen {
 		$view    = Workspace::view( $refresh );
 		$board   = Board::view( $refresh );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge', 'blueworx-forge' ) . '</h1>';
+		Page::open( __( 'Forge', 'blueworx-forge' ) );
 
 		Nav::render( self::SLUG, $view );
 
@@ -168,7 +189,7 @@ final class Screen {
 
 		if ( null === $view['record'] ) {
 			self::empty_state( (string) $view['sync']['state'] );
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
@@ -179,7 +200,7 @@ final class Screen {
 		self::support( (array) $view['support'] );
 		self::record( (array) $view['record'] );
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -195,7 +216,7 @@ final class Screen {
 	private static function contact( array $contact ): void {
 		$name = (string) ( $contact['display_name'] ?? '' );
 
-		self::open( __( 'Your contact', 'blueworx-forge' ), 'contact' );
+		Page::panel_open( __( 'Your contact', 'blueworx-forge' ), 'contact' );
 
 		if ( '' === $name ) {
 			printf(
@@ -210,7 +231,7 @@ final class Screen {
 			);
 		}
 
-		self::close();
+		Page::panel_close();
 	}
 
 	/**
@@ -223,11 +244,11 @@ final class Screen {
 	 * @param array<string, mixed> $board The board as this site can see it.
 	 */
 	private static function attention( array $board ): void {
-		self::open( __( 'Needs attention', 'blueworx-forge' ), 'attention' );
+		Page::panel_open( __( 'Needs attention', 'blueworx-forge' ), 'attention' );
 
 		if ( ! $board['ok'] ) {
 			self::work_unavailable( (string) $board['sync']['state'] );
-			self::close();
+			Page::panel_close();
 
 			return;
 		}
@@ -239,7 +260,7 @@ final class Screen {
 				'<p class="bwx-empty">%s</p>',
 				esc_html__( 'Nothing is blocked or overdue.', 'blueworx-forge' )
 			);
-			self::close();
+			Page::panel_close();
 
 			return;
 		}
@@ -256,7 +277,7 @@ final class Screen {
 		}
 
 		echo '</ul>';
-		self::close();
+		Page::panel_close();
 	}
 
 	/**
@@ -265,11 +286,11 @@ final class Screen {
 	 * @param array<string, mixed> $board The board as this site can see it.
 	 */
 	private static function upcoming( array $board ): void {
-		self::open( __( 'Coming up', 'blueworx-forge' ), 'upcoming' );
+		Page::panel_open( __( 'Coming up', 'blueworx-forge' ), 'upcoming' );
 
 		if ( ! $board['ok'] ) {
 			self::work_unavailable( (string) $board['sync']['state'] );
-			self::close();
+			Page::panel_close();
 
 			return;
 		}
@@ -281,7 +302,7 @@ final class Screen {
 				'<p class="bwx-empty">%s</p>',
 				esc_html__( 'Nothing has a date on it yet. Work appears here once it is scheduled.', 'blueworx-forge' )
 			);
-			self::close();
+			Page::panel_close();
 
 			return;
 		}
@@ -298,7 +319,7 @@ final class Screen {
 		}
 
 		echo '</ul>';
-		self::close();
+		Page::panel_close();
 	}
 
 	/**
@@ -322,14 +343,14 @@ final class Screen {
 	private static function support( array $support ): void {
 		$state = (string) ( $support['state'] ?? '' );
 
-		self::open( __( 'Support', 'blueworx-forge' ), 'support' );
+		Page::panel_open( __( 'Support', 'blueworx-forge' ), 'support' );
 
 		if ( '' === $state ) {
 			printf(
 				'<p class="bwx-empty">%s</p>',
 				esc_html__( 'Your support position has not been read from the studio yet.', 'blueworx-forge' )
 			);
-			self::close();
+			Page::panel_close();
 
 			return;
 		}
@@ -356,7 +377,7 @@ final class Screen {
 			);
 		}
 
-		self::close();
+		Page::panel_close();
 	}
 
 	/**
@@ -390,27 +411,6 @@ final class Screen {
 	}
 
 	/**
-	 * Opens a section.
-	 *
-	 * @param string $heading The section heading.
-	 * @param string $name    A name for tests and styling to hold on to.
-	 */
-	private static function open( string $heading, string $name ): void {
-		printf(
-			'<section class="bwx-panel" data-testid="bwx-panel" data-bwx-panel="%s">',
-			esc_attr( $name )
-		);
-		printf( '<h2>%s</h2>', esc_html( $heading ) );
-	}
-
-	/**
-	 * Closes a section.
-	 */
-	private static function close(): void {
-		echo '</section>';
-	}
-
-	/**
 	 * The workspace record.
 	 *
 	 * Last on the page on purpose. It matters to whoever connected the site and
@@ -421,7 +421,7 @@ final class Screen {
 	private static function record( array $record ): void {
 		$connected = (int) ( $record['connected_since'] ?? 0 );
 
-		self::open( __( 'Your site', 'blueworx-forge' ), 'site' );
+		Page::panel_open( __( 'Your site', 'blueworx-forge' ), 'site' );
 
 		echo '<table class="widefat striped" data-bwx-workspace="1"><tbody>';
 
@@ -437,7 +437,7 @@ final class Screen {
 
 		echo '<p class="bwx-empty">' . esc_html__( 'These details are held by the studio. This site shows them; it does not keep them.', 'blueworx-forge' ) . '</p>';
 
-		self::close();
+		Page::panel_close();
 	}
 
 	/**

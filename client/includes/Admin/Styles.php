@@ -198,6 +198,11 @@ final class Styles {
 [data-testid="bwx-questions"] form { margin-top: 0.6rem; }
 .bwx-card-title a { text-decoration: none; }
 .bwx-card-title a:hover { text-decoration: underline; }
+
+.wrap.bw-wrap { margin: 0; }
+body.toplevel_page_blueworx-forge-client #wpcontent { padding-left: 0; }
+body.toplevel_page_blueworx-forge-client #wpbody-content { padding-bottom: 0; }
+body.toplevel_page_blueworx-forge-client #wpfooter { display: none; }
 CSS;
 	}
 }
