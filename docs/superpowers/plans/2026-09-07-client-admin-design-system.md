@@ -6,7 +6,7 @@
 
 **Architecture:** The foundation's design system is vendored into this repo at the path its drift check expects. A build step lays the stylesheet, fonts, icons and page editor script into `assets/` after Vite has emptied it. The client artifact borrows those through a widened — and newly documented — shareable list. Then all ten client admin screens are rebuilt on the system, one task each, with the existing pair suite held steady as the regression net.
 
-**Tech Stack:** PHP 7.4+ (WordPress plugin, `Blueworx\Forge\Client` namespace), Node 24 tooling (`node --test`), Vite 5, Playwright, PHPUnit 9, PHPCS (WordPress standard).
+**Tech Stack:** PHP 8.2+, WordPress 6.5+ (plugin, `Blueworx\Forge\Client` namespace), Node 24 tooling (`node --test`), Vite 5, Playwright, PHPUnit 9, PHPCS (WordPress standard). Both plugin headers say `Requires at least: 6.5` and `Requires PHP: 8.2` — `wp_enqueue_script_module()` needs 6.5, which is why that floor matters here.
 
 **Spec:** `docs/superpowers/specs/2026-09-07-client-admin-design-system-design.md`
 
@@ -93,7 +93,9 @@ ls .claude/skills/blueworx-admin-design
 Create `tests/unit/sync-design-system.test.mjs`:
 
 ```javascript
-import { test } from 'node:test';
+// House style, matching tests/unit/check-artifacts.test.mjs: test is the
+// default import, assert is the strict build.
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { plan } from '../../bin/sync-design-system.mjs';
 
@@ -250,52 +252,53 @@ git commit -m "Vendor the shared admin design system, and build its shipped copi
 Create `tests/unit/build-zip-shared.test.mjs`:
 
 ```javascript
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 
-// bin/build-zip.sh stages a shared path with `cp -R "$ROOT/$item"`, which keeps
-// only the last segment. Every shared path so far sat at the repo root, so
-// there was no structure to lose. assets/fonts has structure, and losing it
-// puts the stylesheet and its fonts in different places on a client site.
-test('a nested shared path keeps its directory structure when staged', () => {
-  const root = mkdtempSync(join(tmpdir(), 'bwx-share-'));
-  try {
-    mkdirSync(join(root, 'assets', 'fonts'), { recursive: true });
-    writeFileSync(join(root, 'assets', 'fonts', 'inter-400.woff2'), 'x');
-    const stage = join(root, 'stage', 'blueworx-forge-client');
-    mkdirSync(stage, { recursive: true });
+// bin/build-zip.sh used to stage a shared path with `cp -R "$ROOT/$item"
+// "$STAGE/$SLUG/"`, which keeps only the last segment. Every shared path then
+// sat at the repo root, so there was no structure to lose. assets/fonts has
+// structure, and losing it puts the stylesheet and its fonts in different
+// places on a client site.
+//
+// This asserts on the script's text rather than its behaviour, and says so:
+// build-zip.sh is a shell script with no seam to call, and copying its loop
+// into the test would only prove the copy works. The behavioural proof is
+// Task 3 Step 8, which builds a real client zip and lists the entries — that
+// is the check that would actually catch a regression here.
+test('build-zip.sh stages a shared path at its own relative path', () => {
+  const script = readFileSync('bin/build-zip.sh', 'utf8');
 
-    // The staging line under test, lifted verbatim.
-    execFileSync('bash', [
-      '-c',
-      'item="assets/fonts"; mkdir -p "$2/$(dirname "$item")"; cp -R "$1/$item" "$2/$item"',
-      '_',
-      root,
-      stage,
-    ]);
-
-    const listed = execFileSync('bash', ['-c', `cd "${stage}" && find . -type f`])
-      .toString()
-      .trim();
-    assert.equal(listed, './assets/fonts/inter-400.woff2');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  assert.match(
+    script,
+    /mkdir -p "\$STAGE\/\$SLUG\/\$\(dirname "\$item"\)"/,
+    'the staging loop must create the shared path\'s parent directory'
+  );
+  assert.match(
+    script,
+    /cp -R "\$ROOT\/\$item" "\$STAGE\/\$SLUG\/\$item"/,
+    'the staging loop must copy to the full relative path, not to the slug root'
+  );
+  assert.doesNotMatch(
+    script,
+    /cp -R "\$ROOT\/\$item" "\$STAGE\/\$SLUG\/"$/m,
+    'the flattening form must be gone, not merely joined by the new one'
+  );
 });
 ```
 
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `node --test tests/unit/build-zip-shared.test.mjs`
-Expected: FAIL — the assertion is written against the fixed behaviour, so confirm it fails when `bin/build-zip.sh` still flattens. Verify the current behaviour directly first:
+Expected: FAIL on the first assertion — `bin/build-zip.sh` still has the flattening form.
+
+Confirm the behaviour the test stands in for, so you have seen the bug rather than trusted a description of it:
 
 ```bash
-bash -c 'cd /tmp && rm -rf f && mkdir -p f/assets/fonts f/stage && touch f/assets/fonts/a.woff2 && cp -R f/assets/fonts f/stage/ && find f/stage -type f'
-# expect: f/stage/fonts/a.woff2  — the structure is gone
+rm -rf /tmp/f && mkdir -p /tmp/f/assets/fonts /tmp/f/stage && touch /tmp/f/assets/fonts/a.woff2
+cp -R /tmp/f/assets/fonts /tmp/f/stage/ && find /tmp/f/stage -type f
+# expect: /tmp/f/stage/fonts/a.woff2  — the assets/ level is gone
 ```
 
 - [ ] **Step 3: Fix the staging loop**
@@ -357,9 +360,11 @@ git commit -m "Keep a shared path's directory structure when staging a zip"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/unit/check-artifacts.test.mjs`:
+Append to `tests/unit/check-artifacts.test.mjs`. That file currently imports only `test`, `assert` and `checkArtifacts` — add the two new imports at the top with the others, not beside the test:
 
 ```javascript
+// at the top of the file, with the existing imports
+import { readFileSync } from 'node:fs';
 import { plan } from '../../bin/sync-design-system.mjs';
 
 // The two lists have to agree. A path the build produces but the allowlist
