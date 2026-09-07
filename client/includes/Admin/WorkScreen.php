@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Board;
 use Blueworx\Forge\Client\Denial;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * Everything the board, timeline and calendar do identically (#128).
@@ -36,8 +37,14 @@ final class WorkScreen {
 
 		$view = Board::view( SyncNotice::refresh_requested() );
 
-		echo '<div class="wrap">';
-		printf( '<h1>%s</h1>', esc_html( $heading ) );
+		// The board view answers whether the work could be read; the eyebrow
+		// needs the workspace's own read for whose workspace this is (#128,
+		// #126). This is not a new read — before Task 7, Nav::render() did its
+		// own Workspace::view( false ) for the same text, so this call only
+		// moved to where the rest of the page shell now opens.
+		$workspace = Workspace::view( false );
+
+		Page::open( $heading, Nav::scope_text( $workspace ) );
 
 		Nav::render( $slug );
 
@@ -51,7 +58,9 @@ final class WorkScreen {
 			$draw( $view );
 		}
 
-		echo '</div></div>';
+		echo '</div>';
+
+		Page::close();
 	}
 
 	/**

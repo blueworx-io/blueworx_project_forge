@@ -106,14 +106,10 @@ test.describe('the client workspace frame', () => {
   });
 
   // Task 7 moved the scope line out of Nav::render() and into Page::open()'s
-  // eyebrow, which only the top-level screen (tested above, at HOME) is built
-  // on. The other nine screens, including the board, still render on the old
-  // <div class="wrap"><h1> markup and have no eyebrow to carry it, so this
-  // fails until the board converts to the shell in Task 10. Recorded as fixme
-  // per the controller's ruling rather than left untested, so the eyebrow
-  // move's real end state (every screen names its client) stays checked
-  // rather than assumed.
-  test.fixme(
+  // eyebrow, which only the top-level screen (tested above, at HOME) was built
+  // on at the time. Task 10 moved the board's frame (WorkScreen::render()) onto
+  // the same shell, so the board now carries the eyebrow too.
+  test(
     'the board screen also names the client whose workspace it is',
     async ({ browser }) => {
       const { client } = await connectedPair(browser, `${RUN} board named`);

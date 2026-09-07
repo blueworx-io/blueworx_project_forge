@@ -62,8 +62,6 @@ final class Styles {
 	color: var(--text-primary, #1d2327);
 }
 
-.bwx-column-count { color: var(--text-muted, #646970); font-variant-numeric: tabular-nums; }
-
 .bwx-card-key { color: var(--text-muted, #646970); }
 .bwx-card-value { color: var(--text-primary, #1d2327); text-align: right; }
 
