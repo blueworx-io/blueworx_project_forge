@@ -20,6 +20,7 @@
 - **Version and changelog** are bumped on the pull request, per the foundation rules — minor bump, since this is new behaviour. `package.json`, `blueworx-forge.php` and `client/blueworx-forge-client.php` must all agree.
 - **Never merge to main and never push a tag.** Releases are a separate, asked-for decision.
 - **Run the checks before each commit:** `npm run lint`, `npm run build`, `composer lint`, `npm run test:unit`.
+- **Testing cadence.** The pair suite is 29 specs and 128 cases on a single worker, and it slows as the sites age. Running all of it per task would cost more than the work. So: a task runs **only the specs it names**, with `npx playwright test -c playwright.pair.config.js <spec>`. The **full** `npm run test:pair` runs at four checkpoints only — after Task 5 (the net must be green before anything moves), after Task 8 (the three shared pieces are in every screen), after Task 15 (the bulk of the screens), and in Task 19. Reset the sites with `npm run wp:pair:reset` before each full run; a slow run usually means stale state, not a real regression.
 
 ## File structure
 
