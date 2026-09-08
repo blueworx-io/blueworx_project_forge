@@ -74,6 +74,9 @@ export function StandupScreen() {
   }, [] );
 
   useEffect( () => {
+    // The first read of the day's list. load() sets state when the answer comes
+    // back, which is what the rule warns about and what is wanted here: there
+    // is no external system to synchronise with, only a read on mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
@@ -86,7 +89,6 @@ export function StandupScreen() {
    */
   useEffect( () => {
     void api< { stages: Stage[] } >( '/stages' )
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       .then( ( answer ) => setStages( answer.stages ?? [] ) )
       .catch( () => undefined );
   }, [] );

@@ -29,10 +29,28 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // short, deliberately not a pattern: plugin-update-checker is here because a
 // client site without it could never receive a fix, and tokens because the two
 // interfaces have to be able to drift apart before they can look different, and
-// a second copy of the token layer is how that starts (#85). Neither is studio
-// code: the boundary exists to keep command-centre code off a client site, not
-// to keep colours off it. Adding a third entry is a decision, not a build change.
-const SHAREABLE = new Set(['plugin-update-checker', 'CHANGELOG.md', 'tokens']);
+// a second copy of the token layer is how that starts (#85).
+//
+// The five design system paths are here on the same argument, recorded as
+// ARCH-8: appearance, and the shared machinery for editing settings. None of
+// them knows anything about clients, capacity or anybody else's data, which is
+// the boundary ARCH-1 actually draws — command-centre code off a client site,
+// not colours off it. They are produced by bin/sync-design-system.mjs from a
+// vendored copy the foundation's drift check compares byte for byte, so none of
+// them can grow studio code without CI failing.
+//
+// Adding a sixth kind of entry is a decision, not a build change. Read ARCH-8
+// first.
+const SHAREABLE = new Set([
+  'plugin-update-checker',
+  'CHANGELOG.md',
+  'tokens',
+  'assets/blueworx-admin-design.css',
+  'assets/fonts',
+  'assets/blueworx-admin-icons.js',
+  'assets/blueworx-page-editor.js',
+  'blueworx-page-editor',
+]);
 
 /**
  * Checks every artifact definition, returning a list of problems.

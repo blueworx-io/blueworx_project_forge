@@ -174,7 +174,7 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(BOARD);
 
-    const work = page.locator('.bwx-work');
+    const work = page.getByTestId('bwx-work');
     await expect(work).toContainText(`Not yours to move ${RUN}`);
 
     // Not "disabled" — absent. Anything a person could act through would be a
@@ -207,7 +207,7 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(BOARD);
 
-    const work = page.locator('.bwx-work');
+    const work = page.getByTestId('bwx-work');
     await expect(work).toContainText(`Quietly chargeable ${RUN}`);
 
     // Ruled out in the projection, so ruled out on the page. A client seeing
@@ -267,6 +267,36 @@ test.describe('the client read-only views', () => {
     await expect(page.locator('[data-bwx-day="2026-09-10"]')).toContainText(
       `Due on a known day ${RUN}`
     );
+
+    await page.close();
+  });
+
+  test('a work item card is built from the design system', async ({ browser }) => {
+    test.slow();
+
+    const studio = await signedIn(browser, STUDIO_URL);
+    const client = await signedIn(browser, CLIENT_URL);
+    const mine = await studioSite(studio, 'Design System Co');
+
+    const item = await addWork(studio, mine.site.id, {
+      title: `Drawn from the design system ${RUN}`,
+      level: 'feature',
+      work_type: 'feature',
+    });
+
+    await connect(client, mine.issued);
+
+    const page = await client.context.newPage();
+    await page.goto(BOARD);
+
+    const card = page.locator('[data-testid="bwx-column"] .bw-card').first();
+    await expect(card).toBeVisible();
+
+    // The board deliberately leaves the stage badge off a card — the column
+    // it sits in already names the stage — so the badge is proved on the
+    // item's own page, where Card::render() always names it.
+    await page.goto(`${BOARD}&item=${item.id}`);
+    await expect(page.locator('.bw-card .bw-badge').first()).toBeVisible();
 
     await page.close();
   });

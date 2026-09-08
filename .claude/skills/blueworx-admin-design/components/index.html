@@ -1,0 +1,406 @@
+<!-- @dsCard group="Overview" viewport="1100x700" name="Component inventory" subtitle="Every component in the system, with a live sample of each" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>BlueWorx Admin — component inventory</title>
+<link rel="stylesheet" href="../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../_ds_bundle.js"></script>
+<style>
+html,body{margin:0;padding:0;background:var(--bw-canvas)}
+.inv{max-width:1140px;margin:0 auto;padding:40px 24px 80px}
+.inv__head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--bw-border);margin-bottom:20px}
+.inv__count{display:flex;gap:26px;font-size:12px;color:var(--bw-text-muted)}
+.inv__count b{display:block;font-family:var(--bw-font-display);font-size:24px;font-weight:600;color:var(--bw-text-heading);line-height:1.1}
+.jump{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:30;background:var(--bw-canvas);padding:12px 0 16px;margin-bottom:12px;border-bottom:1px solid var(--bw-border)}
+.jump a{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--bw-border);border-radius:999px;background:var(--bw-surface-card);font-size:12px;color:var(--bw-text-muted);text-decoration:none;transition:var(--bw-transition-control)}
+.jump a:hover{border-color:var(--bw-border-strong);color:var(--bw-text-body)}
+.jump a b{font-family:var(--bw-font-mono);font-size:11px;color:var(--bw-text-faint);font-weight:400}
+.grp{margin-bottom:40px;scroll-margin-top:72px}
+.grp__bar{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.grp__name{font-family:var(--bw-font-display);font-size:20px;font-weight:600;margin:0}
+.grp__path{font-family:var(--bw-font-mono);font-size:12px;color:var(--bw-text-faint)}
+.grp__what{font-size:12px;color:var(--bw-text-muted);margin-left:auto;max-width:46ch;text-align:right}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.item{background:var(--bw-surface-card);border:1px solid var(--bw-border);border-radius:var(--bw-radius-lg);box-shadow:var(--bw-shadow-card);display:flex;flex-direction:column;overflow:hidden}
+.item--wide{grid-column:1/-1}
+.item__head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bw-border)}
+.item__name{font-family:var(--bw-font-mono);font-size:13px;font-weight:600;color:var(--bw-text-heading);white-space:nowrap}
+.item__what{font-size:12px;color:var(--bw-text-muted);text-align:right;flex:1 1 auto}
+.item__demo{padding:18px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex:1 1 auto}
+.item__demo--stack{flex-direction:column;align-items:stretch}
+.item__demo--flush{padding:0;display:block}
+.item__props{padding:10px 16px;border-top:1px solid var(--bw-border);background:var(--bw-surface-sunken);font-family:var(--bw-font-mono);font-size:11px;color:var(--bw-text-muted);line-height:1.7}
+</style></head>
+<body class="bw-admin"><div id="root"></div>
+<script type="text/babel">
+const NS = window.BlueWorxAdminDesignSystem_75753e;
+const {
+  Button, IconButton, Icon, Badge, Chip, Avatar, Person, Tooltip,
+  Field, Input, Textarea, Select, Checkbox, Radio, RadioGroup, Switch, MediaField,
+  FormRow, ColorField, CopyField, RangeField, UploadField, Repeater,
+  PageHeader, Card, SettingsCard, SectionNav, Tabs, SaveBar, Toolbar, Accordion, Drawer, Divider, ScreenLayout,
+  Breadcrumbs, Pagination, Stepper, DropdownMenu, RowActions,
+  Notice, Modal, ProgressBar, EmptyState, Toast, ToastStack, Spinner, Skeleton, HelpTip,
+  DataTable, StatCard, DescriptionList, ActivityLog, BulkActions,
+} = NS;
+
+function Item({ name, what, props, wide, stack, flush, children }) {
+  return (
+    <div className={'item' + (wide ? ' item--wide' : '')}>
+      <div className="item__head"><span className="item__name">{name}</span><span className="item__what">{what}</span></div>
+      <div className={'item__demo' + (stack ? ' item__demo--stack' : '') + (flush ? ' item__demo--flush' : '')}>{children}</div>
+      <div className="item__props">{props}</div>
+    </div>
+  );
+}
+function Group({ id, name, path, what, children }) {
+  return (
+    <section className="grp" id={id}>
+      <div className="grp__bar">
+        <h2 className="grp__name">{name}</h2>
+        <span className="grp__path">{path}</span>
+        <span className="grp__what">{what}</span>
+      </div>
+      <div className="items">{children}</div>
+    </section>
+  );
+}
+
+const TABLE_ROWS = [
+  { id: 1, name: <Person name="Priya Raman" secondary="priya@example.com" size={28} />, plan: 'Pro annual', status: <Badge tone="success">Active</Badge>, spend: '£540' },
+  { id: 2, name: <Person name="Tom Okafor" secondary="tom@example.com" size={28} />, plan: 'Monthly', status: <Badge tone="warning">Payment failed</Badge>, spend: '£126' },
+];
+
+function Inventory() {
+  const [tab, setTab] = React.useState('all');
+  const [sec, setSec] = React.useState('access');
+  const [modal, setModal] = React.useState(false);
+  const [drawer, setDrawer] = React.useState(false);
+  const [toast, setToast] = React.useState(false);
+  const [page, setPage] = React.useState(3);
+  const [step, setStep] = React.useState('look');
+  const [color, setColor] = React.useState('#4F46E5');
+  const [mins, setMins] = React.useState(30);
+  const [bulk, setBulk] = React.useState('');
+  const [plans, setPlans] = React.useState([{ id: 1, name: 'Pro annual', price: '180' }, { id: 2, name: 'Monthly', price: '18' }]);
+
+  return (
+    <div className="inv">
+      <header className="inv__head">
+        <div>
+          <p style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--bw-text-accent)', fontWeight: 600, margin: '0 0 6px' }}>BlueWorx Admin</p>
+          <h1 style={{ fontFamily: 'var(--bw-font-display)', fontSize: 28, fontWeight: 600, margin: 0, lineHeight: 1.15 }}>Component inventory</h1>
+          <p style={{ fontSize: 14, color: 'var(--bw-text-muted)', margin: '8px 0 0', maxWidth: '62ch' }}>Everything needed to build a WordPress plugin back-end page, with a working sample of each. Import from <code>window.BlueWorxAdminDesignSystem_75753e</code>, or use the CSS classes alone.</p>
+        </div>
+        <div className="inv__count">
+          <span><b>53</b>components</span>
+          <span><b>6</b>groups</span>
+          <span><b>2</b>UI kits</span>
+        </div>
+      </header>
+
+      <nav className="jump">
+        <a href="#core">Core <b>8</b></a>
+        <a href="#forms">Forms <b>15</b></a>
+        <a href="#layout">Layout <b>11</b></a>
+        <a href="#navigation">Navigation <b>5</b></a>
+        <a href="#feedback">Feedback <b>9</b></a>
+        <a href="#data">Data <b>5</b></a>
+      </nav>
+
+      <Group id="core" name="Core" path="components/core/" what="Actions, status and identity — the smallest pieces every screen uses.">
+        <Item name="Button" what="The standard action" props="variant · size · icon · iconRight · block · disabled · href">
+          <Button variant="primary" icon="circle-check">Save changes</Button>
+          <Button>Cancel</Button>
+          <Button variant="ghost" icon="refresh-cw">Refresh</Button>
+          <Button variant="danger" icon="trash-2">Delete</Button>
+          <Button variant="link">View docs</Button>
+          <Button size="sm">Small</Button>
+          <Button disabled>Disabled</Button>
+        </Item>
+        <Item name="IconButton" what="Icon-only action, always labelled" props="icon · label · variant · size">
+          <IconButton icon="pencil" label="Edit" />
+          <IconButton icon="settings" label="Settings" variant="outline" />
+          <IconButton icon="trash-2" label="Delete" variant="danger" />
+          <IconButton icon="ellipsis" label="More" size="sm" />
+        </Item>
+        <Item name="Icon" what="A Lucide icon" props="name · size · color · label">
+          {['settings', 'users', 'shopping-cart', 'chart-column', 'refresh-cw', 'triangle-alert', 'circle-check', 'search', 'lock', 'mail'].map((n) => <Icon key={n} name={n} size={20} />)}
+        </Item>
+        <Item name="Badge" what="State of a record" props="tone · dot">
+          <Badge tone="success">Active</Badge>
+          <Badge tone="warning">Needs review</Badge>
+          <Badge tone="danger">Failed</Badge>
+          <Badge tone="info">Test mode</Badge>
+          <Badge tone="accent">Pro</Badge>
+          <Badge tone="neutral" dot>Draft</Badge>
+        </Item>
+        <Item name="Chip" what="A value the user picked" props="tone · onRemove">
+          <div className="bw-chips">
+            <Chip>Administrator</Chip>
+            <Chip>Site manager</Chip>
+            <Chip tone="plain" onRemove={() => {}}>Status: active</Chip>
+          </div>
+        </Item>
+        <Item name="Avatar / Person" what="User mark, and the table-cell pairing" props="name · src · size · secondary">
+          <Avatar name="Priya Raman" size={36} />
+          <Avatar name="Tom Okafor" size={28} />
+          <Person name="Ellie Vance" secondary="ellie@example.com" />
+        </Item>
+        <Item name="Tooltip" what="Short label on hover" props="label · below">
+          <Tooltip below label="Synced 4 minutes ago"><Badge tone="success" dot>Live</Badge></Tooltip>
+          <Tooltip below label="Read-only in multisite"><Button disabled>Network setting</Button></Tooltip>
+        </Item>
+      </Group>
+
+      <Group id="forms" name="Forms" path="components/forms/" what="Every control a settings screen needs, in both the two-column and the WordPress label-left shape.">
+        <Item name="Field" what="Label, control, help or error" props="label · help · error · required · wide" stack>
+          <Field label="Site name" htmlFor="i-1" help="Shown in the admin menu."><Input id="i-1" defaultValue="Example Site" /></Field>
+          <Field label="Licence key" htmlFor="i-2" error="That key is not recognised."><Input id="i-2" mono invalid defaultValue="BWX-0000" /></Field>
+        </Item>
+        <Item name="FormRow" what="Label left, control right — the .form-table shape" props="label · help · tip · required" stack>
+          <FormRow label="Currency" htmlFor="i-cur" help="Applies to new orders only."><Select id="i-cur" options={['GBP £', 'EUR €']} /></FormRow>
+          <FormRow label="Test mode" tip="Nothing is charged while test mode is on."><Switch bare aria-label="Test mode" defaultChecked /></FormRow>
+        </Item>
+        <Item name="Input" what="Single-line text control" props="icon · affix · mono · invalid · size" stack>
+          <Input placeholder="Search members" icon="search" />
+          <Input mono defaultValue="[bw_members]" />
+          <Input type="number" affix="days" defaultValue={14} />
+          <Input defaultValue="Locked by network admin" disabled />
+        </Item>
+        <Item name="Textarea" what="Multi-line text" props="rows · mono · invalid" stack>
+          <Textarea rows={3} defaultValue="Welcome. Your membership is active — the details are on your account page." />
+        </Item>
+        <Item name="Select" what="Native select, styled" props="options · placeholder · invalid" stack>
+          <Select placeholder="All statuses" options={['Active', 'Paused', 'Cancelled']} />
+          <Select options={[{ value: 'a', label: 'Administrator' }, { value: 'e', label: 'Editor' }]} />
+        </Item>
+        <Item name="Checkbox" what="Independent opt-in" props="label · help · disabled" stack>
+          <Checkbox label="Email me when a payment fails" defaultChecked />
+          <Checkbox label="Delete data on uninstall" help="Cannot be undone." />
+          <Checkbox label="Administrator" help="Full access" defaultChecked disabled />
+        </Item>
+        <Item name="Radio / RadioGroup" what="Two to four exclusive options" props="row · label · help" stack>
+          <RadioGroup>
+            <Radio name="inv-mode" label="Live" help="Real charges." defaultChecked />
+            <Radio name="inv-mode" label="Test" help="Nothing is charged." />
+          </RadioGroup>
+        </Item>
+        <Item name="Switch" what="On/off state" props="label · help · bare">
+          <Switch label="Members area" defaultChecked />
+          <Switch label="Email receipts" help="Sent on payment." />
+          <Switch bare aria-label="Enabled" defaultChecked />
+        </Item>
+        <Item name="ColorField" what="Swatch, hex and brand presets" props="value · presets · onChange" stack>
+          <ColorField value={color} onChange={setColor} />
+        </Item>
+        <Item name="CopyField" what="Read-only value with a copy button" props="value · mono · label" stack>
+          <CopyField value='[bw_members plan="pro"]' />
+          <CopyField value="https://example.com/wp-json/bw/v1/hook" label="Copy URL" />
+        </Item>
+        <Item name="RangeField" what="Bounded number tuned by feel" props="value · min · max · step · unit" stack>
+          <RangeField value={mins} min={0} max={120} step={5} unit=" min" onChange={setMins} />
+        </Item>
+        <Item name="MediaField" what="Image picker, WordPress media flow" props="src · hint · onChoose · onRemove" stack>
+          <MediaField onChoose={() => {}} hint="PNG or SVG, at least 320px wide." />
+        </Item>
+        <Item name="UploadField" what="Drop target for a data file" props="title · hint · file · onChoose · onRemove" stack>
+          <UploadField hint="CSV up to 5 MB. Columns: name, email, plan, joined." onChoose={() => {}} />
+          <UploadField file="members-2026.csv" hint="318 rows" onRemove={() => {}} />
+        </Item>
+        <Item name="Repeater" what="Repeatable rows of fields" props="items · renderRow · onAdd · onRemove · reorderable" wide stack>
+          <Repeater
+            items={plans}
+            addLabel="Add plan"
+            onAdd={() => setPlans((r) => [...r, { id: Date.now(), name: '', price: '' }])}
+            onRemove={(id) => setPlans((r) => r.filter((x) => x.id !== id))}
+            renderRow={(p) => (<><Input defaultValue={p.name} aria-label="Plan name" placeholder="Plan name" /><Input defaultValue={p.price} affix="/yr" aria-label="Price" placeholder="0" /></>)}
+            emptyLabel="No plans yet. Add one to start taking memberships." />
+        </Item>
+      </Group>
+
+      <Group id="layout" name="Layout" path="components/layout/" what="The furniture of a screen: header, panels, filter strips, slide-overs and the save bar.">
+        <Item name="PageHeader" what="Top of every admin screen" props="eyebrow · title · lede · actions" wide flush>
+          <PageHeader eyebrow="Example Plugin" title="Members" lede="Everyone with access to the members area."
+            actions={<><Button icon="download">Export CSV</Button><Button variant="primary" icon="plus">Add member</Button></>} />
+        </Item>
+        <Item name="Card" what="The panel everything sits in" props="title · eyebrow · actions · note · footer · flush · sunken" stack>
+          <Card title="Checkout" eyebrow="Payments" note="Applies to every plan in this store."
+            actions={<Button size="sm">Reset</Button>}
+            footer={<><Button size="sm">Cancel</Button><Button size="sm" variant="primary">Save</Button></>}>
+            <Field label="Currency" htmlFor="i-c"><Select id="i-c" options={['GBP £', 'EUR €']} /></Field>
+          </Card>
+        </Item>
+        <Item name="SettingsCard" what="A settings group with its own save" props="title · description · eyebrow · aside · dirty · onSave · onReset · hideFooter" wide stack>
+          <SettingsCard eyebrow="Payments" title="Checkout" description="Applies to every plan in this store."
+            aside={<Badge tone="warning">Test mode</Badge>} dirty onSave={() => {}} onReset={() => {}}
+            footer={<span style={{ fontSize: 12, color: 'var(--bw-text-muted)' }}>Last saved 4 minutes ago</span>}>
+            <FormRow label="Currency" htmlFor="sc-cur"><Select id="sc-cur" options={['GBP £', 'EUR €']} /></FormRow>
+            <FormRow label="Test mode" tip="Nothing is charged while test mode is on."><Switch bare aria-label="Test mode" defaultChecked /></FormRow>
+          </SettingsCard>
+        </Item>
+        <Item name="SectionNav" what="Left rail on long settings screens" props="items · value · onChange" stack>
+          <SectionNav value={sec} onChange={setSec} items={[{ id: 'general', label: 'General' }, { id: 'access', label: 'Access', meta: '4 roles' }, { id: 'emails', label: 'Emails', meta: 6 }]} />
+        </Item>
+        <Item name="Tabs" what="Views of one screen" props="items · value · onChange · inset" wide flush>
+          <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'All', count: 318 }, { id: 'active', label: 'Active', count: 302 }, { id: 'paused', label: 'Paused', count: 16 }]} />
+          <div style={{ padding: '16px 16px 4px' }}>
+            <span style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bw-text-faint)', fontWeight: 600 }}>inset — inside a Card</span>
+            <Tabs inset value={tab} onChange={setTab} items={[{ id: 'all', label: 'All' }, { id: 'active', label: 'Active' }, { id: 'paused', label: 'Paused' }]} />
+          </div>
+        </Item>
+        <Item name="Toolbar" what="Search and filters above a table" props="children · right · inCard" wide flush>
+          <Toolbar right={<Pagination page={1} totalPages={16} compact />}>
+            <span className="bw-toolbar__search"><Input icon="search" size="sm" placeholder="Search members" /></span>
+            <span style={{ width: 140 }}><Select placeholder="All plans" options={['Season', 'Monthly']} /></span>
+            <BulkActions count={2} actions={['Export', 'Remove']} value={bulk} onChange={setBulk} />
+          </Toolbar>
+        </Item>
+        <Item name="Accordion" what="Collapsible panel, the postbox pattern" props="title · subtitle · aside · defaultOpen · open · onToggle" wide stack>
+          <Accordion title="Developer" subtitle="REST namespace and capabilities" aside={<Badge tone="neutral">3</Badge>} defaultOpen>
+            <FormRow label="REST namespace" htmlFor="ac-ns"><Input id="ac-ns" mono defaultValue="bw/v1" /></FormRow>
+            <FormRow label="Debug logging"><Switch bare aria-label="Debug logging" /></FormRow>
+          </Accordion>
+          <Accordion title="Uninstall" subtitle="What happens when the plugin is removed">
+            <Checkbox label="Delete data on uninstall" help="Cannot be undone." />
+          </Accordion>
+        </Item>
+        <Item name="Drawer" what="Slide-over detail without leaving the list" props="open · title · subtitle · footer · wide">
+          <Button onClick={() => setDrawer(true)}>Open the drawer</Button>
+          <span style={{ fontSize: 12, color: 'var(--bw-text-muted)' }}>460px, or 640px with <code>wide</code>.</span>
+        </Item>
+        <Item name="Divider" what="Hairline between groups in one panel" props="label · tight" stack>
+          <span style={{ fontSize: 13, color: 'var(--bw-text-muted)' }}>Payment settings</span>
+          <Divider tight />
+          <Divider label="Danger zone" />
+        </Item>
+        <Item name="ScreenLayout" what="Main column plus sticky sidebar" props="sidebar · narrowSidebar" wide>
+          <ScreenLayout narrowSidebar sidebar={<Card title="Status"><DescriptionList stack items={[['State', <Badge tone="success">Active</Badge>], ['Renews', '01 Sep 2026']]} /></Card>}>
+            <Card title="Details" note="The main column takes the remaining width and collapses under 1100px.">
+              <Field label="Plan name" htmlFor="i-pn"><Input id="i-pn" defaultValue="Pro annual" /></Field>
+            </Card>
+          </ScreenLayout>
+        </Item>
+        <Item name="SaveBar" what="Sticky save state and action" props="dirty · saving · onSave · onDiscard" wide flush>
+          <SaveBar dirty onSave={() => {}} onDiscard={() => {}} />
+        </Item>
+      </Group>
+
+      <Group id="navigation" name="Navigation" path="components/navigation/" what="Wayfinding and overflow: crumbs, paging, ordered steps, menus and row links.">
+        <Item name="Breadcrumbs" what="Trail back to the parent list" props="items · onNavigate" stack>
+          <Breadcrumbs items={[{ id: 'p', label: 'Example Plugin' }, { id: 'm', label: 'Members' }, { label: 'Priya Raman' }]} />
+        </Item>
+        <Item name="Pagination" what="Page controls for a DataTable" props="page · totalPages · totalItems · compact" stack>
+          <Pagination page={page} totalPages={16} totalItems={1204} onChange={setPage} />
+          <Pagination page={page} totalPages={16} compact onChange={setPage} />
+        </Item>
+        <Item name="Stepper" what="Ordered steps in a setup flow" props="steps · current · onChange" wide stack>
+          <Stepper current={step} onChange={setStep} steps={[{ id: 'basics', label: 'Basics' }, { id: 'look', label: 'Look' }, { id: 'access', label: 'Access' }, { id: 'finish', label: 'Finish' }]} />
+        </Item>
+        <Item name="DropdownMenu" what="Overflow actions, closes on Escape" props="trigger · items · align · onSelect">
+          <DropdownMenu align="left" trigger={<Button iconRight="chevron-down">Actions</Button>}
+            items={[
+              { label: 'This plan', heading: true },
+              { id: 'dup', label: 'Duplicate', icon: 'file' },
+              { id: 'exp', label: 'Export members', icon: 'download' },
+              { separator: true },
+              { id: 'del', label: 'Delete plan', icon: 'trash-2', danger: true },
+            ]} />
+          <DropdownMenu align="left" trigger={<IconButton icon="ellipsis" label="More actions" variant="outline" />}
+            items={[{ id: 'a', label: 'Edit', icon: 'pencil' }, { id: 'b', label: 'Email member', icon: 'mail' }, { separator: true }, { id: 'c', label: 'Remove', icon: 'trash-2', danger: true }]} />
+        </Item>
+        <Item name="RowActions" what="WordPress pipe-separated row links" props="actions" stack>
+          <span className="bw-table__primary">Pro annual</span>
+          <RowActions actions={[{ label: 'Edit' }, { label: 'Duplicate' }, { label: 'View' }, { label: 'Trash', danger: true }]} />
+        </Item>
+      </Group>
+
+      <Group id="feedback" name="Feedback" path="components/feedback/" what="What the screen says back: messages, dialogs, busy and loading states.">
+        <Item name="Notice" what="Message about the screen or an action" props="tone · title · actions · onDismiss" wide stack>
+          <Notice tone="warning" title="Test mode is on">Nothing is charged while test mode is on.</Notice>
+          <Notice tone="success" onDismiss={() => {}}>Settings saved.</Notice>
+          <Notice tone="danger" title="Licence expired" actions={<Button size="sm" variant="link">Renew licence</Button>}>Updates are paused until the licence is renewed.</Notice>
+        </Item>
+        <Item name="Modal" what="Confirmation or a short form" props="open · title · subtitle · footer · wide · onClose">
+          <Button onClick={() => setModal(true)}>Open the dialog</Button>
+          <span style={{ fontSize: 12, color: 'var(--bw-text-muted)' }}>520px, or 760px with <code>wide</code>.</span>
+        </Item>
+        <Item name="Toast / ToastStack" what="Transient confirmation with an undo" props="action · actionLabel · icon · onDismiss" stack>
+          <Toast icon="circle-check" action={() => {}} actionLabel="Undo" onDismiss={() => {}}>Member removed.</Toast>
+          <Button size="sm" onClick={() => { setToast(true); setTimeout(() => setToast(false), 4000); }}>Show it in place</Button>
+        </Item>
+        <Item name="ProgressBar" what="Completion of a flow" props="value · label · showPct · size" stack>
+          <ProgressBar value={62} label="Setup complete" showPct />
+          <ProgressBar value={30} size="sm" />
+        </Item>
+        <Item name="Spinner" what="Something is working right now" props="size · label">
+          <Spinner size={14} />
+          <Spinner size={20} />
+          <Spinner label="Checking licence…" />
+        </Item>
+        <Item name="Skeleton" what="Placeholder while a panel loads" props="variant · width · height · lines" stack>
+          <Skeleton variant="title" width="45%" />
+          <Skeleton lines={3} />
+          <div style={{ display: 'flex', gap: 10 }}><Skeleton variant="block" width={110} height={56} /><Skeleton variant="circle" width={40} height={40} /></div>
+        </Item>
+        <Item name="EmptyState" what="Before there is any data" props="icon · title · actions" stack>
+          <EmptyState icon="shopping-cart" title="No orders yet" actions={<Button size="sm" variant="primary" icon="plus">Add a product</Button>}>
+            Orders appear here as soon as your first checkout completes.
+          </EmptyState>
+        </Item>
+        <Item name="HelpTip" what="The one sentence that won't fit in help text" props="children · below">
+          <span style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--bw-text-muted)', fontWeight: 600, display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+            Webhook secret <HelpTip below>Rotating this breaks any integration using the old value.</HelpTip>
+          </span>
+        </Item>
+      </Group>
+
+      <Group id="data" name="Data" path="components/data/" what="Records, figures, detail and history — everything that replaces WP_List_Table.">
+        <Item name="StatCard" what="One headline figure" props="label · value · icon · delta · direction · footnote" wide flush>
+          <div className="bw-stats" style={{ padding: 16 }}>
+            <StatCard label="Revenue" value="£12,480" icon="chart-column" delta="+12.4%" footnote="vs previous 30 days" />
+            <StatCard label="Active members" value="318" icon="users" delta="+9" footnote="new this month" />
+            <StatCard label="Failed payments" value="3" icon="triangle-alert" delta="-2" direction="down" footnote="needs attention" />
+            <StatCard label="Renewals due" value="27" icon="calendar" footnote="in the next 14 days" />
+          </div>
+        </Item>
+        <Item name="DataTable" what="Records list, replaces WP_List_Table" props="columns · rows · selectable · rowActions · empty" wide flush>
+          <DataTable
+            columns={[{ key: 'name', label: 'Member' }, { key: 'plan', label: 'Plan' }, { key: 'status', label: 'Status' }, { key: 'spend', label: 'Lifetime', align: 'right' }]}
+            rows={TABLE_ROWS}
+            selectable selected={[2]} onToggle={() => {}} onToggleAll={() => {}}
+            rowActions={() => <><IconButton icon="eye" label="View" size="sm" /><IconButton icon="trash-2" label="Remove" size="sm" variant="danger" /></>}
+          />
+        </Item>
+        <Item name="BulkActions" what="Acts on the checked rows" props="count · actions · value · onApply" stack>
+          <BulkActions count={2} actions={['Export', 'Change plan', 'Remove']} value={bulk} onChange={setBulk} onApply={() => setBulk('')} />
+          <BulkActions count={0} actions={['Export', 'Remove']} />
+        </Item>
+        <Item name="DescriptionList" what="Read-only term/value pairs" props="items · stack" stack>
+          <DescriptionList items={[['Plan', 'Pro annual · £180/yr'], ['Status', <Badge tone="success">Active</Badge>], ['Renews', '01 Sep 2026'], ['Card', 'Visa ···· 4242']]} />
+        </Item>
+        <Item name="ActivityLog" what="What happened to this record" props="items" stack>
+          <ActivityLog items={[
+            { icon: 'circle-check', text: 'Payment of £180.00 succeeded', meta: 'Stripe · 2 hours ago' },
+            { icon: 'mail', text: 'Receipt emailed to priya@example.com', meta: '2 hours ago' },
+            { icon: 'users', text: 'Member created', meta: 'Luke · 12 Mar 2026' },
+          ]} />
+        </Item>
+      </Group>
+
+      <Modal open={modal} title="Delete plan?" subtitle="This cannot be undone." onClose={() => setModal(false)}
+        footer={<><Button onClick={() => setModal(false)}>Cancel</Button><Button variant="danger" onClick={() => setModal(false)}>Delete plan</Button></>}>
+        <p style={{ margin: 0 }}>Members on this plan keep access until the end of their billing period.</p>
+      </Modal>
+
+      <Drawer open={drawer} title="Priya Raman" subtitle="priya@example.com" onClose={() => setDrawer(false)}
+        footer={<><Button onClick={() => setDrawer(false)}>Close</Button><Button variant="primary" icon="pencil">Edit member</Button></>}>
+        <DescriptionList stack items={[['Plan', 'Pro annual · £180/yr'], ['Renews', '01 Sep 2026'], ['Card', 'Visa ···· 4242'], ['Role', 'Subscriber']]} />
+      </Drawer>
+
+      {toast ? <ToastStack><Toast icon="circle-check" action={() => setToast(false)} actionLabel="Undo" onDismiss={() => setToast(false)}>Member removed.</Toast></ToastStack> : null}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Inventory />);
+</script></body></html>

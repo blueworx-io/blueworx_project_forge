@@ -51,8 +51,8 @@ final class AskScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'Ask for something', 'blueworx-forge' ),
-			__( 'Ask for something', 'blueworx-forge' ),
+			__( 'New Request', 'blueworx-forge' ),
+			__( 'New Request', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -79,10 +79,12 @@ final class AskScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Ask for something', 'blueworx-forge' ) . '</h1>';
+		// Not a new read: it is cached the same as any other read-through view
+		// (the same reasoning AskedScreen's own eyebrow rests on) — this screen
+		// needs it only for whose workspace the eyebrow names.
+		$workspace = Workspace::view( false );
 
-		Nav::render( self::SLUG );
+		Page::open( __( 'New Request', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		self::result_notice();
 
@@ -99,7 +101,7 @@ final class AskScreen {
 		if ( ! Connection::is_configured() ) {
 			Denial::render( Sync::STATE_NOT_CONFIGURED, Denial::ASKING, 'bwx-ask-unavailable' );
 
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
@@ -107,7 +109,7 @@ final class AskScreen {
 		self::availability();
 		self::form();
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -140,9 +142,19 @@ final class AskScreen {
 			return;
 		}
 
-		echo '<div class="notice notice-info inline" data-bwx-availability="' . esc_attr( $band ) . '"><p>'
-			. esc_html( self::availability_sentence( $band, (string) ( $result['earliest'] ?? '' ) ) )
-			. '</p></div>';
+		printf(
+			'<div class="bw-notice bw-notice--info" data-bwx-availability="%s" role="status">',
+			esc_attr( $band )
+		);
+
+		echo '<i class="bw-icon bw-notice__icon" data-lucide="info"></i>';
+
+		printf(
+			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
+			esc_html( self::availability_sentence( $band, (string) ( $result['earliest'] ?? '' ) ) )
+		);
+
+		echo '</div>';
 	}
 
 	/**
@@ -183,10 +195,12 @@ final class AskScreen {
 			return;
 		}
 
+		// Tones are the design system's Notice tones, not WordPress's — 'error'
+		// becomes 'danger', the nearest of the five bw-notice carries.
 		$notices = array(
 			'sent'          => array( 'success', __( 'Sent. The studio has it, and will come back to you.', 'blueworx-forge' ) ),
-			'invalid'       => array( 'error', __( 'That could not be sent. Check the boxes below and try again.', 'blueworx-forge' ) ),
-			'unreachable'   => array( 'error', __( 'The studio could not be reached, so nothing was sent. What you wrote is still here — try again in a moment.', 'blueworx-forge' ) ),
+			'invalid'       => array( 'danger', __( 'That could not be sent. Check the boxes below and try again.', 'blueworx-forge' ) ),
+			'unreachable'   => array( 'danger', __( 'The studio could not be reached, so nothing was sent. What you wrote is still here — try again in a moment.', 'blueworx-forge' ) ),
 			'not_connected' => array( 'warning', __( 'This site is not connected to the studio yet, so there is nowhere to send this.', 'blueworx-forge' ) ),
 		);
 
@@ -194,12 +208,32 @@ final class AskScreen {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $notices[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $notices[ $result ][1] )
+		list( $tone, $text ) = $notices[ $result ];
+
+		$icons = array(
+			'success' => 'circle-check',
+			'danger'  => 'circle-alert',
+			'warning' => 'triangle-alert',
 		);
+
+		printf(
+			'<div class="bw-notice bw-notice--%1$s" data-bwx-result="%2$s" role="%3$s">',
+			esc_attr( $tone ),
+			esc_attr( $result ),
+			esc_attr( 'danger' === $tone ? 'alert' : 'status' )
+		);
+
+		printf(
+			'<i class="bw-icon bw-notice__icon" data-lucide="%s"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' )
+		);
+
+		printf(
+			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
+			esc_html( $text )
+		);
+
+		echo '</div>';
 	}
 
 	/**
@@ -211,12 +245,12 @@ final class AskScreen {
 
 		delete_transient( self::DRAFT );
 
+		Page::panel_open( __( 'Send a request', 'blueworx-forge' ), 'ask' );
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-testid="bwx-ask-form">';
 
 		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( AskActions::ACTION ) );
 		wp_nonce_field( AskActions::ACTION );
-
-		echo '<table class="form-table" role="presentation"><tbody>';
 
 		self::types( (string) ( $draft['type'] ?? 'request' ) );
 		self::text( 'title', __( 'Title', 'blueworx-forge' ), (string) ( $draft['title'] ?? '' ), __( 'A short name for what you are asking about.', 'blueworx-forge' ) );
@@ -224,21 +258,36 @@ final class AskScreen {
 		self::area( 'desired_outcome', __( 'What good would look like', 'blueworx-forge' ), (string) ( $draft['desired_outcome'] ?? '' ), __( 'Optional. How you would know this had been done well.', 'blueworx-forge' ) );
 		self::area( 'evidence', __( 'Anything that helps', 'blueworx-forge' ), (string) ( $draft['evidence'] ?? '' ), __( 'Optional. Links to the page in question, an error message, a screenshot somewhere we can see it.', 'blueworx-forge' ) );
 
-		echo '</tbody></table>';
-
 		printf(
-			'<p class="description" data-testid="bwx-ask-immutable">%s</p>',
+			'<p class="bw-card__note" data-testid="bwx-ask-immutable">%s</p>',
 			esc_html__( 'Once sent, this is kept exactly as you wrote it and cannot be edited. If you change your mind, send another one — we will see both.', 'blueworx-forge' )
 		);
 
 		printf(
-			'<p class="description">%s</p>',
+			'<p class="bw-card__note">%s</p>',
 			esc_html__( 'You can send these whether or not you have a support package. Having one affects how quickly work can be scheduled, not whether you can ask.', 'blueworx-forge' )
 		);
 
-		submit_button( __( 'Send to the studio', 'blueworx-forge' ) );
+		/*
+		 * A plain bw-btn--primary rather than a bw-savebar. A save bar is the
+		 * design system's pattern for an in-progress edit to an existing
+		 * record — dirty/pristine, Save beside Discard — and none of that
+		 * applies here: there is no baseline this form is changing, only
+		 * words to send once. It also has nowhere to attach: the shared page
+		 * shell (Page::open/close) gives every screen one panel column and no
+		 * hook for a bar outside it, and a sticky footer bolted on for this
+		 * screen alone would be a second page shape for one form.
+		 */
+		echo '<div class="bwx-formactions">';
+		printf(
+			'<button type="submit" id="submit" name="submit" class="bw-btn bw-btn--primary">%s</button>',
+			esc_html__( 'Send to the studio', 'blueworx-forge' )
+		);
+		echo '</div>';
 
 		echo '</form>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -283,12 +332,14 @@ final class AskScreen {
 			),
 		);
 
-		echo '<tr><th scope="row">' . esc_html__( 'What is this?', 'blueworx-forge' ) . '</th><td>';
-		echo '<fieldset>';
+		echo '<div class="bw-formrow">';
+		printf( '<span class="bw-formrow__label" id="bwx-type-label">%s</span>', esc_html__( 'What is this?', 'blueworx-forge' ) );
+		echo '<div class="bw-formrow__control">';
+		echo '<div class="bw-radiogroup" role="radiogroup" aria-labelledby="bwx-type-label">';
 
 		foreach ( $types as $value => $labels ) {
 			printf(
-				'<label style="display:block;margin-bottom:.4rem"><input type="radio" name="type" value="%1$s"%2$s /> <strong>%3$s</strong> <span class="description">%4$s</span></label>',
+				'<label class="bw-check"><input type="radio" name="type" value="%1$s"%2$s /><span class="bw-check__text"><strong>%3$s</strong><span class="bw-check__help">%4$s</span></span></label>',
 				esc_attr( $value ),
 				checked( $chosen, $value, false ),
 				esc_html( $labels[0] ),
@@ -296,7 +347,7 @@ final class AskScreen {
 			);
 		}
 
-		echo '</fieldset></td></tr>';
+		echo '</div></div></div>';
 	}
 
 	/**
@@ -309,7 +360,7 @@ final class AskScreen {
 	 */
 	private static function text( string $name, string $label, string $value, string $help ): void {
 		printf(
-			'<tr><th scope="row"><label for="bwx-%1$s">%2$s</label></th><td><input type="text" class="regular-text" id="bwx-%1$s" name="%1$s" value="%3$s" required /><p class="description">%4$s</p></td></tr>',
+			'<div class="bw-formrow"><label class="bw-formrow__label" for="bwx-%1$s">%2$s<span class="bw-formrow__req">*</span></label><div class="bw-formrow__control"><input type="text" class="bw-input" id="bwx-%1$s" name="%1$s" value="%3$s" required /><p class="bw-formrow__help">%4$s</p></div></div>',
 			esc_attr( $name ),
 			esc_html( $label ),
 			esc_attr( $value ),
@@ -327,7 +378,7 @@ final class AskScreen {
 	 */
 	private static function area( string $name, string $label, string $value, string $help ): void {
 		printf(
-			'<tr><th scope="row"><label for="bwx-%1$s">%2$s</label></th><td><textarea class="large-text" rows="5" id="bwx-%1$s" name="%1$s">%3$s</textarea><p class="description">%4$s</p></td></tr>',
+			'<div class="bw-formrow"><label class="bw-formrow__label" for="bwx-%1$s">%2$s</label><div class="bw-formrow__control"><textarea class="bw-textarea" rows="5" id="bwx-%1$s" name="%1$s">%3$s</textarea><p class="bw-formrow__help">%4$s</p></div></div>',
 			esc_attr( $name ),
 			esc_html( $label ),
 			esc_textarea( $value ),

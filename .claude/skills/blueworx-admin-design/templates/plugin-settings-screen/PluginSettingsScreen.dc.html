@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Plugin settings screen" description="Full-bleed WordPress plugin settings screen: page header, section nav, panel cards and a sticky save bar." -->
+<helmet><script src="./ds-base.js"></script></helmet>
+<div class="bw-admin bw-page">
+<header class="bw-pagehead">
+<div class="bw-pagehead__titles">
+<p class="bw-pagehead__eyebrow">Example Plugin</p>
+<h1 class="bw-pagehead__h1">Settings</h1>
+<p class="bw-pagehead__lede">How the members area behaves on this site.</p>
+</div>
+<div class="bw-pagehead__actions">
+<button type="button" class="bw-btn bw-btn--secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>View members page</button>
+</div>
+</header>
+<div class="bw-page__body">
+<nav class="bw-secnav" aria-label="Sections">
+<button type="button" class="bw-secnav__item is-active"><span>General</span></button>
+<button type="button" class="bw-secnav__item"><span>Branding</span></button>
+<button type="button" class="bw-secnav__item"><span>Payments</span></button>
+<button type="button" class="bw-secnav__item"><span>Access</span><span class="bw-secnav__meta">4 roles</span></button>
+</nav>
+<div class="bw-panels" style="padding-bottom:24px">
+<section class="bw-card">
+<div class="bw-card__head">
+<div class="bw-card__titles">
+<p class="bw-card__eyebrow">General</p>
+<h2 class="bw-card__title">Basics</h2>
+</div>
+<div class="bw-card__actions">
+<button type="button" class="bw-btn bw-btn--secondary bw-btn--sm">Reset</button>
+</div>
+</div>
+<div class="bw-card__body">
+<p class="bw-card__note">Names and links used across the members area.</p>
+<div class="bw-fields">
+<div class="bw-field">
+<label class="bw-field__label" for="t-name">Site name</label>
+<input class="bw-input" id="t-name" value="Example Site" onChange="{{ touch }}">
+<p class="bw-field__help">Shown in the header and in emails.</p>
+</div>
+<div class="bw-field">
+<label class="bw-field__label" for="t-page">Members page</label>
+<input class="bw-input" id="t-page" value="/members" onChange="{{ touch }}">
+</div>
+<div class="bw-field">
+<label class="bw-field__label" for="t-tz">Timezone</label>
+<span class="bw-select">
+<select class="bw-select__el" id="t-tz" onChange="{{ touch }}">
+<option>Europe/London</option>
+<option>Europe/Dublin</option>
+<option>UTC</option>
+</select>
+<svg class="bw-select__arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg>
+</span>
+</div>
+<div class="bw-field">
+<label class="bw-field__label" for="t-email">Support email</label>
+<input class="bw-input" id="t-email" type="email" value="support@example.com" onChange="{{ touch }}">
+</div>
+<div class="bw-field bw-field--wide">
+<label class="bw-field__label" for="t-welcome">Welcome message</label>
+<textarea class="bw-textarea" id="t-welcome" rows="3" onChange="{{ touch }}">Welcome to the Example Plugin. Your membership card is in your account.</textarea>
+<p class="bw-field__help">Shown once, after a member first signs in.</p>
+</div>
+</div>
+</div>
+</section>
+<section class="bw-card">
+<div class="bw-card__head">
+<div class="bw-card__titles">
+<p class="bw-card__eyebrow">Behaviour</p>
+<h2 class="bw-card__title">Switches</h2>
+</div>
+</div>
+<div class="bw-card__body">
+<div style="display:flex;gap:16px;flex-wrap:wrap">
+<label class="bw-switch">
+<input type="checkbox" role="switch" checked="{{ true }}" onChange="{{ touch }}">
+<span class="bw-switch__track"><span class="bw-switch__thumb"></span></span>
+<span class="bw-switch__label">Members area<small>Visible to signed-in members.</small></span>
+</label>
+<label class="bw-switch">
+<input type="checkbox" role="switch" onChange="{{ touch }}">
+<span class="bw-switch__track"><span class="bw-switch__thumb"></span></span>
+<span class="bw-switch__label">Email receipts</span>
+</label>
+</div>
+</div>
+</section>
+</div>
+</div>
+<div class="bw-savebar">
+<p class="bw-savebar__hint">{{ hint }}</p>
+<button type="button" class="bw-btn bw-btn--link" onClick="{{ discard }}">Discard</button>
+<button type="button" class="bw-btn bw-btn--primary" onClick="{{ save }}">{{ saveLabel }}</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { dirty: false, saving: false };
+  renderVals() {
+    const { dirty, saving } = this.state;
+    return {
+      hint: saving ? 'Saving…' : dirty ? 'You have unsaved changes.' : 'All changes saved.',
+      saveLabel: saving ? 'Saving…' : 'Save changes',
+      touch: () => this.setState({ dirty: true }),
+      discard: () => this.setState({ dirty: false }),
+      save: () => {
+        this.setState({ saving: true });
+        setTimeout(() => this.setState({ saving: false, dirty: false }), 700);
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

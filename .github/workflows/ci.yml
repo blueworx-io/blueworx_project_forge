@@ -36,6 +36,10 @@ jobs:
         /tsconfig.json
         /postcss.config.mjs
         /vendor
+        # Vendored for the client plugin, which registers the shared page editor.
+        # The studio's screens are the React application (ARCH-7), so this has no
+        # business in the studio artifact. Keep identical to release.yml.
+        /blueworx-page-editor
         /.vscode
         /.playwright-mcp
         /.wp-test

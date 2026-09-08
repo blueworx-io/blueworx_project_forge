@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.76.1] - 2026-09-08
+
+### Changed
+
+- The row of tabs across the top of the Forge screens is gone. Every page is
+  still there in the Forge menu down the side, which is where you were already
+  looking.
+- The Forge menu has been renamed and reordered: Overview, New Request,
+  Requests, Work Board, Timeline, Calendar, Onboarding, Support Details,
+  Connection. Nothing has moved or been removed, only renamed and put in a more
+  sensible order.
+- Save buttons now sit on the right of a form, clear of the line above them.
+
+### Fixed
+
+- "Getting you live" and "Your hours" were showing as plain, unstyled pages.
+  They now look like the rest of Forge.
+- Work titles on the board are no longer underlined until you hover over them.
+- The dates along the top of the timeline were too faint to read. They are now
+  set in a darker grey.
+
+## [2.76.0] - 2026-09-08
+
+### Changed
+
+- The Forge screens on your site have a new look, matching the rest of the
+  Blueworx admin. Nothing about your work, your data or your permissions has
+  changed.
+
+### Fixed
+
+- The hours and packages screen no longer breaks on a site that has not been
+  connected to a studio yet.
+
 ## [2.75.0] - 2026-09-03
 
 ### Added

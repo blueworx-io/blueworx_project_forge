@@ -1,0 +1,36 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Feedback — notices, modal, progress, empty" subtitle="Messages, confirmation dialogs and first-run states" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Feedback</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:#fff}#root{display:flex;flex-direction:column;gap:18px}.grp{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--bw-text-faint);width:74px;flex:none}</style></head>
+<body class="bw-admin" style="background:#fff"><div id="root"></div>
+<script type="text/babel">
+const { Notice, Modal, ProgressBar, EmptyState, Button } = window.BlueWorxAdminDesignSystem_75753e;
+
+function Demo() {
+  return (
+    <>
+      <Notice tone="warning" title="Test mode is on">No live payments are being taken on this site.</Notice>
+      <Notice tone="success" onDismiss={() => {}}>Settings saved.</Notice>
+      <Notice tone="danger" title="Licence expired" actions={<Button size="sm" variant="link">Renew licence</Button>}>Updates are paused until the licence is renewed.</Notice>
+      <ProgressBar value={62} label="Setup complete" showPct />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }}>
+        <EmptyState icon="shopping-cart" title="No orders yet" actions={<Button variant="primary" size="sm" icon="plus">Add a product</Button>}>
+          Orders appear here as soon as your first checkout completes.
+        </EmptyState>
+        <div style={{ position: 'relative', height: 220, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--bw-border)' }}>
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <Modal title="Delete plan?" subtitle="This cannot be undone." onClose={() => {}}
+              footer={<><Button>Cancel</Button><Button variant="danger">Delete plan</Button></>}>
+              <p style={{ margin: 0 }}>Members keep access until the end of their billing period.</p>
+            </Modal>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

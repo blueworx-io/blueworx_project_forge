@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { checkArtifacts } from '../../bin/check-artifacts.mjs';
+import { plan } from '../../bin/sync-design-system.mjs';
 
 // The guarantee under test is ARCH-1's: a client's WordPress cannot physically
 // contain command-centre code. These cases are the ways somebody would break it
@@ -89,4 +91,23 @@ test('the two artifacts cannot share a slug', () => {
   const problems = checkArtifacts(config({ slug: 'blueworx-forge' }), options);
 
   assert.ok(problems.some((p) => /same slug/.test(p)));
+});
+
+// The two lists have to agree. A path the build produces but the allowlist
+// refuses never reaches a client site; a path the allowlist admits but nothing
+// produces fails the build with "shared path is missing from the repo".
+test('every design system path the build produces is shareable to the client', () => {
+  const config = JSON.parse(readFileSync('bin/artifacts.json', 'utf8'));
+  const shared = config.artifacts.client.shared;
+  for (const { to } of plan()) {
+    assert.ok(
+      shared.includes(to),
+      `${to} is produced for the client but is not in its shared list`
+    );
+  }
+  assert.deepEqual(
+    checkArtifacts(config, { checkExistence: false }),
+    [],
+    'the widened shared list must still satisfy the checker'
+  );
 });

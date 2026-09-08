@@ -47,6 +47,9 @@ final class Styles {
 	border: 1px solid var(--border-subtle, #dcdcde);
 	border-radius: var(--radius-cards, 8px);
 	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
 }
 
 .bwx-column-head {
@@ -59,37 +62,45 @@ final class Styles {
 	color: var(--text-primary, #1d2327);
 }
 
-.bwx-column-count { color: var(--text-muted, #646970); font-variant-numeric: tabular-nums; }
-
-.bwx-card {
-	background: var(--surface-card, #fff);
-	border: 1px solid var(--border-subtle, #dcdcde);
-	border-radius: var(--radius-cards, 8px);
-	box-shadow: var(--shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.06));
-	padding: var(--card-padding, 0.75rem);
-	margin-bottom: 0.6rem;
-}
-
-.bwx-card:last-child { margin-bottom: 0; }
-.bwx-card-title { margin: 0 0 0.25rem; font-size: var(--text-body, 0.95rem); line-height: 1.35; }
-.bwx-card-stage { margin: 0 0 0.4rem; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
-
-.bwx-card-dates,
-.bwx-card-people { margin: 0.35rem 0 0; padding: 0; list-style: none; font-size: var(--text-small, 0.8rem); }
-.bwx-card-dates li,
-.bwx-card-people li { display: flex; gap: 0.4rem; justify-content: space-between; }
-.bwx-card-key { color: var(--text-muted, #646970); }
-.bwx-card-value { color: var(--text-primary, #1d2327); text-align: right; }
-
 .bwx-empty { color: var(--text-muted, #646970); font-style: italic; margin: 0; }
 
-.bwx-timeline { border: 1px solid var(--border-subtle, #dcdcde); border-radius: var(--radius-cards, 8px); background: var(--surface-card, #fff); padding: 0.75rem; }
-.bwx-timeline-scale { display: flex; justify-content: space-between; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); margin-bottom: 0.5rem; }
-.bwx-timeline-row { display: grid; grid-template-columns: minmax(8rem, 18rem) 1fr; gap: 0.75rem; align-items: center; padding: 0.3rem 0; }
-.bwx-timeline-label { font-size: var(--text-small, 0.85rem); }
-.bwx-timeline-track { position: relative; height: 1.5rem; background: var(--surface-muted, #f6f7f7); border-radius: var(--radius-pills, 999px); }
-.bwx-timeline-bar { position: absolute; top: 0.25rem; height: 1rem; min-width: 0.35rem; background: var(--surface-action, #2271b1); border-radius: var(--radius-pills, 999px); }
+/* A card title that opens the item is still a heading, so it is not dressed
+   as body copy with a rule under it. The underline comes back on hover, where
+   it says the thing is clickable at the moment somebody is about to click. */
+.bw-card__title a { text-decoration: none; }
+.bw-card__title a:hover,
+.bw-card__title a:focus { text-decoration: underline; }
+
+/* A form's buttons sit clear of the last field's rule, and to the right of it
+   — where the design system puts a card's own actions. */
+.bwx-formactions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	margin: 1.25rem 0 0;
+}
+
+/* Three things the design system's Gantt has no pattern for, all ours to keep:
+   the end tick made to read as a right-hand edge rather than a left-aligned
+   label (the component's ruler is built for many evenly-spaced ticks, not a
+   from/to pair); a "today" marker, which the system does not have at all; and
+   a floor under a bar's width. The component enforces its own floor in
+   JavaScript (MIN_BAR_PERCENT in Gantt.jsx) — this is a PHP port with no such
+   step, so a one-day item on a long axis needs the same floor here, or it
+   renders as a sliver too thin to see (Layout::place() computes width with no
+   minimum of its own, by design — see its own class comment). Scoped to this
+   screen's bar only, so it cannot widen a bar drawn by any other bw-gantt use. */
+.bwx-timeline-tick--end { text-align: right; }
+[data-testid="bwx-timeline"] .bw-gantt__bar { min-width: 0.35rem; }
 .bwx-timeline-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--color-coral, #d63638); }
+
+/* The ruler's dates are the only labelling the timeline has, and the system
+   sets them in the faintest ink at the smallest size — which on the card
+   behind them does not reach the contrast a person needs to read them. The
+   muted ink says the same thing about their importance and can actually be
+   read. Scoped to this screen, so no other bw-gantt loses the lighter ruler. */
+[data-testid="bwx-timeline"] .bw-gantt__ruler,
+[data-testid="bwx-timeline"] .bw-gantt__tick { color: var(--bw-text-muted); }
 
 .bwx-calendar { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--surface-card, #fff); }
 .bwx-calendar th, .bwx-calendar td { border: 1px solid var(--border-subtle, #dcdcde); vertical-align: top; padding: 0.4rem; }
@@ -102,102 +113,42 @@ final class Styles {
 
 .bwx-months { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.75rem; }
 
-.bwx-panel {
-	background: var(--surface-card, #fff);
-	border: 1px solid var(--border-subtle, #dcdcde);
-	border-radius: var(--radius-cards, 8px);
-	padding: var(--card-padding-lg, 1rem);
-	margin: 0 0 1rem;
-	max-width: var(--content-max-width, 60rem);
-}
-
-.bwx-panel h2 { margin: 0 0 0.5rem; font-size: var(--text-heading-sm, 1rem); }
 .bwx-lede { margin: 0 0 0.25rem; font-size: var(--text-heading, 1.15rem); color: var(--text-primary, #1d2327); }
-.bwx-list { margin: 0; padding: 0; list-style: none; }
-.bwx-list li { padding: 0.35rem 0; border-bottom: 1px solid var(--border-subtle, #f0f0f1); display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: baseline; }
-.bwx-list li:last-child { border-bottom: 0; }
-[data-bwx-reason="blocked"] .bwx-card-key { color: var(--color-coral, #d63638); }
 .bwx-undated { margin-top: 1.5rem; }
 
-/* The workspace frame. Never had rules of its own, so every client screen has
-   been running its page links together into one word since #126. */
-.bwx-client-frame { margin: 0 0 1rem; }
-.bwx-client-scope { margin: 0 0 0.4rem; color: var(--text-muted, #646970); }
-
-.bwx-client-nav {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.25rem 1.25rem;
-	border-bottom: 1px solid var(--border-subtle, #dcdcde);
-	padding-bottom: 0.5rem;
-}
-
-.bwx-client-nav-item { text-decoration: none; padding: 0.15rem 0; }
-.bwx-client-nav-item[aria-current="page"] { color: var(--text-primary, #1d2327); font-weight: 600; box-shadow: inset 0 -2px 0 0 currentColor; }
-
 /* What you asked for (#130). An exchange, not a table: the request, then the
-   reply set in under it. */
+   reply set in under it. Each entry is a bw-card; this only adds the gap
+   between them, since bw-card carries no margin of its own. */
 .bwx-asked { max-width: var(--content-max-width, 60rem); margin-top: 1rem; }
+.bwx-asked > .bw-card { margin: 0 0 0.75rem; }
+.bwx-asked > .bw-card:last-child { margin-bottom: 0; }
 
-.bwx-asked-entry {
-	background: var(--surface-card, #fff);
-	border: 1px solid var(--border-subtle, #dcdcde);
-	border-radius: var(--radius-cards, 8px);
-	padding: var(--card-padding-lg, 1rem);
-	margin: 0 0 0.75rem;
-}
-
-.bwx-asked-head { display: flex; gap: 0.75rem; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-.bwx-asked-title { margin: 0; font-size: var(--text-heading-sm, 1rem); line-height: 1.3; }
 .bwx-asked-meta { margin: 0.15rem 0 0; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
 .bwx-asked-words { margin: 0.6rem 0 0; }
 .bwx-asked-words p { margin: 0 0 0.4rem; }
 .bwx-asked-words p:last-child { margin-bottom: 0; }
 
-.bwx-asked-reply {
-	margin: 0.75rem 0 0;
-	padding: 0.6rem 0 0.1rem 0.85rem;
-	border-left: 3px solid var(--surface-action, #2271b1);
-}
-
-.bwx-asked-reply p { margin: 0 0 0.35rem; }
-.bwx-asked-became { font-size: var(--text-small, 0.85rem); }
-.bwx-asked-waiting { margin-top: 0.75rem; }
-
-.bwx-status {
-	flex: none;
-	border-radius: var(--radius-pills, 999px);
-	padding: 0.1rem 0.6rem;
-	font-size: var(--text-small, 0.75rem);
-	white-space: nowrap;
-	background: var(--surface-muted, #f6f7f7);
-	color: var(--text-muted, #646970);
-	border: 1px solid var(--border-subtle, #dcdcde);
-}
-
-.bwx-status-going { color: var(--surface-action, #2271b1); border-color: currentColor; }
-.bwx-status-closed { color: var(--color-coral, #d63638); border-color: currentColor; }
-
 /*
  * The conversation on one item (#133). The client's own entries are indented
- * and ruled, the studio's are not — the same shape "What you asked for" already
- * uses for a reply to a letter, so the two screens read as one product rather
- * than as two takes on a thread.
+ * and ruled, the studio's are not — a letter and its reply. Both are a
+ * bw-card now; this only adds the asymmetry between the two parties.
  */
-.bwx-asked-entry[data-bwx-from="client"] {
+.bwx-thread-entry[data-bwx-from="client"] {
 	margin-left: 1.25rem;
-	border-left: 3px solid var(--surface-action, #2271b1);
+	border-left: 3px solid var(--bw-brand);
 }
 
 /* An outstanding question is the one thing on this page somebody has to act
    on, so it is the one thing that is coloured. */
-[data-testid="bwx-questions"] .bwx-asked-entry {
-	border-left: 3px solid var(--color-coral, #d63638);
+.bwx-question {
+	border-left: 3px solid var(--bw-danger);
 }
 
 [data-testid="bwx-questions"] form { margin-top: 0.6rem; }
-.bwx-card-title a { text-decoration: none; }
-.bwx-card-title a:hover { text-decoration: underline; }
+.wrap.bw-wrap { margin: 0; }
+body[class*="blueworx-forge-client"] #wpcontent { padding-left: 0; }
+body[class*="blueworx-forge-client"] #wpbody-content { padding-bottom: 0; }
+body[class*="blueworx-forge-client"] #wpfooter { display: none; }
 CSS;
 	}
 }

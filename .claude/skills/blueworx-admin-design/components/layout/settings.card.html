@@ -1,0 +1,62 @@
+<!-- @dsCard group="Components" viewport="700x430" name="Tabs, Accordion & settings cards" subtitle="How a plugin settings screen is assembled" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Settings composition</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>html,body{margin:0;padding:0;background:var(--bw-canvas)}</style></head>
+<body class="bw-admin"><div id="root"></div>
+<script type="text/babel">
+const { Tabs, Accordion, SettingsCard, FormRow, Input, Select, Switch, Checkbox, Badge, Button, Divider, CopyField } = window.BlueWorxAdminDesignSystem_75753e;
+function Demo() {
+  const [tab, setTab] = React.useState('general');
+  const [dirty, setDirty] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const touch = () => setDirty(true);
+  const save = () => { setSaving(true); setTimeout(() => { setSaving(false); setDirty(false); }, 700); };
+  return (
+    <div>
+      <Tabs value={tab} onChange={setTab} items={[{ id: 'general', label: 'General' }, { id: 'payments', label: 'Payments' }, { id: 'advanced', label: 'Advanced' }]} />
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {tab === 'general' ? (
+          <>
+            <SettingsCard eyebrow="General" title="Basics" description="Names and links used across the members area."
+              dirty={dirty} saving={saving} onSave={save} onReset={() => setDirty(false)}>
+              <FormRow label="Site name" htmlFor="s-name" help="Shown in the header and in emails."><Input id="s-name" defaultValue="Example Site" onChange={touch} /></FormRow>
+              <FormRow label="Members page" htmlFor="s-page"><Input id="s-page" defaultValue="/members" onChange={touch} /></FormRow>
+              <FormRow label="Timezone" htmlFor="s-tz"><Select id="s-tz" options={['Europe/London', 'UTC']} onChange={touch} /></FormRow>
+            </SettingsCard>
+            <SettingsCard eyebrow="Placement" title="Shortcodes" description="Paste these into any page or block." hideFooter>
+              <FormRow label="Members list"><CopyField value="[bw_members]" /></FormRow>
+              <FormRow label="Filtered list"><CopyField value='[bw_members plan="pro"]' /></FormRow>
+            </SettingsCard>
+          </>
+        ) : null}
+        {tab === 'payments' ? (
+          <SettingsCard eyebrow="Payments" title="Checkout" description="Charges run through your connected provider; no card details touch this site."
+            aside={<Badge tone="warning">Test mode</Badge>} dirty={dirty} saving={saving} onSave={save}
+            footer={<span style={{ fontSize: 12, color: 'var(--bw-text-muted)' }}>Last saved 4 minutes ago</span>}>
+            <FormRow label="Provider" htmlFor="p-pv"><Select id="p-pv" options={['Stripe', 'PayPal']} onChange={touch} /></FormRow>
+            <FormRow label="Currency" htmlFor="p-cu"><Select id="p-cu" options={['GBP £', 'EUR €']} onChange={touch} /></FormRow>
+            <FormRow label="Test mode" tip="Nothing is charged while test mode is on."><Switch bare aria-label="Test mode" defaultChecked onChange={touch} /></FormRow>
+          </SettingsCard>
+        ) : null}
+        {tab === 'advanced' ? (
+          <>
+            <Accordion title="Developer" subtitle="REST namespace and capabilities" aside={<Badge tone="neutral">3</Badge>} defaultOpen>
+              <FormRow label="REST namespace" htmlFor="a-ns"><Input id="a-ns" mono defaultValue="bw/v1" /></FormRow>
+              <FormRow label="Debug logging"><Switch bare aria-label="Debug logging" /></FormRow>
+            </Accordion>
+            <Accordion title="Uninstall" subtitle="What happens when the plugin is removed">
+              <Checkbox label="Delete data on uninstall" help="Cannot be undone." />
+              <Divider label="Danger zone" />
+              <Button variant="danger" size="sm" icon="trash-2">Delete all plugin data</Button>
+            </Accordion>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

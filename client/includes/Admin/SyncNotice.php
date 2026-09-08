@@ -67,21 +67,27 @@ final class SyncNotice {
 			? sprintf( __( 'Last synced %s ago.', 'blueworx-forge' ), human_time_diff( $fetched_at ) )
 			: __( 'Never synced.', 'blueworx-forge' );
 
-		$class   = 'notice notice-info';
+		$tone    = 'info';
 		$message = $ago;
 
+		/*
+		 * Stale and unreachable are not the same problem. Stale is still
+		 * working — this is the copy the site last saw, and it says so — so it
+		 * gets a caution rather than the same tone as a studio nothing can be
+		 * read from at all.
+		 */
 		if ( Sync::STATE_STALE === $state ) {
-			$class   = 'notice notice-warning';
+			$tone    = 'warning';
 			$message = __( 'The studio could not be reached, so this is the copy this site last saw. It may be out of date.', 'blueworx-forge' ) . ' ' . $ago;
 		}
 
 		if ( Sync::STATE_UNREACHABLE === $state ) {
-			$class   = 'notice notice-error';
+			$tone    = 'danger';
 			$message = __( 'The studio could not be reached, and this site has nothing saved to show in the meantime.', 'blueworx-forge' );
 		}
 
 		if ( Sync::STATE_NOT_CONFIGURED === $state ) {
-			$class   = 'notice notice-warning';
+			$tone    = 'warning';
 			$message = __( 'This site has not been connected to the studio yet.', 'blueworx-forge' );
 		}
 
@@ -92,22 +98,56 @@ final class SyncNotice {
 		 * that cannot help is the dead control #134 exists to remove.
 		 */
 		if ( Sync::STATE_REFUSED === $state ) {
-			printf(
-				'<div class="notice notice-warning" data-bwx-sync-state="%1$s"><p>%2$s</p></div>',
-				esc_attr( $state ),
-				esc_html__( 'The studio did not recognise this. Your connection is working — this is something this site cannot see.', 'blueworx-forge' )
+			self::notice(
+				'warning',
+				$state,
+				__( 'The studio did not recognise this. Your connection is working — this is something this site cannot see.', 'blueworx-forge' )
 			);
 
 			return;
 		}
 
-		printf(
-			'<div class="%1$s" data-bwx-sync-state="%2$s"><p>%3$s %4$s</p></div>',
-			esc_attr( $class ),
-			esc_attr( $state ),
-			esc_html( $message ),
-			wp_kses_post( self::refresh_link( $slug, $keep ) )
+		self::notice( $tone, $state, $message, self::refresh_link( $slug, $keep ) );
+	}
+
+	/**
+	 * Renders one design-system Notice.
+	 *
+	 * @param string $tone  One of Notice's tones — info, warning or danger, the
+	 *                      three a sync state actually needs.
+	 * @param string $state The sync state. Stays on the outer element as
+	 *                      data-bwx-sync-state; several specs read it.
+	 * @param string $text  The notice's message, unescaped.
+	 * @param string $link  A "check again" link, already built as markup, or
+	 *                      empty when there is none.
+	 */
+	private static function notice( string $tone, string $state, string $text, string $link = '' ): void {
+		$icons = array(
+			'info'    => 'info',
+			'warning' => 'triangle-alert',
+			'danger'  => 'circle-alert',
 		);
+
+		printf(
+			'<div class="bw-notice bw-notice--%1$s" data-bwx-sync-state="%2$s" role="%3$s">',
+			esc_attr( $tone ),
+			esc_attr( $state ),
+			esc_attr( 'danger' === $tone ? 'alert' : 'status' )
+		);
+
+		printf(
+			'<i class="bw-icon bw-notice__icon" data-lucide="%1$s" style="color:var(--bw-%2$s-deep)"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' ),
+			esc_attr( $tone )
+		);
+
+		printf(
+			'<div class="bw-notice__body"><p class="bw-notice__text">%1$s%2$s</p></div>',
+			esc_html( $text ),
+			'' !== $link ? ' ' . wp_kses_post( $link ) : ''
+		);
+
+		echo '</div>';
 	}
 
 	/**

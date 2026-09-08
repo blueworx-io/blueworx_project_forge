@@ -50,7 +50,7 @@ final class CalendarScreen {
 	public static function render(): void {
 		WorkScreen::render(
 			self::SLUG,
-			__( 'Forge — calendar', 'blueworx-forge' ),
+			__( 'Calendar', 'blueworx-forge' ),
 			array( self::class, 'month' )
 		);
 	}

@@ -142,7 +142,7 @@ test.describe('the tenancy acceptance criteria', () => {
     await page.goto(CLIENT_BOARD);
     await expect(page.locator('[data-testid="bwx-column"]').first()).toBeVisible();
 
-    const work = page.locator('.bwx-work');
+    const work = page.getByTestId('bwx-work');
 
     await expect(work.locator('button')).toHaveCount(0);
     await expect(work.locator('select')).toHaveCount(0);

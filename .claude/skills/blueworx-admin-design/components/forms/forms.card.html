@@ -1,0 +1,54 @@
+<!-- @dsCard group="Components" viewport="700x430" name="Forms — inputs, choices, media" subtitle="Field wrapper, text controls, switches and the media picker" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Forms</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:#fff}#root{display:flex;flex-direction:column;gap:18px}.grp{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--bw-text-faint);width:74px;flex:none}</style></head>
+<body class="bw-admin" style="background:#fff"><div id="root"></div>
+<script type="text/babel">
+const { Field, Input, Textarea, Select, Checkbox, Radio, RadioGroup, Switch, MediaField } = window.BlueWorxAdminDesignSystem_75753e;
+
+function Demo() {
+  return (
+    <>
+      <div className="bw-fields">
+        <Field label="Plugin name" htmlFor="a" help="Shown in the admin menu.">
+          <Input id="a" defaultValue="Example Plugin" />
+        </Field>
+        <Field label="Licence key" htmlFor="b" error="That key is not recognised.">
+          <Input id="b" mono invalid defaultValue="BWX-0000-0000" />
+        </Field>
+        <Field label="Search" htmlFor="c">
+          <Input id="c" icon="search" placeholder="Search members" />
+        </Field>
+        <Field label="Trial length" htmlFor="d">
+          <Input id="d" type="number" affix="days" defaultValue={14} />
+        </Field>
+        <Field label="Default role" htmlFor="e">
+          <Select id="e" placeholder="Choose a role" options={['Administrator', 'Editor', 'Subscriber']} />
+        </Field>
+        <Field label="Disabled" htmlFor="f">
+          <Input id="f" defaultValue="Locked by network admin" disabled />
+        </Field>
+        <Field wide label="Welcome message" htmlFor="g" help="Plain text or shortcodes.">
+          <Textarea id="g" rows={2} defaultValue="Welcome to the Example Plugin." />
+        </Field>
+      </div>
+      <div className="grp"><span className="k">Choice</span>
+        <Checkbox label="Email me when a payment fails" defaultChecked />
+        <RadioGroup row>
+          <Radio name="m" label="Live" defaultChecked />
+          <Radio name="m" label="Test" />
+        </RadioGroup>
+        <Switch label="Members area" defaultChecked />
+        <Switch bare aria-label="Enabled" />
+      </div>
+      <div className="grp"><span className="k">Media</span>
+        <MediaField onChoose={() => {}} hint="PNG or SVG, at least 320px wide." />
+      </div>
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

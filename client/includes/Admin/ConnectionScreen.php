@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Client\Admin;
 
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Updates;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * Pointing this site at the studio, in the browser.
@@ -27,6 +28,13 @@ use Blueworx\Forge\Client\Updates;
  * a real site: a secret in a file is not in the database, so it does not travel
  * in a database export. Where that is done, the fields here say so and are left
  * alone rather than quietly overridden.
+ *
+ * This screen is drawn by hand rather than through the shared page editor
+ * library: the library has no masked field kind (the key and the update
+ * token would render as plain text) and its screen callback leaves nowhere
+ * for the disconnect and forget-token actions to live. Both are gaps in the
+ * library, not something this screen can work around — so this is the
+ * documented fallback, design system markup over the same save handling.
  */
 final class ConnectionScreen {
 
@@ -69,15 +77,81 @@ final class ConnectionScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — connection', 'blueworx-forge' ) . '</h1>';
+		// Not a new read: it is cached the same as every other read-through
+		// view, and it is only used here for the eyebrow — the same reasoning
+		// AskScreen and AskedScreen rest on for theirs.
+		$workspace = Workspace::view( false );
 
-		Nav::render( self::SLUG );
+		Page::open( __( 'Connection', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		self::result_notice();
+
+		Page::panel_open( __( 'Connection', 'blueworx-forge' ), 'status' );
 		self::status();
+		Page::panel_close();
+
+		Page::panel_open( __( 'Studio credentials', 'blueworx-forge' ), 'credentials' );
 		self::form();
+		Page::panel_close();
+
+		Page::panel_open( __( 'Updates', 'blueworx-forge' ), 'updates' );
 		self::updates();
+		Page::panel_close();
+
+		self::destructive_actions();
+
+		Page::close();
+	}
+
+	/**
+	 * One design system Notice.
+	 *
+	 * Both of the ways a caller can hand this markup are escaped here rather
+	 * than trusted: the extra attributes arrive as names and values and are
+	 * escaped one at a time, and text carrying its own tags goes through
+	 * wp_kses_post. A helper that prints whatever it is given, on the promise
+	 * that every caller escaped first, only holds until somebody adds a caller.
+	 *
+	 * @param string                $tone       success | warning | danger | info.
+	 * @param string                $text       The notice text.
+	 * @param array<string, string> $attributes Extra attributes for the wrapping element, name => value.
+	 * @param bool                  $html       Whether $text carries its own markup.
+	 */
+	private static function notice( string $tone, string $text, array $attributes = array(), bool $html = false ): void {
+		$icons = array(
+			'success' => 'circle-check',
+			'warning' => 'triangle-alert',
+			'danger'  => 'circle-alert',
+			'info'    => 'info',
+		);
+
+		// Whole class names rather than a stem with the tone appended: the
+		// admin UI check reads the classes a screen writes, and one assembled
+		// from a variable is one it cannot see.
+		$classes = array(
+			'success' => 'bw-notice bw-notice--success',
+			'warning' => 'bw-notice bw-notice--warning',
+			'danger'  => 'bw-notice bw-notice--danger',
+			'info'    => 'bw-notice bw-notice--info',
+		);
+
+		printf( '<div class="%s"', esc_attr( $classes[ $tone ] ?? $classes['info'] ) );
+
+		foreach ( $attributes as $name => $value ) {
+			printf( ' %1$s="%2$s"', esc_attr( $name ), esc_attr( $value ) );
+		}
+
+		printf( ' role="%s">', esc_attr( 'danger' === $tone ? 'alert' : 'status' ) );
+
+		printf(
+			'<i class="bw-icon bw-notice__icon" data-lucide="%s"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' )
+		);
+
+		printf(
+			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
+			$html ? wp_kses_post( $text ) : esc_html( $text )
+		);
 
 		echo '</div>';
 	}
@@ -94,26 +168,23 @@ final class ConnectionScreen {
 		$messages = array(
 			'connected'       => array( 'success', __( 'Saved. The connection is checked below.', 'blueworx-forge' ) ),
 			'disconnected'    => array( 'success', __( 'This site no longer holds any credentials for the studio.', 'blueworx-forge' ) ),
-			'incomplete'      => array( 'error', __( 'The studio address, the site id and the key are all needed.', 'blueworx-forge' ) ),
+			'incomplete'      => array( 'danger', __( 'The studio address, the site id and the key are all needed.', 'blueworx-forge' ) ),
 
 			// The update token (#200). Its own codes rather than reusing the
 			// three above, so the screen never reports a saved token as a saved
 			// connection — they are different credentials for different places.
 			'token_saved'     => array( 'success', __( 'Saved. Whether updates can be fetched is reported below.', 'blueworx-forge' ) ),
 			'token_forgotten' => array( 'success', __( 'This site no longer holds an update token.', 'blueworx-forge' ) ),
-			'token_empty'     => array( 'error', __( 'No update token was entered.', 'blueworx-forge' ) ),
+			'token_empty'     => array( 'danger', __( 'No update token was entered.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
-		);
+		list( $tone, $text ) = $messages[ $result ];
+
+		self::notice( $tone, $text, array( 'data-bwx-result' => $result ) );
 	}
 
 	/**
@@ -125,9 +196,11 @@ final class ConnectionScreen {
 	 */
 	private static function status(): void {
 		if ( ! Connection::is_configured() ) {
-			echo '<div class="notice notice-warning" data-bwx-connection="not_configured"><p>';
-			echo esc_html__( 'This site has not been connected to the studio yet.', 'blueworx-forge' );
-			echo '</p></div>';
+			self::notice(
+				'warning',
+				__( 'This site has not been connected to the studio yet.', 'blueworx-forge' ),
+				array( 'data-bwx-connection' => 'not_configured' )
+			);
 
 			return;
 		}
@@ -138,29 +211,26 @@ final class ConnectionScreen {
 			$data   = $handshake->get_error_data();
 			$status = (int) ( is_array( $data ) ? ( $data['status'] ?? 0 ) : 0 );
 
-			echo '<div class="notice notice-error" data-bwx-connection="refused"><p>';
-			echo esc_html__( 'The studio did not accept this site.', 'blueworx-forge' ) . ' ';
-
 			// 401 is the studio refusing the credentials — the common causes are
 			// a mistyped key, a key that has been replaced, and a site that has
 			// been cut off. Anything else is the studio not being reachable,
 			// which is a different problem with a different fix.
-			echo 401 === $status
-				? esc_html__( 'Check the site id and key, or ask for a new key to be issued.', 'blueworx-forge' )
-				: esc_html__( 'The studio could not be reached at that address.', 'blueworx-forge' );
+			$text = __( 'The studio did not accept this site.', 'blueworx-forge' ) . ' ' . ( 401 === $status
+				? __( 'Check the site id and key, or ask for a new key to be issued.', 'blueworx-forge' )
+				: __( 'The studio could not be reached at that address.', 'blueworx-forge' ) );
 
-			echo '</p></div>';
+			self::notice( 'danger', $text, array( 'data-bwx-connection' => 'refused' ) );
 
 			return;
 		}
 
-		echo '<div class="notice notice-success" data-bwx-connection="ok"><p>';
-		printf(
+		$text = sprintf(
 			/* translators: %s: the client name the studio holds for this site. */
 			esc_html__( 'Connected to the studio as %s.', 'blueworx-forge' ),
 			'<strong data-bwx-client-name="1">' . esc_html( (string) ( $handshake['name'] ?? '' ) ) . '</strong>'
 		);
-		echo '</p></div>';
+
+		self::notice( 'success', $text, array( 'data-bwx-connection' => 'ok' ), true );
 	}
 
 	/**
@@ -172,7 +242,6 @@ final class ConnectionScreen {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-connect="1">';
 		wp_nonce_field( 'bwx_forge_client_connect' );
 		echo '<input type="hidden" name="action" value="bwx_forge_client_connect">';
-		echo '<table class="form-table"><tbody>';
 
 		self::field(
 			'bwx-studio-url',
@@ -210,11 +279,14 @@ final class ConnectionScreen {
 			$key_hint
 		);
 
-		echo '</tbody></table>';
-		submit_button( __( 'Save', 'blueworx-forge' ) );
-		echo '</form>';
+		echo '<div class="bwx-formactions">';
+		printf(
+			'<input type="submit" name="submit" class="bw-btn bw-btn--primary" value="%s">',
+			esc_attr__( 'Save', 'blueworx-forge' )
+		);
+		echo '</div>';
 
-		self::disconnect_button();
+		echo '</form>';
 	}
 
 	/**
@@ -227,30 +299,28 @@ final class ConnectionScreen {
 	 * and it reports its own state separately.
 	 */
 	private static function updates(): void {
-		echo '<h2>' . esc_html__( 'Updates', 'blueworx-forge' ) . '</h2>';
-		echo '<p>' . esc_html__( 'This plugin updates itself from a private repository, so the site needs a read-only token to see releases at all. Without one it will never offer an update.', 'blueworx-forge' ) . '</p>';
+		printf(
+			'<p class="bw-card__note">%s</p>',
+			esc_html__( 'This plugin updates itself from a private repository, so the site needs a read-only token to see releases at all. Without one it will never offer an update.', 'blueworx-forge' )
+		);
 
 		$status = Updates::status();
-		$class  = 'ok' === $status['state'] ? 'success' : ( 'none' === $status['state'] ? 'warning' : 'error' );
-
-		echo '<div class="notice notice-' . esc_attr( $class ) . '" data-bwx-updates="' . esc_attr( $status['state'] ) . '"><p>';
-		echo esc_html( $status['message'] );
+		$tone   = 'ok' === $status['state'] ? 'success' : ( 'none' === $status['state'] ? 'warning' : 'danger' );
+		$text   = esc_html( $status['message'] );
 
 		if ( '' !== $status['release'] ) {
-			echo ' ';
-			printf(
+			$text .= ' ' . sprintf(
 				/* translators: %s: the latest release tag, such as v2.31.0. */
 				esc_html__( 'The latest release is %s.', 'blueworx-forge' ),
 				'<strong data-bwx-latest-release="1">' . esc_html( $status['release'] ) . '</strong>'
 			);
 		}
 
-		echo '</p></div>';
+		self::notice( $tone, $text, array( 'data-bwx-updates' => (string) $status['state'] ), true );
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-update-token="1">';
 		wp_nonce_field( 'bwx_forge_client_save_update_token' );
 		echo '<input type="hidden" name="action" value="bwx_forge_client_save_update_token">';
-		echo '<table class="form-table"><tbody>';
 
 		// Never the token itself, for the same reason the key above is never
 		// rendered: a field that prints a credential puts it in the page source
@@ -269,15 +339,61 @@ final class ConnectionScreen {
 			$hint
 		);
 
-		echo '</tbody></table>';
-
 		if ( ! Updates::is_fixed() ) {
-			submit_button( __( 'Save', 'blueworx-forge' ) );
+			echo '<div class="bwx-formactions">';
+			printf(
+				'<input type="submit" name="submit" class="bw-btn bw-btn--primary" value="%s">',
+				esc_attr__( 'Save', 'blueworx-forge' )
+			);
+			echo '</div>';
 		}
 
 		echo '</form>';
+	}
 
-		self::forget_token_button();
+	/**
+	 * The panel that groups both destructive actions, apart from the ordinary
+	 * save actions above.
+	 *
+	 * Neither button is a save — one drops a credential, the other drops the
+	 * connection outright — so neither shares a panel with a form that saves.
+	 * A destructive control sitting next to a save control is how somebody
+	 * disconnects a live client site by accident.
+	 */
+	private static function destructive_actions(): void {
+		$show_forget     = '' !== Updates::stored_token();
+		$show_disconnect = Connection::is_configured();
+
+		if ( ! $show_forget && ! $show_disconnect ) {
+			return;
+		}
+
+		Page::panel_open( __( 'Destructive actions', 'blueworx-forge' ), 'destructive' );
+
+		printf(
+			'<p class="bw-fieldnote"><i class="bw-icon" data-lucide="triangle-alert"></i>%s</p>',
+			esc_html__( 'Neither of these can be undone from here.', 'blueworx-forge' )
+		);
+
+		if ( $show_forget ) {
+			echo '<div class="bw-formrow">';
+			printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Update token', 'blueworx-forge' ) );
+			echo '<div class="bw-formrow__control">';
+			printf( '<p class="bw-formrow__help">%s</p>', esc_html__( 'This site stops checking for updates until a new token is saved above.', 'blueworx-forge' ) );
+			self::forget_token_button();
+			echo '</div></div>';
+		}
+
+		if ( $show_disconnect ) {
+			echo '<div class="bw-formrow">';
+			printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Disconnect', 'blueworx-forge' ) );
+			echo '<div class="bw-formrow__control">';
+			printf( '<p class="bw-formrow__help">%s</p>', esc_html__( 'This site forgets its credentials. It does not tell the studio, which can cut this site off itself at any time.', 'blueworx-forge' ) );
+			self::disconnect_button();
+			echo '</div></div>';
+		}
+
+		Page::panel_close();
 	}
 
 	/**
@@ -291,7 +407,7 @@ final class ConnectionScreen {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_client_forget_update_token' );
 		echo '<input type="hidden" name="action" value="bwx_forge_client_forget_update_token">';
-		echo '<button type="submit" class="button" data-bwx-action="bwx_forge_client_forget_update_token">';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-action="bwx_forge_client_forget_update_token">';
 		echo esc_html__( 'Remove the stored token', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
@@ -304,12 +420,17 @@ final class ConnectionScreen {
 	 * @param string $name        Field name.
 	 * @param string $label       Field label.
 	 * @param string $value       Current value.
-	 * @param string $type        Input type.
+	 * @param string $type        Input type — passed straight through to the
+	 *                            markup, never hardcoded, which is what keeps
+	 *                            the key and the update token masked rather
+	 *                            than becoming plain text.
 	 * @param bool   $fixed       Whether wp-config.php sets this one.
 	 * @param string $description Optional hint under the field.
 	 */
 	private static function field( string $id, string $name, string $label, string $value, string $type, bool $fixed, string $description = '' ): void {
-		echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
+		echo '<div class="bw-formrow">';
+		printf( '<label class="bw-formrow__label" for="%1$s">%2$s</label>', esc_attr( $id ), esc_html( $label ) );
+		echo '<div class="bw-formrow__control">';
 
 		if ( $fixed ) {
 			// A secret is never printed back, even when wp-config.php is where it
@@ -317,15 +438,19 @@ final class ConnectionScreen {
 			// to say. The others are addresses and ids, which are worth showing.
 			$secret = in_array( $name, array( 'key', 'update_token' ), true );
 
-			echo '<code data-bwx-fixed="' . esc_attr( $name ) . '">' . esc_html( $secret ? __( 'set in wp-config.php', 'blueworx-forge' ) : $value ) . '</code>';
-			echo '<p class="description">' . esc_html__( 'Set in wp-config.php, so it cannot be changed here.', 'blueworx-forge' ) . '</p>';
-			echo '</td></tr>';
+			printf(
+				'<code class="bw-input--mono" data-bwx-fixed="%1$s">%2$s</code>',
+				esc_attr( $name ),
+				esc_html( $secret ? __( 'set in wp-config.php', 'blueworx-forge' ) : $value )
+			);
+			printf( '<p class="bw-formrow__help">%s</p>', esc_html__( 'Set in wp-config.php, so it cannot be changed here.', 'blueworx-forge' ) );
+			echo '</div></div>';
 
 			return;
 		}
 
 		printf(
-			'<input type="%1$s" id="%2$s" name="%3$s" value="%4$s" class="regular-text" autocomplete="off">',
+			'<input type="%1$s" id="%2$s" name="%3$s" value="%4$s" class="bw-input" autocomplete="off">',
 			esc_attr( $type ),
 			esc_attr( $id ),
 			esc_attr( $name ),
@@ -333,26 +458,20 @@ final class ConnectionScreen {
 		);
 
 		if ( '' !== $description ) {
-			echo '<p class="description">' . esc_html( $description ) . '</p>';
+			printf( '<p class="bw-formrow__help">%s</p>', esc_html( $description ) );
 		}
 
-		echo '</td></tr>';
+		echo '</div></div>';
 	}
 
 	/**
 	 * The button that forgets the credentials.
 	 */
 	private static function disconnect_button(): void {
-		if ( ! Connection::is_configured() ) {
-			return;
-		}
-
-		echo '<h2>' . esc_html__( 'Disconnect', 'blueworx-forge' ) . '</h2>';
-		echo '<p>' . esc_html__( 'This site forgets its credentials. It does not tell the studio, which can cut this site off itself at any time.', 'blueworx-forge' ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_client_disconnect' );
 		echo '<input type="hidden" name="action" value="bwx_forge_client_disconnect">';
-		echo '<button type="submit" class="button" data-bwx-action="bwx_forge_client_disconnect" onclick="return confirm(';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-action="bwx_forge_client_disconnect" onclick="return confirm(';
 		echo esc_attr( (string) wp_json_encode( __( 'Forget this site\'s studio credentials?', 'blueworx-forge' ) ) );
 		echo ')">' . esc_html__( 'Disconnect this site', 'blueworx-forge' ) . '</button>';
 		echo '</form>';

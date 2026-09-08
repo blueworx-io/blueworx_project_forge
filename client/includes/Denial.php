@@ -124,18 +124,25 @@ final class Denial {
 	/**
 	 * Renders the sentence, and whatever can actually be done about it.
 	 *
+	 * The design system's EmptyState: an icon, a short heading, and the sentence
+	 * itself. All three existing attributes stay on the outer element — seven
+	 * screens call this and the pair suite reads every one of them.
+	 *
 	 * @param string $state   One of the Sync STATE_ constants.
 	 * @param string $subject One of the SUBJECTS.
 	 * @param string $test_id A hook for tests and styling.
 	 */
 	public static function render( string $state, string $subject, string $test_id = 'bwx-denial' ): void {
 		printf(
-			'<p class="bwx-empty" data-testid="%1$s" data-bwx-denial="%2$s" data-bwx-subject="%3$s">%4$s',
+			'<div class="bw-empty" data-testid="%1$s" data-bwx-denial="%2$s" data-bwx-subject="%3$s">',
 			esc_attr( $test_id ),
 			esc_attr( $state ),
-			esc_attr( $subject ),
-			esc_html( self::sentence( $state, $subject ) )
+			esc_attr( $subject )
 		);
+
+		printf( '<i class="bw-icon bw-empty__icon" data-lucide="%s"></i>', esc_attr( self::icon( $state ) ) );
+		printf( '<h3 class="bw-empty__title">%s</h3>', esc_html( self::heading( $state ) ) );
+		printf( '<p class="bw-empty__text">%s', esc_html( self::sentence( $state, $subject ) ) );
 
 		/*
 		 * The one state with something to do about it from here. A studio that
@@ -151,7 +158,42 @@ final class Denial {
 			);
 		}
 
-		echo '</p>';
+		echo '</p></div>';
+	}
+
+	/**
+	 * The icon for a denial's EmptyState — a shorthand for which of the three
+	 * it is, before anybody reads a word.
+	 *
+	 * @param string $state One of the Sync STATE_ constants.
+	 * @return string A lucide icon name shipped with the design system.
+	 */
+	private static function icon( string $state ): string {
+		switch ( $state ) {
+			case Sync::STATE_NOT_CONFIGURED:
+				return 'plug';
+			case Sync::STATE_REFUSED:
+				return 'shield-alt';
+			default:
+				return 'triangle-alert';
+		}
+	}
+
+	/**
+	 * The EmptyState's short heading, ahead of the full sentence.
+	 *
+	 * @param string $state One of the Sync STATE_ constants.
+	 * @return string
+	 */
+	private static function heading( string $state ): string {
+		switch ( $state ) {
+			case Sync::STATE_NOT_CONFIGURED:
+				return __( 'Not connected yet', 'blueworx-forge' );
+			case Sync::STATE_REFUSED:
+				return __( 'Not available here', 'blueworx-forge' );
+			default:
+				return __( 'Cannot be reached right now', 'blueworx-forge' );
+		}
 	}
 
 	/**

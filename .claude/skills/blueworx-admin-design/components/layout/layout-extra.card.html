@@ -1,0 +1,38 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Layout — toolbar, accordion, drawer, sidebar" subtitle="Filter strips, collapsible panels, slide-overs and the two-column screen" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Layout extras</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:var(--bw-canvas)}#root{display:flex;flex-direction:column;gap:16px}</style></head>
+<body class="bw-admin"><div id="root"></div>
+<script type="text/babel">
+const { Toolbar, Accordion, Drawer, Divider, ScreenLayout, Card, Input, Select, Button, Badge, BulkActions, DescriptionList, Pagination } = window.BlueWorxAdminDesignSystem_75753e;
+function Demo() {
+  const [drawer, setDrawer] = React.useState(false);
+  return (
+    <>
+      <Card flush title="Members">
+        <Toolbar right={<Pagination page={1} totalPages={16} compact />}>
+          <span className="bw-toolbar__search"><Input icon="search" size="sm" placeholder="Search members" /></span>
+          <span style={{ width: 140 }}><Select placeholder="All plans" options={['Pro annual', 'Monthly']} /></span>
+          <BulkActions count={2} actions={['Export', 'Remove']} value="" onChange={() => {}} />
+        </Toolbar>
+      </Card>
+      <ScreenLayout narrowSidebar sidebar={<Card title="Status"><DescriptionList stack items={[['State', <Badge tone="success">Active</Badge>], ['Renews', '01 Sep 2026']]} /></Card>}>
+        <Accordion title="Advanced" subtitle="Webhooks, cron and debug logging" aside={<Badge tone="neutral">3</Badge>} defaultOpen>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--bw-text-muted)' }}>Settings most sites never need to touch.</p>
+          <Divider label="Danger zone" />
+          <Button variant="danger" size="sm" icon="trash-2" onClick={() => setDrawer(true)}>Open drawer example</Button>
+        </Accordion>
+        <Accordion title="Developer" subtitle="REST namespace and capabilities" />
+      </ScreenLayout>
+      <Drawer open={drawer} title="Priya Raman" subtitle="priya@example.com" onClose={() => setDrawer(false)}
+        footer={<><Button onClick={() => setDrawer(false)}>Close</Button><Button variant="primary">Save</Button></>}>
+        <DescriptionList stack items={[['Plan', 'Pro annual · £180/yr'], ['Renews', '01 Sep 2026'], ['Card', 'Visa ···· 4242']]} />
+      </Drawer>
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

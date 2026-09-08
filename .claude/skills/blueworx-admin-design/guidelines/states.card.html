@@ -1,0 +1,17 @@
+<!-- @dsCard group="Brand" viewport="700x180" name="Interaction states" subtitle="Hover, focus ring, pressed, disabled" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>States</title><link rel="stylesheet" href="../styles.css"><style>body{margin:0;padding:20px;background:#fff;font-family:var(--bw-font-body);color:var(--bw-text-body)}</style></head><body class="bw-admin" style="background:#fff">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+<button class="bw-btn bw-btn--primary">Default</button>
+<button class="bw-btn bw-btn--primary" style="background:var(--bw-brand-deep);border-color:var(--bw-brand-deep)">Hover</button>
+<button class="bw-btn bw-btn--primary" style="outline:2px solid var(--bw-brand);outline-offset:1px">Focus</button>
+<button class="bw-btn bw-btn--primary" disabled>Disabled</button>
+</div>
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+<button class="bw-btn bw-btn--secondary">Default</button>
+<button class="bw-btn bw-btn--secondary" style="background:var(--bw-field);border-color:var(--bw-line-strong)">Hover</button>
+<input class="bw-input" style="width:200px;outline:2px solid var(--bw-brand);outline-offset:1px" value="Focused field" readonly>
+<input class="bw-input" style="width:150px" value="Disabled" disabled>
+</div>
+<p style="font-size:12px;color:var(--bw-text-muted);margin:0">Focus is always a 2px brand outline at 1px offset — never a removed outline, never a glow.</p>
+</div></body></html>

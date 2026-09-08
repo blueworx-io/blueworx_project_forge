@@ -35,8 +35,8 @@ final class BoardScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'Board', 'blueworx-forge' ),
-			__( 'Board', 'blueworx-forge' ),
+			__( 'Work Board', 'blueworx-forge' ),
+			__( 'Work Board', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -65,7 +65,7 @@ final class BoardScreen {
 
 		WorkScreen::render(
 			self::SLUG,
-			__( 'Forge — board', 'blueworx-forge' ),
+			__( 'Work Board', 'blueworx-forge' ),
 			array( self::class, 'columns' )
 		);
 	}
@@ -117,13 +117,13 @@ final class BoardScreen {
 		);
 
 		printf(
-			'<h2 class="bwx-column-head"><span>%1$s</span> <span class="bwx-column-count">%2$s</span></h2>',
+			'<h2 class="bwx-column-head"><span class="bw-card__title">%1$s</span> <span class="bw-badge bw-badge--neutral">%2$s</span></h2>',
 			esc_html( $label ),
 			esc_html( (string) count( $items ) )
 		);
 
 		if ( array() === $items ) {
-			printf( '<p class="bwx-empty">%s</p>', esc_html__( 'Nothing here', 'blueworx-forge' ) );
+			self::nothing_here();
 		}
 
 		foreach ( $items as $item ) {
@@ -131,6 +131,17 @@ final class BoardScreen {
 		}
 
 		echo '</section>';
+	}
+
+	/**
+	 * A column with no work in it — drawn anyway (see the class note above),
+	 * as the design system's EmptyState rather than the old italic line.
+	 */
+	private static function nothing_here(): void {
+		echo '<div class="bw-empty">';
+		echo '<i class="bw-icon bw-empty__icon" data-lucide="archive"></i>';
+		printf( '<h3 class="bw-empty__title">%s</h3>', esc_html__( 'Nothing here', 'blueworx-forge' ) );
+		echo '</div>';
 	}
 
 	/**

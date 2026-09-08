@@ -1,0 +1,37 @@
+<!-- @dsCard group="Components" viewport="700x330" name="Data — details, activity, bulk actions" subtitle="Read-only record detail, history and list-table bulk controls" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Data extras</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;padding:20px;background:var(--bw-canvas)}</style></head>
+<body class="bw-admin"><div id="root"></div>
+<script type="text/babel">
+const { DescriptionList, ActivityLog, BulkActions, Card, Badge } = window.BlueWorxAdminDesignSystem_75753e;
+function Demo() {
+  const [action, setAction] = React.useState('');
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+      <Card title="Details">
+        <DescriptionList items={[
+          ['Plan', 'Pro annual · £180/yr'],
+          ['Status', <Badge tone="success">Active</Badge>],
+          ['Renews', '01 Sep 2026'],
+          ['Card', 'Visa ···· 4242'],
+        ]} />
+      </Card>
+      <Card title="History">
+        <ActivityLog items={[
+          { icon: 'circle-check', text: 'Payment of £180.00 succeeded', meta: 'Stripe · 2 hours ago' },
+          { icon: 'mail', text: 'Receipt emailed to priya@example.com', meta: '2 hours ago' },
+          { icon: 'users', text: 'Member created', meta: 'Luke · 12 Mar 2026' },
+        ]} />
+      </Card>
+      <div style={{ gridColumn: '1/-1' }}>
+        <Card><BulkActions count={2} actions={['Export', 'Change plan', 'Remove']} value={action} onChange={setAction} onApply={() => setAction('')} /></Card>
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

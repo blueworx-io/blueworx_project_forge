@@ -1,0 +1,64 @@
+<!-- @dsCard group="Components" viewport="1100x620" name="Data — summary strip and timeline" subtitle="Derived figures under a header, and phases against a week scale" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Data — planning</title><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--bw-surface-page)}#root{display:flex;flex-direction:column}.pad{padding:20px}</style></head>
+<body class="bw-admin"><div id="root"></div>
+<script type="text/babel">
+const { SummaryStrip, DataTable, Gantt, Card, IconButton } = window.BlueWorxAdminDesignSystem_75753e;
+
+const PHASES = [
+  { id: 1, title: 'Discovery and research', range: 'Weeks 1–2', start: 1, end: 2, kind: 'pre' },
+  { id: 2, title: 'UX and content', range: 'Weeks 2–4', start: 2, end: 4, kind: 'pre' },
+  { id: 3, title: 'UI design', range: 'Weeks 4–7 · Design sign-off', start: 4, end: 7, kind: 'pre', label: 'Design sign-off' },
+  { id: 4, title: 'Development', range: 'Weeks 7–13', start: 7, end: 13, kind: 'pre', label: 'Build' },
+  { id: 5, title: 'QA and UAT', range: 'Weeks 13–15', start: 13, end: 15, kind: 'pre' },
+  { id: 6, title: 'Launch', range: 'Week 15 · Launch', start: 15, end: 15, kind: 'launch', label: 'Launch' },
+  { id: 7, title: 'Launch monitoring', range: 'Weeks 16–18', start: 16, end: 18, kind: 'post', visible: false },
+  { id: 8, title: 'Optimisation and growth', range: 'Weeks 18–26', start: 18, end: 26, kind: 'post', label: 'Optimisation' },
+];
+
+const GROUPS = [
+  { id: 'discovery', title: 'Discovery', subtotalLabel: 'Phase subtotal 24 hrs', rows: [
+    { id: 1, title: <><span className="bw-table__primary">Stakeholder interviews</span><span className="bw-table__sub">Six sessions across the client team</span></>, hours: '16' },
+    { id: 2, title: <><span className="bw-table__primary">Competitor review</span><span className="bw-table__sub">Five comparable clubs</span></>, hours: '8' },
+  ] },
+  { id: 'design', title: 'UI design', subtotalLabel: 'Phase subtotal 48 hrs', rows: [
+    { id: 3, title: <><span className="bw-table__primary">Key screens</span><span className="bw-table__sub">Home, fixtures, booking, account</span></>, hours: '30' },
+    { id: 4, title: <><span className="bw-table__primary">Design system</span><span className="bw-table__sub">Type, colour and components</span><span className="bw-table__note"><i className="bw-icon bw-icon--14" data-lucide="lock"></i>Internal: reuses last quarter's kit</span></>, hours: '18' },
+  ] },
+];
+
+function Demo() {
+  return (
+    <>
+      <SummaryStrip cells={[
+        { label: 'Project estimate', value: '232 hrs', foot: '18 line items' },
+        { label: 'Post-launch work', value: '64 hrs', foot: '6 line items' },
+        { label: 'In package calculation', value: '296 hrs', foot: 'Across both builders' },
+        { label: 'Readiness', value: '71%', foot: '5 of 7 done' },
+      ]} />
+      <div className="pad">
+        <Card flush title="Work required before launch">
+          <DataTable
+            columns={[{ key: 'title', label: 'Work item' }, { key: 'hours', label: 'Hours', align: 'right', width: 90 }]}
+            groups={GROUPS}
+            total={{ label: 'Project total', value: '232 hrs' }} />
+        </Card>
+      </div>
+      <div className="pad" style={{ paddingTop: 0 }}>
+        <Card title="Project weeks" note="Dates are never derived from estimated hours — set them to match the team's real availability.">
+          <Gantt
+            span={26}
+            ticks={['Week 1', 'Week 5', 'Week 9', 'Week 13', 'Week 17', 'Week 21', 'Week 25']}
+            phases={PHASES}
+            actions={(p) => <IconButton icon="pencil" label={`Edit ${p.title}`} size="sm" />} />
+        </Card>
+      </div>
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script></body></html>

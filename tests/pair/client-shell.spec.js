@@ -74,20 +74,21 @@ async function connectedPair(browser, name) {
 const RUN = `shell${Date.now()}`;
 
 test.describe('the client workspace frame', () => {
-  test('the workspace screen carries navigation for the client pages', async ({ browser }) => {
+  test('the client pages are reachable from the WordPress admin menu', async ({ browser }) => {
     const { client } = await connectedPair(browser, `${RUN} frame`);
     const page = await client.context.newPage();
 
     await page.goto(HOME);
 
-    const nav = page.locator('[data-testid="bwx-client-nav"]');
-    await expect(nav).toBeVisible();
+    // The tab strip is gone — the side menu is the navigation. What matters is
+    // that the client pages still hang off one place rather than being a set of
+    // unrelated admin pages with no way in.
+    const menu = page.locator('#adminmenu a[href*="page=blueworx-forge-client"]');
+    await expect(menu.first()).toBeVisible();
+    expect(await menu.count()).toBeGreaterThan(1);
 
-    // The pages that exist now. Later issues add to this; what matters here is
-    // that there is one frame they all hang off rather than a set of unrelated
-    // admin pages.
-    await expect(nav.locator('[data-testid="bwx-client-nav-item"]')).not.toHaveCount(0);
-    await expect(nav).toContainText('Overview');
+    // And nothing repeats it along the top.
+    await expect(page.locator('[data-testid="bwx-client-nav"]')).toHaveCount(0);
 
     await page.close();
   });
@@ -105,15 +106,39 @@ test.describe('the client workspace frame', () => {
     await page.close();
   });
 
+  // Task 7 moved the scope line out of Nav::render() and into Page::open()'s
+  // eyebrow, which only the top-level screen (tested above, at HOME) was built
+  // on at the time. Task 10 moved the board's frame (WorkScreen::render()) onto
+  // the same shell, so the board now carries the eyebrow too.
+  test(
+    'the board screen also names the client whose workspace it is',
+    async ({ browser }) => {
+      const { client } = await connectedPair(browser, `${RUN} board named`);
+      const page = await client.context.newPage();
+
+      await page.goto('/wp-admin/admin.php?page=blueworx-forge-client-board');
+
+      await expect(page.locator('[data-testid="bwx-client-scope"]')).toBeVisible();
+      await expect(page.locator('[data-testid="bwx-client-scope"]')).toContainText(
+        `${RUN} board named`
+      );
+
+      await page.close();
+    }
+  );
+
   test('no link in the frame carries a client or a site to address', async ({ browser }) => {
     const { client } = await connectedPair(browser, `${RUN} links`);
     const page = await client.context.newPage();
 
     await page.goto(HOME);
 
-    const targets = await page
-      .locator('[data-testid="bwx-client-nav"] a')
-      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href') ?? ''));
+    const links = page.locator('#adminmenu a[href*="page=blueworx-forge-client"]');
+    await expect(links.first()).toBeVisible();
+
+    const targets = await links.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('href') ?? '')
+    );
 
     expect(targets.length).toBeGreaterThan(0);
 
@@ -137,6 +162,24 @@ test.describe('the client workspace frame', () => {
 
     await expect(page.locator('[data-testid="bwx-client-scope"]')).toContainText(`${RUN} edited`);
     await expect(page.locator('body')).not.toContainText('somebody else');
+
+    await page.close();
+  });
+
+  test('the client screens are built on the shared design system shell', async ({ browser }) => {
+    const { client } = await connectedPair(browser, `${RUN} shell`);
+    const page = await client.context.newPage();
+
+    await page.goto(HOME);
+
+    await expect(page.locator('.bw-admin.bw-page')).toBeVisible();
+    await expect(page.locator('.bw-pagehead')).toBeVisible();
+
+    // The design system's stylesheet is actually on the page, not just referenced.
+    const loaded = await page.evaluate(() =>
+      [...document.styleSheets].some((s) => (s.href || '').includes('blueworx-admin-design.css'))
+    );
+    expect(loaded, 'the design system stylesheet is enqueued').toBe(true);
 
     await page.close();
   });
