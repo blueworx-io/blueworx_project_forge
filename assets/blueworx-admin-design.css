@@ -711,6 +711,16 @@ input.bw-titleinput:focus{border-color:var(--bw-brand);box-shadow:none}
 .bw-notice--warning{background:var(--bw-warning-wash);border-color:#F0DFA8}
 .bw-notice--danger{background:var(--bw-danger-wash);border-color:#F1C7C7}
 .bw-notice--accent{background:var(--bw-brand-wash);border-color:var(--bw-brand-line)}
+/* The icon takes its colour from the tone, here rather than from whoever
+   renders the notice. It used to be a prop on the React component, which left
+   a PHP screen no way to say it but an inline style — the one thing the admin
+   UI check tells people not to write. The icon's SVG strokes in currentColor,
+   so setting colour on the wrapper is all this needs. */
+.bw-notice--info .bw-notice__icon{color:var(--bw-info-deep)}
+.bw-notice--success .bw-notice__icon{color:var(--bw-success-deep)}
+.bw-notice--warning .bw-notice__icon{color:var(--bw-warning-deep)}
+.bw-notice--danger .bw-notice__icon{color:var(--bw-danger-deep)}
+.bw-notice--accent .bw-notice__icon{color:var(--bw-text-accent)}
 
 .bw-scrim{position:fixed;inset:0;background:var(--bw-scrim);display:flex;align-items:center;justify-content:center;padding:var(--bw-space-9);z-index:100}
 .bw-modal{width:100%;max-width:520px;background:var(--bw-surface-card);border-radius:var(--bw-radius-lg);box-shadow:var(--bw-shadow-overlay);display:flex;flex-direction:column;max-height:90vh}
