@@ -109,10 +109,13 @@ everything else. The system has 52 components and, unlike the client's calendar,
 nothing on the studio side has no counterpart — these are lists, forms and
 dashboards, which is what the system is for.
 
-**Every screen keeps its existing `data-testid` attributes.** They are the contract
-the eleven specs hold, and they are what makes this a rebuild rather than a
-rewrite with a hope attached. Adding new ones is fine; removing or renaming one is
-not, unless the same commit updates the spec that reads it.
+**Every screen keeps its existing `data-bwx-*` attributes and element ids.** The
+studio marks its screens with `data-bwx-people`, `data-bwx-site`,
+`data-bwx-result` and the rest — 167 distinct hooks across the eleven — rather
+than with the `data-testid` the client plugin uses. Same contract, different
+spelling, and it is what makes this a rebuild rather than a rewrite with a hope
+attached. Adding new ones is fine; removing or renaming one is not, unless the
+same commit updates the spec that reads it.
 
 ## PR two — the forms
 
@@ -123,22 +126,47 @@ row actions, or a dashboard. So on most of these screens it takes the edit half 
 the list half stays hand-built on components — and on two screens it takes nothing
 at all.
 
-| Screen | What moves | Store |
-|---|---|---|
-| Updates | The whole screen | `option` |
-| Sites | The connect form | callback |
-| Clients | The client detail form | callback |
-| People | The add-person and grants forms | callback |
-| Packages | The package edit form | callback |
-| Onboarding templates | The template edit form | callback |
-| Availability | The pattern and time-off forms | callback |
-| Meetings | The series form | callback |
-| Support | The entitlement form | callback |
-| Sync | Nothing — it is two lists | — |
-| Sales | Nothing — it is a dashboard | — |
+| Screen | What moves | Store | When |
+|---|---|---|---|
+| Updates | The whole screen | `option` | PR two |
+| Sites | The connect form | callback | Deferred — see below |
+| Clients | The client detail form | callback | Deferred |
+| People | The add-person and grants forms | callback | Deferred |
+| Packages | The package edit form | callback | Deferred |
+| Onboarding templates | The template edit form | callback | Deferred |
+| Availability | The pattern and time-off forms | callback | Deferred |
+| Meetings | The series form | callback | Deferred |
+| Support | The entitlement form | callback | Deferred |
+| Sync | Nothing — it is two lists | — | — |
+| Sales | Nothing — it is a dashboard | — | — |
 
-Updates is the only clean option-backed fit: one option, three values, exactly the
-shape the client's connection screen had.
+### The library owns the page, and that changes what "move a form" costs
+
+Read closely, `Editor::register()` is the library's entire public surface, and
+`Screen::menu()` registers a WordPress admin page per registered screen. There is
+no way to render one of its forms inside a screen the plugin already owns.
+
+So moving a form onto the library is not a change inside a screen. It adds an
+admin page at its own slug, opened with `?id=`, and the hand-built listing beside
+it becomes a set of links into that page. Nine forms means eight new entries in
+the studio's admin menu, and the shape of the menu is something to look at rather
+than something to infer from a spec.
+
+The client plugin is no precedent either, despite #285's spec saying it would be:
+nothing in `client/` calls `Editor::register()`, and `ConnectionScreen` is still
+hand-built. The library ships in the client zip and registers nothing. So the
+first real use of it in this repo is ahead of us, not behind.
+
+**This is the one open question in this design**, and it is deliberately scoped so
+it cannot hold anything up. PR two moves **Updates only** — the one screen where
+the library owning the page changes nothing, because it is already its own page
+with no listing beside it. That proves the library end to end in this repo, on the
+smallest possible surface. The remaining eight forms wait on a decision about the
+admin menu, taken with the Updates screen in front of you rather than in the
+abstract.
+
+Updates is also the only clean option-backed fit: one option, three values, exactly
+the shape #285 described for the client's connection screen.
 
 Everything else lives in custom tables — `wp_bwx_forge_clients`,
 `wp_bwx_forge_users`, `wp_bwx_forge_memberships` and the rest — not in posts or
@@ -204,8 +232,8 @@ next to the React application.
 - The eleven screen specs pass unchanged after PR one.
 - No admin screen enqueues `tokens/forge.css`; the React application still does.
 - `style-isolation.spec.js` and `accessibility.spec.js` pass after both PRs.
-- Nine screens' forms are the page editor library's, with new specs covering each
-  moved save path.
+- The Updates screen is the page editor library's, with a spec covering its save
+  path, and the other eight forms are written up as a decision waiting on you.
 - The studio zip contains `blueworx-page-editor`, and ARCH-9 says why.
 - `npm run lint`, `npm run build`, `composer lint` and `npm run test:unit` pass on
   both branches.
