@@ -112,8 +112,10 @@ test.describe('the client dashboard', () => {
     const page = await client.context.newPage();
     await page.goto(HOME);
 
-    // Five sections, and every one that can be empty says which kind of empty.
-    await expect(page.locator('[data-testid="bwx-panel"]')).toHaveCount(5);
+    // Seven sections, and every one that can be empty says which kind of empty.
+    // Five until #287, when Support Details stopped being a screen of its own
+    // and its three panels joined these four.
+    await expect(page.locator('[data-testid="bwx-panel"]')).toHaveCount(7);
 
     await expect(page.locator('[data-bwx-panel="contact"]')).toContainText('Nobody is assigned');
     await expect(page.locator('[data-bwx-panel="attention"]')).toContainText(
