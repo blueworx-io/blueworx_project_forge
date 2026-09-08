@@ -62,16 +62,13 @@ final class Styles {
 	color: var(--text-primary, #1d2327);
 }
 
-.bwx-card-key { color: var(--text-muted, #646970); }
-
 .bwx-empty { color: var(--text-muted, #646970); font-style: italic; margin: 0; }
 
-.bwx-timeline { border: 1px solid var(--border-subtle, #dcdcde); border-radius: var(--radius-cards, 8px); background: var(--surface-card, #fff); padding: 0.75rem; }
-.bwx-timeline-scale { display: flex; justify-content: space-between; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); margin-bottom: 0.5rem; }
-.bwx-timeline-row { display: grid; grid-template-columns: minmax(8rem, 18rem) 1fr; gap: 0.75rem; align-items: center; padding: 0.3rem 0; }
-.bwx-timeline-label { font-size: var(--text-small, 0.85rem); }
-.bwx-timeline-track { position: relative; height: 1.5rem; background: var(--surface-muted, #f6f7f7); border-radius: var(--radius-pills, 999px); }
-.bwx-timeline-bar { position: absolute; top: 0.25rem; height: 1rem; min-width: 0.35rem; background: var(--surface-action, #2271b1); border-radius: var(--radius-pills, 999px); }
+/* Two things the design system's Gantt has no pattern for, both ours to keep:
+   the end tick made to read as a right-hand edge rather than a left-aligned
+   label (the component's ruler is built for many evenly-spaced ticks, not a
+   from/to pair), and a "today" marker, which the system does not have at all. */
+.bwx-timeline-tick--end { text-align: right; }
 .bwx-timeline-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--color-coral, #d63638); }
 
 .bwx-calendar { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--surface-card, #fff); }

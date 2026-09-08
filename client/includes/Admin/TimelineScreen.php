@@ -22,6 +22,22 @@ use Blueworx\Forge\Client\Layout;
  * looking at a timeline naturally reads it as everything they have, so work
  * that cannot be placed has to be visible somewhere on the same screen or the
  * chart is quietly lying about how much is going on.
+ *
+ * Drawn from the shared design system's Gantt (docs #ARCH-...): rows, labels
+ * and a track with a bar positioned by inline percentages are exactly what
+ * this screen already did by hand. Three things about the component do not
+ * transfer, and neither is worked around by inventing something new:
+ *
+ * - Its legend names onboarding phases ("Pre-launch", "Launch milestone",
+ *   "Post-launch"). A client's work items are not phases of a launch, so the
+ *   legend is omitted rather than relabelled with something that would not be
+ *   true either.
+ * - Its bar modifiers (`--pre`, `--launch`, `--post`) are the same
+ *   vocabulary. A bare `.bw-gantt__bar` is styled on its own, so it is used
+ *   unmodified rather than assigning an item an arbitrary kind.
+ * - There is no "today" marker anywhere in the design system. `today_marker()`
+ *   below and its `.bwx-timeline-today` rule in Styles::css() are genuinely
+ *   this screen's own.
  */
 final class TimelineScreen {
 
@@ -71,17 +87,21 @@ final class TimelineScreen {
 			return;
 		}
 
-		echo '<div class="bwx-timeline" data-testid="bwx-timeline">';
+		echo '<div class="bw-gantt" data-testid="bwx-timeline">';
 
 		printf(
-			'<p class="bwx-timeline-scale"><span>%1$s</span><span>%2$s</span></p>',
+			'<div class="bw-gantt__ruler"><span class="bw-gantt__tick">%1$s</span><span class="bw-gantt__tick bwx-timeline-tick--end">%2$s</span></div>',
 			esc_html( Card::day( (string) $axis['from'] ) ),
 			esc_html( Card::day( (string) $axis['to'] ) )
 		);
 
+		echo '<div class="bw-gantt__rows">';
+
 		foreach ( $items as $item ) {
 			self::row( $item, $axis );
 		}
+
+		echo '</div>';
 
 		echo '</div>';
 
@@ -102,18 +122,19 @@ final class TimelineScreen {
 		}
 
 		printf(
-			'<div class="bwx-timeline-row" data-testid="bwx-timeline-row" data-bwx-item="%s">',
+			'<div class="bw-gantt__row" data-testid="bwx-timeline-row" data-bwx-item="%s">',
 			esc_attr( (string) ( $item['id'] ?? '' ) )
 		);
 
 		printf(
-			'<div class="bwx-timeline-label">%1$s <span class="bwx-card-key">%2$s</span></div>',
+			'<span class="bw-gantt__label"><span class="bw-gantt__title">%1$s <span class="bw-badge bw-badge--neutral">%2$s</span></span><span class="bw-gantt__range">%3$s</span></span>',
 			esc_html( (string) ( $item['title'] ?? '' ) ),
-			esc_html( (string) ( $item['stage_label'] ?? '' ) )
+			esc_html( (string) ( $item['stage_label'] ?? '' ) ),
+			esc_html( self::span_label( $item ) )
 		);
 
 		printf(
-			'<div class="bwx-timeline-track"><span class="bwx-timeline-bar" style="left:%1$s%%;width:%2$s%%" title="%3$s"></span>%4$s</div>',
+			'<span class="bw-gantt__track"><span class="bw-gantt__bar" style="left:%1$s%%;width:%2$s%%" title="%3$s"></span>%4$s</span>',
 			esc_attr( (string) $place['left'] ),
 			esc_attr( (string) $place['width'] ),
 			esc_attr( self::span_label( $item ) ),
@@ -124,7 +145,13 @@ final class TimelineScreen {
 	}
 
 	/**
-	 * The dates a bar covers, for the title attribute.
+	 * The dates a bar covers.
+	 *
+	 * Used twice: as the bar's title attribute, and as the row's visible
+	 * `bw-gantt__range` text. A bar conveys its dates only through position and
+	 * a hover tooltip, which is not reachable by keyboard or a screen reader —
+	 * printing the same string into the label's range line is what makes the
+	 * date range actually readable rather than only seen.
 	 *
 	 * @param array<string, mixed> $item A board item.
 	 * @return string
