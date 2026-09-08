@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Client\Admin;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Discussion;
 use Blueworx\Forge\Client\Sync;
+use Blueworx\Forge\Client\Workspace;
 
 /**
  * The client's view of one work item, with the three things they may do (#133).
@@ -108,15 +109,17 @@ final class ItemScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-
 		$view = Discussion::view( $item_id, SyncNotice::refresh_requested() );
 		$item = (array) $view['item'];
 
-		printf(
-			'<h1>%s</h1>',
-			esc_html( '' === (string) ( $item['title'] ?? '' ) ? __( 'Work', 'blueworx-forge' ) : (string) $item['title'] )
-		);
+		// The eyebrow needs the workspace's own read for whose workspace this
+		// is (#128, #126) — the same reason WorkScreen and AskedScreen read it
+		// separately from the item itself. Not a new read: it is cached the
+		// same as any other read-through view.
+		$workspace = Workspace::view( false );
+		$heading   = '' === (string) ( $item['title'] ?? '' ) ? __( 'Work', 'blueworx-forge' ) : (string) $item['title'];
+
+		Page::open( $heading, Nav::scope_text( $workspace ) );
 
 		Nav::render( BoardScreen::SLUG );
 
@@ -156,14 +159,14 @@ final class ItemScreen {
 			 * saying something the refusal is careful not to.
 			 */
 			Denial::render( Sync::STATE_REFUSED, Denial::ITEM, 'bwx-item-missing' );
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
 
 		if ( ! $view['ok'] ) {
 			Denial::render( $state, Denial::ITEM, 'bwx-item-unavailable' );
-			echo '</div>';
+			Page::close();
 
 			return;
 		}
@@ -177,7 +180,7 @@ final class ItemScreen {
 		self::say( $item_id, (array) $view['may'] );
 		self::nothing_moves();
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -185,7 +188,7 @@ final class ItemScreen {
 	 */
 	private static function back_link(): void {
 		printf(
-			'<p><a href="%s">%s</a></p>',
+			'<p><a class="bw-btn bw-btn--link" href="%s">%s</a></p>',
 			esc_url( admin_url( 'admin.php?page=' . BoardScreen::SLUG ) ),
 			esc_html__( '← Back to the board', 'blueworx-forge' )
 		);
@@ -207,8 +210,8 @@ final class ItemScreen {
 
 		$notices = array(
 			'added'         => array( 'success', __( 'Sent. The studio can see it.', 'blueworx-forge' ) ),
-			'refused'       => array( 'error', __( 'That was not sent.', 'blueworx-forge' ) ),
-			'unreachable'   => array( 'error', __( 'The studio could not be reached, so nothing was sent. What you wrote is still here — try again in a moment.', 'blueworx-forge' ) ),
+			'refused'       => array( 'danger', __( 'That was not sent.', 'blueworx-forge' ) ),
+			'unreachable'   => array( 'danger', __( 'The studio could not be reached, so nothing was sent. What you wrote is still here — try again in a moment.', 'blueworx-forge' ) ),
 			'not_connected' => array( 'warning', __( 'This site is not connected to the studio yet, so there is nowhere to send this.', 'blueworx-forge' ) ),
 		);
 
@@ -224,13 +227,32 @@ final class ItemScreen {
 		 * intake side of this product exists to prevent.
 		 */
 		$message = $notices[ $result ][1] . ( '' === $detail ? '' : ' ' . $detail );
+		$tone    = $notices[ $result ][0];
+		$icons   = array(
+			'success' => 'circle-check',
+			'danger'  => 'circle-alert',
+			'warning' => 'triangle-alert',
+		);
 
 		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $notices[ $result ][0] ),
+			'<div class="bw-notice bw-notice--%1$s" data-bwx-result="%2$s" role="%3$s">',
+			esc_attr( $tone ),
 			esc_attr( $result ),
+			esc_attr( 'danger' === $tone ? 'alert' : 'status' )
+		);
+
+		printf(
+			'<i class="bw-icon bw-notice__icon" data-lucide="%1$s" style="color:var(--bw-%2$s-deep)"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' ),
+			esc_attr( $tone )
+		);
+
+		printf(
+			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
 			esc_html( $message )
 		);
+
+		echo '</div>';
 	}
 
 	/**
@@ -252,14 +274,15 @@ final class ItemScreen {
 			return;
 		}
 
-		echo '<section class="bwx-asked" data-testid="bwx-questions">';
+		echo '<section class="bwx-asked bwx-questions" data-testid="bwx-questions">';
 
 		printf( '<h2>%s</h2>', esc_html__( 'The studio has asked you something', 'blueworx-forge' ) );
 
 		foreach ( $outstanding as $question ) {
 			$id = (string) ( $question['id'] ?? '' );
 
-			echo '<article class="bwx-asked-entry" data-testid="bwx-question">';
+			echo '<article class="bw-card bwx-question" data-testid="bwx-question">';
+			echo '<div class="bw-card__body">';
 
 			printf( '<p>%s</p>', esc_html( (string) ( $question['body'] ?? '' ) ) );
 
@@ -279,6 +302,7 @@ final class ItemScreen {
 					esc_html__( 'Answering this is your administrator\'s to do.', 'blueworx-forge' )
 				);
 
+				echo '</div>';
 				echo '</article>';
 
 				continue;
@@ -295,6 +319,7 @@ final class ItemScreen {
 				)
 			);
 
+			echo '</div>';
 			echo '</article>';
 		}
 
@@ -311,7 +336,7 @@ final class ItemScreen {
 	 * @param array<int, array<string, mixed>> $comments The client-visible thread.
 	 */
 	private static function thread( array $comments ): void {
-		echo '<section class="bwx-asked" data-testid="bwx-thread">';
+		echo '<section class="bwx-asked bwx-thread" data-testid="bwx-thread">';
 
 		printf( '<h2>%s</h2>', esc_html__( 'Conversation', 'blueworx-forge' ) );
 
@@ -330,9 +355,11 @@ final class ItemScreen {
 			$mine = ! empty( $comment['from_client'] );
 
 			printf(
-				'<article class="bwx-asked-entry" data-testid="bwx-thread-entry" data-bwx-from="%s">',
+				'<article class="bw-card bwx-thread-entry" data-testid="bwx-thread-entry" data-bwx-from="%s">',
 				esc_attr( $mine ? 'client' : 'studio' )
 			);
+
+			echo '<div class="bw-card__body">';
 
 			$body = trim( (string) ( $comment['body'] ?? '' ) );
 			$url  = trim( (string) ( $comment['url'] ?? '' ) );
@@ -353,6 +380,7 @@ final class ItemScreen {
 				esc_html( self::said_by( $comment ) )
 			);
 
+			echo '</div>';
 			echo '</article>';
 		}
 
@@ -375,7 +403,7 @@ final class ItemScreen {
 			return;
 		}
 
-		echo '<section class="bwx-asked" data-testid="bwx-say">';
+		echo '<section class="bwx-asked bwx-say" data-testid="bwx-say">';
 
 		printf( '<h2>%s</h2>', esc_html__( 'Say something about this', 'blueworx-forge' ) );
 
@@ -427,7 +455,7 @@ final class ItemScreen {
 		wp_nonce_field( ItemActions::ACTION );
 
 		printf(
-			'<p><label for="%1$s"><strong>%2$s</strong></label><br /><textarea class="large-text" rows="4" id="%1$s" name="body">%3$s</textarea></p>',
+			'<div class="bw-formrow"><label class="bw-formrow__label" for="%1$s">%2$s</label><div class="bw-formrow__control"><textarea class="bw-textarea" rows="4" id="%1$s" name="body">%3$s</textarea></div></div>',
 			esc_attr( $name ),
 			esc_html( (string) $shape['label'] ),
 			esc_textarea( $mine ? (string) ( $draft['body'] ?? '' ) : '' )
@@ -435,7 +463,7 @@ final class ItemScreen {
 
 		if ( ! empty( $shape['evidence'] ) ) {
 			printf(
-				'<p><label for="%1$s-url">%2$s</label><br /><input type="url" class="regular-text" id="%1$s-url" name="url" value="%3$s" /><br /><span class="description">%4$s</span></p>',
+				'<div class="bw-formrow"><label class="bw-formrow__label" for="%1$s-url">%2$s</label><div class="bw-formrow__control"><input type="url" class="bw-input" id="%1$s-url" name="url" value="%3$s" /><p class="bw-formrow__help">%4$s</p></div></div>',
 				esc_attr( $name ),
 				esc_html__( 'A link to something that helps', 'blueworx-forge' ),
 				esc_attr( $mine ? (string) ( $draft['url'] ?? '' ) : '' ),
@@ -443,7 +471,10 @@ final class ItemScreen {
 			);
 		}
 
-		submit_button( (string) $shape['submit'], 'primary', 'submit', false );
+		printf(
+			'<button type="submit" class="bw-btn bw-btn--primary" id="submit" name="submit">%s</button>',
+			esc_html( (string) $shape['submit'] )
+		);
 
 		echo '</form>';
 	}
@@ -458,10 +489,20 @@ final class ItemScreen {
 	 * card.
 	 */
 	private static function nothing_moves(): void {
+		echo '<div class="bw-empty" data-testid="bwx-no-moves">';
+		echo '<i class="bw-icon bw-empty__icon" data-lucide="info"></i>';
+
 		printf(
-			'<p class="bwx-empty" data-testid="bwx-no-moves">%s</p>',
+			'<h3 class="bw-empty__title">%s</h3>',
+			esc_html__( 'This will not move the work', 'blueworx-forge' )
+		);
+
+		printf(
+			'<p class="bw-empty__text">%s</p>',
 			esc_html__( 'Where work sits is the studio\'s to change. Anything you add here reaches them without moving it.', 'blueworx-forge' )
 		);
+
+		echo '</div>';
 	}
 
 	/**

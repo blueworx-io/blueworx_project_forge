@@ -95,21 +95,6 @@ final class Styles {
 .bwx-asked > .bw-card { margin: 0 0 0.75rem; }
 .bwx-asked > .bw-card:last-child { margin-bottom: 0; }
 
-/*
- * Still used by ItemScreen's own conversation views (#133), not yet
- * converted — the client's own entries there are indented and ruled with
- * this same box. "What you asked for" no longer draws its entries with it
- * (they are a bw-card now); leave it for ItemScreen to retire when its turn
- * comes.
- */
-.bwx-asked-entry {
-	background: var(--surface-card, #fff);
-	border: 1px solid var(--border-subtle, #dcdcde);
-	border-radius: var(--radius-cards, 8px);
-	padding: var(--card-padding-lg, 1rem);
-	margin: 0 0 0.75rem;
-}
-
 .bwx-asked-meta { margin: 0.15rem 0 0; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
 .bwx-asked-words { margin: 0.6rem 0 0; }
 .bwx-asked-words p { margin: 0 0 0.4rem; }
@@ -117,18 +102,18 @@ final class Styles {
 
 /*
  * The conversation on one item (#133). The client's own entries are indented
- * and ruled, the studio's are not — a letter and its reply, the same shape
- * "What you asked for" reads as now that it draws its entries as a bw-card.
+ * and ruled, the studio's are not — a letter and its reply. Both are a
+ * bw-card now; this only adds the asymmetry between the two parties.
  */
-.bwx-asked-entry[data-bwx-from="client"] {
+.bwx-thread-entry[data-bwx-from="client"] {
 	margin-left: 1.25rem;
-	border-left: 3px solid var(--surface-action, #2271b1);
+	border-left: 3px solid var(--bw-brand);
 }
 
 /* An outstanding question is the one thing on this page somebody has to act
    on, so it is the one thing that is coloured. */
-[data-testid="bwx-questions"] .bwx-asked-entry {
-	border-left: 3px solid var(--color-coral, #d63638);
+.bwx-question {
+	border-left: 3px solid var(--bw-danger);
 }
 
 [data-testid="bwx-questions"] form { margin-top: 0.6rem; }
