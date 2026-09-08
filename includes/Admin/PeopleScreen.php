@@ -18,14 +18,14 @@ use Blueworx\Forge\Tenancy\Users;
 /**
  * Adding a person, and seeing everywhere they work (#90).
  *
- * The listing is built around the thing AUTH-6 exists for: one person, one row,
- * with every client they touch shown beneath their name. If somebody appears
- * twice on this screen, something has gone wrong that capacity and attribution
- * will both inherit — so the screen is the place it shows.
+ * The listing is built around the thing AUTH-6 exists for: one person, one
+ * card, with every client they touch shown beneath their name. If somebody
+ * appears twice on this screen, something has gone wrong that capacity and
+ * attribution will both inherit — so the screen is the place it shows.
  *
- * Deliberately a plain WordPress admin screen, the same shape as the clients
- * screen: an operational tool for us, not part of the product's designed
- * interface.
+ * Deliberately a WordPress admin screen rather than a screen in the
+ * application, the same shape as the clients screen: an operational tool for
+ * us, not part of the product's designed interface.
  */
 final class PeopleScreen {
 
@@ -70,15 +70,17 @@ final class PeopleScreen {
 
 		$status = self::status_filter();
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — people', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'People', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'One person, one card, with everywhere they work beneath their name.', 'blueworx-forge' )
+		);
 
 		self::notice();
-		self::status_toggle_link( $status );
-		self::people_list( $status );
 		self::add_person_form();
+		self::people_list( $status );
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -97,6 +99,10 @@ final class PeopleScreen {
 	 * The link between the two views. Without it an offboarded person is
 	 * unreachable from this screen, and bringing somebody back is impossible.
 	 *
+	 * A link rather than the design system's switch, and deliberately: a switch
+	 * draws its on state from a checked input, so an anchor wearing one would
+	 * read as "off" whichever of the two views you were looking at.
+	 *
 	 * @param string $status The status filter in effect.
 	 */
 	private static function status_toggle_link( string $status ): void {
@@ -108,7 +114,14 @@ final class PeopleScreen {
 			$label = __( 'Show all, including offboarded', 'blueworx-forge' );
 		}
 
-		echo '<p><a href="' . esc_url( $url ) . '" data-bwx-status-toggle="' . esc_attr( $status ) . '">' . esc_html( $label ) . '</a></p>';
+		echo '<div class="bw-toolbar bw-toolbar--card"><div class="bw-toolbar__group">';
+		printf(
+			'<a class="bw-btn bw-btn--secondary" href="%1$s" data-bwx-status-toggle="%2$s">%3$s</a>',
+			esc_url( $url ),
+			esc_attr( $status ),
+			esc_html( $label )
+		);
+		echo '</div></div>';
 	}
 
 	/**
@@ -122,37 +135,58 @@ final class PeopleScreen {
 
 		$messages = array(
 			'added'     => array( 'success', __( 'Saved.', 'blueworx-forge' ) ),
-			'invalid'   => array( 'error', __( 'That could not be saved.', 'blueworx-forge' ) ),
-			'stale'     => array( 'error', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
-			'unknown'   => array( 'error', __( 'No such record.', 'blueworx-forge' ) ),
-			'duplicate' => array( 'error', __( 'Somebody already has that email address.', 'blueworx-forge' ) ),
+			'invalid'   => array( 'danger', __( 'That could not be saved.', 'blueworx-forge' ) ),
+			'stale'     => array( 'danger', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
+			'unknown'   => array( 'danger', __( 'No such record.', 'blueworx-forge' ) ),
+			'duplicate' => array( 'danger', __( 'Somebody already has that email address.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-notice="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-notice' => $result )
 		);
 	}
 
 	/**
 	 * Everyone, each with everywhere they work.
 	 *
+	 * The filter panel says which of the two views is showing and offers the
+	 * other; the people themselves follow it as cards, one per person.
+	 *
 	 * @param string $status The status filter in effect.
 	 */
 	private static function people_list( string $status ): void {
 		$people = Users::all( 'all' === $status ? null : 'active' );
 
+		Page::panel_open( __( 'Everyone', 'blueworx-forge' ), 'people' );
+
+		echo '<p class="bw-card__note">';
+		echo esc_html(
+			'all' === $status
+				? __( 'Showing everyone, including people who have been offboarded.', 'blueworx-forge' )
+				: __( 'Showing active people only.', 'blueworx-forge' )
+		);
+		echo '</p>';
+
+		self::status_toggle_link( $status );
+
 		if ( array() === $people ) {
-			echo '<p data-bwx-no-people="1">' . esc_html__( 'Nobody yet.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-people="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="users"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Nobody yet', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Add somebody above and they will appear here.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
+			Page::panel_close();
 
 			return;
 		}
+
+		Page::panel_close();
 
 		// Read once and looked up per membership: a screen listing thirty people
 		// should not cost a query per client name.
@@ -162,26 +196,59 @@ final class PeopleScreen {
 			$clients[ (string) $client['id'] ] = (string) $client['display_name'];
 		}
 
-		echo '<ul data-bwx-people="1">';
+		// A panel column of its own, so every person is a card in the same
+		// stack the rest of the page is built from.
+		echo '<div class="bw-panels" data-bwx-people="1">';
 
 		foreach ( $people as $person ) {
-			$label = 'active' === (string) $person['status']
-				? __( 'Active', 'blueworx-forge' )
-				: __( 'Offboarded', 'blueworx-forge' );
-
-			echo '<li data-bwx-person="' . esc_attr( (string) $person['id'] ) . '">';
-			echo '<strong data-bwx-person-name>' . esc_html( (string) $person['display_name'] ) . '</strong> ';
-			echo '<span data-bwx-person-email>' . esc_html( (string) $person['email'] ) . '</span> ';
-			echo '<span data-bwx-status>' . esc_html( $label ) . '</span> ';
-
-			self::offboard_form( $person );
-			self::edit_person_form( $person );
-			self::memberships_list( $person, $clients, $status );
-
-			echo '</li>';
+			self::person_card( $person, $clients, $status );
 		}
 
-		echo '</ul>';
+		echo '</div>';
+	}
+
+	/**
+	 * One person: who they are, whether they are still with us, everywhere they
+	 * work, and the form that edits them.
+	 *
+	 * @param array<string, mixed>  $person  The person.
+	 * @param array<string, string> $clients Client id to name.
+	 * @param string                $status  The status filter in effect.
+	 */
+	private static function person_card( array $person, array $clients, string $status ): void {
+		printf( '<section class="bw-card" data-bwx-person="%s">', esc_attr( (string) $person['id'] ) );
+
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		printf(
+			'<h2 class="bw-card__title" data-bwx-person-name>%s</h2>',
+			esc_html( (string) $person['display_name'] )
+		);
+		printf(
+			'<p class="bw-fieldnote" data-bwx-person-email>%s</p>',
+			esc_html( (string) $person['email'] )
+		);
+		echo '</div>';
+
+		echo '<div class="bw-card__actions">';
+
+		// Whole class names rather than a stem with the tone appended, so the
+		// admin UI check can read what this screen writes.
+		if ( 'active' === (string) $person['status'] ) {
+			printf( '<span class="bw-badge" data-bwx-status>%s</span>', esc_html__( 'Active', 'blueworx-forge' ) );
+		} else {
+			printf( '<span class="bw-badge bw-badge--neutral" data-bwx-status>%s</span>', esc_html__( 'Offboarded', 'blueworx-forge' ) );
+		}
+
+		self::offboard_form( $person );
+
+		echo '</div></div>';
+
+		echo '<div class="bw-card__body">';
+		self::memberships_list( $person, $clients, $status );
+		self::edit_person_form( $person );
+		echo '</div>';
+
+		echo '</section>';
 	}
 
 	/**
@@ -196,61 +263,131 @@ final class PeopleScreen {
 		$held = Memberships::for_user( (string) $person['id'], 'all' === $status ? null : 'active' );
 
 		if ( array() === $held ) {
-			echo '<p data-bwx-no-memberships="1">' . esc_html__( 'No client access yet.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-memberships="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="users"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No client access yet', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
 
 			return;
 		}
 
-		echo '<ul data-bwx-memberships="1">';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-memberships="1"><thead><tr>';
+		echo '<th>' . esc_html__( 'Client', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Role', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Reaches', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Status', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Grants', 'blueworx-forge' ) . '</th>';
+		echo '</tr></thead><tbody>';
 
 		foreach ( $held as $membership ) {
-			$client = $clients[ (string) $membership['client_id'] ] ?? __( 'Unknown client', 'blueworx-forge' );
-
-			echo '<li data-bwx-membership="' . esc_attr( (string) $membership['id'] ) . '" data-bwx-membership-role="' . esc_attr( (string) $membership['role'] ) . '">';
-			echo '<span data-bwx-membership-client>' . esc_html( $client ) . '</span> — ';
-			echo '<span data-bwx-membership-role-label>' . esc_html( (string) $membership['role_label'] ) . '</span> ';
-
-			// Named site or whole client: the distinction matters enough to say
-			// out loud, because one of them will grow a second site later.
-			echo '<span data-bwx-membership-scope>';
-			echo '' === (string) $membership['client_site_id']
-				? esc_html__( 'every site', 'blueworx-forge' )
-				: esc_html__( 'one site', 'blueworx-forge' );
-			echo '</span> ';
-
-			echo '<span data-bwx-status>' . esc_html( 'active' === (string) $membership['status'] ? __( 'Active', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) ) . '</span> ';
-
-			foreach ( Grants::parse( (string) ( $membership['grants'] ?? '' ) ) as $grant ) {
-				echo '<span data-bwx-membership-grant="' . esc_attr( $grant ) . '">' . esc_html( Grants::label( $grant ) ) . '</span> ';
-			}
-
-			self::membership_grants_form( $membership );
-			echo '</li>';
+			self::membership_row( $membership, $clients );
 		}
 
-		echo '</ul>';
+		echo '</tbody></table>';
+		echo '</div>';
+	}
+
+	/**
+	 * One membership: the client, what they are there, and what they may do.
+	 *
+	 * @param array<string, mixed>  $membership The membership.
+	 * @param array<string, string> $clients    Client id to name.
+	 */
+	private static function membership_row( array $membership, array $clients ): void {
+		$client = $clients[ (string) $membership['client_id'] ] ?? __( 'Unknown client', 'blueworx-forge' );
+
+		printf(
+			'<tr data-bwx-membership="%1$s" data-bwx-membership-role="%2$s">',
+			esc_attr( (string) $membership['id'] ),
+			esc_attr( (string) $membership['role'] )
+		);
+
+		printf(
+			'<td><span class="bw-table__primary" data-bwx-membership-client>%s</span></td>',
+			esc_html( $client )
+		);
+
+		printf(
+			'<td><span data-bwx-membership-role-label>%s</span></td>',
+			esc_html( (string) $membership['role_label'] )
+		);
+
+		// Named site or whole client: the distinction matters enough to say
+		// out loud, because one of them will grow a second site later.
+		echo '<td><span data-bwx-membership-scope>';
+		echo '' === (string) $membership['client_site_id']
+			? esc_html__( 'every site', 'blueworx-forge' )
+			: esc_html__( 'one site', 'blueworx-forge' );
+		echo '</span></td>';
+
+		echo '<td>';
+
+		if ( 'active' === (string) $membership['status'] ) {
+			printf( '<span class="bw-badge" data-bwx-status>%s</span>', esc_html__( 'Active', 'blueworx-forge' ) );
+		} else {
+			printf( '<span class="bw-badge bw-badge--neutral" data-bwx-status>%s</span>', esc_html__( 'Ended', 'blueworx-forge' ) );
+		}
+
+		echo '</td>';
+
+		echo '<td><div class="bw-chips">';
+
+		foreach ( Grants::parse( (string) ( $membership['grants'] ?? '' ) ) as $grant ) {
+			printf(
+				'<span class="bw-chip bw-chip--plain" data-bwx-membership-grant="%1$s">%2$s</span>',
+				esc_attr( $grant ),
+				esc_html( Grants::label( $grant ) )
+			);
+		}
+
+		echo '</div>';
+
+		self::membership_grants_form( $membership );
+
+		echo '</td></tr>';
 	}
 
 	/**
 	 * The form that adds a person.
 	 */
 	private static function add_person_form(): void {
-		echo '<h2>' . esc_html__( 'Add a person', 'blueworx-forge' ) . '</h2>';
+		echo '<section class="bw-card" data-bwx-panel="add-person">';
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		echo '<h2 class="bw-card__title">' . esc_html__( 'Add a person', 'blueworx-forge' ) . '</h2>';
+		echo '</div></div>';
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-person>';
 		wp_nonce_field( 'bwx_forge_add_person' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_person">';
-		echo '<table class="form-table"><tbody>';
 
-		echo '<tr><th scope="row"><label for="bwx-person-name">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-person-name" name="display_name" class="regular-text" required></td></tr>';
+		echo '<div class="bw-card__body">';
 
-		echo '<tr><th scope="row"><label for="bwx-person-email">' . esc_html__( 'Email', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="email" id="bwx-person-email" name="email" class="regular-text" required>';
-		echo '<p class="description">' . esc_html__( 'One person, one address, however many clients they work with.', 'blueworx-forge' ) . '</p></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-person-name">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="text" id="bwx-person-name" name="display_name" class="bw-input" required>';
+		echo '</div></div>';
 
-		echo '</tbody></table>';
-		submit_button( __( 'Add person', 'blueworx-forge' ) );
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-person-email">' . esc_html__( 'Email', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="email" id="bwx-person-email" name="email" class="bw-input" required>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'One person, one address, however many clients they work with.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
+
+		echo '</div>';
+
+		// submit_button() rather than a <button>, and this is not cosmetic: the
+		// specs click `input[type="submit"]`, so the element is as much part of
+		// the contract as a data-bwx hook is. What changes is the class it
+		// carries.
+		echo '<div class="bw-card__foot">';
+		submit_button( __( 'Add person', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
+
 		echo '</form>';
+		echo '</section>';
 	}
 
 	/**
@@ -266,15 +403,15 @@ final class PeopleScreen {
 
 		$id = (string) $person['id'];
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_offboard_person_' . $id );
 		echo '<input type="hidden" name="action" value="bwx_forge_offboard_person">';
 		echo '<input type="hidden" name="user_id" value="' . esc_attr( $id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $person['record_version'] ) . '">';
-		echo '<button type="submit" class="button" data-bwx-offboard onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Offboard this person? Their access to every client ends; their history stays.', 'blueworx-forge' ) ) ) . ')">';
+		echo '<button type="submit" class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-offboard onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Offboard this person? Their access to every client ends; their history stays.', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'Offboard', 'blueworx-forge' );
 		echo '</button>';
-		echo '</form> ';
+		echo '</form>';
 	}
 
 	/**
@@ -286,30 +423,41 @@ final class PeopleScreen {
 		$id = (string) $person['id'];
 
 		echo '<details data-bwx-edit-person="' . esc_attr( $id ) . '">';
-		echo '<summary>' . esc_html__( 'Edit', 'blueworx-forge' ) . '</summary>';
+		echo '<summary class="bw-rowactions__link">' . esc_html__( 'Edit', 'blueworx-forge' ) . '</summary>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_edit_person_' . $id );
 		echo '<input type="hidden" name="action" value="bwx_forge_edit_person">';
 		echo '<input type="hidden" name="user_id" value="' . esc_attr( $id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $person['record_version'] ) . '">';
-		echo '<table class="form-table"><tbody>';
 
-		echo '<tr><th scope="row"><label for="bwx-edit-person-name-' . esc_attr( $id ) . '">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-edit-person-name-' . esc_attr( $id ) . '" name="display_name" class="regular-text" value="' . esc_attr( (string) $person['display_name'] ) . '" required></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-person-name-' . esc_attr( $id ) . '">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="text" id="bwx-edit-person-name-' . esc_attr( $id ) . '" name="display_name" class="bw-input" value="' . esc_attr( (string) $person['display_name'] ) . '" required>';
+		echo '</div></div>';
 
-		echo '<tr><th scope="row"><label for="bwx-edit-person-email-' . esc_attr( $id ) . '">' . esc_html__( 'Email', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="email" id="bwx-edit-person-email-' . esc_attr( $id ) . '" name="email" class="regular-text" value="' . esc_attr( (string) $person['email'] ) . '" required></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-person-email-' . esc_attr( $id ) . '">' . esc_html__( 'Email', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="email" id="bwx-edit-person-email-' . esc_attr( $id ) . '" name="email" class="bw-input" value="' . esc_attr( (string) $person['email'] ) . '" required>';
+		echo '</div></div>';
 
-		echo '<tr><th scope="row"><label for="bwx-edit-person-status-' . esc_attr( $id ) . '">' . esc_html__( 'Status', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><select id="bwx-edit-person-status-' . esc_attr( $id ) . '" name="status">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-person-status-' . esc_attr( $id ) . '">' . esc_html__( 'Status', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><span class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-edit-person-status-' . esc_attr( $id ) . '" name="status">';
 		echo '<option value="active"' . selected( 'active', (string) $person['status'], false ) . '>' . esc_html__( 'Active', 'blueworx-forge' ) . '</option>';
 		echo '<option value="inactive"' . selected( 'inactive', (string) $person['status'], false ) . '>' . esc_html__( 'Offboarded', 'blueworx-forge' ) . '</option>';
-		echo '</select></td></tr>';
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span></div></div>';
 
 		self::reach_row( $person );
 
-		echo '</tbody></table>';
-		submit_button( __( 'Save', 'blueworx-forge' ), 'secondary', '', false );
+		echo '<div class="bw-card__foot">';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
+		echo '</div>';
+
 		echo '</form>';
 		echo '</details>';
 	}
@@ -328,15 +476,18 @@ final class PeopleScreen {
 		$id     = (string) $person['id'];
 		$grants = Grants::parse( (string) ( $person['grants'] ?? '' ) );
 
-		echo '<tr><th scope="row">' . esc_html__( 'Reach', 'blueworx-forge' ) . '</th><td>';
-		echo '<label for="bwx-edit-person-cross-' . esc_attr( $id ) . '">';
+		echo '<div class="bw-formrow">';
+		echo '<p class="bw-formrow__label">' . esc_html__( 'Reach', 'blueworx-forge' ) . '</p>';
+		echo '<div class="bw-formrow__control">';
+		echo '<label class="bw-check" for="bwx-edit-person-cross-' . esc_attr( $id ) . '">';
 		echo '<input type="checkbox" id="bwx-edit-person-cross-' . esc_attr( $id ) . '" name="grants[]" value="' . esc_attr( Grants::CROSS_CLIENT ) . '"';
 		checked( in_array( Grants::CROSS_CLIENT, $grants, true ) );
-		echo ' data-bwx-grant="' . esc_attr( Grants::CROSS_CLIENT ) . '"> ';
-		echo esc_html( Grants::label( Grants::CROSS_CLIENT ) );
+		echo ' data-bwx-grant="' . esc_attr( Grants::CROSS_CLIENT ) . '">';
+		echo '<span class="bw-check__text">' . esc_html( Grants::label( Grants::CROSS_CLIENT ) );
+		echo '<span class="bw-check__help">' . esc_html( Grants::description( Grants::CROSS_CLIENT ) ) . '</span>';
+		echo '</span>';
 		echo '</label>';
-		echo '<p class="description">' . esc_html( Grants::description( Grants::CROSS_CLIENT ) ) . '</p>';
-		echo '</td></tr>';
+		echo '</div></div>';
 	}
 
 	/**
@@ -359,7 +510,7 @@ final class PeopleScreen {
 		$held = Grants::parse( (string) ( $membership['grants'] ?? '' ) );
 
 		echo '<details data-bwx-membership-grants="' . esc_attr( $id ) . '">';
-		echo '<summary>' . esc_html__( 'Grants', 'blueworx-forge' ) . '</summary>';
+		echo '<summary class="bw-rowactions__link">' . esc_html__( 'Grants', 'blueworx-forge' ) . '</summary>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_set_membership_grants_' . $id );
 		echo '<input type="hidden" name="action" value="bwx_forge_set_membership_grants">';
@@ -369,15 +520,16 @@ final class PeopleScreen {
 		foreach ( Grants::ON_MEMBERSHIP as $grant ) {
 			$field = 'bwx-grant-' . $grant . '-' . $id;
 
-			echo '<p><label for="' . esc_attr( $field ) . '">';
+			echo '<p><label class="bw-check" for="' . esc_attr( $field ) . '">';
 			echo '<input type="checkbox" id="' . esc_attr( $field ) . '" name="grants[]" value="' . esc_attr( $grant ) . '"';
 			checked( in_array( $grant, $held, true ) );
-			echo ' data-bwx-grant="' . esc_attr( $grant ) . '"> ';
-			echo esc_html( Grants::label( $grant ) );
-			echo '</label><br><span class="description">' . esc_html( Grants::description( $grant ) ) . '</span></p>';
+			echo ' data-bwx-grant="' . esc_attr( $grant ) . '">';
+			echo '<span class="bw-check__text">' . esc_html( Grants::label( $grant ) );
+			echo '<span class="bw-check__help">' . esc_html( Grants::description( $grant ) ) . '</span>';
+			echo '</span></label></p>';
 		}
 
-		submit_button( __( 'Save grants', 'blueworx-forge' ), 'secondary', '', false );
+		submit_button( __( 'Save grants', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
 		echo '</form>';
 		echo '</details>';
 	}

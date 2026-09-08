@@ -67,22 +67,17 @@ final class PackagesScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — support packages', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'Support packages', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'Editing a package writes a new version and leaves every earlier one exactly as it was, so a client stays on the terms they were given.', 'blueworx-forge' )
+		);
 
 		self::result_notice();
-
-		echo '<p>';
-		echo esc_html__(
-			'Editing a package writes a new version and leaves every earlier one exactly as it was, so a client stays on the terms they were given.',
-			'blueworx-forge'
-		);
-		echo '</p>';
-
 		self::catalogue();
 		self::add_form();
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -101,19 +96,18 @@ final class PackagesScreen {
 			'retired'   => array( 'success', __( 'Retired. Nobody new can be put on it; everybody already on it keeps it.', 'blueworx-forge' ) ),
 			'restored'  => array( 'success', __( 'Back on the shelf.', 'blueworx-forge' ) ),
 			'reordered' => array( 'success', __( 'Order saved.', 'blueworx-forge' ) ),
-			'refused'   => array( 'error', __( 'That is not an offer. A package needs a name and some hours in it.', 'blueworx-forge' ) ),
-			'unknown'   => array( 'error', __( 'There is no such package.', 'blueworx-forge' ) ),
+			'refused'   => array( 'danger', __( 'That is not an offer. A package needs a name and some hours in it.', 'blueworx-forge' ) ),
+			'unknown'   => array( 'danger', __( 'There is no such package.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-result' => $result )
 		);
 	}
 
@@ -124,14 +118,22 @@ final class PackagesScreen {
 		$packages = Packages::all();
 
 		if ( array() === $packages ) {
-			echo '<p data-bwx-packages="empty">' . esc_html__( 'No packages yet. Add the first one below.', 'blueworx-forge' ) . '</p>';
+			Page::panel_open( __( 'The catalogue', 'blueworx-forge' ), 'packages' );
+			echo '<div class="bw-empty" data-bwx-packages="empty">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="package"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No packages yet', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Add the first one below.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
+			Page::panel_close();
 
 			return;
 		}
 
 		$current = Packages::current_versions( array_column( $packages, 'id' ) );
 
-		echo '<div data-bwx-packages="' . esc_attr( (string) count( $packages ) ) . '">';
+		// A panel column of its own, so each package is a card in the same
+		// stack the rest of the screen is built from.
+		echo '<div class="bw-panels" data-bwx-packages="' . esc_attr( (string) count( $packages ) ) . '">';
 
 		foreach ( $packages as $package ) {
 			self::one( $package, $current[ (string) $package['id'] ] ?? array() );
@@ -145,6 +147,10 @@ final class PackagesScreen {
 	/**
 	 * One package: what it offers now, how to change it, and what it has been.
 	 *
+	 * The identifying attributes sit on a wrapper rather than on the card, so
+	 * the card itself is the shell's, drawn the same way every other panel on
+	 * every other studio screen is.
+	 *
 	 * @param array<string, mixed> $package The catalogue row.
 	 * @param array<string, mixed> $version The version in force.
 	 */
@@ -152,21 +158,65 @@ final class PackagesScreen {
 		$id      = (string) $package['id'];
 		$retired = Terms::RETIRED === (string) $package['status'];
 
-		echo '<div class="card" style="max-width:none;margin-block-end:16px" data-bwx-package="' . esc_attr( $id ) . '"';
-		echo ' data-bwx-status="' . esc_attr( (string) $package['status'] ) . '"';
-		echo ' data-bwx-version="' . esc_attr( (string) ( $version['version'] ?? 0 ) ) . '">';
+		printf(
+			'<div data-bwx-package="%1$s" data-bwx-status="%2$s" data-bwx-version="%3$s">',
+			esc_attr( $id ),
+			esc_attr( (string) $package['status'] ),
+			esc_attr( (string) ( $version['version'] ?? 0 ) )
+		);
 
-		echo '<h2 style="margin-block-start:0">' . esc_html( (string) $package['name'] );
+		Page::panel_open( (string) $package['name'], 'package' );
 
-		if ( $retired ) {
-			echo ' <span class="description">' . esc_html__( '— retired', 'blueworx-forge' ) . '</span>';
-		}
-
-		echo '</h2>';
-
+		self::status_badge( $retired );
+		self::summary( $version );
 		self::edit_form( $id, $version );
 		self::status_form( $id, $retired );
 		self::history( $id );
+
+		Page::panel_close();
+		echo '</div>';
+	}
+
+	/**
+	 * Whether the package is still being offered.
+	 *
+	 * Whole class names rather than a stem with the tone appended, so the admin
+	 * UI check can read them. Retired is neutral rather than danger: taking a
+	 * package off the shelf is a decision somebody made, not a fault.
+	 *
+	 * @param bool $retired Whether it is off the shelf.
+	 */
+	private static function status_badge( bool $retired ): void {
+		echo '<p class="bw-card__note">';
+
+		if ( $retired ) {
+			echo '<span class="bw-badge bw-badge--neutral">' . esc_html__( 'Retired', 'blueworx-forge' ) . '</span>';
+		} else {
+			echo '<span class="bw-badge">' . esc_html__( 'On the shelf', 'blueworx-forge' ) . '</span>';
+		}
+
+		echo '</p>';
+	}
+
+	/**
+	 * What the package offers today.
+	 *
+	 * @param array<string, mixed> $version The version in force.
+	 */
+	private static function summary( array $version ): void {
+		echo '<div class="bw-summary">';
+
+		echo '<div class="bw-summary__cell">';
+		echo '<span class="bw-summary__label">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</span>';
+		echo '<span class="bw-summary__value">' . esc_html( number_format( (float) ( $version['hours'] ?? 0 ), 2 ) ) . '</span>';
+		echo '</div>';
+
+		echo '<div class="bw-summary__cell">';
+		echo '<span class="bw-summary__label">' . esc_html__( 'Price', 'blueworx-forge' ) . '</span>';
+		echo '<span class="bw-summary__value">';
+		echo esc_html( (string) ( $version['currency'] ?? '' ) . ' ' . number_format( (float) ( $version['price'] ?? 0 ) ) );
+		echo '</span>';
+		echo '</div>';
 
 		echo '</div>';
 	}
@@ -187,20 +237,28 @@ final class PackagesScreen {
 		echo '<input type="hidden" name="action" value="bwx_forge_revise_package">';
 		echo '<input type="hidden" name="package" value="' . esc_attr( $id ) . '">';
 
-		echo '<table class="form-table"><tbody>';
 		self::field( 'name', __( 'Name', 'blueworx-forge' ), (string) ( $version['name'] ?? '' ) );
 		self::field( 'hours', __( 'Hours', 'blueworx-forge' ), (string) ( $version['hours'] ?? '' ), 'number', '0.25' );
 		self::field( 'price', __( 'Price', 'blueworx-forge' ), (string) ( $version['price'] ?? '' ), 'number', '1' );
 		self::field( 'currency', __( 'Currency', 'blueworx-forge' ), (string) ( $version['currency'] ?? 'GBP' ) );
 		self::field( 'validity_months', __( 'Runs for (months)', 'blueworx-forge' ), (string) ( $version['validity_months'] ?? Terms::DEFAULT_VALIDITY_MONTHS ), 'number', '1' );
 
-		echo '<tr><th scope="row"><label for="bwx-terms-' . esc_attr( $id ) . '">' . esc_html__( 'Terms', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><textarea class="large-text" rows="3" id="bwx-terms-' . esc_attr( $id ) . '" name="terms">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-terms-' . esc_attr( $id ) . '">' . esc_html__( 'Terms', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<textarea class="bw-textarea" rows="3" id="bwx-terms-' . esc_attr( $id ) . '" name="terms">';
 		echo esc_textarea( (string) ( $version['terms'] ?? '' ) );
-		echo '</textarea></td></tr>';
-		echo '</tbody></table>';
+		echo '</textarea>';
+		echo '</div></div>';
 
-		submit_button( __( 'Save as a new version', 'blueworx-forge' ), 'primary', 'bwx-revise', false );
+		// submit_button() rather than a <button>, and this is not cosmetic:
+		// thirteen specs click `input[type="submit"]`, so the element is as
+		// much part of the contract as a data-bwx hook is. What changes is the
+		// class it carries.
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Save as a new version', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-revise', false );
+		echo '</div>';
+
 		echo '</form>';
 	}
 
@@ -211,7 +269,8 @@ final class PackagesScreen {
 	 * @param bool   $retired Whether it is off the shelf now.
 	 */
 	private static function status_form( string $id, bool $retired ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-block-start:8px">';
+		echo '<div class="bw-card__actions">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_set_package_status' );
 		echo '<input type="hidden" name="action" value="bwx_forge_set_package_status">';
 		echo '<input type="hidden" name="package" value="' . esc_attr( $id ) . '">';
@@ -219,12 +278,13 @@ final class PackagesScreen {
 
 		submit_button(
 			$retired ? __( 'Put back on the shelf', 'blueworx-forge' ) : __( 'Retire', 'blueworx-forge' ),
-			'secondary',
+			'bw-btn bw-btn--secondary',
 			'bwx-status',
 			false
 		);
 
 		echo '</form>';
+		echo '</div>';
 	}
 
 	/**
@@ -234,13 +294,20 @@ final class PackagesScreen {
 	 * at the top of the screen. A history nobody can see is a promise nobody
 	 * can check.
 	 *
+	 * A table, and the cells are in the order they have always been in:
+	 * package-catalogue.spec.js reads a version's name and term length by cell
+	 * position, and that spec is the regression net proving this rebuild
+	 * changed the look and nothing else. Reordering the columns would mean
+	 * rewriting the net at the same time as the thing it is holding.
+	 *
 	 * @param string $id The package.
 	 */
 	private static function history( string $id ): void {
 		$versions = Packages::versions_for( $id );
 
-		echo '<h3>' . esc_html__( 'Every version', 'blueworx-forge' ) . '</h3>';
-		echo '<table class="widefat striped" data-bwx-history="' . esc_attr( $id ) . '"><thead><tr>';
+		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Every version', 'blueworx-forge' ) . '</h3>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-history="' . esc_attr( $id ) . '"><thead><tr>';
 		echo '<th>' . esc_html__( 'Version', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Name', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
@@ -250,41 +317,49 @@ final class PackagesScreen {
 
 		foreach ( $versions as $version ) {
 			echo '<tr data-bwx-package-version="' . esc_attr( (string) $version['version'] ) . '">';
-			echo '<td>' . esc_html( (string) $version['version'] ) . '</td>';
-			echo '<td>' . esc_html( (string) $version['name'] ) . '</td>';
-			echo '<td data-bwx-hours="' . esc_attr( (string) $version['hours'] ) . '">' . esc_html( number_format( (float) $version['hours'], 2 ) ) . '</td>';
-			echo '<td data-bwx-price="' . esc_attr( (string) $version['price'] ) . '">';
+			echo '<td class="bw-table__num">' . esc_html( (string) $version['version'] ) . '</td>';
+			echo '<td class="bw-table__primary">' . esc_html( (string) $version['name'] ) . '</td>';
+			echo '<td class="bw-table__num" data-bwx-hours="' . esc_attr( (string) $version['hours'] ) . '">' . esc_html( number_format( (float) $version['hours'], 2 ) ) . '</td>';
+			echo '<td class="bw-table__num" data-bwx-price="' . esc_attr( (string) $version['price'] ) . '">';
 			echo esc_html( (string) $version['currency'] . ' ' . number_format( (float) $version['price'] ) );
 			echo '</td>';
-			echo '<td>' . esc_html( (string) $version['validity_months'] ) . '</td>';
+			echo '<td class="bw-table__num">' . esc_html( (string) $version['validity_months'] ) . '</td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
 	}
 
 	/**
 	 * The form that adds a package.
 	 */
 	private static function add_form(): void {
-		echo '<h2>' . esc_html__( 'Add a package', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Add a package', 'blueworx-forge' ), 'add-package' );
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_add_package' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_package">';
 
-		echo '<table class="form-table"><tbody>';
 		self::field( 'name', __( 'Name', 'blueworx-forge' ), '' );
 		self::field( 'hours', __( 'Hours', 'blueworx-forge' ), '', 'number', '0.25' );
 		self::field( 'price', __( 'Price', 'blueworx-forge' ), '', 'number', '1' );
 		self::field( 'currency', __( 'Currency', 'blueworx-forge' ), 'GBP' );
 		self::field( 'validity_months', __( 'Runs for (months)', 'blueworx-forge' ), (string) Terms::DEFAULT_VALIDITY_MONTHS, 'number', '1' );
 
-		echo '<tr><th scope="row"><label for="bwx-new-terms">' . esc_html__( 'Terms', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><textarea class="large-text" rows="3" id="bwx-new-terms" name="terms"></textarea></td></tr>';
-		echo '</tbody></table>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-new-terms">' . esc_html__( 'Terms', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<textarea class="bw-textarea" rows="3" id="bwx-new-terms" name="terms"></textarea>';
+		echo '</div></div>';
 
-		submit_button( __( 'Add package', 'blueworx-forge' ), 'primary', 'bwx-add', false );
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Add package', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-add', false );
+		echo '</div>';
+
 		echo '</form>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -296,12 +371,11 @@ final class PackagesScreen {
 	 * @param array<int, array<string, mixed>> $packages The catalogue.
 	 */
 	private static function order_form( array $packages ): void {
-		echo '<h2>' . esc_html__( 'Order', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Order', 'blueworx-forge' ), 'order' );
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_reorder_packages' );
 		echo '<input type="hidden" name="action" value="bwx_forge_reorder_packages">';
-
-		echo '<table class="form-table"><tbody>';
 
 		$at = 0;
 
@@ -310,15 +384,21 @@ final class PackagesScreen {
 
 			$id = (string) $package['id'];
 
-			echo '<tr><th scope="row"><label for="bwx-order-' . esc_attr( $id ) . '">' . esc_html( (string) $package['name'] ) . '</label></th>';
-			echo '<td><input type="number" min="1" class="small-text" id="bwx-order-' . esc_attr( $id ) . '"';
-			echo ' name="order[' . esc_attr( $id ) . ']" value="' . esc_attr( (string) $at ) . '"></td></tr>';
+			echo '<div class="bw-formrow">';
+			echo '<label class="bw-formrow__label" for="bwx-order-' . esc_attr( $id ) . '">' . esc_html( (string) $package['name'] ) . '</label>';
+			echo '<div class="bw-formrow__control">';
+			echo '<input type="number" min="1" class="bw-input" id="bwx-order-' . esc_attr( $id ) . '"';
+			echo ' name="order[' . esc_attr( $id ) . ']" value="' . esc_attr( (string) $at ) . '">';
+			echo '</div></div>';
 		}
 
-		echo '</tbody></table>';
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Save order', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', 'bwx-reorder', false );
+		echo '</div>';
 
-		submit_button( __( 'Save order', 'blueworx-forge' ), 'secondary', 'bwx-reorder', false );
 		echo '</form>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -333,14 +413,17 @@ final class PackagesScreen {
 	private static function field( string $name, string $label, string $value, string $type = 'text', string $step = '' ): void {
 		$id = 'bwx-' . $name . '-' . wp_unique_id();
 
-		echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
-		echo '<input type="' . esc_attr( $type ) . '" class="regular-text" id="' . esc_attr( $id ) . '"';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="' . esc_attr( $type ) . '" class="bw-input" id="' . esc_attr( $id ) . '"';
 		echo ' name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"';
 
 		if ( '' !== $step ) {
 			echo ' step="' . esc_attr( $step ) . '" min="0"';
 		}
 
-		echo '></td></tr>';
+		echo '>';
+		echo '</div></div>';
 	}
 }

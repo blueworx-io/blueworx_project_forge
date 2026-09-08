@@ -51,6 +51,23 @@ Every screen is built from these. They are the design system's, extracted from `
 
 ## The WordPress classes being replaced
 
+**The spec wins over the shape, every time.** If a suggested shape below would
+change the markup a spec reads — a table becoming a list, a cell moving, a
+control changing element — keep the shape the spec expects and restyle it in
+place. The whole safety argument for PR one is that the look changed, nothing
+else did, and the existing suite proves it; a rebuild that needs its spec's
+helper rewritten to stay green has forfeited that. The shapes named per screen
+are preferences, not requirements. (This bit once: the Packages history was
+specified as an activity list, and `package-catalogue.spec.js` reads its
+versions out of `<td>` cells.)
+
+**Tones do not map one to one.** Every screen's `result_notice()` carries a fixed
+list of messages toned `success` / `warning` / `error`. The design system has no
+`error` — it has `danger`. Rename the tone in the message list itself rather than
+translating at the call site, so there is one spelling per screen and no mapping
+step to forget. `Page::notice()` falls back to `info` for anything it does not
+recognise, which is what an untranslated `error` would silently become.
+
 Delete on sight, in this order of frequency: `regular-text` → `bw-input`; `description` → `bw-formrow__help` or `bw-fieldnote`; `form-table` → `bw-formrow` rows; `widefat striped` → `bw-table`; `wrap` → the shell's `wrap bw-wrap`; `notice notice-*` → `Page::notice()`; `button` / `button-small` → `bw-btn bw-btn--secondary`; `button-link` → `bw-btn bw-btn--link`; `small-text` / `large-text` → `bw-input`; `card` → `bw-card`. Keep `screen-reader-text` — it is WordPress's accessibility utility, not styling, and the design system has no counterpart.
 
 ## File structure
