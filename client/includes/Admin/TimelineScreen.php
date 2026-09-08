@@ -25,8 +25,8 @@ use Blueworx\Forge\Client\Layout;
  *
  * Drawn from the shared design system's Gantt (docs #ARCH-...): rows, labels
  * and a track with a bar positioned by inline percentages are exactly what
- * this screen already did by hand. Three things about the component do not
- * transfer, and neither is worked around by inventing something new:
+ * this screen already did by hand. Several things about the component do not
+ * transfer, and none is worked around by inventing something new:
  *
  * - Its legend names onboarding phases ("Pre-launch", "Launch milestone",
  *   "Post-launch"). A client's work items are not phases of a launch, so the
@@ -38,6 +38,13 @@ use Blueworx\Forge\Client\Layout;
  * - There is no "today" marker anywhere in the design system. `today_marker()`
  *   below and its `.bwx-timeline-today` rule in Styles::css() are genuinely
  *   this screen's own.
+ * - The component enforces a minimum bar width in JavaScript
+ *   (`MIN_BAR_PERCENT` in `Gantt.jsx`); nothing in `bw-gantt__bar` itself
+ *   floors it, and this PHP port has no equivalent step. `Layout::place()`
+ *   deliberately computes no floor of its own (see its own comment: a span
+ *   still has width, but the number it returns is the true percentage). The
+ *   floor lives in `Styles::css()` instead, as a `min-width` scoped to this
+ *   screen's bar, so a one-day item on a months-long axis stays visible.
  */
 final class TimelineScreen {
 

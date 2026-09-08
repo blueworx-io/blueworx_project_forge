@@ -64,11 +64,18 @@ final class Styles {
 
 .bwx-empty { color: var(--text-muted, #646970); font-style: italic; margin: 0; }
 
-/* Two things the design system's Gantt has no pattern for, both ours to keep:
+/* Three things the design system's Gantt has no pattern for, all ours to keep:
    the end tick made to read as a right-hand edge rather than a left-aligned
    label (the component's ruler is built for many evenly-spaced ticks, not a
-   from/to pair), and a "today" marker, which the system does not have at all. */
+   from/to pair); a "today" marker, which the system does not have at all; and
+   a floor under a bar's width. The component enforces its own floor in
+   JavaScript (MIN_BAR_PERCENT in Gantt.jsx) — this is a PHP port with no such
+   step, so a one-day item on a long axis needs the same floor here, or it
+   renders as a sliver too thin to see (Layout::place() computes width with no
+   minimum of its own, by design — see its own class comment). Scoped to this
+   screen's bar only, so it cannot widen a bar drawn by any other bw-gantt use. */
 .bwx-timeline-tick--end { text-align: right; }
+[data-testid="bwx-timeline"] .bw-gantt__bar { min-width: 0.35rem; }
 .bwx-timeline-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--color-coral, #d63638); }
 
 .bwx-calendar { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--surface-card, #fff); }
