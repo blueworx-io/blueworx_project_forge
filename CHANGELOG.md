@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.76.0] - 2026-09-08
+
+### Changed
+
+- The Forge screens on your site have a new look, matching the rest of the
+  Blueworx admin. Nothing about your work, your data or your permissions has
+  changed.
+
+### Fixed
+
+- The hours and packages screen no longer breaks on a site that has not been
+  connected to a studio yet.
+
 ## [2.75.0] - 2026-09-03
 
 ### Added
