@@ -125,7 +125,17 @@ final class ConnectionScreen {
 			'info'    => 'info',
 		);
 
-		printf( '<div class="bw-notice bw-notice--%s"', esc_attr( $tone ) );
+		// Whole class names rather than a stem with the tone appended: the
+		// admin UI check reads the classes a screen writes, and one assembled
+		// from a variable is one it cannot see.
+		$classes = array(
+			'success' => 'bw-notice bw-notice--success',
+			'warning' => 'bw-notice bw-notice--warning',
+			'danger'  => 'bw-notice bw-notice--danger',
+			'info'    => 'bw-notice bw-notice--info',
+		);
+
+		printf( '<div class="%s"', esc_attr( $classes[ $tone ] ?? $classes['info'] ) );
 
 		foreach ( $attributes as $name => $value ) {
 			printf( ' %1$s="%2$s"', esc_attr( $name ), esc_attr( $value ) );
@@ -134,9 +144,8 @@ final class ConnectionScreen {
 		printf( ' role="%s">', esc_attr( 'danger' === $tone ? 'alert' : 'status' ) );
 
 		printf(
-			'<i class="bw-icon bw-notice__icon" data-lucide="%1$s" style="color:var(--bw-%2$s-deep)"></i>',
-			esc_attr( $icons[ $tone ] ?? 'info' ),
-			esc_attr( $tone )
+			'<i class="bw-icon bw-notice__icon" data-lucide="%s"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' )
 		);
 
 		printf(

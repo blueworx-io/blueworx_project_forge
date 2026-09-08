@@ -402,7 +402,7 @@ final class Screen {
 			 */
 			printf(
 				'<div class="bw-notice bw-notice--warning" data-testid="bwx-support-refused" role="status">' .
-				'<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert" style="color:var(--bw-warning-deep)"></i>' .
+				'<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert"></i>' .
 				'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div></div>',
 				esc_html__(
 					'New chargeable work cannot be scheduled until a support package is in place. You can still report anything that is broken, ask for something, and talk to your contact about a package.',

@@ -147,7 +147,7 @@ final class AskScreen {
 			esc_attr( $band )
 		);
 
-		echo '<i class="bw-icon bw-notice__icon" data-lucide="info" style="color:var(--bw-info-deep)"></i>';
+		echo '<i class="bw-icon bw-notice__icon" data-lucide="info"></i>';
 
 		printf(
 			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
@@ -224,9 +224,8 @@ final class AskScreen {
 		);
 
 		printf(
-			'<i class="bw-icon bw-notice__icon" data-lucide="%1$s" style="color:var(--bw-%2$s-deep)"></i>',
-			esc_attr( $icons[ $tone ] ?? 'info' ),
-			esc_attr( $tone )
+			'<i class="bw-icon bw-notice__icon" data-lucide="%s"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' )
 		);
 
 		printf(

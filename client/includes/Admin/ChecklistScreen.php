@@ -356,7 +356,7 @@ final class ChecklistScreen {
 		}
 
 		echo '<div class="bw-notice bw-notice--warning" data-testid="bwx-checklist-feedback" role="status">';
-		printf( '<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert" style="color:var(--bw-warning-deep)"></i>' );
+		echo '<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert"></i>';
 		echo '<div class="bw-notice__body">';
 		echo '<p class="bw-notice__title">' . esc_html__( 'What we need changed', 'blueworx-forge' ) . '</p>';
 		echo '<p class="bw-notice__text">' . esc_html( $feedback ) . '</p>';
