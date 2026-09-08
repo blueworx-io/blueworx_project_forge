@@ -116,7 +116,6 @@ test.describe( 'the cross-client views hold up as clients accumulate', () => {
 
     // Reported whatever happens, so a run that passes still says what it cost.
     // A budget nobody sees the numbers behind is a budget that drifts.
-    // eslint-disable-next-line no-console
     console.log(
       'Cross-client reads:\n' +
         Object.entries( measured )
