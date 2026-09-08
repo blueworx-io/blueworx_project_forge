@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.77.1] - 2026-09-08
+
+### Fixed
+
+- On the Timeline, work with no dates on it was listed with the cards touching,
+  so several separate jobs read as one block. They are now spaced apart.
+
 ## [2.77.0] - 2026-09-08
 
 ### Added
