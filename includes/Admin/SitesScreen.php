@@ -35,11 +35,6 @@ final class SitesScreen {
 	public const SLUG = 'blueworx-forge-sites';
 
 	/**
-	 * Handle of the design token stylesheet.
-	 */
-	public const STYLE = 'blueworx-forge-tokens';
-
-	/**
 	 * Adds the menu entry.
 	 */
 	public static function register(): void {
@@ -51,30 +46,6 @@ final class SitesScreen {
 			array( self::class, 'render' ),
 			'dashicons-hammer',
 			58
-		);
-	}
-
-	/**
-	 * Loads the design tokens, on this screen only (#85, #193).
-	 *
-	 * @param string $hook The screen being loaded.
-	 */
-	public static function enqueue( string $hook ): void {
-		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
-			return;
-		}
-
-		$tokens = BWX_FORGE_PATH . 'tokens/forge.css';
-
-		if ( ! file_exists( $tokens ) ) {
-			return;
-		}
-
-		wp_enqueue_style(
-			self::STYLE,
-			BWX_FORGE_URL . 'tokens/forge.css',
-			array(),
-			(string) filemtime( $tokens )
 		);
 	}
 

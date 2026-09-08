@@ -397,12 +397,37 @@ function __( string $text, string $text_domain = 'default' ): string {
 }
 
 /**
- * Stub. Identity — nothing under test renders HTML.
+ * Stub. Escapes for real, because since Admin\Page there is something under
+ * test that renders HTML, and a stub that returned its input unchanged would
+ * let an escaping test pass without anything being escaped. Plain text is
+ * unaffected, which is what every other test passes it.
  *
  * @param string $text Text.
  * @return string
  */
 function esc_html( string $text ): string {
+	return htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' );
+}
+
+/**
+ * Stub. As esc_html, for attribute values.
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function esc_attr( string $text ): string {
+	return htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' );
+}
+
+/**
+ * Stub. Identity — this is the door a caller opens deliberately when the text
+ * it is passing is markup, and nothing under test passes it markup that
+ * WordPress would strip.
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function wp_kses_post( string $text ): string {
 	return $text;
 }
 

@@ -48,7 +48,10 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
 
 		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
-		add_action( 'admin_enqueue_scripts', array( Admin\SitesScreen::class, 'enqueue' ) );
+
+		// One enqueue for every studio screen, rather than one per screen that
+		// remembered to ask. Admin\Page decides which screens are ours.
+		add_action( 'admin_enqueue_scripts', array( Admin\Page::class, 'enqueue' ) );
 
 		// The board lives on the front end, so the admin menu needs a door to it.
 		Admin\BoardLink::boot();
