@@ -26,6 +26,8 @@ commits and pull requests.
 - "Getting you live" and "Your hours" were showing as plain, unstyled pages.
   They now look like the rest of Forge.
 - Work titles on the board are no longer underlined until you hover over them.
+- The dates along the top of the timeline were too faint to read. They are now
+  set in a darker grey.
 
 ## [2.76.0] - 2026-09-08
 

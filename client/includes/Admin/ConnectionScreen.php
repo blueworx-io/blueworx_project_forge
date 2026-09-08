@@ -106,13 +106,18 @@ final class ConnectionScreen {
 	/**
 	 * One design system Notice.
 	 *
-	 * @param string $tone       success | warning | danger | info.
-	 * @param string $text       The notice text.
-	 * @param string $attributes Extra attributes, already safe to print, appended to the wrapping element.
-	 * @param bool   $html       Whether $text is already safe HTML — true when it carries its own markup
-	 *                           (each piece escaped by the caller), false to have it escaped here.
+	 * Both of the ways a caller can hand this markup are escaped here rather
+	 * than trusted: the extra attributes arrive as names and values and are
+	 * escaped one at a time, and text carrying its own tags goes through
+	 * wp_kses_post. A helper that prints whatever it is given, on the promise
+	 * that every caller escaped first, only holds until somebody adds a caller.
+	 *
+	 * @param string                $tone       success | warning | danger | info.
+	 * @param string                $text       The notice text.
+	 * @param array<string, string> $attributes Extra attributes for the wrapping element, name => value.
+	 * @param bool                  $html       Whether $text carries its own markup.
 	 */
-	private static function notice( string $tone, string $text, string $attributes = '', bool $html = false ): void {
+	private static function notice( string $tone, string $text, array $attributes = array(), bool $html = false ): void {
 		$icons = array(
 			'success' => 'circle-check',
 			'warning' => 'triangle-alert',
@@ -120,12 +125,13 @@ final class ConnectionScreen {
 			'info'    => 'info',
 		);
 
-		printf(
-			'<div class="bw-notice bw-notice--%1$s"%2$s role="%3$s">',
-			esc_attr( $tone ),
-			$attributes,
-			esc_attr( 'danger' === $tone ? 'alert' : 'status' )
-		);
+		printf( '<div class="bw-notice bw-notice--%s"', esc_attr( $tone ) );
+
+		foreach ( $attributes as $name => $value ) {
+			printf( ' %1$s="%2$s"', esc_attr( $name ), esc_attr( $value ) );
+		}
+
+		printf( ' role="%s">', esc_attr( 'danger' === $tone ? 'alert' : 'status' ) );
 
 		printf(
 			'<i class="bw-icon bw-notice__icon" data-lucide="%1$s" style="color:var(--bw-%2$s-deep)"></i>',
@@ -135,7 +141,7 @@ final class ConnectionScreen {
 
 		printf(
 			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
-			$html ? $text : esc_html( $text )
+			$html ? wp_kses_post( $text ) : esc_html( $text )
 		);
 
 		echo '</div>';
@@ -169,7 +175,7 @@ final class ConnectionScreen {
 
 		list( $tone, $text ) = $messages[ $result ];
 
-		self::notice( $tone, $text, sprintf( ' data-bwx-result="%s"', esc_attr( $result ) ) );
+		self::notice( $tone, $text, array( 'data-bwx-result' => $result ) );
 	}
 
 	/**
@@ -184,7 +190,7 @@ final class ConnectionScreen {
 			self::notice(
 				'warning',
 				__( 'This site has not been connected to the studio yet.', 'blueworx-forge' ),
-				' data-bwx-connection="not_configured"'
+				array( 'data-bwx-connection' => 'not_configured' )
 			);
 
 			return;
@@ -204,7 +210,7 @@ final class ConnectionScreen {
 				? __( 'Check the site id and key, or ask for a new key to be issued.', 'blueworx-forge' )
 				: __( 'The studio could not be reached at that address.', 'blueworx-forge' ) );
 
-			self::notice( 'danger', $text, ' data-bwx-connection="refused"' );
+			self::notice( 'danger', $text, array( 'data-bwx-connection' => 'refused' ) );
 
 			return;
 		}
@@ -215,7 +221,7 @@ final class ConnectionScreen {
 			'<strong data-bwx-client-name="1">' . esc_html( (string) ( $handshake['name'] ?? '' ) ) . '</strong>'
 		);
 
-		self::notice( 'success', $text, ' data-bwx-connection="ok"', true );
+		self::notice( 'success', $text, array( 'data-bwx-connection' => 'ok' ), true );
 	}
 
 	/**
@@ -301,7 +307,7 @@ final class ConnectionScreen {
 			);
 		}
 
-		self::notice( $tone, $text, sprintf( ' data-bwx-updates="%s"', esc_attr( $status['state'] ) ), true );
+		self::notice( $tone, $text, array( 'data-bwx-updates' => (string) $status['state'] ), true );
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-update-token="1">';
 		wp_nonce_field( 'bwx_forge_client_save_update_token' );

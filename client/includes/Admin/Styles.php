@@ -94,6 +94,14 @@ final class Styles {
 [data-testid="bwx-timeline"] .bw-gantt__bar { min-width: 0.35rem; }
 .bwx-timeline-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--color-coral, #d63638); }
 
+/* The ruler's dates are the only labelling the timeline has, and the system
+   sets them in the faintest ink at the smallest size — which on the card
+   behind them does not reach the contrast a person needs to read them. The
+   muted ink says the same thing about their importance and can actually be
+   read. Scoped to this screen, so no other bw-gantt loses the lighter ruler. */
+[data-testid="bwx-timeline"] .bw-gantt__ruler,
+[data-testid="bwx-timeline"] .bw-gantt__tick { color: var(--bw-text-muted); }
+
 .bwx-calendar { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--surface-card, #fff); }
 .bwx-calendar th, .bwx-calendar td { border: 1px solid var(--border-subtle, #dcdcde); vertical-align: top; padding: 0.4rem; }
 .bwx-calendar th { background: var(--surface-muted, #f6f7f7); font-size: var(--text-small, 0.8rem); text-align: left; }
