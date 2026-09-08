@@ -68,6 +68,25 @@ final class AskActions {
 			'submitted_by'    => self::who(),
 		);
 
+		/*
+		 * The screenshot becomes a line of evidence rather than a field of its
+		 * own. It is the client's own file on the client's own site, and what
+		 * the studio is sent is the address — the same thing somebody would
+		 * have pasted in by hand, which is what this form used to ask them to
+		 * do. Nothing on the studio side has to learn a new shape for it.
+		 */
+		$screenshot = self::screenshot_url();
+
+		if ( '' !== $screenshot ) {
+			$sent['evidence'] = trim(
+				$sent['evidence'] . "\n\n" . sprintf(
+					/* translators: %s: the address of an uploaded screenshot. */
+					__( 'Screenshot: %s', 'blueworx-forge' ),
+					$screenshot
+				)
+			);
+		}
+
 		$answer = Submission::send( $sent );
 
 		if ( ! $answer['ok'] ) {
@@ -78,6 +97,73 @@ final class AskActions {
 		}
 
 		self::back( 'sent', array() );
+	}
+
+	/**
+	 * The screenshot somebody attached, in this site's own media library.
+	 *
+	 * Empty when nothing was attached, when the person is not allowed to upload,
+	 * or when the file was refused — an upload that failed must not take a
+	 * request down with it. Somebody reporting that their site is broken has
+	 * told us something useful whether or not the picture arrived, and losing
+	 * the words because the picture was a PDF would be the worse failure.
+	 *
+	 * Images only, checked after the upload rather than on the name it arrived
+	 * under. WordPress decides what a file actually is; the extension is
+	 * whatever the browser was told, and on this route the browser is on the
+	 * other side of the internet.
+	 *
+	 * @return string The address, or ''.
+	 */
+	private static function screenshot_url(): string {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() ran on this request before anything read the form.
+		if ( ! isset( $_FILES['screenshot'] ) || ! is_array( $_FILES['screenshot'] ) ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- As above.
+		$error = isset( $_FILES['screenshot']['error'] ) ? (int) $_FILES['screenshot']['error'] : UPLOAD_ERR_NO_FILE;
+
+		if ( UPLOAD_ERR_NO_FILE === $error ) {
+			return '';
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+
+		$attachment = media_handle_upload(
+			'screenshot',
+			0,
+			array(),
+			array(
+				'test_form' => false,
+				'mimes'     => array(
+					'png'          => 'image/png',
+					'jpg|jpeg|jpe' => 'image/jpeg',
+					'gif'          => 'image/gif',
+					'webp'         => 'image/webp',
+				),
+			)
+		);
+
+		if ( is_wp_error( $attachment ) ) {
+			return '';
+		}
+
+		if ( ! wp_attachment_is_image( $attachment ) ) {
+			wp_delete_attachment( $attachment, true );
+
+			return '';
+		}
+
+		$url = wp_get_attachment_url( $attachment );
+
+		return is_string( $url ) ? $url : '';
 	}
 
 	/**

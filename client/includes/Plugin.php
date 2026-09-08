@@ -53,15 +53,15 @@ final class Plugin {
 		add_action( 'admin_enqueue_scripts', array( Admin\Screen::class, 'enqueue' ) );
 		// Registration order is menu order. Requests sit straight under the
 		// overview because asking for something is the thing a client comes
-		// here to do; the views of work follow; and the two screens about the
-		// arrangement rather than the work sit at the bottom.
+		// here to do; the views of work follow; and the screen about the
+		// arrangement rather than the work sits at the bottom. Support Details
+		// was here until #287 and is now three panels on the overview.
 		add_action( 'admin_menu', array( Admin\AskScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\AskedScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\BoardScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\TimelineScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\CalendarScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ChecklistScreen::class, 'register' ) );
-		add_action( 'admin_menu', array( Admin\SalesScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionScreen::class, 'register' ) );
 
 		Admin\AskActions::boot();

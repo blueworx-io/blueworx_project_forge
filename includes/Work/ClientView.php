@@ -74,19 +74,29 @@ final class ClientView {
 	 * @return array<string, mixed>
 	 */
 	public static function item( array $row, callable $lookup ): array {
+		/*
+		 * level_label and work_type_label are the words for two slugs that were
+		 * already published and neither of which was readable (#287): a client
+		 * card showing "sub-feature" is showing them our filing. Labelled here
+		 * for the same reason stage_label is — the vocabulary is the studio's,
+		 * and a client site translating slugs of its own would be a second copy
+		 * of it, drifting the first time we renamed anything.
+		 */
 		return array(
-			'id'             => (string) ( $row['id'] ?? '' ),
-			'parent_id'      => (string) ( $row['parent_id'] ?? '' ),
-			'title'          => (string) ( $row['title'] ?? '' ),
-			'stage'          => (string) ( $row['stage'] ?? '' ),
-			'stage_label'    => Stages::label( (string) ( $row['stage'] ?? '' ) ),
-			'level'          => (string) ( $row['level'] ?? '' ),
-			'work_type'      => (string) ( $row['work_type'] ?? '' ),
-			'planned_start'  => (string) ( $row['planned_start'] ?? '' ),
-			'planned_due'    => (string) ( $row['planned_due'] ?? '' ),
-			'review_target'  => (string) ( $row['review_target'] ?? '' ),
-			'release_target' => (string) ( $row['release_target'] ?? '' ),
-			'people'         => self::people( $row, $lookup ),
+			'id'              => (string) ( $row['id'] ?? '' ),
+			'parent_id'       => (string) ( $row['parent_id'] ?? '' ),
+			'title'           => (string) ( $row['title'] ?? '' ),
+			'stage'           => (string) ( $row['stage'] ?? '' ),
+			'stage_label'     => Stages::label( (string) ( $row['stage'] ?? '' ) ),
+			'level'           => (string) ( $row['level'] ?? '' ),
+			'level_label'     => Levels::label( (string) ( $row['level'] ?? '' ) ),
+			'work_type'       => (string) ( $row['work_type'] ?? '' ),
+			'work_type_label' => Types::label( (string) ( $row['work_type'] ?? '' ) ),
+			'planned_start'   => (string) ( $row['planned_start'] ?? '' ),
+			'planned_due'     => (string) ( $row['planned_due'] ?? '' ),
+			'review_target'   => (string) ( $row['review_target'] ?? '' ),
+			'release_target'  => (string) ( $row['release_target'] ?? '' ),
+			'people'          => self::people( $row, $lookup ),
 		);
 	}
 

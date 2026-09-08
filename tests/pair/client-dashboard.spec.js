@@ -127,9 +127,12 @@ test.describe('the client dashboard', () => {
      * position that is rather than that the feature is unbuilt — and says what
      * is still open, so "no package" reads as a conversation to have rather
      * than as a screen that failed.
+     *
+     * The panel is "hours" since #287, when Support Details stopped being a
+     * screen of its own and became these panels on the overview.
      */
-    await expect(page.locator('[data-bwx-panel="support"]')).toContainText('No support package');
-    await expect(page.locator('[data-bwx-panel="support"]')).toContainText(
+    await expect(page.locator('[data-bwx-panel="hours"]')).toContainText('No support package');
+    await expect(page.locator('[data-bwx-panel="hours"]')).toContainText(
       'report anything that is broken'
     );
 

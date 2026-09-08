@@ -147,14 +147,83 @@ final class Card {
 
 		echo '</div>';
 
-		echo '<div class="bw-card__body">';
+		/*
+		 * Built first, printed only if there is anything in it. A board column
+		 * of work nobody has dated or staffed yet was drawing an empty ruled
+		 * box under every title — which reads as a card that failed to load
+		 * rather than as work that has not been scheduled.
+		 */
+		ob_start();
 
+		self::classification( $item );
 		self::dates( $item );
 		self::people( $item );
 
-		echo '</div>';
+		$body = (string) ob_get_clean();
+
+		if ( '' !== trim( $body ) ) {
+			echo '<div class="bw-card__body">';
+			echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Assembled above from the same escaped printers this file has always used.
+			echo '</div>';
+		}
 
 		echo '</article>';
+	}
+
+	/**
+	 * What kind of work this is, and how big a piece of it.
+	 *
+	 * The two facts a card was missing (#287). A title on its own says what
+	 * somebody called the work; it does not say whether this is a fix or a new
+	 * feature, and that is usually the first thing a client wants to know —
+	 * "is this the bug I reported, or the thing I asked for?"
+	 *
+	 * Both arrive from the studio already in words. This does not translate
+	 * them, and must not: the vocabulary belongs to one end (ARCH-6), and a
+	 * client site with its own copy of it starts lying the day we rename a
+	 * stage.
+	 *
+	 * @param array<string, mixed> $item A board item.
+	 */
+	private static function classification( array $item ): void {
+		$type  = (string) ( $item['work_type_label'] ?? '' );
+		$level = (string) ( $item['level_label'] ?? '' );
+
+		if ( '' === $type && '' === $level ) {
+			return;
+		}
+
+		echo '<p class="bwx-card-class" data-testid="bwx-card-class">';
+
+		if ( '' !== $type ) {
+			printf(
+				'<span class="bw-badge bw-badge--%1$s" data-bwx-card-type="%2$s">%3$s</span>',
+				esc_attr( self::type_tone( (string) ( $item['work_type'] ?? '' ) ) ),
+				esc_attr( (string) ( $item['work_type'] ?? '' ) ),
+				esc_html( $type )
+			);
+		}
+
+		if ( '' !== $level ) {
+			printf( '<span data-bwx-card-level="%1$s">%2$s</span>', esc_attr( (string) ( $item['level'] ?? '' ) ), esc_html( $level ) );
+		}
+
+		echo '</p>';
+	}
+
+	/**
+	 * The badge tone a work type reads as.
+	 *
+	 * A bug is the one kind of work that is somebody's problem right now, so it
+	 * is the one that is coloured. Everything else is a category, not a signal,
+	 * and a card where four things compete for attention draws attention to
+	 * none of them.
+	 *
+	 * @param string $type A work type slug.
+	 * @return string One of the bw-badge tones.
+	 */
+	private static function type_tone( string $type ): string {
+		return 'bug' === $type ? 'warning' : 'neutral';
 	}
 
 	/**

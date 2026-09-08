@@ -83,6 +83,64 @@ final class Page {
 	}
 
 	/**
+	 * A banner.
+	 *
+	 * The design system's Notice, in the one place every client screen can
+	 * reach it. Standing guidance — what happens to something once it is sent,
+	 * who to talk to, what this site keeps and what it only shows — is a banner
+	 * rather than a small grey line under a panel, because a sentence set in
+	 * muted type at the foot of a form reads as small print and is skipped by
+	 * exactly the people it was written for.
+	 *
+	 * Lifted here from ConnectionScreen, which had the only complete version of
+	 * it. That screen now calls this one, so there is one banner in this plugin
+	 * rather than one per screen that happened to need it.
+	 *
+	 * @param string                $tone       success, warning, danger or info.
+	 * @param string                $text       The sentence to show.
+	 * @param array<string, string> $attributes Extra attributes on the banner.
+	 * @param bool                  $html       Whether $text carries markup.
+	 */
+	public static function notice( string $tone, string $text, array $attributes = array(), bool $html = false ): void {
+		$icons = array(
+			'success' => 'circle-check',
+			'warning' => 'triangle-alert',
+			'danger'  => 'circle-alert',
+			'info'    => 'info',
+		);
+
+		// Whole class names rather than a stem with the tone appended: the
+		// admin UI check reads the classes a screen writes, and one assembled
+		// from a variable is one it cannot see.
+		$classes = array(
+			'success' => 'bw-notice bw-notice--success',
+			'warning' => 'bw-notice bw-notice--warning',
+			'danger'  => 'bw-notice bw-notice--danger',
+			'info'    => 'bw-notice bw-notice--info',
+		);
+
+		printf( '<div class="%s"', esc_attr( $classes[ $tone ] ?? $classes['info'] ) );
+
+		foreach ( $attributes as $name => $value ) {
+			printf( ' %1$s="%2$s"', esc_attr( $name ), esc_attr( $value ) );
+		}
+
+		printf( ' role="%s">', esc_attr( 'danger' === $tone ? 'alert' : 'status' ) );
+
+		printf(
+			'<i class="bw-icon bw-notice__icon" data-lucide="%s"></i>',
+			esc_attr( $icons[ $tone ] ?? 'info' )
+		);
+
+		printf(
+			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
+			$html ? wp_kses_post( $text ) : esc_html( $text )
+		);
+
+		echo '</div>';
+	}
+
+	/**
 	 * Closes a panel.
 	 */
 	public static function panel_close(): void {

@@ -247,7 +247,19 @@ final class AskScreen {
 
 		Page::panel_open( __( 'Send a request', 'blueworx-forge' ), 'ask' );
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-testid="bwx-ask-form">';
+		/*
+		 * At the head of the form, not the foot. This answers "am I allowed to
+		 * send this?", and that is a question somebody has before they write
+		 * rather than after — a client who reads it under the Send button has
+		 * already spent the doubt.
+		 */
+		Page::notice(
+			'info',
+			__( 'You can send these whether or not you have a support package. Having one affects how quickly work can be scheduled, not whether you can ask.', 'blueworx-forge' ),
+			array( 'data-bwx-ask-welcome' => '1' )
+		);
+
+		echo '<form method="post" enctype="multipart/form-data" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-testid="bwx-ask-form">';
 
 		printf( '<input type="hidden" name="action" value="%s" />', esc_attr( AskActions::ACTION ) );
 		wp_nonce_field( AskActions::ACTION );
@@ -256,16 +268,18 @@ final class AskScreen {
 		self::text( 'title', __( 'Title', 'blueworx-forge' ), (string) ( $draft['title'] ?? '' ), __( 'A short name for what you are asking about.', 'blueworx-forge' ) );
 		self::area( 'description', __( 'What you are asking for', 'blueworx-forge' ), (string) ( $draft['description'] ?? '' ), __( 'As much or as little as you like. What is happening now, and what you would rather happened.', 'blueworx-forge' ) );
 		self::area( 'desired_outcome', __( 'What good would look like', 'blueworx-forge' ), (string) ( $draft['desired_outcome'] ?? '' ), __( 'Optional. How you would know this had been done well.', 'blueworx-forge' ) );
-		self::area( 'evidence', __( 'Anything that helps', 'blueworx-forge' ), (string) ( $draft['evidence'] ?? '' ), __( 'Optional. Links to the page in question, an error message, a screenshot somewhere we can see it.', 'blueworx-forge' ) );
+		self::area( 'evidence', __( 'Anything that helps', 'blueworx-forge' ), (string) ( $draft['evidence'] ?? '' ), __( 'Optional. Links to the page in question, or an error message you have seen.', 'blueworx-forge' ) );
+		self::screenshot();
 
-		printf(
-			'<p class="bw-card__note" data-testid="bwx-ask-immutable">%s</p>',
-			esc_html__( 'Once sent, this is kept exactly as you wrote it and cannot be edited. If you change your mind, send another one — we will see both.', 'blueworx-forge' )
-		);
-
-		printf(
-			'<p class="bw-card__note">%s</p>',
-			esc_html__( 'You can send these whether or not you have a support package. Having one affects how quickly work can be scheduled, not whether you can ask.', 'blueworx-forge' )
+		/*
+		 * Directly above Send, because this one is about the act of sending
+		 * (REQ-1). It is the last thing read before the button, which is where
+		 * a consequence that cannot be undone belongs.
+		 */
+		Page::notice(
+			'info',
+			__( 'Once sent, this is kept exactly as you wrote it and cannot be edited. If you change your mind, send another one — we will see both.', 'blueworx-forge' ),
+			array( 'data-testid' => 'bwx-ask-immutable' )
 		);
 
 		/*
@@ -383,6 +397,38 @@ final class AskScreen {
 			esc_html( $label ),
 			esc_textarea( $value ),
 			esc_html( $help )
+		);
+	}
+
+	/**
+	 * A picture of the problem (#287).
+	 *
+	 * The one thing this form asked people to do by hand. "A screenshot
+	 * somewhere we can see it" meant finding somewhere to put it first, which
+	 * in practice meant most requests arrived without one — and a screenshot is
+	 * the single most useful thing on a report of something broken.
+	 *
+	 * It goes into this site's own media library and the studio is sent the
+	 * address, which is why there is no size negotiation and no new route: the
+	 * file never leaves the client's server, and what crosses the connection is
+	 * a link, exactly as if somebody had pasted one.
+	 *
+	 * The trade is worth saying out loud, because it is the reason the help
+	 * text says what it does: a picture kept on the client's site is a picture
+	 * the studio cannot see if that site goes down or somebody deletes it.
+	 */
+	private static function screenshot(): void {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return;
+		}
+
+		printf(
+			'<div class="bw-formrow"><label class="bw-formrow__label" for="bwx-screenshot">%1$s</label>' .
+			'<div class="bw-formrow__control">' .
+			'<input type="file" class="bw-input" id="bwx-screenshot" name="screenshot" accept="image/png,image/jpeg,image/gif,image/webp" data-testid="bwx-ask-screenshot" />' .
+			'<p class="bw-formrow__help">%2$s</p></div></div>',
+			esc_html__( 'A screenshot', 'blueworx-forge' ),
+			esc_html__( 'Optional. A picture of what you are seeing. It is saved to this site\'s media library and we are sent the link.', 'blueworx-forge' )
 		);
 	}
 }
