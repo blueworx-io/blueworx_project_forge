@@ -231,14 +231,29 @@ test.describe('the client read-only views', () => {
       work_type: 'feature',
     });
 
+    await addWork(studio, mine.site.id, {
+      title: `Nobody has dated this either ${RUN}`,
+      level: 'feature',
+      work_type: 'feature',
+    });
+
     await connect(client, mine.issued);
 
     const page = await client.context.newPage();
     await page.goto(TIMELINE);
 
-    await expect(page.locator('[data-testid="bwx-undated"]')).toContainText(
-      `Nobody has dated this ${RUN}`
-    );
+    const undated = page.locator('[data-testid="bwx-undated"]');
+    await expect(undated).toContainText(`Nobody has dated this ${RUN}`);
+
+    // Separate pieces of work read as separate cards, so there has to be real
+    // space between them (#289). bw-card carries no margin of its own, so
+    // without a rule here the two sit flush and read as one block.
+    const cards = undated.locator('[data-testid="bwx-card"]');
+    await expect(cards.nth(1)).toBeVisible();
+
+    const first = await cards.nth(0).boundingBox();
+    const second = await cards.nth(1).boundingBox();
+    expect(second.y - (first.y + first.height)).toBeGreaterThanOrEqual(8);
 
     await page.close();
   });

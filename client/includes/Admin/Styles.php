@@ -120,7 +120,12 @@ final class Styles {
 .bwx-months { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.75rem; }
 
 .bwx-lede { margin: 0 0 0.25rem; font-size: var(--text-heading, 1.15rem); color: var(--text-primary, #1d2327); }
+/* Work with no dates on it (#120), listed as cards. Separate pieces of work
+   have to read as separate cards, so they need space between them (#289) —
+   bw-card carries no margin of its own, the same reason .bwx-asked sets one. */
 .bwx-undated { margin-top: 1.5rem; }
+.bwx-undated > .bw-card { margin: 0 0 0.75rem; }
+.bwx-undated > .bw-card:last-child { margin-bottom: 0; }
 
 /* What you asked for (#130). An exchange, not a table: the request, then the
    reply set in under it. Each entry is a bw-card; this only adds the gap
