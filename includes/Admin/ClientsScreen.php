@@ -122,8 +122,11 @@ final class ClientsScreen {
 
 		$status = self::status_filter();
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — clients', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'Clients', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'Everyone we work for, the sites we look after for them, and who may reach each one.', 'blueworx-forge' )
+		);
 
 		self::notice();
 		self::issued_key();
@@ -132,7 +135,7 @@ final class ClientsScreen {
 		self::clients_list( $status );
 		self::add_client_form();
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -177,23 +180,22 @@ final class ClientsScreen {
 
 		$messages = array(
 			'added'              => array( 'success', __( 'Saved.', 'blueworx-forge' ) ),
-			'invalid'            => array( 'error', __( 'That could not be saved.', 'blueworx-forge' ) ),
-			'stale'              => array( 'error', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
-			'unknown'            => array( 'error', __( 'No such record.', 'blueworx-forge' ) ),
+			'invalid'            => array( 'danger', __( 'That could not be saved.', 'blueworx-forge' ) ),
+			'stale'              => array( 'danger', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
+			'unknown'            => array( 'danger', __( 'No such record.', 'blueworx-forge' ) ),
 			'onboarding-started' => array( 'success', __( 'Onboarding started. Their checklist is fixed at this version.', 'blueworx-forge' ) ),
-			'already-onboarding' => array( 'error', __( 'That site already has a checklist. A client onboards once.', 'blueworx-forge' ) ),
-			'no-checklist'       => array( 'error', __( 'There is no published checklist to give them yet.', 'blueworx-forge' ) ),
+			'already-onboarding' => array( 'danger', __( 'That site already has a checklist. A client onboards once.', 'blueworx-forge' ) ),
+			'no-checklist'       => array( 'danger', __( 'There is no published checklist to give them yet.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-notice="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-notice' => $result )
 		);
 	}
 
@@ -212,12 +214,15 @@ final class ClientsScreen {
 			return;
 		}
 
-		echo '<div class="notice notice-warning" data-bwx-issued-key="1">';
-		echo '<p><strong>' . esc_html__( 'Copy this key now. It cannot be shown again.', 'blueworx-forge' ) . '</strong></p>';
-		echo '<p>' . esc_html__( 'Site id', 'blueworx-forge' ) . ': <code data-bwx-site-id="1">' . esc_html( $issued['site_id'] ) . '</code></p>';
-		echo '<p>' . esc_html__( 'Key', 'blueworx-forge' ) . ': <code data-bwx-key="1">' . esc_html( $issued['key'] ) . '</code></p>';
-		echo '<p class="description">' . esc_html__( 'Paste both into the client site. If the key is lost, issue a new one — there is nowhere to look it up.', 'blueworx-forge' ) . '</p>';
-		echo '</div>';
+		// Markup, so the id and the key keep the elements the specs read them
+		// out of. Everything interpolated is escaped as it is assembled, and
+		// the key itself is never written anywhere but here.
+		$text = '<strong>' . esc_html__( 'Copy this key now. It cannot be shown again.', 'blueworx-forge' ) . '</strong>'
+			. '<br>' . esc_html__( 'Site id', 'blueworx-forge' ) . ': <code class="bw-input bw-input--mono" data-bwx-site-id="1">' . esc_html( $issued['site_id'] ) . '</code>'
+			. '<br>' . esc_html__( 'Key', 'blueworx-forge' ) . ': <code class="bw-input bw-input--mono" data-bwx-key="1">' . esc_html( $issued['key'] ) . '</code>'
+			. '<br>' . esc_html__( 'Paste both into the client site. If the key is lost, issue a new one — there is nowhere to look it up.', 'blueworx-forge' );
+
+		Page::notice( 'warning', $text, array( 'data-bwx-issued-key' => '1' ), true );
 	}
 
 	/**
@@ -243,7 +248,11 @@ final class ClientsScreen {
 		$clients = Clients::all( 'all' === $status ? null : 'active' );
 
 		if ( array() === $clients ) {
-			echo '<p data-bwx-no-clients="1">' . esc_html__( 'No clients yet.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-clients="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="users"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No clients yet', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Add the first one below.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
 
 			return;
 		}
@@ -270,7 +279,10 @@ final class ClientsScreen {
 			self::$everyone[ (string) $person['id'] ]     = $person;
 		}
 
-		echo '<ul data-bwx-clients="1">';
+		// Still a list, because that is what it is; the design system's card is
+		// what each item wears. Kept a <ul> so the specs' [data-bwx-clients]
+		// container and its children read exactly as they did.
+		echo '<ul class="bw-panels" data-bwx-clients="1">';
 
 		foreach ( $clients as $client ) {
 			self::client_item( $client, $status );
@@ -291,11 +303,20 @@ final class ClientsScreen {
 			? __( 'Active', 'blueworx-forge' )
 			: __( 'Inactive', 'blueworx-forge' );
 
-		echo '<li data-bwx-client="' . esc_attr( $client_id ) . '">';
-		echo '<span data-bwx-client-name>' . esc_html( (string) $client['display_name'] ) . '</span> ';
-		echo '<span data-bwx-status>' . esc_html( $label ) . '</span> ';
+		$tone = 'active' === (string) $client['status']
+			? 'bw-badge'
+			: 'bw-badge bw-badge--neutral';
+
+		echo '<li class="bw-card" data-bwx-client="' . esc_attr( $client_id ) . '">';
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		echo '<h2 class="bw-card__title" data-bwx-client-name>' . esc_html( (string) $client['display_name'] ) . '</h2>';
+		echo '</div><div class="bw-card__actions">';
+		echo '<span class="' . esc_attr( $tone ) . '" data-bwx-status>' . esc_html( $label ) . '</span>';
 
 		self::deactivate_client_form( $client );
+
+		echo '</div></div>';
+		echo '<div class="bw-card__body">';
 
 		self::edit_client_form( $client );
 
@@ -306,6 +327,7 @@ final class ClientsScreen {
 
 		self::people( $client );
 
+		echo '</div>';
 		echo '</li>';
 	}
 
@@ -416,7 +438,7 @@ final class ClientsScreen {
 		wp_nonce_field( 'bwx_forge_assign_onboarding_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_assign_onboarding">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
-		echo '<button type="submit" class="button" data-bwx-action="bwx_forge_assign_onboarding"';
+		echo '<button type="submit" class="bw-btn bw-btn--secondary" data-bwx-action="bwx_forge_assign_onboarding"';
 		echo ' onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Give this site the current checklist? It is fixed at this version and cannot be changed afterwards.', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html(
 			sprintf(
@@ -613,7 +635,7 @@ final class ClientsScreen {
 		echo '<input type="hidden" name="action" value="bwx_forge_end_membership">';
 		echo '<input type="hidden" name="membership_id" value="' . esc_attr( $id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $membership['record_version'] ) . '">';
-		echo '<button type="submit" class="button" data-bwx-end-membership onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'End this access?', 'blueworx-forge' ) ) ) . ')">';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-end-membership onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'End this access?', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'End access', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
@@ -692,7 +714,7 @@ final class ClientsScreen {
 		wp_nonce_field( 'bwx_forge_issue_site_key_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_issue_site_key">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
-		echo '<button type="submit" class="button" data-bwx-issue-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( $question ) ) . ')">';
+		echo '<button type="submit" class="bw-btn bw-btn--secondary" data-bwx-issue-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( $question ) ) . ')">';
 		echo esc_html( $issuing );
 		echo '</button>';
 		echo '</form> ';
@@ -705,7 +727,7 @@ final class ClientsScreen {
 		wp_nonce_field( 'bwx_forge_revoke_site_key_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_revoke_site_key">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
-		echo '<button type="submit" class="button" data-bwx-revoke-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Cut this site off? Its key stops working immediately.', 'blueworx-forge' ) ) ) . ')">';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-revoke-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Cut this site off? Its key stops working immediately.', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'Revoke key', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form> ';
@@ -715,30 +737,40 @@ final class ClientsScreen {
 	 * The form that adds a new client.
 	 */
 	private static function add_client_form(): void {
-		echo '<h2>' . esc_html__( 'Add a client', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Add a client', 'blueworx-forge' ), 'add-client' );
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-client>';
 		wp_nonce_field( 'bwx_forge_add_client' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_client">';
-		echo '<table class="form-table"><tbody>';
 
-		echo '<tr><th scope="row"><label for="bwx-client-name">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-client-name" name="display_name" class="regular-text" required></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-client-name">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-client-name" name="display_name" class="bw-input" required></div>';
+		echo '</div>';
 
-		echo '<tr><th scope="row"><label for="bwx-client-timezone">' . esc_html__( 'Timezone', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><select id="bwx-client-timezone" name="timezone">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-client-timezone">' . esc_html__( 'Timezone', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><div class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-client-timezone" name="timezone">';
 
 		foreach ( timezone_identifiers_list() as $timezone ) {
 			echo '<option value="' . esc_attr( $timezone ) . '"' . selected( 'UTC', $timezone, false ) . '>' . esc_html( $timezone ) . '</option>';
 		}
 
-		echo '</select></td></tr>';
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</div></div></div>';
 
-		echo '<tr><th scope="row"><label for="bwx-client-domains">' . esc_html__( 'Permitted email domains', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-client-domains" name="email_domains" class="regular-text" placeholder="acme.co.uk, acme.com"></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-client-domains">' . esc_html__( 'Permitted email domains', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-client-domains" name="email_domains" class="bw-input" placeholder="acme.co.uk, acme.com"></div>';
+		echo '</div>';
 
-		echo '</tbody></table>';
-		submit_button( __( 'Add client', 'blueworx-forge' ) );
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Add client', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -774,7 +806,7 @@ final class ClientsScreen {
 		echo '<input type="hidden" name="action" value="bwx_forge_deactivate_client">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $client['record_version'] ) . '">';
-		echo '<button type="submit" class="button" data-bwx-deactivate-client onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Deactivate this client and every site under it?', 'blueworx-forge' ) ) ) . ')">';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-deactivate-client onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Deactivate this client and every site under it?', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'Deactivate', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
@@ -797,7 +829,7 @@ final class ClientsScreen {
 		echo '<input type="hidden" name="action" value="bwx_forge_deactivate_client_site">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $site['record_version'] ) . '">';
-		echo '<button type="submit" class="button" data-bwx-deactivate-site onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Deactivate this site?', 'blueworx-forge' ) ) ) . ')">';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-deactivate-site onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Deactivate this site?', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'Deactivate', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
@@ -819,13 +851,15 @@ final class ClientsScreen {
 		echo '<input type="hidden" name="action" value="bwx_forge_edit_client">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $client['record_version'] ) . '">';
-		echo '<table class="form-table"><tbody>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-client-name-' . esc_attr( $client_id ) . '">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-edit-client-name-' . esc_attr( $client_id ) . '" name="display_name" class="bw-input" value="' . esc_attr( (string) $client['display_name'] ) . '" required></div>';
+		echo '</div>';
 
-		echo '<tr><th scope="row"><label for="bwx-edit-client-name-' . esc_attr( $client_id ) . '">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-edit-client-name-' . esc_attr( $client_id ) . '" name="display_name" class="regular-text" value="' . esc_attr( (string) $client['display_name'] ) . '" required></td></tr>';
-
-		echo '<tr><th scope="row"><label for="bwx-edit-client-legal-' . esc_attr( $client_id ) . '">' . esc_html__( 'Legal name', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-edit-client-legal-' . esc_attr( $client_id ) . '" name="legal_name" class="regular-text" value="' . esc_attr( (string) $client['legal_name'] ) . '"></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-client-legal-' . esc_attr( $client_id ) . '">' . esc_html__( 'Legal name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-edit-client-legal-' . esc_attr( $client_id ) . '" name="legal_name" class="bw-input" value="' . esc_attr( (string) $client['legal_name'] ) . '"></div>';
+		echo '</div>';
 
 		/*
 		 * An input against one shared list, not a select of its own. There are
@@ -835,23 +869,31 @@ final class ClientsScreen {
 		 * which the browser then had to lay out. The rule that matters is
 		 * server-side in Validate::client() either way.
 		 */
-		echo '<tr><th scope="row"><label for="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '">' . esc_html__( 'Timezone', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '" name="timezone" class="regular-text" list="' . esc_attr( self::TIMEZONE_LIST ) . '" value="' . esc_attr( (string) $client['timezone'] ) . '"></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '">' . esc_html__( 'Timezone', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-edit-client-timezone-' . esc_attr( $client_id ) . '" name="timezone" class="bw-input" list="' . esc_attr( self::TIMEZONE_LIST ) . '" value="' . esc_attr( (string) $client['timezone'] ) . '"></div>';
+		echo '</div>';
 
-		echo '<tr><th scope="row"><label for="bwx-edit-client-domains-' . esc_attr( $client_id ) . '">' . esc_html__( 'Permitted email domains', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-edit-client-domains-' . esc_attr( $client_id ) . '" name="email_domains" class="regular-text" value="' . esc_attr( implode( ', ', (array) $client['email_domains'] ) ) . '"></td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-client-domains-' . esc_attr( $client_id ) . '">' . esc_html__( 'Permitted email domains', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-edit-client-domains-' . esc_attr( $client_id ) . '" name="email_domains" class="bw-input" value="' . esc_attr( implode( ', ', (array) $client['email_domains'] ) ) . '"></div>';
+		echo '</div>';
 
-		echo '<tr><th scope="row"><label for="bwx-edit-client-status-' . esc_attr( $client_id ) . '">' . esc_html__( 'Status', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><select id="bwx-edit-client-status-' . esc_attr( $client_id ) . '" name="status">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-client-status-' . esc_attr( $client_id ) . '">' . esc_html__( 'Status', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><div class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-edit-client-status-' . esc_attr( $client_id ) . '" name="status">';
 
 		foreach ( Validate::STATUSES as $status_option ) {
 			echo '<option value="' . esc_attr( $status_option ) . '"' . selected( (string) $client['status'], $status_option, false ) . '>' . esc_html( ucfirst( $status_option ) ) . '</option>';
 		}
 
-		echo '</select></td></tr>';
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</div></div></div>';
 
-		echo '</tbody></table>';
-		submit_button( __( 'Save', 'blueworx-forge' ), 'secondary', '', false );
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
+		echo '</div>';
 		echo '</form>';
 		echo '</details>';
 	}

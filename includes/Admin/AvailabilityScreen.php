@@ -24,7 +24,8 @@ use Blueworx\Forge\Tenancy\Users;
  * rare change hard to find inside the common one.
  *
  * ARCH-7 puts it here rather than in the React application: this configures the
- * system rather than doing the work.
+ * system rather than doing the work. It is built from the shared admin design
+ * system, like every other studio screen.
  */
 final class AvailabilityScreen {
 
@@ -72,17 +73,24 @@ final class AvailabilityScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — availability', 'blueworx-forge' ) . '</h1>';
-		echo '<p>' . esc_html__( 'Somebody\'s working week, and the time they are not available for. Everything that works out whether there is room to take work on reads this and nothing else.', 'blueworx-forge' ) . '</p>';
+		Page::open(
+			__( 'Availability', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'Somebody\'s working week, and the time they are not available for. Everything that works out whether there is room to take work on reads this and nothing else.', 'blueworx-forge' )
+		);
 
 		self::result_notice();
 
 		$people = Users::all( 'active' );
 
 		if ( array() === $people ) {
-			echo '<p data-bwx-no-people="1">' . esc_html__( 'Nobody to set hours for yet. Add people on the People screen first.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-people="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="users"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Nobody to set hours for yet', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Add people on the People screen first.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';
+
+			Page::close();
 
 			return;
 		}
@@ -90,12 +98,18 @@ final class AvailabilityScreen {
 		$person = self::chosen_person( $people );
 
 		self::person_picker( $people, $person );
+
+		Page::panel_open( __( 'The working week', 'blueworx-forge' ), 'week' );
 		self::this_week( $person );
 		self::pattern_form( $person );
 		self::pattern_history( $person );
-		self::unavailability_section( $person );
+		Page::panel_close();
 
-		echo '</div>';
+		Page::panel_open( __( 'Time off', 'blueworx-forge' ), 'leave' );
+		self::unavailability_section( $person );
+		Page::panel_close();
+
+		Page::close();
 	}
 
 	/**
@@ -107,24 +121,26 @@ final class AvailabilityScreen {
 		// administrator's screen say.
 		$result = isset( $_GET['bwx-result'] ) ? sanitize_key( wp_unslash( $_GET['bwx-result'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reporting the outcome of an action that carried its own nonce.
 
+		// Toned danger rather than error, spelled that way once here: the design
+		// system has no error tone, and Page::notice shows one it does not
+		// recognise as information rather than as a failure.
 		$messages = array(
 			'hours-set'      => array( 'success', __( 'Hours recorded. Periods before the date you gave are unchanged.', 'blueworx-forge' ) ),
 			'leave-added'    => array( 'success', __( 'Time off recorded.', 'blueworx-forge' ) ),
 			'leave-removed'  => array( 'success', __( 'Time off removed.', 'blueworx-forge' ) ),
-			'needs-date'     => array( 'error', __( 'A date the hours take effect from is needed.', 'blueworx-forge' ) ),
-			'needs-dates'    => array( 'error', __( 'A start date and an end date are both needed.', 'blueworx-forge' ) ),
-			'unknown-person' => array( 'error', __( 'That person could not be found.', 'blueworx-forge' ) ),
+			'needs-date'     => array( 'danger', __( 'A date the hours take effect from is needed.', 'blueworx-forge' ) ),
+			'needs-dates'    => array( 'danger', __( 'A start date and an end date are both needed.', 'blueworx-forge' ) ),
+			'unknown-person' => array( 'danger', __( 'That person could not be found.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-result' => $result )
 		);
 	}
 
@@ -153,10 +169,12 @@ final class AvailabilityScreen {
 	 * @param array<string, mixed>             $person The one being shown.
 	 */
 	private static function person_picker( array $people, array $person ): void {
-		echo '<form method="get" data-bwx-person-picker="1">';
+		echo '<div class="bw-toolbar bw-toolbar--card">';
+		echo '<form method="get" class="bw-toolbar__group" data-bwx-person-picker="1">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '">';
-		echo '<label for="bwx-person">' . esc_html__( 'Person', 'blueworx-forge' ) . '</label> ';
-		echo '<select id="bwx-person" name="person">';
+		echo '<label class="bw-formrow__label" for="bwx-person">' . esc_html__( 'Person', 'blueworx-forge' ) . '</label>';
+		echo '<span class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-person" name="person">';
 
 		foreach ( $people as $option ) {
 			printf(
@@ -167,9 +185,18 @@ final class AvailabilityScreen {
 			);
 		}
 
-		echo '</select> ';
-		submit_button( __( 'Show', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span>';
+
+		// submit_button() rather than a <button>, and this is not cosmetic: the
+		// specs click `input[type="submit"]`, so the element is as much part of
+		// the contract as a data-bwx hook is. What changes is the class it
+		// carries.
+		submit_button( __( 'Show', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
+
 		echo '</form>';
+		echo '</div>';
 
 		echo '<h2 data-bwx-person-name="' . esc_attr( (string) $person['id'] ) . '">' . esc_html( (string) $person['display_name'] ) . '</h2>';
 	}
@@ -189,37 +216,46 @@ final class AvailabilityScreen {
 		$days  = Availability::by_day( $id, $from, $to );
 		$total = Availability::hours( $id, $from, $to );
 
-		echo '<h3>' . esc_html__( 'The next seven days', 'blueworx-forge' ) . '</h3>';
+		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'The next seven days', 'blueworx-forge' ) . '</h3>';
 
 		if ( ! Availability::is_recorded( $id, $from ) ) {
-			echo '<div class="notice notice-warning inline" data-bwx-availability="unrecorded"><p>';
-			echo esc_html__( 'Nobody has said what this person\'s hours are, so nothing can be planned against them yet. That is different from having no time, and is why this says so rather than showing zero.', 'blueworx-forge' );
-			echo '</p></div>';
+			Page::notice(
+				'warning',
+				__( 'Nobody has said what this person\'s hours are, so nothing can be planned against them yet. That is different from having no time, and is why this says so rather than showing zero.', 'blueworx-forge' ),
+				array( 'data-bwx-availability' => 'unrecorded' )
+			);
 
 			return;
 		}
 
-		printf(
-			'<p data-bwx-availability="recorded">%1$s <strong data-bwx-available-hours="1">%2$s</strong></p>',
-			esc_html__( 'Available hours:', 'blueworx-forge' ),
-			esc_html( self::hours_label( $total ) )
-		);
+		echo '<div class="bw-stats">';
+		echo '<div class="bw-stat" data-bwx-availability="recorded">';
+		echo '<span class="bw-stat__label">' . esc_html__( 'Available hours', 'blueworx-forge' ) . '</span>';
+		echo '<span class="bw-stat__value" data-bwx-available-hours="1">' . esc_html( self::hours_label( $total ) ) . '</span>';
+		echo '<p class="bw-stat__foot">' . esc_html__( 'Across the next seven days.', 'blueworx-forge' ) . '</p>';
+		echo '</div>';
+		echo '</div>';
 
-		echo '<table class="widefat striped" data-bwx-availability-days="1"><thead><tr>';
+		// A row per day, and the day on the row rather than in a cell of its
+		// own: availability-screen.spec.js reads tr[data-bwx-day] and its
+		// reason attribute, so only the styling of this table moved.
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-availability-days="1"><thead><tr>';
 		echo '<th scope="col">' . esc_html__( 'Day', 'blueworx-forge' ) . '</th>';
-		echo '<th scope="col">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
+		echo '<th scope="col" class="bw-table__num">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
 		echo '<th scope="col">' . esc_html__( 'Note', 'blueworx-forge' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		foreach ( $days as $day ) {
 			echo '<tr data-bwx-day="' . esc_attr( $day['date'] ) . '" data-bwx-day-reason="' . esc_attr( $day['reason'] ) . '">';
-			echo '<td>' . esc_html( gmdate( 'D j M', (int) strtotime( $day['date'] . ' 00:00:00 UTC' ) ) ) . '</td>';
-			echo '<td data-bwx-day-hours="1">' . esc_html( self::hours_label( $day['hours'] ) ) . '</td>';
-			echo '<td>' . esc_html( self::reason_label( $day ) ) . '</td>';
+			echo '<td class="bw-table__primary">' . esc_html( gmdate( 'D j M', (int) strtotime( $day['date'] . ' 00:00:00 UTC' ) ) ) . '</td>';
+			echo '<td class="bw-table__num" data-bwx-day-hours="1">' . esc_html( self::hours_label( $day['hours'] ) ) . '</td>';
+			echo '<td class="bw-table__note">' . esc_html( self::reason_label( $day ) ) . '</td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
 	}
 
 	/**
@@ -230,33 +266,38 @@ final class AvailabilityScreen {
 	private static function pattern_form( array $person ): void {
 		$current = Patterns::in_force( (string) $person['id'], gmdate( 'Y-m-d' ) );
 
-		echo '<h3>' . esc_html__( 'Set working hours', 'blueworx-forge' ) . '</h3>';
-		echo '<p>' . esc_html__( 'Hours take effect from the date you give and leave everything before it alone, so a change now does not rewrite what last month was.', 'blueworx-forge' ) . '</p>';
+		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Set working hours', 'blueworx-forge' ) . '</h3>';
+		echo '<p class="bw-card__note">' . esc_html__( 'Hours take effect from the date you give and leave everything before it alone, so a change now does not rewrite what last month was.', 'blueworx-forge' ) . '</p>';
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-set-hours="1">';
 		wp_nonce_field( 'bwx_forge_set_hours' );
 		echo '<input type="hidden" name="action" value="bwx_forge_set_hours">';
 		echo '<input type="hidden" name="person" value="' . esc_attr( (string) $person['id'] ) . '">';
 
-		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="bwx-effective-from">' . esc_html__( 'From', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<input type="date" id="bwx-effective-from" name="effective_from" value="' . esc_attr( gmdate( 'Y-m-d' ) ) . '" required>';
-		echo '</td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-effective-from">' . esc_html__( 'From', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="date" class="bw-input" id="bwx-effective-from" name="effective_from" value="' . esc_attr( gmdate( 'Y-m-d' ) ) . '" required>';
+		echo '</div></div>';
 
 		foreach ( self::weekdays() as $column => $label ) {
 			$value = null === $current ? 0 : (float) $current[ $column ];
 
-			echo '<tr><th scope="row"><label for="bwx-' . esc_attr( $column ) . '">' . esc_html( $label ) . '</label></th><td>';
+			echo '<div class="bw-formrow">';
+			echo '<label class="bw-formrow__label" for="bwx-' . esc_attr( $column ) . '">' . esc_html( $label ) . '</label>';
+			echo '<div class="bw-formrow__control">';
 			printf(
-				'<input type="number" id="bwx-%1$s" name="%1$s" value="%2$s" min="0" max="24" step="0.25" class="small-text">',
+				'<input type="number" class="bw-input" id="bwx-%1$s" name="%1$s" value="%2$s" min="0" max="24" step="0.25">',
 				esc_attr( $column ),
 				esc_attr( (string) $value )
 			);
-			echo '</td></tr>';
+			echo '</div></div>';
 		}
 
-		echo '</tbody></table>';
-		submit_button( __( 'Record these hours', 'blueworx-forge' ) );
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Record these hours', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
+
 		echo '</form>';
 	}
 
@@ -264,7 +305,9 @@ final class AvailabilityScreen {
 	 * Every pattern recorded for this person.
 	 *
 	 * Shown rather than hidden, because effective dating is only trustworthy if
-	 * what it is holding can be seen.
+	 * what it is holding can be seen. A list that reads as history, which is
+	 * what it is — and still a <ul> of <li> items, because that is what
+	 * availability-screen.spec.js counts to prove both statements were kept.
 	 *
 	 * @param array<string, mixed> $person The person.
 	 */
@@ -275,17 +318,20 @@ final class AvailabilityScreen {
 			return;
 		}
 
-		echo '<h3>' . esc_html__( 'Hours over time', 'blueworx-forge' ) . '</h3>';
-		echo '<ul data-bwx-pattern-history="1">';
+		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Hours over time', 'blueworx-forge' ) . '</h3>';
+		echo '<ul class="bw-activity" data-bwx-pattern-history="1">';
 
 		foreach ( $history as $pattern ) {
-			echo '<li data-bwx-pattern="' . esc_attr( (string) $pattern['effective_from'] ) . '">';
+			echo '<li class="bw-activity__item" data-bwx-pattern="' . esc_attr( (string) $pattern['effective_from'] ) . '">';
+			echo '<span class="bw-activity__dot"><i class="bw-icon" data-lucide="clock"></i></span>';
+			echo '<div class="bw-activity__body"><p class="bw-activity__text">';
 			printf(
 				/* translators: 1: date the hours take effect, 2: hours per week. */
 				esc_html__( 'From %1$s — %2$s a week', 'blueworx-forge' ),
 				'<strong>' . esc_html( (string) $pattern['effective_from'] ) . '</strong>',
 				'<span data-bwx-pattern-week="1">' . esc_html( self::hours_label( (float) $pattern['hours_week'] ) ) . '</span>'
 			);
+			echo '</p></div>';
 			echo '</li>';
 		}
 
@@ -300,8 +346,6 @@ final class AvailabilityScreen {
 	private static function unavailability_section( array $person ): void {
 		$id = (string) $person['id'];
 
-		echo '<h3>' . esc_html__( 'Time off', 'blueworx-forge' ) . '</h3>';
-
 		// A year either side: far enough back to explain a figure somebody is
 		// questioning, and far enough forward to cover anything booked.
 		$today  = gmdate( 'Y-m-d' );
@@ -309,80 +353,125 @@ final class AvailabilityScreen {
 		$to     = gmdate( 'Y-m-d', (int) strtotime( $today . ' 00:00:00 UTC' ) + ( 365 * DAY_IN_SECONDS ) );
 		$booked = Unavailability::overlapping( $id, $from, $to );
 
+		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Recorded time off', 'blueworx-forge' ) . '</h3>';
+
 		if ( array() === $booked ) {
-			echo '<p data-bwx-no-leave="1">' . esc_html__( 'Nothing recorded in the year either side of today.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-leave="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="calendar-check"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No time off recorded', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Nothing recorded in the year either side of today.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
 		} else {
-			echo '<ul data-bwx-leave="1">';
-
-			foreach ( $booked as $record ) {
-				echo '<li data-bwx-leave-record="' . esc_attr( (string) $record['id'] ) . '">';
-				printf(
-					/* translators: 1: start date, 2: end date, 3: what kind of time off. */
-					esc_html__( '%1$s to %2$s — %3$s', 'blueworx-forge' ),
-					'<strong>' . esc_html( (string) $record['starts_on'] ) . '</strong>',
-					'<strong>' . esc_html( (string) $record['ends_on'] ) . '</strong>',
-					'<span data-bwx-leave-kind="' . esc_attr( (string) $record['kind'] ) . '">' . esc_html( self::kind_label( (string) $record['kind'] ) ) . '</span>'
-				);
-
-				if ( '' !== (string) $record['note'] ) {
-					echo ' <em>' . esc_html( (string) $record['note'] ) . '</em>';
-				}
-
-				echo ' ';
-				self::remove_leave_button( $person, (string) $record['id'] );
-				echo '</li>';
-			}
-
-			echo '</ul>';
+			self::leave_table( $person, $booked );
 		}
+
+		self::add_leave_form( $id );
+	}
+
+	/**
+	 * What is already booked, and how to take one back out.
+	 *
+	 * @param array<string, mixed>             $person The person.
+	 * @param array<int, array<string, mixed>> $booked The records.
+	 */
+	private static function leave_table( array $person, array $booked ): void {
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-leave="1"><thead><tr>';
+		echo '<th scope="col">' . esc_html__( 'From', 'blueworx-forge' ) . '</th>';
+		echo '<th scope="col">' . esc_html__( 'To', 'blueworx-forge' ) . '</th>';
+		echo '<th scope="col">' . esc_html__( 'Kind', 'blueworx-forge' ) . '</th>';
+		echo '<th scope="col">' . esc_html__( 'Note', 'blueworx-forge' ) . '</th>';
+		echo '<th scope="col" class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $booked as $record ) {
+			$kind = (string) $record['kind'];
+
+			echo '<tr data-bwx-leave-record="' . esc_attr( (string) $record['id'] ) . '">';
+			echo '<td class="bw-table__primary">' . esc_html( (string) $record['starts_on'] ) . '</td>';
+			echo '<td>' . esc_html( (string) $record['ends_on'] ) . '</td>';
+			echo '<td><span class="bw-chip bw-chip--plain" data-bwx-leave-kind="' . esc_attr( $kind ) . '">' . esc_html( self::kind_label( $kind ) ) . '</span></td>';
+			echo '<td class="bw-table__note">' . esc_html( (string) $record['note'] ) . '</td>';
+			echo '<td class="bw-table__actions"><div class="bw-rowactions">';
+			self::remove_leave_button( $person, (string) $record['id'] );
+			echo '</div></td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+		echo '</div>';
+	}
+
+	/**
+	 * The form that records time off.
+	 *
+	 * @param string $id The person.
+	 */
+	private static function add_leave_form( string $id ): void {
+		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Record time off', 'blueworx-forge' ) . '</h3>';
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-leave="1">';
 		wp_nonce_field( 'bwx_forge_add_leave' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_leave">';
 		echo '<input type="hidden" name="person" value="' . esc_attr( $id ) . '">';
-		echo '<table class="form-table"><tbody>';
 
-		echo '<tr><th scope="row"><label for="bwx-leave-from">' . esc_html__( 'From', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<input type="date" id="bwx-leave-from" name="starts_on" required>';
-		echo '<p class="description">' . esc_html__( 'The first day away.', 'blueworx-forge' ) . '</p>';
-		echo '</td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-leave-from">' . esc_html__( 'From', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="date" class="bw-input" id="bwx-leave-from" name="starts_on" required>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'The first day away.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
 
-		echo '<tr><th scope="row"><label for="bwx-leave-to">' . esc_html__( 'To', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<input type="date" id="bwx-leave-to" name="ends_on" required>';
-		echo '<p class="description">' . esc_html__( 'The last day away. This day counts as time off.', 'blueworx-forge' ) . '</p>';
-		echo '</td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-leave-to">' . esc_html__( 'To', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="date" class="bw-input" id="bwx-leave-to" name="ends_on" required>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'The last day away. This day counts as time off.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
 
-		echo '<tr><th scope="row"><label for="bwx-leave-kind">' . esc_html__( 'Kind', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<select id="bwx-leave-kind" name="kind">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-leave-kind">' . esc_html__( 'Kind', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><span class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-leave-kind" name="kind">';
 
 		foreach ( Unavailability::KINDS as $kind ) {
 			printf( '<option value="%1$s">%2$s</option>', esc_attr( $kind ), esc_html( self::kind_label( $kind ) ) );
 		}
 
-		echo '</select></td></tr>';
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span></div></div>';
 
-		echo '<tr><th scope="row"><label for="bwx-leave-note">' . esc_html__( 'Note', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<input type="text" id="bwx-leave-note" name="note" class="regular-text" maxlength="191">';
-		echo '</td></tr>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-leave-note">' . esc_html__( 'Note', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="text" class="bw-input" id="bwx-leave-note" name="note" maxlength="191">';
+		echo '</div></div>';
 
-		echo '</tbody></table>';
-		submit_button( __( 'Record time off', 'blueworx-forge' ) );
+		echo '<div class="bw-card__actions">';
+		submit_button( __( 'Record time off', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
+
 		echo '</form>';
 	}
 
 	/**
 	 * The button that removes one record.
 	 *
+	 * A posted form dressed as a row action rather than a link: taking time
+	 * back off somebody's record is not something a URL put in front of an
+	 * administrator should be able to do.
+	 *
 	 * @param array<string, mixed> $person The person.
 	 * @param string               $id     Record id.
 	 */
 	private static function remove_leave_button( array $person, string $id ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_remove_leave' );
 		echo '<input type="hidden" name="action" value="bwx_forge_remove_leave">';
 		echo '<input type="hidden" name="person" value="' . esc_attr( (string) $person['id'] ) . '">';
 		echo '<input type="hidden" name="record" value="' . esc_attr( $id ) . '">';
-		echo '<button type="submit" class="button-link" data-bwx-remove-leave="' . esc_attr( $id ) . '">';
+		echo '<button type="submit" class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-remove-leave="' . esc_attr( $id ) . '">';
 		echo esc_html__( 'Remove', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
