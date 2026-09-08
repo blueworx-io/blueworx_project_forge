@@ -46,8 +46,6 @@ final class WorkScreen {
 
 		Page::open( $heading, Nav::scope_text( $workspace ) );
 
-		Nav::render( $slug );
-
 		SyncNotice::render( $view['sync'], $slug );
 
 		echo '<div class="bwx-work" data-testid="bwx-work">';

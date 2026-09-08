@@ -73,7 +73,7 @@ final class TimelineScreen {
 	public static function render(): void {
 		WorkScreen::render(
 			self::SLUG,
-			__( 'Forge — timeline', 'blueworx-forge' ),
+			__( 'Timeline', 'blueworx-forge' ),
 			array( self::class, 'chart' )
 		);
 	}

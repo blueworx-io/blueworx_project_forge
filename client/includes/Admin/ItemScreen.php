@@ -121,8 +121,6 @@ final class ItemScreen {
 
 		Page::open( $heading, Nav::scope_text( $workspace ) );
 
-		Nav::render( BoardScreen::SLUG );
-
 		self::back_link();
 		self::result_notice();
 
@@ -471,10 +469,12 @@ final class ItemScreen {
 			);
 		}
 
+		echo '<div class="bwx-formactions">';
 		printf(
 			'<button type="submit" class="bw-btn bw-btn--primary" id="submit" name="submit">%s</button>',
 			esc_html( (string) $shape['submit'] )
 		);
+		echo '</div>';
 
 		echo '</form>';
 	}

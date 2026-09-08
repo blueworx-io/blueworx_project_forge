@@ -64,8 +64,8 @@ final class AskedScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'What you asked for', 'blueworx-forge' ),
-			__( 'What you asked for', 'blueworx-forge' ),
+			__( 'Requests', 'blueworx-forge' ),
+			__( 'Requests', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -88,9 +88,7 @@ final class AskedScreen {
 		// read-through view.
 		$workspace = Workspace::view( false );
 
-		Page::open( __( 'What you asked for', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
-
-		Nav::render( self::SLUG );
+		Page::open( __( 'Requests', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		SyncNotice::render( $view['sync'], self::SLUG );
 
@@ -356,7 +354,7 @@ final class AskedScreen {
 			'<p class="bw-empty__text">%s <a href="%s">%s</a>.</p>',
 			esc_html__( 'Whatever you send appears here, with what the studio said about it.', 'blueworx-forge' ),
 			esc_url( admin_url( 'admin.php?page=' . AskScreen::SLUG ) ),
-			esc_html__( 'Ask for something', 'blueworx-forge' )
+			esc_html__( 'New Request', 'blueworx-forge' )
 		);
 
 		echo '</div>';

@@ -59,6 +59,8 @@ final class Screen {
 			BoardScreen::SLUG,
 			TimelineScreen::SLUG,
 			CalendarScreen::SLUG,
+			ChecklistScreen::SLUG,
+			SalesScreen::SLUG,
 			AskScreen::SLUG,
 			AskedScreen::SLUG,
 			ConnectionScreen::SLUG,
@@ -153,6 +155,10 @@ final class Screen {
 
 	/**
 	 * Adds the menu entry.
+	 *
+	 * The submenu entry is added explicitly so it can be called Overview.
+	 * WordPress otherwise repeats the top-level name as the first child, which
+	 * would list "Forge" twice — once as the section and once as the page.
 	 */
 	public static function register(): void {
 		add_menu_page(
@@ -163,6 +169,15 @@ final class Screen {
 			array( self::class, 'render' ),
 			'dashicons-hammer',
 			58
+		);
+
+		add_submenu_page(
+			self::SLUG,
+			__( 'Overview', 'blueworx-forge' ),
+			__( 'Overview', 'blueworx-forge' ),
+			'manage_options',
+			self::SLUG,
+			array( self::class, 'render' )
 		);
 	}
 
@@ -178,9 +193,7 @@ final class Screen {
 		$view    = Workspace::view( $refresh );
 		$board   = Board::view( $refresh );
 
-		Page::open( __( 'Forge', 'blueworx-forge' ), Nav::scope_text( $view ) );
-
-		Nav::render( self::SLUG );
+		Page::open( __( 'Overview', 'blueworx-forge' ), Nav::scope_text( $view ) );
 
 		// One notice, from the record the frame itself is drawn from. The work
 		// sections below say for themselves when the work could not be read,

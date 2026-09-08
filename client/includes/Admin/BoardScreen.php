@@ -35,8 +35,8 @@ final class BoardScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'Board', 'blueworx-forge' ),
-			__( 'Board', 'blueworx-forge' ),
+			__( 'Work Board', 'blueworx-forge' ),
+			__( 'Work Board', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -65,7 +65,7 @@ final class BoardScreen {
 
 		WorkScreen::render(
 			self::SLUG,
-			__( 'Forge — board', 'blueworx-forge' ),
+			__( 'Work Board', 'blueworx-forge' ),
 			array( self::class, 'columns' )
 		);
 	}

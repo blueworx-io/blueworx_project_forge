@@ -45,8 +45,8 @@ final class SalesScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'Your hours', 'blueworx-forge' ),
-			__( 'Your hours', 'blueworx-forge' ),
+			__( 'Support Details', 'blueworx-forge' ),
+			__( 'Support Details', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -79,9 +79,7 @@ final class SalesScreen {
 		// names.
 		$workspace = Workspace::view( false );
 
-		Page::open( __( 'Your hours', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
-
-		Nav::render( self::SLUG );
+		Page::open( __( 'Support Details', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		if ( ! Connection::is_configured() ) {
 			Denial::render( Sync::STATE_NOT_CONFIGURED, Denial::WORKSPACE, 'bwx-sales-unavailable' );

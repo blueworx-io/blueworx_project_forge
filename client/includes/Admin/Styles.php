@@ -64,6 +64,22 @@ final class Styles {
 
 .bwx-empty { color: var(--text-muted, #646970); font-style: italic; margin: 0; }
 
+/* A card title that opens the item is still a heading, so it is not dressed
+   as body copy with a rule under it. The underline comes back on hover, where
+   it says the thing is clickable at the moment somebody is about to click. */
+.bw-card__title a { text-decoration: none; }
+.bw-card__title a:hover,
+.bw-card__title a:focus { text-decoration: underline; }
+
+/* A form's buttons sit clear of the last field's rule, and to the right of it
+   — where the design system puts a card's own actions. */
+.bwx-formactions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	margin: 1.25rem 0 0;
+}
+
 /* Three things the design system's Gantt has no pattern for, all ours to keep:
    the end tick made to read as a right-hand edge rather than a left-aligned
    label (the component's ruler is built for many evenly-spaced ticks, not a

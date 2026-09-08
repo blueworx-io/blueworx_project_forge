@@ -95,8 +95,8 @@ final class ChecklistScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'Getting you live', 'blueworx-forge' ),
-			__( 'Getting you live', 'blueworx-forge' ),
+			__( 'Onboarding', 'blueworx-forge' ),
+			__( 'Onboarding', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -126,9 +126,7 @@ final class ChecklistScreen {
 		$view      = Checklist::view( SyncNotice::refresh_requested() );
 		$workspace = Workspace::view( false );
 
-		Page::open( __( 'Getting you live', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
-
-		Nav::render( self::SLUG );
+		Page::open( __( 'Onboarding', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		SyncNotice::render( $view['sync'], self::SLUG );
 
@@ -489,7 +487,7 @@ final class ChecklistScreen {
 		echo '</div>';
 		echo '</div>';
 
-		echo '<p class="bwx-checklist-actions">';
+		echo '<p class="bwx-checklist-actions bwx-formactions">';
 
 		printf(
 			'<button type="submit" name="intent" value="save" class="bw-btn bw-btn--secondary" data-testid="bwx-checklist-save">%s</button> ',

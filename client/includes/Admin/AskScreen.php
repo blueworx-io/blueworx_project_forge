@@ -51,8 +51,8 @@ final class AskScreen {
 	public static function register(): void {
 		add_submenu_page(
 			Screen::SLUG,
-			__( 'Ask for something', 'blueworx-forge' ),
-			__( 'Ask for something', 'blueworx-forge' ),
+			__( 'New Request', 'blueworx-forge' ),
+			__( 'New Request', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' )
@@ -84,9 +84,7 @@ final class AskScreen {
 		// needs it only for whose workspace the eyebrow names.
 		$workspace = Workspace::view( false );
 
-		Page::open( __( 'Ask for something', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
-
-		Nav::render( self::SLUG );
+		Page::open( __( 'New Request', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
 		self::result_notice();
 
@@ -281,10 +279,12 @@ final class AskScreen {
 		 * hook for a bar outside it, and a sticky footer bolted on for this
 		 * screen alone would be a second page shape for one form.
 		 */
+		echo '<div class="bwx-formactions">';
 		printf(
 			'<button type="submit" id="submit" name="submit" class="bw-btn bw-btn--primary">%s</button>',
 			esc_html__( 'Send to the studio', 'blueworx-forge' )
 		);
+		echo '</div>';
 
 		echo '</form>';
 

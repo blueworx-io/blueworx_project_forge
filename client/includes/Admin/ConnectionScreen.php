@@ -84,8 +84,6 @@ final class ConnectionScreen {
 
 		Page::open( __( 'Connection', 'blueworx-forge' ), Nav::scope_text( $workspace ) );
 
-		Nav::render( self::SLUG );
-
 		self::result_notice();
 
 		Page::panel_open( __( 'Connection', 'blueworx-forge' ), 'status' );
@@ -266,10 +264,12 @@ final class ConnectionScreen {
 			$key_hint
 		);
 
+		echo '<div class="bwx-formactions">';
 		printf(
 			'<input type="submit" name="submit" class="bw-btn bw-btn--primary" value="%s">',
 			esc_attr__( 'Save', 'blueworx-forge' )
 		);
+		echo '</div>';
 
 		echo '</form>';
 	}
@@ -325,10 +325,12 @@ final class ConnectionScreen {
 		);
 
 		if ( ! Updates::is_fixed() ) {
+			echo '<div class="bwx-formactions">';
 			printf(
 				'<input type="submit" name="submit" class="bw-btn bw-btn--primary" value="%s">',
 				esc_attr__( 'Save', 'blueworx-forge' )
 			);
+			echo '</div>';
 		}
 
 		echo '</form>';
