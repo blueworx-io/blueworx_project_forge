@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.77.0] - 2026-09-08
+
+### Added
+
+- You can attach a screenshot to a new request. It is saved to your own site's
+  media library and we are sent the link, so you no longer have to find
+  somewhere to put a picture before you can show us what is wrong.
+
+### Changed
+
+- Support Details is no longer a separate page. Where you stand, what you have
+  bought and what more is available are now on the Overview, with everything
+  else about your account.
+- Cards on the Work Board say what kind of work each item is and how big a piece
+  it is, instead of showing only a title. Work with no dates or people on it no
+  longer draws an empty box under the title.
+- On Requests, what you sent is shown under the questions you answered, and a
+  reply from us is clearly marked as ours rather than reading as one more line
+  of your own request. Where a request became a piece of work, that now sits at
+  the foot of the card.
+- Links in a request are clickable, including the screenshot you attached.
+- Your site's address on the Overview is a link, and its status reads as a
+  label rather than as a raw system word.
+- The standing notes on New Request and Requests are proper banners, so they are
+  read rather than skipped as small print.
+
 ## [2.76.1] - 2026-09-08
 
 ### Changed

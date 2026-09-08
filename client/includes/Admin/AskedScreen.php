@@ -142,13 +142,14 @@ final class AskedScreen {
 			return;
 		}
 
-		printf(
-			'<p data-testid="bwx-asked-contact">%s</p>',
+		Page::notice(
+			'info',
 			sprintf(
 				/* translators: %s: the name of the client's contact at the studio. */
-				esc_html__( 'Anything here you want to talk through, ask %s.', 'blueworx-forge' ),
-				esc_html( $name )
-			)
+				__( 'Anything here you want to talk through, ask %s.', 'blueworx-forge' ),
+				$name
+			),
+			array( 'data-testid' => 'bwx-asked-contact' )
 		);
 	}
 
@@ -190,6 +191,8 @@ final class AskedScreen {
 
 		echo '</div>';
 
+		self::outcome( $submission );
+
 		echo '</article>';
 	}
 
@@ -202,44 +205,90 @@ final class AskedScreen {
 		$sent = (int) ( $submission['created_at'] ?? 0 );
 		$by   = (string) ( $submission['submitted_by'] ?? '' );
 
-		$parts = array( self::type_label( (string) ( $submission['type'] ?? '' ) ) );
+		/*
+		 * What kind of thing this was is the part somebody scans for down a
+		 * list, so it is a badge rather than the first item in a chain of
+		 * middle dots. The chain read as one grey string in which nothing was
+		 * more important than anything else — which is the opposite of true.
+		 */
+		echo '<p class="bwx-asked-meta">';
+
+		printf(
+			'<span class="bw-badge bw-badge--neutral">%s</span>',
+			esc_html( self::type_label( (string) ( $submission['type'] ?? '' ) ) )
+		);
+
+		$said = array();
 
 		if ( $sent > 0 ) {
-			$parts[] = date_i18n( (string) get_option( 'date_format', 'j F Y' ), $sent );
+			$said[] = date_i18n( (string) get_option( 'date_format', 'j F Y' ), $sent );
 		}
 
 		if ( '' !== $by ) {
 			/* translators: %s: the name of the person who sent the request. */
-			$parts[] = sprintf( __( 'sent by %s', 'blueworx-forge' ), $by );
+			$said[] = sprintf( __( 'sent by %s', 'blueworx-forge' ), $by );
 		}
 
-		printf(
-			'<p class="bwx-asked-meta">%s</p>',
-			esc_html( implode( ' · ', $parts ) )
-		);
+		if ( array() !== $said ) {
+			printf( '<span>%s</span>', esc_html( implode( ', ', $said ) ) );
+		}
+
+		echo '</p>';
 	}
 
 	/**
-	 * The client's own words, exactly as they were sent (REQ-1).
+	 * The client's own words, exactly as they were sent (REQ-1), under the
+	 * questions that were asked for them.
 	 *
-	 * The three boxes the form offers are shown as one piece of prose rather
-	 * than as a labelled record, because that is how they were written. A
-	 * paragraph somebody left empty is left out, not shown as a blank field.
+	 * These used to run together as one piece of prose, on the reasoning that
+	 * prose is how they were written. In front of real requests that turned out
+	 * to be wrong: three answers stacked with their questions removed read as
+	 * "A fix for the break / The break fixed / Nothing yet", which is not prose
+	 * and is barely English. The labels are the form's own words, so somebody
+	 * reading a sent request sees the same questions they answered.
+	 *
+	 * A box somebody left empty is left out, not shown as a blank field.
 	 *
 	 * @param array<string, mixed> $submission A submission.
 	 */
 	private static function asked( array $submission ): void {
-		echo '<div class="bwx-asked-words">';
+		$fields = array(
+			'description'     => __( 'What you are asking for', 'blueworx-forge' ),
+			'desired_outcome' => __( 'What good would look like', 'blueworx-forge' ),
+			'evidence'        => __( 'Anything that helps', 'blueworx-forge' ),
+		);
 
-		foreach ( array( 'description', 'desired_outcome', 'evidence' ) as $field ) {
+		$rows = array();
+
+		foreach ( $fields as $field => $label ) {
 			$words = trim( (string) ( $submission[ $field ] ?? '' ) );
 
 			if ( '' !== $words ) {
-				printf( '<p>%s</p>', esc_html( $words ) );
+				$rows[ $label ] = $words;
 			}
 		}
 
-		echo '</div>';
+		if ( array() === $rows ) {
+			return;
+		}
+
+		echo '<dl class="bw-dl bw-dl--stack bwx-asked-words">';
+
+		/*
+		 * Escaped first, then linked. A request that carries a screenshot
+		 * carries it as an address (#287), and an address printed as text is one
+		 * somebody has to select and copy — which on the screen where they went
+		 * to look at it is the one thing it must not be.
+		 */
+		foreach ( $rows as $label => $words ) {
+			printf(
+				'<dt>%1$s</dt><dd>%2$s</dd>',
+				esc_html( $label ),
+				wp_kses_post( make_clickable( esc_html( $words ) ) )
+			);
+		}
+
+		echo '</dl>';
 	}
 
 	/**
@@ -265,22 +314,63 @@ final class AskedScreen {
 			return;
 		}
 
-		if ( '' !== $response ) {
-			printf(
-				'<p data-testid="bwx-asked-response">%s</p>',
-				esc_html( $response )
-			);
+		if ( '' === $response ) {
+			// Converted with nothing said about it. The outcome strip under the
+			// card carries the whole answer, so a heading over an empty space
+			// would only look like something failed to load.
+			return;
 		}
 
-		if ( array() !== $converted ) {
-			printf(
-				'<p>%s <a data-testid="bwx-asked-converted" href="%s">%s</a> (%s)</p>',
-				esc_html__( 'This became', 'blueworx-forge' ),
-				esc_url( admin_url( 'admin.php?page=' . BoardScreen::SLUG ) . '#bwx-item-' . rawurlencode( (string) ( $converted['id'] ?? '' ) ) ),
-				esc_html( (string) ( $converted['title'] ?? '' ) ),
-				esc_html( (string) ( $converted['stage_label'] ?? '' ) )
-			);
+		/*
+		 * A labelled divider, because this is where the voice changes. Set as
+		 * one more paragraph among the client's own, a reply from us was
+		 * indistinguishable from the sentence above it — which on a screen
+		 * whose entire subject is "what did they say back" is the one thing it
+		 * had to get right.
+		 */
+		printf(
+			'<p class="bw-divider__labelled">%s</p>',
+			esc_html__( 'Reply from the studio', 'blueworx-forge' )
+		);
+
+		printf(
+			'<p data-testid="bwx-asked-response">%s</p>',
+			esc_html( $response )
+		);
+	}
+
+	/**
+	 * Where the work went, as the card's own footer.
+	 *
+	 * An outcome rather than a remark. "This became X" is the single most
+	 * useful fact on a request that has been accepted, and buried as the last
+	 * line of a paragraph it read as an afterthought — so it sits in the
+	 * sunken strip the design system gives a card for exactly this.
+	 *
+	 * @param array<string, mixed> $submission A submission.
+	 */
+	private static function outcome( array $submission ): void {
+		$converted = (array) ( $submission['converted'] ?? array() );
+
+		if ( array() === $converted ) {
+			return;
 		}
+
+		echo '<div class="bw-card__foot">';
+
+		printf(
+			'<span>%1$s <a data-testid="bwx-asked-converted" href="%2$s">%3$s</a></span>',
+			esc_html__( 'This became', 'blueworx-forge' ),
+			esc_url( admin_url( 'admin.php?page=' . BoardScreen::SLUG ) . '#bwx-item-' . rawurlencode( (string) ( $converted['id'] ?? '' ) ) ),
+			esc_html( (string) ( $converted['title'] ?? '' ) )
+		);
+
+		printf(
+			'<span class="bw-badge bw-badge--neutral">%s</span>',
+			esc_html( (string) ( $converted['stage_label'] ?? '' ) )
+		);
+
+		echo '</div>';
 	}
 
 	/**

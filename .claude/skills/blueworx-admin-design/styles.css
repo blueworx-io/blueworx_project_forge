@@ -127,6 +127,11 @@
 
   --bw-pad:24px;
   --bw-panel-pad:24px;
+
+  /* The save bar is pinned to the window, so it no longer takes up room in the
+     page. This is the room the page keeps for it: its padding, its control and
+     its top border, so the last card never ends up underneath it. */
+  --bw-savebar-h:67px;
   --bw-field-gap:18px;
   --bw-stack-gap:20px;
 
@@ -401,17 +406,36 @@ input.bw-input--mono,textarea.bw-textarea--mono{font-family:var(--bw-font-mono);
 .bw-radiogroup{display:flex;flex-direction:column;gap:var(--bw-space-5)}
 .bw-radiogroup--row{flex-direction:row;gap:var(--bw-space-8);flex-wrap:wrap}
 
-.bw-switch{position:relative;display:inline-flex;align-items:center;gap:var(--bw-space-5);cursor:pointer;padding:6px 10px;border:1px solid var(--bw-border);border-radius:var(--bw-control-radius);background:var(--bw-control-bg);transition:var(--bw-transition-control)}
+/* The toggle sits to the right of what it switches, always. The markup keeps
+   the input and its track ahead of the label so the sibling selectors below
+   still reach the track; the label is re-ordered in front of them for display. */
+.bw-switch{position:relative;display:inline-flex;align-items:center;justify-content:space-between;gap:var(--bw-space-5);cursor:pointer;padding:6px 10px;border:1px solid var(--bw-border);border-radius:var(--bw-control-radius);background:var(--bw-control-bg);transition:var(--bw-transition-control);user-select:none;-webkit-user-select:none}
 .bw-switch:hover{border-color:var(--bw-border-strong)}
-.bw-switch--bare{padding:0;border:0;background:none}
-.bw-switch input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+
+/* A bare switch is a settings row rather than a control on its own, so it takes
+   the full width and its toggle lands on the right edge, in line with the rows
+   above and below it. */
+.bw-switch--bare{display:flex;width:100%;padding:0;border:0;background:none}
+
+/* appearance:none as well as opacity, because wp-admin draws its own tick on a
+   checked checkbox and a transparent one is still painted furniture. */
+.bw-switch input{position:absolute;inset:0;appearance:none;-webkit-appearance:none;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
 .bw-switch__track{position:relative;width:40px;height:22px;border-radius:var(--bw-radius-pill);background:var(--bw-line-strong);flex:none;transition:background var(--bw-dur) var(--bw-ease)}
 .bw-switch__thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:var(--bw-shadow-card);transition:transform var(--bw-dur) var(--bw-ease)}
 .bw-switch input:checked+.bw-switch__track{background:var(--bw-brand)}
 .bw-switch input:checked+.bw-switch__track .bw-switch__thumb{transform:translateX(18px)}
 .bw-switch input:focus-visible+.bw-switch__track{outline:var(--bw-focus-width) solid var(--bw-focus-color);outline-offset:2px}
+
+/* A switch nobody can move says so: it stops answering the pointer, the whole
+   row fades rather than the toggle alone, and the cursor stops promising a
+   click. The track keeps its on or off colour under the fade, so a locked
+   feature still reads as on or off rather than becoming a third state. */
+.bw-switch input:disabled{cursor:not-allowed;pointer-events:none}
+.bw-switch:has(input:disabled){cursor:not-allowed}
 .bw-switch input:disabled+.bw-switch__track{opacity:var(--bw-disabled-opacity)}
-.bw-switch__label{font-size:var(--bw-size-body);color:var(--bw-text-body)}
+.bw-switch input:disabled~.bw-switch__label{opacity:var(--bw-disabled-opacity)}
+
+.bw-switch__label{order:-1;flex:1 1 auto;min-width:0;font-size:var(--bw-size-body);color:var(--bw-text-body)}
 .bw-switch__label small{display:block;font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
 
 .bw-media{display:flex;align-items:center;gap:var(--bw-space-7);flex-wrap:wrap}
@@ -605,8 +629,28 @@ input.bw-titleinput:focus{border-color:var(--bw-brand);box-shadow:none}
 .bw-tab.is-active{color:var(--bw-text-heading);border-bottom-color:var(--bw-brand)}
 .bw-tab__count{margin-left:var(--bw-space-3);font-size:var(--bw-size-xs);color:var(--bw-text-faint)}
 
-.bw-savebar{position:sticky;bottom:0;z-index:20;margin-top:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:var(--bw-space-7);padding:var(--bw-space-7) var(--bw-pad);background:var(--bw-surface-card);border-top:1px solid var(--bw-border);box-shadow:var(--bw-shadow-bar)}
+/* Pinned to the window, not to the end of the page. It used to be sticky, which
+   only holds a bar down while there is page left underneath it to hold it there
+   — on a short screen it simply came to rest wherever the content stopped, with
+   dead space below it and Save floating in the middle of the window. Fixed, it
+   is in the same place on every screen whatever the content does. */
+.bw-savebar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:var(--bw-space-7);padding:var(--bw-space-7) var(--bw-pad);background:var(--bw-surface-card);border-top:1px solid var(--bw-border);box-shadow:var(--bw-shadow-bar)}
 .bw-savebar__hint{margin:0 auto 0 0;font-size:var(--bw-size-body);color:var(--bw-text-muted);display:flex;align-items:center;gap:var(--bw-space-4)}
+
+/* A fixed bar is out of the flow, so the page has to keep its own room for it —
+   otherwise the last card on a long screen sits underneath the bar and cannot
+   be scrolled clear of it. Only pages that actually carry a bar pay for it. */
+.bw-page:has(.bw-savebar){padding-bottom:var(--bw-savebar-h)}
+
+/* Inside wp-admin the window is not the content column: the admin menu owns the
+   left of it, at 160px, 36px once folded, and nothing at all on a phone where
+   the menu slides away. The bar starts where the screen does so it never lies
+   across the menu. These are WordPress's own widths and breakpoints — scoped to
+   body.wp-admin so a mock, a prototype or the UI kit is unaffected. */
+body.wp-admin .bw-savebar{left:160px}
+body.wp-admin.folded .bw-savebar{left:36px}
+@media only screen and (max-width:960px){body.wp-admin.auto-fold .bw-savebar{left:36px}}
+@media only screen and (max-width:782px){body.wp-admin .bw-savebar,body.wp-admin.auto-fold .bw-savebar,body.wp-admin.folded .bw-savebar{left:0}}
 
 /* --- Components — layout, extended ------------------------------------------- */
 /* Toolbar, collapsible panels, drawer, dividers, sidebar layout */

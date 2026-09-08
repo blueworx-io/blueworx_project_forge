@@ -118,42 +118,7 @@ final class ConnectionScreen {
 	 * @param bool                  $html       Whether $text carries its own markup.
 	 */
 	private static function notice( string $tone, string $text, array $attributes = array(), bool $html = false ): void {
-		$icons = array(
-			'success' => 'circle-check',
-			'warning' => 'triangle-alert',
-			'danger'  => 'circle-alert',
-			'info'    => 'info',
-		);
-
-		// Whole class names rather than a stem with the tone appended: the
-		// admin UI check reads the classes a screen writes, and one assembled
-		// from a variable is one it cannot see.
-		$classes = array(
-			'success' => 'bw-notice bw-notice--success',
-			'warning' => 'bw-notice bw-notice--warning',
-			'danger'  => 'bw-notice bw-notice--danger',
-			'info'    => 'bw-notice bw-notice--info',
-		);
-
-		printf( '<div class="%s"', esc_attr( $classes[ $tone ] ?? $classes['info'] ) );
-
-		foreach ( $attributes as $name => $value ) {
-			printf( ' %1$s="%2$s"', esc_attr( $name ), esc_attr( $value ) );
-		}
-
-		printf( ' role="%s">', esc_attr( 'danger' === $tone ? 'alert' : 'status' ) );
-
-		printf(
-			'<i class="bw-icon bw-notice__icon" data-lucide="%s"></i>',
-			esc_attr( $icons[ $tone ] ?? 'info' )
-		);
-
-		printf(
-			'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div>',
-			$html ? wp_kses_post( $text ) : esc_html( $text )
-		);
-
-		echo '</div>';
+		Page::notice( $tone, $text, $attributes, $html );
 	}
 
 	/**

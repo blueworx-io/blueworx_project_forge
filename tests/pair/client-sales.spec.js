@@ -13,7 +13,7 @@ import * as Forge from '../e2e/helpers/forge.js';
 // The instance is kept between runs, so every name carries a run id.
 
 const RUN = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-const HOURS = '/wp-admin/admin.php?page=blueworx-forge-client-sales';
+const HOURS = '/wp-admin/admin.php?page=blueworx-forge-client';
 const GRANTED = 40;
 
 test.beforeAll(requireEnvironment);
@@ -46,7 +46,7 @@ test('the client sees their own hours, and the figure is the studio\'s', async (
   await pair.close();
 });
 
-test('the client site shows the hours on a screen of its own', async ({ browser }) => {
+test('the client site shows the hours on its overview', async ({ browser }) => {
   test.setTimeout(300_000);
 
   const pair = await connectedPair(browser, 'Hours screen', RUN);

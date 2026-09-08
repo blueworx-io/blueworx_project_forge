@@ -294,7 +294,8 @@ Any screen where a site owner edits a record or a set of page content is built b
 the plugin owns only what goes in it.
 
 **The skeleton, always in this order:** page header (`bw-pagehead`) → tabs (`bw-tabs`, optional)
-→ panels (`bw-card`, stacked full width) → save bar (`bw-savebar`, sticky, one per screen).
+→ panels (`bw-card`, stacked full width) → save bar (`bw-savebar`, pinned to the bottom of the
+window, one per screen).
 
 **Rules that are not negotiable**
 

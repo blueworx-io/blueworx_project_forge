@@ -131,7 +131,10 @@ test.describe('a client asking for something', () => {
     await expect(page.locator('[data-testid="bwx-ask-immutable"]')).toContainText(
       'cannot be edited'
     );
-    await expect(page.locator('[data-testid="bwx-ask-form"]')).toContainText(
+    // On the panel rather than the form since #287: this one moved to the head
+    // of the panel, above the fields, because it answers "am I allowed to send
+    // this?" — a question somebody has before they write rather than after.
+    await expect(page.locator('[data-bwx-panel="ask"]')).toContainText(
       'whether or not you have a support package'
     );
 

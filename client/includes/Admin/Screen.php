@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Client\Admin;
 use Blueworx\Forge\Client\Board;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Digest;
+use Blueworx\Forge\Client\Sales;
 use Blueworx\Forge\Client\Workspace;
 
 /**
@@ -60,7 +61,6 @@ final class Screen {
 			TimelineScreen::SLUG,
 			CalendarScreen::SLUG,
 			ChecklistScreen::SLUG,
-			SalesScreen::SLUG,
 			AskScreen::SLUG,
 			AskedScreen::SLUG,
 			ConnectionScreen::SLUG,
@@ -193,6 +193,18 @@ final class Screen {
 		$view    = Workspace::view( $refresh );
 		$board   = Board::view( $refresh );
 
+		// Support Details used to be a screen of its own; since #287 it is
+		// these three panels, here. A client's hours are not a separate
+		// subject from the rest of their arrangement with us — somebody asking
+		// "where are we up to" and somebody asking "what have we got left"
+		// are usually the same person in the same minute, and making them
+		// visit two screens to find out was our filing showing through.
+		//
+		// A second read-through, not a second network call in the common
+		// case: it is cached exactly as the workspace record is, and a refresh
+		// asked for at the top of the page refreshes both.
+		$sales = Sales::view( $refresh );
+
 		Page::open( __( 'Overview', 'blueworx-forge' ), Nav::scope_text( $view ) );
 
 		// One notice, from the record the frame itself is drawn from. The work
@@ -210,7 +222,20 @@ final class Screen {
 		self::contact( (array) $view['contact'] );
 		self::attention( $board );
 		self::upcoming( $board );
-		self::support( (array) $view['support'] );
+
+		/*
+		 * The support position is read from the sales record rather than the
+		 * workspace one. Both carry the same thing — the studio publishes it on
+		 * either route — and taking it from the record the figures beside it
+		 * came from means the position and the balance under it were read at
+		 * the same moment. Two reads a minute apart could disagree, and a
+		 * client would have no way to tell which half was stale.
+		 */
+		$support = array() === (array) $sales['support'] ? (array) $view['support'] : (array) $sales['support'];
+
+		self::position( $sales, $support );
+		self::purchases( $sales );
+		self::offer( $sales );
 		self::record( (array) $view['record'] );
 
 		Page::close();
@@ -368,14 +393,16 @@ final class Screen {
 	 * An empty answer is not "no package" — it is a site that has never reached
 	 * the studio, which the sync notice at the top of the page already explains.
 	 *
+	 * @param array<string, mixed> $sales   What Sales::view() returned.
 	 * @param array<string, mixed> $support The position, as the studio sent it.
 	 */
-	private static function support( array $support ): void {
-		$state = (string) ( $support['state'] ?? '' );
+	private static function position( array $sales, array $support ): void {
+		$state       = (string) ( $support['state'] ?? '' );
+		$entitlement = (array) $sales['entitlement'];
 
-		Page::panel_open( __( 'Support', 'blueworx-forge' ), 'support' );
+		Page::panel_open( __( 'Where you stand', 'blueworx-forge' ), 'hours' );
 
-		if ( '' === $state ) {
+		if ( '' === $state && array() === $entitlement ) {
 			self::nothing(
 				'clock',
 				__( 'Not read yet', 'blueworx-forge' ),
@@ -386,32 +413,231 @@ final class Screen {
 			return;
 		}
 
-		printf(
-			'<p data-testid="bwx-support-state" data-bwx-support-state="%1$s">%2$s</p>',
-			esc_attr( $state ),
-			esc_html( (string) ( $support['label'] ?? '' ) )
-		);
+		$summarised = array() !== $entitlement;
+
+		if ( $summarised ) {
+			self::position_summary( $sales, $entitlement );
+		}
+
+		/*
+		 * The state marker stays whatever the strip above does. It is what the
+		 * acceptance for #151 reads, and losing it to a redesign is how a rule
+		 * stops being checked without anybody deciding to stop checking it.
+		 *
+		 * Hidden only when the strip is already saying the same thing in the
+		 * same words. Where there is no strip — a position read without an
+		 * entitlement beside it — this is the only thing naming the position,
+		 * so it is printed for everybody to see.
+		 */
+		if ( '' !== $state ) {
+			printf(
+				'<p class="%1$s" data-testid="bwx-support-state" data-bwx-support-state="%2$s">%3$s</p>',
+				esc_attr( $summarised ? 'screen-reader-text' : 'bwx-lede' ),
+				esc_attr( $state ),
+				esc_html( (string) ( $support['label'] ?? '' ) )
+			);
+		}
 
 		if ( in_array( 'chargeable-work', (array) ( $support['refused'] ?? array() ), true ) ) {
 			/*
-			 * The one sentence this issue exists for. It says what is not
-			 * available, and in the same breath the two things that are — so
-			 * the restriction reads as a conversation to have rather than as a
-			 * door that has been shut. A Notice, not an EmptyState: there is a
+			 * The one sentence #151 exists for. It says what is not available,
+			 * and in the same breath the two things that are — so the
+			 * restriction reads as a conversation to have rather than as a door
+			 * that has been shut. A Notice, not an EmptyState: there is a
 			 * support position shown above, so nothing here is empty.
 			 */
-			printf(
-				'<div class="bw-notice bw-notice--warning" data-testid="bwx-support-refused" role="status">' .
-				'<i class="bw-icon bw-notice__icon" data-lucide="triangle-alert"></i>' .
-				'<div class="bw-notice__body"><p class="bw-notice__text">%s</p></div></div>',
-				esc_html__(
+			Page::notice(
+				'warning',
+				__(
 					'New chargeable work cannot be scheduled until a support package is in place. You can still report anything that is broken, ask for something, and talk to your contact about a package.',
 					'blueworx-forge'
-				)
+				),
+				array( 'data-testid' => 'bwx-support-refused' )
 			);
 		}
 
 		Page::panel_close();
+	}
+
+	/**
+	 * The three figures that make up "where you stand", as one strip.
+	 *
+	 * Status, balance and term all belong to the same question and change
+	 * together, so they read as one `bw-summary` — the design system's own
+	 * shape for a persistent band of derived figures — rather than as three
+	 * loose paragraphs that happen to sit near each other.
+	 *
+	 * @param array<string, mixed> $sales       What Sales::view() returned.
+	 * @param array<string, mixed> $entitlement The non-empty entitlement.
+	 */
+	private static function position_summary( array $sales, array $entitlement ): void {
+		echo '<div class="bw-summary">';
+
+		printf(
+			'<div class="bw-summary__cell"><span class="bw-summary__label">%1$s</span><span class="bw-summary__value" data-bwx-state="%2$s">%3$s</span></div>',
+			esc_html__( 'Status', 'blueworx-forge' ),
+			esc_attr( (string) ( $entitlement['state'] ?? '' ) ),
+			esc_html( (string) ( $entitlement['label'] ?? '' ) )
+		);
+
+		printf(
+			'<div class="bw-summary__cell"><span class="bw-summary__label">%1$s</span><span class="bw-summary__value" data-bwx-balance="%2$s">%3$s</span></div>',
+			esc_html__( 'Balance', 'blueworx-forge' ),
+			esc_attr( null === $sales['balance'] ? '' : (string) $sales['balance'] ),
+			esc_html( Sales::balance_label( $sales ) )
+		);
+
+		if ( '' !== (string) ( $entitlement['term_ends_on'] ?? '' ) ) {
+			printf(
+				'<div class="bw-summary__cell"><span class="bw-summary__label">%1$s</span><span class="bw-summary__value" data-bwx-term-ends="%2$s">%3$s</span><span class="bw-summary__foot">%4$s</span></div>',
+				esc_html__( 'Term ends', 'blueworx-forge' ),
+				esc_attr( (string) $entitlement['term_ends_on'] ),
+				esc_html( (string) $entitlement['term_ends_on'] ),
+				esc_html__( 'Your current term', 'blueworx-forge' )
+			);
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * What the client has been given or has bought.
+	 *
+	 * @param array<string, mixed> $sales What Sales::view() returned.
+	 */
+	private static function purchases( array $sales ): void {
+		$purchases = (array) $sales['purchases'];
+
+		Page::panel_open( __( 'What you have bought', 'blueworx-forge' ), 'purchases' );
+
+		if ( array() === $purchases ) {
+			echo '<div class="bw-empty" data-bwx-purchases="0">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="package"></i>';
+			printf( '<h3 class="bw-empty__title">%s</h3>', esc_html__( 'Nothing yet', 'blueworx-forge' ) );
+			printf(
+				'<p class="bw-empty__text">%s</p>',
+				esc_html__( 'Hours appear here as soon as a package is set up for you.', 'blueworx-forge' )
+			);
+			echo '</div>';
+
+			Page::panel_close();
+
+			return;
+		}
+
+		echo '<table class="bw-table" data-bwx-purchases="' . esc_attr( (string) count( $purchases ) ) . '"><thead><tr>';
+		echo '<th>' . esc_html__( 'When', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'What', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__num">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Runs out', 'blueworx-forge' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $purchases as $bought ) {
+			$expires = (int) ( $bought['expires_at'] ?? 0 );
+
+			echo '<tr data-bwx-purchase="' . esc_attr( (string) ( $bought['kind'] ?? '' ) ) . '">';
+			echo '<td>' . esc_html( (string) ( $bought['on'] ?? '' ) ) . '</td>';
+			echo '<td>' . esc_html( self::kind_label( (string) ( $bought['kind'] ?? '' ), (string) ( $bought['reason'] ?? '' ) ) ) . '</td>';
+			echo '<td class="bw-table__num">' . esc_html( number_format( (float) ( $bought['hours'] ?? 0 ), 2 ) ) . '</td>';
+			echo '<td>' . esc_html( 0 === $expires ? __( 'With your package', 'blueworx-forge' ) : gmdate( 'Y-m-d', $expires ) ) . '</td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+
+		Page::panel_close();
+	}
+
+	/**
+	 * How a purchase reads to the person who made it.
+	 *
+	 * @param string $kind   allocation or top-up.
+	 * @param string $reason What was said about it, where anything was.
+	 * @return string
+	 */
+	private static function kind_label( string $kind, string $reason ): string {
+		$label = 'top-up' === $kind
+			? __( 'Extra hours', 'blueworx-forge' )
+			: __( 'Your package', 'blueworx-forge' );
+
+		return '' === $reason ? $label : $label . ' — ' . $reason;
+	}
+
+	/**
+	 * What else is available, and how to ask for it.
+	 *
+	 * @param array<string, mixed> $sales What Sales::view() returned.
+	 */
+	private static function offer( array $sales ): void {
+		$packages = (array) $sales['packages'];
+
+		Page::panel_open( __( 'More hours', 'blueworx-forge' ), 'offer' );
+
+		if ( array() !== $packages ) {
+			echo '<table class="bw-table" data-bwx-packages="' . esc_attr( (string) count( $packages ) ) . '"><thead><tr>';
+			echo '<th>' . esc_html__( 'Package', 'blueworx-forge' ) . '</th>';
+			echo '<th class="bw-table__num">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
+			echo '<th class="bw-table__num">' . esc_html__( 'Price', 'blueworx-forge' ) . '</th>';
+			echo '<th>' . esc_html__( 'Runs for', 'blueworx-forge' ) . '</th>';
+			echo '</tr></thead><tbody>';
+
+			foreach ( $packages as $package ) {
+				echo '<tr data-bwx-package="' . esc_attr( (string) ( $package['name'] ?? '' ) ) . '">';
+				echo '<td>' . esc_html( (string) ( $package['name'] ?? '' ) ) . '</td>';
+				echo '<td class="bw-table__num">' . esc_html( number_format( (float) ( $package['hours'] ?? 0 ), 2 ) ) . '</td>';
+				echo '<td class="bw-table__num">' . esc_html( self::money( (int) ( $package['price'] ?? 0 ), (string) ( $package['currency'] ?? 'GBP' ) ) ) . '</td>';
+				echo '<td>' . esc_html(
+					sprintf(
+						/* translators: %d: a number of months. */
+						_n( '%d month', '%d months', (int) ( $package['validity_months'] ?? 12 ), 'blueworx-forge' ),
+						(int) ( $package['validity_months'] ?? 12 )
+					)
+				) . '</td>';
+				echo '</tr>';
+			}
+
+			echo '</tbody></table>';
+		}
+
+		/*
+		 * A message, not a basket. COMM-2 keeps assignment manual, so what is
+		 * offered here reaches a person who will talk to you — and there is
+		 * deliberately nothing on this panel that could be mistaken for having
+		 * bought something.
+		 */
+		Page::notice(
+			'info',
+			__( 'Ask for more hours, or to move to a different package, and we will sort it out with you. Nothing here charges you for anything.', 'blueworx-forge' )
+		);
+
+		echo '<div class="bwx-panelaction">';
+
+		printf(
+			'<a class="bw-btn bw-btn--primary" data-bwx-ask-hours="1" href="%1$s">%2$s</a>',
+			esc_url( AskScreen::url() ),
+			esc_html__( 'Ask about hours', 'blueworx-forge' )
+		);
+
+		echo '</div>';
+
+		Page::panel_close();
+	}
+
+	/**
+	 * A price, as the client would read it.
+	 *
+	 * @param int    $pence    The price in the smallest unit.
+	 * @param string $currency Three-letter code.
+	 * @return string
+	 */
+	private static function money( int $pence, string $currency ): string {
+		$symbols = array(
+			'GBP' => '£',
+			'EUR' => '€',
+			'USD' => '$',
+		);
+
+		return ( $symbols[ $currency ] ?? ( $currency . ' ' ) ) . number_format( $pence / 100, 2 );
 	}
 
 	/**
@@ -455,28 +681,110 @@ final class Screen {
 	private static function record( array $record ): void {
 		$connected = (int) ( $record['connected_since'] ?? 0 );
 
+		$url    = (string) ( $record['url'] ?? '' );
+		$status = (string) ( $record['status'] ?? '' );
+
 		Page::panel_open( __( 'Your site', 'blueworx-forge' ), 'site' );
 
+		echo '<dl class="bw-dl" data-bwx-workspace="1">';
+
 		printf(
-			'<dl class="bw-dl" data-bwx-workspace="1">' .
-			'<dt>%1$s</dt><dd>%2$s</dd>' .
-			'<dt>%3$s</dt><dd>%4$s</dd>' .
-			'<dt>%5$s</dt><dd>%6$s</dd>' .
-			'<dt>%7$s</dt><dd>%8$s</dd>' .
-			'</dl>',
+			'<dt>%1$s</dt><dd>%2$s</dd>',
 			esc_html__( 'Site', 'blueworx-forge' ),
-			esc_html( (string) ( $record['name'] ?? '' ) ),
-			esc_html__( 'Address', 'blueworx-forge' ),
-			esc_html( (string) ( $record['url'] ?? '' ) ),
-			esc_html__( 'Status', 'blueworx-forge' ),
-			esc_html( (string) ( $record['status'] ?? '' ) ),
-			esc_html__( 'Connected since', 'blueworx-forge' ),
-			esc_html( $connected > 0 ? gmdate( 'j F Y', $connected ) : '' )
+			esc_html( (string) ( $record['name'] ?? '' ) )
 		);
 
-		echo '<p class="bw-card__note">' . esc_html__( 'These details are held by the studio. This site shows them; it does not keep them.', 'blueworx-forge' ) . '</p>';
+		/*
+		 * The address as somebody would say it out loud, linked to the whole
+		 * thing. A bare "https://demo.example.co.uk/" is a URL printed at a
+		 * person; the host is the part they recognise, and the scheme and the
+		 * trailing slash are punctuation only a machine needs.
+		 */
+		printf( '<dt>%s</dt><dd>', esc_html__( 'Address', 'blueworx-forge' ) );
+
+		if ( '' === $url ) {
+			esc_html_e( 'Not recorded', 'blueworx-forge' );
+		} else {
+			printf(
+				'<a href="%1$s">%2$s</a>',
+				esc_url( $url ),
+				esc_html( self::host( $url ) )
+			);
+		}
+
+		echo '</dd>';
+
+		/*
+		 * A state, drawn as the design system draws states. "active" in the
+		 * body text was the database's word for it sitting in a sentence meant
+		 * for a person — and it read as something that might be wrong, because
+		 * nothing around it said otherwise.
+		 */
+		printf( '<dt>%s</dt><dd>', esc_html__( 'Status', 'blueworx-forge' ) );
+
+		if ( '' === $status ) {
+			esc_html_e( 'Not recorded', 'blueworx-forge' );
+		} else {
+			printf(
+				'<span class="bw-badge bw-badge--%1$s" data-bwx-site-status="%2$s">%3$s</span>',
+				esc_attr( 'active' === $status ? 'success' : 'neutral' ),
+				esc_attr( $status ),
+				esc_html( self::status_label( $status ) )
+			);
+		}
+
+		echo '</dd>';
+
+		printf(
+			'<dt>%1$s</dt><dd>%2$s</dd>',
+			esc_html__( 'Connected since', 'blueworx-forge' ),
+			esc_html( $connected > 0 ? gmdate( 'j F Y', $connected ) : __( 'Not recorded', 'blueworx-forge' ) )
+		);
+
+		echo '</dl>';
+
+		/*
+		 * A fieldnote rather than a banner. It is a footnote about where these
+		 * four lines live, not something anybody has to act on — and a page
+		 * whose every aside is a banner has no way left to say "read this one".
+		 */
+		printf(
+			'<p class="bw-fieldnote"><i class="bw-icon" data-lucide="info"></i>%s</p>',
+			esc_html__( 'These details are held by the studio. This site shows them; it does not keep them.', 'blueworx-forge' )
+		);
 
 		Page::panel_close();
+	}
+
+	/**
+	 * A site status, as a person would read it.
+	 *
+	 * @param string $status active or inactive.
+	 * @return string
+	 */
+	private static function status_label( string $status ): string {
+		$labels = array(
+			'active'   => __( 'Active', 'blueworx-forge' ),
+			'inactive' => __( 'Inactive', 'blueworx-forge' ),
+		);
+
+		return $labels[ $status ] ?? $status;
+	}
+
+	/**
+	 * The part of an address somebody recognises.
+	 *
+	 * Falls back to the whole thing rather than to nothing: an address this
+	 * cannot parse is still an address, and showing it whole is better than
+	 * showing a blank where the client's own domain should be.
+	 *
+	 * @param string $url A site address.
+	 * @return string
+	 */
+	private static function host( string $url ): string {
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+
+		return is_string( $host ) && '' !== $host ? $host : $url;
 	}
 
 	/**

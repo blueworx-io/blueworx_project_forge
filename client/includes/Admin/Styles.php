@@ -71,6 +71,12 @@ final class Styles {
 .bw-card__title a:hover,
 .bw-card__title a:focus { text-decoration: underline; }
 
+/* A panel's one call to action, clear of whatever it follows. Left-aligned
+   rather than right, unlike a form's buttons below: this is the start of
+   something rather than the end of it, so it sits under the text that led to
+   it instead of across the panel from it. */
+.bwx-panelaction { margin: 1rem 0 0; }
+
 /* A form's buttons sit clear of the last field's rule, and to the right of it
    — where the design system puts a card's own actions. */
 .bwx-formactions {
@@ -123,10 +129,44 @@ final class Styles {
 .bwx-asked > .bw-card { margin: 0 0 0.75rem; }
 .bwx-asked > .bw-card:last-child { margin-bottom: 0; }
 
-.bwx-asked-meta { margin: 0.15rem 0 0; color: var(--text-muted, #646970); font-size: var(--text-small, 0.8rem); }
-.bwx-asked-words { margin: 0.6rem 0 0; }
-.bwx-asked-words p { margin: 0 0 0.4rem; }
-.bwx-asked-words p:last-child { margin-bottom: 0; }
+/* What kind of work a card is, and how big (#287). Sits above the dates, so
+   the first thing under a title says what the work is rather than when it is.
+   The level is deliberately quieter than the type badge beside it. */
+.bwx-card-class {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0 0 0.5rem;
+	color: var(--bw-text-muted, #646970);
+	font-size: var(--bw-size-sm, 0.8rem);
+}
+
+/* The kind of thing this was reads as a badge, so the line it sits on has to
+   align to it rather than to a run of text. */
+.bwx-asked-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.15rem 0 0;
+	color: var(--text-muted, #646970);
+	font-size: var(--text-small, 0.8rem);
+}
+
+/* The request itself, now a labelled record rather than a run of paragraphs
+   (#287): three answers with their questions taken away were unreadable. Only
+   the gap above it is ours; the labels and their spacing are bw-dl--stack.
+
+   Written as dl.bwx-asked-words rather than as the class alone, because the
+   design system's own .bw-dl{margin:0} loads after these rules and would
+   otherwise win on source order and close the gap back up. */
+dl.bwx-asked-words { margin: 0.9rem 0 0; }
+
+/* A reply is the studio talking, so it is ruled off from the client's own
+   words above it. The system's labelled divider carries the rule and the
+   label; this only stops it collapsing against the paragraph it introduces. */
+.bwx-asked-words + .bw-divider__labelled { margin-top: var(--bw-space-8, 1rem); }
 
 /*
  * The conversation on one item (#133). The client's own entries are indented
