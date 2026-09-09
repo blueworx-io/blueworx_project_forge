@@ -166,7 +166,7 @@ final class SitesScreen {
 
 		if ( array() === $sites ) {
 			echo '<div class="bw-empty" data-bwx-no-sites="1">';
-			echo '<i class="bw-icon bw-empty__icon" data-lucide="server-off"></i>';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="plug"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'No client sites are connected yet', 'blueworx-forge' ) . '</p>';
 			echo '<p class="bw-empty__text">' . esc_html__( 'Connect one above, then paste the key it is given into that site.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';
@@ -308,7 +308,7 @@ final class SitesScreen {
 
 		if ( array() === $refused ) {
 			echo '<div class="bw-empty" data-bwx-no-refusals="1">';
-			echo '<i class="bw-icon bw-empty__icon" data-lucide="shield-check"></i>';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="shield"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'Nothing has been refused', 'blueworx-forge' ) . '</p>';
 			echo '<p class="bw-empty__text">' . esc_html__( 'Every request that reached the studio was one it recognised.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';

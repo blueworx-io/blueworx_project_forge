@@ -367,7 +367,7 @@ final class AvailabilityScreen {
 
 		if ( array() === $booked ) {
 			echo '<div class="bw-empty" data-bwx-no-leave="1">';
-			echo '<i class="bw-icon bw-empty__icon" data-lucide="calendar-check"></i>';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="calendar"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'No time off recorded', 'blueworx-forge' ) . '</p>';
 			echo '<p class="bw-empty__text">' . esc_html__( 'Nothing recorded in the year either side of today.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';

@@ -293,11 +293,14 @@ final class Page {
 	 * It takes off the gutter wp-admin puts around the content column, because
 	 * a full-bleed page is the shape the system draws. It gives <details> the
 	 * accordion's open state, because the system's accordion is a React button
-	 * and these screens have no React. It sizes a field dropped straight into
-	 * a toolbar, which is our own composition — a bw-input is width:100% by
-	 * design, so three of them in a row each took a line of their own — and
-	 * takes the bullets off a panel column written as a list, which the system
-	 * draws as divs and the specs need to be <li> elements.
+	 * and these screens have no React. And it takes the bullets off a panel
+	 * column written as a list, which the system draws as divs and the specs
+	 * need to be <li> elements.
+	 *
+	 * A field's width inside a toolbar is not here: bw-input is width:100% by
+	 * design, so three in a row each took a line of their own, and the system's
+	 * own bw-toolbar__search is the rule that sizes a control for a toolbar.
+	 * The screens carry that class rather than this file inventing a width.
 	 *
 	 * The submit rules are the same repair the stylesheet already makes for
 	 * .bw-input: wp-admin styles every submit input under .wp-core-ui, which
@@ -313,7 +316,6 @@ final class Page {
 #wpbody-content{padding-bottom:0}
 #wpfooter{display:none}
 ul.bw-panels,ul.bw-panel__loose{list-style:none;margin:0;padding-left:0}
-.bw-toolbar>.bw-input,.bw-toolbar>.bw-select{flex:1 1 200px;max-width:320px}
 .bw-admin input[type="submit"].bw-btn--primary{background:var(--bw-primary-bg);border-color:var(--bw-primary-bg);color:var(--bw-primary-text)}
 .bw-admin input[type="submit"].bw-btn--primary:hover{background:var(--bw-primary-bg-hover);border-color:var(--bw-primary-bg-hover);color:var(--bw-primary-text)}
 .bw-admin input[type="submit"].bw-btn--secondary{background:var(--bw-control-bg);border-color:var(--bw-border-field);color:var(--bw-control-text)}

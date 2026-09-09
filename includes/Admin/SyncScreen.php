@@ -221,7 +221,7 @@ final class SyncScreen {
 
 		if ( array() === $rows ) {
 			echo '<div class="bw-empty">';
-			echo '<i class="bw-icon bw-empty__icon" data-lucide="server-off"></i>';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="plug"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'No client site has been set up yet', 'blueworx-forge' ) . '</p>';
 			echo '</div>';
 			Page::panel_close();

@@ -78,14 +78,25 @@ final class AdminPageTest extends TestCase {
 	 * variable is one it cannot see.
 	 */
 	public function test_each_tone_writes_its_whole_class_name(): void {
-		foreach ( array( 'success', 'warning', 'danger', 'info' ) as $tone ) {
+		// Written out per tone rather than assembled from a stem, for the same
+		// reason Page::notice() writes them out: a class name built from a
+		// variable is one the admin UI check cannot see, and this test asserting
+		// on a stem was itself a half-written class name in the source.
+		$expected = array(
+			'success' => 'class="bw-notice bw-notice--success"',
+			'warning' => 'class="bw-notice bw-notice--warning"',
+			'danger'  => 'class="bw-notice bw-notice--danger"',
+			'info'    => 'class="bw-notice bw-notice--info"',
+		);
+
+		foreach ( $expected as $tone => $class ) {
 			$html = $this->render(
 				static function () use ( $tone ) {
 					Page::notice( $tone, 'Saved.' );
 				}
 			);
 
-			$this->assertStringContainsString( 'class="bw-notice bw-notice--' . $tone . '"', $html );
+			$this->assertStringContainsString( $class, $html );
 		}
 	}
 

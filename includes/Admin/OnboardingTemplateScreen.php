@@ -113,7 +113,7 @@ final class OnboardingTemplateScreen {
 		Page::panel_open( __( 'Versions', 'blueworx-forge' ), 'versions' );
 
 		echo '<div class="bw-empty" data-bwx-no-template="1">';
-		echo '<i class="bw-icon bw-empty__icon" data-lucide="list-checks"></i>';
+		echo '<i class="bw-icon bw-empty__icon" data-lucide="clipboard"></i>';
 		echo '<p class="bw-empty__title">' . esc_html__( 'No checklist yet', 'blueworx-forge' ) . '</p>';
 		echo '<p class="bw-empty__text">';
 
@@ -255,7 +255,7 @@ final class OnboardingTemplateScreen {
 
 		if ( array() === $steps ) {
 			echo '<div class="bw-empty" data-bwx-no-steps="1">';
-			echo '<i class="bw-icon bw-empty__icon" data-lucide="list-checks"></i>';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="clipboard"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'No steps in this version yet', 'blueworx-forge' ) . '</p>';
 
 			if ( $editable ) {

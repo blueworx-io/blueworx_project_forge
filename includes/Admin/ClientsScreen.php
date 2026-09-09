@@ -643,7 +643,7 @@ final class ClientsScreen {
 		wp_nonce_field( 'bwx_forge_assign_contact_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_assign_contact">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
-		echo '<div class="bw-select">';
+		echo '<div class="bw-select bw-toolbar__search">';
 		echo '<select class="bw-select__el" name="user_id" aria-label="' . esc_attr__( 'Point of contact', 'blueworx-forge' ) . '">';
 		echo '<option value=""' . selected( '', $current, false ) . '>' . esc_html__( 'Nobody', 'blueworx-forge' ) . '</option>';
 
@@ -684,7 +684,7 @@ final class ClientsScreen {
 		echo '<input type="hidden" name="action" value="bwx_forge_add_membership">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
 
-		echo '<div class="bw-select">';
+		echo '<div class="bw-select bw-toolbar__search">';
 		echo '<select class="bw-select__el" name="user_id" aria-label="' . esc_attr__( 'Person', 'blueworx-forge' ) . '">';
 
 		foreach ( $people as $person ) {
@@ -693,14 +693,14 @@ final class ClientsScreen {
 
 		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
 
-		echo '<div class="bw-select">';
+		echo '<div class="bw-select bw-toolbar__search">';
 		echo '<select class="bw-select__el" name="role" aria-label="' . esc_attr__( 'Role', 'blueworx-forge' ) . '">';
 		PeopleScreen::role_options();
 		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
 
 		// Empty means every site under the client, which is a real answer rather
 		// than a missing one — so it is the first option and says so.
-		echo '<div class="bw-select">';
+		echo '<div class="bw-select bw-toolbar__search">';
 		echo '<select class="bw-select__el" name="client_site_id" aria-label="' . esc_attr__( 'Scope', 'blueworx-forge' ) . '">';
 		echo '<option value="">' . esc_html__( 'Every site', 'blueworx-forge' ) . '</option>';
 
@@ -906,8 +906,8 @@ final class ClientsScreen {
 		wp_nonce_field( 'bwx_forge_add_client_site_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_client_site">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
-		echo '<input type="text" class="bw-input" name="name" placeholder="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" aria-label="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" required>';
-		echo '<input type="url" class="bw-input" name="url" placeholder="https://" aria-label="' . esc_attr__( 'Site address', 'blueworx-forge' ) . '">';
+		echo '<input type="text" class="bw-input bw-toolbar__search" name="name" placeholder="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" aria-label="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" required>';
+		echo '<input type="url" class="bw-input bw-toolbar__search" name="url" placeholder="https://" aria-label="' . esc_attr__( 'Site address', 'blueworx-forge' ) . '">';
 		submit_button( __( 'Add site', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
 		echo '</form>';
 	}
