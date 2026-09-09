@@ -28,6 +28,10 @@ const SKILL = '.claude/skills/blueworx-admin-design';
 export function plan() {
   return [
     { from: `${SKILL}/styles.css`, to: 'assets/blueworx-admin-design.css', kind: 'file' },
+    // The registrar has to be here, not merely committed: vite builds into
+    // assets/ with emptyOutDir, so anything this plan does not rewrite is
+    // deleted by every build and the plugin then fatals on a missing require.
+    { from: `${SKILL}/design-system.php`, to: 'assets/blueworx-admin-design.php', kind: 'file' },
     { from: `${SKILL}/fonts`, to: 'assets/fonts', kind: 'dir' },
     { from: `${SKILL}/assets/icons/lucide-icons.js`, to: 'assets/blueworx-admin-icons.js', kind: 'file' },
     { from: `${SKILL}/editor/blueworx-page-editor.js`, to: 'assets/blueworx-page-editor.js', kind: 'file' },

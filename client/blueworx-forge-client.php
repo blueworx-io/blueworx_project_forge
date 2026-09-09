@@ -45,6 +45,15 @@ define( 'BWX_FORGE_CLIENT_FILE', __FILE__ );
 define( 'BWX_FORGE_CLIENT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWX_FORGE_CLIENT_URL', plugin_dir_url( __FILE__ ) );
 
+/*
+ * At load time, not on a hook. Every BlueWorx plugin ships its own copy of the
+ * design system and they all enqueue under one handle, so the site would
+ * otherwise wear whichever copy happened to enqueue first — this announces
+ * ours, and the newest copy on the site is the one that loads. Registration has
+ * to have happened before any copy's enqueue call, which no hook can promise.
+ */
+require_once BWX_FORGE_CLIENT_PATH . 'assets/blueworx-admin-design.php';
+
 require_once BWX_FORGE_CLIENT_PATH . 'includes/functions.php';
 require_once BWX_FORGE_CLIENT_PATH . 'includes/autoload.php';
 

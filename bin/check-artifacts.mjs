@@ -31,7 +31,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // interfaces have to be able to drift apart before they can look different, and
 // a second copy of the token layer is how that starts (#85).
 //
-// The five design system paths are here on the same argument, recorded as
+// The six design system paths are here on the same argument, recorded as
 // ARCH-8: appearance, and the shared machinery for editing settings. None of
 // them knows anything about clients, capacity or anybody else's data, which is
 // the boundary ARCH-1 actually draws — command-centre code off a client site,
@@ -39,13 +39,21 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // vendored copy the foundation's drift check compares byte for byte, so none of
 // them can grow studio code without CI failing.
 //
-// Adding a sixth kind of entry is a decision, not a build change. Read ARCH-8
-// first.
+// blueworx-admin-design.php is the stylesheet's registrar and joined the list
+// with it rather than as a new kind of entry: it decides which copy of the
+// design system a site loads when more than one plugin ships one, and knows
+// nothing else. A client artifact carrying the stylesheet without it is the bug
+// the registrar exists to remove, on the sites most likely to have two BlueWorx
+// plugins on them.
+//
+// Adding a different kind of entry is a decision, not a build change. Read
+// ARCH-8 first.
 const SHAREABLE = new Set([
   'plugin-update-checker',
   'CHANGELOG.md',
   'tokens',
   'assets/blueworx-admin-design.css',
+  'assets/blueworx-admin-design.php',
   'assets/fonts',
   'assets/blueworx-admin-icons.js',
   'assets/blueworx-page-editor.js',

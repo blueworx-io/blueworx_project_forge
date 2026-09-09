@@ -9,6 +9,7 @@ import { plan } from '../../bin/sync-design-system.mjs';
 // disagree, the guardrail silently compares nothing.
 const REQUIRED_DESTINATIONS = [
   'assets/blueworx-admin-design.css',
+  'assets/blueworx-admin-design.php',
   'assets/fonts',
   'assets/blueworx-admin-icons.js',
   'assets/blueworx-page-editor.js',
