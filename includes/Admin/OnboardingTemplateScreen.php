@@ -126,9 +126,9 @@ final class OnboardingTemplateScreen {
 		echo '</p>';
 		echo '</div>';
 
-		self::start_draft_form();
-
 		Page::panel_close();
+
+		self::start_draft_form();
 	}
 
 	/**
@@ -355,7 +355,15 @@ final class OnboardingTemplateScreen {
 	 * The form that starts a fresh, empty draft.
 	 */
 	private static function start_draft_form(): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-start-draft="1">';
+		// A panel of its own rather than a tail on the empty state's, so the
+		// name field and its button get a card with a footer instead of
+		// trailing off the bottom of somebody else's.
+		Page::panel_open(
+			__( 'Start a checklist', 'blueworx-forge' ),
+			'start-draft',
+			array( 'data-bwx-start-draft' => '1' )
+		);
+
 		wp_nonce_field( 'bwx_forge_start_template' );
 		echo '<input type="hidden" name="action" value="bwx_forge_start_template">';
 
@@ -372,11 +380,9 @@ final class OnboardingTemplateScreen {
 		 * part of the contract as a data-bwx hook is. What changes is the class
 		 * it carries. The same is true of every submit below.
 		 */
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Start a checklist', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
-		echo '</div>';
-
-		echo '</form>';
+		Page::panel_close();
 	}
 
 	/**
@@ -403,12 +409,15 @@ final class OnboardingTemplateScreen {
 	 * @param array<string, mixed> $version The draft.
 	 */
 	private static function publish_form( array $version ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-publish-template="1">';
+		Page::panel_open(
+			__( 'Publish this version', 'blueworx-forge' ),
+			'publish',
+			array( 'data-bwx-publish-template' => '1' )
+		);
+
 		wp_nonce_field( 'bwx_forge_publish_template' );
 		echo '<input type="hidden" name="action" value="bwx_forge_publish_template">';
 		echo '<input type="hidden" name="template" value="' . esc_attr( (string) $version['id'] ) . '">';
-
-		Page::panel_open( __( 'Publish this version', 'blueworx-forge' ), 'publish' );
 
 		// The warning sits directly above the button, because that is where a
 		// consequence which cannot be undone belongs.
@@ -417,13 +426,9 @@ final class OnboardingTemplateScreen {
 			__( 'Publishing issues this as the next version. After that it can never be changed — every client given it sees exactly this.', 'blueworx-forge' )
 		);
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Publish this version', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
-		echo '</div>';
-
 		Page::panel_close();
-
-		echo '</form>';
 	}
 
 	/**
@@ -432,12 +437,15 @@ final class OnboardingTemplateScreen {
 	 * @param array<string, mixed> $version The draft.
 	 */
 	private static function add_step_form( array $version ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-step="1">';
+		Page::panel_open(
+			__( 'Add a step', 'blueworx-forge' ),
+			'add-step',
+			array( 'data-bwx-add-step' => '1' )
+		);
+
 		wp_nonce_field( 'bwx_forge_add_template_step' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_template_step">';
 		echo '<input type="hidden" name="template" value="' . esc_attr( (string) $version['id'] ) . '">';
-
-		Page::panel_open( __( 'Add a step', 'blueworx-forge' ), 'add-step' );
 
 		echo '<div class="bw-formrow">';
 		echo '<label class="bw-formrow__label" for="bwx-step-title">' . esc_html__( 'Step', 'blueworx-forge' ) . '</label>';
@@ -505,13 +513,9 @@ final class OnboardingTemplateScreen {
 		echo '<p class="bw-formrow__help">' . esc_html__( 'Where it sits within its section. Lower comes first.', 'blueworx-forge' ) . '</p>';
 		echo '</div></div>';
 
-		Page::panel_close();
-
-		echo '<div class="bw-savebar">';
+		Page::actions_open();
 		submit_button( __( 'Add the step', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
-		echo '</div>';
-
-		echo '</form>';
+		Page::panel_close();
 	}
 
 	/**

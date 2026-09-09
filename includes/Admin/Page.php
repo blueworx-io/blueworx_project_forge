@@ -25,13 +25,30 @@ namespace Blueworx\Forge\Admin;
 final class Page {
 
 	/**
+	 * Whether the page being rendered holds its panels in a narrow column.
+	 *
+	 * @var bool
+	 */
+	private static bool $narrow = false;
+
+	/**
+	 * Whether the open panel wraps its body and footer in a form.
+	 *
+	 * @var bool
+	 */
+	private static bool $in_form = false;
+
+	/**
 	 * Opens the page and its header.
 	 *
 	 * @param string $title   The page title.
 	 * @param string $eyebrow Small label above the title. Optional.
 	 * @param string $lede    A sentence under the title. Optional.
+	 * @param bool   $narrow  Whether to hold the panels in one narrow column.
 	 */
-	public static function open( string $title, string $eyebrow = '', string $lede = '' ): void {
+	public static function open( string $title, string $eyebrow = '', string $lede = '', bool $narrow = false ): void {
+		self::$narrow = $narrow;
+
 		echo '<div class="wrap bw-wrap"><div class="bw-admin bw-page">';
 		echo '<header class="bw-pagehead">';
 		echo '<div class="bw-pagehead__titles">';
@@ -53,38 +70,164 @@ final class Page {
 
 		// The panel column. ScreenLayout draws this as bw-panels when a screen
 		// has no sidebar, and no studio screen has one.
-		echo '<div class="bw-panels">';
+		//
+		// A screen that is mostly a form asks for the narrow variant. Left full
+		// width, a labelled field runs the whole width of the monitor and the
+		// input is a foot of empty box — which is what the availability screen
+		// looked like. The body wrapper is what carries the gutter in that
+		// case, so the panels stop being a direct child of the page and stop
+		// padding themselves.
+		echo self::$narrow
+			? '<div class="bw-page__body bw-page__body--single"><div class="bw-panels">'
+			: '<div class="bw-panels">';
 	}
 
 	/**
 	 * Closes the page.
 	 */
 	public static function close(): void {
-		echo '</div></div></div>';
+		echo self::$narrow ? '</div></div></div></div>' : '</div></div></div>';
+
+		self::$narrow = false;
 	}
 
 	/**
 	 * Opens a panel.
 	 *
-	 * @param string $heading The panel heading.
-	 * @param string $name    A name for tests and styling to hold on to.
+	 * A panel that is one form opens it here rather than inside the body, so
+	 * the form can wrap the fields and the footer its submit belongs on.
+	 *
+	 * @param string                     $heading The panel heading.
+	 * @param string                     $name    A name for tests and styling to hold on to.
+	 * @param array<string, string>|null $form    Attributes for a wrapping form, or null for none.
+	 * @param callable|null              $actions Echoes what sits on the right of the head.
 	 */
-	public static function panel_open( string $heading, string $name ): void {
+	public static function panel_open( string $heading, string $name, ?array $form = null, ?callable $actions = null ): void {
 		printf(
 			'<section class="bw-card" data-bwx-panel="%s">',
 			esc_attr( $name )
 		);
 		echo '<div class="bw-card__head"><div class="bw-card__titles">';
 		printf( '<h2 class="bw-card__title">%s</h2>', esc_html( $heading ) );
-		echo '</div></div>';
+		echo '</div>';
+
+		// The head, not the body: what a thing's state is and the one button
+		// that changes it belong beside its name. Emitted before the wrapping
+		// form opens, so an action that is a form of its own is a sibling of it
+		// rather than a form inside a form.
+		if ( null !== $actions ) {
+			echo '<div class="bw-card__actions">';
+			$actions();
+			echo '</div>';
+		}
+
+		echo '</div>';
+
+		if ( null !== $form ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"';
+
+			foreach ( $form as $name_ => $value ) {
+				printf( ' %1$s="%2$s"', esc_attr( $name_ ), esc_attr( $value ) );
+			}
+
+			echo '>';
+		}
+
+		self::$in_form = null !== $form;
+
 		echo '<div class="bw-card__body">';
 	}
 
 	/**
-	 * Closes a panel.
+	 * Ends a panel's body and opens the bar its buttons sit on.
+	 *
+	 * A submit dropped at the end of a body has no space of its own: it sits
+	 * hard against the last field above it and the edge of the card below it,
+	 * which is how every form on these screens looked. The design system's
+	 * answer is a footer — ruled off, padded, and the same on every card — so
+	 * the buttons stop being wherever the markup happened to leave them.
+	 */
+	public static function actions_open(): void {
+		echo '</div><div class="bw-card__foot">';
+	}
+
+	/**
+	 * Closes a panel, whether its body or its footer is open.
 	 */
 	public static function panel_close(): void {
+		echo '</div>';
+
+		if ( self::$in_form ) {
+			echo '</form>';
+		}
+
+		self::$in_form = false;
+
+		echo '</section>';
+	}
+
+	/**
+	 * Opens a section inside a panel.
+	 *
+	 * A card's body often holds several unrelated things — a client's details,
+	 * who we are to them, their sites, their people. Run together they read as
+	 * one undifferentiated column, which is what they looked like. Each is its
+	 * own inset card instead, so the boundary between them is visible rather
+	 * than implied by a heading.
+	 *
+	 * @param string $heading The section heading.
+	 * @param string $name    A name for tests and styling to hold on to.
+	 */
+	public static function section_open( string $heading, string $name ): void {
+		printf(
+			'<section class="bw-card bw-card--sunken" data-bwx-section="%s">',
+			esc_attr( $name )
+		);
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		printf( '<h3 class="bw-card__title">%s</h3>', esc_html( $heading ) );
+		echo '</div></div>';
+		echo '<div class="bw-card__body bw-panel__loose">';
+	}
+
+	/**
+	 * Closes a section.
+	 */
+	public static function section_close(): void {
 		echo '</div></section>';
+	}
+
+	/**
+	 * Opens the design system's accordion, as a <details>.
+	 *
+	 * The system's own accordion is a button whose open state React holds. A
+	 * WordPress admin screen has no React and no bundle of its own, so the same
+	 * thing is drawn with the element the browser already opens and closes —
+	 * the classes, the chevron and the spacing are the system's, only the
+	 * mechanism is different.
+	 *
+	 * @param string                $summary    The label on the head.
+	 * @param array<string, string> $attributes Extra attributes on the details.
+	 */
+	public static function accordion_open( string $summary, array $attributes = array() ): void {
+		echo '<details class="bw-accordion"';
+
+		foreach ( $attributes as $name => $value ) {
+			printf( ' %1$s="%2$s"', esc_attr( $name ), esc_attr( $value ) );
+		}
+
+		echo '>';
+		echo '<summary class="bw-accordion__head">';
+		printf( '<span class="bw-accordion__title">%s</span>', esc_html( $summary ) );
+		echo '<i class="bw-icon bw-icon--14 bw-accordion__chev" data-lucide="chevron-down"></i>';
+		echo '</summary>';
+		echo '<div class="bw-accordion__body">';
+	}
+
+	/**
+	 * Closes an accordion.
+	 */
+	public static function accordion_close(): void {
+		echo '</div></details>';
 	}
 
 	/**
@@ -141,6 +284,47 @@ final class Page {
 	}
 
 	/**
+	 * The few rules that are ours rather than the design system's.
+	 *
+	 * Inline, and deliberately short. assets/blueworx-admin-design.css is a
+	 * verbatim copy of the skill's styles.css and CI compares the two, so
+	 * nothing may be added to it — and nothing here restyles a component.
+	 *
+	 * It takes off the gutter wp-admin puts around the content column, because
+	 * a full-bleed page is the shape the system draws. It gives <details> the
+	 * accordion's open state, because the system's accordion is a React button
+	 * and these screens have no React. It sizes a field dropped straight into
+	 * a toolbar, which is our own composition — a bw-input is width:100% by
+	 * design, so three of them in a row each took a line of their own — and
+	 * takes the bullets off a panel column written as a list, which the system
+	 * draws as divs and the specs need to be <li> elements.
+	 *
+	 * The submit rules are the same repair the stylesheet already makes for
+	 * .bw-input: wp-admin styles every submit input under .wp-core-ui, which
+	 * outweighs a single class, so a primary button submitted a form looking
+	 * like a secondary one. The values are the system's own tokens — this wins
+	 * the argument, it does not change the answer.
+	 *
+	 * @return string
+	 */
+	private static function chrome(): string {
+		return <<<'CSS'
+#wpcontent{padding-left:0}
+#wpbody-content{padding-bottom:0}
+#wpfooter{display:none}
+ul.bw-panels,ul.bw-panel__loose{list-style:none;margin:0;padding-left:0}
+.bw-toolbar>.bw-input,.bw-toolbar>.bw-select{flex:1 1 200px;max-width:320px}
+.bw-admin input[type="submit"].bw-btn--primary{background:var(--bw-primary-bg);border-color:var(--bw-primary-bg);color:var(--bw-primary-text)}
+.bw-admin input[type="submit"].bw-btn--primary:hover{background:var(--bw-primary-bg-hover);border-color:var(--bw-primary-bg-hover);color:var(--bw-primary-text)}
+.bw-admin input[type="submit"].bw-btn--secondary{background:var(--bw-control-bg);border-color:var(--bw-border-field);color:var(--bw-control-text)}
+.bw-admin input[type="submit"].bw-btn--secondary:hover{background:var(--bw-control-bg-hover);border-color:var(--bw-border-strong);color:var(--bw-control-text)}
+.bw-accordion>summary{list-style:none}
+.bw-accordion>summary::-webkit-details-marker{display:none}
+.bw-accordion[open]>summary .bw-accordion__chev{transform:rotate(180deg)}
+CSS;
+	}
+
+	/**
 	 * Whether a hook belongs to one of the studio's own screens.
 	 *
 	 * Matched on the slug prefix rather than against a list, because every
@@ -179,6 +363,8 @@ final class Page {
 			array(),
 			(string) filemtime( $design )
 		);
+
+		wp_add_inline_style( 'blueworx-admin-design', self::chrome() );
 
 		$icons = BWX_FORGE_PATH . 'assets/blueworx-admin-icons.js';
 

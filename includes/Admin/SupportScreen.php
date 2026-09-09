@@ -552,9 +552,9 @@ final class SupportScreen {
 	private static function assign_form( array $site ): void {
 		$packages = Packages::all( Terms::ACTIVE );
 
-		Page::panel_open( __( 'Put this site on a package', 'blueworx-forge' ), 'assign' );
-
 		if ( array() === $packages ) {
+			Page::panel_open( __( 'Put this site on a package', 'blueworx-forge' ), 'assign' );
+
 			echo '<div class="bw-empty" data-bwx-assignable="0">';
 			echo '<i class="bw-icon bw-empty__icon" data-lucide="package"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'Nothing to put it on', 'blueworx-forge' ) . '</p>';
@@ -569,7 +569,12 @@ final class SupportScreen {
 		$versions = Packages::current_versions( array_column( $packages, 'id' ) );
 		$today    = gmdate( 'Y-m-d', bwx_forge_now() );
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-assignable="' . esc_attr( (string) count( $packages ) ) . '">';
+		Page::panel_open(
+			__( 'Put this site on a package', 'blueworx-forge' ),
+			'assign',
+			array( 'data-bwx-assignable' => (string) count( $packages ) )
+		);
+
 		wp_nonce_field( 'bwx_forge_assign_support' );
 		echo '<input type="hidden" name="action" value="bwx_forge_assign_support">';
 		echo '<input type="hidden" name="site" value="' . esc_attr( (string) $site['id'] ) . '">';
@@ -636,12 +641,8 @@ final class SupportScreen {
 
 		self::preview_of();
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Assign', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-assign', false );
-		echo '</div>';
-
-		echo '</form>';
-
 		Page::panel_close();
 	}
 

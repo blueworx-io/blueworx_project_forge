@@ -529,9 +529,12 @@ final class MeetingsScreen {
 		$people  = Users::all( null );
 		$default = null === $client ? 'UTC' : (string) $client['timezone'];
 
-		Page::panel_open( __( 'Add a standing meeting', 'blueworx-forge' ), 'add-series' );
+		Page::panel_open(
+			__( 'Add a standing meeting', 'blueworx-forge' ),
+			'add-series',
+			array( 'data-bwx-add-series' => '1' )
+		);
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_add_series' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_series">';
 		echo '<input type="hidden" name="site" value="' . esc_attr( (string) $site['id'] ) . '">';
@@ -594,12 +597,8 @@ final class MeetingsScreen {
 		 * submit_button() rather than a <button>, and the name stays
 		 * bwx-add-series: it is also the id, and meetings.spec.js clicks it.
 		 */
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Add', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-add-series', false );
-		echo '</div>';
-
-		echo '</form>';
-
 		Page::panel_close();
 	}
 

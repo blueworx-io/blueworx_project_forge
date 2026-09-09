@@ -66,7 +66,13 @@ final class Plugin {
 
 		Admin\PeopleActions::boot();
 
-		add_action( 'admin_menu', array( Admin\UpdatesScreen::class, 'register' ) );
+		/*
+		 * Last in the menu, whatever order the screens are hooked up in here.
+		 * Updates is the one entry nobody opens as part of doing the work — it
+		 * is housekeeping — so a late priority pins it to the bottom rather
+		 * than leaving its place to depend on where this line happens to sit.
+		 */
+		add_action( 'admin_menu', array( Admin\UpdatesScreen::class, 'register' ), 99 );
 
 		Admin\UpdatesActions::boot();
 

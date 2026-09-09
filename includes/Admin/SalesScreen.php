@@ -88,18 +88,23 @@ final class SalesScreen {
 		Page::panel_open( __( 'Needs attention', 'blueworx-forge' ), 'attention' );
 		echo '<div class="bw-tablescroll">';
 		echo '<table class="bw-table" data-bwx-attention="' . esc_attr( (string) count( $wanted ) ) . '"><thead><tr>';
-		echo '<th>' . esc_html__( 'Client', 'blueworx-forge' ) . '</th>';
+		// The client and its site in one cell, the way the design system's
+		// tables name a thing: two columns of long generated names pushed the
+		// table wider than its card, and the button on the end of the row ended
+		// up out in the scroll where nothing else was.
 		echo '<th>' . esc_html__( 'Site', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Position', 'blueworx-forge' ) . '</th>';
-		echo '<th>' . esc_html__( 'Hours left', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__num">' . esc_html__( 'Hours left', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'What needs doing', 'blueworx-forge' ) . '</th>';
-		echo '<th></th>';
+		echo '<th class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		foreach ( $wanted as $row ) {
 			echo '<tr data-bwx-site="' . esc_attr( $row['site_id'] ) . '">';
-			echo '<td>' . esc_html( $row['client'] ) . '</td>';
-			echo '<td>' . esc_html( $row['site'] ) . '</td>';
+			echo '<td>';
+			echo '<span class="bw-table__primary">' . esc_html( $row['site'] ) . '</span>';
+			echo '<span class="bw-table__sub">' . esc_html( $row['client'] ) . '</span>';
+			echo '</td>';
 			echo '<td>' . esc_html( $row['state'] ) . '</td>';
 			echo '<td class="bw-table__num" data-bwx-balance="' . esc_attr( (string) $row['balance'] ) . '">' . esc_html( number_format( $row['balance'], 2 ) ) . '</td>';
 			echo '<td><div class="bw-chips">';
@@ -114,7 +119,7 @@ final class SalesScreen {
 
 			echo '</div></td><td class="bw-table__actions">';
 			printf(
-				'<a class="bw-btn bw-btn--secondary" href="%1$s">%2$s</a>',
+				'<a class="bw-btn bw-btn--secondary bw-btn--sm" href="%1$s">%2$s</a>',
 				esc_url( SupportScreen::url( $row['site_id'] ) ),
 				esc_html__( 'Open', 'blueworx-forge' )
 			);

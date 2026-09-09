@@ -73,10 +73,15 @@ final class AvailabilityScreen {
 			return;
 		}
 
+		// One narrow column. This screen is two forms and two lists, and across
+		// a wide monitor a labelled field left a foot of empty input beside a
+		// two-word label — the fields were as wide as the window rather than as
+		// wide as what goes in them.
 		Page::open(
 			__( 'Availability', 'blueworx-forge' ),
 			__( 'Forge', 'blueworx-forge' ),
-			__( 'Somebody\'s working week, and the time they are not available for. Everything that works out whether there is room to take work on reads this and nothing else.', 'blueworx-forge' )
+			__( 'Somebody\'s working week, and the time they are not available for. Everything that works out whether there is room to take work on reads this and nothing else.', 'blueworx-forge' ),
+			true
 		);
 
 		self::result_notice();
@@ -99,15 +104,17 @@ final class AvailabilityScreen {
 
 		self::person_picker( $people, $person );
 
-		Page::panel_open( __( 'The working week', 'blueworx-forge' ), 'week' );
+		// A panel each, rather than four things stacked inside two. Each of
+		// these is a separate question — what the next week looks like, what
+		// the hours are, what they have been, what time is booked off — and a
+		// small heading inside a shared body was not a boundary between them.
+		Page::panel_open( __( 'The next seven days', 'blueworx-forge' ), 'week' );
 		self::this_week( $person );
-		self::pattern_form( $person );
-		self::pattern_history( $person );
 		Page::panel_close();
 
-		Page::panel_open( __( 'Time off', 'blueworx-forge' ), 'leave' );
+		self::pattern_form( $person );
+		self::pattern_history( $person );
 		self::unavailability_section( $person );
-		Page::panel_close();
 
 		Page::close();
 	}
@@ -216,8 +223,6 @@ final class AvailabilityScreen {
 		$days  = Availability::by_day( $id, $from, $to );
 		$total = Availability::hours( $id, $from, $to );
 
-		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'The next seven days', 'blueworx-forge' ) . '</h3>';
-
 		if ( ! Availability::is_recorded( $id, $from ) ) {
 			Page::notice(
 				'warning',
@@ -266,10 +271,14 @@ final class AvailabilityScreen {
 	private static function pattern_form( array $person ): void {
 		$current = Patterns::in_force( (string) $person['id'], gmdate( 'Y-m-d' ) );
 
-		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Set working hours', 'blueworx-forge' ) . '</h3>';
+		Page::panel_open(
+			__( 'Set working hours', 'blueworx-forge' ),
+			'set-hours',
+			array( 'data-bwx-set-hours' => '1' )
+		);
+
 		echo '<p class="bw-card__note">' . esc_html__( 'Hours take effect from the date you give and leave everything before it alone, so a change now does not rewrite what last month was.', 'blueworx-forge' ) . '</p>';
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-set-hours="1">';
 		wp_nonce_field( 'bwx_forge_set_hours' );
 		echo '<input type="hidden" name="action" value="bwx_forge_set_hours">';
 		echo '<input type="hidden" name="person" value="' . esc_attr( (string) $person['id'] ) . '">';
@@ -294,11 +303,9 @@ final class AvailabilityScreen {
 			echo '</div></div>';
 		}
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Record these hours', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
-		echo '</div>';
-
-		echo '</form>';
+		Page::panel_close();
 	}
 
 	/**
@@ -318,7 +325,8 @@ final class AvailabilityScreen {
 			return;
 		}
 
-		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Hours over time', 'blueworx-forge' ) . '</h3>';
+		Page::panel_open( __( 'Hours over time', 'blueworx-forge' ), 'pattern-history' );
+
 		echo '<ul class="bw-activity" data-bwx-pattern-history="1">';
 
 		foreach ( $history as $pattern ) {
@@ -336,6 +344,8 @@ final class AvailabilityScreen {
 		}
 
 		echo '</ul>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -353,7 +363,7 @@ final class AvailabilityScreen {
 		$to     = gmdate( 'Y-m-d', (int) strtotime( $today . ' 00:00:00 UTC' ) + ( 365 * DAY_IN_SECONDS ) );
 		$booked = Unavailability::overlapping( $id, $from, $to );
 
-		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Recorded time off', 'blueworx-forge' ) . '</h3>';
+		Page::panel_open( __( 'Recorded time off', 'blueworx-forge' ), 'leave' );
 
 		if ( array() === $booked ) {
 			echo '<div class="bw-empty" data-bwx-no-leave="1">';
@@ -364,6 +374,8 @@ final class AvailabilityScreen {
 		} else {
 			self::leave_table( $person, $booked );
 		}
+
+		Page::panel_close();
 
 		self::add_leave_form( $id );
 	}
@@ -408,9 +420,12 @@ final class AvailabilityScreen {
 	 * @param string $id The person.
 	 */
 	private static function add_leave_form( string $id ): void {
-		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Record time off', 'blueworx-forge' ) . '</h3>';
+		Page::panel_open(
+			__( 'Record time off', 'blueworx-forge' ),
+			'add-leave',
+			array( 'data-bwx-add-leave' => '1' )
+		);
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-leave="1">';
 		wp_nonce_field( 'bwx_forge_add_leave' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_leave">';
 		echo '<input type="hidden" name="person" value="' . esc_attr( $id ) . '">';
@@ -448,11 +463,9 @@ final class AvailabilityScreen {
 		echo '<input type="text" class="bw-input" id="bwx-leave-note" name="note" maxlength="191">';
 		echo '</div></div>';
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Record time off', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
-		echo '</div>';
-
-		echo '</form>';
+		Page::panel_close();
 	}
 
 	/**

@@ -165,14 +165,26 @@ final class PackagesScreen {
 			esc_attr( (string) ( $version['version'] ?? 0 ) )
 		);
 
-		Page::panel_open( (string) $package['name'], 'package' );
+		// The state and the button that changes it sit beside the name; the
+		// fields are the body; the one button that writes a new version is the
+		// footer. Stacked in the body they read as a column of loose controls
+		// with the history crammed underneath.
+		Page::panel_open(
+			(string) $package['name'],
+			'package',
+			array( 'data-bwx-revise-package' => $id ),
+			static function () use ( $id, $retired ): void {
+				self::status_badge( $retired );
+				self::status_form( $id, $retired );
+			}
+		);
 
-		self::status_badge( $retired );
 		self::summary( $version );
 		self::edit_form( $id, $version );
-		self::status_form( $id, $retired );
 		self::history( $id );
 
+		Page::actions_open();
+		submit_button( __( 'Save as a new version', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-revise', false );
 		Page::panel_close();
 		echo '</div>';
 	}
@@ -187,15 +199,11 @@ final class PackagesScreen {
 	 * @param bool $retired Whether it is off the shelf.
 	 */
 	private static function status_badge( bool $retired ): void {
-		echo '<p class="bw-card__note">';
-
 		if ( $retired ) {
 			echo '<span class="bw-badge bw-badge--neutral">' . esc_html__( 'Retired', 'blueworx-forge' ) . '</span>';
 		} else {
-			echo '<span class="bw-badge">' . esc_html__( 'On the shelf', 'blueworx-forge' ) . '</span>';
+			echo '<span class="bw-badge bw-badge--success">' . esc_html__( 'On the shelf', 'blueworx-forge' ) . '</span>';
 		}
-
-		echo '</p>';
 	}
 
 	/**
@@ -232,7 +240,6 @@ final class PackagesScreen {
 	 * @param array<string, mixed> $version The version in force.
 	 */
 	private static function edit_form( string $id, array $version ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_revise_package' );
 		echo '<input type="hidden" name="action" value="bwx_forge_revise_package">';
 		echo '<input type="hidden" name="package" value="' . esc_attr( $id ) . '">';
@@ -250,16 +257,6 @@ final class PackagesScreen {
 		echo esc_textarea( (string) ( $version['terms'] ?? '' ) );
 		echo '</textarea>';
 		echo '</div></div>';
-
-		// submit_button() rather than a <button>, and this is not cosmetic:
-		// thirteen specs click `input[type="submit"]`, so the element is as
-		// much part of the contract as a data-bwx hook is. What changes is the
-		// class it carries.
-		echo '<div class="bw-card__actions">';
-		submit_button( __( 'Save as a new version', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-revise', false );
-		echo '</div>';
-
-		echo '</form>';
 	}
 
 	/**
@@ -269,7 +266,6 @@ final class PackagesScreen {
 	 * @param bool   $retired Whether it is off the shelf now.
 	 */
 	private static function status_form( string $id, bool $retired ): void {
-		echo '<div class="bw-card__actions">';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_set_package_status' );
 		echo '<input type="hidden" name="action" value="bwx_forge_set_package_status">';
@@ -284,7 +280,6 @@ final class PackagesScreen {
 		);
 
 		echo '</form>';
-		echo '</div>';
 	}
 
 	/**
@@ -305,7 +300,8 @@ final class PackagesScreen {
 	private static function history( string $id ): void {
 		$versions = Packages::versions_for( $id );
 
-		echo '<h3 class="bw-card__eyebrow">' . esc_html__( 'Every version', 'blueworx-forge' ) . '</h3>';
+		Page::section_open( __( 'Every version', 'blueworx-forge' ), 'package-history' );
+
 		echo '<div class="bw-tablescroll">';
 		echo '<table class="bw-table" data-bwx-history="' . esc_attr( $id ) . '"><thead><tr>';
 		echo '<th>' . esc_html__( 'Version', 'blueworx-forge' ) . '</th>';
@@ -329,15 +325,16 @@ final class PackagesScreen {
 
 		echo '</tbody></table>';
 		echo '</div>';
+
+		Page::section_close();
 	}
 
 	/**
 	 * The form that adds a package.
 	 */
 	private static function add_form(): void {
-		Page::panel_open( __( 'Add a package', 'blueworx-forge' ), 'add-package' );
+		Page::panel_open( __( 'Add a package', 'blueworx-forge' ), 'add-package', array( 'data-bwx-add-package' => '1' ) );
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_add_package' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_package">';
 
@@ -353,12 +350,8 @@ final class PackagesScreen {
 		echo '<textarea class="bw-textarea" rows="3" id="bwx-new-terms" name="terms"></textarea>';
 		echo '</div></div>';
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Add package', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-add', false );
-		echo '</div>';
-
-		echo '</form>';
-
 		Page::panel_close();
 	}
 
@@ -371,9 +364,12 @@ final class PackagesScreen {
 	 * @param array<int, array<string, mixed>> $packages The catalogue.
 	 */
 	private static function order_form( array $packages ): void {
-		Page::panel_open( __( 'Order', 'blueworx-forge' ), 'order' );
+		Page::panel_open(
+			__( 'Order', 'blueworx-forge' ),
+			'order',
+			array( 'data-bwx-reorder-packages' => '1' )
+		);
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_reorder_packages' );
 		echo '<input type="hidden" name="action" value="bwx_forge_reorder_packages">';
 
@@ -392,12 +388,8 @@ final class PackagesScreen {
 			echo '</div></div>';
 		}
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Save order', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', 'bwx-reorder', false );
-		echo '</div>';
-
-		echo '</form>';
-
 		Page::panel_close();
 	}
 

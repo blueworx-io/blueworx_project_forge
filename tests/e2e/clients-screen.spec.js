@@ -67,8 +67,9 @@ test('deactivating a client hides it and its sites from the default list', async
   await expect(page.locator(`[data-bwx-client="${clientId}"]`)).toHaveCount(0);
 
   await page.goto(`${SCREEN}&status=all`);
-  // The client's own status, not the site's nested one directly below it.
-  await expect(page.locator(`[data-bwx-client="${clientId}"] > [data-bwx-status]`)).toContainText(
+  // The client's own status, which lives in its card head — not a site's,
+  // which lives further down in the body.
+  await expect(page.locator(`[data-bwx-client="${clientId}"] > .bw-card__head [data-bwx-status]`)).toContainText(
     'Inactive',
   );
   // Deactivating a client deactivates every site under it too.
@@ -101,7 +102,7 @@ test('a deactivated client can be reactivated from its edit form', async ({ page
 
   await page.goto(`${SCREEN}&status=all`);
   await expect(
-    page.locator(`[data-bwx-client="${clientId}"] > [data-bwx-status]`),
+    page.locator(`[data-bwx-client="${clientId}"] > .bw-card__head [data-bwx-status]`),
   ).toContainText('Inactive');
 
   await page.click(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] summary`);
@@ -109,7 +110,7 @@ test('a deactivated client can be reactivated from its edit form', async ({ page
   await page.click(`[data-bwx-client="${clientId}"] [data-bwx-edit-client] input[type="submit"]`);
 
   await expect(
-    page.locator(`[data-bwx-client="${clientId}"] > [data-bwx-status]`),
+    page.locator(`[data-bwx-client="${clientId}"] > .bw-card__head [data-bwx-status]`),
   ).toContainText('Active');
 });
 

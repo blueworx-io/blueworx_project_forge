@@ -87,6 +87,17 @@ final class ClientsScreen {
 	private static array $everyone = array();
 
 	/**
+	 * The published checklist, if there is one. Read once per render.
+	 *
+	 * Every site on the screen asks the same question — whether there is a
+	 * checklist to give it — and on a studio with a hundred sites that was a
+	 * hundred identical reads of the same row.
+	 *
+	 * @var array<string, mixed>|null
+	 */
+	private static ?array $template = null;
+
+	/**
 	 * Adds the menu entry, beneath the Forge menu the sites screen creates.
 	 */
 	public static function register(): void {
@@ -273,6 +284,7 @@ final class ClientsScreen {
 		// found the same way the note above was: a test ran out of patience.
 		self::$contacts = Contacts::current_by_client();
 		self::$everyone = array();
+		self::$template = Templates::current();
 
 		foreach ( Users::all( null ) as $person ) {
 			self::$people_by_id[ (string) $person['id'] ] = (string) $person['display_name'];
@@ -316,16 +328,27 @@ final class ClientsScreen {
 		self::deactivate_client_form( $client );
 
 		echo '</div></div>';
-		echo '<div class="bw-card__body">';
+		echo '<div class="bw-card__body bw-panel__loose">';
 
+		// Four separate things about one client, so four separate sections.
+		// Run together in one column they read as a single wall, which is what
+		// they were: a heading is not a boundary.
+		Page::section_open( __( 'Details', 'blueworx-forge' ), 'client-details' );
 		self::edit_client_form( $client );
+		Page::section_close();
 
+		Page::section_open( __( 'Point of contact', 'blueworx-forge' ), 'client-contact' );
 		self::contact( $client );
+		Page::section_close();
 
+		Page::section_open( __( 'Sites', 'blueworx-forge' ), 'client-sites' );
 		self::sites_list( $client_id, $status );
 		self::add_site_form( $client_id );
+		Page::section_close();
 
+		Page::section_open( __( 'People', 'blueworx-forge' ), 'client-people' );
 		self::people( $client );
+		Page::section_close();
 
 		echo '</div>';
 		echo '</li>';
@@ -349,25 +372,57 @@ final class ClientsScreen {
 		// and it should not cost a query a row to answer.
 		$integrations = self::$integrations;
 
-		echo '<ul data-bwx-sites="1">';
+		/*
+		 * A card each, kept a <ul>/<li> because the specs address a site as
+		 * li[data-bwx-site]. Everything a site says about itself used to run
+		 * along one line — name, status, connection, mail, onboarding, then
+		 * three buttons — and by the third site nothing was findable. Now the
+		 * name and its status are the head, the facts are chips, and the
+		 * buttons are one row with one gap between them.
+		 */
+		echo '<ul class="bw-panel__loose" data-bwx-sites="1">';
 
 		foreach ( $sites as $site ) {
-			$site_label = 'active' === (string) $site['status']
+			$active = 'active' === (string) $site['status'];
+
+			$site_label = $active
 				? __( 'Active', 'blueworx-forge' )
 				: __( 'Inactive', 'blueworx-forge' );
 
-			echo '<li data-bwx-site="' . esc_attr( (string) $site['id'] ) . '">';
-			echo '<span data-bwx-site-name>' . esc_html( (string) $site['name'] ) . '</span> ';
-			echo '<span data-bwx-status>' . esc_html( $site_label ) . '</span> ';
+			echo '<li class="bw-card" data-bwx-site="' . esc_attr( (string) $site['id'] ) . '">';
+			echo '<div class="bw-card__head"><div class="bw-card__titles">';
+			echo '<h4 class="bw-card__title" data-bwx-site-name>' . esc_html( (string) $site['name'] ) . '</h4>';
 
+			if ( '' !== (string) $site['url'] ) {
+				echo '<p class="bw-card__eyebrow">' . esc_html( (string) $site['url'] ) . '</p>';
+			}
+
+			echo '</div><div class="bw-card__actions">';
+			echo '<span class="' . ( $active ? 'bw-badge bw-badge--success' : 'bw-badge bw-badge--neutral' ) . '" data-bwx-status>' . esc_html( $site_label ) . '</span>';
+			echo '</div></div>';
+
+			echo '<div class="bw-card__body bw-panel__loose">';
+
+			// Asked once and handed to both halves. Where a site is with its
+			// onboarding is read for the chips and again for the button that
+			// starts it, and asking twice cost a query a site on a screen that
+			// already lists every site the studio has.
+			$onboarding = Assignment::for_site( (string) $site['id'] );
+
+			echo '<div class="bw-chips">';
 			self::connection( $site, $integrations[ (string) $site['id'] ] ?? null );
+			self::onboarding( $site, $onboarding );
+			echo '</div>';
 
-			self::onboarding( $site );
-
+			echo '<div class="bw-toolbar bw-toolbar--card">';
+			self::key_forms( $site, $integrations[ (string) $site['id'] ] ?? null );
+			self::assign_onboarding_form( $site, $onboarding );
 			self::deactivate_site_form( $site );
+			echo '</div>';
 
 			self::edit_site_form( $site );
 
+			echo '</div>';
 			echo '</li>';
 		}
 
@@ -386,17 +441,17 @@ final class ClientsScreen {
 	 * control here to change it afterwards or to move them to a newer version —
 	 * a client onboards once.
 	 *
-	 * @param array<string, mixed> $site The site row.
+	 * @param array<string, mixed>      $site       The site row.
+	 * @param array<string, mixed>|null $onboarding Its assignment, if it has one.
 	 */
-	private static function onboarding( array $site ): void {
-		$site_id    = (string) $site['id'];
-		$onboarding = Assignment::for_site( $site_id );
+	private static function onboarding( array $site, ?array $onboarding ): void {
+		$site_id = (string) $site['id'];
 
 		if ( null !== $onboarding ) {
 			$progress = Progress::of( Steps::for_site( $site_id ) );
 
 			printf(
-				' <span data-bwx-onboarding="%1$s" data-bwx-onboarding-ready="%2$s">%3$s</span>',
+				'<span class="bw-chip bw-chip--plain" data-bwx-onboarding="%1$s" data-bwx-onboarding-ready="%2$s">%3$s</span>',
 				esc_attr( $site_id ),
 				esc_attr( $progress['launch_ready'] ? 'yes' : 'no' ),
 				esc_html(
@@ -410,7 +465,7 @@ final class ClientsScreen {
 			);
 
 			if ( ! $progress['launch_ready'] ) {
-				echo ' <span data-bwx-onboarding-blocking="' . esc_attr( (string) count( $progress['blocking'] ) ) . '">';
+				echo '<span class="bw-badge bw-badge--warning" data-bwx-onboarding-blocking="' . esc_attr( (string) count( $progress['blocking'] ) ) . '">';
 				echo esc_html(
 					array() === $progress['blocking']
 						? __( 'not ready to launch', 'blueworx-forge' )
@@ -426,15 +481,35 @@ final class ClientsScreen {
 			return;
 		}
 
-		$template = Templates::current();
+		if ( null === self::$template ) {
+			echo '<span class="bw-chip bw-chip--plain" data-bwx-onboarding-unavailable="1">' . esc_html__( 'No checklist published yet', 'blueworx-forge' ) . '</span>';
+		}
+	}
 
-		if ( null === $template ) {
-			echo ' <span data-bwx-onboarding-unavailable="1">' . esc_html__( 'No checklist published yet', 'blueworx-forge' ) . '</span>';
+	/**
+	 * The button that gives a site the current checklist.
+	 *
+	 * Split out from onboarding() so a site's state and the buttons that change
+	 * it sit in the two places the card keeps them — the chips and the action
+	 * row — rather than interleaved on one line.
+	 *
+	 * @param array<string, mixed>      $site       The site row.
+	 * @param array<string, mixed>|null $onboarding Its assignment, if it has one.
+	 */
+	private static function assign_onboarding_form( array $site, ?array $onboarding ): void {
+		$site_id = (string) $site['id'];
 
+		if ( null !== $onboarding ) {
 			return;
 		}
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline" data-bwx-assign-onboarding="1">';
+		$template = self::$template;
+
+		if ( null === $template ) {
+			return;
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-assign-onboarding="1">';
 		wp_nonce_field( 'bwx_forge_assign_onboarding_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_assign_onboarding">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
@@ -447,7 +522,7 @@ final class ClientsScreen {
 				(int) $template['version']
 			)
 		);
-		echo '</button> ';
+		echo '</button>';
 		echo '</form>';
 	}
 
@@ -467,27 +542,43 @@ final class ClientsScreen {
 		$client_id = (string) $client['id'];
 		$held      = self::$memberships[ $client_id ] ?? array();
 
-		echo '<h4>' . esc_html__( 'People', 'blueworx-forge' ) . '</h4>';
-
 		if ( array() === $held ) {
-			echo '<p data-bwx-no-client-people="1">' . esc_html__( 'Nobody has access to this client yet.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-card__note" data-bwx-no-client-people="1">' . esc_html__( 'Nobody has access to this client yet.', 'blueworx-forge' ) . '</p>';
 		} else {
 			$names = self::$people_by_id;
 
-			echo '<ul data-bwx-client-people="1">';
+			/*
+			 * A table, because that is what this is: the same four facts about
+			 * each person, one row each. As a run-on list — name, dash, role,
+			 * status, button — nothing lined up with anything and the button
+			 * landed in a different place on every row.
+			 */
+			echo '<div class="bw-tablescroll"><table class="bw-table" data-bwx-client-people="1">';
+			echo '<thead><tr>';
+			echo '<th>' . esc_html__( 'Person', 'blueworx-forge' ) . '</th>';
+			echo '<th>' . esc_html__( 'Role', 'blueworx-forge' ) . '</th>';
+			echo '<th>' . esc_html__( 'Status', 'blueworx-forge' ) . '</th>';
+			echo '<th>' . esc_html__( 'Access', 'blueworx-forge' ) . '</th>';
+			echo '</tr></thead><tbody>';
 
 			foreach ( $held as $membership ) {
-				echo '<li data-bwx-membership="' . esc_attr( (string) $membership['id'] ) . '" data-bwx-membership-role="' . esc_attr( (string) $membership['role'] ) . '">';
-				echo '<span data-bwx-membership-person>' . esc_html( $names[ (string) $membership['user_id'] ] ?? __( 'Unknown person', 'blueworx-forge' ) ) . '</span> — ';
-				echo '<span data-bwx-membership-role-label>' . esc_html( (string) $membership['role_label'] ) . '</span> ';
-				echo '<span data-bwx-status>' . esc_html( 'active' === (string) $membership['status'] ? __( 'Active', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) ) . '</span> ';
+				$active = 'active' === (string) $membership['status'];
+
+				echo '<tr data-bwx-membership="' . esc_attr( (string) $membership['id'] ) . '" data-bwx-membership-role="' . esc_attr( (string) $membership['role'] ) . '">';
+				echo '<td><span class="bw-table__primary" data-bwx-membership-person>' . esc_html( $names[ (string) $membership['user_id'] ] ?? __( 'Unknown person', 'blueworx-forge' ) ) . '</span></td>';
+				echo '<td data-bwx-membership-role-label>' . esc_html( (string) $membership['role_label'] ) . '</td>';
+				echo '<td><span class="' . ( $active ? 'bw-badge bw-badge--success' : 'bw-badge bw-badge--neutral' ) . '" data-bwx-status>';
+				echo esc_html( $active ? __( 'Active', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) );
+				echo '</span></td>';
+				echo '<td>';
 
 				self::end_membership_form( $membership );
 
-				echo '</li>';
+				echo '</td>';
+				echo '</tr>';
 			}
 
-			echo '</ul>';
+			echo '</tbody></table></div>';
 		}
 
 		if ( 'active' === (string) $client['status'] ) {
@@ -514,8 +605,7 @@ final class ClientsScreen {
 
 		$state = Contacts::resolve( $assignment, $person );
 
-		echo '<h4>' . esc_html__( 'Point of contact', 'blueworx-forge' ) . '</h4>';
-		echo '<p data-bwx-contact="' . esc_attr( $client_id ) . '">';
+		echo '<p class="bw-card__note" data-bwx-contact="' . esc_attr( $client_id ) . '">';
 
 		if ( null === $state['contact'] ) {
 			echo '<span data-bwx-contact-none="1">' . esc_html__( 'Nobody is our contact for this client.', 'blueworx-forge' ) . '</span>';
@@ -547,11 +637,14 @@ final class ClientsScreen {
 	private static function assign_contact_form( array $client, string $current ): void {
 		$client_id = (string) $client['id'];
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-assign-contact="' . esc_attr( $client_id ) . '">';
+		// A row of controls that belong to one action, spaced by the design
+		// system rather than by the whitespace between two echoes.
+		echo '<form class="bw-toolbar bw-toolbar--card" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-assign-contact="' . esc_attr( $client_id ) . '">';
 		wp_nonce_field( 'bwx_forge_assign_contact_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_assign_contact">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
-		echo '<select name="user_id" aria-label="' . esc_attr__( 'Point of contact', 'blueworx-forge' ) . '">';
+		echo '<div class="bw-select">';
+		echo '<select class="bw-select__el" name="user_id" aria-label="' . esc_attr__( 'Point of contact', 'blueworx-forge' ) . '">';
 		echo '<option value=""' . selected( '', $current, false ) . '>' . esc_html__( 'Nobody', 'blueworx-forge' ) . '</option>';
 
 		foreach ( self::$people as $candidate ) {
@@ -566,8 +659,8 @@ final class ClientsScreen {
 			echo '</option>';
 		}
 
-		echo '</select> ';
-		submit_button( __( 'Set contact', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
+		submit_button( __( 'Set contact', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
 		echo '</form>';
 	}
 
@@ -581,40 +674,43 @@ final class ClientsScreen {
 		$people    = self::$people;
 
 		if ( array() === $people ) {
-			echo '<p data-bwx-no-people-yet="1">' . esc_html__( 'Add somebody on Forge → People first.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-card__note" data-bwx-no-people-yet="1">' . esc_html__( 'Add somebody on Forge → People first.', 'blueworx-forge' ) . '</p>';
 
 			return;
 		}
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-membership>';
+		echo '<form class="bw-toolbar bw-toolbar--card" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-membership>';
 		wp_nonce_field( 'bwx_forge_add_membership_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_membership">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
 
-		echo '<select name="user_id" aria-label="' . esc_attr__( 'Person', 'blueworx-forge' ) . '">';
+		echo '<div class="bw-select">';
+		echo '<select class="bw-select__el" name="user_id" aria-label="' . esc_attr__( 'Person', 'blueworx-forge' ) . '">';
 
 		foreach ( $people as $person ) {
 			echo '<option value="' . esc_attr( (string) $person['id'] ) . '">' . esc_html( (string) $person['display_name'] ) . '</option>';
 		}
 
-		echo '</select> ';
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
 
-		echo '<select name="role" aria-label="' . esc_attr__( 'Role', 'blueworx-forge' ) . '">';
+		echo '<div class="bw-select">';
+		echo '<select class="bw-select__el" name="role" aria-label="' . esc_attr__( 'Role', 'blueworx-forge' ) . '">';
 		PeopleScreen::role_options();
-		echo '</select> ';
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
 
 		// Empty means every site under the client, which is a real answer rather
 		// than a missing one — so it is the first option and says so.
-		echo '<select name="client_site_id" aria-label="' . esc_attr__( 'Scope', 'blueworx-forge' ) . '">';
+		echo '<div class="bw-select">';
+		echo '<select class="bw-select__el" name="client_site_id" aria-label="' . esc_attr__( 'Scope', 'blueworx-forge' ) . '">';
 		echo '<option value="">' . esc_html__( 'Every site', 'blueworx-forge' ) . '</option>';
 
 		foreach ( ClientSites::for_client( $client_id, 'active' ) as $site ) {
 			echo '<option value="' . esc_attr( (string) $site['id'] ) . '">' . esc_html( (string) $site['name'] ) . '</option>';
 		}
 
-		echo '</select> ';
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
 
-		submit_button( __( 'Give access', 'blueworx-forge' ), 'secondary', '', false );
+		submit_button( __( 'Give access', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
 		echo '</form>';
 	}
 
@@ -630,14 +726,19 @@ final class ClientsScreen {
 
 		$id = (string) $membership['id'];
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_end_membership_' . $id );
 		echo '<input type="hidden" name="action" value="bwx_forge_end_membership">';
 		echo '<input type="hidden" name="membership_id" value="' . esc_attr( $id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $membership['record_version'] ) . '">';
-		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-end-membership onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'End this access?', 'blueworx-forge' ) ) ) . ')">';
+		// A row action rather than a filled danger button: one of these on every
+		// row turned the section into a column of red, which said this was the
+		// thing to do here. It is the exception.
+		echo '<div class="bw-rowactions">';
+		echo '<button type="submit" class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-end-membership onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'End this access?', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'End access', 'blueworx-forge' );
 		echo '</button>';
+		echo '</div>';
 		echo '</form>';
 	}
 
@@ -651,11 +752,13 @@ final class ClientsScreen {
 	private static function connection( array $site, ?array $integration ): void {
 		$health = null === $integration ? Health::UNCONFIGURED : (string) $integration['health'];
 
-		echo '<span data-bwx-connection="' . esc_attr( $health ) . '">';
+		echo '<span class="' . esc_attr( self::health_tone( $health ) ) . '" data-bwx-connection="' . esc_attr( $health ) . '">';
+		echo '<span class="bw-badge__dot"></span>';
 		echo esc_html( Health::label( $health ) );
+		echo '</span>';
 
 		if ( null !== $integration && $integration['last_seen_at'] > 0 ) {
-			echo ' <span data-bwx-last-seen>';
+			echo '<span class="bw-chip bw-chip--plain" data-bwx-last-seen>';
 			printf(
 				/* translators: %s: how long ago the site last called, e.g. "2 hours". */
 				esc_html__( 'last seen %s ago', 'blueworx-forge' ),
@@ -664,13 +767,33 @@ final class ClientsScreen {
 			echo '</span>';
 		}
 
-		echo '</span> ';
-
-		echo '<span data-bwx-mail="' . esc_attr( null === $integration ? 'unknown' : (string) $integration['mail_capable'] ) . '">';
+		echo '<span class="bw-chip bw-chip--plain" data-bwx-mail="' . esc_attr( null === $integration ? 'unknown' : (string) $integration['mail_capable'] ) . '">';
 		echo esc_html( self::mail_label( null === $integration ? 'unknown' : (string) $integration['mail_capable'] ) );
-		echo '</span> ';
+		echo '</span>';
+	}
 
-		self::key_forms( $site, $integration );
+	/**
+	 * How a connection's health reads as a badge.
+	 *
+	 * Whole class names rather than a stem with the state appended, for the
+	 * reason Page::notice() gives: the admin UI check reads the classes a
+	 * screen writes, and one assembled from a variable is one it cannot see.
+	 *
+	 * @param string $health The health state.
+	 * @return string
+	 */
+	private static function health_tone( string $health ): string {
+		switch ( $health ) {
+			case Health::CONNECTED:
+				return 'bw-badge bw-badge--success';
+			case Health::IDLE:
+				return 'bw-badge bw-badge--warning';
+			case Health::BROKEN:
+			case Health::REVOKED:
+				return 'bw-badge bw-badge--danger';
+			default:
+				return 'bw-badge bw-badge--neutral';
+		}
 	}
 
 	/**
@@ -710,36 +833,39 @@ final class ClientsScreen {
 			? __( 'Issue a new key? The site stops working until the new one is installed on it.', 'blueworx-forge' )
 			: __( 'Issue a key for this site?', 'blueworx-forge' );
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_issue_site_key_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_issue_site_key">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 		echo '<button type="submit" class="bw-btn bw-btn--secondary" data-bwx-issue-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( $question ) ) . ')">';
 		echo esc_html( $issuing );
 		echo '</button>';
-		echo '</form> ';
+		echo '</form>';
 
 		if ( ! $has_key ) {
 			return;
 		}
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_revoke_site_key_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_revoke_site_key">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-revoke-key onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Cut this site off? Its key stops working immediately.', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'Revoke key', 'blueworx-forge' );
 		echo '</button>';
-		echo '</form> ';
+		echo '</form>';
 	}
 
 	/**
 	 * The form that adds a new client.
 	 */
 	private static function add_client_form(): void {
-		Page::panel_open( __( 'Add a client', 'blueworx-forge' ), 'add-client' );
+		Page::panel_open(
+			__( 'Add a client', 'blueworx-forge' ),
+			'add-client',
+			array( 'data-bwx-add-client' => '1' )
+		);
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-client>';
 		wp_nonce_field( 'bwx_forge_add_client' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_client">';
 
@@ -765,11 +891,8 @@ final class ClientsScreen {
 		echo '<div class="bw-formrow__control"><input type="text" id="bwx-client-domains" name="email_domains" class="bw-input" placeholder="acme.co.uk, acme.com"></div>';
 		echo '</div>';
 
-		echo '<div class="bw-card__actions">';
+		Page::actions_open();
 		submit_button( __( 'Add client', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
-		echo '</div>';
-		echo '</form>';
-
 		Page::panel_close();
 	}
 
@@ -779,13 +902,13 @@ final class ClientsScreen {
 	 * @param string $client_id Owning client id.
 	 */
 	private static function add_site_form( string $client_id ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-site>';
+		echo '<form class="bw-toolbar bw-toolbar--card" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-site>';
 		wp_nonce_field( 'bwx_forge_add_client_site_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_client_site">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
-		echo '<input type="text" name="name" placeholder="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" required>';
-		echo '<input type="url" name="url" placeholder="https://">';
-		submit_button( __( 'Add site', 'blueworx-forge' ), 'secondary', '', false );
+		echo '<input type="text" class="bw-input" name="name" placeholder="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" aria-label="' . esc_attr__( 'Site name', 'blueworx-forge' ) . '" required>';
+		echo '<input type="url" class="bw-input" name="url" placeholder="https://" aria-label="' . esc_attr__( 'Site address', 'blueworx-forge' ) . '">';
+		submit_button( __( 'Add site', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
 		echo '</form>';
 	}
 
@@ -801,7 +924,7 @@ final class ClientsScreen {
 
 		$client_id = (string) $client['id'];
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_deactivate_client_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_deactivate_client">';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( $client_id ) . '">';
@@ -824,7 +947,7 @@ final class ClientsScreen {
 
 		$site_id = (string) $site['id'];
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_deactivate_client_site_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_deactivate_client_site">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
@@ -844,8 +967,11 @@ final class ClientsScreen {
 	private static function edit_client_form( array $client ): void {
 		$client_id = (string) $client['id'];
 
-		echo '<details data-bwx-edit-client="' . esc_attr( $client_id ) . '">';
-		echo '<summary>' . esc_html__( 'Edit', 'blueworx-forge' ) . '</summary>';
+		Page::accordion_open(
+			__( 'Edit', 'blueworx-forge' ),
+			array( 'data-bwx-edit-client' => $client_id )
+		);
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_edit_client_' . $client_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_edit_client">';
@@ -891,11 +1017,12 @@ final class ClientsScreen {
 		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
 		echo '</div></div></div>';
 
-		echo '<div class="bw-card__actions">';
-		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
+		echo '<div class="bw-toolbar bw-toolbar--card">';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--primary', '', false );
 		echo '</div>';
 		echo '</form>';
-		echo '</details>';
+
+		Page::accordion_close();
 	}
 
 	/**
@@ -907,25 +1034,44 @@ final class ClientsScreen {
 	private static function edit_site_form( array $site ): void {
 		$site_id = (string) $site['id'];
 
-		echo '<details data-bwx-edit-site="' . esc_attr( $site_id ) . '">';
-		echo '<summary>' . esc_html__( 'Edit', 'blueworx-forge' ) . '</summary>';
+		Page::accordion_open(
+			__( 'Edit', 'blueworx-forge' ),
+			array( 'data-bwx-edit-site' => $site_id )
+		);
+
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_edit_client_site_' . $site_id );
 		echo '<input type="hidden" name="action" value="bwx_forge_edit_client_site">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $site['record_version'] ) . '">';
 
-		echo '<input type="text" name="name" value="' . esc_attr( (string) $site['name'] ) . '" required>';
-		echo '<input type="url" name="url" value="' . esc_attr( (string) $site['url'] ) . '">';
-		echo '<select name="status">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-site-name-' . esc_attr( $site_id ) . '">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-edit-site-name-' . esc_attr( $site_id ) . '" class="bw-input" name="name" value="' . esc_attr( (string) $site['name'] ) . '" required></div>';
+		echo '</div>';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-site-url-' . esc_attr( $site_id ) . '">' . esc_html__( 'Address', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="url" id="bwx-edit-site-url-' . esc_attr( $site_id ) . '" class="bw-input" name="url" value="' . esc_attr( (string) $site['url'] ) . '" placeholder="https://"></div>';
+		echo '</div>';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-edit-site-status-' . esc_attr( $site_id ) . '">' . esc_html__( 'Status', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><div class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-edit-site-status-' . esc_attr( $site_id ) . '" name="status">';
 
 		foreach ( Validate::STATUSES as $status_option ) {
 			echo '<option value="' . esc_attr( $status_option ) . '"' . selected( (string) $site['status'], $status_option, false ) . '>' . esc_html( ucfirst( $status_option ) ) . '</option>';
 		}
 
-		echo '</select>';
-		submit_button( __( 'Save', 'blueworx-forge' ), 'secondary', '', false );
+		echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</div></div></div>';
+
+		echo '<div class="bw-toolbar bw-toolbar--card">';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--primary', '', false );
+		echo '</div>';
 		echo '</form>';
-		echo '</details>';
+
+		Page::accordion_close();
 	}
 }
