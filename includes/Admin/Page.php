@@ -351,30 +351,19 @@ CSS;
 			return;
 		}
 
-		$design = BWX_FORGE_PATH . 'assets/blueworx-admin-design.css';
-
-		if ( ! file_exists( $design ) ) {
+		// Asked for rather than enqueued by hand. Every BlueWorx plugin carries
+		// its own copy of the design system under the same handle, so a site
+		// running two of them used to wear whichever copy enqueued first — our
+		// screens could be styled by another plugin's older stylesheet, with
+		// nothing anywhere saying so. The registrar loaded in blueworx-forge.php
+		// picks the newest copy on the site and enqueues that one, once.
+		if ( ! function_exists( 'blueworx_admin_design_enqueue' ) ) {
 			return;
 		}
 
-		wp_enqueue_style(
-			'blueworx-admin-design',
-			BWX_FORGE_URL . 'assets/blueworx-admin-design.css',
-			array(),
-			(string) filemtime( $design )
-		);
+		blueworx_admin_design_enqueue();
+		blueworx_admin_design_enqueue_icons();
 
 		wp_add_inline_style( 'blueworx-admin-design', self::chrome() );
-
-		$icons = BWX_FORGE_PATH . 'assets/blueworx-admin-icons.js';
-
-		if ( file_exists( $icons ) ) {
-			wp_enqueue_script_module(
-				'blueworx-admin-icons',
-				BWX_FORGE_URL . 'assets/blueworx-admin-icons.js',
-				array(),
-				(string) filemtime( $icons )
-			);
-		}
 	}
 }

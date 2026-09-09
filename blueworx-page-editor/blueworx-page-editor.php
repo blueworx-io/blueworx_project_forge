@@ -18,6 +18,14 @@ if ( ! class_exists( 'Blueworx\PageEditor\Registry', false ) ) {
 	require_once __DIR__ . '/Registry.php';
 }
 
+// The design system is a peer of the library, not part of it: a plugin can use
+// the design system without the editor. Required here only because a plugin
+// that has both should not have to remember the order.
+$blueworx_admin_design = dirname( __DIR__ ) . '/assets/blueworx-admin-design.php';
+if ( file_exists( $blueworx_admin_design ) ) {
+	require_once $blueworx_admin_design;
+}
+
 \Blueworx\PageEditor\Registry::add( '1.0.0', __DIR__ . '/v1', __FILE__ );
 
 add_action( 'plugins_loaded', [ '\Blueworx\PageEditor\Registry', 'load' ], 0 );
