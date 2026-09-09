@@ -19,10 +19,10 @@ use Blueworx\Forge\Sites\SecurityLog;
  * a way to use it without hand-crafting an authenticated API call, which made
  * connecting a real site a developer job rather than an administrator's.
  *
- * Deliberately a plain WordPress admin screen, the same shape as the client
- * plugin's: this is an operational tool for us, not part of the product's
- * designed interface, and it should not wait on that design or carry a build
- * step of its own.
+ * A WordPress admin screen rather than a screen in the application, per ARCH-7:
+ * this is the plumbing between us and a site, not work anybody does for a
+ * client. It is built from the shared admin design system, like every other
+ * studio screen.
  *
  * The key is shown once, on the screen that issues it. It is never stored
  * anywhere it can be read back, and never travels in a URL — see IssuedKey.
@@ -33,11 +33,6 @@ final class SitesScreen {
 	 * The admin page slug.
 	 */
 	public const SLUG = 'blueworx-forge-sites';
-
-	/**
-	 * Handle of the design token stylesheet.
-	 */
-	public const STYLE = 'blueworx-forge-tokens';
 
 	/**
 	 * Adds the menu entry.
@@ -51,30 +46,6 @@ final class SitesScreen {
 			array( self::class, 'render' ),
 			'dashicons-hammer',
 			58
-		);
-	}
-
-	/**
-	 * Loads the design tokens, on this screen only (#85, #193).
-	 *
-	 * @param string $hook The screen being loaded.
-	 */
-	public static function enqueue( string $hook ): void {
-		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
-			return;
-		}
-
-		$tokens = BWX_FORGE_PATH . 'tokens/forge.css';
-
-		if ( ! file_exists( $tokens ) ) {
-			return;
-		}
-
-		wp_enqueue_style(
-			self::STYLE,
-			BWX_FORGE_URL . 'tokens/forge.css',
-			array(),
-			(string) filemtime( $tokens )
 		);
 	}
 
@@ -98,16 +69,28 @@ final class SitesScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — client sites', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'Client sites', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'The sites the studio looks after, and the keys that let them talk to it.', 'blueworx-forge' )
+		);
 
 		self::result_notice();
 		self::issued_key();
-		self::sites_table();
-		self::register_form();
-		self::security_log();
 
-		echo '</div>';
+		Page::panel_open( __( 'Connect a client site', 'blueworx-forge' ), 'register' );
+		self::register_form();
+		Page::panel_close();
+
+		Page::panel_open( __( 'Connected sites', 'blueworx-forge' ), 'sites' );
+		self::sites_table();
+		Page::panel_close();
+
+		Page::panel_open( __( 'Refused requests', 'blueworx-forge' ), 'refusals' );
+		self::security_log();
+		Page::panel_close();
+
+		Page::close();
 	}
 
 	/**
@@ -123,24 +106,27 @@ final class SitesScreen {
 			'registered' => array( 'success', __( 'Site registered. Its key is shown once, below.', 'blueworx-forge' ) ),
 			'rotated'    => array( 'success', __( 'A new key has been issued. The old one stopped working immediately.', 'blueworx-forge' ) ),
 			'revoked'    => array( 'success', __( 'That site has been cut off. It keeps its key; the studio now refuses it.', 'blueworx-forge' ) ),
-			'unknown'    => array( 'error', __( 'No such site.', 'blueworx-forge' ) ),
-			'invalid'    => array( 'error', __( 'A name and a web address are both needed.', 'blueworx-forge' ) ),
+			'unknown'    => array( 'danger', __( 'No such site.', 'blueworx-forge' ) ),
+			'invalid'    => array( 'danger', __( 'A name and a web address are both needed.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-result' => $result )
 		);
 	}
 
 	/**
 	 * A key that has just been issued, shown for the only time.
+	 *
+	 * Taken rather than read, so the next page load has nothing to show. The
+	 * key is never stored anywhere it can be read back and never travels in a
+	 * URL; that is IssuedKey's job, and none of it changes here.
 	 */
 	private static function issued_key(): void {
 		$issued = IssuedKey::take( get_current_user_id() );
@@ -149,12 +135,27 @@ final class SitesScreen {
 			return;
 		}
 
-		echo '<div class="notice notice-warning" data-bwx-issued-key="1">';
-		echo '<p><strong>' . esc_html__( 'Copy this key now. It cannot be shown again.', 'blueworx-forge' ) . '</strong></p>';
-		echo '<p>' . esc_html__( 'Site id', 'blueworx-forge' ) . ': <code data-bwx-site-id="1">' . esc_html( $issued['site_id'] ) . '</code></p>';
-		echo '<p>' . esc_html__( 'Key', 'blueworx-forge' ) . ': <code data-bwx-key="1">' . esc_html( $issued['key'] ) . '</code></p>';
-		echo '<p class="description">' . esc_html__( 'Paste both into the client site. If the key is lost, issue a new one — there is nowhere to look it up.', 'blueworx-forge' ) . '</p>';
-		echo '</div>';
+		/*
+		 * The id and the key are the notice rather than a sentence about it, so
+		 * they are markup, and everything interpolated is escaped here.
+		 *
+		 * Elements that carry text rather than readonly inputs, for two reasons
+		 * that both bite: the specs read the key with innerText, which an input
+		 * has none of, and wp_kses_post — which Page::notice runs markup
+		 * through — drops an <input> out of a notice entirely. The look of a
+		 * mono field comes from the class instead.
+		 */
+		$text = sprintf(
+			'<strong>%1$s</strong><br>%2$s <code class="bw-input bw-input--mono" data-bwx-site-id="1">%3$s</code><br>%4$s <code class="bw-input bw-input--mono" data-bwx-key="1">%5$s</code><br>%6$s',
+			esc_html__( 'Copy this key now. It cannot be shown again.', 'blueworx-forge' ),
+			esc_html__( 'Site id', 'blueworx-forge' ),
+			esc_html( $issued['site_id'] ),
+			esc_html__( 'Key', 'blueworx-forge' ),
+			esc_html( $issued['key'] ),
+			esc_html__( 'Paste both into the client site. If the key is lost, issue a new one — there is nowhere to look it up.', 'blueworx-forge' )
+		);
+
+		Page::notice( 'success', $text, array( 'data-bwx-issued-key' => '1' ), true );
 	}
 
 	/**
@@ -164,17 +165,22 @@ final class SitesScreen {
 		$sites = Registry::all();
 
 		if ( array() === $sites ) {
-			echo '<p data-bwx-no-sites="1">' . esc_html__( 'No client sites are connected yet.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-sites="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="plug"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No client sites are connected yet', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Connect one above, then paste the key it is given into that site.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-sites="1"><thead><tr>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-sites="1"><thead><tr>';
 		echo '<th>' . esc_html__( 'Site', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Address', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Site id', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Status', 'blueworx-forge' ) . '</th>';
-		echo '<th>' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		// Keyed by id: Registry::all() returns the id as the array key, and the
@@ -184,28 +190,54 @@ final class SitesScreen {
 			$status  = (string) ( $site['status'] ?? '' );
 
 			echo '<tr data-bwx-site="' . esc_attr( $site_id ) . '">';
-			echo '<td>' . esc_html( (string) ( $site['name'] ?? '' ) ) . '</td>';
+			echo '<td class="bw-table__primary">' . esc_html( (string) ( $site['name'] ?? '' ) ) . '</td>';
 			echo '<td>' . esc_html( (string) ( $site['url'] ?? '' ) ) . '</td>';
-			echo '<td><code>' . esc_html( $site_id ) . '</code></td>';
-			echo '<td data-bwx-status="' . esc_attr( $status ) . '">' . esc_html( $status ) . '</td>';
-			echo '<td>';
+			echo '<td><code class="bw-input--mono">' . esc_html( $site_id ) . '</code></td>';
+			echo '<td>' . self::status_badge( $status ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- status_badge escapes everything it writes.
+			echo '<td class="bw-table__actions"><div class="bw-rowactions">';
 			self::action_button( 'bwx_forge_rotate_site', $site_id, __( 'Issue a new key', 'blueworx-forge' ), false );
 
 			if ( Registry::STATUS_REVOKED !== $status ) {
 				self::action_button( 'bwx_forge_revoke_site', $site_id, __( 'Cut off', 'blueworx-forge' ), true );
 			}
 
-			echo '</td></tr>';
+			echo '</div></td></tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
 	}
 
 	/**
-	 * One button that does something, as a form rather than a link.
+	 * A site's status, toned by what it means.
+	 *
+	 * A site that has been cut off is the one somebody may have to do something
+	 * about, so that is the danger tone; a connected site needs no colour at
+	 * all. Whole class names, so the admin UI check can read them.
+	 *
+	 * @param string $status One of Registry's status constants.
+	 * @return string
+	 */
+	private static function status_badge( string $status ): string {
+		$classes = array(
+			Registry::STATUS_ACTIVE  => 'bw-badge',
+			Registry::STATUS_REVOKED => 'bw-badge bw-badge--danger',
+		);
+
+		return sprintf(
+			'<span class="%1$s" data-bwx-status="%2$s">%3$s</span>',
+			esc_attr( $classes[ $status ] ?? 'bw-badge bw-badge--neutral' ),
+			esc_attr( $status ),
+			esc_html( $status )
+		);
+	}
+
+	/**
+	 * One action, as a form rather than a link.
 	 *
 	 * A link would make these actions reachable by putting a URL in front of an
 	 * administrator, which for "cut this client off" is not a theoretical worry.
+	 * It is dressed as a row action; it is still a posted form.
 	 *
 	 * @param string $action  The admin-post action.
 	 * @param string $site_id The site acted on.
@@ -213,17 +245,23 @@ final class SitesScreen {
 	 * @param bool   $confirm Whether to ask first.
 	 */
 	private static function action_button( string $action, string $site_id, string $label, bool $confirm ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+		// Whole class names rather than a stem with a modifier appended: the
+		// admin UI check reads the classes a screen writes, and one assembled
+		// from a variable is one it cannot see. Asking first and being the
+		// dangerous one are the same action here.
+		$class = $confirm ? 'bw-rowactions__link bw-rowactions__link--danger' : 'bw-rowactions__link';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( $action . '_' . $site_id );
 		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">';
 		echo '<input type="hidden" name="site_id" value="' . esc_attr( $site_id ) . '">';
-		echo '<button type="submit" class="button" data-bwx-action="' . esc_attr( $action ) . '"';
+		echo '<button type="submit" class="' . esc_attr( $class ) . '" data-bwx-action="' . esc_attr( $action ) . '"';
 
 		if ( $confirm ) {
 			echo ' onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Cut this site off from the studio?', 'blueworx-forge' ) ) ) . ')"';
 		}
 
-		echo '>' . esc_html( $label ) . '</button> ';
+		echo '>' . esc_html( $label ) . '</button>';
 		echo '</form>';
 	}
 
@@ -231,17 +269,30 @@ final class SitesScreen {
 	 * The form that registers a new site.
 	 */
 	private static function register_form(): void {
-		echo '<h2>' . esc_html__( 'Connect a client site', 'blueworx-forge' ) . '</h2>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-register="1">';
 		wp_nonce_field( 'bwx_forge_register_site' );
 		echo '<input type="hidden" name="action" value="bwx_forge_register_site">';
-		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="bwx-site-name">' . esc_html__( 'Client name', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="text" id="bwx-site-name" name="name" class="regular-text" required></td></tr>';
-		echo '<tr><th scope="row"><label for="bwx-site-url">' . esc_html__( 'Site address', 'blueworx-forge' ) . '</label></th>';
-		echo '<td><input type="url" id="bwx-site-url" name="url" class="regular-text" placeholder="https://" required></td></tr>';
-		echo '</tbody></table>';
-		submit_button( __( 'Register this site', 'blueworx-forge' ) );
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-site-name">' . esc_html__( 'Client name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="text" id="bwx-site-name" name="name" class="bw-input" required>';
+		echo '</div></div>';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-site-url">' . esc_html__( 'Site address', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
+		echo '<input type="url" id="bwx-site-url" name="url" class="bw-input" placeholder="https://" required>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'The address the client site is served from.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
+
+		// submit_button() rather than a <button>, and this is not cosmetic:
+		// the specs click `input[type="submit"]`, so the element is as much
+		// part of the contract as a data-bwx hook is. What changes is the class
+		// it carries.
+		echo '<div class="bw-savebar">';
+		submit_button( __( 'Register this site', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
 	}
 
@@ -255,15 +306,18 @@ final class SitesScreen {
 	private static function security_log(): void {
 		$refused = SecurityLog::recent( 10 );
 
-		echo '<h2>' . esc_html__( 'Refused requests', 'blueworx-forge' ) . '</h2>';
-
 		if ( array() === $refused ) {
-			echo '<p data-bwx-no-refusals="1">' . esc_html__( 'Nothing has been refused.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-no-refusals="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="shield"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Nothing has been refused', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Every request that reached the studio was one it recognised.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-refusals="1"><thead><tr>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-refusals="1"><thead><tr>';
 		echo '<th>' . esc_html__( 'When', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Site id claimed', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Why', 'blueworx-forge' ) . '</th>';
@@ -279,11 +333,12 @@ final class SitesScreen {
 					? sprintf( __( '%s ago', 'blueworx-forge' ), human_time_diff( $when ) )
 					: ''
 			) . '</td>';
-			echo '<td><code>' . esc_html( (string) ( $entry['site_id'] ?? '' ) ) . '</code></td>';
+			echo '<td><code class="bw-input--mono">' . esc_html( (string) ( $entry['site_id'] ?? '' ) ) . '</code></td>';
 			echo '<td>' . esc_html( (string) ( $entry['reason'] ?? '' ) ) . '</td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
 	}
 }

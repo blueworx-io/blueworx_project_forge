@@ -87,15 +87,23 @@ final class MeetingsScreen {
 		$chosen = isset( $_GET['site'] ) ? sanitize_text_field( wp_unslash( $_GET['site'] ) ) : '';
 		$site   = '' === $chosen ? null : ClientSites::get( $chosen );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — meetings', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'Meetings', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'The standing meetings a site has, the twelve weeks they imply, and the hours those are holding.', 'blueworx-forge' )
+		);
 
 		self::result_notice();
 		self::picker( $chosen );
 
 		if ( null === $site ) {
-			echo '<p data-bwx-meetings="none-chosen">' . esc_html__( 'Choose a site to see its meetings.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-meetings="none-chosen">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="calendar"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Choose a site to see its meetings', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Its standing meetings, and the next twelve weeks of them, appear here.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';
+
+			Page::close();
 
 			return;
 		}
@@ -111,15 +119,21 @@ final class MeetingsScreen {
 		self::coming_up( $site );
 		self::add_form( $site );
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
 	 * The outcome of the last action, if there was one.
 	 */
 	private static function result_notice(): void {
+		// A result code chosen from the fixed list below, never free text: it
+		// comes off the URL, so anything it can say is something anyone can
+		// make an administrator's screen say.
 		$result = isset( $_GET['bwx-result'] ) ? sanitize_key( wp_unslash( $_GET['bwx-result'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reporting the outcome of an action that carried its own nonce.
 
+		// Toned danger rather than error: the design system has no error tone,
+		// and the spelling is fixed here so there is no mapping step between
+		// this list and Page::notice to forget.
 		$messages = array(
 			'added'     => array( 'success', __( 'Series added. Its meetings are below.', 'blueworx-forge' ) ),
 			'ended'     => array( 'success', __( 'Series ended. Past meetings are untouched and any held hours have been given back.', 'blueworx-forge' ) ),
@@ -127,20 +141,19 @@ final class MeetingsScreen {
 			'held'      => array( 'success', __( 'Marked held. The hours have been drawn.', 'blueworx-forge' ) ),
 			'cancelled' => array( 'success', __( 'Cancelled. No hours were charged.', 'blueworx-forge' ) ),
 			'no-show'   => array( 'success', __( 'Recorded. No hours were charged.', 'blueworx-forge' ) ),
-			'invalid'   => array( 'error', __( 'That series could not be saved — check the highlighted fields.', 'blueworx-forge' ) ),
-			'refused'   => array( 'error', __( 'That could not be done.', 'blueworx-forge' ) ),
-			'unknown'   => array( 'error', __( 'There is no such site.', 'blueworx-forge' ) ),
+			'invalid'   => array( 'danger', __( 'That series could not be saved — check the highlighted fields.', 'blueworx-forge' ) ),
+			'refused'   => array( 'danger', __( 'That could not be done.', 'blueworx-forge' ) ),
+			'unknown'   => array( 'danger', __( 'There is no such site.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-result' => $result )
 		);
 	}
 
@@ -153,10 +166,14 @@ final class MeetingsScreen {
 		$sites   = ClientSites::all( null );
 		$clients = array_column( Clients::all( null ), null, 'id' );
 
-		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+		echo '<div class="bw-toolbar bw-toolbar--card">';
+		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '" class="bw-toolbar__group">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '">';
+		// screen-reader-text is WordPress's accessibility utility rather than
+		// its styling, and the design system has no counterpart, so it stays.
 		echo '<label for="bwx-site-pick" class="screen-reader-text">' . esc_html__( 'Site', 'blueworx-forge' ) . '</label>';
-		echo '<select id="bwx-site-pick" name="site" data-bwx-site-picker="1">';
+		echo '<div class="bw-toolbar__search"><span class="bw-select">';
+		echo '<select id="bwx-site-pick" name="site" class="bw-select__el" data-bwx-site-picker="1">';
 		echo '<option value="">' . esc_html__( '— choose a site —', 'blueworx-forge' ) . '</option>';
 
 		foreach ( $sites as $site ) {
@@ -175,9 +192,17 @@ final class MeetingsScreen {
 			);
 		}
 
-		echo '</select> ';
-		submit_button( __( 'Show', 'blueworx-forge' ), 'secondary', 'bwx-show', false );
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span></div>';
+
+		// submit_button() rather than a <button>, and this is not cosmetic: the
+		// specs click `input[type="submit"]`, so the element is as much part of
+		// the contract as a data-bwx hook is. What changes is the class it
+		// carries.
+		submit_button( __( 'Show', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', 'bwx-show', false );
 		echo '</form>';
+		echo '</div>';
 	}
 
 	/**
@@ -188,44 +213,69 @@ final class MeetingsScreen {
 	private static function series_list( array $site ): void {
 		$all = Series::for_site( (string) $site['id'] );
 
-		echo '<h2>' . esc_html__( 'Standing meetings', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Standing meetings', 'blueworx-forge' ), 'series' );
 
 		if ( array() === $all ) {
-			echo '<p class="description" data-bwx-series="0">' . esc_html__( 'This site has no standing meetings. Add one below.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-series="0">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="calendar"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No standing meetings', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'This site has no standing meetings. Add one below.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
+
+			Page::panel_close();
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-series="' . esc_attr( (string) count( $all ) ) . '"><thead><tr>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-series="' . esc_attr( (string) count( $all ) ) . '"><thead><tr>';
 		echo '<th>' . esc_html__( 'What', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'How often', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'When', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Host', 'blueworx-forge' ) . '</th>';
-		echo '<th>' . esc_html__( 'Hours each', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__num">' . esc_html__( 'Hours each', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'State', 'blueworx-forge' ) . '</th>';
-		echo '<th></th>';
+		echo '<th class="bw-table__actions"></th>';
 		echo '</tr></thead><tbody>';
 
 		foreach ( $all as $series ) {
-			$host = Users::get( (string) $series['host_user_id'] );
+			$host    = Users::get( (string) $series['host_user_id'] );
+			$running = Series::ACTIVE === (string) $series['state'];
 
 			echo '<tr data-bwx-series-row="' . esc_attr( (string) $series['id'] ) . '" data-bwx-series-state="' . esc_attr( (string) $series['state'] ) . '">';
-			echo '<td>' . esc_html( (string) $series['title'] ) . '</td>';
+			echo '<td class="bw-table__primary">' . esc_html( (string) $series['title'] ) . '</td>';
 			echo '<td>' . esc_html( (string) $series['frequency_label'] ) . '</td>';
 			echo '<td>' . esc_html( (string) $series['time_of_day'] . ' ' . $series['timezone'] . ', ' . $series['duration_mins'] . ' min' ) . '</td>';
 			echo '<td>' . esc_html( null === $host ? '—' : (string) $host['display_name'] ) . '</td>';
-			echo '<td data-bwx-series-hours="' . esc_attr( (string) $series['hours_each'] ) . '">' . esc_html( number_format( (float) $series['hours_each'], 2 ) ) . '</td>';
-			echo '<td>' . esc_html( Series::ACTIVE === $series['state'] ? __( 'Running', 'blueworx-forge' ) : __( 'Ended', 'blueworx-forge' ) ) . '</td>';
+			echo '<td class="bw-table__num" data-bwx-series-hours="' . esc_attr( (string) $series['hours_each'] ) . '">' . esc_html( number_format( (float) $series['hours_each'], 2 ) ) . '</td>';
+
+			// Whole class names rather than a stem with the tone appended: the
+			// admin UI check reads the classes a screen writes, and one
+			// assembled from a variable is one it cannot see. An ended series
+			// is neutral rather than danger — ending one is a decision
+			// somebody made, not a fault.
 			echo '<td>';
 
-			if ( Series::ACTIVE === (string) $series['state'] ) {
+			if ( $running ) {
+				echo '<span class="bw-badge">' . esc_html__( 'Running', 'blueworx-forge' ) . '</span>';
+			} else {
+				echo '<span class="bw-badge bw-badge--neutral">' . esc_html__( 'Ended', 'blueworx-forge' ) . '</span>';
+			}
+
+			echo '</td>';
+			echo '<td class="bw-table__actions"><div class="bw-rowactions">';
+
+			if ( $running ) {
 				self::end_form( (string) $site['id'], $series );
 			}
 
-			echo '</td></tr>';
+			echo '</div></td></tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -237,29 +287,44 @@ final class MeetingsScreen {
 		$today    = gmdate( 'Y-m-d' );
 		$meetings = Diary::for_site( (string) $site['id'], $today, MeetingHours::horizon_end( $today ) );
 
-		echo '<h2>' . esc_html__( 'The next twelve weeks', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'The next twelve weeks', 'blueworx-forge' ), 'meetings' );
 
 		if ( array() === $meetings ) {
-			echo '<p class="description" data-bwx-meetings="0">' . esc_html__( 'Nothing is coming up.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty" data-bwx-meetings="0">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="calendar"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Nothing is coming up', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'No meeting falls inside the next twelve weeks.', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
+
+			Page::panel_close();
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-meetings="' . esc_attr( (string) count( $meetings ) ) . '"><thead><tr>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-meetings="' . esc_attr( (string) count( $meetings ) ) . '"><thead><tr>';
 		echo '<th>' . esc_html__( 'When', 'blueworx-forge' ) . '</th>';
-		echo '<th>' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__num">' . esc_html__( 'Hours', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'What happened', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Hours held', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Move it', 'blueworx-forge' ) . '</th>';
+		// Not bw-table__actions, on either header or cell: that class hides its
+		// column until the row is hovered, which is right for a secondary row
+		// action and wrong for the control this whole screen exists for.
 		echo '<th>' . esc_html__( 'Settle it', 'blueworx-forge' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		foreach ( $meetings as $meeting ) {
-			echo '<tr data-bwx-meeting="' . esc_attr( (string) $meeting['on'] ) . '" data-bwx-meeting-status="' . esc_attr( (string) $meeting['status'] ) . '">';
-			echo '<td>' . esc_html( (string) $meeting['on'] . ' ' . $meeting['at'] );
+			$state = self::ledger_state_of( $meeting );
 
+			echo '<tr data-bwx-meeting="' . esc_attr( (string) $meeting['on'] ) . '" data-bwx-meeting-status="' . esc_attr( (string) $meeting['status'] ) . '">';
+			echo '<td class="bw-table__primary">' . esc_html( (string) $meeting['on'] . ' ' . $meeting['at'] );
+
+			// The line under the date rather than beside it: a meeting on an
+			// odd day explains itself, and the explanation is secondary to the
+			// date it is explaining.
 			if ( ! empty( $meeting['moved'] ) ) {
-				echo ' <span class="description" data-bwx-moved-from="' . esc_attr( (string) $meeting['excepted_from'] ) . '">';
+				echo '<span class="bw-table__sub" data-bwx-moved-from="' . esc_attr( (string) $meeting['excepted_from'] ) . '">';
 				printf(
 					/* translators: %s: the date the meeting was originally on. */
 					esc_html__( '(moved from %s)', 'blueworx-forge' ),
@@ -269,17 +334,22 @@ final class MeetingsScreen {
 			}
 
 			echo '</td>';
-			echo '<td>' . esc_html( number_format( (float) $meeting['planned_hours'], 2 ) ) . '</td>';
+			echo '<td class="bw-table__num">' . esc_html( number_format( (float) $meeting['planned_hours'], 2 ) ) . '</td>';
 			echo '<td>' . esc_html( Occurrence::label( (string) $meeting['status'] ) ) . '</td>';
-			echo '<td data-bwx-ledger-state="' . esc_attr( self::ledger_state_of( $meeting ) ) . '">' . esc_html( self::ledger_label( self::ledger_state_of( $meeting ) ) ) . '</td>';
+			echo '<td data-bwx-ledger-state="' . esc_attr( $state ) . '">';
+			echo '<span class="' . esc_attr( self::ledger_badge_class( $state ) ) . '">' . esc_html( self::ledger_label( $state ) ) . '</span>';
+			echo '</td>';
 			echo '<td>';
 			self::move_form( (string) $site['id'], $meeting );
-			echo '</td><td>';
+			echo '</td><td><div class="bw-rowactions">';
 			self::settle_forms( (string) $site['id'], $meeting );
-			echo '</td></tr>';
+			echo '</div></td></tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
+
+		Page::panel_close();
 	}
 
 	/**
@@ -321,6 +391,28 @@ final class MeetingsScreen {
 	}
 
 	/**
+	 * How a ledger state is toned.
+	 *
+	 * Whole class names rather than a stem with the tone appended: the admin UI
+	 * check reads the classes a screen writes, and one assembled from a
+	 * variable is one it cannot see. Hours that are actually held or spent are
+	 * the plain badge; a forecast and a release are neutral, because neither is
+	 * holding anything.
+	 *
+	 * @param string $state One of MeetingHours' four.
+	 * @return string
+	 */
+	private static function ledger_badge_class( string $state ): string {
+		switch ( $state ) {
+			case MeetingHours::RESERVED:
+			case MeetingHours::USED:
+				return 'bw-badge';
+			default:
+				return 'bw-badge bw-badge--neutral';
+		}
+	}
+
+	/**
 	 * Moving one meeting.
 	 *
 	 * @param string               $site_id The site.
@@ -339,8 +431,13 @@ final class MeetingsScreen {
 		echo '<input type="hidden" name="site" value="' . esc_attr( $site_id ) . '">';
 		echo '<input type="hidden" name="series" value="' . esc_attr( (string) $meeting['series_id'] ) . '">';
 		echo '<input type="hidden" name="slot" value="' . esc_attr( self::slot_of( $meeting ) ) . '">';
-		echo '<input type="date" name="on" value="' . esc_attr( (string) $meeting['on'] ) . '" aria-label="' . esc_attr__( 'New date', 'blueworx-forge' ) . '"> ';
-		submit_button( __( 'Move', 'blueworx-forge' ), 'secondary small', 'bwx-move', false );
+		echo '<div class="bw-rowactions">';
+		echo '<input type="date" class="bw-input" name="on" value="' . esc_attr( (string) $meeting['on'] ) . '" aria-label="' . esc_attr__( 'New date', 'blueworx-forge' ) . '">';
+
+		// submit_button() rather than a <button>, and the name stays bwx-move:
+		// meetings.spec.js clicks it by name inside the row it belongs to.
+		submit_button( __( 'Move', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', 'bwx-move', false );
+		echo '</div>';
 		echo '</form>';
 	}
 
@@ -362,15 +459,19 @@ final class MeetingsScreen {
 				continue;
 			}
 
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 			wp_nonce_field( 'bwx_forge_settle_meeting' );
 			echo '<input type="hidden" name="action" value="bwx_forge_settle_meeting">';
 			echo '<input type="hidden" name="site" value="' . esc_attr( $site_id ) . '">';
 			echo '<input type="hidden" name="series" value="' . esc_attr( (string) $meeting['series_id'] ) . '">';
 			echo '<input type="hidden" name="slot" value="' . esc_attr( self::slot_of( $meeting ) ) . '">';
 			echo '<input type="hidden" name="status" value="' . esc_attr( $status ) . '">';
+			// A <button> rather than submit_button(), as it always has been:
+			// the specs reach these by their data-bwx-settle attribute, which
+			// an <input> could carry but which nothing here needs changing to
+			// prove. Only the class it wears is new.
 			printf(
-				'<button type="submit" class="button button-small" data-bwx-settle="%1$s">%2$s</button> ',
+				'<button type="submit" class="bw-btn bw-btn--secondary" data-bwx-settle="%1$s">%2$s</button>',
 				esc_attr( $status ),
 				esc_html( $label )
 			);
@@ -407,7 +508,14 @@ final class MeetingsScreen {
 		echo '<input type="hidden" name="site" value="' . esc_attr( $site_id ) . '">';
 		echo '<input type="hidden" name="series" value="' . esc_attr( (string) $series['id'] ) . '">';
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $series['record_version'] ) . '">';
-		printf( '<button type="submit" class="button button-small" id="bwx-end-%1$s">%2$s</button>', esc_attr( (string) $series['id'] ), esc_html__( 'End', 'blueworx-forge' ) );
+		// Dressed as a row action, and it is still a posted form: ending a
+		// series gives hours back, and an action that changes a client's
+		// balance is not something a link should be able to do.
+		printf(
+			'<button type="submit" class="bw-rowactions__link bw-rowactions__link--danger" id="bwx-end-%1$s">%2$s</button>',
+			esc_attr( (string) $series['id'] ),
+			esc_html__( 'End', 'blueworx-forge' )
+		);
 		echo '</form>';
 	}
 
@@ -421,17 +529,22 @@ final class MeetingsScreen {
 		$people  = Users::all( null );
 		$default = null === $client ? 'UTC' : (string) $client['timezone'];
 
-		echo '<h2>' . esc_html__( 'Add a standing meeting', 'blueworx-forge' ) . '</h2>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		Page::panel_open(
+			__( 'Add a standing meeting', 'blueworx-forge' ),
+			'add-series',
+			array( 'data-bwx-add-series' => '1' )
+		);
+
 		wp_nonce_field( 'bwx_forge_add_series' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_series">';
 		echo '<input type="hidden" name="site" value="' . esc_attr( (string) $site['id'] ) . '">';
-		echo '<table class="form-table"><tbody>';
 
 		self::text_row( 'title', __( 'What it is called', 'blueworx-forge' ), '' );
 
-		echo '<tr><th scope="row"><label for="bwx-frequency">' . esc_html__( 'How often', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<select id="bwx-frequency" name="frequency">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-frequency">' . esc_html__( 'How often', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><span class="bw-select">';
+		echo '<select id="bwx-frequency" name="frequency" class="bw-select__el">';
 
 		foreach ( Recurrence::FREQUENCIES as $frequency ) {
 			printf(
@@ -441,7 +554,9 @@ final class MeetingsScreen {
 			);
 		}
 
-		echo '</select></td></tr>';
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span></div></div>';
 
 		self::date_row( 'starts_on', __( 'First one', 'blueworx-forge' ), gmdate( 'Y-m-d' ) );
 		self::date_row( 'ends_on', __( 'Last one (optional)', 'blueworx-forge' ), '' );
@@ -449,8 +564,10 @@ final class MeetingsScreen {
 		self::number_row( 'duration_mins', __( 'For how long, in minutes', 'blueworx-forge' ), '60' );
 		self::text_row( 'timezone', __( 'Timezone', 'blueworx-forge' ), $default );
 
-		echo '<tr><th scope="row"><label for="bwx-host">' . esc_html__( 'Host', 'blueworx-forge' ) . '</label></th><td>';
-		echo '<select id="bwx-host" name="host_user_id" required>';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-host">' . esc_html__( 'Host', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><span class="bw-select">';
+		echo '<select id="bwx-host" name="host_user_id" class="bw-select__el" required>';
 		echo '<option value="">' . esc_html__( '— choose —', 'blueworx-forge' ) . '</option>';
 
 		foreach ( $people as $person ) {
@@ -462,15 +579,27 @@ final class MeetingsScreen {
 		}
 
 		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'Only the host can mark a meeting held, and that is what draws the hours.', 'blueworx-forge' ) . '</p>';
-		echo '</td></tr>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'Only the host can mark a meeting held, and that is what draws the hours.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
 
 		self::text_row( 'attendees', __( 'Who else comes (a note, not accounts)', 'blueworx-forge' ), '' );
 		self::number_row( 'planned_hours', __( 'Hours each, or 0 to work it out from the length', 'blueworx-forge' ), '0' );
 
-		echo '</tbody></table>';
-		submit_button( __( 'Add', 'blueworx-forge' ), 'primary', 'bwx-add-series' );
-		echo '</form>';
+		/*
+		 * The button sits where the form ends rather than in the design
+		 * system's save bar. That bar is fixed to the bottom of the viewport,
+		 * and this screen's own controls — settling a meeting, moving one —
+		 * sit in a long table above the form; a bar floating over the row
+		 * somebody is trying to settle is worse than no bar at all.
+		 *
+		 * submit_button() rather than a <button>, and the name stays
+		 * bwx-add-series: it is also the id, and meetings.spec.js clicks it.
+		 */
+		Page::actions_open();
+		submit_button( __( 'Add', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'bwx-add-series', false );
+		Page::panel_close();
 	}
 
 	/**
@@ -481,12 +610,7 @@ final class MeetingsScreen {
 	 * @param string $value What it starts as.
 	 */
 	private static function text_row( string $name, string $label, string $value ): void {
-		printf(
-			'<tr><th scope="row"><label for="bwx-%1$s">%2$s</label></th><td><input type="text" class="regular-text" id="bwx-%1$s" name="%1$s" value="%3$s"></td></tr>',
-			esc_attr( $name ),
-			esc_html( $label ),
-			esc_attr( $value )
-		);
+		self::field_row( 'text', $name, $label, $value );
 	}
 
 	/**
@@ -497,12 +621,7 @@ final class MeetingsScreen {
 	 * @param string $value What it starts as.
 	 */
 	private static function date_row( string $name, string $label, string $value ): void {
-		printf(
-			'<tr><th scope="row"><label for="bwx-%1$s">%2$s</label></th><td><input type="date" id="bwx-%1$s" name="%1$s" value="%3$s"></td></tr>',
-			esc_attr( $name ),
-			esc_html( $label ),
-			esc_attr( $value )
-		);
+		self::field_row( 'date', $name, $label, $value );
 	}
 
 	/**
@@ -513,12 +632,7 @@ final class MeetingsScreen {
 	 * @param string $value What it starts as.
 	 */
 	private static function time_row( string $name, string $label, string $value ): void {
-		printf(
-			'<tr><th scope="row"><label for="bwx-%1$s">%2$s</label></th><td><input type="time" id="bwx-%1$s" name="%1$s" value="%3$s"></td></tr>',
-			esc_attr( $name ),
-			esc_html( $label ),
-			esc_attr( $value )
-		);
+		self::field_row( 'time', $name, $label, $value );
 	}
 
 	/**
@@ -529,11 +643,33 @@ final class MeetingsScreen {
 	 * @param string $value What it starts as.
 	 */
 	private static function number_row( string $name, string $label, string $value ): void {
+		self::field_row( 'number', $name, $label, $value, ' step="0.25" min="0"' );
+	}
+
+	/**
+	 * One labelled field on the add form.
+	 *
+	 * The four helpers above differ only in the input type, and every one of
+	 * them writes the id the specs fill by name — bwx-title, bwx-starts_on and
+	 * the rest — so the id is built here in one place rather than four.
+	 *
+	 * @param string $type  Input type.
+	 * @param string $name  Field name.
+	 * @param string $label How it reads.
+	 * @param string $value What it starts as.
+	 * @param string $extra Attributes only some types carry, already escaped.
+	 */
+	private static function field_row( string $type, string $name, string $label, string $value, string $extra = '' ): void {
 		printf(
-			'<tr><th scope="row"><label for="bwx-%1$s">%2$s</label></th><td><input type="number" step="0.25" min="0" id="bwx-%1$s" name="%1$s" value="%3$s"></td></tr>',
+			'<div class="bw-formrow"><label class="bw-formrow__label" for="bwx-%1$s">%2$s</label>'
+				. '<div class="bw-formrow__control">'
+				. '<input type="%3$s" class="bw-input" id="bwx-%1$s" name="%1$s" value="%4$s"%5$s>'
+				. '</div></div>',
 			esc_attr( $name ),
 			esc_html( $label ),
-			esc_attr( $value )
+			esc_attr( $type ),
+			esc_attr( $value ),
+			$extra // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- a literal written above, never caller input.
 		);
 	}
 }

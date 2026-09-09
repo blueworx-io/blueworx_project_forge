@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Parent Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     2.77.1
+ * Version:     2.77.2
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -25,11 +25,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_VERSION', '2.77.1' );
+define( 'BWX_FORGE_VERSION', '2.77.2' );
 define( 'BWX_FORGE_SLUG', 'blueworx-forge' );
 define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWX_FORGE_URL', plugin_dir_url( __FILE__ ) );
+
+/*
+ * At load time, not on a hook. Every BlueWorx plugin ships its own copy of the
+ * design system and they all enqueue under one handle, so the site would
+ * otherwise wear whichever copy happened to enqueue first — this announces
+ * ours, and the newest copy on the site is the one that loads. Registration has
+ * to have happened before any copy's enqueue call, which no hook can promise.
+ */
+require_once BWX_FORGE_PATH . 'assets/blueworx-admin-design.php';
 
 require_once BWX_FORGE_PATH . 'includes/functions.php';
 require_once BWX_FORGE_PATH . 'includes/autoload.php';

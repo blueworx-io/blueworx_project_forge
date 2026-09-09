@@ -62,47 +62,64 @@ final class SalesScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — sales', 'blueworx-forge' ) . '</h1>';
-		echo '<p class="description">' . esc_html__( 'Clients who need something doing about their package. A site drops off this list when it no longer does.', 'blueworx-forge' ) . '</p>';
+		Page::open(
+			__( 'Sales', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'Clients who need something doing about their package. A site drops off this list when it no longer does.', 'blueworx-forge' )
+		);
 
 		$wanted = self::wanted();
 
 		if ( array() === $wanted ) {
-			echo '<p data-bwx-attention="0">' . esc_html__( 'Nothing needs attention. Every site on a package has hours and time left.', 'blueworx-forge' ) . '</p>';
+			// An empty sales screen is good news, and should read as good news
+			// rather than as a panel somebody forgot to fill in.
+			Page::panel_open( __( 'Needs attention', 'blueworx-forge' ), 'attention' );
+			echo '<div class="bw-empty" data-bwx-attention="0">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="circle-check"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Nothing needs attention', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Every site on a package has hours and time left.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';
+			Page::panel_close();
+			Page::close();
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-attention="' . esc_attr( (string) count( $wanted ) ) . '"><thead><tr>';
-		echo '<th>' . esc_html__( 'Client', 'blueworx-forge' ) . '</th>';
+		Page::panel_open( __( 'Needs attention', 'blueworx-forge' ), 'attention' );
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-attention="' . esc_attr( (string) count( $wanted ) ) . '"><thead><tr>';
+		// The client and its site in one cell, the way the design system's
+		// tables name a thing: two columns of long generated names pushed the
+		// table wider than its card, and the button on the end of the row ended
+		// up out in the scroll where nothing else was.
 		echo '<th>' . esc_html__( 'Site', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Position', 'blueworx-forge' ) . '</th>';
-		echo '<th>' . esc_html__( 'Hours left', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__num">' . esc_html__( 'Hours left', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'What needs doing', 'blueworx-forge' ) . '</th>';
-		echo '<th></th>';
+		echo '<th class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		foreach ( $wanted as $row ) {
 			echo '<tr data-bwx-site="' . esc_attr( $row['site_id'] ) . '">';
-			echo '<td>' . esc_html( $row['client'] ) . '</td>';
-			echo '<td>' . esc_html( $row['site'] ) . '</td>';
-			echo '<td>' . esc_html( $row['state'] ) . '</td>';
-			echo '<td data-bwx-balance="' . esc_attr( (string) $row['balance'] ) . '">' . esc_html( number_format( $row['balance'], 2 ) ) . '</td>';
 			echo '<td>';
+			echo '<span class="bw-table__primary">' . esc_html( $row['site'] ) . '</span>';
+			echo '<span class="bw-table__sub">' . esc_html( $row['client'] ) . '</span>';
+			echo '</td>';
+			echo '<td>' . esc_html( $row['state'] ) . '</td>';
+			echo '<td class="bw-table__num" data-bwx-balance="' . esc_attr( (string) $row['balance'] ) . '">' . esc_html( number_format( $row['balance'], 2 ) ) . '</td>';
+			echo '<td><div class="bw-chips">';
 
 			foreach ( $row['reasons'] as $reason ) {
 				printf(
-					'<span class="bwx-reason" data-bwx-reason="%1$s">%2$s</span><br>',
+					'<span class="bw-chip bw-chip--plain" data-bwx-reason="%1$s">%2$s</span>',
 					esc_attr( $reason ),
 					esc_html( Attention::label( $reason ) )
 				);
 			}
 
-			echo '</td><td>';
+			echo '</div></td><td class="bw-table__actions">';
 			printf(
-				'<a class="button button-small" href="%1$s">%2$s</a>',
+				'<a class="bw-btn bw-btn--secondary bw-btn--sm" href="%1$s">%2$s</a>',
 				esc_url( SupportScreen::url( $row['site_id'] ) ),
 				esc_html__( 'Open', 'blueworx-forge' )
 			);
@@ -111,6 +128,8 @@ final class SalesScreen {
 
 		echo '</tbody></table>';
 		echo '</div>';
+		Page::panel_close();
+		Page::close();
 	}
 
 	/**

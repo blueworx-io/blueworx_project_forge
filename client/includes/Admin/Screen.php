@@ -130,27 +130,19 @@ final class Screen {
 
 		wp_add_inline_style( self::STYLE, Styles::css() );
 
-		$design = BWX_FORGE_CLIENT_PATH . 'assets/blueworx-admin-design.css';
-
-		if ( file_exists( $design ) ) {
-			wp_enqueue_style(
-				'blueworx-admin-design',
-				BWX_FORGE_CLIENT_URL . 'assets/blueworx-admin-design.css',
-				array(),
-				(string) filemtime( $design )
-			);
-
-			$icons = BWX_FORGE_CLIENT_PATH . 'assets/blueworx-admin-icons.js';
-
-			if ( file_exists( $icons ) ) {
-				wp_enqueue_script_module(
-					'blueworx-admin-icons',
-					BWX_FORGE_CLIENT_URL . 'assets/blueworx-admin-icons.js',
-					array(),
-					(string) filemtime( $icons )
-				);
-			}
+		// Asked for rather than enqueued by hand. A client's site is the one
+		// most likely to carry two BlueWorx plugins at once, and every one of
+		// them ships its own copy of the design system under this same handle —
+		// so whichever enqueued first used to win and the rest of the admin
+		// wore its stylesheet, with nothing anywhere saying so. The registrar
+		// loaded in blueworx-forge-client.php picks the newest copy on the site
+		// and enqueues that one, once.
+		if ( ! function_exists( 'blueworx_admin_design_enqueue' ) ) {
+			return;
 		}
+
+		blueworx_admin_design_enqueue();
+		blueworx_admin_design_enqueue_icons();
 	}
 
 	/**

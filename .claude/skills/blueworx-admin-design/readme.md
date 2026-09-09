@@ -267,11 +267,19 @@ Both use a generic sample plugin. All names, records and figures are invented.
 ### Using it in a plugin
 
 ```php
-// styles.css is copied verbatim from the skill folder to assets/blueworx-admin-design.css.
-wp_enqueue_style( 'bw-admin', PLUGIN_URL . 'assets/blueworx-admin-design.css', [], BW_VERSION );
-// assets/icons/lucide-icons.js is copied verbatim to assets/blueworx-admin-icons.js, beside the stylesheet.
-// Only for screens rendered as PHP/HTML rather than React — a React screen uses lucide-react.
-wp_enqueue_script_module( 'bw-icons', PLUGIN_URL . 'assets/blueworx-admin-icons.js', [], BW_VERSION );
+// Load the design system on your admin screens. Do not enqueue the stylesheet
+// yourself: on a site with two BlueWorx plugins, whichever enqueued first used
+// to win and the other plugin's screens wore its stylesheet. This loads the
+// newest copy present on the site, once.
+require_once PLUGIN_DIR . 'assets/blueworx-admin-design.php';
+
+add_action( 'admin_enqueue_scripts', function ( $hook ) {
+	if ( ! my_plugin_is_own_screen( $hook ) ) {
+		return;
+	}
+	blueworx_admin_design_enqueue();
+	blueworx_admin_design_enqueue_icons();
+} );
 ```
 
 ```html

@@ -48,7 +48,10 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
 
 		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
-		add_action( 'admin_enqueue_scripts', array( Admin\SitesScreen::class, 'enqueue' ) );
+
+		// One enqueue for every studio screen, rather than one per screen that
+		// remembered to ask. Admin\Page decides which screens are ours.
+		add_action( 'admin_enqueue_scripts', array( Admin\Page::class, 'enqueue' ) );
 
 		// The board lives on the front end, so the admin menu needs a door to it.
 		Admin\BoardLink::boot();
@@ -63,7 +66,13 @@ final class Plugin {
 
 		Admin\PeopleActions::boot();
 
-		add_action( 'admin_menu', array( Admin\UpdatesScreen::class, 'register' ) );
+		/*
+		 * Last in the menu, whatever order the screens are hooked up in here.
+		 * Updates is the one entry nobody opens as part of doing the work — it
+		 * is housekeeping — so a late priority pins it to the bottom rather
+		 * than leaving its place to depend on where this line happens to sit.
+		 */
+		add_action( 'admin_menu', array( Admin\UpdatesScreen::class, 'register' ), 99 );
 
 		Admin\UpdatesActions::boot();
 

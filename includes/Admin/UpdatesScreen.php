@@ -61,14 +61,20 @@ final class UpdatesScreen {
 			return;
 		}
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — updates', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'Updates', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'Forge updates itself from a private repository, so this site needs a read-only token to see releases at all. Without one it will never offer an update.', 'blueworx-forge' )
+		);
 
 		self::result_notice();
 		self::status();
-		self::form();
 
-		echo '</div>';
+		Page::panel_open( __( 'Update token', 'blueworx-forge' ), 'update-token' );
+		self::form();
+		Page::panel_close();
+
+		Page::close();
 	}
 
 	/**
@@ -83,18 +89,17 @@ final class UpdatesScreen {
 		$messages = array(
 			'saved'     => array( 'success', __( 'Saved. Whether it works is reported below.', 'blueworx-forge' ) ),
 			'forgotten' => array( 'success', __( 'This site no longer holds an update token.', 'blueworx-forge' ) ),
-			'empty'     => array( 'error', __( 'No token was entered.', 'blueworx-forge' ) ),
+			'empty'     => array( 'danger', __( 'No token was entered.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s" data-bwx-result="%2$s"><p>%3$s</p></div>',
-			esc_attr( $messages[ $result ][0] ),
-			esc_attr( $result ),
-			esc_html( $messages[ $result ][1] )
+		Page::notice(
+			$messages[ $result ][0],
+			$messages[ $result ][1],
+			array( 'data-bwx-result' => $result )
 		);
 	}
 
@@ -112,57 +117,62 @@ final class UpdatesScreen {
 	 * @param array{state: string, message: string, release: string} $status The answer.
 	 */
 	private static function render_status( array $status ): void {
-		$class = 'ok' === $status['state'] ? 'success' : ( 'none' === $status['state'] ? 'warning' : 'error' );
+		$tone = 'ok' === $status['state'] ? 'success' : ( 'none' === $status['state'] ? 'warning' : 'danger' );
 
-		echo '<div class="notice notice-' . esc_attr( $class ) . '" data-bwx-updates="' . esc_attr( $status['state'] ) . '"><p>';
-		echo esc_html( $status['message'] );
+		$text = esc_html( $status['message'] );
 
 		if ( '' !== $status['release'] ) {
-			echo ' ';
-			printf(
+			$text .= ' ' . sprintf(
 				/* translators: %s: the latest release tag, such as v2.31.0. */
 				esc_html__( 'The latest release is %s.', 'blueworx-forge' ),
 				'<strong data-bwx-latest-release="1">' . esc_html( $status['release'] ) . '</strong>'
 			);
 		}
 
-		echo '</p></div>';
+		// Markup, because the release tag inside the sentence carries the hook
+		// the spec reads. Everything interpolated is escaped above.
+		Page::notice( $tone, $text, array( 'data-bwx-updates' => $status['state'] ), true );
 	}
 
 	/**
 	 * The token, and the form that sets it.
 	 */
 	private static function form(): void {
-		echo '<p>' . esc_html__( 'Forge updates itself from a private repository, so this site needs a read-only token to see releases at all. Without one it will never offer an update.', 'blueworx-forge' ) . '</p>';
-
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-update-token="1">';
 		wp_nonce_field( 'bwx_forge_save_update_token' );
 		echo '<input type="hidden" name="action" value="bwx_forge_save_update_token">';
-		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="bwx-update-token">' . esc_html__( 'Update token', 'blueworx-forge' ) . '</label></th><td>';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-update-token">' . esc_html__( 'Update token', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control">';
 
 		if ( Updates::is_fixed() ) {
 			// Never the token itself. It is a credential, and a screen that
 			// prints it puts it in the page source of every visit.
-			echo '<code data-bwx-fixed="update_token">' . esc_html__( 'set in wp-config.php', 'blueworx-forge' ) . '</code>';
-			echo '<p class="description">' . esc_html__( 'Set in wp-config.php, so it cannot be changed here.', 'blueworx-forge' ) . '</p>';
-			echo '</td></tr></tbody></table>';
-			echo '</form>';
+			echo '<p class="bw-input bw-input--mono" data-bwx-fixed="update_token">' . esc_html__( 'set in wp-config.php', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-formrow__help">' . esc_html__( 'Set in wp-config.php, so it cannot be changed here.', 'blueworx-forge' ) . '</p>';
+			echo '</div></div></form>';
 
 			return;
 		}
 
-		echo '<input type="password" id="bwx-update-token" name="update_token" value="" class="regular-text" autocomplete="off">';
-		echo '<p class="description">';
+		echo '<input type="password" id="bwx-update-token" name="update_token" value="" class="bw-input bw-input--mono" autocomplete="off">';
+		echo '<p class="bw-formrow__help">';
 		echo esc_html(
 			'' === Updates::stored_token()
 				? __( 'A fine-grained GitHub token with read-only access to the plugin repository.', 'blueworx-forge' )
 				: __( 'A token is stored. Type a new one to replace it; leave blank to keep it.', 'blueworx-forge' )
 		);
 		echo '</p>';
-		echo '</td></tr></tbody></table>';
+		echo '</div></div>';
 
-		submit_button( __( 'Save', 'blueworx-forge' ) );
+		// submit_button() rather than a <button>, and this is not cosmetic:
+		// thirteen specs click `input[type="submit"]`, so the element is as
+		// much part of the contract as a data-bwx hook is. What changes is the
+		// class it carries.
+		echo '<div class="bw-savebar">';
+		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
 
 		self::forget_button();
@@ -179,7 +189,7 @@ final class UpdatesScreen {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'bwx_forge_forget_update_token' );
 		echo '<input type="hidden" name="action" value="bwx_forge_forget_update_token">';
-		echo '<button type="submit" class="button" data-bwx-action="bwx_forge_forget_update_token">';
+		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-action="bwx_forge_forget_update_token">';
 		echo esc_html__( 'Remove the stored token', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';

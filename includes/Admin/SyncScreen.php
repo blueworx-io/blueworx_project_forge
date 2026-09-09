@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Health;
 use Blueworx\Forge\Tenancy\Sync;
 
 /**
@@ -70,13 +71,16 @@ final class SyncScreen {
 		$rows  = Sync::all();
 		$named = self::named( $rows );
 
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Forge — sync health', 'blueworx-forge' ) . '</h1>';
+		Page::open(
+			__( 'Sync health', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'A broken client site is noticed by us, not by the client.', 'blueworx-forge' )
+		);
 
 		self::queue( Sync::queue( $named ) );
 		self::everything( $named );
 
-		echo '</div>';
+		Page::close();
 	}
 
 	/**
@@ -111,17 +115,21 @@ final class SyncScreen {
 	 * @param array<int, array<string, mixed>> $queue The queue, worst first.
 	 */
 	private static function queue( array $queue ): void {
-		echo '<h2>' . esc_html__( 'Needs somebody', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Needs somebody', 'blueworx-forge' ), 'sync-queue' );
 
 		if ( array() === $queue ) {
-			echo '<div class="notice notice-success inline" data-bwx-sync-queue="empty"><p>';
-			echo esc_html__( 'Every connected site is reporting in, and nothing is waiting to be collected.', 'blueworx-forge' );
-			echo '</p></div>';
+			Page::notice(
+				'success',
+				__( 'Every connected site is reporting in, and nothing is waiting to be collected.', 'blueworx-forge' ),
+				array( 'data-bwx-sync-queue' => 'empty' )
+			);
+			Page::panel_close();
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-sync-queue="full"><thead><tr>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-sync-queue="full"><thead><tr>';
 		echo '<th>' . esc_html__( 'Site', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'What is wrong', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'What to try', 'blueworx-forge' ) . '</th>';
@@ -133,6 +141,8 @@ final class SyncScreen {
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
+		Page::panel_close();
 	}
 
 	/**
@@ -144,10 +154,10 @@ final class SyncScreen {
 		echo '<tr data-bwx-sync-site="' . esc_attr( (string) $row['client_site_id'] ) . '"';
 		echo ' data-bwx-sync-reasons="' . esc_attr( implode( ' ', (array) $row['reasons'] ) ) . '">';
 
-		echo '<td><strong>' . esc_html( (string) $row['site_name'] ) . '</strong>';
+		echo '<td class="bw-table__primary">' . esc_html( (string) $row['site_name'] );
 
 		if ( '' !== (string) $row['client_name'] ) {
-			echo '<br><span class="description">' . esc_html( (string) $row['client_name'] ) . '</span>';
+			echo '<span class="bw-table__sub">' . esc_html( (string) $row['client_name'] ) . '</span>';
 		}
 
 		echo '</td>';
@@ -164,7 +174,7 @@ final class SyncScreen {
 		 * off to work out from scratch what this screen already knew.
 		 */
 		if ( '' !== (string) $row['last_error_code'] ) {
-			echo '<p><code>' . esc_html( (string) $row['last_error_code'] ) . '</code></p>';
+			echo '<p class="bw-fieldnote bw-input--mono">' . esc_html( (string) $row['last_error_code'] ) . '</p>';
 		}
 
 		if ( 0 < (int) $row['waiting'] ) {
@@ -207,15 +217,20 @@ final class SyncScreen {
 	 * @param array<int, array<string, mixed>> $rows Rows.
 	 */
 	private static function everything( array $rows ): void {
-		echo '<h2>' . esc_html__( 'Every site', 'blueworx-forge' ) . '</h2>';
+		Page::panel_open( __( 'Every site', 'blueworx-forge' ), 'sync-all' );
 
 		if ( array() === $rows ) {
-			echo '<p>' . esc_html__( 'No client site has been set up yet.', 'blueworx-forge' ) . '</p>';
+			echo '<div class="bw-empty">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="plug"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'No client site has been set up yet', 'blueworx-forge' ) . '</p>';
+			echo '</div>';
+			Page::panel_close();
 
 			return;
 		}
 
-		echo '<table class="widefat striped" data-bwx-sync-all="1"><thead><tr>';
+		echo '<div class="bw-tablescroll">';
+		echo '<table class="bw-table" data-bwx-sync-all="1"><thead><tr>';
 		echo '<th>' . esc_html__( 'Site', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Connection', 'blueworx-forge' ) . '</th>';
 		echo '<th>' . esc_html__( 'Last heard from', 'blueworx-forge' ) . '</th>';
@@ -226,15 +241,47 @@ final class SyncScreen {
 		foreach ( $rows as $row ) {
 			echo '<tr data-bwx-sync-row="' . esc_attr( (string) $row['client_site_id'] ) . '"';
 			echo ' data-bwx-sync-state="' . esc_attr( (string) $row['state'] ) . '">';
-			echo '<td>' . esc_html( (string) $row['site_name'] ) . '</td>';
-			echo '<td>' . esc_html( (string) $row['state_label'] ) . '</td>';
+			echo '<td class="bw-table__primary">' . esc_html( (string) $row['site_name'] ) . '</td>';
+			echo '<td>' . self::state_badge( (string) $row['state'], (string) $row['state_label'] ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- state_badge escapes both of its arguments.
 			echo '<td>' . esc_html( self::heard( $row ) ) . '</td>';
-			echo '<td>' . esc_html( 0 < (int) $row['waiting'] ? (string) (int) $row['waiting'] : '—' ) . '</td>';
+			echo '<td class="bw-table__num">' . esc_html( 0 < (int) $row['waiting'] ? (string) (int) $row['waiting'] : '—' ) . '</td>';
 			echo '<td>' . esc_html( '' !== (string) $row['plugin_version'] ? (string) $row['plugin_version'] : '—' ) . '</td>';
 			echo '</tr>';
 		}
 
 		echo '</tbody></table>';
+		echo '</div>';
+		Page::panel_close();
+	}
+
+	/**
+	 * A site's connection state, toned by what the state means.
+	 *
+	 * A site that has stopped talking or had its key revoked is the thing
+	 * somebody has to act on, so those are the danger tones. A site nobody has
+	 * finished setting up yet is not a fault — it is neutral. A connected site
+	 * needs no colour at all. Whole class names, so the admin UI check can
+	 * read them.
+	 *
+	 * @param string $state One of Tenancy\Health's constants.
+	 * @param string $label What to show.
+	 * @return string
+	 */
+	private static function state_badge( string $state, string $label ): string {
+		$classes = array(
+			Health::CONNECTED       => 'bw-badge',
+			Health::UNCONFIGURED    => 'bw-badge bw-badge--neutral',
+			Health::NEVER_CONNECTED => 'bw-badge bw-badge--neutral',
+			Health::IDLE            => 'bw-badge bw-badge--neutral',
+			Health::BROKEN          => 'bw-badge bw-badge--danger',
+			Health::REVOKED         => 'bw-badge bw-badge--danger',
+		);
+
+		return sprintf(
+			'<span class="%1$s">%2$s</span>',
+			esc_attr( $classes[ $state ] ?? 'bw-badge bw-badge--neutral' ),
+			esc_html( $label )
+		);
 	}
 
 	/**

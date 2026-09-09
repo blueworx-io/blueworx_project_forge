@@ -57,7 +57,9 @@ test('activation builds the plugin tables', async ({ page }) => {
   const name = `Activation Ltd ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
   await page.goto('/wp-admin/admin.php?page=blueworx-forge-clients');
-  await expect(page.locator('h1')).toContainText('Forge');
+  // On the shared page shell the heading is the screen's own name and "Forge"
+  // is the eyebrow above it, so this reads the heading for what it now says.
+  await expect(page.locator('h1.bw-pagehead__h1')).toContainText('Clients');
 
   await page.fill('#bwx-client-name', name);
   await page.click('form[data-bwx-add-client] input[type="submit"]');

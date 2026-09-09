@@ -64,6 +64,19 @@ final class Screen {
 			return;
 		}
 
+		if ( ! function_exists( 'blueworx_admin_design_enqueue' ) ) {
+			// A plugin that re-pulled this editor library but not
+			// assets/blueworx-admin-design.php beside it. This used to render a
+			// blank #bw-page-editor with nothing on the page, no console error
+			// and no admin notice — genuinely difficult to debug, since nothing
+			// anywhere says the design system is what's missing. Same notice
+			// markup render() prints below for a screen that isn't ready, so this
+			// says so instead, and the media library enqueue below never runs
+			// for a screen that's about to bail anyway.
+			add_action( 'admin_notices', [ __CLASS__, 'missingDesignSystemNotice' ] );
+			return;
+		}
+
 		$base   = self::url();
 		$screen = Editor::get( $slug );
 
@@ -78,18 +91,15 @@ final class Screen {
 			wp_enqueue_media();
 		}
 
-		wp_enqueue_style( 'blueworx-admin-design', $base . 'assets/blueworx-admin-design.css', [], self::version() );
+		// The design system decides which copy of itself loads — the newest on
+		// the site, once, however many plugins asked. This library used to
+		// enqueue it directly under a shared handle, which meant the first
+		// plugin to register won and every other plugin's screens wore its
+		// stylesheet. See assets/blueworx-admin-design.php.
+		blueworx_admin_design_enqueue();
+		blueworx_admin_design_enqueue_icons();
+
 		wp_enqueue_script( 'blueworx-page-editor', $base . 'assets/blueworx-page-editor.js', [ 'wp-element', 'wp-api-fetch', 'wp-i18n' ], self::version(), true );
-		// The design system's icons ship as a self-hosted ES module (see
-		// assets/blueworx-admin-icons.js): the browser's <i data-lucide="…">
-		// markup turns into inline SVGs only once it has run. It needs
-		// type="module", but wp_enqueue_script_module() only exists from
-		// WordPress 6.5 — this repo declares no WordPress floor, so "older"
-		// is not something the library can rule out. wp_enqueue_script() plus
-		// this filter is the same effect back to WP 4.1, where
-		// script_loader_tag was introduced.
-		wp_enqueue_script( 'blueworx-admin-icons', $base . 'assets/blueworx-admin-icons.js', [], self::version(), true );
-		add_filter( 'script_loader_tag', [ __CLASS__, 'moduleType' ], 10, 2 );
 
 		// The screen is full-bleed inside wp-admin's own chrome, and only here.
 		// Keyed off bw-full-bleed (added via admin_body_class(), see
@@ -117,6 +127,21 @@ final class Screen {
 		);
 	}
 
+	/**
+	 * Prints the same notice markup render() uses for "screen not ready",
+	 * for the "design system not re-pulled" case caught in assets() above.
+	 * It cannot rely on the design system's own stylesheet for that markup —
+	 * the whole reason it is showing is that the stylesheet failed to load —
+	 * so the notice is plain rather than styled, but plain and visible beats
+	 * a blank screen with no explanation anywhere.
+	 */
+	public static function missingDesignSystemNotice(): void {
+		printf(
+			'<div class="wrap bw-admin"><div class="bw-notice bw-notice--danger"><p>%s</p></div></div>',
+			esc_html__( "This plugin's copy of the BlueWorx design system is missing or incomplete — re-pull assets/blueworx-admin-design.php from the design system, then reload this page.", 'blueworx-page-editor' )
+		);
+	}
+
 	/** Adds bw-full-bleed to <body> only on a registered editor screen. */
 	public static function bodyClass( string $classes ): string {
 		global $hook_suffix;
@@ -129,29 +154,6 @@ final class Screen {
 	private static function slugForHook( string $hook ): ?string {
 		$slug = array_search( $hook, self::$hooks, true );
 		return false === $slug ? null : $slug;
-	}
-
-	/**
-	 * Forces the icon script's tag to type="module" — see assets() above.
-	 * WordPress 4.1–5.6 always prints type='text/javascript' on every
-	 * enqueued script, and 5.7–6.3 still do unless the active theme declares
-	 * HTML5 script support — so on any of those versions the tag already
-	 * carries a type attribute, just the wrong one. Bailing out when a type
-	 * attribute was already present (the previous version of this method)
-	 * left that wrong type in place on exactly the versions this fallback
-	 * exists for: the module keeps its top-level export, the browser throws
-	 * a syntax error on it, and every icon is the same empty box the
-	 * fallback was written to fix. This replaces whatever value is there
-	 * instead, and only adds the attribute outright when none exists at all.
-	 */
-	public static function moduleType( string $tag, string $handle ): string {
-		if ( 'blueworx-admin-icons' !== $handle ) {
-			return $tag;
-		}
-		if ( preg_match( '/\stype=([\'"])[^\'"]*\1/', $tag ) ) {
-			return preg_replace( '/\stype=([\'"])[^\'"]*\1/', ' type=$1module$1', $tag, 1 );
-		}
-		return str_replace( ' src=', ' type="module" src=', $tag );
 	}
 
 	/**

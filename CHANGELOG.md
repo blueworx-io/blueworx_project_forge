@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.77.2] - 2026-09-09
+
+### Fixed
+
+- The studio's admin screens started a gutter in from the left instead of
+  filling the page.
+- Updates now sits at the bottom of the Forge menu, where housekeeping belongs.
+- On Clients, a client's details, contact, sites and people are four separate
+  sections instead of one run-on column, and each site is its own card rather
+  than a line of text with buttons trailing off it.
+- The Edit panels on Clients are the design system's accordion rather than the
+  browser's own disclosure triangle.
+- Buttons and dropdowns that belong to one action now sit in a row with one
+  spacing between them, on Clients, Availability and Support.
+- A client's people are a table, so the names, roles and statuses line up.
+- Availability is one narrow column with a panel per question, so a two-word
+  label no longer sits beside a foot of empty input, and the buttons have room.
+- On Sales, the client and site share one column and the Open button no longer
+  ends up outside the table.
+- On Support packages, a package's state and its Retire button sit beside its
+  name, its version history is its own panel, and Save and Save order sit on a
+  bar of their own instead of against the line above them.
+- The same button bar on Add a package, Add a standing meeting, and the three
+  forms on Onboarding template.
+- Primary buttons on every studio screen were being drawn as secondary ones.
+
 ## [2.77.1] - 2026-09-08
 
 ### Fixed
