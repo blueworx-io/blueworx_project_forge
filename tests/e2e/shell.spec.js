@@ -55,11 +55,11 @@ test( 'every screen opens from the rail, and the work views are the rail', async
   await expect( rail.getByTestId( 'bwx-link-packages' ) ).toHaveAttribute( 'href', /wp-admin\/admin\.php\?page=blueworx-forge-packages$/ );
   await expect( rail.getByTestId( 'bwx-link-sync' ) ).toHaveAttribute( 'href', /wp-admin\/admin\.php\?page=blueworx-forge-sync$/ );
 
-  // "New task" in the top bar opens the board's own add form.
-  await rail.getByTestId( 'bwx-screen-work' ).click();
-  await expect( page.getByTestId( 'bwx-add' ) ).toBeEnabled();
+  // "New task" in the top bar opens the board's own add form — from any
+  // screen, going to the board first and waiting for a site to open it for.
   await page.getByTestId( 'bwx-new-task' ).click();
-  await expect( page.getByTestId( 'bwx-new-work' ) ).toBeVisible();
+  await expect( rail.getByTestId( 'bwx-screen-work' ) ).toHaveAttribute( 'aria-current', 'page' );
+  await expect( page.getByTestId( 'bwx-new-work' ) ).toBeVisible( { timeout: 30_000 } );
 
   await page.close();
   await admin.context.close();

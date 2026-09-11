@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ClientSite, Requirement, SavedView, Stage, ViewName, WorkFilters, WorkItem } from '../types';
 import { api, GateError, forgeData, isConnected, isDenied, messageFor } from '../api';
 import { Board } from './Board';
@@ -128,14 +128,16 @@ export function WorkScreen( {
   }
 
   // The shell's "New task" is the same as this screen's own "Add work": it
-  // opens the form for the site on screen, and needs a site to open for.
+  // opens the form for the site on screen, and needs a site to open for. An
+  // ask that arrives before the sites have loaded is kept until they have,
+  // and each ask opens the form once.
+  const asked = useRef( 0 );
   useEffect( () => {
-    if ( newWorkAsked > 0 && '' !== siteId ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if ( newWorkAsked > asked.current && '' !== siteId ) {
+      asked.current = newWorkAsked;
       setAdding( true );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ newWorkAsked ] );
+  }, [ newWorkAsked, siteId ] );
 
   useEffect( () => {
     if ( isConnected() ) {

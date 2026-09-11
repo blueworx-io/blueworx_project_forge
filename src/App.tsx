@@ -225,11 +225,19 @@ export function App() {
           <span className="fs-title">{ title }</span>
           <span className="bwx-header-spacer" />
           <Signals />
-          { 'work' === screen && (
-            <Button variant="soft" size="sm" data-testid="bwx-new-task" onClick={ () => setNewWorkAsked( ( n ) => n + 1 ) }>
-              New task
-            </Button>
-          ) }
+          <Button
+            variant="soft"
+            size="sm"
+            data-testid="bwx-new-task"
+            onClick={ () => {
+              // From anywhere: the form lives on the board, so go there.
+              setScreen( 'work' );
+              setView( 'board' );
+              setNewWorkAsked( ( n ) => n + 1 );
+            } }
+          >
+            New task
+          </Button>
         </div>
 
         { /*
