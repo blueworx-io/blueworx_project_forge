@@ -17,6 +17,8 @@ export default defineConfig([
   {
     ignores: [
       "assets/**",
+      // The client plugin's built bundle, the same as the studio's above.
+      "client/assets/**",
       "node_modules/**",
       "dist/**",
       "dist-zip/**",

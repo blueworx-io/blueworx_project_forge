@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.81.0] - 2026-09-11
+
+### Added
+
+- Clients get a Forge workspace page on their own site, reached from the
+  Open workspace link in their WordPress menu. It shows the new look's shell —
+  the nav, who is signed in, and sign out — with each screen saying it is on
+  its way. The existing WordPress screens are unchanged and still do the work
+  until those screens land.
+
 ## [2.80.0] - 2026-09-11
 
 ### Added

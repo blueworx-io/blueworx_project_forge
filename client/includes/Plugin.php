@@ -51,6 +51,9 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\WorkspaceController::class, 'register_routes' ) );
 		add_action( 'admin_menu', array( Admin\Screen::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Admin\Screen::class, 'enqueue' ) );
+
+		// The workspace page on the client's own site (#297).
+		Frontend::instance()->boot();
 		// Registration order is menu order. Requests sit straight under the
 		// overview because asking for something is the thing a client comes
 		// here to do; the views of work follow; and the screen about the
@@ -84,6 +87,9 @@ final class Plugin {
 	 */
 	public function activate(): void {
 		update_option( 'bwx_forge_client_installed_version', BWX_FORGE_CLIENT_VERSION );
+
+		Frontend::instance()->create_app_page();
+		flush_rewrite_rules();
 
 		// A site that has just been updated or reactivated is exactly the one
 		// whose recorded version is wrong, so it says so immediately rather

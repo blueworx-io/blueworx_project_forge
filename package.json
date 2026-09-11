@@ -1,11 +1,11 @@
 {
   "name": "blueworx-forge",
   "private": true,
-  "version": "2.80.0",
+  "version": "2.81.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run assets:design-system",
+    "build": "vite build && vite build -c vite.client.config.ts && npm run assets:design-system",
     "assets:design-system": "node bin/sync-design-system.mjs",
     "preview": "vite preview",
     "lint": "eslint . && npm run check:decisions && npm run check:artifacts",
@@ -22,7 +22,8 @@
     "wp:pair:up": "node bin/wp-pair.mjs up",
     "wp:pair:down": "node bin/wp-pair.mjs down",
     "test:pair": "playwright test -c playwright.pair.config.js && node bin/check-tests-ran.mjs playwright-pair-report.json",
-    "wp:pair:reset": "node bin/wp-pair.mjs reset"
+    "wp:pair:reset": "node bin/wp-pair.mjs reset",
+    "dev:client": "vite -c vite.client.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

@@ -1,0 +1,210 @@
+/* The client workspace shell (#297): a full-width page inside the client's own
+ * site — a banner strip when something needs them, a horizontal nav, and no
+ * rail. Everything inside the shell is the kit. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var( --surface-page );
+  color: var( --ink-900 );
+  font-family: var( --font-ui );
+  font-size: var( --text-ui );
+  line-height: var( --leading-ui );
+  letter-spacing: var( --tracking-ui );
+  font-weight: var( --weight-regular );
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var( --weight-medium );
+  letter-spacing: -0.022em;
+}
+
+a {
+  color: var( --link-color );
+  text-decoration: none;
+}
+a:hover {
+  color: var( --link-hover );
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fc-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var( --surface-page );
+}
+
+.fc-banner {
+  background: var( --state-warn-wash );
+  border-bottom: 1px solid var( --state-warn-edge );
+  padding: 13px 48px;
+  text-align: center;
+  font-size: var( --text-ui );
+  color: var( --ink-900 );
+  position: relative;
+}
+.fc-banner a {
+  color: var( --accent-signal );
+  font-weight: var( --weight-medium );
+}
+.fc-banner .fk-icon-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY( -50% );
+}
+
+.fc-header {
+  background: var( --surface-nav );
+  backdrop-filter: blur( 12px );
+  border-bottom: 1px solid var( --border-hairline );
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 64px;
+  box-sizing: border-box;
+}
+
+.fc-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var( --text-body );
+  letter-spacing: -0.018em;
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.fc-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var( --radius-sm );
+  flex: 0 0 auto;
+  background: var( --surface-action );
+  box-shadow: var( --shadow-action );
+  color: var( --color-snow );
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: var( --weight-medium );
+  letter-spacing: 0;
+}
+.fc-client {
+  font-size: var( --text-ui );
+  color: var( --ink-500 );
+  border-left: 1px solid var( --border-hairline );
+  padding-left: 16px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fc-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 16px;
+  flex-wrap: wrap;
+}
+.fc-nav-item {
+  padding: 8px 14px;
+  border-radius: var( --radius-pill );
+  font-size: var( --text-ui );
+  cursor: pointer;
+  font-family: var( --font-ui );
+  background: transparent;
+  color: var( --ink-700 );
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: background var( --motion-fast ) var( --ease-out ), color var( --motion-fast ) var( --ease-out );
+}
+.fc-nav-item:hover {
+  background: var( --alpha-fill );
+  color: var( --ink-900 );
+  text-decoration: none;
+}
+.fc-nav-item[aria-current='page'] {
+  font-weight: var( --weight-medium );
+  background: var( --surface-tint );
+  color: var( --brand-700 );
+  border-color: var( --border-tint );
+}
+.fc-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var( --focus-ring );
+}
+
+.fc-account {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.fc-user {
+  font-size: var( --text-ui );
+  color: var( --ink-700 );
+}
+.fc-signout {
+  text-decoration: none;
+}
+
+.fc-main {
+  flex: 1;
+  padding: 40px 32px 80px;
+  max-width: var( --page-max );
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.fc-footer {
+  border-top: 1px solid var( --border-hairline );
+  padding: 20px 32px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  flex-wrap: wrap;
+}
+.fc-footer > :last-child {
+  margin-left: auto;
+}
+
+@media ( max-width: 720px ) {
+  .fc-header,
+  .fc-main,
+  .fc-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .fc-nav {
+    margin-left: 0;
+    width: 100%;
+  }
+  .fc-account {
+    width: 100%;
+    margin-left: 0;
+  }
+  .fc-banner {
+    padding-left: 16px;
+    padding-right: 48px;
+    text-align: left;
+  }
+}
