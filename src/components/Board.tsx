@@ -54,7 +54,7 @@ export function Board( {
   const tracks = { gridTemplateColumns: `repeat(${ shown.length }, 320px)` } as React.CSSProperties;
 
   return (
-    <div className="bwx-board" data-testid="bwx-board">
+    <div className="bwx-board" data-testid="bwx-board" role="region" aria-label="Board" tabIndex={ 0 }>
       <div className="bwx-phases" style={ tracks }>
         { bands.map( ( band, index ) => (
           <div
