@@ -173,6 +173,7 @@ final class Frontend {
 			'canEdit'    => current_user_can( 'edit_posts' ),
 			'canManage'  => current_user_can( 'manage_options' ),
 			'siteUrl'    => get_site_url(),
+			'adminUrl'   => admin_url(),
 			'loginUrl'   => wp_login_url( $this->app_page_url() ),
 			'logoutUrl'  => wp_logout_url( $this->app_page_url() ),
 			'version'    => BWX_FORGE_VERSION,
