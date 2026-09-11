@@ -150,6 +150,27 @@ export interface SubmissionsView {
   sync: Sync;
 }
 
+export interface Comment {
+  id: string;
+  kind: 'comment' | 'evidence' | 'question' | 'answer' | string;
+  body: string;
+  url?: string;
+  author_name?: string;
+  from_client?: boolean;
+  created_at?: number;
+  answers?: string;
+}
+
+/** The studio's view of one item's conversation, and what this client may add to it. */
+export interface DiscussionView {
+  ok: boolean;
+  item: WorkItem | Record< string, never >;
+  comments: Comment[];
+  outstanding: Comment[];
+  may: { comment?: boolean; evidence?: boolean; answer?: boolean };
+  sync: Sync;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -187,7 +208,7 @@ export const api = {
   checklist: ( refresh = false ) => call< ChecklistView >( 'GET', `/checklist${ refresh ? '?refresh=true' : '' }` ),
   submissions: ( refresh = false ) => call< SubmissionsView >( 'GET', `/submissions${ refresh ? '?refresh=true' : '' }` ),
 
-  discussion: ( item: string ) => call< { ok: boolean; comments: Array< Record< string, unknown > > } >( 'GET', `/items/${ item }/discussion` ),
+  discussion: ( item: string ) => call< DiscussionView >( 'GET', `/items/${ item }/discussion` ),
   say: ( item: string, values: { body: string; url?: string; answers?: string } ) =>
     call< { ok: boolean; result: string; message: string } >( 'POST', `/items/${ item }/discussion`, values ),
   submit: ( form: FormData ) => call< { ok: boolean; result: string; fields?: Record< string, string > } >( 'POST', '/submissions', form ),

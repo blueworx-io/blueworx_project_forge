@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.85.0] - 2026-09-11
+
+### Added
+
+- The workspace page's Your work board is live: every item in the stage the
+  studio has it in, plus a Key dates list. Open a card to read the
+  conversation, answer a question, leave a comment or link to evidence.
+  Dragging a card is refused in words — moving work stays the studio's.
+
 ## [2.84.0] - 2026-09-11
 
 ### Added
