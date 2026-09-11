@@ -5,6 +5,8 @@ export interface ForgeData {
   canEdit: boolean;
   canManage: boolean;
   siteUrl: string;
+  /** The WordPress admin, for the screens that still live there. */
+  adminUrl?: string;
   loginUrl: string;
   logoutUrl: string;
   version: string;

@@ -1,0 +1,192 @@
+/* ---- The studio shell (#304): rail, top bar, screen ---- */
+
+.fs-shell {
+  display: flex;
+  align-items: flex-start;
+  min-height: 100dvh;
+  background: var( --surface-page );
+}
+
+.fs-rail {
+  position: sticky;
+  top: 0;
+  flex: 0 0 auto;
+  width: 264px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var( --surface-card );
+  border-right: 1px solid var( --border-hairline );
+}
+.fs-rail-brand {
+  flex: 0 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fs-mark {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var( --surface-action );
+  box-shadow: var( --shadow-action );
+  color: var( --color-snow );
+  font-size: 16px;
+  font-weight: var( --weight-medium );
+}
+.fs-rail-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+.fs-rail-brand-name {
+  font-size: 17px;
+  letter-spacing: -0.018em;
+  font-weight: var( --weight-medium );
+  line-height: 1.2;
+  color: var( --ink-900 );
+}
+.fs-rail-brand-sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var( --ink-500 );
+}
+.fs-rail-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.fs-rail-group {
+  padding: 12px 8px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var( --ink-500 );
+}
+.fs-rail-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var( --ink-700 );
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.fs-rail-item svg {
+  color: var( --ink-500 );
+  flex: 0 0 auto;
+}
+.fs-rail-item:hover {
+  background: var( --surface-sunken );
+}
+.fs-rail-item:focus-visible {
+  outline: 2px solid var( --accent-signal );
+  outline-offset: -2px;
+}
+.fs-rail-item[aria-current='page'] {
+  background: var( --accent-signal-wash );
+  border-color: var( --border-hairline );
+  color: var( --brand-700 );
+  font-weight: var( --weight-medium );
+}
+.fs-rail-item[aria-current='page'] svg {
+  color: var( --brand-600 );
+}
+.fs-rail-label {
+  flex: 1;
+  min-width: 0;
+}
+.fs-rail-ext {
+  color: var( --ink-300 ) !important;
+}
+.fs-rail-count {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fs-rail-count[data-alert='true'] {
+  color: var( --state-danger );
+}
+.fs-rail-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var( --border-hairline );
+  font-size: 12px;
+  color: var( --ink-700 );
+}
+.fs-rail-foot .bwx-mono {
+  margin-left: auto;
+  color: var( --ink-500 );
+}
+
+.fs-main {
+  flex: 1;
+  min-width: 0;
+}
+.fs-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 64px;
+  padding: 0 24px;
+  background: var( --surface-nav );
+  backdrop-filter: blur( 12px );
+  flex-wrap: nowrap;
+}
+.fs-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+
+.screen-reader-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect( 0 0 0 0 );
+  white-space: nowrap;
+}
+
+@media ( max-width: 900px ) {
+  .fs-shell {
+    flex-direction: column;
+  }
+  .fs-rail {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+  .fs-rail-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .fs-rail-group {
+    width: 100%;
+  }
+  .fs-rail-item {
+    width: auto;
+  }
+  .fs-main {
+    width: 100%;
+  }
+}

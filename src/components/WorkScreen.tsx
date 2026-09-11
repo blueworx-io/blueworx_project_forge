@@ -57,7 +57,17 @@ type Loading = 'loading' | 'ready' | 'error' | 'denied';
  * — says which of those it is (#125). A blank board is the same picture for all
  * four, and they need four different things done about them.
  */
-export function WorkScreen() {
+export function WorkScreen( {
+  view: chosenView,
+  onViewChange,
+  newWorkAsked = 0,
+}: {
+  /** The view the shell wants shown; the screen keeps its own when absent. */
+  view?: ViewName;
+  onViewChange?: ( view: ViewName ) => void;
+  /** Bumped by the shell's "New task"; each bump opens the add form. */
+  newWorkAsked?: number;
+} = {} ) {
   const data = forgeData();
   const [ sites, setSites ] = useState< Site[] >( [] );
   const [ siteId, setSiteId ] = useState( '' );
@@ -76,7 +86,12 @@ export function WorkScreen() {
    * be set again on every switch, and two filters that drift apart are how two
    * views come to show different totals.
    */
-  const [ view, setView ] = useState< ViewName >( 'board' );
+  const [ ownView, setOwnView ] = useState< ViewName >( 'board' );
+  const view = chosenView ?? ownView;
+  const setView = ( next: ViewName ) => {
+    setOwnView( next );
+    onViewChange?.( next );
+  };
   const [ filters, setFilters ] = useState< WorkFilters >( {} );
   const [ savedViews, setSavedViews ] = useState< SavedView[] >( [] );
   /*
@@ -111,6 +126,16 @@ export function WorkScreen() {
       setNotice( messageFor( error, 'Forge could not be loaded.' ) );
     }
   }
+
+  // The shell's "New task" is the same as this screen's own "Add work": it
+  // opens the form for the site on screen, and needs a site to open for.
+  useEffect( () => {
+    if ( newWorkAsked > 0 && '' !== siteId ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAdding( true );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ newWorkAsked ] );
 
   useEffect( () => {
     if ( isConnected() ) {

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.89.0] - 2026-09-11
+
+### Changed
+
+- The studio app has the new shell: a rail down the left with every screen
+  in groups — Kanban, Gantt and Calendar as three entries — a count of
+  requests waiting, links to Packages & hours and Sync health in WordPress
+  admin, and a top bar with what has happened lately and a New task button.
+  Every screen works as before.
+
 ## [2.88.0] - 2026-09-11
 
 ### Added
