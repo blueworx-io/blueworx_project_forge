@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Client\Rest;
 
 use Blueworx\Forge\Client\Board;
 use Blueworx\Forge\Client\Checklist;
+use Blueworx\Forge\Client\Digest;
 use Blueworx\Forge\Client\Sales;
 use Blueworx\Forge\Client\Submissions;
 use WP_REST_Request;
@@ -52,7 +53,25 @@ final class ReadController {
 				array(
 					'methods'             => 'GET',
 					'callback'            => static function ( WP_REST_Request $request ) use ( $source ): WP_REST_Response {
-						return rest_ensure_response( $source::view( (bool) $request->get_param( 'refresh' ) ) );
+						$view = $source::view( (bool) $request->get_param( 'refresh' ) );
+
+						// The two lists the overview screen draws from the board
+						// (#299), worked out by the same code, so the page and
+						// the screen name the same work as wanting attention.
+						if ( Board::class === $source && $view['ok'] ) {
+							$today             = gmdate( 'Y-m-d' );
+							$view['attention'] = Digest::attention( (array) $view['items'], $today );
+							$view['upcoming']  = Digest::upcoming( (array) $view['items'], $today );
+						}
+
+						// Every step that is the client's to do now (#299). The view
+						// names one — the next — for the screen that asks one thing at
+						// a time; the page lists them all, by the same rule.
+						if ( Checklist::class === $source ) {
+							$view['yours'] = array_values( array_filter( (array) $view['steps'], array( Checklist::class, 'is_theirs' ) ) );
+						}
+
+						return rest_ensure_response( $view );
 					},
 					// Never public, for the same reason as the workspace: every
 					// one of these names the client and describes their work.

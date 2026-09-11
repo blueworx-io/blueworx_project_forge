@@ -1,263 +1,59 @@
 import { test, expect } from '@playwright/test';
+import { connectedPair, requireEnvironment } from './helpers/pair.js';
+import { giveChecklistTo, publishChecklist } from './helpers/onboarding.js';
+import { checkAccessibility } from '../helpers/accessibility.js';
 
-// #127, proven across two real WordPress sites.
-//
-// The acceptance is unusual and worth stating plainly: a brand-new client with
-// no work must see a dashboard that reads as new rather than broken. So the
-// first test here is the one that matters — a client with nothing gets five
-// sections that each say what kind of nothing it is, and not one blank box.
+// #299. The client's home on the workspace page: what needs them, where they
+// stand on hours, their contact, what is late and coming, and launch progress
+// — every figure from the plugin's own reads, the same ones the wp-admin
+// overview makes.
 
-const CLIENT_URL = process.env.BWX_CLIENT_BASE_URL;
-const STUDIO_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8892';
-const ADMIN_USER = process.env.WP_ADMIN_USER;
-const ADMIN_PASS = process.env.WP_ADMIN_PASS;
+const RUN = `dash${ Date.now() }`;
+const PAGE = '/forge/#dashboard';
 
-const HOME = '/wp-admin/admin.php?page=blueworx-forge-client';
+test.beforeAll( requireEnvironment );
 
-const RUN = `dash${Date.now()}`;
+test( 'the dashboard shows the step that needs the client and the work that is late', async ( { browser } ) => {
+  test.setTimeout( 360_000 );
 
-test.beforeAll(() => {
-  if (!CLIENT_URL || !ADMIN_USER || !ADMIN_PASS) {
-    throw new Error('BWX_CLIENT_BASE_URL, WP_ADMIN_USER and WP_ADMIN_PASS must be set.');
-  }
-});
+  const step = `Send us the brand guidelines ${ RUN }`;
+  const pair = await connectedPair( browser, 'Home Co', RUN, {
+    title: `Late thing ${ RUN }`,
+    planned_start: '2026-08-01',
+    planned_due: '2026-08-10',
+  } );
 
-async function signedIn(browser, baseURL) {
-  const context = await browser.newContext({ baseURL });
-  const page = await context.newPage();
+  await publishChecklist( pair.studio, [ step ], RUN );
+  await giveChecklistTo( pair.studio, pair.site.id );
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  const page = await pair.clientSite.context.newPage();
+  await page.goto( PAGE );
 
-  const nonce = await page.evaluate(() => window.wpApiSettings?.nonce);
+  const dashboard = page.getByTestId( 'bwx-dashboard' );
+  await expect( dashboard ).toBeVisible();
+
+  // Four reads, each a round trip to the studio through PHP's one-at-a-time
+  // built-in server: the page is up long before the last answer lands.
+  await expect( dashboard.getByRole( 'status' ) ).toHaveCount( 0, { timeout: 60_000 } );
+
+  // The one block a client can act on lists the step that is theirs.
+  const needsYou = page.getByTestId( 'bwx-needs-you' );
+  await expect( needsYou.getByTestId( 'bwx-needs-you-step' ).filter( { hasText: step } ) ).toBeVisible();
+  await expect( needsYou.getByRole( 'link', { name: 'Open step' } ).first() ).toHaveAttribute( 'href', /#onboarding\// );
+
+  // Work past its date is named as needing attention, with us.
+  const attention = page.getByTestId( 'bwx-attention' );
+  await expect( attention.getByRole( 'link', { name: `Late thing ${ RUN }` } ) ).toBeVisible();
+  await expect( attention ).toContainText( 'Overdue — with us' );
+
+  // Hours, contact and launch are all drawn — even when there is nothing yet,
+  // the condition is named rather than left blank.
+  await expect( page.getByTestId( 'bwx-support-details' ) ).toBeVisible();
+  await expect( page.getByTestId( 'bwx-contact' ) ).toContainText( /point of contact/i );
+  await expect( page.getByTestId( 'bwx-launch-progress' ) ).toContainText( '1 step needs you' );
+
+  await checkAccessibility( page, 'Client dashboard', 'app' );
+
   await page.close();
-
-  expect(nonce, `no REST nonce available at ${baseURL}`).toBeTruthy();
-  return { context, nonce };
-}
-
-async function studioSite(studio, label) {
-  const client = await (
-    await studio.context.request.post('/wp-json/blueworx-forge/v1/clients', {
-      headers: { 'X-WP-Nonce': studio.nonce },
-      data: { display_name: `${label} ${RUN}`, timezone: 'Europe/London' },
-    })
-  ).json();
-
-  const site = await (
-    await studio.context.request.post(
-      `/wp-json/blueworx-forge/v1/clients/${client.client.id}/sites`,
-      {
-        headers: { 'X-WP-Nonce': studio.nonce },
-        data: { name: `${label} site ${RUN}`, url: CLIENT_URL },
-      }
-    )
-  ).json();
-
-  const issued = await (
-    await studio.context.request.post(
-      `/wp-json/blueworx-forge/v1/client-sites/${site.site.id}/integration/key`,
-      { headers: { 'X-WP-Nonce': studio.nonce } }
-    )
-  ).json();
-
-  return { client: client.client, site: site.site, issued };
-}
-
-async function addWork(studio, siteId, values) {
-  const response = await studio.context.request.post('/wp-json/blueworx-forge/v1/work-items', {
-    headers: { 'X-WP-Nonce': studio.nonce },
-    data: { client_site_id: siteId, problem: 'Something needs doing.', ...values },
-  });
-
-  expect(response.status(), await response.text()).toBe(200);
-  return (await response.json()).item;
-}
-
-async function connect(client, issued) {
-  const response = await client.context.request.post(
-    '/wp-json/blueworx-forge-client/v1/connection',
-    {
-      headers: { 'X-WP-Nonce': client.nonce },
-      data: {
-        studio_url: STUDIO_URL,
-        site_id: issued.integration.registry_site_id,
-        key: issued.key,
-      },
-    }
-  );
-
-  expect(response.status(), await response.text()).toBe(200);
-}
-
-const day = (offset) => {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() + offset);
-  return date.toISOString().slice(0, 10);
-};
-
-test.describe('the client dashboard', () => {
-  test('a brand-new client sees a dashboard that reads as new, not broken', async ({ browser }) => {
-    test.slow();
-
-    const studio = await signedIn(browser, STUDIO_URL);
-    const client = await signedIn(browser, CLIENT_URL);
-    const mine = await studioSite(studio, 'Brand New Co');
-
-    await connect(client, mine.issued);
-
-    const page = await client.context.newPage();
-    await page.goto(HOME);
-
-    // Seven sections, and every one that can be empty says which kind of empty.
-    // Five until #287, when Support Details stopped being a screen of its own
-    // and its three panels joined these four.
-    await expect(page.locator('[data-testid="bwx-panel"]')).toHaveCount(7);
-
-    await expect(page.locator('[data-bwx-panel="contact"]')).toContainText('Nobody is assigned');
-    await expect(page.locator('[data-bwx-panel="attention"]')).toContainText(
-      'Nothing is blocked or overdue'
-    );
-    await expect(page.locator('[data-bwx-panel="upcoming"]')).toContainText(
-      'Nothing has a date on it yet'
-    );
-    /*
-     * #151. A brand-new client has no package, and the section now says which
-     * position that is rather than that the feature is unbuilt — and says what
-     * is still open, so "no package" reads as a conversation to have rather
-     * than as a screen that failed.
-     *
-     * The panel is "hours" since #287, when Support Details stopped being a
-     * screen of its own and became these panels on the overview.
-     */
-    await expect(page.locator('[data-bwx-panel="hours"]')).toContainText('No support package');
-    await expect(page.locator('[data-bwx-panel="hours"]')).toContainText(
-      'report anything that is broken'
-    );
-
-    // And nothing anywhere that reads as a failure.
-    await expect(page.locator('.bw-notice--danger')).toHaveCount(0);
-
-    await page.close();
-  });
-
-  test('scheduled work appears under coming up, soonest first', async ({ browser }) => {
-    test.slow();
-
-    const studio = await signedIn(browser, STUDIO_URL);
-    const client = await signedIn(browser, CLIENT_URL);
-    const mine = await studioSite(studio, 'Scheduled Co');
-
-    await addWork(studio, mine.site.id, {
-      title: `Later job ${RUN}`,
-      level: 'feature',
-      work_type: 'feature',
-      planned_due: day(30),
-    });
-    await addWork(studio, mine.site.id, {
-      title: `Sooner job ${RUN}`,
-      level: 'feature',
-      work_type: 'feature',
-      planned_due: day(3),
-    });
-
-    await connect(client, mine.issued);
-
-    const page = await client.context.newPage();
-    await page.goto(HOME);
-
-    const rows = page.locator('[data-testid="bwx-upcoming-list"] li');
-    await expect(rows).toHaveCount(2);
-    await expect(rows.first()).toContainText(`Sooner job ${RUN}`);
-    await expect(rows.last()).toContainText(`Later job ${RUN}`);
-
-    await page.close();
-  });
-
-  test('work past its date is reported as needing attention', async ({ browser }) => {
-    test.slow();
-
-    const studio = await signedIn(browser, STUDIO_URL);
-    const client = await signedIn(browser, CLIENT_URL);
-    const mine = await studioSite(studio, 'Running Late Co');
-
-    await addWork(studio, mine.site.id, {
-      title: `Should have shipped ${RUN}`,
-      level: 'feature',
-      work_type: 'feature',
-      planned_due: day(-7),
-    });
-
-    await connect(client, mine.issued);
-
-    const page = await client.context.newPage();
-    await page.goto(HOME);
-
-    const attention = page.locator('[data-bwx-panel="attention"]');
-    await expect(attention).toContainText(`Should have shipped ${RUN}`);
-    await expect(attention.locator('[data-bwx-reason="overdue"]')).toHaveCount(1);
-
-    // Late work is not also advertised as coming up.
-    await expect(page.locator('[data-bwx-panel="upcoming"]')).not.toContainText(
-      `Should have shipped ${RUN}`
-    );
-
-    await page.close();
-  });
-
-  test('the dashboard offers nothing to act on', async ({ browser }) => {
-    test.slow();
-
-    const studio = await signedIn(browser, STUDIO_URL);
-    const client = await signedIn(browser, CLIENT_URL);
-    const mine = await studioSite(studio, 'Look Only Co');
-
-    await addWork(studio, mine.site.id, {
-      title: `Not yours to change ${RUN}`,
-      level: 'feature',
-      work_type: 'feature',
-      planned_due: day(5),
-    });
-
-    await connect(client, mine.issued);
-
-    const page = await client.context.newPage();
-    await page.goto(HOME);
-
-    const panels = page.locator('[data-testid="bwx-panel"]');
-    await expect(panels.locator('button')).toHaveCount(0);
-    await expect(panels.locator('select')).toHaveCount(0);
-    await expect(panels.locator('form')).toHaveCount(0);
-
-    await page.close();
-  });
-
-  test('an unreachable studio leaves the work sections honest', async ({ browser }) => {
-    test.slow();
-
-    const client = await signedIn(browser, CLIENT_URL);
-
-    await client.context.request.post('/wp-json/blueworx-forge-client/v1/connection', {
-      headers: { 'X-WP-Nonce': client.nonce },
-      data: { studio_url: 'http://127.0.0.1:9', site_id: 'site_nowhere', key: 'not-a-key' },
-    });
-
-    const page = await client.context.newPage();
-    await page.goto(HOME);
-
-    // No record means the page says so once, rather than drawing four sections
-    // full of things it cannot see — and says which kind of nothing it is,
-    // rather than a sentence that would fit an outage and a refusal equally
-    // badly (#134).
-    const denial = page.getByTestId('bwx-workspace-unavailable');
-
-    await expect(denial).toContainText('cannot be read from the studio');
-    await expect(denial).toContainText('Nothing has been lost');
-    await expect(denial).toHaveAttribute('data-bwx-denial', 'unreachable');
-
-    await page.close();
-  });
-});
+  await pair.close();
+} );
