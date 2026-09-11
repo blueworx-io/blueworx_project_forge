@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Stage, WorkItem } from '../types';
 import { PHASE_LABEL, phaseBands } from '../phases';
 import { Column } from './Column';
+import { everybody } from './ItemPanel';
 
 /**
  * The board: one column per linear stage, grouped under the phase each one
@@ -27,6 +28,22 @@ export function Board( {
 } ) {
   const [ draggingId, setDraggingId ] = useState( '' );
   const [ overStage, setOverStage ] = useState< string | null >( null );
+  const [ names, setNames ] = useState< Map< string, string > >( new Map() );
+
+  // The three seats on a card are initials, and initials need names. One read,
+  // shared with every panel; a board without it shows the seats as unknown.
+  useEffect( () => {
+    let live = true;
+    void everybody().then( ( people ) => {
+      if ( live ) setNames( new Map( people.map( ( p ) => [ p.id, p.display_name ] ) ) );
+    } );
+    return () => {
+      live = false;
+    };
+  }, [] );
+
+  // What each card sits under, where that is on the board too.
+  const parents = new Map( items.map( ( item ) => [ item.id, item ] ) );
 
   const byId = new Map( stages.map( ( stage ) => [ stage.id, stage ] ) );
   const shown = columns.map( ( id ) => byId.get( id ) ).filter( Boolean ) as Stage[];
@@ -34,7 +51,7 @@ export function Board( {
 
   // The rail and the columns are two grids over the same track list, so a band
   // spanning three stages lines up with those three columns exactly.
-  const tracks = { gridTemplateColumns: `repeat(${ shown.length }, 268px)` } as React.CSSProperties;
+  const tracks = { gridTemplateColumns: `repeat(${ shown.length }, 320px)` } as React.CSSProperties;
 
   return (
     <div className="bwx-board" data-testid="bwx-board">
@@ -65,6 +82,8 @@ export function Board( {
             items={ items.filter( ( item ) => item.stage === stage.id ) }
             over={ overStage === stage.id }
             draggingId={ draggingId }
+            parents={ parents }
+            names={ names }
             onOpen={ onOpen }
             onDragStart={ ( item ) => setDraggingId( item.id ) }
             onDragEnd={ () => {
