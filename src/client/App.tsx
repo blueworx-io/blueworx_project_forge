@@ -3,6 +3,7 @@ import { CalendarCheck, Columns3, Inbox, LayoutDashboard, Receipt, X } from 'luc
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card, EmptyState, SectionTitle, Tag, ToastProvider } from '../kit';
 import { clientData } from './data';
+import { api } from './api';
 import { Dashboard } from './screens/Dashboard';
 import { Board } from './screens/Board';
 import { Requests } from './screens/Requests';
@@ -94,16 +95,33 @@ export function App() {
   const clientName = data?.client.connected ? data.client.name : 'Not connected to a studio yet';
   const userName = data?.user.name ?? '';
 
-  // Nothing needs the client's attention until the dashboard reads it (#299);
-  // the strip is here so the shell is complete, and it only shows with a count.
-  const attention = 0;
+  // How many checklist steps are the client's to do right now — the same
+  // list the dashboard's "Needs you" draws. Read once per screen change, so
+  // sending a step back makes the strip go down without a reload.
+  const [ attention, setAttention ] = useState( 0 );
+  useEffect( () => {
+    if ( ! data?.client.connected ) return;
+    let live = true;
+    api
+      .checklist()
+      .then( ( view ) => {
+        if ( live ) setAttention( view.ok ? view.yours.length : 0 );
+      } )
+      .catch( () => {
+        if ( live ) setAttention( 0 );
+      } );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ screen ] );
 
   return (
     <ToastProvider>
       <div className="fc-shell" data-testid="bwx-client-app">
         { banner && attention > 0 && (
           <div className="fc-banner" role="region" aria-label="Needs your attention">
-            { attention } items need your review or confirmation. <a href="#dashboard">See what needs you</a>
+            { attention } { 1 === attention ? 'step needs' : 'steps need' } your answer or confirmation. <a href="#dashboard">See what needs you</a>
             <button type="button" className="fk-icon-btn" aria-label="Dismiss" onClick={ () => setBanner( false ) }>
               <X size={ 16 } strokeWidth={ 1.5 } aria-hidden="true" />
             </button>

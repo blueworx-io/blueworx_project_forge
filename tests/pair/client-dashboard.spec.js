@@ -32,6 +32,10 @@ test( 'the dashboard shows the step that needs the client and the work that is l
   const dashboard = page.getByTestId( 'bwx-dashboard' );
   await expect( dashboard ).toBeVisible();
 
+  // The strip across the top counts the same steps, wherever the client is.
+  const strip = page.getByRole( 'region', { name: 'Needs your attention' } );
+  await expect( strip ).toContainText( '1 step needs your answer', { timeout: 60_000 } );
+
   // Four reads, each a round trip to the studio through PHP's one-at-a-time
   // built-in server: the page is up long before the last answer lands.
   await expect( dashboard.getByRole( 'status' ) ).toHaveCount( 0, { timeout: 60_000 } );
