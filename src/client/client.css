@@ -807,3 +807,176 @@ p.fc-muted + p.fc-muted,
   font-variant-numeric: tabular-nums;
   color: var( --ink-900 );
 }
+
+/* ---- Launch readiness (#303) ---- */
+
+.fc-summary {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.fc-summary-progress {
+  flex: 1;
+  min-width: 260px;
+}
+.fc-summary-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+.fc-summary-line .fk-mono {
+  margin-left: auto;
+  font-size: var( --text-body-sm );
+  color: var( --ink-900 );
+}
+.fc-summary-stats {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+.fc-summary-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fc-summary-stats dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var( --ink-500 );
+}
+.fc-summary-stats dd {
+  margin: 0;
+  font-size: var( --text-heading-sm );
+  font-weight: var( --weight-medium );
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var( --ink-900 );
+}
+.fc-summary-stats dd[data-tone='warn'] {
+  color: var( --state-warn );
+}
+.fc-summary-stats dd[data-tone='info'] {
+  color: var( --state-info );
+}
+.fc-summary-stats dd[data-tone='danger'] {
+  color: var( --state-danger );
+}
+.fc-notice[data-tone='ok'] {
+  background: var( --phase-done-bg );
+  border-color: var( --phase-done-border );
+}
+
+.fc-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fc-section {
+  overflow: hidden;
+}
+.fc-section-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var( --ink-900 );
+}
+.fc-section-head:focus-visible {
+  outline: 2px solid var( --accent-signal );
+  outline-offset: -2px;
+}
+.fc-section-name {
+  font-size: 15px;
+  font-weight: var( --weight-medium );
+}
+.fc-section-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var( --ink-500 );
+  font-size: var( --text-micro );
+}
+.fc-progress-track-sm {
+  width: 90px;
+  height: 6px;
+}
+.fc-section-body {
+  border-top: 1px solid var( --border-hairline );
+}
+.fc-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fc-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fc-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fc-step-title {
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.fc-step-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var( --space-8 );
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-step-feedback,
+.fc-step-response {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var( --paper-stone );
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --ink-700 );
+}
+.fc-step-feedback {
+  border-left-color: var( --phase-gate );
+}
+.fc-step-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fc-step-evidence li {
+  display: flex;
+  align-items: center;
+  gap: var( --space-8 );
+  font-size: var( --text-micro );
+}
+.fc-step-actions {
+  display: flex;
+  gap: var( --space-8 );
+}
+.fc-section-foot {
+  padding: 12px 20px;
+}
