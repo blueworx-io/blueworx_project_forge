@@ -623,3 +623,100 @@ p.fc-muted + p.fc-muted,
   font-size: var( --text-small );
   color: var( --state-danger );
 }
+
+/* ---- Bugs & requests (#301) ---- */
+
+.fc-two-up-form {
+  grid-template-columns: 420px 1fr;
+}
+@media ( max-width: 1000px ) {
+  .fc-two-up-form {
+    grid-template-columns: 1fr;
+  }
+}
+.fc-types {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fc-types legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+.fc-type-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.fc-type-pill {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: var( --radius-pill );
+  border: 1px solid var( --border-hairline );
+  background: var( --color-snow );
+  box-shadow: var( --shadow-xs );
+  font: inherit;
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  color: var( --ink-700 );
+  cursor: pointer;
+}
+.fc-type-pill[aria-checked='true'] {
+  background: var( --surface-tint );
+  border-color: var( --border-tint );
+  color: var( --brand-700 );
+}
+.fc-type-pill:focus-visible {
+  outline: 2px solid var( --accent-signal );
+  outline-offset: 2px;
+}
+.fc-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fc-body {
+  margin: 0;
+  font-size: var( --text-small );
+  line-height: 1.6;
+  color: var( --ink-700 );
+}
+.fc-submission {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+}
+.fc-submission-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fc-submission-head .fk-mono {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-submission-head strong {
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.fc-submission-reply {
+  margin: 0;
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --ink-700 );
+}
+.fc-submission-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
