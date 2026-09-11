@@ -38,7 +38,7 @@ final class ChecklistActions {
 	/**
 	 * The one status this handler will ever ask for.
 	 */
-	private const HANDING_OVER = 'submitted';
+	public const HANDING_OVER = 'submitted';
 
 	/**
 	 * Hooks the handler up.
@@ -105,9 +105,11 @@ final class ChecklistActions {
 	 * did not arrive is a failure, and PHP says so in its own way, which is why
 	 * the error code is checked rather than only the name.
 	 *
+	 * Public so the app's route (#298) reads the file the same way.
+	 *
 	 * @return array<string, mixed>
 	 */
-	private static function uploaded(): array {
+	public static function uploaded(): array {
 		/*
 		 * Each field is sanitised as it is read out, just below. The array
 		 * itself cannot be, and neither can `tmp_name`, which is a path PHP
