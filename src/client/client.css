@@ -406,3 +406,220 @@ p.fc-muted + p.fc-muted,
 .fc-progress + .fc-muted {
   margin-top: 12px;
 }
+
+/* ---- Your work (#300) ---- */
+
+.fc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fc-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: var( --space-8 );
+}
+.fc-tags {
+  display: flex;
+  align-items: center;
+  gap: var( --space-8 );
+  flex-wrap: wrap;
+}
+
+.fc-refusal {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-radius: var( --radius-md );
+  background: var( --state-danger-wash );
+  border: 1px solid var( --state-danger-edge );
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --state-danger );
+}
+.fc-refusal > span {
+  flex: 1;
+}
+.fc-refusal .fk-icon-btn {
+  color: inherit;
+}
+
+.fc-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: var( --space-8 );
+}
+.fc-column {
+  flex: 0 0 auto;
+  width: 300px;
+  background: var( --surface-page );
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-md );
+}
+.fc-column-head {
+  display: flex;
+  align-items: center;
+  gap: var( --space-8 );
+  padding: 9px 12px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fc-column-head > .fk-mono {
+  margin-left: auto;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  min-height: 80px;
+}
+.fc-column-empty {
+  margin: 0;
+  padding: 18px 8px;
+  text-align: center;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+
+.fc-work-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var( --space-8 );
+  padding: 10px 12px 10px 14px;
+  overflow: hidden;
+  background: var( --color-snow );
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-md );
+  box-shadow: var( --shadow-card );
+  color: var( --ink-900 );
+  text-decoration: none;
+  cursor: pointer;
+}
+.fc-work-card:hover {
+  border-color: var( --border-tint );
+}
+.fc-work-card:focus-visible {
+  outline: 2px solid var( --accent-signal );
+  outline-offset: 2px;
+}
+.fc-work-card-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var( --border-hairline );
+}
+.fc-column[data-phase='idea'] .fc-work-card-rail { background: var( --phase-idea ); }
+.fc-column[data-phase='gate'] .fc-work-card-rail { background: var( --phase-gate ); }
+.fc-column[data-phase='pipeline'] .fc-work-card-rail { background: var( --phase-pipeline ); }
+.fc-column[data-phase='done'] .fc-work-card-rail { background: var( --phase-done ); }
+.fc-column[data-phase='exception'] .fc-work-card-rail { background: var( --phase-exception ); }
+.fc-work-card[data-blocked='true'] .fc-work-card-rail {
+  background: var( --blocked-hatch );
+}
+.fc-work-card-row {
+  display: flex;
+  align-items: center;
+  gap: var( --space-8 );
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-work-card-row > :last-child {
+  margin-left: auto;
+}
+.fc-work-card-kind {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-work-card-title {
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  line-height: 1.35;
+}
+.fc-work-card-foot {
+  border-top: 1px solid var( --border-hairline );
+  padding-top: var( --space-8 );
+}
+
+.fc-note {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var( --radius-md );
+  background: var( --surface-tint );
+  border: 1px solid var( --border-tint );
+  font-size: var( --text-body-sm );
+  line-height: 1.5;
+  color: var( --ink-700 );
+}
+.fc-h3,
+.fc-questions h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.fc-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fc-question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var( --radius-md );
+  background: var( --phase-gate-bg );
+  border: 1px solid var( --phase-gate-border );
+}
+.fc-question > p {
+  margin: 0;
+  font-size: var( --text-body-sm );
+  line-height: 1.5;
+  color: var( --ink-900 );
+}
+.fc-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fc-thread li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 2px solid var( --paper-stone );
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --ink-700 );
+}
+.fc-thread li[data-kind='question'] {
+  border-left-color: var( --phase-gate );
+}
+.fc-thread li p {
+  margin: 0;
+}
+.fc-thread-by {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-say {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fc-problem {
+  margin: 0;
+  font-size: var( --text-small );
+  color: var( --state-danger );
+}

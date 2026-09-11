@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Button, Card, EmptyState, SectionTitle, Tag, ToastProvider } from '../kit';
 import { clientData } from './data';
 import { Dashboard } from './screens/Dashboard';
+import { Board } from './screens/Board';
 
 /*
  * The client workspace shell (#297): banner, header with the nav, the screen,
@@ -62,18 +63,26 @@ const SCREENS: Screen[] = [
   },
 ];
 
-function screenFromHash(): ScreenName {
-  const hash = window.location.hash.replace( /^#/, '' ).split( '/' )[ 0 ];
-  return SCREENS.some( ( s ) => s.id === hash ) ? ( hash as ScreenName ) : 'dashboard';
+interface Route {
+  screen: ScreenName;
+  /** What follows the screen in the hash — the item or step on show. */
+  sub: string;
+}
+
+function routeFromHash(): Route {
+  const [ hash, ...rest ] = window.location.hash.replace( /^#/, '' ).split( '/' );
+  const screen = SCREENS.some( ( s ) => s.id === hash ) ? ( hash as ScreenName ) : 'dashboard';
+  return { screen, sub: rest.join( '/' ) };
 }
 
 export function App() {
   const data = clientData();
-  const [ screen, setScreen ] = useState< ScreenName >( screenFromHash );
+  const [ route, setRoute ] = useState< Route >( routeFromHash );
   const [ banner, setBanner ] = useState( true );
+  const screen = route.screen;
 
   useEffect( () => {
-    const onHash = () => setScreen( screenFromHash() );
+    const onHash = () => setRoute( routeFromHash() );
     window.addEventListener( 'hashchange', onHash );
     return () => window.removeEventListener( 'hashchange', onHash );
   }, [] );
@@ -134,6 +143,8 @@ export function App() {
           <SectionTitle sub={ current.sub }>{ current.title }</SectionTitle>
           { 'dashboard' === screen && data ? (
             <Dashboard />
+          ) : 'board' === screen && data ? (
+            <Board item={ route.sub } />
           ) : (
           <Card>
             <EmptyState
