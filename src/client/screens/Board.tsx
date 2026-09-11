@@ -7,6 +7,8 @@ import { api, day } from '../api';
 import type { BoardView, Comment, DiscussionView, WorkItem } from '../api';
 import { clientData } from '../data';
 import { phaseOf } from '../../phases';
+import { axisFor, placeOn, placeToday } from '../../gantt';
+import type { Span } from '../../gantt';
 import { useView } from '../useView';
 
 /*
@@ -20,7 +22,7 @@ import { useView } from '../useView';
  * the wp-admin item screen posts to, and neither names a stage.
  */
 
-type Mode = 'kanban' | 'dates';
+type Mode = 'kanban' | 'schedule' | 'dates';
 
 function today(): string {
   return new Date().toISOString().slice( 0, 10 );
@@ -122,6 +124,86 @@ function Kanban( { board, onDrag }: { board: BoardView; onDrag: () => void } ) {
         );
       } ) }
     </div>
+  );
+}
+
+/**
+ * The planned schedule (#300): one bar per item with both dates, on the same
+ * axis the studio's Gantt uses, and everything without a plan listed under
+ * it — never hidden, because "not scheduled yet" is the thing to know.
+ */
+function Schedule( { board }: { board: BoardView } ) {
+  const now = today();
+  const planned = board.items
+    .map( ( item ) => ( { item, span: item.planned_start && item.planned_due ? ( { start: item.planned_start, due: item.planned_due, derived: false } as Span ) : null } ) )
+    .filter( ( row ): row is { item: WorkItem; span: Span } => null !== row.span )
+    .sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) );
+  const unplanned = board.items.filter( ( item ) => ! ( item.planned_start && item.planned_due ) );
+  const axis = axisFor( planned.map( ( row ) => row.span ), now );
+  const todayAt = placeToday( axis, now );
+
+  return (
+    <Card pad={ 0 } testId="bwx-schedule">
+      <div className="fc-card-head fc-schedule-head">
+        <h3>Planned schedule</h3>
+        <span className="fc-muted">Same records, same permissions — read-only for workflow movement</span>
+      </div>
+      { planned.length > 0 ? (
+        <div className="fc-schedule">
+          <div className="fc-schedule-axis" aria-hidden="true">
+            <span />
+            <span className="fc-schedule-weeks">
+              { axis.weeks.map( ( week ) => (
+                <span key={ week.start } className="fk-mono">
+                  { week.label }
+                </span>
+              ) ) }
+            </span>
+          </div>
+          { planned.map( ( { item, span } ) => {
+            const at = placeOn( span, axis );
+            const late = span.due < now && ! isFinished( item );
+            return (
+              <div key={ item.id } className="fc-schedule-row" data-testid="bwx-schedule-row">
+                <a href={ `#board/${ item.id }` } className="fc-schedule-label">
+                  <span className="fk-mono">{ item.id.replace( 'wrk_', '' ).slice( 0, 8 ) }</span>
+                  <span className="fc-link">{ item.title }</span>
+                </a>
+                <span className="fc-schedule-track">
+                  { null !== todayAt && <span className="fc-schedule-today" style={ { left: `${ todayAt }%` } } /> }
+                  <span
+                    className="fc-schedule-bar"
+                    data-phase={ phaseOf( item.stage ) }
+                    data-blocked={ 'blocked' === item.stage ? 'true' : undefined }
+                    data-late={ late ? 'true' : undefined }
+                    style={ { left: `${ at.left }%`, width: `${ at.width }%` } }
+                  >
+                    <span className="fk-mono">due { day( span.due ) }</span>
+                  </span>
+                </span>
+              </div>
+            );
+          } ) }
+        </div>
+      ) : (
+        <p className="fc-muted fc-schedule-empty">Nothing has both a start and a due date yet, so there is no schedule to draw.</p>
+      ) }
+      { unplanned.length > 0 && (
+        <div className="fc-schedule-unplanned" data-testid="bwx-schedule-unplanned">
+          <p className="fc-muted">Not yet scheduled — listed here, never hidden:</p>
+          <ul>
+            { unplanned.map( ( item ) => (
+              <li key={ item.id }>
+                <a href={ `#board/${ item.id }` } className="fc-link">
+                  { item.title }
+                </a>
+                <StageChip stage={ item.stage } dense short />
+              </li>
+            ) ) }
+          </ul>
+        </div>
+      ) }
+    </Card>
   );
 }
 
@@ -396,6 +478,9 @@ export function Board( { item }: { item: string } ) {
           <Button size="sm" variant={ 'kanban' === mode ? 'secondary' : 'ghost' } aria-pressed={ 'kanban' === mode } onClick={ () => setMode( 'kanban' ) }>
             Kanban
           </Button>
+          <Button size="sm" variant={ 'schedule' === mode ? 'secondary' : 'ghost' } aria-pressed={ 'schedule' === mode } onClick={ () => setMode( 'schedule' ) }>
+            Schedule
+          </Button>
           <Button size="sm" variant={ 'dates' === mode ? 'secondary' : 'ghost' } aria-pressed={ 'dates' === mode } onClick={ () => setMode( 'dates' ) }>
             Key dates
           </Button>
@@ -413,6 +498,8 @@ export function Board( { item }: { item: string } ) {
       ) : board.view?.ok ? (
         'kanban' === mode ? (
           <Kanban board={ board.view } onDrag={ () => setDenied( true ) } />
+        ) : 'schedule' === mode ? (
+          <Schedule board={ board.view } />
         ) : (
           <KeyDates board={ board.view } />
         )
