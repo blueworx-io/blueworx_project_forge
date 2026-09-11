@@ -456,7 +456,7 @@ final class PeopleScreen {
 
 		if ( array() === $free ) {
 			echo '<div class="bw-card__body"><div class="bw-empty" data-bwx-no-free-accounts="1">';
-			echo '<i class="bw-icon bw-empty__icon" data-lucide="user-check"></i>';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="users"></i>';
 			echo '<p class="bw-empty__title">' . esc_html__( 'Everyone with an account is already a person', 'blueworx-forge' ) . '</p>';
 			echo '<p class="bw-empty__text">' . esc_html__( 'Add somebody new below and Forge will make them one.', 'blueworx-forge' ) . '</p>';
 			echo '</div></div></section>';
