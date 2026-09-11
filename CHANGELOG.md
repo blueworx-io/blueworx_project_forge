@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.78.0] - 2026-09-11
+
+### Changed
+
+- Everybody on People is now somebody who can sign in. Add a person by picking
+  them from the site's WordPress users, or type a name and address and they get
+  an account here as a Subscriber. No email is sent either way.
+- A person's name and address stay the same in both places: change them on
+  People and the WordPress account follows, change them on the WordPress
+  profile and the person follows.
+- Deleting somebody's WordPress user offboards them in Forge — their access to
+  every client ends, and their history stays.
+- Anybody added before this change still works and their card says they have no
+  account, with both ways of giving them one offered there.
+
 ## [2.77.2] - 2026-09-09
 
 ### Fixed
