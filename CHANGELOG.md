@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.90.0] - 2026-09-11
+
+### Changed
+
+- The studio's Kanban, Gantt and Calendar are on the new look: 320px
+  columns headed by the stage on its own wash, cards carrying the id,
+  priority, what they sit under, their three seats and when they are due,
+  and bars and calendar entries painted by phase. Nothing moves differently.
+
 ## [2.89.0] - 2026-09-11
 
 ### Changed

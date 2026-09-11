@@ -157,6 +157,7 @@ export function CalendarView( {
                     <button
                       type="button"
                       className="bwx-calendar-entry"
+                      data-phase={ phaseOf( entry.item.stage ) }
                       data-testid="bwx-calendar-entry"
                       data-item={ entry.item.id }
                       data-kind={ entry.kind }

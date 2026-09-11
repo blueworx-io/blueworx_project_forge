@@ -136,7 +136,7 @@ const NEEDED_FROM: Record< string, string > = {
  */
 let roster: Promise< Person[] > | null = null;
 
-function everybody(): Promise< Person[] > {
+export function everybody(): Promise< Person[] > {
   if ( null === roster ) {
     roster = api< { users: Person[] } >( '/users?status=active' )
       .then( ( answer ) => answer.users )

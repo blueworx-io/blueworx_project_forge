@@ -102,6 +102,7 @@ export function GanttView( {
                   <button
                     type="button"
                     className="bwx-gantt-bar"
+                    data-phase={ phaseOf( item.stage ) }
                     data-testid="bwx-gantt-bar"
                     data-item={ item.id }
                     data-start={ span.start }

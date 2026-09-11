@@ -1,5 +1,6 @@
 import type { Stage, WorkItem } from '../types';
 import { phaseOf } from '../phases';
+import { STAGE_ORDER } from '../kit';
 import { Card } from './Card';
 
 /**
@@ -19,6 +20,8 @@ export function Column( {
   onDropItem,
   onOver,
   draggingId,
+  parents,
+  names,
 }: {
   stage: Stage;
   items: WorkItem[];
@@ -29,7 +32,10 @@ export function Column( {
   onDropItem: ( itemId: string, stage: string ) => void;
   onOver: ( stage: string | null ) => void;
   draggingId: string;
+  parents?: Map< string, WorkItem >;
+  names?: Map< string, string >;
 } ) {
+  const index = STAGE_ORDER.indexOf( stage.id );
   return (
     <section
       className="bwx-column"
@@ -55,12 +61,9 @@ export function Column( {
         }
       } }
     >
-      <header className="bwx-column-head">
-        <span
-          className="bwx-dot"
-          style={ { '--phase-colour': `var(--phase-${ phaseOf( stage.id ) })` } as React.CSSProperties }
-        />
-        <span className="bwx-eyebrow">{ stage.label }</span>
+      <header className="bwx-column-head" data-phase={ phaseOf( stage.id ) }>
+        { index >= 0 && <span className="bwx-mono bwx-column-index">{ String( index + 1 ).padStart( 2, '0' ) }</span> }
+        <span className="bwx-column-label">{ stage.label }</span>
         <span className="bwx-count" data-testid="bwx-column-count">
           { items.length }
         </span>
@@ -71,6 +74,8 @@ export function Column( {
           <Card
             key={ item.id }
             item={ item }
+            parent={ parents?.get( item.parent_id ) }
+            names={ names }
             dragging={ draggingId === item.id }
             onOpen={ () => onOpen( item ) }
             onDragStart={ () => onDragStart( item ) }
@@ -79,7 +84,7 @@ export function Column( {
         ) ) }
       </div>
 
-      { 0 === items.length && <p className="bwx-empty">Nothing here.</p> }
+      { 0 === items.length && <p className="bwx-empty">{ 'blocked' === stage.id ? 'No blocked work' : 'No work at this stage' }</p> }
     </section>
   );
 }
