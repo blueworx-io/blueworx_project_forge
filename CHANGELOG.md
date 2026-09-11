@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.97.0] - 2026-09-12
+
+### Changed
+
+- The studio's New task button is on every screen: it takes you to the
+  Kanban and opens the form there.
+
 ## [2.96.0] - 2026-09-12
 
 ### Added

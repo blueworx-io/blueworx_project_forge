@@ -187,6 +187,14 @@ GitHub Issues are the source of truth for all work. Follow this Issue → Implem
 - `npm run dev` serves the app standalone at `localhost:5173` — no WordPress needed.
   This is the fastest way to check front-end work. Without WordPress there is no
   `window.bwxForgeData`, and the app renders accordingly.
+- `npm run dev:client` does the same for the client workspace (`src/client/`), the
+  React app the client plugin serves on a front-end page of the client's own site
+  (`/forge/`, `client/includes/Frontend.php`). It reads the client plugin's own
+  REST routes (`blueworx-forge-client/v1`) and never the studio directly.
+- Both apps build their screens from the shared kit in `src/kit/` on the tokens in
+  `tokens/`; `#kit` on the studio's app page shows every piece. The studio's local
+  test site links this repo, so a build or a PHP edit changes what a running local
+  Playwright suite is testing — finish the run first.
 - **`node_modules` stays in place.** This repo overrides the foundation's "remove
   `node_modules` at session end" rule: keeping it makes `npm run dev` and
   `npm run build:zip` instant with no reinstall.
