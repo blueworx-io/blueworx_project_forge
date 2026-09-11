@@ -6,6 +6,7 @@ import { clientData } from './data';
 import { Dashboard } from './screens/Dashboard';
 import { Board } from './screens/Board';
 import { Requests } from './screens/Requests';
+import { Sales } from './screens/Sales';
 
 /*
  * The client workspace shell (#297): banner, header with the nav, the screen,
@@ -52,7 +53,7 @@ const SCREENS: Screen[] = [
     id: 'sales',
     label: 'Support & hours',
     title: 'Support & hours',
-    sub: 'See what your plan covers and upgrade whenever you like. Your point of contact can also set it up for you.',
+    sub: 'See what your plan covers, what is left, and what is on offer. Your point of contact sets up packages and top-ups for you.',
     icon: Receipt,
   },
   {
@@ -148,6 +149,8 @@ export function App() {
             <Board item={ route.sub } />
           ) : 'requests' === screen && data ? (
             <Requests />
+          ) : 'sales' === screen && data ? (
+            <Sales />
           ) : (
           <Card>
             <EmptyState

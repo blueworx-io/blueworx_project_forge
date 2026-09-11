@@ -720,3 +720,90 @@ p.fc-muted + p.fc-muted,
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+
+/* ---- Support & hours (#302) ---- */
+
+.fc-two-up-sales {
+  grid-template-columns: 1fr 340px;
+}
+@media ( max-width: 1000px ) {
+  .fc-two-up-sales {
+    grid-template-columns: 1fr;
+  }
+}
+.fc-breakdown {
+  display: grid;
+  grid-template-columns: repeat( 4, 1fr );
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-md );
+}
+.fc-breakdown > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fc-breakdown dt {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-breakdown dd {
+  margin: 0;
+  font-size: var( --text-body-sm );
+  color: var( --ink-900 );
+}
+.fc-breakdown + .fc-muted {
+  margin-top: 12px;
+}
+@media ( max-width: 600px ) {
+  .fc-breakdown {
+    grid-template-columns: repeat( 2, 1fr );
+  }
+}
+.fc-notice {
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  border-radius: var( --radius-md );
+  background: var( --phase-gate-bg );
+  border: 1px solid var( --phase-gate-border );
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --ink-700 );
+}
+.fc-sales-contact .fc-facts,
+[data-testid='bwx-sales-contact'] .fc-facts {
+  margin-top: 14px;
+}
+[data-testid='bwx-sales-contact'] .fk-btn {
+  margin-top: 14px;
+}
+.fc-packages {
+  display: grid;
+  grid-template-columns: repeat( 3, 1fr );
+  gap: 16px;
+}
+@media ( max-width: 900px ) {
+  .fc-packages {
+    grid-template-columns: 1fr;
+  }
+}
+.fc-package {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fc-package-name {
+  font-size: 15px;
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.fc-package-hours {
+  margin-top: 6px;
+  font-size: var( --text-heading-sm );
+  font-weight: var( --weight-medium );
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var( --ink-900 );
+}
