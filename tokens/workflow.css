@@ -16,6 +16,14 @@
 --phase-exception:var(--color-coral);
 --phase-exception-bg:#fef2f2;
 --phase-exception-border:#fecaca;
+/* Phase ink — for a stage written on its own wash (a chip). The hue itself is
+   the marker on white; on the tint it does not clear 4.5:1, so the ink is a
+   step darker, the same rule the semantic colours follow (#182). */
+--phase-idea-ink:var(--color-steel);
+--phase-pipeline-ink:var(--brand-700);
+--phase-gate-ink:var(--color-ember);
+--phase-done-ink:var(--color-fern);
+--phase-exception-ink:var(--color-danger);
 /* Gate + entitlement state aliases */
 --gate-pass:var(--color-mint);
 --gate-missing:var(--color-coral);
