@@ -182,14 +182,16 @@ test('deleting the WordPress user offboards the person and ends their access', a
   const page = await context.newPage();
 
   const name = `Grace Adeyemi ${RUN_ID}`;
-  await addNewPerson(page, name, `grace.${RUN_ID}@example.test`);
+  const email = `grace.${RUN_ID}@example.test`;
+  await addNewPerson(page, name, email);
 
   const wpUserId = await cardFor(page, name).getAttribute('data-bwx-wp-user');
 
   // Followed from the Users screen rather than built by hand: the link carries
   // WordPress's own nonce, and a deletion that skips it is not the one an
-  // administrator performs.
-  await page.goto('/wp-admin/users.php');
+  // administrator performs. Searched for, because the instance is kept between
+  // runs and the list is paged — on a week-old one they are nowhere near page one.
+  await page.goto(`/wp-admin/users.php?s=${encodeURIComponent(email)}`);
   const deleteLink = await page
     .locator(`#user-${wpUserId} a.submitdelete`)
     .getAttribute('href');
