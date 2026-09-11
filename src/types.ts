@@ -7,6 +7,9 @@ export interface ForgeData {
   siteUrl: string;
   /** The WordPress admin, for the screens that still live there. */
   adminUrl?: string;
+  /** The signed-in WordPress user, and the Forge person behind it (#309). */
+  currentUserId?: number;
+  person?: { id: string; display_name: string } | null;
   loginUrl: string;
   logoutUrl: string;
   version: string;
@@ -132,7 +135,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -642,4 +645,6 @@ export interface Person {
   id: string;
   display_name: string;
   status: string;
+  /** The WordPress account this person signs in with; 0 when none. */
+  wp_user_id?: number;
 }
