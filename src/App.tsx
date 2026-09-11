@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarDays, Clock, Columns3, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, Receipt, RefreshCw } from 'lucide-react';
+import { BarChart3, CalendarDays, Clock, Columns3, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, isConnected } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
+import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { ReportsScreen } from './components/ReportsScreen';
@@ -40,6 +41,7 @@ type Entry =
 
 const RAIL: Entry[] = [
   { group: 'My day' },
+  { key: 'mytasks', label: 'My tasks', icon: ListChecks, testId: 'bwx-screen-mytasks' },
   { key: 'standup', label: 'Daily standup', icon: Clock, testId: 'bwx-screen-standup' },
   { group: 'Delivery' },
   { key: 'work', view: 'board', label: 'Kanban', icon: Columns3, testId: 'bwx-screen-work' },
@@ -57,6 +59,7 @@ const RAIL: Entry[] = [
 ];
 
 const TITLES: Record< ScreenName, string > = {
+  mytasks: 'My tasks',
   work: 'Kanban',
   requests: 'Requests review',
   capacity: 'Capacity',
@@ -82,6 +85,7 @@ interface Opening {
 
 /** How each screen opens — the design's page header, drawn by the shell. */
 const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
+  mytasks: { crumbs: [ 'My day', 'My tasks' ], eyebrow: 'Your day and week', description: 'Every task that names you, on every client, from the same records as the board — so the counts always add up.', tile: ListChecks, hue: 'blue' },
   work: { crumbs: [ 'Delivery', 'Kanban' ], eyebrow: 'Controlled workflow', description: 'Twelve fixed stages. Work moves forward one stage at a time, and only once that stage’s checks are done.', tile: Columns3, hue: 'teal' },
   gantt: { crumbs: [ 'Delivery', 'Gantt' ], eyebrow: 'Schedule', description: 'The same records, the same filters and the same permissions as the board — only the shape changes.', tile: GanttChart, hue: 'violet' },
   calendar: { crumbs: [ 'Delivery', 'Calendar' ], eyebrow: 'Key dates', description: 'The same records, the same filters and the same permissions as the board — only the shape changes.', tile: CalendarDays, hue: 'violet' },
@@ -237,6 +241,7 @@ export function App() {
          */ }
         <PageHeader crumbs={ opening.crumbs } eyebrow={ opening.eyebrow } title={ title } description={ opening.description } tile={ opening.tile } hue={ opening.hue } />
 
+        { 'mytasks' === screen && <MyTasksScreen /> }
         { 'work' === screen && <WorkScreen view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } /> }
         { 'requests' === screen && <QueueScreen /> }
         { 'capacity' === screen && <CapacityScreen /> }

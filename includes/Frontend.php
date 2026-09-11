@@ -166,17 +166,26 @@ final class Frontend {
 			true
 		);
 
+		// The Forge person behind this account, so a personal screen (#309) can
+		// ask for their work without a route only administrators may read.
+		$person = Tenancy\Users::by_wp_user( get_current_user_id() );
+
 		$data = array(
-			'restUrl'    => rest_url( 'blueworx-forge/v1' ),
-			'nonce'      => wp_create_nonce( 'wp_rest' ),
-			'isLoggedIn' => is_user_logged_in(),
-			'canEdit'    => current_user_can( 'edit_posts' ),
-			'canManage'  => current_user_can( 'manage_options' ),
-			'siteUrl'    => get_site_url(),
-			'adminUrl'   => admin_url(),
-			'loginUrl'   => wp_login_url( $this->app_page_url() ),
-			'logoutUrl'  => wp_logout_url( $this->app_page_url() ),
-			'version'    => BWX_FORGE_VERSION,
+			'restUrl'       => rest_url( 'blueworx-forge/v1' ),
+			'nonce'         => wp_create_nonce( 'wp_rest' ),
+			'isLoggedIn'    => is_user_logged_in(),
+			'canEdit'       => current_user_can( 'edit_posts' ),
+			'canManage'     => current_user_can( 'manage_options' ),
+			'siteUrl'       => get_site_url(),
+			'adminUrl'      => admin_url(),
+			'currentUserId' => get_current_user_id(),
+			'person'        => null === $person ? null : array(
+				'id'           => (string) $person['id'],
+				'display_name' => (string) $person['display_name'],
+			),
+			'loginUrl'      => wp_login_url( $this->app_page_url() ),
+			'logoutUrl'     => wp_logout_url( $this->app_page_url() ),
+			'version'       => BWX_FORGE_VERSION,
 		);
 
 		/*

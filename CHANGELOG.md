@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.94.0] - 2026-09-12
+
+### Added
+
+- My tasks: every task that names you, on every client, in one list with
+  Today, Next seven days, Further out and Everything — the counts always
+  add up. Open a row to work on it. That completes the studio restyle.
+
 ## [2.93.0] - 2026-09-12
 
 ### Added
