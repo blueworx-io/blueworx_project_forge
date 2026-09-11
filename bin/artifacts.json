@@ -39,7 +39,9 @@
       "include": [
         "blueworx-forge-client.php",
         "uninstall.php",
-        "includes"
+        "includes",
+        "templates",
+        "assets"
       ],
       "shared": [
         "CHANGELOG.md",
