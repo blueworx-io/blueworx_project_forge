@@ -1,5 +1,7 @@
 {
-  "dependencies": {},
+  "dependencies": {
+    "lucide-react": "1.45.0"
+  },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.4",
