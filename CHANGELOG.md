@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.92.0] - 2026-09-12
+
+### Changed
+
+- The studio's Standup, Capacity and Onboarding board are on the new look:
+  standup sections as panels with one row per thing, the capacity grid and
+  every table in a card with a proper header and hairlines. Nothing behaves
+  differently.
+
 ## [2.91.0] - 2026-09-12
 
 ### Changed

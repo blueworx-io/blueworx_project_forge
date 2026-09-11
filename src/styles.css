@@ -2187,3 +2187,247 @@ td[ data-band='over' ] {
 .bwx-panel-scrim {
   z-index: 60;
 }
+
+/* ---- Standup on the kit (#307): one section is a panel, one card a row ---- */
+
+.bwx-standup {
+  gap: 16px;
+  padding: 20px 24px;
+}
+.bwx-standup-section {
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: 12px;
+  overflow: hidden;
+}
+.bwx-standup-section-head {
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-standup-section-title {
+  font-size: 15px;
+  font-weight: var( --weight-medium );
+  letter-spacing: 0;
+  color: var( --ink-900 );
+}
+.bwx-standup-section-head .bwx-mono {
+  margin-left: auto;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.bwx-standup-blurb {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  background: var( --surface-sunken );
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-standup-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.bwx-standup-card {
+  display: grid;
+  grid-template-columns: 150px minmax( 0, 1fr ) auto;
+  grid-template-areas:
+    'head title actions'
+    'head detail actions'
+    'head gate actions';
+  column-gap: 16px;
+  row-gap: 2px;
+  align-items: start;
+  padding: 12px 16px 12px 19px;
+  border: 0;
+  border-top: 1px solid var( --border-hairline );
+  border-inline-start: 3px solid var( --card-rail, transparent );
+  border-radius: 0;
+  background: var( --surface-card );
+}
+.bwx-standup-card:first-child {
+  border-top: 0;
+}
+.bwx-standup-card-head {
+  grid-area: head;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.bwx-standup-card-head .bwx-header-spacer {
+  display: none;
+}
+.bwx-standup-card-title {
+  grid-area: title;
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.bwx-standup-card-detail {
+  grid-area: detail;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.bwx-standup-card [ data-testid='bwx-gate' ] {
+  grid-area: gate;
+  margin-top: 8px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.bwx-standup-card-actions {
+  grid-area: actions;
+  margin: 0;
+  padding: 0;
+  align-self: center;
+}
+@media ( max-width: 800px ) {
+  .bwx-standup-card {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'head'
+      'title'
+      'detail'
+      'gate'
+      'actions';
+  }
+}
+
+/* ---- Tables on the kit (#307, #308): the DataView look for every list ---- */
+
+.bwx-list {
+  padding: 20px 24px;
+}
+.bwx-table {
+  border-spacing: 0;
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: 12px;
+}
+.bwx-table th {
+  font-size: var( --text-micro );
+  letter-spacing: 0.04em;
+  font-weight: var( --weight-medium );
+  color: var( --ink-500 );
+  padding: 10px 12px;
+  background: var( --surface-sunken );
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-table th:first-child {
+  border-top-left-radius: 11px;
+}
+.bwx-table th:last-child {
+  border-top-right-radius: 11px;
+}
+.bwx-row {
+  background: transparent;
+}
+.bwx-row td {
+  padding: 12px;
+  border-top: 0;
+  border-bottom: 1px solid var( --border-hairline );
+  font-size: var( --text-small );
+  color: var( --ink-900 );
+}
+.bwx-row:last-child td {
+  border-bottom: 0;
+}
+.bwx-row td:first-child {
+  border-left: 3px solid var( --row-rail, transparent );
+  border-radius: 0;
+}
+.bwx-row td:last-child {
+  border-right: 0;
+  border-radius: 0;
+}
+.bwx-row:hover td {
+  background: var( --surface-page );
+}
+.bwx-row-open {
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.bwx-row-open:hover {
+  color: var( --accent-signal );
+}
+.bwx-progress {
+  block-size: 6px;
+  background: var( --paper-stone );
+  border: 1px solid var( --border-hairline );
+}
+.bwx-progress-fill {
+  background: var( --brand-600 );
+}
+
+/* Capacity: the grid in a card, the person column on the card surface. */
+.bwx-capacity {
+  padding: 20px 24px;
+}
+.bwx-capacity-grid {
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: 12px;
+}
+.bwx-capacity-grid th {
+  font-size: var( --text-micro );
+  letter-spacing: 0.04em;
+  font-weight: var( --weight-medium );
+  color: var( --ink-500 );
+  padding: 10px;
+  background: var( --surface-sunken );
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-capacity-grid td {
+  border-top: 0;
+  border-bottom: 1px solid var( --border-hairline );
+  background: transparent;
+}
+.bwx-capacity-grid tbody tr:last-child td {
+  border-bottom: 0;
+}
+.bwx-capacity-grid thead .bwx-capacity-person,
+.bwx-capacity-grid tbody .bwx-capacity-person {
+  background: var( --surface-card );
+}
+.bwx-capacity-grid thead .bwx-capacity-person {
+  background: var( --surface-sunken );
+}
+.bwx-capacity-bar {
+  block-size: 4px;
+  background: var( --paper-stone );
+}
+.bwx-capacity-bar-fill {
+  background: var( --brand-600 );
+}
+.bwx-capacity-summary {
+  border-radius: 12px;
+  border-color: var( --border-hairline );
+  background: var( --surface-sunken );
+}
+.bwx-table-check {
+  width: 36px;
+  padding-right: 0 !important;
+}
+.bwx-row[data-picked='true'] td {
+  background: var( --accent-signal-wash );
+}
+/* The bar floats over the screen, not the whole page: the rail stays clear. */
+.bwx-app .fk-bulk-bar {
+  position: fixed;
+  left: calc( 50% + 132px );
+}
+.bwx-views-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 10px 24px;
+  background: var( --surface-card );
+  border-bottom: 1px solid var( --border-subtle, var( --border-hairline ) );
+}
+.bwx-views-note {
+  margin-left: auto;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
