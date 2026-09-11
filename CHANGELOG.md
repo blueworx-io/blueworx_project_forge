@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.80.0] - 2026-09-11
+
+### Added
+
+- The shared component kit for the new look: buttons, tags, stage chips,
+  cards, the list view with saved views, search, filters and bulk actions,
+  dialogs, fields, the hours meter, people and toasts. Every piece is shown on
+  one page (the app page with `#kit`) so it can be seen and checked in one
+  place. Nothing on the working screens changes yet.
+
 ## [2.79.0] - 2026-09-11
 
 ### Added
