@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.93.0] - 2026-09-12
+
+### Added
+
+- The studio's request queue has saved views (Awaiting review, Decided,
+  All), row selection and a bulk bar: pick several requests and decline
+  them with one reason, recorded on every one of them word for word.
+
 ## [2.92.0] - 2026-09-12
 
 ### Changed
