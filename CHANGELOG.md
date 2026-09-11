@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.97.1] - 2026-09-12
+
+### Changed
+
+- The Board / List / Schedule / Calendar switch on the studio's work screen
+  is drawn as one pill track, the way the design draws its toggles.
+
 ## [2.97.0] - 2026-09-12
 
 ### Changed
