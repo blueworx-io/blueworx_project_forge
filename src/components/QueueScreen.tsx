@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { IntakeState, QueueFilters, Submission } from '../types';
 import { api, isDenied, messageFor } from '../api';
+import { BulkButton, Check, Modal, ReasonAction, ViewPill } from '../kit';
 import { RequestPanel } from './RequestPanel';
 import { Screen } from './States';
 
@@ -27,6 +28,43 @@ export function QueueScreen() {
   const [ openId, setOpenId ] = useState( '' );
   const [ notice, setNotice ] = useState( '' );
   const [ queue, setQueue ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
+
+  /*
+   * Row selection and the bulk bar (#308). A bulk decline is the single
+   * decline done several times: the same route, the same reason recorded on
+   * each submission verbatim, one at a time — so a refusal on one leaves the
+   * others as they were and says which one it was.
+   */
+  const [ picked, setPicked ] = useState< string[] >( [] );
+  const [ deciding, setDeciding ] = useState< 'declined' | null >( null );
+  const [ busy, setBusy ] = useState( false );
+
+  async function decideAll( intake_state: 'declined' | 'in-review', response: string ) {
+    setBusy( true );
+    const done: Submission[] = [];
+    let refused = '';
+    for ( const id of picked ) {
+      try {
+        const answer = await api< { submission: Submission } >( `/submissions/${ id }`, {
+          method: 'PATCH',
+          body: { intake_state, response },
+        } );
+        done.push( answer.submission );
+      } catch ( error ) {
+        refused = messageFor( error, 'That could not be saved.' );
+        break;
+      }
+    }
+    setSubmissions( ( all ) => all.map( ( one ) => done.find( ( d ) => d.id === one.id ) ?? one ) );
+    setPicked( picked.filter( ( id ) => ! done.some( ( d ) => d.id === id ) ) );
+    setDeciding( null );
+    setBusy( false );
+    setNotice(
+      '' === refused
+        ? `${ done.length } ${ 1 === done.length ? 'request' : 'requests' } ${ 'declined' === intake_state ? 'declined' : 'marked as being looked at' }, each with the reason recorded.`
+        : `${ done.length } saved, then stopped: ${ refused }`
+    );
+  }
 
   /*
    * The whole queue is read once and filtered here, unlike the board, which
@@ -113,8 +151,42 @@ export function QueueScreen() {
   const clients = [ ...new Map( submissions.map( ( one ) => [ one.client_id, one.client_name ] ) ) ];
   const open = submissions.find( ( one ) => one.id === openId );
 
+  /*
+   * The three saved views the design names, over the same status filter the
+   * select sets — a view is a filter with a name, never a second list.
+   */
+  const AWAITING = [ 'received', 'in-review' ];
+  const DECIDED = [ 'accepted', 'declined', 'converted' ];
+  const VIEWS: Array< { id: string; label: string; states: string[] } > = [
+    { id: 'review', label: 'Awaiting review', states: AWAITING },
+    { id: 'decided', label: 'Decided', states: DECIDED },
+    { id: 'all', label: 'All submissions', states: [] },
+  ];
+  const activeView = VIEWS.find( ( v ) => JSON.stringify( v.states ) === JSON.stringify( filters.intake_state ?? [] ) )?.id;
+
   return (
     <>
+      { 'ready' === queue && (
+        <div className="bwx-views-row" role="group" aria-label="Saved views" data-testid="bwx-queue-views">
+          { VIEWS.map( ( v ) => (
+            <ViewPill
+              key={ v.id }
+              label={ v.label }
+              count={ 0 === v.states.length ? submissions.length : submissions.filter( ( one ) => v.states.includes( one.intake_state ) ).length }
+              active={ activeView === v.id }
+              onClick={ () => {
+                const next = { ...filters };
+                if ( 0 === v.states.length ) delete next.intake_state;
+                else next.intake_state = v.states;
+                setFilters( next );
+                setPicked( [] );
+              } }
+            />
+          ) ) }
+          <span className="bwx-views-note">Submissions are immutable source records; a decision always records a reason.</span>
+        </div>
+      ) }
+
       <header className="bwx-header">
         <input
           type="search"
@@ -145,7 +217,7 @@ export function QueueScreen() {
           className="bwx-select"
           data-testid="bwx-queue-state"
           aria-label="Status"
-          value={ ( filters.intake_state ?? [] )[ 0 ] ?? '' }
+          value={ 1 === ( filters.intake_state ?? [] ).length ? filters.intake_state![ 0 ] : '' }
           onChange={ ( event ) => set( 'intake_state', event.target.value ) }
         >
           <option value="">Any status</option>
@@ -241,6 +313,14 @@ export function QueueScreen() {
           <table className="bwx-table">
             <thead>
               <tr>
+                <th scope="col" className="bwx-table-check">
+                  <Check
+                    label="Select every request shown"
+                    checked={ 0 < shown.length && shown.every( ( one ) => picked.includes( one.id ) ) }
+                    indeterminate={ shown.some( ( one ) => picked.includes( one.id ) ) && ! shown.every( ( one ) => picked.includes( one.id ) ) }
+                    onChange={ () => setPicked( shown.every( ( one ) => picked.includes( one.id ) ) ? [] : shown.map( ( one ) => one.id ) ) }
+                  />
+                </th>
                 <th scope="col">Request</th>
                 <th scope="col">Client</th>
                 <th scope="col">Status</th>
@@ -255,12 +335,20 @@ export function QueueScreen() {
                   data-testid="bwx-queue-row"
                   data-submission={ one.id }
                   data-state={ one.intake_state }
+                  data-picked={ picked.includes( one.id ) ? 'true' : undefined }
                   style={
                     {
                       '--row-rail': `var(--intake-${ one.intake_state })`,
                     } as React.CSSProperties
                   }
                 >
+                  <td className="bwx-table-check">
+                    <Check
+                      label={ `Select ${ one.title }` }
+                      checked={ picked.includes( one.id ) }
+                      onChange={ () => setPicked( picked.includes( one.id ) ? picked.filter( ( id ) => id !== one.id ) : [ ...picked, one.id ] ) }
+                    />
+                  </td>
                   <td>
                     <button
                       type="button"
@@ -286,6 +374,34 @@ export function QueueScreen() {
             </tbody>
           </table>
         </div>
+      ) }
+
+      { 0 < picked.length && (
+        <div className="fk-bulk-bar" role="status" data-testid="bwx-queue-bulk">
+          <span>
+            <span className="fk-mono">{ picked.length }</span>
+            { ` ${ 1 === picked.length ? 'request' : 'requests' } selected` }
+          </span>
+          <span className="fk-bulk-actions">
+            <BulkButton onClick={ () => void decideAll( 'in-review', '' ) }>Being looked at</BulkButton>
+            <BulkButton onClick={ () => setDeciding( 'declined' ) }>Decline…</BulkButton>
+          </span>
+          <button type="button" className="fk-bulk-close" aria-label="Clear selection" onClick={ () => setPicked( [] ) }>
+            ×
+          </button>
+        </div>
+      ) }
+
+      { 'declined' === deciding && (
+        <Modal
+          title={ `Decline ${ picked.length } ${ 1 === picked.length ? 'request' : 'requests' }` }
+          description="The reason is recorded on every one of them, word for word, and each client can read it on their own site."
+          onClose={ () => setDeciding( null ) }
+        >
+          <div data-testid="bwx-queue-decline">
+            <ReasonAction label={ busy ? 'Declining…' : 'Decline them' } variant="danger" placeholder="Why these are not going ahead." onSubmit={ ( reason ) => void decideAll( 'declined', reason ) } />
+          </div>
+        </Modal>
       ) }
 
       { undefined !== open && (
