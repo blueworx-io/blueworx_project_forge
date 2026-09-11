@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.79.0] - 2026-09-11
+
+### Added
+
+- The groundwork for the new look, shared by both plugins: the design kit's
+  token names now resolve everywhere, the two typefaces ship with the plugin
+  instead of loading from Google, and the Lucide icon set is approved for use.
+
 ## [2.78.0] - 2026-09-11
 
 ### Changed

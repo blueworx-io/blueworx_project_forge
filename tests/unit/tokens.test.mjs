@@ -26,6 +26,11 @@ function brandValue(css) {
 // build; node_modules and the disposable WordPress installs are not ours.
 const SKIP = new Set(['node_modules', 'design', 'tests', '.git', '.wp-test', '.wp-test-client', '.wp-test-client-plugin', 'vendor', 'test-results', 'playwright-report']);
 
+// The stylesheets each build writes. They carry the token values because they
+// are compiled from tokens/, so they are outputs of the one source, not a
+// second one — what is checked is that each compiles the same value in.
+const BUILT = ['assets/css/blueworx-forge.css', 'client/assets/css/blueworx-forge-client.css'];
+
 function* cssFiles(dir) {
   for (const entry of readdirSync(dir)) {
     if (SKIP.has(entry)) continue;
@@ -41,10 +46,13 @@ function* cssFiles(dir) {
 }
 
 test('the brand colour is declared in exactly one place', () => {
-  const declaring = [...cssFiles(ROOT)].filter((path) => DECLARATION.test(readFileSync(path, 'utf8')));
+  const declaring = [...cssFiles(ROOT)]
+    .map((path) => relative(ROOT, path).split(sep).join('/'))
+    .filter((path) => !BUILT.includes(path))
+    .filter((path) => DECLARATION.test(readFileSync(join(ROOT, path), 'utf8')));
 
   assert.deepEqual(
-    declaring.map((path) => relative(ROOT, path).split(sep).join('/')),
+    declaring,
     ['tokens/colors.css'],
     'a second file declares the brand colour — that is where drift between the two interfaces starts'
   );
@@ -54,13 +62,15 @@ test('the studio build compiles the tokens in', () => {
   const expected = brandValue(readFileSync(join(TOKENS, 'colors.css'), 'utf8'));
   assert.ok(expected, 'the token layer no longer declares --brand-600');
 
-  // The app bundle carries its own stylesheet, injected at runtime, so the
-  // token values end up inside the built JavaScript rather than beside it.
-  const bundle = readFileSync(join(ROOT, 'assets/js/blueworx-forge.js'), 'utf8');
+  // The build writes one stylesheet beside the bundle (#295), so the fonts
+  // it names resolve wherever the plugin is installed; the token values are
+  // compiled into it.
+  const sheet = readFileSync(join(ROOT, BUILT[0]), 'utf8');
 
-  assert.ok(
-    bundle.includes(`--brand-600:${expected}`),
-    'the built studio bundle does not carry the token values — run npm run build'
+  assert.equal(
+    brandValue(sheet),
+    expected,
+    'the built studio stylesheet does not carry the token values — run npm run build'
   );
 });
 
