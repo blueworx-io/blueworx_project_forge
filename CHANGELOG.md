@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.82.0] - 2026-09-11
+
+### Added
+
+- The client site now answers the workspace page's reads — the board, the
+  hours and packages, the launch checklist and the submissions — with exactly
+  what its WordPress screens show. Only a signed-in administrator can ask.
+
 ## [2.81.0] - 2026-09-11
 
 ### Added
