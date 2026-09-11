@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.87.0] - 2026-09-11
+
+### Added
+
+- The workspace page's Support & hours is live: your plan and the hours
+  left on it, the packages on offer, what has been bought, and who to ask
+  for more. Every figure is the studio's own; nothing on the page sells.
+
 ## [2.86.0] - 2026-09-11
 
 ### Added

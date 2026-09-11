@@ -79,11 +79,12 @@ export interface Entitlement {
 }
 
 export interface Purchase {
-  kind?: string;
-  reason?: string;
-  name?: string;
+  /** `Y-m-d`. */
+  on?: string;
+  kind?: 'allocation' | 'top-up' | string;
   hours?: number;
-  bought_at?: number;
+  reason?: string;
+  /** Unix time; 0 means it runs with the package. */
   expires_at?: number;
 }
 
