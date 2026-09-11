@@ -980,3 +980,114 @@ p.fc-muted + p.fc-muted,
 .fc-section-foot {
   padding: 12px 20px;
 }
+
+/* ---- Your work: schedule (#300) ---- */
+
+.fc-schedule-head {
+  padding: 14px 20px;
+  margin: 0;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fc-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+}
+.fc-schedule-axis,
+.fc-schedule-row {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+.fc-schedule-weeks {
+  display: flex;
+  justify-content: space-between;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-schedule-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-decoration: none;
+}
+.fc-schedule-label .fk-mono {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.fc-schedule-label .fc-link {
+  white-space: normal;
+}
+.fc-schedule-track {
+  position: relative;
+  display: block;
+  height: 22px;
+  background: var( --surface-page );
+  border: 1px solid var( --border-hairline );
+  border-radius: 6px;
+}
+.fc-schedule-today {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var( --accent-signal );
+}
+.fc-schedule-bar {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+  min-width: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var( --bar-wash, var( --surface-sunken ) );
+  border: 1px solid var( --bar-edge, var( --border-hairline ) );
+  color: var( --bar-ink, var( --ink-700 ) );
+}
+.fc-schedule-bar .fk-mono {
+  font-size: 10px;
+  white-space: nowrap;
+}
+.fc-schedule-bar[data-phase='idea'] { --bar-ink: var( --phase-idea-ink ); --bar-wash: var( --phase-idea-bg ); --bar-edge: var( --phase-idea-border ); }
+.fc-schedule-bar[data-phase='gate'] { --bar-ink: var( --phase-gate-ink ); --bar-wash: var( --phase-gate-bg ); --bar-edge: var( --phase-gate-border ); }
+.fc-schedule-bar[data-phase='pipeline'] { --bar-ink: var( --phase-pipeline-ink ); --bar-wash: var( --phase-pipeline-bg ); --bar-edge: var( --phase-pipeline-border ); }
+.fc-schedule-bar[data-phase='done'] { --bar-ink: var( --phase-done-ink ); --bar-wash: var( --phase-done-bg ); --bar-edge: var( --phase-done-border ); }
+.fc-schedule-bar[data-phase='exception'] { --bar-ink: var( --phase-exception-ink ); --bar-wash: var( --phase-exception-bg ); --bar-edge: var( --phase-exception-border ); }
+.fc-schedule-bar[data-blocked='true'] {
+  background: var( --blocked-hatch );
+}
+.fc-schedule-bar[data-late='true'] {
+  outline: 2px solid var( --at-risk-accent );
+  outline-offset: 1px;
+}
+.fc-schedule-empty {
+  padding: 20px;
+}
+.fc-schedule-unplanned {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var( --border-hairline );
+}
+.fc-schedule-unplanned ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fc-schedule-unplanned li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+@media ( max-width: 700px ) {
+  .fc-schedule-axis,
+  .fc-schedule-row {
+    grid-template-columns: 1fr;
+  }
+}

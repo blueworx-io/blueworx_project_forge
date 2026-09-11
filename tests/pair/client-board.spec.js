@@ -16,7 +16,7 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   test.setTimeout( 360_000 );
 
   const title = `Rebuild the member area ${ RUN }`;
-  const pair = await connectedPair( browser, 'Board Co', RUN, { title, planned_due: '2026-10-10' } );
+  const pair = await connectedPair( browser, 'Board Co', RUN, { title, planned_start: '2026-10-01', planned_due: '2026-10-10' } );
   const before = ( await pair.studio.get( `/work-items/${ pair.work.id }` ) ).item.stage;
 
   const page = await pair.clientSite.context.newPage();
@@ -39,6 +39,14 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   expect( ( await pair.studio.get( `/work-items/${ pair.work.id }` ) ).item.stage ).toBe( before );
 
   await checkAccessibility( page, 'Client board', 'app' );
+
+  // The schedule draws the same item as a bar on a time axis, still a link.
+  await page.getByRole( 'button', { name: 'Schedule' } ).click();
+  const bar = page.getByTestId( 'bwx-schedule-row' ).filter( { hasText: title } );
+  await expect( bar ).toBeVisible();
+  await expect( bar ).toContainText( 'due 10 Oct 2026' );
+  await checkAccessibility( page, 'Client schedule', 'app' );
+  await page.getByRole( 'button', { name: 'Kanban' } ).click();
 
   // Opening the card is a link, so it can be shared and the back button works.
   await card.click();
