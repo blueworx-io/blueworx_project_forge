@@ -5,6 +5,7 @@ import { Button, Card, EmptyState, SectionTitle, Tag, ToastProvider } from '../k
 import { clientData } from './data';
 import { Dashboard } from './screens/Dashboard';
 import { Board } from './screens/Board';
+import { Requests } from './screens/Requests';
 
 /*
  * The client workspace shell (#297): banner, header with the nav, the screen,
@@ -145,6 +146,8 @@ export function App() {
             <Dashboard />
           ) : 'board' === screen && data ? (
             <Board item={ route.sub } />
+          ) : 'requests' === screen && data ? (
+            <Requests />
           ) : (
           <Card>
             <EmptyState

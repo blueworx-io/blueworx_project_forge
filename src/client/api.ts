@@ -136,17 +136,25 @@ export interface Submission {
   id: string;
   type: string;
   title: string;
-  status: string;
-  status_label?: string;
-  submitted_at?: number;
-  converted_to?: string;
-  history?: Array< { status: string; at: number; note?: string } >;
+  description: string;
+  desired_outcome: string;
+  evidence: string;
+  submitted_by: string;
+  intake_state: string;
+  intake_label: string;
+  /** The studio's reply, where it has given one. */
+  response: string;
+  /** The work this became, where it became any of this client's. */
+  converted: { id: string; title: string; stage: string; stage_label: string } | [];
+  created_at: number;
+  updated_at: number;
 }
 
 export interface SubmissionsView {
   ok: boolean;
   submissions: Submission[];
   states: Array< { slug: string; label: string } >;
+  contact: Contact | [];
   sync: Sync;
 }
 

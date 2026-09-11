@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.86.0] - 2026-09-11
+
+### Added
+
+- The workspace page's Bugs & requests is live: raise a bug, request, idea
+  or suggestion with a screenshot, and see everything your organisation has
+  sent with the studio's reply and the work it became. Views by state,
+  search, and a "check again" that reads the studio afresh.
+
 ## [2.85.0] - 2026-09-11
 
 ### Added
