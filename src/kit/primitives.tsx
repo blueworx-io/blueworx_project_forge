@@ -107,15 +107,17 @@ export function Card( {
   children,
   style,
   className,
+  testId,
 }: {
   tone?: 'surface' | 'sunken' | 'tint' | 'inverse';
   pad?: number;
   children: ReactNode;
   style?: CSSProperties;
   className?: string;
+  testId?: string;
 } ) {
   return (
-    <section className={ [ 'fk-card', className ].filter( Boolean ).join( ' ' ) } data-tone={ tone } style={ { padding: pad, ...style } }>
+    <section className={ [ 'fk-card', className ].filter( Boolean ).join( ' ' ) } data-tone={ tone } data-testid={ testId } style={ { padding: pad, ...style } }>
       { children }
     </section>
   );

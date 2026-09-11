@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.84.0] - 2026-09-11
+
+### Added
+
+- The workspace page's Dashboard is live: the checklist steps waiting on you,
+  where you stand on hours, your point of contact, work that is blocked or
+  late, what is coming up, and how launch is going. The same information as
+  the WordPress overview, in the new look.
+
 ## [2.83.0] - 2026-09-11
 
 ### Added

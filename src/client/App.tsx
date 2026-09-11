@@ -3,6 +3,7 @@ import { CalendarCheck, Columns3, Inbox, LayoutDashboard, Receipt, X } from 'luc
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card, EmptyState, SectionTitle, Tag, ToastProvider } from '../kit';
 import { clientData } from './data';
+import { Dashboard } from './screens/Dashboard';
 
 /*
  * The client workspace shell (#297): banner, header with the nav, the screen,
@@ -62,7 +63,7 @@ const SCREENS: Screen[] = [
 ];
 
 function screenFromHash(): ScreenName {
-  const hash = window.location.hash.replace( /^#/, '' );
+  const hash = window.location.hash.replace( /^#/, '' ).split( '/' )[ 0 ];
   return SCREENS.some( ( s ) => s.id === hash ) ? ( hash as ScreenName ) : 'dashboard';
 }
 
@@ -131,6 +132,9 @@ export function App() {
 
         <main className="fc-main">
           <SectionTitle sub={ current.sub }>{ current.title }</SectionTitle>
+          { 'dashboard' === screen && data ? (
+            <Dashboard />
+          ) : (
           <Card>
             <EmptyState
               icon={ current.icon }
@@ -149,6 +153,7 @@ export function App() {
               }
             />
           </Card>
+          ) }
         </main>
 
         <footer className="fc-footer">
