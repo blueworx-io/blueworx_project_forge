@@ -7,6 +7,7 @@ import { Dashboard } from './screens/Dashboard';
 import { Board } from './screens/Board';
 import { Requests } from './screens/Requests';
 import { Sales } from './screens/Sales';
+import { Onboarding } from './screens/Onboarding';
 
 /*
  * The client workspace shell (#297): banner, header with the nav, the screen,
@@ -151,6 +152,8 @@ export function App() {
             <Requests />
           ) : 'sales' === screen && data ? (
             <Sales />
+          ) : 'onboarding' === screen && data ? (
+            <Onboarding step={ route.sub } />
           ) : (
           <Card>
             <EmptyState

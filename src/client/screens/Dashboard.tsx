@@ -16,9 +16,7 @@ import { useView } from '../useView';
 
 const SECTION: Record< string, string > = {
   foundations: 'Foundations',
-  access: 'Access',
-  content: 'Content',
-  commerce: 'Commerce',
+  'build-reviews': 'Build reviews',
   launch: 'Launch',
 };
 

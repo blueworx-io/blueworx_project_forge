@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.88.0] - 2026-09-11
+
+### Added
+
+- The workspace page's Launch readiness is live: the checklist in its
+  sections, each step's status, whose it is, what is launch-critical and
+  what the reviewer said. Fill a step in, attach a file and send it to the
+  studio from the page. That completes the five client screens.
+
 ## [2.87.0] - 2026-09-11
 
 ### Added
