@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.91.0] - 2026-09-12
+
+### Changed
+
+- The studio's task record is on the new look: wider, the stage as a chip
+  with the id and due date beside the title, each section as its own panel,
+  the checks as rows with a glyph for where each stands, and the history as
+  a changelog. Every action works as before.
+
 ## [2.90.0] - 2026-09-11
 
 ### Changed

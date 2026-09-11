@@ -548,15 +548,23 @@ export function ItemPanel( {
         onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
       >
         <header className="bwx-panel-head">
-          <div style={ { flex: 1 } }>
-            <p className="bwx-eyebrow" data-testid="bwx-panel-stage">
-              { item ? label( item.stage ) : 'Loading' }
-              { ended && ` · ${ item.terminal_label }` }
-              { item?.archived && ' · archived' }
-            </p>
-            <h2 style={ { margin: '4px 0 0', fontSize: 'var(--text-subheading)', fontWeight: 500 } }>
-              { item?.title ?? '' }
-            </h2>
+          <div style={ { flex: 1, minWidth: 0 } }>
+            <h2 className="bwx-panel-title">{ item?.title ?? '' }</h2>
+            <div className="bwx-panel-marks">
+              <p className="fk-chip bwx-panel-stage" data-phase={ item ? phaseOf( item.stage ) : undefined } data-testid="bwx-panel-stage">
+                <span className="fk-dot" aria-hidden="true" />
+                { item ? label( item.stage ) : 'Loading' }
+                { ended && ` · ${ item.terminal_label }` }
+                { item?.archived && ' · archived' }
+              </p>
+              { item && (
+                <span className="bwx-mono bwx-panel-meta">
+                  { item.id.replace( 'wrk_', '' ).slice( 0, 8 ) }
+                  { item.planned_due && ` · due ${ item.planned_due }` }
+                  { 0 < item.blocked_elapsed && ` · blocked ${ forHowLong( item.blocked_elapsed ) }` }
+                </span>
+              ) }
+            </div>
           </div>
           <button
             type="button"
