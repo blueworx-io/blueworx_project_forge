@@ -190,3 +190,9 @@
     width: 100%;
   }
 }
+
+/* Anything that opens over the screen — an item, a drilldown — sits above the
+   sticky top bar, or its Close button ends up underneath "Lately". */
+.bwx-panel-scrim {
+  z-index: 60;
+}
