@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Admin;
 
+use Blueworx\Forge\Tenancy\Accounts;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Users;
@@ -35,6 +36,8 @@ final class PeopleActions {
 	 */
 	public static function boot(): void {
 		add_action( 'admin_post_bwx_forge_add_person', array( self::class, 'add_person' ) );
+		add_action( 'admin_post_bwx_forge_add_person_from_wp', array( self::class, 'add_person_from_wp' ) );
+		add_action( 'admin_post_bwx_forge_link_account', array( self::class, 'link_account' ) );
 		add_action( 'admin_post_bwx_forge_edit_person', array( self::class, 'edit_person' ) );
 		add_action( 'admin_post_bwx_forge_offboard_person', array( self::class, 'offboard_person' ) );
 		add_action( 'admin_post_bwx_forge_add_membership', array( self::class, 'add_membership' ) );
@@ -66,8 +69,126 @@ final class PeopleActions {
 			self::back( 'duplicate' );
 		}
 
+		// #292. The account comes first, because a person who cannot sign in is
+		// not a person we have added — they are a note about somebody. If
+		// WordPress refuses, nothing is stored, so a retry is a clean retry
+		// rather than a half-made person to tidy up.
+		$wp_user_id = Accounts::ensure(
+			(string) $checked['values']['display_name'],
+			(string) $checked['values']['email']
+		);
+
+		if ( $wp_user_id <= 0 ) {
+			self::back( 'noaccount' );
+		}
+
+		if ( null !== Users::by_wp_user( $wp_user_id ) ) {
+			self::back( 'duplicate' );
+		}
+
+		$checked['values']['wp_user_id'] = $wp_user_id;
+
 		if ( null === Users::create( $checked['values'], get_current_user_id() ) ) {
 			self::back( 'invalid' );
+		}
+
+		self::back( 'added' );
+	}
+
+	/**
+	 * Adds somebody who already has a WordPress account (#292).
+	 *
+	 * Their name and address come off the account rather than out of the form.
+	 * Two places to type the same fact is two places for it to differ, and the
+	 * account is the one they sign in with.
+	 */
+	public static function add_person_from_wp(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_add_person_from_wp' );
+
+		$account = Accounts::account( (int) self::field( 'wp_user_id' ) );
+
+		if ( null === $account ) {
+			self::back( 'unknown' );
+		}
+
+		if ( null !== Users::by_wp_user( (int) $account['id'] ) ) {
+			self::back( 'duplicate' );
+		}
+
+		$checked = Validate::user(
+			array(
+				'display_name' => (string) $account['display_name'],
+				'email'        => (string) $account['user_email'],
+				'wp_user_id'   => (int) $account['id'],
+			),
+			false
+		);
+
+		if ( array() !== $checked['errors'] ) {
+			self::back( 'invalid' );
+		}
+
+		if ( null !== Users::by_email( (string) $checked['values']['email'] ) ) {
+			self::back( 'duplicate' );
+		}
+
+		if ( null === Users::create( $checked['values'], get_current_user_id() ) ) {
+			self::back( 'invalid' );
+		}
+
+		self::back( 'added' );
+	}
+
+	/**
+	 * Gives somebody who was added before #292 the account they never had.
+	 *
+	 * Either an existing one they are joined to, or a new one made from the name
+	 * and address already on their record.
+	 */
+	public static function link_account(): void {
+		$user_id = self::field( 'user_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_link_account_' . $user_id );
+
+		$user = Users::get( $user_id );
+
+		if ( null === $user ) {
+			self::back( 'unknown' );
+		}
+
+		$chosen = (int) self::field( 'wp_user_id' );
+
+		$wp_user_id = $chosen > 0
+			? $chosen
+			: Accounts::ensure( (string) $user['display_name'], (string) $user['email'] );
+
+		if ( $wp_user_id <= 0 || null === Accounts::account( $wp_user_id ) ) {
+			self::back( 'noaccount' );
+		}
+
+		if ( null !== Accounts::link_error( Users::by_wp_user( $wp_user_id ), (string) $user['id'] ) ) {
+			self::back( 'duplicate' );
+		}
+
+		$updated = Users::update(
+			(string) $user['id'],
+			array( 'wp_user_id' => $wp_user_id ),
+			(int) self::field( 'record_version' )
+		);
+
+		if ( null === $updated ) {
+			self::back( 'stale' );
+		}
+
+		// An account that was already there wins: somebody joined to an existing
+		// login is joined to the person behind it, not renamed to match a record
+		// made about them. One we just made takes the record's name instead.
+		if ( $chosen > 0 ) {
+			Accounts::pull( $wp_user_id );
+		} else {
+			Accounts::push( $updated );
 		}
 
 		self::back( 'added' );
@@ -113,6 +234,16 @@ final class PeopleActions {
 			if ( null !== $holder && $holder['id'] !== $user['id'] ) {
 				self::back( 'duplicate' );
 			}
+
+			// #292. The same question asked of WordPress, before the write
+			// rather than after it. An address another account holds is refused
+			// there too, and finding that out afterwards would leave the two
+			// sides disagreeing about who somebody is.
+			$wp_holder = get_user_by( 'email', (string) $checked['values']['email'] );
+
+			if ( $wp_holder && (int) $wp_holder->ID !== (int) $user['wp_user_id'] ) {
+				self::back( 'duplicate' );
+			}
 		}
 
 		$version = (int) self::field( 'record_version' );
@@ -124,7 +255,16 @@ final class PeopleActions {
 			? Users::deactivate( $user['id'], $version, $checked['values'] )
 			: Users::update( $user['id'], $checked['values'], $version );
 
-		self::back( null === $updated ? 'stale' : 'added' );
+		if ( null === $updated ) {
+			self::back( 'stale' );
+		}
+
+		// #292. The account follows the person. Offboarding deliberately does
+		// not delete it — their history is attributed to it, and WordPress
+		// deleting a user reassigns or destroys everything they wrote.
+		Accounts::push( $updated );
+
+		self::back( 'added' );
 	}
 
 	/**

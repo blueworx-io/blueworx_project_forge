@@ -1,7 +1,7 @@
 {
   "name": "blueworx-forge",
   "private": true,
-  "version": "2.77.2",
+  "version": "2.78.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

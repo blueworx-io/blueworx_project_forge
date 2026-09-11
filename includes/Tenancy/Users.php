@@ -135,6 +135,26 @@ final class Users {
 	}
 
 	/**
+	 * Every WordPress account somebody here already holds (#292).
+	 *
+	 * Offboarded people are counted too. Their account is still theirs, and
+	 * offering it to somebody else to claim is how one person's history becomes
+	 * another person's.
+	 *
+	 * @return array<int, int> WordPress user ids.
+	 */
+	public static function linked_wp_ids(): array {
+		global $wpdb;
+
+		$table = Schema::users_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$ids = $wpdb->get_col( "SELECT wp_user_id FROM {$table} WHERE wp_user_id > 0" );
+
+		return array_map( 'intval', is_array( $ids ) ? $ids : array() );
+	}
+
+	/**
 	 * Every user, newest first.
 	 *
 	 * @param string|null $status Status to filter by, or null for all of them.

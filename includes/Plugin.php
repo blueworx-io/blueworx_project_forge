@@ -106,6 +106,9 @@ final class Plugin {
 		Admin\OnboardingTemplateActions::boot();
 
 		Tenancy\IntegrationEvents::boot();
+
+		// #292. Every person is a WordPress user, and the two are kept in step.
+		Tenancy\Accounts::boot();
 	}
 
 	/**

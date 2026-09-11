@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Admin;
 
+use Blueworx\Forge\Tenancy\Accounts;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Memberships;
@@ -77,6 +78,7 @@ final class PeopleScreen {
 		);
 
 		self::notice();
+		self::add_person_from_wp_form();
 		self::add_person_form();
 		self::people_list( $status );
 
@@ -139,6 +141,7 @@ final class PeopleScreen {
 			'stale'     => array( 'danger', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
 			'unknown'   => array( 'danger', __( 'No such record.', 'blueworx-forge' ) ),
 			'duplicate' => array( 'danger', __( 'Somebody already has that email address.', 'blueworx-forge' ) ),
+			'noaccount' => array( 'danger', __( 'WordPress would not make an account for them, so nothing was saved.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
@@ -216,7 +219,11 @@ final class PeopleScreen {
 	 * @param string                $status  The status filter in effect.
 	 */
 	private static function person_card( array $person, array $clients, string $status ): void {
-		printf( '<section class="bw-card" data-bwx-person="%s">', esc_attr( (string) $person['id'] ) );
+		printf(
+			'<section class="bw-card" data-bwx-person="%1$s" data-bwx-wp-user="%2$s">',
+			esc_attr( (string) $person['id'] ),
+			esc_attr( (string) $person['wp_user_id'] )
+		);
 
 		echo '<div class="bw-card__head"><div class="bw-card__titles">';
 		printf(
@@ -227,6 +234,7 @@ final class PeopleScreen {
 			'<p class="bw-fieldnote" data-bwx-person-email>%s</p>',
 			esc_html( (string) $person['email'] )
 		);
+		self::account_line( $person );
 		echo '</div>';
 
 		echo '<div class="bw-card__actions">';
@@ -245,10 +253,88 @@ final class PeopleScreen {
 
 		echo '<div class="bw-card__body">';
 		self::memberships_list( $person, $clients, $status );
+		self::link_account_form( $person );
 		self::edit_person_form( $person );
 		echo '</div>';
 
 		echo '</section>';
+	}
+
+	/**
+	 * The account this person signs in with, or the fact that they have none
+	 * (#292).
+	 *
+	 * Nobody added since #292 can be without one. Somebody added before it can,
+	 * and saying so on their card is the whole of the migration: the two ways of
+	 * fixing it are offered where the problem is visible, rather than in a
+	 * script that runs once and is never read again.
+	 *
+	 * @param array<string, mixed> $person The person.
+	 */
+	private static function account_line( array $person ): void {
+		$account = Accounts::account( (int) $person['wp_user_id'] );
+
+		if ( null === $account ) {
+			printf(
+				'<p class="bw-fieldnote" data-bwx-no-account="1">%s</p>',
+				esc_html__( 'No WordPress account — they cannot sign in.', 'blueworx-forge' )
+			);
+
+			return;
+		}
+
+		printf(
+			'<p class="bw-fieldnote" data-bwx-person-account="%1$s"><a href="%2$s">%3$s</a></p>',
+			esc_attr( (string) $account['id'] ),
+			esc_url( admin_url( 'user-edit.php?user_id=' . (int) $account['id'] ) ),
+			esc_html( sprintf( /* translators: %s: WordPress login name. */ __( 'Signs in as %s', 'blueworx-forge' ), (string) $account['login'] ) )
+		);
+	}
+
+	/**
+	 * The form that gives somebody added before #292 the account they never had.
+	 *
+	 * @param array<string, mixed> $person The person.
+	 */
+	private static function link_account_form( array $person ): void {
+		if ( (int) $person['wp_user_id'] > 0 ) {
+			return;
+		}
+
+		$id   = (string) $person['id'];
+		$free = Accounts::unlinked();
+
+		echo '<details data-bwx-link-account="' . esc_attr( $id ) . '">';
+		echo '<summary class="bw-rowactions__link">' . esc_html__( 'Give them an account', 'blueworx-forge' ) . '</summary>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_link_account_' . $id );
+		echo '<input type="hidden" name="action" value="bwx_forge_link_account">';
+		echo '<input type="hidden" name="user_id" value="' . esc_attr( $id ) . '">';
+		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $person['record_version'] ) . '">';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-link-account-' . esc_attr( $id ) . '">' . esc_html__( 'WordPress user', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><span class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-link-account-' . esc_attr( $id ) . '" name="wp_user_id">';
+		echo '<option value="0">' . esc_html__( 'Make them a new one', 'blueworx-forge' ) . '</option>';
+
+		foreach ( $free as $account ) {
+			printf(
+				'<option value="%1$s">%2$s</option>',
+				esc_attr( (string) $account['id'] ),
+				esc_html( $account['display_name'] . ' — ' . $account['user_email'] )
+			);
+		}
+
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'An existing account keeps its own name and address. A new one takes theirs.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
+
+		submit_button( __( 'Save account', 'blueworx-forge' ), 'bw-btn bw-btn--secondary', '', false );
+		echo '</form>';
+		echo '</details>';
 	}
 
 	/**
@@ -349,12 +435,76 @@ final class PeopleScreen {
 	}
 
 	/**
-	 * The form that adds a person.
+	 * The form that adds somebody who already has a WordPress account (#292).
+	 *
+	 * Offered first, and deliberately: most people are here before anybody
+	 * thinks to add them to Forge, and picking them is the route that cannot
+	 * produce a second account for somebody who already had one.
+	 *
+	 * Two forms rather than one with a choice in it. A single form would have to
+	 * make the name and address required or not depending on a dropdown, which
+	 * needs script to do honestly, and a form whose validation lies is worse
+	 * than two forms that are each clear about what they want.
+	 */
+	private static function add_person_from_wp_form(): void {
+		$free = Accounts::unlinked();
+
+		echo '<section class="bw-card" data-bwx-panel="add-person-from-wp">';
+		echo '<div class="bw-card__head"><div class="bw-card__titles">';
+		echo '<h2 class="bw-card__title">' . esc_html__( 'Add someone who already has an account', 'blueworx-forge' ) . '</h2>';
+		echo '</div></div>';
+
+		if ( array() === $free ) {
+			echo '<div class="bw-card__body"><div class="bw-empty" data-bwx-no-free-accounts="1">';
+			echo '<i class="bw-icon bw-empty__icon" data-lucide="user-check"></i>';
+			echo '<p class="bw-empty__title">' . esc_html__( 'Everyone with an account is already a person', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Add somebody new below and Forge will make them one.', 'blueworx-forge' ) . '</p>';
+			echo '</div></div></section>';
+
+			return;
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-person-from-wp>';
+		wp_nonce_field( 'bwx_forge_add_person_from_wp' );
+		echo '<input type="hidden" name="action" value="bwx_forge_add_person_from_wp">';
+
+		echo '<div class="bw-card__body">';
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-person-wp-user">' . esc_html__( 'WordPress user', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><span class="bw-select">';
+		echo '<select class="bw-select__el" id="bwx-person-wp-user" name="wp_user_id" required>';
+		echo '<option value="">' . esc_html__( 'Choose somebody', 'blueworx-forge' ) . '</option>';
+
+		foreach ( $free as $account ) {
+			printf(
+				'<option value="%1$s">%2$s</option>',
+				esc_attr( (string) $account['id'] ),
+				esc_html( $account['display_name'] . ' — ' . $account['user_email'] )
+			);
+		}
+
+		echo '</select>';
+		echo '<i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i>';
+		echo '</span>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'Their name and address come from the account they sign in with.', 'blueworx-forge' ) . '</p>';
+		echo '</div></div>';
+		echo '</div>';
+
+		echo '<div class="bw-card__foot">';
+		submit_button( __( 'Add them', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo '</div>';
+
+		echo '</form>';
+		echo '</section>';
+	}
+
+	/**
+	 * The form that adds a person who has no WordPress account yet.
 	 */
 	private static function add_person_form(): void {
 		echo '<section class="bw-card" data-bwx-panel="add-person">';
 		echo '<div class="bw-card__head"><div class="bw-card__titles">';
-		echo '<h2 class="bw-card__title">' . esc_html__( 'Add a person', 'blueworx-forge' ) . '</h2>';
+		echo '<h2 class="bw-card__title">' . esc_html__( 'Add somebody new', 'blueworx-forge' ) . '</h2>';
 		echo '</div></div>';
 
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-add-person>';
@@ -373,7 +523,7 @@ final class PeopleScreen {
 		echo '<label class="bw-formrow__label" for="bwx-person-email">' . esc_html__( 'Email', 'blueworx-forge' ) . '</label>';
 		echo '<div class="bw-formrow__control">';
 		echo '<input type="email" id="bwx-person-email" name="email" class="bw-input" required>';
-		echo '<p class="bw-formrow__help">' . esc_html__( 'One person, one address, however many clients they work with.', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-formrow__help">' . esc_html__( 'One person, one address, however many clients they work with. They get a WordPress account here, as a Subscriber. No email is sent.', 'blueworx-forge' ) . '</p>';
 		echo '</div></div>';
 
 		echo '</div>';
