@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.83.0] - 2026-09-11
+
+### Added
+
+- The client site now takes the workspace page's writes as well: a comment
+  or evidence on an item, a new bug or request, and an answer or a file on a
+  launch checklist step. Each goes through exactly what the WordPress form
+  for it already does, so nothing can be sent from one that cannot be sent
+  from the other.
+
 ## [2.82.0] - 2026-09-11
 
 ### Added

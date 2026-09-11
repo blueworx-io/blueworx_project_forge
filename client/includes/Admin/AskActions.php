@@ -113,9 +113,12 @@ final class AskActions {
 	 * whatever the browser was told, and on this route the browser is on the
 	 * other side of the internet.
 	 *
+	 * Public so the app's route (#298) sends a screenshot through exactly
+	 * this and no second copy of it.
+	 *
 	 * @return string The address, or ''.
 	 */
-	private static function screenshot_url(): string {
+	public static function screenshot_url(): string {
 		if ( ! current_user_can( 'upload_files' ) ) {
 			return '';
 		}
