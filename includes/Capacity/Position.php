@@ -147,19 +147,19 @@ final class Position {
 	}
 
 	/**
-	 * The whole grid: a position per person per week, and one for the period.
+	 * The whole grid: a position per person per column, and one for the range.
 	 *
 	 * One place rather than a loop in the controller, because the loop is where
 	 * the cost is. Everything is read once for the whole range and every cell
 	 * is a sum over what is already in memory.
 	 *
 	 * @param array<int, string>                          $user_ids The people.
-	 * @param array<int, array{from: string, to: string}> $weeks  The columns.
+	 * @param array<int, array{from: string, to: string}> $periods  The columns: days or weeks.
 	 * @param string                                      $from     YYYY-MM-DD, inclusive.
 	 * @param string                                      $to       YYYY-MM-DD, inclusive.
-	 * @return array<string, array{weeks: array<int, array<string, mixed>>, total: array<string, mixed>}>
+	 * @return array<string, array{periods: array<int, array<string, mixed>>, total: array<string, mixed>}>
 	 */
-	public static function grid( array $user_ids, array $weeks, string $from, string $to ): array {
+	public static function grid( array $user_ids, array $periods, string $from, string $to ): array {
 		$read = self::read( $user_ids, $from, $to );
 		$out  = array();
 
@@ -168,19 +168,19 @@ final class Position {
 			$committed = $read['committed'][ $user_id ]['by_day'] ?? array();
 			$cells     = array();
 
-			foreach ( $weeks as $week ) {
+			foreach ( $periods as $period ) {
 				$cells[] = array_merge(
 					array(
-						'from' => $week['from'],
-						'to'   => $week['to'],
+						'from' => $period['from'],
+						'to'   => $period['to'],
 					),
-					self::over( $days, $committed, $week['from'], $week['to'] )
+					self::over( $days, $committed, $period['from'], $period['to'] )
 				);
 			}
 
 			$out[ $user_id ] = array(
-				'weeks' => $cells,
-				'total' => self::over( $days, $committed, $from, $to ),
+				'periods' => $cells,
+				'total'   => self::over( $days, $committed, $from, $to ),
 			);
 		}
 

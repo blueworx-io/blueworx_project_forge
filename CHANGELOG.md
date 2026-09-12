@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.99.0] - 2026-09-12
+
+### Changed
+
+- Capacity opens on the next fourteen days, today first, with a day per
+  column. A Days / Weeks switch brings the eight-week view back.
+
 ## [2.97.1] - 2026-09-12
 
 ### Changed

@@ -125,6 +125,18 @@ final class CapacityPositionTest extends TestCase {
 		$this->assertCount( 3, $weeks );
 	}
 
+	public function test_a_range_splits_into_single_days(): void {
+		$days = Periods::days( '2026-09-12', '2026-09-14' );
+
+		$this->assertCount( 3, $days );
+		$this->assertSame( array( 'from' => '2026-09-12', 'to' => '2026-09-12' ), $days[0], 'a day is a period one day long' );
+		$this->assertSame( '2026-09-14', $days[2]['to'], 'the last day is the end of the range' );
+	}
+
+	public function test_a_backwards_range_has_no_days(): void {
+		$this->assertSame( array(), Periods::days( '2026-09-14', '2026-09-12' ) );
+	}
+
 	public function test_a_backwards_range_has_no_weeks(): void {
 		$this->assertSame( array(), Periods::weeks( '2026-09-22', '2026-09-09' ) );
 	}
