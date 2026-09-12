@@ -125,7 +125,7 @@ final class Frontend {
 			Admin\Screen::SLUG,
 			__( 'Workspace', 'blueworx-forge' ),
 			sprintf(
-				'<span class="%1$s">%2$s <span class="dashicons dashicons-external" aria-hidden="true" style="font-size:14px;width:14px;height:14px;vertical-align:-2px;"></span><span class="screen-reader-text"> %3$s</span></span>',
+				'<span class="%1$s">%2$s <span class="dashicons dashicons-external" aria-hidden="true"></span><span class="screen-reader-text"> %3$s</span></span>',
 				esc_attr( self::LINK_MARKER ),
 				esc_html__( 'Workspace', 'blueworx-forge' ),
 				esc_html__( '(opens in a new tab)', 'blueworx-forge' )
