@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // ARCH-1: one repo, two plugins. The studio plugin and the client plugin install
 // and activate independently on the same WordPress, and neither needs the other
@@ -13,14 +14,6 @@ test.beforeAll(() => {
     throw new Error('WP_ADMIN_USER and WP_ADMIN_PASS must be set.');
   }
 });
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 function clientRow(page) {
   // By plugin file, not by row id: WordPress builds the id from the plugin's

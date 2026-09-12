@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #89 across two real WordPress sites. The unit tests decide health from a
 // record and the single-instance suite proves the routes exist; only this
@@ -23,11 +24,7 @@ async function signedIn(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   const nonce = await page.evaluate(() => window.wpApiSettings?.nonce);
   await page.close();

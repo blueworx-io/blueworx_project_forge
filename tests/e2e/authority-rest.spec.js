@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
+import { signIn } from '../helpers/sign-in.js';
 
 // #112, #113, #114 and #115 against a real WordPress. The unit tests prove the
 // rules; these prove the routes ask them — and the one that matters most is the
@@ -42,7 +43,7 @@ test('no client role moves work, by any route, and the item is untouched', async
   // and may not move any of it.
   const theirs = await browser.newContext({ baseURL });
   const theirPage = await theirs.newPage();
-  await Forge.signInPage(theirPage, person.login, PASSWORD);
+  await signIn(theirPage, person.login, PASSWORD);
   await theirPage.goto('/blueworx-forge/');
   const theirNonce = await theirPage.evaluate(() => window.bwxForgeData?.nonce);
   await theirPage.close();
@@ -137,7 +138,7 @@ test('only the assigned Reviewer approves, and a substitute is recorded as one',
   // The person the item names may.
   const theirs = await browser.newContext({ baseURL });
   const theirPage = await theirs.newPage();
-  await Forge.signInPage(theirPage, reviewer.login, PASSWORD);
+  await signIn(theirPage, reviewer.login, PASSWORD);
   await theirPage.goto('/blueworx-forge/');
   const theirNonce = await theirPage.evaluate(() => window.bwxForgeData?.nonce);
   await theirPage.close();
@@ -201,7 +202,7 @@ test('a substitute may stand in, and the changelog says it was a substitute', as
 
   const theirs = await browser.newContext({ baseURL });
   const theirPage = await theirs.newPage();
-  await Forge.signInPage(theirPage, standin.login, PASSWORD);
+  await signIn(theirPage, standin.login, PASSWORD);
   await theirPage.goto('/blueworx-forge/');
   const theirNonce = await theirPage.evaluate(() => window.bwxForgeData?.nonce);
   await theirPage.close();

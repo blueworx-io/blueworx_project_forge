@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #195 and #197 together: setting a client site up is done in a browser, by an
 // administrator, with no file editing and no API calls.
@@ -27,11 +28,7 @@ async function dashboard(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   return { context, page };
 }

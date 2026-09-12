@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { signIn } from '../../helpers/sign-in.js';
 import { asSite } from '../../helpers/signing.js';
 
 // What every workflow spec needs to get an item as far as the thing it is
@@ -17,16 +18,6 @@ const BASE = '/wp-json/blueworx-forge/v1';
 /** The password every person this module creates signs in with. */
 export const PASSWORD = 'forge-test-pw-4471';
 
-export function signInPage(page, user, pass) {
-  return (async () => {
-    await page.goto('/wp-login.php?loggedout=true');
-    await page.fill('#user_login', user);
-    await page.fill('#user_pass', pass);
-    await page.click('#wp-submit');
-    await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-  })();
-}
-
 /**
  * A browser context signed in as somebody, with the REST nonce that context's
  * requests need. The nonce identifies the logged-in user to WordPress, so a
@@ -36,7 +27,7 @@ export async function signedIn(browser, baseURL, user, pass) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await signInPage(page, user, pass);
+  await signIn(page, user, pass);
   await page.goto('/blueworx-forge/');
 
   const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);

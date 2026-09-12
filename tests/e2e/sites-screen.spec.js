@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #195. Connecting a client site is an administrator's job done in a browser,
 // not a developer's job done with a signed API call.
@@ -8,18 +9,7 @@ import { test, expect } from '@playwright/test';
 // refresh, a "cut off" button that does nothing because its confirmation was
 // dismissed, an action that works for someone who is not logged in.
 
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
-
 const SCREEN = '/wp-admin/admin.php?page=blueworx-forge-sites';
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 async function registerSite(page, name) {
   await page.goto(SCREEN);

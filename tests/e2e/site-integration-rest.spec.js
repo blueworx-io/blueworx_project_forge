@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // Issue #89's routes against a real WordPress. The unit tests prove how health
 // is decided; only a real site proves the routes exist, the table is there, and
 // a key issued through them actually works.
-
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
 
 // Nothing here is ever deleted and idempotency keys are remembered for a day,
 // so every name this run writes carries the run with it. A suite that only
@@ -17,11 +15,7 @@ async function signedInContext(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/blueworx-forge/');
   const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);

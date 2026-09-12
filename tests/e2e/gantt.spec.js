@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, signInPage, makeSite, makeItem } from './helpers/forge.js';
+import { signedIn, makeSite, makeItem } from './helpers/forge.js';
+import { signIn } from '../helpers/sign-in.js';
 
 // The Gantt view (#120). What it has to say is the schedule — and, just as
 // much, what has no schedule. Work with no dates is the thing a Gantt
@@ -83,7 +84,7 @@ test.describe( 'the schedule', () => {
    * fail that test for a reason it is not about.
    */
   async function openSchedule( page ) {
-    await signInPage(
+    await signIn(
       page,
       process.env.WP_ADMIN_USER ?? 'admin',
       process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw'

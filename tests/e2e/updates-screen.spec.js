@@ -1,22 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #200 walked as an administrator walks it. The point of the screen is that a
 // site which cannot fetch its updates says so, rather than looking exactly like
 // a site that is up to date — so the assertions below are about what the screen
 // states, not about whether an option was written.
 
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
-
 const UPDATES = '/wp-admin/admin.php?page=blueworx-forge-updates';
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 async function removeStoredToken(page) {
   await page.goto(UPDATES);

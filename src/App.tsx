@@ -78,22 +78,21 @@ const VIEW_TITLES: Partial< Record< ViewName, string > > = {
 interface Opening {
   crumbs: string[];
   eyebrow: string;
-  description: string;
   tile: LucideIcon;
   hue: TileHue;
 }
 
 /** How each screen opens — the design's page header, drawn by the shell. */
 const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
-  mytasks: { crumbs: [ 'My day', 'My tasks' ], eyebrow: 'Your day and week', description: 'Every task that names you, on every client, from the same records as the board — so the counts always add up.', tile: ListChecks, hue: 'blue' },
-  work: { crumbs: [ 'Delivery', 'Kanban' ], eyebrow: 'Controlled workflow', description: 'Twelve fixed stages. Work moves forward one stage at a time, and only once that stage’s checks are done.', tile: Columns3, hue: 'teal' },
-  gantt: { crumbs: [ 'Delivery', 'Gantt' ], eyebrow: 'Schedule', description: 'The same records, the same filters and the same permissions as the board — only the shape changes.', tile: GanttChart, hue: 'violet' },
-  calendar: { crumbs: [ 'Delivery', 'Calendar' ], eyebrow: 'Key dates', description: 'The same records, the same filters and the same permissions as the board — only the shape changes.', tile: CalendarDays, hue: 'violet' },
-  capacity: { crumbs: [ 'Delivery', 'Capacity' ], eyebrow: 'Who has room', description: 'One person, one diary. Every job on every client counts once, so nobody looks free here and busy somewhere else.', tile: Gauge, hue: 'teal' },
-  requests: { crumbs: [ 'Intake', 'Requests review' ], eyebrow: 'Cross-client intake', description: 'Bugs, requests, ideas and suggestions from every client. Submissions are immutable source records; a decision always records a reason.', tile: Inbox, hue: 'amber' },
-  onboarding: { crumbs: [ 'Clients', 'Onboarding board' ], eyebrow: 'New-client setup', description: 'Every launch step for every client, who owns it, and what is still waiting on the client. A site cannot be marked Released while a launch-critical step is open.', tile: FileCheck2, hue: 'blue' },
-  standup: { crumbs: [ 'My day', 'Daily standup' ], eyebrow: 'Today', description: 'A working list, not another board. Things leave it when the problem behind them is fixed.', tile: Clock, hue: 'blue' },
-  reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', description: 'The figures behind the boards, for every client at once.', tile: BarChart3, hue: 'slate' },
+  mytasks: { crumbs: [ 'My day', 'My tasks' ], eyebrow: 'Your day and week', tile: ListChecks, hue: 'blue' },
+  work: { crumbs: [ 'Delivery', 'Kanban' ], eyebrow: 'Controlled workflow', tile: Columns3, hue: 'teal' },
+  gantt: { crumbs: [ 'Delivery', 'Gantt' ], eyebrow: 'Schedule', tile: GanttChart, hue: 'violet' },
+  calendar: { crumbs: [ 'Delivery', 'Calendar' ], eyebrow: 'Key dates', tile: CalendarDays, hue: 'violet' },
+  capacity: { crumbs: [ 'Delivery', 'Capacity' ], eyebrow: 'Who has room', tile: Gauge, hue: 'teal' },
+  requests: { crumbs: [ 'Intake', 'Requests review' ], eyebrow: 'Cross-client intake', tile: Inbox, hue: 'amber' },
+  onboarding: { crumbs: [ 'Clients', 'Onboarding board' ], eyebrow: 'New-client setup', tile: FileCheck2, hue: 'blue' },
+  standup: { crumbs: [ 'My day', 'Daily standup' ], eyebrow: 'Today', tile: Clock, hue: 'blue' },
+  reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -247,7 +246,7 @@ export function App() {
            ago. The work screen stays mounted across its three rail entries,
            because they are one screen.
          */ }
-        <PageHeader crumbs={ opening.crumbs } eyebrow={ opening.eyebrow } title={ title } description={ opening.description } tile={ opening.tile } hue={ opening.hue } />
+        <PageHeader crumbs={ opening.crumbs } eyebrow={ opening.eyebrow } title={ title } tile={ opening.tile } hue={ opening.hue } />
 
         { 'mytasks' === screen && <MyTasksScreen /> }
         { 'work' === screen && <WorkScreen view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } /> }
