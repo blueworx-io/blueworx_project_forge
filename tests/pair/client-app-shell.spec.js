@@ -44,14 +44,25 @@ test( 'a signed-in client sees the workspace shell on their own site', async ( {
   await client.context.close();
 } );
 
-test( 'the wp-admin menu links to the workspace', async ( { browser } ) => {
+test( 'the wp-admin menu links out to the workspace, first and in a new tab', async ( { browser } ) => {
   const client = await signedIn( browser, CLIENT_URL );
   const page = await client.context.newPage();
 
   await page.goto( '/wp-admin/admin.php?page=blueworx-forge-client' );
-  const link = page.locator( '#adminmenu' ).getByRole( 'link', { name: 'Open workspace' } );
-  await expect( link ).toBeVisible();
+
+  // The same shape as the studio's Board link: at the top of the Forge menu,
+  // marked as leaving the admin, and opening in a new tab so the screen
+  // somebody was on stays put.
+  const link = page.locator( '#adminmenu a', { has: page.locator( '.bwx-workspace-link' ) } );
+  await expect( link ).toHaveCount( 1 );
+  await expect( link ).toContainText( 'Workspace' );
   await expect( link ).toHaveAttribute( 'href', /\/forge\/?$/ );
+  await expect( link ).toHaveAttribute( 'target', '_blank' );
+  await expect( link.locator( '.dashicons-external' ) ).toHaveCount( 1 );
+  await expect( link ).toContainText( 'opens in a new tab' );
+
+  const forgeMenu = page.locator( '#adminmenu li', { has: page.locator( 'a[href="admin.php?page=blueworx-forge-client"]' ) } ).first();
+  await expect( forgeMenu.locator( '.wp-submenu li a' ).nth( 1 ), 'first below the menu title' ).toContainText( 'Workspace' );
 
   await page.close();
   await client.context.close();

@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.99.1] - 2026-09-13
+
+### Changed
+
+- The client site's Forge menu links to the workspace the way the studio's
+  links to the board: first in the menu, marked as leaving the admin, and
+  opening in a new tab.
+
+### Fixed
+
+- The client workspace page asks a site plugin that dresses pages in the
+  site's header and footer (Clubhouse) to leave it alone. It was coming out
+  wrapped in an unstyled header and footer.
+
 ## [2.99.0] - 2026-09-12
 
 ### Changed

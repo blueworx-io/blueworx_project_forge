@@ -32,6 +32,9 @@ final class Styles {
 	public static function css(): string {
 		return <<<'CSS'
 .bwx-work { margin-top: 1rem; }
+/* The Workspace link in the Forge menu leaves the admin, and says so with an
+   icon sized to the menu text rather than to a dashicon's default. */
+#adminmenu .bwx-workspace-link .dashicons { font-size: var(--bw-size-sm); width: var(--bw-size-sm); height: var(--bw-size-sm); vertical-align: text-bottom; }
 
 .bwx-columns {
 	display: flex;
