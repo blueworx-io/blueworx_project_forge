@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 import { signedIn, makeSite, makeItem } from './helpers/forge.js';
 
 // #123 and #124. One filter model behind every view, saved views that cannot
@@ -129,11 +130,7 @@ test.describe('views', () => {
     // both in the browser for the same filters and compares what they show —
     // the check the issue asks for, and the one that fails the day somebody
     // gives a view its own filtering.
-    await page.goto('/wp-login.php');
-    await page.fill('#user_login', process.env.WP_ADMIN_USER ?? 'admin');
-    await page.fill('#user_pass', process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw');
-    await page.click('#wp-submit');
-    await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+    await signIn(page);
 
     await page.goto('/blueworx-forge/');
     await page.selectOption('[data-testid="bwx-site"]', world.site.id);

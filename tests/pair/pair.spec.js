@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #86: one command yields a studio WordPress and a client WordPress, both
 // disposable, both real. The point is not that two servers are listening — it is
@@ -28,11 +29,7 @@ test('the client site answers, and it is a different site', async ({ request }) 
 });
 
 test('the client site has the client plugin active', async ({ page }) => {
-  await page.goto(`${CLIENT_URL}/wp-login.php`);
-  await page.fill('#user_login', process.env.WP_ADMIN_USER);
-  await page.fill('#user_pass', process.env.WP_ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page, process.env.WP_ADMIN_USER, process.env.WP_ADMIN_PASS, CLIENT_URL);
 
   await page.goto(`${CLIENT_URL}/wp-admin/plugins.php`, { waitUntil: 'domcontentloaded' });
 
@@ -45,11 +42,7 @@ test('the client site has the client plugin active', async ({ page }) => {
 test('the studio plugin is not installed on the client site', async ({ page }) => {
   // ARCH-1, proven on a running site rather than on a zip listing: the client
   // WordPress does not contain the command centre at all.
-  await page.goto(`${CLIENT_URL}/wp-login.php`);
-  await page.fill('#user_login', process.env.WP_ADMIN_USER);
-  await page.fill('#user_pass', process.env.WP_ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page, process.env.WP_ADMIN_USER, process.env.WP_ADMIN_PASS, CLIENT_URL);
 
   await page.goto(`${CLIENT_URL}/wp-admin/plugins.php`, { waitUntil: 'domcontentloaded' });
 
