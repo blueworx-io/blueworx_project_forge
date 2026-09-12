@@ -6,7 +6,7 @@ import { signedIn, makeSite, makePerson, makeItem, walkTo, onSupport } from './h
 // deleted and the instance is reused between runs, so every name carries a run
 // id or the spec passes once and fails for ever after.
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const STAMP = RUN_ID.replace('-', '');
 const PERSON = `capacity${STAMP}`;

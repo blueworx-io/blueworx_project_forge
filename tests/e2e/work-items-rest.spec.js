@@ -7,7 +7,7 @@ import * as Forge from './helpers/forge.js';
 // and — the one that matters — that a refused move leaves nothing behind.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 // Nothing is ever deleted and the instance is kept between runs, so everything
 // this run writes carries the run with it.

@@ -29,7 +29,7 @@ import { STUDIO, CLIENT } from './bin/wp-pair.mjs';
 process.env.PLAYWRIGHT_BASE_URL ??= `http://127.0.0.1:${STUDIO.port}`;
 process.env.BWX_CLIENT_BASE_URL ??= `http://127.0.0.1:${CLIENT.port}`;
 process.env.WP_ADMIN_USER ??= 'admin';
-process.env.WP_ADMIN_PASS ??= 'wptest-admin-pw';
+process.env.WP_ADMIN_PASS ??= 'admin';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL;
 

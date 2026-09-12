@@ -20,7 +20,7 @@ test.describe('write conventions', () => {
       browser,
       baseURL,
       process.env.WP_ADMIN_USER ?? 'admin',
-      process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw'
+      process.env.WP_ADMIN_PASS ?? 'admin'
     );
 
     const { client, site } = await makeSite(asAdmin.api, `${RUN} conventions`, RUN);

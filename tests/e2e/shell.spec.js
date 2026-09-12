@@ -11,7 +11,7 @@ const RUN = `shell${ Date.now() }`;
 test( 'every screen opens from the rail, and the work views are the rail', async ( { browser, baseURL } ) => {
   test.setTimeout( 240_000 );
 
-  const admin = await signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw' );
+  const admin = await signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
   const { site } = await makeSite( admin.api, `Shell Co ${ RUN }`, RUN );
   await makeItem( admin.api, site.id, { title: `Something to draw ${ RUN }` } );
 

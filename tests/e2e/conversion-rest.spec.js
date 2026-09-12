@@ -24,7 +24,7 @@ import {
 const RUN = `conv${Date.now()}`;
 
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
 
 /**
  * A client, a site, a signing key and one request sent from it.

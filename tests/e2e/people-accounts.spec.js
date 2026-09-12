@@ -12,7 +12,7 @@ import { signedIn } from './helpers/forge.js';
 // ever after.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const PEOPLE = '/wp-admin/admin.php?page=blueworx-forge-people';
 const PEOPLE_ALL = `${PEOPLE}&status=all`;

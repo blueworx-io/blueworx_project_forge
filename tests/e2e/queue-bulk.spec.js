@@ -10,7 +10,7 @@ const RUN = `bulk${ Date.now() }`;
 test( 'a bulk decline records the reason on every request picked', async ( { browser, baseURL, request } ) => {
   test.setTimeout( 240_000 );
 
-  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw' );
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
   const { site } = await Forge.makeSite( admin.api, `Bulk Co ${ RUN }`, RUN );
   const asSite = await Forge.asClientSite( admin.api, site.id, request );
 

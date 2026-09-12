@@ -19,7 +19,7 @@ import * as Forge from './helpers/forge.js';
 // carries a run id.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
 const CLIENTS = '/wp-admin/admin.php?page=blueworx-forge-clients';

@@ -26,7 +26,7 @@ test.describe( 'the schedule', () => {
       browser,
       baseURL,
       process.env.WP_ADMIN_USER ?? 'admin',
-      process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw'
+      process.env.WP_ADMIN_PASS ?? 'admin'
     );
 
     const { client, site } = await makeSite( admin.api, `${ RUN } schedule`, RUN );
@@ -87,7 +87,7 @@ test.describe( 'the schedule', () => {
     await signIn(
       page,
       process.env.WP_ADMIN_USER ?? 'admin',
-      process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw'
+      process.env.WP_ADMIN_PASS ?? 'admin'
     );
     await page.goto( '/blueworx-forge/' );
     await page.selectOption( '[data-testid="bwx-site"]', world.site.id );

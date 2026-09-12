@@ -14,7 +14,7 @@ import * as Forge from './helpers/forge.js';
 // The instance is kept between runs, so every name carries a run id.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';

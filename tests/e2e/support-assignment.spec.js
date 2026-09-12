@@ -18,7 +18,7 @@ import * as Forge from './helpers/forge.js';
 // every assertion is scoped to this run's own.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const PACKAGES = '/wp-admin/admin.php?page=blueworx-forge-packages';
