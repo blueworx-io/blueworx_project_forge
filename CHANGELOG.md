@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.97.2] - 2026-09-12
+
+### Fixed
+
+- Tests no longer fail at sign-in when the test server is slow: WordPress
+  focuses the username box a moment after the login page loads, and the
+  password could land there. Every spec now signs in through one helper that
+  waits for that first.
+
 ## [2.97.1] - 2026-09-12
 
 ### Changed
