@@ -1,22 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // The board screen (#117, #118, #119, #122). These drive the real app against a
 // real WordPress: the columns come from the stage registry, a drag is a
 // transition, and a refused move puts the card back rather than leaving the
 // board showing something that never happened.
 
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
-
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 async function seed(page, label) {
   return page.evaluate(async ({ label, runId }) => {
@@ -247,11 +237,7 @@ test.describe('the board', () => {
 
     await page.context().clearCookies();
 
-    await page.goto('/wp-login.php');
-    await page.fill('#user_login', login);
-    await page.fill('#user_pass', 'visitor-pw-9931');
-    await page.click('#wp-submit');
-    await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+    await signIn(page, login, 'visitor-pw-9931');
 
     await page.goto('/blueworx-forge/');
 

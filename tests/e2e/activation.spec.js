@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 const ADMIN_USER = process.env.WP_ADMIN_USER;
 const ADMIN_PASS = process.env.WP_ADMIN_PASS;
@@ -10,16 +11,6 @@ test.beforeAll(() => {
     throw new Error('WP_ADMIN_USER and WP_ADMIN_PASS must be set.');
   }
 });
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-  await page.goto('/wp-admin/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('#adminmenu')).toBeVisible();
-}
 
 test('the plugin is installed and active', async ({ page }) => {
   await signIn(page);

@@ -14,6 +14,14 @@ commits and pull requests.
 
 - The sentence under each studio screen's title is gone; the title and its
   eyebrow say enough.
+## [2.97.2] - 2026-09-12
+
+### Fixed
+
+- Tests no longer fail at sign-in when the test server is slow: WordPress
+  focuses the username box a moment after the login page loads, and the
+  password could land there. Every spec now signs in through one helper that
+  waits for that first.
 
 ## [2.97.1] - 2026-09-12
 

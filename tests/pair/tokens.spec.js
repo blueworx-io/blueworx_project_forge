@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -47,11 +48,7 @@ test('the client interface resolves the same token to the same value', async ({ 
   const context = await browser.newContext({ baseURL: CLIENT_URL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto(SCREEN);
 
@@ -74,11 +71,7 @@ test('the client plugin styles its own screen and no other', async ({ browser })
   const context = await browser.newContext({ baseURL: CLIENT_URL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/wp-admin/');
   await expect(page.locator('link#blueworx-forge-tokens-css')).toHaveCount(0);

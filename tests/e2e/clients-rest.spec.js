@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // The endpoints assembled against a real WordPress: unit tests can prove the
 // rules, but only a real site proves the routes are registered, the tables are
 // there, and the conventions are actually applied rather than merely available.
-
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
 
 // Idempotency keys are remembered for 24 hours (see Idempotency::TTL), and
 // nothing here is ever deleted — a hardcoded key or display name reused on a
@@ -18,11 +16,7 @@ async function signedInContext(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/blueworx-forge/');
   const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);

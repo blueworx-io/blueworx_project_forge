@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #193. Forge's interface has to look the same on every site, whatever theme is
 // active and whatever else is installed — and it must not change how the rest of
@@ -49,11 +50,7 @@ test('the app page references nothing from the active theme', async ({ page }) =
 test('the app page carries no admin bar', async ({ page, context }) => {
   // The admin bar is not just a bar: it brings its own stylesheet and pushes the
   // document down by 32px, which an app owning the viewport notices.
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', process.env.WP_ADMIN_USER ?? 'admin');
-  await page.fill('#user_pass', process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw');
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/blueworx-forge/');
 

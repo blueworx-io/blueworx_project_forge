@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #83, proven across two real WordPress sites: a client site can show which
 // client it is, and can be cut off.
@@ -24,11 +25,7 @@ async function signedIn(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   // wp-admin localises a REST nonce on every screen; the client site has no app
   // page of its own yet, so read it from there rather than from the front end.
