@@ -948,7 +948,8 @@ body.wp-admin.folded .bw-savebar{left:36px}
    time, Monday first, with whatever falls on a day listed under its number.
    The grid is a table so a screen reader gets the weekday for every cell for
    free. A day outside the month shown is sunk back rather than hidden, so the
-   weeks stay whole; today is the one marked cell. An entry is a washed tag
+   weeks stay whole — by its ground alone, since a fainter number on that
+   ground would not reach the contrast a reader needs. Today is the one marked cell. An entry is a washed tag
    whose leading word says what kind of date it is, and the kind carries the
    tone — a plugin names the kinds, the system colours them. */
 .bw-calendar{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--bw-surface-card);font-size:var(--bw-size-sm)}
@@ -957,7 +958,6 @@ body.wp-admin.folded .bw-savebar{left:36px}
 .bw-calendar thead th{text-align:left;font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold);padding:var(--bw-space-3) var(--bw-space-4);border-bottom:1px solid var(--bw-border-strong)}
 .bw-calendar__day{vertical-align:top;height:var(--bw-calendar-day-h);padding:var(--bw-space-3) var(--bw-space-4);border:1px solid var(--bw-border)}
 .bw-calendar__day--outside{background:var(--bw-surface-sunken)}
-.bw-calendar__day--outside .bw-calendar__daynum{color:var(--bw-text-faint)}
 .bw-calendar__daynum{display:inline-flex;align-items:center;justify-content:center;min-width:var(--bw-calendar-mark);height:var(--bw-calendar-mark);border-radius:var(--bw-radius-pill);font-family:var(--bw-font-display);font-size:var(--bw-size-sm);font-variant-numeric:tabular-nums;color:var(--bw-text-muted)}
 .bw-calendar__day--today .bw-calendar__daynum{background:var(--bw-brand);color:var(--bw-text-on-accent)}
 .bw-calendar__entries{list-style:none;margin:var(--bw-space-2) 0 0;padding:0;display:flex;flex-direction:column;gap:var(--bw-space-1)}
