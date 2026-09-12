@@ -38,6 +38,12 @@ final class Frontend {
 	public const HANDLE = 'blueworx-forge-client';
 
 	/**
+	 * Marks the menu link so a footer script can find it and send it to a new
+	 * tab — the same shape as the studio's Board link.
+	 */
+	private const LINK_MARKER = 'bwx-workspace-link';
+
+	/**
 	 * The single instance.
 	 *
 	 * @var Frontend|null
@@ -77,14 +83,38 @@ final class Frontend {
 		// and one insert ever.
 		add_action( 'admin_init', array( $this, 'create_app_page' ) );
 		add_action( 'admin_menu', array( $this, 'add_menu_link' ), 20 );
+		add_action( 'admin_print_footer_scripts', array( $this, 'open_link_in_a_new_tab' ) );
+
+		// A site plugin that dresses every page it does not draw itself in the
+		// site's header and footer — Clubhouse does — asks first. This page is
+		// a complete document with no theme, so the answer here is no.
+		add_filter(
+			'blueworx_clubhouse_dress_external_page',
+			fn( $answer ) => self::answer_for_site_chrome( is_bool( $answer ) ? $answer : null, $this->is_app_page() )
+		);
 	}
 
 	/**
-	 * A link to the page, at the top of the plugin's wp-admin menu.
+	 * Whether a site plugin may wrap a page in the site's own header and footer.
 	 *
-	 * A URL as the slug is how WordPress makes a menu entry that goes
-	 * somewhere rather than rendering something. Late, so it lands under the
-	 * overview rather than before it.
+	 * Pure, so the rule is testable: the workspace page says no whatever anyone
+	 * else said, and every other page is left to whoever asked.
+	 *
+	 * @param bool|null $answer      What the filter carries so far.
+	 * @param bool      $is_app_page Whether the request is the workspace page.
+	 * @return bool|null
+	 */
+	public static function answer_for_site_chrome( ?bool $answer, bool $is_app_page ): ?bool {
+		return $is_app_page ? false : $answer;
+	}
+
+	/**
+	 * A link to the page, first in the plugin's wp-admin menu.
+	 *
+	 * The same shape as the studio's Board link: a URL as the slug is how
+	 * WordPress makes a menu entry that goes somewhere rather than rendering
+	 * something, the external icon says it leaves the admin, and the footer
+	 * script below opens it in a new tab so the screen somebody was on stays.
 	 */
 	public function add_menu_link(): void {
 		if ( 0 === $this->app_page_id() ) {
@@ -94,9 +124,33 @@ final class Frontend {
 		add_submenu_page(
 			Admin\Screen::SLUG,
 			__( 'Workspace', 'blueworx-forge' ),
-			__( 'Open workspace', 'blueworx-forge' ),
+			sprintf(
+				'<span class="%1$s">%2$s <span class="dashicons dashicons-external" aria-hidden="true" style="font-size:14px;width:14px;height:14px;vertical-align:-2px;"></span><span class="screen-reader-text"> %3$s</span></span>',
+				esc_attr( self::LINK_MARKER ),
+				esc_html__( 'Workspace', 'blueworx-forge' ),
+				esc_html__( '(opens in a new tab)', 'blueworx-forge' )
+			),
 			'manage_options',
-			$this->app_page_url()
+			$this->app_page_url(),
+			'',
+			1
+		);
+	}
+
+	/**
+	 * Sends the menu link to a new tab. WordPress gives a menu entry no way to
+	 * carry a target, so it is set once the menu exists.
+	 */
+	public function open_link_in_a_new_tab(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		wp_print_inline_script_tag(
+			sprintf(
+				'( function () { var mark = document.querySelector( %1$s ); var link = mark ? mark.closest( "a" ) : null; if ( link ) { link.target = "_blank"; link.rel = "noopener"; } } )();',
+				wp_json_encode( '.' . self::LINK_MARKER )
+			)
 		);
 	}
 
