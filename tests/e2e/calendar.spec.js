@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, signInPage, makeSite, makeItem } from './helpers/forge.js';
+import { signedIn, makeSite, makeItem } from './helpers/forge.js';
+import { signIn } from '../helpers/sign-in.js';
 
 // The calendar view (#121). Four kinds of date live on a work item — when it
 // starts, when it is due, when it is meant to be reviewed and when it is meant
@@ -83,7 +84,7 @@ test.describe( 'the calendar', () => {
   } );
 
   async function openCalendar( page ) {
-    await signInPage(
+    await signIn(
       page,
       process.env.WP_ADMIN_USER ?? 'admin',
       process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw'

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #159 walked as the studio walks it. The point being proved is ONB-E2: an
 // issued version never changes again, and editing one means opening a copy.
@@ -6,20 +7,9 @@ import { test, expect } from '@playwright/test';
 // Nothing is ever deleted and the instance is kept between runs, so every name
 // carries a run id or the spec passes once and fails for ever after.
 
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
-
 const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 /** Starts a fresh draft and returns once its page is showing. */
 async function startDraft(page, name) {

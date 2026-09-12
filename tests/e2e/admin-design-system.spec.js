@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // The design system loads on the studio's own admin screens and on no others.
 //
@@ -6,14 +7,6 @@ import { test, expect } from '@playwright/test';
 // wp-admin, so without this the enqueue is uncovered — and the failure it would
 // miss is the loud one: a plugin that repaints the whole of somebody's
 // dashboard is a plugin they uninstall.
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', process.env.WP_ADMIN_USER ?? 'admin');
-  await page.fill('#user_pass', process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw');
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 const DESIGN_SYSTEM = 'link#blueworx-admin-design-css';
 

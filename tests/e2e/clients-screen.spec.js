@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // Adding a client should be an administrator's job in a browser, not a
 // developer's job with a signed API call — the same reason the sites screen
@@ -9,20 +10,9 @@ import { test, expect } from '@playwright/test';
 // a name unique to this run. A hardcoded name collides with whatever an
 // earlier run left behind and breaks the exact-match locators below.
 
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
-
 const SCREEN = '/wp-admin/admin.php?page=blueworx-forge-clients';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
-}
 
 async function addClient(page, name) {
   await page.goto(SCREEN);
@@ -147,11 +137,7 @@ test('the screen is not reachable by a logged-in user without the capability', a
   const context = await browser.newContext({ baseURL });
   const limitedPage = await context.newPage();
 
-  await limitedPage.goto('/wp-login.php');
-  await limitedPage.fill('#user_login', username);
-  await limitedPage.fill('#user_pass', password);
-  await limitedPage.click('#wp-submit');
-  await limitedPage.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(limitedPage, username, password);
 
   await limitedPage.goto(SCREEN);
   await expect(limitedPage.locator('body')).not.toContainText('Add a client');
