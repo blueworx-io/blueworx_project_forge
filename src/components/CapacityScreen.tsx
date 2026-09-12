@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   CapacityBand,
+  CapacityBy,
   CapacityCell,
   CapacityDrilldown,
   CapacityPosition,
@@ -12,7 +13,7 @@ import { Screen } from './States';
 /**
  * The studio's picture of who has room (#139).
  *
- * People down the side, weeks across the top. It draws what the server says and
+ * People down the side, days or weeks across the top. It draws what the server says and
  * works nothing out for itself — the moment a screen recalculates a total it is
  * showing a figure no gate ever refused on, and the two disagree in front of
  * whoever is trying to plan.
@@ -30,9 +31,22 @@ import { Screen } from './States';
  * days somebody is away.
  */
 
-/** Eight weeks from the Monday of this week: the question people actually ask. */
-function defaultRange(): { from: string; to: string } {
+/**
+ * The range a cut opens on. By the day, the next fourteen days from today:
+ * the question is who has room now. By the week, eight weeks from the Monday
+ * of this one: the shape of the quarter.
+ */
+function defaultRange( by: CapacityBy ): { from: string; to: string } {
   const today = new Date();
+
+  if ( 'days' === by ) {
+    const end = new Date( today );
+
+    end.setDate( today.getDate() + 13 );
+
+    return { from: iso( today ), to: iso( end ) };
+  }
+
   const monday = new Date( today );
 
   monday.setDate( today.getDate() - ( ( today.getDay() + 6 ) % 7 ) );
@@ -48,14 +62,25 @@ function iso( date: Date ): string {
   return date.toISOString().slice( 0, 10 );
 }
 
-/** A week header: the date it starts, with no year to repeat eight times. */
-function weekLabel( from: string ): string {
-  const [ , month, day ] = from.split( '-' );
+/**
+ * A column header: a day says which day it is, a week says the date it starts.
+ * No year on either — it would repeat across every column.
+ */
+function columnLabel( from: string, by: CapacityBy ): string {
+  const [ year, month, day ] = from.split( '-' );
+  const date = `${ Number( day ) } ${ MONTHS[ Number( month ) - 1 ] ?? '' }`.trim();
 
-  return `${ day } ${ MONTHS[ Number( month ) - 1 ] ?? '' }`.trim();
+  if ( 'weeks' === by ) {
+    return date;
+  }
+
+  const weekday = new Date( Date.UTC( Number( year ), Number( month ) - 1, Number( day ) ) ).getUTCDay();
+
+  return `${ WEEKDAYS[ weekday ] } ${ date }`;
 }
 
 const MONTHS = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ];
+const WEEKDAYS = [ 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat' ];
 
 /**
  * What a band means, in the words somebody would use about it.
@@ -100,7 +125,8 @@ function fill( position: CapacityPosition ): number {
 }
 
 export function CapacityScreen() {
-  const [ range, setRange ] = useState( defaultRange );
+  const [ by, setBy ] = useState< CapacityBy >( 'days' );
+  const [ range, setRange ] = useState( () => defaultRange( 'days' ) );
   const [ data, setData ] = useState< CapacityResponse | undefined >();
   const [ open, setOpen ] = useState< CapacityDrilldown | undefined >();
   const [ notice, setNotice ] = useState( '' );
@@ -108,13 +134,13 @@ export function CapacityScreen() {
 
   const load = useCallback( async () => {
     try {
-      setData( await api< CapacityResponse >( `/capacity?from=${ range.from }&to=${ range.to }` ) );
+      setData( await api< CapacityResponse >( `/capacity?from=${ range.from }&to=${ range.to }&by=${ by }` ) );
       setState( 'ready' );
     } catch ( failure ) {
       setNotice( messageFor( failure, 'The capacity picture could not be read.' ) );
       setState( isDenied( failure ) ? 'denied' : 'error' );
     }
-  }, [ range.from, range.to ] );
+  }, [ range.from, range.to, by ] );
 
   // Reading on mount, the same way the other screens do — and again when the
   // dates change, which is the one difference: the range is a control here, so
@@ -135,6 +161,17 @@ export function CapacityScreen() {
     setRange( next );
   }
 
+  /** Switching the cut also resets the range to the one that cut opens on. */
+  function cut( next: CapacityBy ) {
+    if ( next === by ) {
+      return;
+    }
+
+    setState( 'loading' );
+    setBy( next );
+    setRange( defaultRange( next ) );
+  }
+
   async function openCell( userId: string, from: string, to: string ) {
     try {
       setOpen( await api< CapacityDrilldown >( `/capacity/person/${ userId }?from=${ from }&to=${ to }` ) );
@@ -147,6 +184,29 @@ export function CapacityScreen() {
     <>
       <header className="bwx-header" data-testid="bwx-capacity-header">
         <span className="bwx-eyebrow">Capacity</span>
+
+        <div className="bwx-views" role="group" aria-label="Cut">
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'days' === by ? undefined : 'quiet' }
+            data-testid="bwx-capacity-by-days"
+            aria-pressed={ 'days' === by }
+            onClick={ () => cut( 'days' ) }
+          >
+            Days
+          </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'weeks' === by ? undefined : 'quiet' }
+            data-testid="bwx-capacity-by-weeks"
+            aria-pressed={ 'weeks' === by }
+            onClick={ () => cut( 'weeks' ) }
+          >
+            Weeks
+          </button>
+        </div>
 
         <label className="bwx-field-inline">
           <span>From</span>
@@ -226,16 +286,16 @@ export function CapacityScreen() {
         <div className="bwx-capacity">
           <table className="bwx-capacity-grid" data-testid="bwx-capacity-grid">
             <caption className="bwx-visually-hidden">
-              Available and committed hours per person, week by week
+              Available and committed hours per person, { 'days' === by ? 'day by day' : 'week by week' }
             </caption>
             <thead>
               <tr>
                 <th scope="col" className="bwx-capacity-person">
                   Person
                 </th>
-                { data.weeks.map( ( week ) => (
-                  <th key={ week.from } scope="col">
-                    { weekLabel( week.from ) }
+                { data.periods.map( ( period ) => (
+                  <th key={ period.from } scope="col" data-from={ period.from }>
+                    { columnLabel( period.from, data.by ) }
                   </th>
                 ) ) }
                 <th scope="col" className="bwx-capacity-total">
@@ -250,13 +310,13 @@ export function CapacityScreen() {
                     { person.display_name }
                   </th>
 
-                  { person.weeks.map( ( cell ) => (
+                  { person.periods.map( ( cell ) => (
                     <td key={ cell.from } data-band={ cell.band }>
                       <button
                         type="button"
                         className="bwx-capacity-cell"
                         data-testid={ `bwx-capacity-cell-${ person.user_id }-${ cell.from }` }
-                        aria-label={ `${ person.display_name }, week of ${ cell.from }: ${ BAND_WORD[ cell.band ] }` }
+                        aria-label={ `${ person.display_name }, ${ 'days' === data.by ? '' : 'week of ' }${ cell.from }: ${ BAND_WORD[ cell.band ] }` }
                         onClick={ () => void openCell( person.user_id, cell.from, cell.to ) }
                       >
                         <Cell cell={ cell } />
@@ -279,7 +339,7 @@ export function CapacityScreen() {
   );
 }
 
-/** One week for one person: the bar, then the figures. */
+/** One column for one person: the bar, then the figures. */
 function Cell( { cell }: { cell: CapacityCell } ) {
   if ( 'unrecorded' === cell.band ) {
     return <span className="bwx-capacity-unset">{ BAND_WORD.unrecorded }</span>;

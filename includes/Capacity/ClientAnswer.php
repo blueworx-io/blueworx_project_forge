@@ -167,7 +167,7 @@ final class ClientAnswer {
 			$column = array();
 
 			foreach ( $ids as $user_id ) {
-				$column[ $user_id ] = $grid[ $user_id ]['weeks'][ $index ];
+				$column[ $user_id ] = $grid[ $user_id ]['periods'][ $index ];
 			}
 
 			$weeks[] = array(

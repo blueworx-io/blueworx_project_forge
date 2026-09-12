@@ -30,6 +30,22 @@ test('the studio can see who has room', async ({ page }) => {
   await expect(grid.locator('tbody tr')).not.toHaveCount(0);
 });
 
+test('it opens on the next fourteen days, today first, and can be read by week instead', async ({ page }) => {
+  const grid = await openCapacity(page);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // A day per column, starting today: the question is "who has room now",
+  // not "who had room on Monday".
+  await expect(page.getByTestId('bwx-capacity-by-days')).toHaveAttribute('aria-pressed', 'true');
+  await expect(grid.locator('thead th[data-from]')).toHaveCount(14);
+  await expect(grid.locator('thead th[data-from]').first()).toHaveAttribute('data-from', today);
+
+  await page.getByTestId('bwx-capacity-by-weeks').click();
+
+  await expect(page.getByTestId('bwx-capacity-by-weeks')).toHaveAttribute('aria-pressed', 'true');
+  await expect(grid.locator('thead th[data-from]')).toHaveCount(8);
+});
+
 test('every figure opens to the work behind it', async ({ page }) => {
   const grid = await openCapacity(page);
 

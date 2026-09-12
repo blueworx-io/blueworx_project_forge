@@ -126,6 +126,23 @@ test('a person on two clients shows one combined commitment', async ({ browser, 
   await context.close();
 });
 
+test('the grid can be cut by day, and is cut by week unless asked', async ({ browser, baseURL }) => {
+  const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+
+  const byDay = await api.get(`/capacity?from=${FROM}&to=${TO}&by=days`);
+
+  expect(byDay.by).toBe('days');
+  expect(byDay.periods, 'Monday to Friday is five days').toHaveLength(5);
+  expect(byDay.periods[0]).toEqual({ from: FROM, to: FROM });
+
+  const byWeek = await api.get(`/capacity?from=${FROM}&to=${TO}`);
+
+  expect(byWeek.by).toBe('weeks');
+  expect(byWeek.periods, 'and one week').toHaveLength(1);
+
+  await context.close();
+});
+
 test('a signed-out caller gets nothing', async ({ request }) => {
   const response = await request.get(`/wp-json/blueworx-forge/v1/capacity?from=${FROM}&to=${TO}`);
 

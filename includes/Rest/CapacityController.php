@@ -72,7 +72,16 @@ final class CapacityController {
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => $scope,
-				'args'                => $window,
+				'args'                => array_merge(
+					$window,
+					array(
+						'by' => array(
+							'type'    => 'string',
+							'enum'    => array( 'days', 'weeks' ),
+							'default' => 'weeks',
+						),
+					)
+				),
 			)
 		);
 
@@ -90,7 +99,11 @@ final class CapacityController {
 	}
 
 	/**
-	 * Everybody, week by week.
+	 * Everybody, by the day or by the week.
+	 *
+	 * The cut is the caller's: a day per column answers who has room now, a
+	 * week per column answers the quarter. Both are sums over the same days,
+	 * so neither can disagree with the other.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
@@ -116,14 +129,15 @@ final class CapacityController {
 			$people
 		);
 
-		$weeks = Periods::weeks( $from, $to );
+		$by      = (string) $request->get_param( 'by' );
+		$periods = 'days' === $by ? Periods::days( $from, $to ) : Periods::weeks( $from, $to );
 
 		/*
 		 * One call for the whole grid. Asking week by week meant reading every
 		 * person's availability once per column, which on a quarter and a full
 		 * studio was hundreds of queries and a screen that never arrived.
 		 */
-		$grid = Position::grid( $ids, $weeks, $from, $to );
+		$grid = Position::grid( $ids, $periods, $from, $to );
 		$rows = array();
 
 		foreach ( $people as $person ) {
@@ -132,17 +146,18 @@ final class CapacityController {
 			$rows[] = array(
 				'user_id'      => $id,
 				'display_name' => (string) $person['display_name'],
-				'weeks'        => $grid[ $id ]['weeks'],
+				'periods'      => $grid[ $id ]['periods'],
 				'total'        => $grid[ $id ]['total'],
 			);
 		}
 
 		return new WP_REST_Response(
 			array(
-				'from'   => $from,
-				'to'     => $to,
-				'weeks'  => $weeks,
-				'people' => $rows,
+				'from'    => $from,
+				'to'      => $to,
+				'by'      => 'days' === $by ? 'days' : 'weeks',
+				'periods' => $periods,
+				'people'  => $rows,
 			),
 			200
 		);

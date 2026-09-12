@@ -30,6 +30,11 @@ final class Periods {
 	public const MAX_WEEKS = 160;
 
 	/**
+	 * The most days one call will produce: the same year and a bit, by the day.
+	 */
+	public const MAX_DAYS = 370;
+
+	/**
 	 * The weeks a range covers.
 	 *
 	 * @param string $from YYYY-MM-DD, inclusive.
@@ -58,6 +63,38 @@ final class Periods {
 		}
 
 		return $weeks;
+	}
+
+	/**
+	 * The days a range covers, each its own period.
+	 *
+	 * The same shape as weeks() so the grid needs no second code path: a day
+	 * is a period one day long, and a cell over it is that day's position.
+	 *
+	 * @param string $from YYYY-MM-DD, inclusive.
+	 * @param string $to   YYYY-MM-DD, inclusive.
+	 * @return array<int, array{from: string, to: string}>
+	 */
+	public static function days( string $from, string $to ): array {
+		if ( '' === $from || '' === $to || $to < $from ) {
+			return array();
+		}
+
+		$days = array();
+		$day  = $from;
+		$made = 0;
+
+		while ( $day <= $to && $made < self::MAX_DAYS ) {
+			$days[] = array(
+				'from' => $day,
+				'to'   => $day,
+			);
+
+			$day = self::next_day( $day );
+			++$made;
+		}
+
+		return $days;
 	}
 
 	/**
