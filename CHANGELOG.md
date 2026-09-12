@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.97.3] - 2026-09-12
+
+### Changed
+
+- The sentence under each studio screen's title is gone; the title and its
+  eyebrow say enough.
 ## [2.97.2] - 2026-09-12
 
 ### Fixed
