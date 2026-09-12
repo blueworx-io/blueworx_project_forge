@@ -22,6 +22,11 @@ use Blueworx\Forge\Client\Layout;
  * Each date is its own entry rather than one mark per item, so a due date and a
  * release target a fortnight apart read as two things happening, which is what
  * they are.
+ *
+ * Drawn from the design system's month grid (#286): the grid, the month bar,
+ * the days and the entries are all its classes, and nothing here is styled by
+ * hand. What this screen adds is the data — which month, which day, what kind
+ * of date — and the system decides how each of those looks.
  */
 final class CalendarScreen {
 
@@ -29,6 +34,20 @@ final class CalendarScreen {
 	 * The submenu page slug.
 	 */
 	public const SLUG = 'blueworx-forge-client-calendar';
+
+	/**
+	 * The design system tone each kind of date takes: a start is information,
+	 * a due date is a warning, a review is the studio's own accent, a release
+	 * is success.
+	 *
+	 * @var array<string, string>
+	 */
+	private const TONES = array(
+		'starts'  => 'info',
+		'due'     => 'warning',
+		'review'  => 'accent',
+		'release' => 'success',
+	);
 
 	/**
 	 * Adds the menu entry.
@@ -68,16 +87,18 @@ final class CalendarScreen {
 
 		self::months( $anchor );
 
-		echo '<table class="bwx-calendar" data-testid="bwx-calendar">';
+		echo '<table class="bw-calendar" data-testid="bwx-calendar">';
 		self::head();
 
 		echo '<tbody>';
+
+		$today = current_time( 'Y-m-d' );
 
 		foreach ( array_chunk( $days, 7 ) as $week ) {
 			echo '<tr>';
 
 			foreach ( $week as $day ) {
-				self::day( $day, $anchor, $entries[ $day ] ?? array() );
+				self::day( $day, $anchor, $today, $entries[ $day ] ?? array() );
 			}
 
 			echo '</tr>';
@@ -120,20 +141,23 @@ final class CalendarScreen {
 	private static function months( string $anchor ): void {
 		$stamp = (int) strtotime( $anchor . ' 00:00:00 UTC' );
 
-		echo '<nav class="bwx-months" data-testid="bwx-months">';
-
 		printf(
-			'<a href="%1$s">%2$s</a>',
-			esc_url( self::url( gmdate( 'Y-m', (int) strtotime( '-1 month', $stamp ) ) ) ),
-			esc_html__( 'Previous', 'blueworx-forge' )
+			'<nav class="bw-calendar__nav" data-testid="bwx-months" aria-label="%s">',
+			esc_attr__( 'Month', 'blueworx-forge' )
 		);
 
-		printf( '<strong data-testid="bwx-month-name">%s</strong>', esc_html( gmdate( 'F Y', $stamp ) ) );
+		printf(
+			'<a class="bw-btn bw-btn--ghost bw-btn--sm" href="%1$s" aria-label="%2$s"><i class="bw-icon" data-lucide="chevron-left"></i></a>',
+			esc_url( self::url( gmdate( 'Y-m', (int) strtotime( '-1 month', $stamp ) ) ) ),
+			esc_attr__( 'Previous month', 'blueworx-forge' )
+		);
+
+		printf( '<h2 class="bw-calendar__month" data-testid="bwx-month-name">%s</h2>', esc_html( gmdate( 'F Y', $stamp ) ) );
 
 		printf(
-			'<a href="%1$s">%2$s</a>',
+			'<a class="bw-btn bw-btn--ghost bw-btn--sm" href="%1$s" aria-label="%2$s"><i class="bw-icon" data-lucide="chevron-right"></i></a>',
 			esc_url( self::url( gmdate( 'Y-m', (int) strtotime( '+1 month', $stamp ) ) ) ),
-			esc_html__( 'Next', 'blueworx-forge' )
+			esc_attr__( 'Next month', 'blueworx-forge' )
 		);
 
 		echo '</nav>';
@@ -175,28 +199,56 @@ final class CalendarScreen {
 	/**
 	 * One day.
 	 *
+	 * The cell carries its short weekday name and whether it is empty, because
+	 * under phone width the system draws the month as a list of the days that
+	 * have something on them, and reads both from here.
+	 *
 	 * @param string                           $day     YYYY-MM-DD.
 	 * @param string                           $anchor  The first of the month shown.
+	 * @param string                           $today   Today, YYYY-MM-DD, in the site's own time.
 	 * @param array<int, array<string, mixed>> $entries What falls on it.
 	 */
-	private static function day( string $day, string $anchor, array $entries ): void {
-		$outside = substr( $day, 0, 7 ) !== substr( $anchor, 0, 7 );
+	private static function day( string $day, string $anchor, string $today, array $entries ): void {
+		$stamp   = (int) strtotime( $day . ' 00:00:00 UTC' );
+		$classes = array( 'bw-calendar__day' );
+
+		if ( substr( $day, 0, 7 ) !== substr( $anchor, 0, 7 ) ) {
+			$classes[] = 'bw-calendar__day--outside';
+		}
+
+		if ( $day === $today ) {
+			$classes[] = 'bw-calendar__day--today';
+		}
+
+		if ( array() === $entries ) {
+			$classes[] = 'bw-calendar__day--empty';
+		}
 
 		printf(
-			'<td class="%1$s" data-testid="bwx-calendar-day" data-bwx-day="%2$s">',
-			esc_attr( $outside ? 'bwx-calendar-outside' : '' ),
+			'<td class="%1$s" data-weekday="%2$s" data-testid="bwx-calendar-day" data-bwx-day="%3$s">',
+			esc_attr( implode( ' ', $classes ) ),
+			esc_attr( gmdate( 'D', $stamp ) ),
 			esc_attr( $day )
 		);
 
-		printf( '<span class="bwx-calendar-daynum">%s</span>', esc_html( (string) (int) substr( $day, 8, 2 ) ) );
+		printf( '<span class="bw-calendar__daynum">%s</span>', esc_html( (string) (int) substr( $day, 8, 2 ) ) );
 
-		foreach ( $entries as $entry ) {
-			printf(
-				'<span class="bwx-calendar-entry" data-testid="bwx-calendar-entry" data-bwx-kind="%1$s"><span class="bwx-calendar-kind">%2$s</span> %3$s</span>',
-				esc_attr( (string) $entry['kind'] ),
-				esc_html( self::kind_label( (string) $entry['kind'] ) ),
-				esc_html( (string) ( $entry['item']['title'] ?? '' ) )
-			);
+		if ( array() !== $entries ) {
+			echo '<ul class="bw-calendar__entries">';
+
+			foreach ( $entries as $entry ) {
+				$kind = (string) $entry['kind'];
+
+				printf(
+					'<li class="bw-calendar__entry bw-calendar__entry--%1$s" data-testid="bwx-calendar-entry" data-bwx-kind="%2$s"><span class="bw-calendar__kind">%3$s</span> %4$s</li>',
+					esc_attr( self::TONES[ $kind ] ?? 'info' ),
+					esc_attr( $kind ),
+					esc_html( self::kind_label( $kind ) ),
+					esc_html( (string) ( $entry['item']['title'] ?? '' ) )
+				);
+			}
+
+			echo '</ul>';
 		}
 
 		echo '</td>';

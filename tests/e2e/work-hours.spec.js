@@ -14,7 +14,7 @@ import * as Forge from './helpers/forge.js';
 // every site here is this run's own and every assertion is scoped to it.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 // Ten for the Primary User, and CAP-2 seeds two and one for the other seats.

@@ -10,7 +10,7 @@ import * as Forge from './helpers/forge.js';
 // configuring is still there when they come back.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 test('the Forge menu links out to the board, in a new tab', async ({ browser, baseURL }) => {
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);

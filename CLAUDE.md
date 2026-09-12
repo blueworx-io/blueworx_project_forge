@@ -30,7 +30,7 @@ Every build or change starts from an approved GitHub Issue.
 - Test against the **local WordPress harness**, not a hosted staging site. One command,
   no Docker, uses your own PHP:
   `node ../bluegroup_core_foundation/scripts/wp-test-env.mjs up --plugin .`
-  then `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8881 WP_ADMIN_USER=admin WP_ADMIN_PASS=wptest-admin-pw npx playwright test --workers=1`
+  then `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8881 WP_ADMIN_USER=admin WP_ADMIN_PASS=admin npx playwright test --workers=1`
 - In CI, pass `use_local_wordpress: true` instead of `preview_url`. Add `.wp-test/` to `.gitignore`
 - **A skipped test is not a passing test.** CI fails a run that executes zero tests, because
   a placeholder URL once let a whole suite skip itself while reporting green for months
@@ -209,7 +209,7 @@ npm run wp:down
 ```
 
 The instance lives in `.wp-test/` (git-ignored) and ships its own `admin` /
-`wptest-admin-pw` account. CI provisions the same thing.
+`admin` account. CI provisions the same thing.
 
 ## Testing the studio and a client site together
 
@@ -229,7 +229,7 @@ suite leaves behind does cost something — on a week-old instance the same spec
 file took 5.4 minutes against 4.4 on a fresh one — so `wp:pair:reset` when a
 run starts feeling slow.
 
-Two separate installs, same throwaway `admin` / `wptest-admin-pw` login on both.
+Two separate installs, same throwaway `admin` / `admin` login on both.
 The studio site links this repo, so edits are live. The client site links a
 **staged** copy built from the client allowlist in `bin/artifacts.json` — the
 client plugin lives under `client/` but also needs `plugin-update-checker` from

@@ -1,0 +1,53 @@
+<!-- @dsCard group="Components" viewport="900x520" name="Data — calendar" subtitle="Dates on the month they fall in, read a month at a time" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Data — calendar</title><link rel="stylesheet" href="../../styles.css">
+<script type="module" src="../../assets/icons/lucide-icons.js"></script>
+<style>body{margin:0;background:var(--bw-surface-page)}.pad{padding:20px}</style></head>
+<body class="bw-admin">
+<div class="pad">
+<div class="bw-card">
+  <div class="bw-card__body">
+    <nav class="bw-calendar__nav" aria-label="Month">
+      <a class="bw-btn bw-btn--ghost bw-btn--sm" href="#" aria-label="Previous month"><i class="bw-icon" data-lucide="chevron-left"></i></a>
+      <h2 class="bw-calendar__month">September 2026</h2>
+      <a class="bw-btn bw-btn--ghost bw-btn--sm" href="#" aria-label="Next month"><i class="bw-icon" data-lucide="chevron-right"></i></a>
+    </nav>
+    <table class="bw-calendar">
+      <thead><tr><th scope="col">Monday</th><th scope="col">Tuesday</th><th scope="col">Wednesday</th><th scope="col">Thursday</th><th scope="col">Friday</th><th scope="col">Saturday</th><th scope="col">Sunday</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="bw-calendar__day bw-calendar__day--outside bw-calendar__day--empty" data-weekday="Mon"><span class="bw-calendar__daynum">31</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Tue"><span class="bw-calendar__daynum">1</span></td>
+          <td class="bw-calendar__day" data-weekday="Wed"><span class="bw-calendar__daynum">2</span>
+            <ul class="bw-calendar__entries"><li class="bw-calendar__entry bw-calendar__entry--info"><span class="bw-calendar__kind">Starts</span> Autumn campaign pages</li></ul></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Thu"><span class="bw-calendar__daynum">3</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Fri"><span class="bw-calendar__daynum">4</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Sat"><span class="bw-calendar__daynum">5</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Sun"><span class="bw-calendar__daynum">6</span></td>
+        </tr>
+        <tr>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Mon"><span class="bw-calendar__daynum">7</span></td>
+          <td class="bw-calendar__day" data-weekday="Tue"><span class="bw-calendar__daynum">8</span>
+            <ul class="bw-calendar__entries"><li class="bw-calendar__entry bw-calendar__entry--accent"><span class="bw-calendar__kind">Review</span> Members area</li></ul></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Wed"><span class="bw-calendar__daynum">9</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Thu"><span class="bw-calendar__daynum">10</span></td>
+          <td class="bw-calendar__day" data-weekday="Fri"><span class="bw-calendar__daynum">11</span>
+            <ul class="bw-calendar__entries"><li class="bw-calendar__entry bw-calendar__entry--warning"><span class="bw-calendar__kind">Due</span> Checkout copy</li><li class="bw-calendar__entry bw-calendar__entry--warning"><span class="bw-calendar__kind">Due</span> Header fix</li></ul></td>
+          <td class="bw-calendar__day bw-calendar__day--today bw-calendar__day--empty" data-weekday="Sat"><span class="bw-calendar__daynum">12</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Sun"><span class="bw-calendar__daynum">13</span></td>
+        </tr>
+        <tr>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Mon"><span class="bw-calendar__daynum">14</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Tue"><span class="bw-calendar__daynum">15</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Wed"><span class="bw-calendar__daynum">16</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Thu"><span class="bw-calendar__daynum">17</span></td>
+          <td class="bw-calendar__day" data-weekday="Fri"><span class="bw-calendar__daynum">18</span>
+            <ul class="bw-calendar__entries"><li class="bw-calendar__entry bw-calendar__entry--success"><span class="bw-calendar__kind">Release</span> Members area</li></ul></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Sat"><span class="bw-calendar__daynum">19</span></td>
+          <td class="bw-calendar__day bw-calendar__day--empty" data-weekday="Sun"><span class="bw-calendar__daynum">20</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+</body></html>

@@ -25,7 +25,7 @@ async function estate(browser, baseURL) {
     browser,
     baseURL,
     process.env.WP_ADMIN_USER ?? 'admin',
-    process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw'
+    process.env.WP_ADMIN_PASS ?? 'admin'
   );
 
   const admin = asAdmin.api;

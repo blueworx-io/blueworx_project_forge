@@ -194,6 +194,17 @@ Styling lives in `.css` files beside each group (`core.css`, `forms.css` + `form
 that cannot ship React can use the classes alone: `.bw-btn.bw-btn--primary`, `.bw-card`,
 `.bw-table`, `.bw-formrow`, and so on.
 
+Two patterns exist only as classes, because they are read rather than operated and every
+screen that shows one is PHP: `.bw-schedule`, a gantt with the controls taken off, and
+`.bw-calendar`, a month grid. The calendar is a `table` with `.bw-calendar__day` cells,
+each holding a `.bw-calendar__daynum` and a `.bw-calendar__entries` list; a day outside the
+month is `--outside`, today is `--today`, and an entry's leading `.bw-calendar__kind` word
+takes its tone from an `--accent`, `--success`, `--warning`, `--danger` or `--info`
+modifier on the entry. Every day cell carries its short weekday name in `data-weekday`, and a day
+with nothing on it is also `--empty`: under 782px the grid becomes a list of the days that have
+something on them, and those are what it reads. Its `.bw-calendar__nav` is two ghost buttons around a
+`.bw-calendar__month` heading. See `components/data/data-calendar.card.html`.
+
 ### Which control for which job
 
 | Job | Use |
@@ -214,6 +225,7 @@ that cannot ship React can use the classes alone: `.bw-btn.bw-btn--primary`, `.b
 | Optional or advanced settings | `Accordion` |
 | Derived figures that stay put while tabs change | `SummaryStrip` |
 | Phases against a week or date scale | `Gantt` |
+| Dates on the month they fall in | `.bw-calendar` (classes only) |
 
 ### Intentional additions
 

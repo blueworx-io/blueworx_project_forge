@@ -12,7 +12,7 @@ const on = ( offset ) => new Date( Date.now() + offset * DAY ).toISOString().sli
 test( 'the four views reconcile, and each opens the item', async ( { browser, baseURL } ) => {
   test.setTimeout( 300_000 );
 
-  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw' );
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
   const { client, site } = await Forge.makeSite( admin.api, `Mine Co ${ RUN }`, RUN );
   const other = await Forge.makeSite( admin.api, `Other Co ${ RUN }`, `${ RUN }b` );
   const person = await Forge.makePerson( admin.api, client.id, 'staff', `mine${ RUN }` );

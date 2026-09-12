@@ -236,6 +236,10 @@
   --bw-gantt-bar-inset:3px;
   --bw-gantt-key-size:10px;
   --bw-gantt-hidden-opacity:.45; /* @kind other */
+  /* Calendar. A day cell is tall enough to hold a number and three entries
+     before it grows; the today mark is sized to the number it sits behind. */
+  --bw-calendar-day-h:96px;
+  --bw-calendar-mark:22px;
 }
 
 /* --- Components — core (button, badge, chip, icon, avatar, tooltip) ---------- */
@@ -938,6 +942,50 @@ body.wp-admin.folded .bw-savebar{left:36px}
   .bw-schedule__ruler{display:none}
   .bw-schedule__row{flex-direction:column;align-items:stretch;gap:var(--bw-space-2)}
   .bw-schedule__label{width:auto}
+}
+
+/* Calendar — dates on the month they fall in. Read, not edited: a month at a
+   time, Monday first, with whatever falls on a day listed under its number.
+   The grid is a table so a screen reader gets the weekday for every cell for
+   free. A day outside the month shown is sunk back rather than hidden, so the
+   weeks stay whole — by its ground alone, since a fainter number on that
+   ground would not reach the contrast a reader needs. Today is the one marked cell. An entry is a washed tag
+   whose leading word says what kind of date it is, and the kind carries the
+   tone — a plugin names the kinds, the system colours them. */
+.bw-calendar{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--bw-surface-card);font-size:var(--bw-size-sm)}
+.bw-calendar__nav{display:flex;align-items:center;gap:var(--bw-space-3);padding-bottom:var(--bw-space-6)}
+.bw-calendar__month{font-family:var(--bw-font-display);font-size:var(--bw-size-h3);font-weight:var(--bw-weight-semibold);color:var(--bw-text-heading);line-height:var(--bw-lh-heading);margin:0 var(--bw-space-3);min-width:var(--bw-gantt-label-w);text-align:center}
+.bw-calendar thead th{text-align:left;font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold);padding:var(--bw-space-3) var(--bw-space-4);border-bottom:1px solid var(--bw-border-strong)}
+.bw-calendar__day{vertical-align:top;height:var(--bw-calendar-day-h);padding:var(--bw-space-3) var(--bw-space-4);border:1px solid var(--bw-border)}
+.bw-calendar__day--outside{background:var(--bw-surface-sunken)}
+.bw-calendar__daynum{display:inline-flex;align-items:center;justify-content:center;min-width:var(--bw-calendar-mark);height:var(--bw-calendar-mark);border-radius:var(--bw-radius-pill);font-family:var(--bw-font-display);font-size:var(--bw-size-sm);font-variant-numeric:tabular-nums;color:var(--bw-text-muted)}
+.bw-calendar__day--today .bw-calendar__daynum{background:var(--bw-brand);color:var(--bw-text-on-accent)}
+.bw-calendar__entries{list-style:none;margin:var(--bw-space-2) 0 0;padding:0;display:flex;flex-direction:column;gap:var(--bw-space-1)}
+.bw-calendar__entry{display:block;padding:var(--bw-space-1) var(--bw-space-3);border-radius:var(--bw-radius-xs);background:var(--bw-surface-sunken);color:var(--bw-text-body);font-size:var(--bw-size-xs);line-height:var(--bw-lh-heading);overflow-wrap:break-word}
+.bw-calendar__kind{font-weight:var(--bw-weight-semibold);color:var(--bw-text-muted);margin-right:var(--bw-space-1)}
+.bw-calendar__entry--accent{background:var(--bw-brand-wash)}
+.bw-calendar__entry--accent .bw-calendar__kind{color:var(--bw-text-accent)}
+.bw-calendar__entry--success{background:var(--bw-success-wash)}
+.bw-calendar__entry--success .bw-calendar__kind{color:var(--bw-success-deep)}
+.bw-calendar__entry--warning{background:var(--bw-warning-wash)}
+.bw-calendar__entry--warning .bw-calendar__kind{color:var(--bw-warning-deep)}
+.bw-calendar__entry--danger{background:var(--bw-danger-wash)}
+.bw-calendar__entry--danger .bw-calendar__kind{color:var(--bw-text-danger)}
+.bw-calendar__entry--info{background:var(--bw-info-wash)}
+.bw-calendar__entry--info .bw-calendar__kind{color:var(--bw-info-deep)}
+/* Seven columns do not fit a phone, so under 782px the month is a list of the
+   days that have something on them: each day carries its weekday name in
+   data-weekday for the list to show, and a day with nothing on it is marked
+   --empty so the list can leave it out. Days outside the month go too. */
+@media (max-width:782px){
+  .bw-calendar__month{min-width:0;flex:1 1 auto}
+  .bw-calendar,.bw-calendar tbody,.bw-calendar tr{display:block}
+  .bw-calendar thead{display:none}
+  .bw-calendar__day{display:flex;align-items:flex-start;gap:var(--bw-space-4);height:auto;padding:var(--bw-space-4) var(--bw-space-2);border-width:0 0 1px}
+  .bw-calendar__day--outside,.bw-calendar__day--empty{display:none}
+  .bw-calendar__day::after{content:attr(data-weekday);order:-1;flex:none;width:var(--bw-space-11);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold);line-height:var(--bw-calendar-mark)}
+  .bw-calendar__daynum{flex:none}
+  .bw-calendar__entries{flex:1 1 auto;margin-top:0}
 }
 
 /* Preview — a page of the site in a device frame, beside the fields that
