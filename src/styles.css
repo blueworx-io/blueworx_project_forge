@@ -156,22 +156,31 @@ body {
 
 /* ---- Filters and views ---- */
 
+/* One control with several settings, the way the design draws the week toggle
+   on Capacity: a sunken track, the chosen one lifted on the signal wash. */
 .bwx-views {
   display: flex;
-  gap: 0;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var( --radius-pill );
+  background: var( --surface-sunken );
 }
-
-/* Two halves of one control rather than two buttons that happen to be next to
-   each other: the seam between them is what says they are alternatives. */
-.bwx-views .bwx-button:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+.bwx-views .bwx-button,
+.bwx-views .bwx-button[ data-variant='quiet' ] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var( --ink-500 );
+  padding: 5px 14px;
+  font-size: var( --text-small );
 }
-
-.bwx-views .bwx-button:last-child {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  margin-left: -1px;
+.bwx-views .bwx-button[ aria-pressed='true' ] {
+  background: var( --accent-signal-wash );
+  border-color: var( --accent-signal-edge );
+  color: var( --brand-700 );
+}
+.bwx-views .bwx-button:hover:not( :disabled ) {
+  background: var( --surface-card );
 }
 
 .bwx-filters {
