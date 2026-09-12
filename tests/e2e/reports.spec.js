@@ -14,7 +14,7 @@ import * as Forge from './helpers/forge.js';
 // window with nothing in it says so rather than drawing a screen of zeroes.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${ Date.now() }-${ Math.floor( Math.random() * 1e6 ) }`;
 

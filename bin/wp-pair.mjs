@@ -19,7 +19,7 @@
 // rather than a convenient approximation of it.
 //
 // Credentials are the harness's own and identical on both sites — admin /
-// wptest-admin-pw. They are throwaway logins on throwaway sites.
+// admin. They are throwaway logins on throwaway sites.
 
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
@@ -91,7 +91,7 @@ function up() {
   console.log('');
   console.log('  Studio   http://127.0.0.1:' + STUDIO.port + '   (this repo, linked — edits are live)');
   console.log('  Client   http://127.0.0.1:' + CLIENT.port + '   (staged from the client allowlist)');
-  console.log('  Login    admin / wptest-admin-pw, on both');
+  console.log('  Login    admin / admin, on both');
   console.log('');
   console.log('  Run the pair suite against them:');
   console.log('    npm run test:pair');

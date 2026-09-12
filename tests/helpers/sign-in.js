@@ -7,7 +7,7 @@
 // Waiting for the focus to arrive before touching the form removes the race.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 /**
  * Signs `page` in, as the site's admin unless told otherwise. `site` is for a

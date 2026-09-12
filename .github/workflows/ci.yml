@@ -120,7 +120,7 @@ jobs:
         env:
           BWX_CLIENT_BASE_URL: http://127.0.0.1:8893
           WP_ADMIN_USER: admin
-          WP_ADMIN_PASS: wptest-admin-pw
+          WP_ADMIN_PASS: admin
         run: npm run test:pair
 
       - name: Tear the pair down

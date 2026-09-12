@@ -18,6 +18,7 @@ commits and pull requests.
 
 ### Changed
 
+- The local test sites sign in as admin / admin, matching the shared harness.
 - The client calendar is drawn from the design system's month grid: today is
   marked, days outside the month sit back, and each date is a tagged entry
   whose kind (starts, due, review, release) carries its own colour. On a phone
