@@ -14,6 +14,28 @@ commits and pull requests.
 
 - Capacity opens on the next fourteen days, today first, with a day per
   column. A Days / Weeks switch brings the eight-week view back.
+## [2.98.0] - 2026-09-12
+
+### Changed
+
+- The client calendar is drawn from the design system's month grid: today is
+  marked, days outside the month sit back, and each date is a tagged entry
+  whose kind (starts, due, review, release) carries its own colour. On a phone
+  the month reads as a list of the days that have something on them.
+## [2.97.3] - 2026-09-12
+
+### Changed
+
+- The sentence under each studio screen's title is gone; the title and its
+  eyebrow say enough.
+## [2.97.2] - 2026-09-12
+
+### Fixed
+
+- Tests no longer fail at sign-in when the test server is slow: WordPress
+  focuses the username box a moment after the login page loads, and the
+  password could land there. Every spec now signs in through one helper that
+  waits for that first.
 
 ## [2.97.1] - 2026-09-12
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #128, proven across two real WordPress sites: the client sees the same work
 // the studio sees, and has no authority over any of it.
@@ -31,11 +32,7 @@ async function signedIn(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   const nonce = await page.evaluate(() => window.wpApiSettings?.nonce);
   await page.close();
@@ -279,9 +276,16 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(`${CALENDAR}&bwx-month=2026-09`);
 
-    await expect(page.locator('[data-bwx-day="2026-09-10"]')).toContainText(
-      `Due on a known day ${RUN}`
-    );
+    const day = page.locator('[data-bwx-day="2026-09-10"]');
+    await expect(day).toContainText(`Due on a known day ${RUN}`);
+
+    // Built from the design system's month grid (#286): the grid, the day and
+    // the entry are the system's classes, and a due date reads as one.
+    await expect(page.locator('table.bw-calendar')).toBeVisible();
+    await expect(day).toHaveClass(/bw-calendar__day/);
+    const entry = day.locator('.bw-calendar__entry', { hasText: `Due on a known day ${RUN}` });
+    await expect(entry).toHaveClass(/bw-calendar__entry--warning/);
+    await expect(entry.locator('.bw-calendar__kind')).toHaveText('Due');
 
     await page.close();
   });

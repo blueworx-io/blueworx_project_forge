@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 import * as Forge from './helpers/forge.js';
 
 // The workflow proper (#105, #107, #108, #109, #110, #111) and the discussion
@@ -8,9 +9,6 @@ import * as Forge from './helpers/forge.js';
 // item keeps its earlier review attempt, and that blocked work comes back to
 // exactly where it left.
 
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
-
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const BASE = '/wp-json/blueworx-forge/v1';
 
@@ -18,11 +16,7 @@ async function signedInContext(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/blueworx-forge/');
   const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);

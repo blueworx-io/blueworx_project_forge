@@ -1,12 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #136 walked as somebody setting a person up walks it. The numbers here are
 // deliberately date-independent: hours are set on all seven days, so the next
 // seven days come to the same total whichever day the suite happens to run on.
 // A test that had to know what today is would be a test that fails on a Sunday.
-
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
 
 const AVAILABILITY = '/wp-admin/admin.php?page=blueworx-forge-availability';
 const PEOPLE = '/wp-admin/admin.php?page=blueworx-forge-people';
@@ -27,14 +25,6 @@ function daysFromToday(n) {
   d.setUTCDate(d.getUTCDate() + n);
 
   return d.toISOString().slice(0, 10);
-}
-
-async function signIn(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
 }
 
 async function addPerson(page, name) {

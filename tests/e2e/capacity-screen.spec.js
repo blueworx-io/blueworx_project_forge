@@ -1,17 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // #139's acceptance: the view reconciles to the allocations behind it, and
 // drill-down explains every number. So the spec reads a cell, opens it, and
 // checks the panel is talking about the same period.
-const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'wptest-admin-pw';
 
 async function openCapacity(page) {
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/blueworx-forge/');
   await page.getByTestId('bwx-screen-capacity').click();

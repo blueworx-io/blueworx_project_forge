@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { signIn } from '../helpers/sign-in.js';
 
 // The unit tests prove each convention in isolation. This proves them assembled,
 // against a real WordPress, through the reference write — because the failure
@@ -20,11 +21,7 @@ async function signedInContext(browser, baseURL) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
-  await page.goto('/wp-login.php');
-  await page.fill('#user_login', ADMIN_USER);
-  await page.fill('#user_pass', ADMIN_PASS);
-  await page.click('#wp-submit');
-  await page.waitForURL((url) => !url.pathname.endsWith('/wp-login.php'));
+  await signIn(page);
 
   await page.goto('/blueworx-forge/');
   const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);
