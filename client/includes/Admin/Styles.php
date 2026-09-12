@@ -108,17 +108,6 @@ final class Styles {
 [data-testid="bwx-timeline"] .bw-gantt__ruler,
 [data-testid="bwx-timeline"] .bw-gantt__tick { color: var(--bw-text-muted); }
 
-.bwx-calendar { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--surface-card, #fff); }
-.bwx-calendar th, .bwx-calendar td { border: 1px solid var(--border-subtle, #dcdcde); vertical-align: top; padding: 0.4rem; }
-.bwx-calendar th { background: var(--surface-muted, #f6f7f7); font-size: var(--text-small, 0.8rem); text-align: left; }
-.bwx-calendar td { height: 6rem; }
-.bwx-calendar-outside { background: var(--surface-muted, #f6f7f7); }
-.bwx-calendar-daynum { display: block; color: var(--text-muted, #646970); font-size: var(--text-small, 0.75rem); margin-bottom: 0.25rem; }
-.bwx-calendar-entry { display: block; font-size: var(--text-small, 0.75rem); line-height: 1.3; margin-bottom: 0.2rem; }
-.bwx-calendar-kind { color: var(--text-muted, #646970); }
-
-.bwx-months { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.75rem; }
-
 .bwx-lede { margin: 0 0 0.25rem; font-size: var(--text-heading, 1.15rem); color: var(--text-primary, #1d2327); }
 /* Work with no dates on it (#120), listed as cards. Separate pieces of work
    have to read as separate cards, so they need space between them (#289) —

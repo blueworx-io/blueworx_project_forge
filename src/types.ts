@@ -148,7 +148,7 @@ export interface CapacityPosition {
   band: CapacityBand;
 }
 
-/** One cell of the grid: a position, and the week it covers. */
+/** One cell of the grid: a position, and the day or week it covers. */
 export interface CapacityCell extends CapacityPosition {
   from: string;
   to: string;
@@ -158,15 +158,19 @@ export interface CapacityCell extends CapacityPosition {
 export interface CapacityPerson {
   user_id: string;
   display_name: string;
-  weeks: CapacityCell[];
+  periods: CapacityCell[];
   total: CapacityPosition;
 }
+
+/** How the capacity grid is cut: a column per day, or per week. */
+export type CapacityBy = 'days' | 'weeks';
 
 /** The capacity read. */
 export interface CapacityResponse {
   from: string;
   to: string;
-  weeks: { from: string; to: string }[];
+  by: CapacityBy;
+  periods: { from: string; to: string }[];
   people: CapacityPerson[];
 }
 

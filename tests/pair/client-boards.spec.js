@@ -276,9 +276,16 @@ test.describe('the client read-only views', () => {
     const page = await client.context.newPage();
     await page.goto(`${CALENDAR}&bwx-month=2026-09`);
 
-    await expect(page.locator('[data-bwx-day="2026-09-10"]')).toContainText(
-      `Due on a known day ${RUN}`
-    );
+    const day = page.locator('[data-bwx-day="2026-09-10"]');
+    await expect(day).toContainText(`Due on a known day ${RUN}`);
+
+    // Built from the design system's month grid (#286): the grid, the day and
+    // the entry are the system's classes, and a due date reads as one.
+    await expect(page.locator('table.bw-calendar')).toBeVisible();
+    await expect(day).toHaveClass(/bw-calendar__day/);
+    const entry = day.locator('.bw-calendar__entry', { hasText: `Due on a known day ${RUN}` });
+    await expect(entry).toHaveClass(/bw-calendar__entry--warning/);
+    await expect(entry.locator('.bw-calendar__kind')).toHaveText('Due');
 
     await page.close();
   });
