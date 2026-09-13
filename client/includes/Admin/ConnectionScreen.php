@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Updates;
 use Blueworx\Forge\Client\Workspace;
@@ -51,7 +52,7 @@ final class ConnectionScreen {
 			Screen::SLUG,
 			__( 'Connection', 'blueworx-forge' ),
 			__( 'Connection', 'blueworx-forge' ),
-			'manage_options',
+			Access::CONNECT,
 			self::SLUG,
 			array( self::class, 'render' )
 		);
@@ -73,7 +74,7 @@ final class ConnectionScreen {
 	 * Renders the screen.
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::CONNECT ) ) {
 			return;
 		}
 

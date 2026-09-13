@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Checklist;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Workspace;
@@ -97,7 +98,7 @@ final class ChecklistScreen {
 			Screen::SLUG,
 			__( 'Onboarding', 'blueworx-forge' ),
 			__( 'Onboarding', 'blueworx-forge' ),
-			'manage_options',
+			Access::USE,
 			self::SLUG,
 			array( self::class, 'render' )
 		);
@@ -119,7 +120,7 @@ final class ChecklistScreen {
 	 * Renders the screen.
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::USE ) ) {
 			return;
 		}
 

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.100.0] - 2026-09-13
+
+### Added
+
+- A "Forge: Manager" role on the client site. A manager can use every Forge
+  screen, the workspace page and raise requests, but cannot see or change the
+  site's connection to the studio. Administrators keep everything they had.
+  Add someone through Users → Add New and pick the role.
+
+### Fixed
+
+- Someone signed in to the client site without Forge access who opens the
+  workspace page is now told what they need, instead of being shown the
+  sign-in form again.
+
 ## [2.99.1] - 2026-09-13
 
 ### Changed

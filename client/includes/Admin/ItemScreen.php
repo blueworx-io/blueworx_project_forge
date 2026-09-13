@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Discussion;
 use Blueworx\Forge\Client\Sync;
@@ -105,7 +106,7 @@ final class ItemScreen {
 	 *                        board screen this is drawn on.
 	 */
 	public static function render( string $item_id ): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::USE ) ) {
 			return;
 		}
 

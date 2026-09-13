@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Board;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Workspace;
@@ -31,7 +32,7 @@ final class WorkScreen {
 	 * @param callable $draw    Given the board view, draws the arrangement.
 	 */
 	public static function render( string $slug, string $heading, callable $draw ): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::USE ) ) {
 			return;
 		}
 

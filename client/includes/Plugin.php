@@ -47,6 +47,9 @@ final class Plugin {
 	 * workspace route and screen render what the studio holds for it (ARCH-2).
 	 */
 	public function boot(): void {
+		// Who may use Forge here is decided by Access, not by whether somebody
+		// happens to be an Administrator.
+		Access::boot();
 		add_action( 'rest_api_init', array( Rest\ConnectionController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Rest\WorkspaceController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Rest\ReadController::class, 'register_routes' ) );
@@ -89,6 +92,7 @@ final class Plugin {
 	 */
 	public function activate(): void {
 		update_option( 'bwx_forge_client_installed_version', BWX_FORGE_CLIENT_VERSION );
+		Access::ensure_role();
 
 		Frontend::instance()->create_app_page();
 		flush_rewrite_rules();

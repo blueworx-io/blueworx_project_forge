@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Updates;
 
@@ -16,9 +17,9 @@ use Blueworx\Forge\Client\Updates;
  * Saving and forgetting this site's studio credentials.
  *
  * Separate from the screen because these change state and that one does not.
- * Both require `manage_options` on this site — the client's own administrator
- * configuring their own WordPress, which is a different thing entirely from the
- * per-site key that authenticates this site to the studio.
+ * These actions require the connection capability (`Access::CONNECT`) on
+ * this site. That is a different thing from the per-site key, which is what
+ * authenticates this site to the studio.
  */
 final class ConnectionActions {
 
@@ -127,7 +128,7 @@ final class ConnectionActions {
 	 * data it protects.
 	 */
 	private static function require_admin(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::CONNECT ) ) {
 			wp_die(
 				esc_html__( 'You are not allowed to change this site\'s connection.', 'blueworx-forge' ),
 				'',

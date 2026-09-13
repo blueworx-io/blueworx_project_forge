@@ -150,7 +150,7 @@ final class Denial {
 		 * and a refusal has nothing anybody on this site can do — offering a
 		 * control there would be the dead control this issue exists to remove.
 		 */
-		if ( Sync::STATE_NOT_CONFIGURED === $state && current_user_can( 'manage_options' ) ) {
+		if ( Sync::STATE_NOT_CONFIGURED === $state && current_user_can( Access::CONNECT ) ) {
 			printf(
 				' <a href="%s">%s</a>.',
 				esc_url( admin_url( 'admin.php?page=' . Admin\ConnectionScreen::SLUG ) ),

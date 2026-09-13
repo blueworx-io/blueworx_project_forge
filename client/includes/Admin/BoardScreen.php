@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
+
 /**
  * The same work the studio sees, in the same columns, with nothing to move it
  * with (#128).
@@ -37,7 +39,7 @@ final class BoardScreen {
 			Screen::SLUG,
 			__( 'Work Board', 'blueworx-forge' ),
 			__( 'Work Board', 'blueworx-forge' ),
-			'manage_options',
+			Access::USE,
 			self::SLUG,
 			array( self::class, 'render' )
 		);

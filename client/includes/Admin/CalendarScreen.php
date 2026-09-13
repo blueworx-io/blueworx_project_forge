@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Layout;
 
 /**
@@ -57,7 +58,7 @@ final class CalendarScreen {
 			Screen::SLUG,
 			__( 'Calendar', 'blueworx-forge' ),
 			__( 'Calendar', 'blueworx-forge' ),
-			'manage_options',
+			Access::USE,
 			self::SLUG,
 			array( self::class, 'render' )
 		);

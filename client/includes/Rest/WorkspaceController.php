@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Rest;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Workspace;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -16,9 +17,10 @@ use WP_REST_Response;
 /**
  * Reading the workspace, through this site rather than from it.
  *
- * The route is on the client artifact's own namespace and gated to this site's
- * administrator. It holds no data: it asks Workspace, which asks the studio and
- * falls back to what it last saw (ARCH-2, ARCH-4).
+ * The route is on the client artifact's own namespace and gated to anybody
+ * holding Forge's use capability (an Administrator or a Forge: Manager). It
+ * holds no data: it asks Workspace, which asks the studio and falls back to
+ * what it last saw (ARCH-2, ARCH-4).
  *
  * `refresh` exists so a person who has just fixed something can ask again
  * without waiting out the staleness window. It is a parameter rather than a
@@ -57,12 +59,12 @@ final class WorkspaceController {
 	}
 
 	/**
-	 * Whether the current user administers this site.
+	 * Whether the current user holds Forge's use capability (an Administrator or a Forge: Manager).
 	 *
 	 * @return bool
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return current_user_can( Access::USE );
 	}
 
 	/**
