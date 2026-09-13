@@ -17,6 +17,12 @@ commits and pull requests.
   site's connection to the studio. Administrators keep everything they had.
   Add someone through Users → Add New and pick the role.
 
+### Fixed
+
+- Someone signed in to the client site without Forge access who opens the
+  workspace page is now told what they need, instead of being shown the
+  sign-in form again.
+
 ## [2.99.1] - 2026-09-13
 
 ### Changed

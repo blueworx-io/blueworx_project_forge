@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, requireEnvironment, CLIENT_URL } from './helpers/pair.js';
+import { signedIn, requireEnvironment, connectedPair, CLIENT_URL } from './helpers/pair.js';
 
 // A Forge: Manager runs the work on the client site without being able to
 // break the site. Everything Forge draws opens for them; the Connection —
@@ -8,19 +8,22 @@ import { signedIn, requireEnvironment, CLIENT_URL } from './helpers/pair.js';
 requireEnvironment();
 
 const RUN = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-let managerCount = 0;
+let userCount = 0;
 const PASSWORD = 'forge-test-pw-4471';
 
-/** A user on the client site holding the Forge: Manager role. */
-async function manager(admin) {
-  const login = `manager${RUN}${managerCount++}`;
+/** A user on the client site holding one role. */
+async function user(admin, role) {
+  const login = `${role.replace(/_/g, '')}${RUN}${userCount++}`;
   const made = await admin.context.request.post('/wp-json/wp/v2/users', {
     headers: admin.headers,
-    data: { username: login, email: `${login}@example.test`, password: PASSWORD, roles: ['forge_manager'] },
+    data: { username: login, email: `${login}@example.test`, password: PASSWORD, roles: [role] },
   });
   expect(made.status(), await made.text()).toBe(201);
   return login;
 }
+
+/** A user on the client site holding the Forge: Manager role. */
+const manager = (admin) => user(admin, 'forge_manager');
 
 /** A fresh browser context signed in to the client site as `login`. */
 async function signedInAs(browser, login) {
@@ -60,7 +63,11 @@ test.describe('a Forge: Manager on the client site', () => {
   });
 
   test('can open the workspace page and read the work, but not the connection', async ({ browser }) => {
-    const admin = await signedIn(browser, CLIENT_URL);
+    // A connected site, so a request the manager sends has somewhere to go —
+    // an unconnected site answers every send with a polite no, and a test
+    // that only checked the status would call that a pass.
+    const pair = await connectedPair(browser, 'Manager', RUN);
+    const admin = pair.clientSite;
     const login = await manager(admin);
     const { context, page } = await signedInAs(browser, login);
 
@@ -77,16 +84,36 @@ test.describe('a Forge: Manager on the client site', () => {
 
     const submitted = await context.request.post('/wp-json/blueworx-forge-client/v1/submissions', {
       headers: { 'X-WP-Nonce': nonce },
-      data: { type: 'idea', title: `A manager can write ${RUN}` },
+      data: { type: 'idea', title: `A manager can write ${RUN}`, description: 'Sent by a Forge: Manager in the pair suite.' },
     });
-    expect(submitted.status(), await submitted.text()).toBeLessThan(300);
+    expect(submitted.status(), await submitted.text()).toBe(200);
     const body = await submitted.json();
-    expect(body.result).not.toBe('screenshot');
+    expect(body.ok, JSON.stringify(body)).toBe(true);
+    expect(body.result).toBe('sent');
 
     const connection = await context.request.get('/wp-json/blueworx-forge-client/v1/connection', {
       headers: { 'X-WP-Nonce': nonce },
     });
     expect(connection.status()).toBe(403);
+
+    await context.close();
+    await pair.close();
+  });
+});
+
+test.describe('somebody signed in without Forge access', () => {
+  test('is told no on the workspace page, not sent round in circles', async ({ browser }) => {
+    const admin = await signedIn(browser, CLIENT_URL);
+    const login = await user(admin, 'subscriber');
+    const { context, page } = await signedInAs(browser, login);
+
+    // Before this, the page sent them to sign in — which they already had —
+    // so they were shown a sign-in form that could only bring them back here.
+    const answer = await page.goto('/forge/');
+    expect(answer.status()).toBe(403);
+    await expect(page).toHaveURL(/\/forge\/?$/);
+    await expect(page.getByTestId('bwx-client-app')).toHaveCount(0);
+    await expect(page.locator('body')).toContainText('Forge: Manager');
 
     await context.close();
     await admin.context.close();

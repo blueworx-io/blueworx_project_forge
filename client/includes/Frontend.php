@@ -44,6 +44,14 @@ final class Frontend {
 	private const LINK_MARKER = 'bwx-workspace-link';
 
 	/**
+	 * What the page does with whoever arrives: show it, ask them to sign in,
+	 * or tell them it is not theirs to use.
+	 */
+	public const GATE_OPEN    = 'open';
+	public const GATE_SIGN_IN = 'sign-in';
+	public const GATE_REFUSE  = 'refuse';
+
+	/**
 	 * The single instance.
 	 *
 	 * @var Frontend|null
@@ -218,18 +226,60 @@ final class Frontend {
 	}
 
 	/**
-	 * Sends anybody who cannot use the workspace to sign in first.
+	 * Which of the three answers somebody gets at the door.
+	 *
+	 * Pure, so the rule is testable. Somebody signed in who still cannot use
+	 * Forge is refused rather than sent to sign in: WordPress shows a
+	 * signed-in visitor the sign-in form regardless, and filling it in again
+	 * only brings them back to the same form.
+	 *
+	 * @param bool $signed_in Whether anybody is signed in.
+	 * @param bool $can_use   Whether they hold `Access::USE`.
+	 * @return string One of the GATE_ constants.
+	 */
+	public static function gate( bool $signed_in, bool $can_use ): string {
+		if ( $can_use ) {
+			return self::GATE_OPEN;
+		}
+
+		return $signed_in ? self::GATE_REFUSE : self::GATE_SIGN_IN;
+	}
+
+	/**
+	 * Sends anybody who cannot use the workspace to sign in first, and tells
+	 * anybody signed in without Forge access what they would need.
 	 *
 	 * The page asks for `Access::USE`, the same capability as the wp-admin
 	 * screens, so it never shows anybody more than they would.
 	 */
 	public function require_sign_in(): void {
-		if ( ! $this->is_app_page() || current_user_can( Access::USE ) ) {
+		if ( ! $this->is_app_page() ) {
 			return;
 		}
 
-		wp_safe_redirect( wp_login_url( $this->app_page_url() ) );
-		exit;
+		switch ( self::gate( is_user_logged_in(), current_user_can( Access::USE ) ) ) {
+			case self::GATE_OPEN:
+				return;
+
+			case self::GATE_SIGN_IN:
+				wp_safe_redirect( wp_login_url( $this->app_page_url() ) );
+				exit;
+
+			default:
+				wp_die(
+					sprintf(
+						/* translators: %s: the role's name, "Forge: Manager". */
+						esc_html__( 'You are signed in, but your account cannot use Forge on this site. Ask whoever runs the site to give you the %s role.', 'blueworx-forge' ),
+						esc_html( Access::ROLE_NAME )
+					),
+					esc_html__( 'Forge', 'blueworx-forge' ),
+					array(
+						'response'  => 403,
+						'link_url'  => esc_url( admin_url() ),
+						'link_text' => esc_html__( 'Go to your dashboard', 'blueworx-forge' ),
+					)
+				);
+		}
 	}
 
 	/**

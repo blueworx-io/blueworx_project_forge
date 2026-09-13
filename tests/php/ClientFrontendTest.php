@@ -28,4 +28,15 @@ final class ClientFrontendTest extends TestCase {
 		$this->assertTrue( Frontend::answer_for_site_chrome( true, false ) );
 		$this->assertFalse( Frontend::answer_for_site_chrome( false, false ) );
 	}
+
+	/**
+	 * The page asks strangers to sign in. Somebody already signed in who still
+	 * cannot use Forge is told so — sending them to sign in again showed them
+	 * a form they had already filled in, with nowhere else to go.
+	 */
+	public function test_who_may_open_the_workspace_page(): void {
+		$this->assertSame( Frontend::GATE_OPEN, Frontend::gate( true, true ) );
+		$this->assertSame( Frontend::GATE_SIGN_IN, Frontend::gate( false, false ) );
+		$this->assertSame( Frontend::GATE_REFUSE, Frontend::gate( true, false ) );
+	}
 }

@@ -45,7 +45,8 @@ final class Access {
 	public const ROLE_NAME = 'Forge: Manager';
 
 	/**
-	 * Remembers which plugin version last checked the role exists.
+	 * Remembers which plugin version, and which definition of the role, the
+	 * role was last checked against — so a change to either repairs it.
 	 */
 	private const ROLE_OPTION = 'bwx_forge_client_role_version';
 
