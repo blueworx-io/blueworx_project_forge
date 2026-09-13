@@ -75,6 +75,14 @@ test.describe('a Forge: Manager on the client site', () => {
     });
     expect(workspace.status()).toBe(200);
 
+    const submitted = await context.request.post('/wp-json/blueworx-forge-client/v1/submissions', {
+      headers: { 'X-WP-Nonce': nonce },
+      data: { type: 'idea', title: `A manager can write ${RUN}` },
+    });
+    expect(submitted.status(), await submitted.text()).toBeLessThan(300);
+    const body = await submitted.json();
+    expect(body.result).not.toBe('screenshot');
+
     const connection = await context.request.get('/wp-json/blueworx-forge-client/v1/connection', {
       headers: { 'X-WP-Nonce': nonce },
     });

@@ -36,6 +36,7 @@ final class ClientAccessTest extends TestCase {
 
 		$this->assertTrue( $caps['read'], 'a manager can reach wp-admin at all' );
 		$this->assertTrue( $caps[ Access::USE ] );
+		$this->assertTrue( $caps['upload_files'], 'a request can carry a screenshot' );
 		$this->assertArrayNotHasKey( Access::CONNECT, $caps );
 		$this->assertArrayNotHasKey( 'manage_options', $caps );
 	}

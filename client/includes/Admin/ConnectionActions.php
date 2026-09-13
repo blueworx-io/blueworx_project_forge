@@ -17,8 +17,9 @@ use Blueworx\Forge\Client\Updates;
  * Saving and forgetting this site's studio credentials.
  *
  * Separate from the screen because these change state and that one does not.
- * Both require the connection capability (`Access::CONNECT`) on this site —
- * the per-site key that authenticates this site to the studio.
+ * These actions require the connection capability (`Access::CONNECT`) on
+ * this site. That is a different thing from the per-site key, which is what
+ * authenticates this site to the studio.
  */
 final class ConnectionActions {
 

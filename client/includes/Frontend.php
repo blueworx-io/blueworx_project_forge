@@ -220,9 +220,8 @@ final class Frontend {
 	/**
 	 * Sends anybody who cannot use the workspace to sign in first.
 	 *
-	 * The same capability as the wp-admin screens, so the page never shows
-	 * somebody more than the screens beside it would. Who else may use a
-	 * client's workspace is a decision for later, not a default taken here.
+	 * The page asks for `Access::USE`, the same capability as the wp-admin
+	 * screens, so it never shows anybody more than they would.
 	 */
 	public function require_sign_in(): void {
 		if ( ! $this->is_app_page() || current_user_can( Access::USE ) ) {

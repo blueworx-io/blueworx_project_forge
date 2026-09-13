@@ -20,9 +20,10 @@ namespace Blueworx\Forge\Client;
  *
  * Administrators hold both, granted on the fly through `user_has_cap` so
  * nothing has to be written to the database for a site that already has
- * the plugin. The Forge: Manager role holds USE only; it is created on
- * activation and repaired on every version change, so an existing site
- * gets it on update without anybody reactivating anything.
+ * the plugin. The Forge: Manager role holds USE and upload_files (a
+ * request can carry a screenshot); it is created on activation and
+ * repaired whenever its definition changes, so an existing site gets
+ * the change without anybody reactivating anything.
  */
 final class Access {
 
@@ -76,14 +77,17 @@ final class Access {
 	 * What the Forge: Manager role is made of. Pure.
 	 *
 	 * `read` is what lets somebody into wp-admin at all; without it WordPress
-	 * sends them to the front of the site.
+	 * sends them to the front of the site. `upload_files` is here because a
+	 * request can carry a screenshot: the admin screen hides the field
+	 * without it, and the app has no other way to attach one.
 	 *
 	 * @return array<string, bool>
 	 */
 	public static function role_caps(): array {
 		return array(
-			'read'    => true,
-			self::USE => true,
+			'read'         => true,
+			self::USE      => true,
+			'upload_files' => true,
 		);
 	}
 
@@ -124,15 +128,17 @@ final class Access {
 	}
 
 	/**
-	 * Runs ensure_role() once per plugin version, so a site that updated
-	 * without reactivating still gets the role.
+	 * Runs ensure_role() when the version or the role's definition changes,
+	 * so an existing site is repaired without anybody reactivating anything.
 	 */
 	public static function ensure_role_on_version_change(): void {
-		if ( get_option( self::ROLE_OPTION ) === BWX_FORGE_CLIENT_VERSION ) {
+		$state = BWX_FORGE_CLIENT_VERSION . ':' . md5( (string) wp_json_encode( self::role_caps() ) );
+
+		if ( get_option( self::ROLE_OPTION ) === $state ) {
 			return;
 		}
 
 		self::ensure_role();
-		update_option( self::ROLE_OPTION, BWX_FORGE_CLIENT_VERSION );
+		update_option( self::ROLE_OPTION, $state );
 	}
 }
