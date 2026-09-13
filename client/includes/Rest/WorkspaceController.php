@@ -17,8 +17,8 @@ use WP_REST_Response;
 /**
  * Reading the workspace, through this site rather than from it.
  *
- * The route is on the client artifact's own namespace and gated to this site's
- * administrator. It holds no data: it asks Workspace, which asks the studio and
+ * The route is on the client artifact's own namespace and gated to anybody
+ * holding Forge's use capability (an Administrator or a Forge: Manager). It holds no data: it asks Workspace, which asks the studio and
  * falls back to what it last saw (ARCH-2, ARCH-4).
  *
  * `refresh` exists so a person who has just fixed something can ask again
@@ -58,7 +58,7 @@ final class WorkspaceController {
 	}
 
 	/**
-	 * Whether the current user administers this site.
+	 * Whether the current user holds Forge's use capability (an Administrator or a Forge: Manager).
 	 *
 	 * @return bool
 	 */

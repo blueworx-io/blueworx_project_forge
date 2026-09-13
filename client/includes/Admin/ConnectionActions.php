@@ -17,9 +17,8 @@ use Blueworx\Forge\Client\Updates;
  * Saving and forgetting this site's studio credentials.
  *
  * Separate from the screen because these change state and that one does not.
- * Both require `manage_options` on this site — the client's own administrator
- * configuring their own WordPress, which is a different thing entirely from the
- * per-site key that authenticates this site to the studio.
+ * Both require the connection capability (`Access::CONNECT`) on this site —
+ * the per-site key that authenticates this site to the studio.
  */
 final class ConnectionActions {
 
