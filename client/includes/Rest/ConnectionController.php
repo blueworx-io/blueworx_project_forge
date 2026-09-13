@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Rest;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Connection;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -21,9 +22,9 @@ use WP_REST_Response;
  * another — a client site answering on the studio's namespace is exactly the
  * failure ARCH-1 exists to prevent.
  *
- * Both routes require `manage_options` on *this* site: they are the client
- * administrator configuring their own WordPress. That is unrelated to the
- * per-site key, which authenticates this site to the studio.
+ * Both routes require the connection capability on *this* site: they are the
+ * client administrator configuring their own WordPress. That is unrelated to
+ * the per-site key, which authenticates this site to the studio.
  */
 final class ConnectionController {
 
@@ -83,7 +84,7 @@ final class ConnectionController {
 	 * @return bool
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return current_user_can( Access::CONNECT );
 	}
 
 	/**

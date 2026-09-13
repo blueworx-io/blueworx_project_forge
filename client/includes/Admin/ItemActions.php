@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Discussion;
 
@@ -51,7 +52,7 @@ final class ItemActions {
 	 * Sends the form to the studio.
 	 */
 	public static function send(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::USE ) ) {
 			wp_die(
 				esc_html__( 'You are not allowed to send this.', 'blueworx-forge' ),
 				'',

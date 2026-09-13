@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Rest;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Workspace;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -62,7 +63,7 @@ final class WorkspaceController {
 	 * @return bool
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return current_user_can( Access::USE );
 	}
 
 	/**

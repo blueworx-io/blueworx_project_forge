@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Client\Admin;
 
+use Blueworx\Forge\Client\Access;
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Denial;
 use Blueworx\Forge\Client\Sync;
@@ -53,7 +54,7 @@ final class AskScreen {
 			Screen::SLUG,
 			__( 'New Request', 'blueworx-forge' ),
 			__( 'New Request', 'blueworx-forge' ),
-			'manage_options',
+			Access::USE,
 			self::SLUG,
 			array( self::class, 'render' )
 		);
@@ -75,7 +76,7 @@ final class AskScreen {
 	 * Renders the screen.
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::USE ) ) {
 			return;
 		}
 

@@ -130,7 +130,7 @@ final class Frontend {
 				esc_html__( 'Workspace', 'blueworx-forge' ),
 				esc_html__( '(opens in a new tab)', 'blueworx-forge' )
 			),
-			'manage_options',
+			Access::USE,
 			$this->app_page_url(),
 			'',
 			1
@@ -142,7 +142,7 @@ final class Frontend {
 	 * carry a target, so it is set once the menu exists.
 	 */
 	public function open_link_in_a_new_tab(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Access::USE ) ) {
 			return;
 		}
 
@@ -225,7 +225,7 @@ final class Frontend {
 	 * client's workspace is a decision for later, not a default taken here.
 	 */
 	public function require_sign_in(): void {
-		if ( ! $this->is_app_page() || current_user_can( 'manage_options' ) ) {
+		if ( ! $this->is_app_page() || current_user_can( Access::USE ) ) {
 			return;
 		}
 
