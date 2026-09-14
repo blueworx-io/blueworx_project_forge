@@ -309,13 +309,6 @@ function Section( {
   onComplete: Complete;
   onShowAll: () => void;
 } ) {
-  if ( 0 === cards.length ) {
-    return null;
-  }
-
-  const shown = cards.filter( ( card ) => ! hidden.includes( keyOf( card ) ) );
-  const away = cards.length - shown.length;
-
   /*
    * Folded until asked. The count in the head is the whole truth of a
    * section, and a standup that opens on every card of every section is a
@@ -324,6 +317,13 @@ function Section( {
    * it all back up.
    */
   const [ open, setOpen ] = useState( () => wasOpened( id ) );
+
+  if ( 0 === cards.length ) {
+    return null;
+  }
+
+  const shown = cards.filter( ( card ) => ! hidden.includes( keyOf( card ) ) );
+  const away = cards.length - shown.length;
 
   return (
     <section className="bwx-standup-section" data-testid="bwx-standup-section" data-section={ id } data-open={ open ? 'true' : 'false' }>

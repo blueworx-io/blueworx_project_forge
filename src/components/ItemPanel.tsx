@@ -11,8 +11,6 @@ import type {
   WorkItem,
 } from '../types';
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
-import { Button } from '../kit';
-import { Button } from '../kit';
 import { phaseOf } from '../phases';
 import { Inline, Screen } from './States';
 
@@ -603,15 +601,16 @@ export function ItemPanel( {
             </div>
           </div>
           { detail && forgeData()?.canManage && (
-            <Button
-              variant="danger"
-              size="sm"
+            <button
+              type="button"
+              className="bwx-button"
+              data-variant="danger"
               data-testid="bwx-item-delete"
               disabled={ busy }
               onClick={ () => void remove() }
             >
               Delete
-            </Button>
+            </button>
           ) }
           <button
             type="button"

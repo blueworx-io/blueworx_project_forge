@@ -81,7 +81,7 @@ test.describe('deleting work', () => {
     });
     expect(gone.status()).toBe(404);
 
-    const kept = (await (await makeItem(admin.api, site.id, { title: `Kept item ${RUN_ID}` })).json()).item;
+    await makeItem(admin.api, site.id, { title: `Kept item ${RUN_ID}` });
     const staff = await makePerson(admin.api, client.id, 'staff', 'watcher');
     const staffPage = await (await browser.newContext({ baseURL })).newPage();
     await signIn(staffPage, staff.login, PASSWORD);

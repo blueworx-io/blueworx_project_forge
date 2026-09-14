@@ -139,6 +139,17 @@ body {
   border-color: var( --color-ash );
 }
 
+.bwx-button[ data-variant='danger' ] {
+  background: var( --color-danger-bg );
+  color: var( --color-danger );
+  border-color: var( --color-danger-border );
+  box-shadow: none;
+}
+.bwx-button[ data-variant='danger' ]:hover:not( :disabled ) {
+  background: var( --color-danger );
+  color: var( --color-snow );
+}
+
 .bwx-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
