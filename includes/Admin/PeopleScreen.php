@@ -567,16 +567,17 @@ final class PeopleScreen {
 	}
 
 	/**
-	 * The form that deletes somebody who has already been offboarded.
+	 * The form that deletes somebody who has already been offboarded and has
+	 * nothing under their name.
 	 *
-	 * Offered only then, so nobody with live access can vanish in one click,
-	 * and never for their WordPress account — that stays, with everything they
-	 * wrote attributed to it.
+	 * Offered only then: nobody with live access can vanish in one click, and
+	 * nobody with history can go at all (NOTIF-5). Never for their WordPress
+	 * account — that stays, with everything they wrote attributed to it.
 	 *
 	 * @param array<string, mixed> $person The person.
 	 */
 	private static function delete_form( array $person ): void {
-		if ( 'active' === (string) $person['status'] ) {
+		if ( 'active' === (string) $person['status'] || Users::has_history( (string) $person['id'] ) ) {
 			return;
 		}
 

@@ -265,19 +265,60 @@ final class Users {
 	}
 
 	/**
-	 * Removes a person from Forge altogether.
+	 * Whether anything has happened under this person's name.
 	 *
-	 * The memberships and availability that were theirs go with the row: they
-	 * describe nobody once the row has gone, and a clients screen listing a
-	 * membership with no person behind it would have nothing to show for it.
-	 * Anything they did — work, meetings, comments — stays, attributed to an id
-	 * that now resolves to nobody. Their WordPress account is untouched.
+	 * Work they hold a seat on, an onboarding step they review, a meeting they
+	 * host, a client contact they are: each is a record that would point at
+	 * nobody if the row went. Memberships and availability are not counted —
+	 * they are the person's own settings, and go with them.
 	 *
 	 * @param string $id User id.
-	 * @return bool False when the row was not there to remove.
+	 * @return bool
+	 */
+	public static function has_history( string $id ): bool {
+		global $wpdb;
+
+		$columns = array(
+			Schema::work_items_table()       => array( 'primary_user_id', 'reviewer_id', 'deliverer_id' ),
+			Schema::onboarding_steps_table() => array( 'reviewer_id' ),
+			Schema::meeting_series_table()   => array( 'host_user_id' ),
+			Schema::contacts_table()         => array( 'user_id' ),
+		);
+
+		foreach ( $columns as $table => $fields ) {
+			foreach ( $fields as $field ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own tables and column names from the list above, never from input.
+				$found = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$field} = %s", $id ) );
+
+				if ( $found > 0 ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Removes a person who was never really here.
+	 *
+	 * NOTIF-5 says nothing goes while it carries history, and this is the one
+	 * case that carries none: somebody added by mistake, or twice, or before
+	 * they had an account and never used since. Offboarding is still the answer
+	 * for everyone else. Their WordPress account is untouched either way.
+	 *
+	 * The memberships and availability that were theirs go with the row: they
+	 * describe nobody once the row has gone.
+	 *
+	 * @param string $id User id.
+	 * @return bool False when they carry history, or the row was not there.
 	 */
 	public static function delete( string $id ): bool {
 		global $wpdb;
+
+		if ( self::has_history( $id ) ) {
+			return false;
+		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
 		$removed = (bool) $wpdb->delete( Schema::users_table(), array( 'id' => $id ), array( '%s' ) );

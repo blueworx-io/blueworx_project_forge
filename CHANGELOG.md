@@ -16,7 +16,7 @@ commits and pull requests.
 
 ### Added
 
-- An offboarded person can be deleted from Forge on the People screen. Their WordPress account stays.
+- An offboarded person with nothing under their name can be deleted from Forge on the People screen. Their WordPress account stays.
 
 ## [2.100.0] - 2026-09-13
 

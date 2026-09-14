@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn } from './helpers/forge.js';
+import { signedIn, makeSite, makeItem } from './helpers/forge.js';
 
 // #292. A person is somebody who can sign in.
 //
@@ -284,6 +284,42 @@ test('deleting an offboarded person removes them from Forge and keeps their Word
   // everything they wrote is attributed to it.
   const account = await readAccount(context.request, nonce, wpUserId);
   expect(String(account.id)).toBe(wpUserId);
+
+  await context.close();
+});
+
+test('somebody with work attributed to them cannot be deleted, only offboarded', async ({
+  browser,
+  baseURL,
+}) => {
+  const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const page = await context.newPage();
+
+  const name = `Kept On Record ${RUN_ID}`;
+  await addNewPerson(page, name, `kept.${RUN_ID}@example.test`);
+  const personId = await cardFor(page, name).getAttribute('data-bwx-person');
+
+  // Work with their name on it. Once that exists, removing the row would leave
+  // the work pointing at nobody (NOTIF-5).
+  const { site } = await makeSite(api, 'Record Co', RUN_ID);
+  const made = await makeItem(api, site.id, { title: `Their work ${RUN_ID}` });
+  expect(made.status(), await made.text()).toBe(200);
+  const { item } = await made.json();
+
+  const assigned = await api.patch(`/work-items/${item.id}`, {
+    primary_user_id: personId,
+    record_version: item.record_version,
+  });
+  expect(assigned.status(), await assigned.text()).toBe(200);
+
+  await page.goto(PEOPLE);
+  page.once('dialog', (dialog) => dialog.accept());
+  await cardFor(page, name).locator('[data-bwx-offboard]').click();
+
+  await page.goto(PEOPLE_ALL);
+  const card = cardFor(page, name);
+  await expect(card.locator('[data-bwx-status]')).toHaveText('Offboarded');
+  await expect(card.locator('[data-bwx-delete-person]')).toHaveCount(0);
 
   await context.close();
 });

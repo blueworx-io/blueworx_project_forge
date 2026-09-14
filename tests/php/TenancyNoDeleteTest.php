@@ -19,6 +19,10 @@ use PHPUnit\Framework\TestCase;
  * meaning with it, so there is no delete to call by accident — this asserts the
  * absence rather than trusting a comment saying so.
  *
+ * The one exception is a person with nothing under their name: somebody added
+ * by mistake, or twice. Users::delete() exists for them and refuses everyone
+ * else, and the Playwright suite proves the refusal, where there is a database.
+ *
  * The rest of these repositories talk to a database and are proven in the
  * Playwright suite, where there is one.
  */
@@ -29,7 +33,7 @@ final class TenancyNoDeleteTest extends TestCase {
 	 * off by revoking its key, which keeps the record and its history.
 	 */
 	public function test_neither_repository_can_delete(): void {
-		foreach ( array( Clients::class, ClientSites::class, Integrations::class, Users::class, Memberships::class ) as $class ) {
+		foreach ( array( Clients::class, ClientSites::class, Integrations::class, Memberships::class ) as $class ) {
 			$methods = get_class_methods( $class );
 
 			foreach ( array( 'delete', 'remove', 'drop', 'purge' ) as $forbidden ) {
@@ -41,5 +45,21 @@ final class TenancyNoDeleteTest extends TestCase {
 		$this->assertContains( 'deactivate', get_class_methods( ClientSites::class ) );
 		$this->assertContains( 'deactivate', get_class_methods( Users::class ) );
 		$this->assertContains( 'deactivate', get_class_methods( Memberships::class ) );
+	}
+
+	/**
+	 * A person can only go when nothing has happened under their name, so the
+	 * question of whether anything has is asked in one place the delete and
+	 * the screen both read.
+	 */
+	public function test_a_person_is_only_deleted_without_history(): void {
+		$methods = get_class_methods( Users::class );
+
+		$this->assertContains( 'delete', $methods );
+		$this->assertContains( 'has_history', $methods );
+
+		foreach ( array( 'remove', 'drop', 'purge' ) as $forbidden ) {
+			$this->assertNotContains( $forbidden, $methods );
+		}
 	}
 }
