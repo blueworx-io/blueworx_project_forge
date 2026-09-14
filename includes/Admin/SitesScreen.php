@@ -44,7 +44,7 @@ final class SitesScreen {
 			'manage_options',
 			self::SLUG,
 			array( self::class, 'render' ),
-			'dashicons-hammer',
+			MenuIcon::data_uri(),
 			58
 		);
 	}

@@ -52,6 +52,7 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
 
 		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
+		add_action( 'admin_head', array( Admin\MenuIcon::class, 'print_styles' ) );
 
 		// One enqueue for every studio screen, rather than one per screen that
 		// remembered to ask. Admin\Page decides which screens are ours.
