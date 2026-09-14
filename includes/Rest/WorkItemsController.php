@@ -131,6 +131,23 @@ final class WorkItemsController {
 			$route_namespace,
 			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)',
 			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'destroy' ),
+				// The site's administrator and nobody else. Everyone else gets
+				// the same answer as for a route that does not exist for them.
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)',
+			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'show' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
@@ -488,6 +505,27 @@ final class WorkItemsController {
 			array(
 				'ok'    => true,
 				'gates' => Gates::all(),
+			)
+		);
+	}
+
+	/**
+	 * Removes an item and everything under it. Administrators only.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function destroy( WP_REST_Request $request ) {
+		$deleted = Items::delete( (string) $request['item_id'] );
+
+		if ( 0 === $deleted ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'deleted' => $deleted,
 			)
 		);
 	}

@@ -10,12 +10,15 @@ import type {
   WorkEvent,
   WorkItem,
 } from '../types';
-import { api, ApiError, GateError, isDenied, messageFor } from '../api';
+import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
+import { Button } from '../kit';
+import { Button } from '../kit';
 import { phaseOf } from '../phases';
 import { Inline, Screen } from './States';
 
 interface Detail {
   item: WorkItem;
+  children: WorkItem[];
   history: WorkEvent[];
   available: string[];
   readiness: Record< string, Readiness >;
@@ -308,6 +311,39 @@ export function ItemPanel( {
     }
   }
 
+  /**
+   * Deleting is the one thing here that leaves no history, which is why only
+   * the site's administrator is offered it and the server refuses everyone
+   * else regardless. It is for clearing out what should never have existed;
+   * work that happened is cancelled or archived instead, and keeps its record.
+   */
+  async function remove() {
+    if ( ! detail ) {
+      return;
+    }
+
+    const below = detail.children.length;
+    const question = 0 < below
+      ? `Delete this and the ${ below } item${ 1 === below ? '' : 's' } under it? This cannot be undone.`
+      : 'Delete this item? This cannot be undone.';
+
+    if ( ! window.confirm( question ) ) {
+      return;
+    }
+
+    setBusy( true );
+
+    try {
+      await api( `/work-items/${ itemId }`, { method: 'DELETE' } );
+      onChanged();
+      onClose();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be deleted.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   useEffect( () => {
     // Every state change inside load() happens after an await, which the rule
     // cannot see. Reading the item when the panel opens is what an effect is
@@ -566,6 +602,17 @@ export function ItemPanel( {
               ) }
             </div>
           </div>
+          { detail && forgeData()?.canManage && (
+            <Button
+              variant="danger"
+              size="sm"
+              data-testid="bwx-item-delete"
+              disabled={ busy }
+              onClick={ () => void remove() }
+            >
+              Delete
+            </Button>
+          ) }
           <button
             type="button"
             className="bwx-icon-button"
