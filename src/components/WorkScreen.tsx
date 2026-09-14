@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ClientSite, Requirement, SavedView, Stage, ViewName, WorkFilters, WorkItem } from '../types';
+import type { Requirement, SavedView, Stage, ViewName, WorkFilters, WorkItem } from '../types';
 import { api, GateError, forgeData, isConnected, isDenied, messageFor } from '../api';
+import { ALL_SITES, recallSite, rememberSite, siteLabel, type SiteOption } from '../sites';
 import { Board } from './Board';
 import { Filters } from './Filters';
 import { ItemPanel } from './ItemPanel';
@@ -36,9 +37,7 @@ function asQuery( filters: WorkFilters ): string {
   return 0 === parts.length ? '' : `&${ parts.join( '&' ) }`;
 }
 
-interface Site extends ClientSite {
-  client_name: string;
-}
+type Site = SiteOption;
 
 /** What the board is currently able to show (#125). */
 type Loading = 'loading' | 'ready' | 'error' | 'denied';
@@ -118,7 +117,7 @@ export function WorkScreen( {
       setStages( stageList.stages );
       setColumns( stageList.columns );
       setSites( siteList.sites );
-      setSiteId( siteList.sites[ 0 ]?.id ?? '' );
+      setSiteId( recallSite( siteList.sites ) );
       setSavedViews( viewList.views );
       setShell( 'ready' );
     } catch ( error ) {
@@ -157,7 +156,9 @@ export function WorkScreen( {
        * a filter means and disagree.
        */
       const loaded = await api< { items: WorkItem[] } >(
-        `/work-items?client_site_id=${ encodeURIComponent( id ) }${ asQuery( applied ) }`
+        ALL_SITES === id
+          ? `/work-items-all?${ asQuery( applied ).replace( /^&/, '' ) }`
+          : `/work-items?client_site_id=${ encodeURIComponent( id ) }${ asQuery( applied ) }`
       );
       setItems( loaded.items );
       setBoard( 'ready' );
@@ -276,14 +277,14 @@ export function WorkScreen( {
 
             setBoard( 'loading' );
             setSiteId( event.target.value );
+            rememberSite( event.target.value );
           } }
         >
           { 0 === sites.length && <option value="">No sites yet</option> }
+          { 0 < sites.length && <option value={ ALL_SITES }>All clients</option> }
           { sites.map( ( option ) => (
             <option key={ option.id } value={ option.id }>
-              { '' === option.client_name
-                ? option.name
-                : `${ option.client_name } — ${ option.name }` }
+              { siteLabel( option, sites ) }
             </option>
           ) ) }
         </select>
@@ -549,13 +550,14 @@ export function WorkScreen( {
       { adding && '' !== siteId && (
         <NewWork
           clientSiteId={ siteId }
+          sites={ ALL_SITES === siteId ? sites : [] }
           onClose={ () => setAdding( false ) }
           onCreated={ () => void loadItems( siteId ) }
         />
       ) }
 
       <footer style={ { padding: '0 20px 16px' } }>
-        <span className="bwx-mono">{ site ? `${ site.client_name } — ${ site.name }` : '' }</span>
+        <span className="bwx-mono">{ ALL_SITES === siteId ? 'All clients' : site ? siteLabel( site, sites ) : '' }</span>
       </footer>
     </>
   );

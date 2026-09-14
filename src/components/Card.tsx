@@ -88,6 +88,11 @@ export function Card( {
       } as React.CSSProperties }
     >
       <span className="bwx-card-rail" aria-hidden="true" />
+      { item.client_name && (
+        <span className="bwx-card-client" data-testid="bwx-card-client">
+          { item.client_name }
+        </span>
+      ) }
       <span className="bwx-card-row">
         <span className="bwx-mono">{ item.id.replace( 'wrk_', '' ).slice( 0, 8 ) }</span>
         <span className="bwx-card-level">{ item.level_label }</span>

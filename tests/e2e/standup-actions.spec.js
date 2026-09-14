@@ -64,6 +64,19 @@ async function openStandup(page) {
   // The first request after a page load pays this instance's cold start, which
   // is longer than the default expect timeout and nothing to do with the test.
   await expect(page.getByTestId('bwx-standup')).toBeVisible({ timeout: 30_000 });
+  await unfold(page);
+}
+
+/**
+ * Sections start folded, with only their count showing. The specs below are
+ * about what is in them, so they open every section first.
+ */
+async function unfold(page) {
+  const folded = page.locator('[data-testid="bwx-standup-section-toggle"][aria-expanded="false"]');
+
+  while ((await folded.count()) > 0) {
+    await folded.first().click();
+  }
 }
 
 /** This run's card about the work being held up. */

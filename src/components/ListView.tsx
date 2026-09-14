@@ -56,6 +56,9 @@ export function ListView( {
                   { item.title }
                 </button>
                 <span className="bwx-card-meta">
+                  { item.client_name && (
+                    <span className="bwx-eyebrow" data-testid="bwx-row-client">{ item.client_name }</span>
+                  ) }
                   { 'feature' !== item.work_type && (
                     <span className="bwx-eyebrow">{ item.work_type_label }</span>
                   ) }

@@ -13,7 +13,9 @@ use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Tenancy\Capabilities;
+use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Dependencies;
@@ -108,6 +110,26 @@ final class WorkItemsController {
 						'type'     => 'string',
 						'required' => true,
 					),
+				),
+			)
+		);
+
+		/*
+		 * Every site's work at once, for the picker's "All clients". Its own
+		 * path rather than a special value of client_site_id above, because
+		 * that route is scoped to one named site and this one is a set the
+		 * callback narrows with Reach — the difference SCOPE_LIST exists for.
+		 * Not under /work-items/ either: anything there reads as an item id.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/work-items-all',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'index_all' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind' => Boundary::SCOPE_LIST,
 				),
 			)
 		);
@@ -375,27 +397,80 @@ final class WorkItemsController {
 	}
 
 	/**
-	 * The work on one site.
+	 * The work on every site the caller reaches, together.
+	 *
+	 * The same narrowing, filtering and derivation as one site, done per site
+	 * and joined — derive_across reads a site's whole set to work out what each
+	 * item's children make it, and that stays true site by site. Each item is
+	 * handed its client's and site's names, because a card on a board that
+	 * spans clients has to say whose it is.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|\WP_Error
 	 */
-	public static function index( WP_REST_Request $request ) {
-		$site = ClientSites::get( (string) $request->get_param( 'client_site_id' ) );
+	public static function index_all( WP_REST_Request $request ) {
+		$reach = Boundary::current();
+		$sites = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
+		$names = array();
 
-		if ( null === $site ) {
-			return Boundary::absent( 'client_site' );
+		foreach ( Clients::all( null ) as $client ) {
+			$names[ (string) $client['id'] ] = (string) $client['display_name'];
 		}
 
+		$narrow = self::narrowing( $request );
+		$items  = array();
+
+		foreach ( $sites as $site ) {
+			$site_id = (string) $site['id'];
+
+			foreach ( self::derive_across( $site_id, Items::for_site( $site_id, $narrow ) ) as $item ) {
+				$item['client_name'] = $names[ (string) $item['client_id'] ] ?? '';
+				$item['site_name']   = (string) $site['name'];
+				$items[]             = $item;
+			}
+		}
+
+		usort(
+			$items,
+			static function ( array $a, array $b ): int {
+				return (int) $b['created_at'] <=> (int) $a['created_at'];
+			}
+		);
+
+		$filters = Filters::sanitise( (array) $request->get_params() );
+		$items   = Filters::apply( $items, $filters );
+
+		$grouping = Filters::grouping( (string) $request->get_param( 'group_by' ) );
+
+		$answer = array(
+			'ok'      => true,
+			'items'   => $items,
+			'total'   => count( $items ),
+			'filters' => $filters,
+		);
+
+		if ( '' !== $grouping ) {
+			$answer['grouping'] = $grouping;
+			$answer['groups']   = Filters::group( $items, $grouping );
+		}
+
+		return rest_ensure_response( $answer );
+	}
+
+	/**
+	 * What the query itself narrows on, from the request.
+	 *
+	 * The four columns the query can narrow on, kept as query narrowing rather
+	 * than folded into the filter model: reading a site's whole history into
+	 * memory to throw most of it away is not the same as asking for less.
+	 * Everything else is decided by Work\Filters, over what comes back.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string, mixed>
+	 */
+	private static function narrowing( WP_REST_Request $request ): array {
 		$narrow = array();
 
-		/*
-		 * The four the query itself can narrow on, kept as query narrowing
-		 * rather than folded into the filter model: reading a site's whole
-		 * history into memory to throw most of it away is not the same as asking
-		 * for less. Everything else is decided by Work\Filters, over what comes
-		 * back.
-		 */
 		foreach ( array( 'stage', 'level', 'work_type', 'parent_id' ) as $filter ) {
 			$value = $request->get_param( $filter );
 
@@ -409,6 +484,24 @@ final class WorkItemsController {
 		if ( $request->has_param( 'include_archived' ) ) {
 			$narrow['include_archived'] = rest_sanitize_boolean( $request->get_param( 'include_archived' ) );
 		}
+
+		return $narrow;
+	}
+
+	/**
+	 * The work on one site.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function index( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request->get_param( 'client_site_id' ) );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$narrow = self::narrowing( $request );
 
 		/*
 		 * #123. One filter model, applied here, so that every view is rendering
