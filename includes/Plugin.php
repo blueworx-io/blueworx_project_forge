@@ -43,6 +43,10 @@ final class Plugin {
 	public function boot(): void {
 		Data\Schema::maybe_upgrade();
 
+		// The studio's own client, made on the first request that finds it
+		// missing. After Schema, because it writes to the tables Schema makes.
+		Tenancy\Studio::ensure();
+
 		Frontend::instance()->boot();
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
