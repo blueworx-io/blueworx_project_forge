@@ -40,6 +40,7 @@ final class PeopleActions {
 		add_action( 'admin_post_bwx_forge_link_account', array( self::class, 'link_account' ) );
 		add_action( 'admin_post_bwx_forge_edit_person', array( self::class, 'edit_person' ) );
 		add_action( 'admin_post_bwx_forge_offboard_person', array( self::class, 'offboard_person' ) );
+		add_action( 'admin_post_bwx_forge_delete_person', array( self::class, 'delete_person' ) );
 		add_action( 'admin_post_bwx_forge_add_membership', array( self::class, 'add_membership' ) );
 		add_action( 'admin_post_bwx_forge_end_membership', array( self::class, 'end_membership' ) );
 		add_action( 'admin_post_bwx_forge_set_membership_grants', array( self::class, 'set_membership_grants' ) );
@@ -239,7 +240,14 @@ final class PeopleActions {
 			// rather than after it. An address another account holds is refused
 			// there too, and finding that out afterwards would leave the two
 			// sides disagreeing about who somebody is.
-			$wp_holder = get_user_by( 'email', (string) $checked['values']['email'] );
+			//
+			// Only for somebody who has an account, because only their save
+			// writes to WordPress. Somebody added before #292 has none, and an
+			// account that happens to hold their address is not a clash — it is
+			// the one they will be joined to when they are given an account.
+			$wp_holder = (int) $user['wp_user_id'] > 0
+				? get_user_by( 'email', (string) $checked['values']['email'] )
+				: false;
 
 			if ( $wp_holder && (int) $wp_holder->ID !== (int) $user['wp_user_id'] ) {
 				self::back( 'duplicate' );
@@ -283,6 +291,32 @@ final class PeopleActions {
 		$version = (int) self::field( 'record_version' );
 
 		self::back( null === Users::deactivate( $user_id, $version ) ? 'stale' : 'added' );
+	}
+
+	/**
+	 * Deletes somebody from Forge. Their WordPress account stays.
+	 *
+	 * Only somebody already offboarded can go: offboarding is the step that
+	 * ends their access, and deleting is for a record that should never have
+	 * been here — somebody added by mistake, or twice.
+	 */
+	public static function delete_person(): void {
+		$user_id = self::field( 'user_id' );
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_delete_person_' . $user_id );
+
+		$user = Users::get( $user_id );
+
+		if ( null === $user ) {
+			self::back( 'unknown' );
+		}
+
+		if ( 'active' === (string) $user['status'] ) {
+			self::back( 'invalid' );
+		}
+
+		self::back( Users::delete( $user_id ) ? 'deleted' : 'invalid' );
 	}
 
 	/**

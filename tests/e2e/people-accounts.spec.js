@@ -216,3 +216,74 @@ test('deleting the WordPress user offboards the person and ends their access', a
 
   await context.close();
 });
+
+test('somebody offboarded before they had an account can be brought back', async ({
+  browser,
+  baseURL,
+}) => {
+  const { context, nonce, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const page = await context.newPage();
+
+  // Added the way people were before #292: a record with no account behind it.
+  // Then the address gets an account anyway, as it would when they sign up on
+  // the site themselves — and that account is theirs, not a clash.
+  const login = loginName('returner');
+  const email = `${login}@example.test`;
+  const name = `Returner ${login}`;
+
+  const created = await api.post('/users', { display_name: name, email });
+  expect(created.status(), await created.text()).toBe(200);
+
+  await makeAccount(context.request, nonce, login);
+
+  await page.goto(PEOPLE);
+  page.once('dialog', (dialog) => dialog.accept());
+  await cardFor(page, name).locator('[data-bwx-offboard]').click();
+
+  await page.goto(PEOPLE_ALL);
+  const card = cardFor(page, name);
+  await card.locator('[data-bwx-edit-person] summary').click();
+  await card.locator('[data-bwx-edit-person] select[name="status"]').selectOption('active');
+  await card.locator('[data-bwx-edit-person] input[type="submit"]').click();
+
+  await expect(page.locator('[data-bwx-notice="added"]')).toBeVisible();
+  await expect(cardFor(page, name).locator('[data-bwx-status]')).toHaveText('Active');
+
+  await context.close();
+});
+
+test('deleting an offboarded person removes them from Forge and keeps their WordPress account', async ({
+  browser,
+  baseURL,
+}) => {
+  const { context, nonce } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const page = await context.newPage();
+
+  const name = `Gone Entirely ${RUN_ID}`;
+  await addNewPerson(page, name, `gone.${RUN_ID}@example.test`);
+
+  const wpUserId = await cardFor(page, name).getAttribute('data-bwx-wp-user');
+
+  // Nobody active can be deleted: offboarding is the step that ends access,
+  // and deletion is only offered once that has happened.
+  await expect(cardFor(page, name).locator('[data-bwx-delete-person]')).toHaveCount(0);
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await cardFor(page, name).locator('[data-bwx-offboard]').click();
+
+  await page.goto(PEOPLE_ALL);
+  page.once('dialog', (dialog) => dialog.accept());
+  await cardFor(page, name).locator('[data-bwx-delete-person]').click();
+
+  await expect(page.locator('[data-bwx-notice="deleted"]')).toBeVisible();
+
+  await page.goto(PEOPLE_ALL);
+  await expect(cardFor(page, name)).toHaveCount(0);
+
+  // Forge let go of the record. WordPress did not: the account is theirs, and
+  // everything they wrote is attributed to it.
+  const account = await readAccount(context.request, nonce, wpUserId);
+  expect(String(account.id)).toBe(wpUserId);
+
+  await context.close();
+});

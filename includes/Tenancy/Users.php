@@ -265,6 +265,36 @@ final class Users {
 	}
 
 	/**
+	 * Removes a person from Forge altogether.
+	 *
+	 * The memberships and availability that were theirs go with the row: they
+	 * describe nobody once the row has gone, and a clients screen listing a
+	 * membership with no person behind it would have nothing to show for it.
+	 * Anything they did — work, meetings, comments — stays, attributed to an id
+	 * that now resolves to nobody. Their WordPress account is untouched.
+	 *
+	 * @param string $id User id.
+	 * @return bool False when the row was not there to remove.
+	 */
+	public static function delete( string $id ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
+		$removed = (bool) $wpdb->delete( Schema::users_table(), array( 'id' => $id ), array( '%s' ) );
+
+		if ( ! $removed ) {
+			return false;
+		}
+
+		foreach ( array( Schema::memberships_table(), Schema::availability_patterns_table(), Schema::unavailability_table() ) as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
+			$wpdb->delete( $table, array( 'user_id' => $id ), array( '%s' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Turns a database row into the record the rest of the plugin uses.
 	 *
 	 * @param array<string, mixed> $row Row as stored.
