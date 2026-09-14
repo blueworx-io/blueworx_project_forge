@@ -19,6 +19,7 @@ use Blueworx\Forge\Tenancy\Contacts;
 use Blueworx\Forge\Tenancy\Health;
 use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Memberships;
+use Blueworx\Forge\Tenancy\Studio;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 
@@ -141,6 +142,7 @@ final class ClientsScreen {
 
 		self::notice();
 		self::issued_key();
+		self::studio_panel();
 		self::timezone_list();
 		self::status_toggle_link( $status );
 		self::clients_list( $status );
@@ -893,6 +895,46 @@ final class ClientsScreen {
 
 		Page::actions_open();
 		submit_button( __( 'Add client', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		Page::panel_close();
+	}
+
+	/**
+	 * The studio's own client, and the one field it has here: its name.
+	 *
+	 * Everything else about it is edited where every other client is edited,
+	 * in the list below. This panel exists so the client that stands for us is
+	 * easy to find and easy to name — it is made automatically, after the
+	 * WordPress site, and that is not always what the studio calls itself.
+	 */
+	private static function studio_panel(): void {
+		$client = '' === Studio::client_id() ? null : Clients::get( Studio::client_id() );
+
+		Page::panel_open(
+			__( 'The studio', 'blueworx-forge' ),
+			'studio',
+			null === $client ? null : array( 'data-bwx-studio' => '1' )
+		);
+
+		if ( null === $client ) {
+			echo '<p class="bw-muted">' . esc_html__( 'The studio\'s own client has not been made yet. It is created the next time Forge loads.', 'blueworx-forge' ) . '</p>';
+			Page::panel_close();
+
+			return;
+		}
+
+		echo '<p class="bw-muted">' . esc_html__( 'Your own work goes under this client. It appears in the site picker like any other, and the board opens on it.', 'blueworx-forge' ) . '</p>';
+
+		wp_nonce_field( 'bwx_forge_rename_studio' );
+		echo '<input type="hidden" name="action" value="bwx_forge_rename_studio">';
+		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $client['record_version'] ) . '">';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-studio-name">' . esc_html__( 'Name', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="text" id="bwx-studio-name" name="display_name" class="bw-input" required value="' . esc_attr( (string) $client['display_name'] ) . '"></div>';
+		echo '</div>';
+
+		Page::actions_open();
+		submit_button( __( 'Save name', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
 		Page::panel_close();
 	}
 
