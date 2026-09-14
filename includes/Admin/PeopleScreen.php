@@ -142,6 +142,7 @@ final class PeopleScreen {
 			'unknown'   => array( 'danger', __( 'No such record.', 'blueworx-forge' ) ),
 			'duplicate' => array( 'danger', __( 'Somebody already has that email address.', 'blueworx-forge' ) ),
 			'noaccount' => array( 'danger', __( 'WordPress would not make an account for them, so nothing was saved.', 'blueworx-forge' ) ),
+			'deleted'   => array( 'success', __( 'Deleted from Forge. Their WordPress account is still there.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
@@ -248,6 +249,7 @@ final class PeopleScreen {
 		}
 
 		self::offboard_form( $person );
+		self::delete_form( $person );
 
 		echo '</div></div>';
 
@@ -560,6 +562,33 @@ final class PeopleScreen {
 		echo '<input type="hidden" name="record_version" value="' . esc_attr( (string) $person['record_version'] ) . '">';
 		echo '<button type="submit" class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-offboard onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Offboard this person? Their access to every client ends; their history stays.', 'blueworx-forge' ) ) ) . ')">';
 		echo esc_html__( 'Offboard', 'blueworx-forge' );
+		echo '</button>';
+		echo '</form>';
+	}
+
+	/**
+	 * The form that deletes somebody who has already been offboarded and has
+	 * nothing under their name.
+	 *
+	 * Offered only then: nobody with live access can vanish in one click, and
+	 * nobody with history can go at all (NOTIF-5). Never for their WordPress
+	 * account — that stays, with everything they wrote attributed to it.
+	 *
+	 * @param array<string, mixed> $person The person.
+	 */
+	private static function delete_form( array $person ): void {
+		if ( 'active' === (string) $person['status'] || Users::has_history( (string) $person['id'] ) ) {
+			return;
+		}
+
+		$id = (string) $person['id'];
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'bwx_forge_delete_person_' . $id );
+		echo '<input type="hidden" name="action" value="bwx_forge_delete_person">';
+		echo '<input type="hidden" name="user_id" value="' . esc_attr( $id ) . '">';
+		echo '<button type="submit" class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-delete-person onclick="return confirm(' . esc_attr( (string) wp_json_encode( __( 'Delete this person from Forge? Their WordPress account stays.', 'blueworx-forge' ) ) ) . ')">';
+		echo esc_html__( 'Delete', 'blueworx-forge' );
 		echo '</button>';
 		echo '</form>';
 	}

@@ -160,8 +160,11 @@ same string. Every record carries a `version`; a write quoting a stale version i
 rejected with the current state returned, never merged (ARCH-5).
 
 **Cascade.** Deactivation only, never deletion (NOTIF-5). Deactivating a user
-revokes memberships and leaves attribution intact. Deactivating a site hides its
-work from default views and retains everything for reporting and export.
+revokes memberships and leaves attribution intact. The one exception is a
+person with nothing under their name — no work, step, meeting or contact
+record — who may be deleted once offboarded; their WordPress account stays.
+Deactivating a site hides its work
+from default views and retains everything for reporting and export.
 
 ## Field-ownership map
 

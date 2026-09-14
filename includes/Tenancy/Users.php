@@ -265,6 +265,77 @@ final class Users {
 	}
 
 	/**
+	 * Whether anything has happened under this person's name.
+	 *
+	 * Work they hold a seat on, an onboarding step they review, a meeting they
+	 * host, a client contact they are: each is a record that would point at
+	 * nobody if the row went. Memberships and availability are not counted —
+	 * they are the person's own settings, and go with them.
+	 *
+	 * @param string $id User id.
+	 * @return bool
+	 */
+	public static function has_history( string $id ): bool {
+		global $wpdb;
+
+		$columns = array(
+			Schema::work_items_table()       => array( 'primary_user_id', 'reviewer_id', 'deliverer_id' ),
+			Schema::onboarding_steps_table() => array( 'reviewer_id' ),
+			Schema::meeting_series_table()   => array( 'host_user_id' ),
+			Schema::contacts_table()         => array( 'user_id' ),
+		);
+
+		foreach ( $columns as $table => $fields ) {
+			foreach ( $fields as $field ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own tables and column names from the list above, never from input.
+				$found = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$field} = %s", $id ) );
+
+				if ( $found > 0 ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Removes a person who was never really here.
+	 *
+	 * NOTIF-5 says nothing goes while it carries history, and this is the one
+	 * case that carries none: somebody added by mistake, or twice, or before
+	 * they had an account and never used since. Offboarding is still the answer
+	 * for everyone else. Their WordPress account is untouched either way.
+	 *
+	 * The memberships and availability that were theirs go with the row: they
+	 * describe nobody once the row has gone.
+	 *
+	 * @param string $id User id.
+	 * @return bool False when they carry history, or the row was not there.
+	 */
+	public static function delete( string $id ): bool {
+		global $wpdb;
+
+		if ( self::has_history( $id ) ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
+		$removed = (bool) $wpdb->delete( Schema::users_table(), array( 'id' => $id ), array( '%s' ) );
+
+		if ( ! $removed ) {
+			return false;
+		}
+
+		foreach ( array( Schema::memberships_table(), Schema::availability_patterns_table(), Schema::unavailability_table() ) as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
+			$wpdb->delete( $table, array( 'user_id' => $id ), array( '%s' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Turns a database row into the record the rest of the plugin uses.
 	 *
 	 * @param array<string, mixed> $row Row as stored.
