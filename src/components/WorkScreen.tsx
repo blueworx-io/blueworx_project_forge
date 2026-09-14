@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Requirement, SavedView, Stage, ViewName, WorkFilters, WorkItem } from '../types';
 import { api, GateError, forgeData, isConnected, isDenied, messageFor } from '../api';
 import { ALL_SITES, recallSite, rememberSite, siteLabel, type SiteOption } from '../sites';
+import { useLiveReload } from '../live';
 import { Board } from './Board';
 import { Filters } from './Filters';
 import { ItemPanel } from './ItemPanel';
@@ -138,6 +139,14 @@ export function WorkScreen( {
     }
   }, [ newWorkAsked, siteId ] );
 
+  // A re-check that found something new: the list, in place. The shell
+  // (stages, sites, saved views) is only re-read by the header's refresh.
+  useLiveReload( () => {
+    if ( 'ready' === shell && '' !== siteId ) {
+      void loadItems( siteId );
+    }
+  } );
+
   useEffect( () => {
     if ( isConnected() ) {
       // The rule cannot see that every state change in here happens after an
@@ -182,7 +191,6 @@ export function WorkScreen( {
 
   useEffect( () => {
     if ( 'ready' === shell && '' !== siteId ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadItems( siteId );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

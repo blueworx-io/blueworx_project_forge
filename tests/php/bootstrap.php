@@ -710,3 +710,46 @@ function update_user_meta( int $user_id, string $key, $value ): bool {
 
 	return true;
 }
+
+/**
+ * Stub. The site's timezone, which for a unit test is UTC.
+ *
+ * @return DateTimeZone
+ */
+function wp_timezone(): DateTimeZone {
+	return new DateTimeZone( 'UTC' );
+}
+
+// WordPress's own secret, which Tenancy\Secrets derives its key from.
+if ( ! defined( 'AUTH_KEY' ) ) {
+	define( 'AUTH_KEY', 'unit-test-auth-key-not-a-secret' );
+}
+
+// Core's own, for the hourly SureCart refresh.
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
+	define( 'HOUR_IN_SECONDS', 3600 );
+}
+
+/**
+ * Stub. Strips tags, as core does, without the rest of core.
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function wp_strip_all_tags( string $text ): string {
+	return trim( (string) preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( $text ) ) );
+}
+
+/**
+ * Stub. Picks the singular or plural form; no translation.
+ *
+ * @param string $single      Singular.
+ * @param string $plural      Plural.
+ * @param int    $number      Count.
+ * @param string $text_domain Text domain.
+ * @return string
+ */
+function _n( string $single, string $plural, int $number, string $text_domain = 'default' ): string {
+	unset( $text_domain );
+	return 1 === $number ? $single : $plural;
+}

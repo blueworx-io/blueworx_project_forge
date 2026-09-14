@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import type { ClientSite, Stage, WorkItem } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { ItemPanel } from './ItemPanel';
@@ -121,6 +122,8 @@ export function MyTasksScreen() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [] );
+
+  useLiveReload( load );
 
   const counts = useMemo( () => {
     const c: Record< View, number > = { today: 0, week: 0, later: 0, all: mine.length };

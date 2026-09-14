@@ -8,6 +8,7 @@ import type {
   CapacityResponse,
 } from '../types';
 import { api, isDenied, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { Screen } from './States';
 
 /**
@@ -149,6 +150,8 @@ export function CapacityScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  useLiveReload( load );
 
   /*
    * Changing the dates is what starts a read, so it is what says the screen is

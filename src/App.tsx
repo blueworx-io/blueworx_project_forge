@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, CalendarDays, Clock, Columns3, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
-import { api, forgeData, isConnected } from './api';
+import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
@@ -57,6 +57,42 @@ const RAIL: Entry[] = [
   { group: 'Insight' },
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
 ];
+
+/**
+ * When the screen's data last came from the server, and a way to ask again.
+ *
+ * The time is the newest answer the app holds (see api.ts): a screen's own
+ * reads are the newest thing that has happened, so this is when what is on
+ * screen was fetched. It moves when a background re-check completes, whether
+ * or not it found anything. The button forgets everything kept and remounts
+ * the screen, so what follows is a real read of every path it uses.
+ */
+function Refreshed( { onRefresh }: { onRefresh: () => void } ) {
+  const [ at, setAt ] = useState( refreshedAt() );
+
+  useEffect( () => onRefreshed( () => setAt( refreshedAt() ) ), [] );
+
+  const when = 0 === at ? '' : new Date( at ).toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+
+  return (
+    <span className="fs-refreshed" data-testid="bwx-refreshed" data-at={ at }>
+      { '' !== when && <span className="fk-mono">Refreshed { when }</span> }
+      <Button
+        variant="secondary"
+        size="sm"
+        data-testid="bwx-refresh-all"
+        aria-label="Refresh"
+        title="Read everything on this screen again"
+        onClick={ () => {
+          forgetAll();
+          onRefresh();
+        } }
+      >
+        <RefreshCw size={ 14 } aria-hidden="true" />
+      </Button>
+    </span>
+  );
+}
 
 const TITLES: Record< ScreenName, string > = {
   mytasks: 'My tasks',
@@ -123,6 +159,7 @@ export function App() {
   const [ screen, setScreen ] = useState< ScreenName >( 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
   const [ newWorkAsked, setNewWorkAsked ] = useState( 0 );
+  const [ generation, setGeneration ] = useState( 0 );
   const waiting = useRequestsWaiting( screen );
 
   if ( ! isConnected() ) {
@@ -246,15 +283,27 @@ export function App() {
            ago. The work screen stays mounted across its three rail entries,
            because they are one screen.
          */ }
-        <PageHeader crumbs={ opening.crumbs } eyebrow={ opening.eyebrow } title={ title } tile={ opening.tile } hue={ opening.hue } />
+        <PageHeader
+          crumbs={ opening.crumbs }
+          eyebrow={ opening.eyebrow }
+          title={ title }
+          tile={ opening.tile }
+          hue={ opening.hue }
+          actions={ <Refreshed onRefresh={ () => setGeneration( ( n ) => n + 1 ) } /> }
+        />
 
-        { 'mytasks' === screen && <MyTasksScreen /> }
-        { 'work' === screen && <WorkScreen view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } /> }
-        { 'requests' === screen && <QueueScreen /> }
-        { 'capacity' === screen && <CapacityScreen /> }
-        { 'onboarding' === screen && <OnboardingScreen /> }
-        { 'standup' === screen && <StandupScreen /> }
-        { 'reports' === screen && <ReportsScreen /> }
+        { /*
+           The key is the header's refresh button: bumping it remounts the
+           screen, which reads afresh because the cache was just emptied. The
+           same thing switching screens does, on demand.
+         */ }
+        { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
+        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } /> }
+        { 'requests' === screen && <QueueScreen key={ generation } /> }
+        { 'capacity' === screen && <CapacityScreen key={ generation } /> }
+        { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
+        { 'standup' === screen && <StandupScreen key={ generation } /> }
+        { 'reports' === screen && <ReportsScreen key={ generation } /> }
       </main>
     </div>
   );
