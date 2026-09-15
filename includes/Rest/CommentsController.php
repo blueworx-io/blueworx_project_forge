@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Slack\Notify;
+use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Items;
 use WP_REST_Request;
@@ -143,6 +145,10 @@ final class CommentsController {
 				400
 			);
 		}
+
+		// Everyone holding a seat, except whoever wrote it (PR 5).
+		$me = Users::by_wp_user( get_current_user_id() );
+		Notify::commented( $item, $comment, null === $me ? '' : (string) $me['id'] );
 
 		return rest_ensure_response(
 			array(

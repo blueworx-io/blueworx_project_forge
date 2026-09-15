@@ -86,6 +86,7 @@ final class Plugin {
 		add_action( 'admin_menu', array( Admin\SyncScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionsScreen::class, 'register' ) );
 		Admin\ConnectionActions::boot();
+		Admin\ProfileSlack::boot();
 		add_action( 'admin_menu', array( Admin\PackagesScreen::class, 'register' ) );
 
 		Admin\PackageActions::boot();
@@ -116,6 +117,9 @@ final class Plugin {
 
 		// #292. Every person is a WordPress user, and the two are kept in step.
 		Tenancy\Accounts::boot();
+
+		// The one scheduled job: the morning Slack message (PR 5).
+		Slack\Morning::boot();
 	}
 
 	/**
@@ -142,6 +146,7 @@ final class Plugin {
 	 * the site owns, and deactivating a plugin is not a request to delete content.
 	 */
 	public function deactivate(): void {
+		Slack\Morning::unschedule();
 		flush_rewrite_rules();
 	}
 }

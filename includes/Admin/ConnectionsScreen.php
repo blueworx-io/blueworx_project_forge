@@ -10,6 +10,8 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Commerce\SureCart\Connections;
+use Blueworx\Forge\Slack\Morning;
+use Blueworx\Forge\Slack\People;
 use Blueworx\Forge\Tenancy\Users;
 
 /**
@@ -76,7 +78,73 @@ final class ConnectionsScreen {
 
 		self::add_store_form();
 
+		Page::panel_open( __( 'Slack', 'blueworx-forge' ), 'slack', array( 'data-bwx-slack-time' => '1' ) );
+		self::slack_panel();
+		Page::panel_close();
+
 		Page::close();
+	}
+
+	/**
+	 * The morning message's time, a way to send it now, and who is connected.
+	 *
+	 * People connect themselves, on their profile; what an administrator can do
+	 * here is see who has, cut one off, and set the hour everyone's morning
+	 * message goes.
+	 */
+	private static function slack_panel(): void {
+		$people = self::people();
+
+		wp_nonce_field( 'bwx_forge_slack_time' );
+		echo '<input type="hidden" name="action" value="bwx_forge_slack_time">';
+
+		echo '<p class="bw-card__note">' . esc_html__( 'Each person connects Slack on their own profile page. The morning message goes to everyone connected at this time, in the site’s timezone.', 'blueworx-forge' ) . '</p>';
+
+		echo '<div class="bw-formrow">';
+		echo '<label class="bw-formrow__label" for="bwx-slack-time">' . esc_html__( 'Morning message at', 'blueworx-forge' ) . '</label>';
+		echo '<div class="bw-formrow__control"><input type="time" id="bwx-slack-time" name="time" class="bw-input" value="' . esc_attr( Morning::time() ) . '" required></div>';
+		echo '</div>';
+
+		$connected = People::connected();
+
+		Page::section_open( __( 'Connected', 'blueworx-forge' ), 'slack-people' );
+
+		if ( array() === $connected ) {
+			echo '<p class="bw-card__note" data-bwx-slack-nobody="1">' . esc_html__( 'Nobody has connected Slack yet.', 'blueworx-forge' ) . '</p>';
+		} else {
+			echo '<div class="bw-tablescroll"><table class="bw-table" data-bwx-slack-people="1"><thead><tr>';
+			echo '<th>' . esc_html__( 'Person', 'blueworx-forge' ) . '</th>';
+			echo '<th>' . esc_html__( 'Last message', 'blueworx-forge' ) . '</th>';
+			echo '<th class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
+			echo '</tr></thead><tbody>';
+
+			foreach ( $connected as $person ) {
+				$name = $people[ (string) $person['user_id'] ] ?? (string) $person['user_id'];
+				$note = '' !== (string) $person['last_error']
+					/* translators: %s: the error */
+					? sprintf( __( 'last message failed: %s', 'blueworx-forge' ), (string) $person['last_error'] )
+					: ( 0 < (int) $person['last_ok_at']
+						/* translators: %s: date and time */
+						? sprintf( __( 'last message %s', 'blueworx-forge' ), wp_date( 'j M H:i', (int) $person['last_ok_at'] ) )
+						: __( 'nothing sent yet', 'blueworx-forge' ) );
+
+				echo '<tr data-bwx-slack-person="' . esc_attr( (string) $person['user_id'] ) . '">';
+				echo '<td class="bw-table__primary">' . esc_html( $name ) . '</td>';
+				echo '<td>' . esc_html( $note ) . '</td>';
+				echo '<td class="bw-table__actions"><div class="bw-rowactions">';
+				echo '<a class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-slack-disconnect="' . esc_attr( (string) $person['user_id'] ) . '" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=bwx_forge_slack_disconnect&user_id=' . rawurlencode( (string) $person['user_id'] ) ), 'bwx_forge_slack_disconnect_' . (string) $person['user_id'] ) ) . '">' . esc_html__( 'Disconnect', 'blueworx-forge' ) . '</a>';
+				echo '</div></td>';
+				echo '</tr>';
+			}
+
+			echo '</tbody></table></div>';
+		}
+
+		Page::section_close();
+
+		Page::actions_open();
+		submit_button( __( 'Save time', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
+		echo ' <a class="bw-btn bw-btn--secondary" data-bwx-slack-now="1" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=bwx_forge_slack_morning_now' ), 'bwx_forge_slack_morning_now' ) ) . '">' . esc_html__( 'Send the morning message now', 'blueworx-forge' ) . '</a>';
 	}
 
 	/**
@@ -98,6 +166,10 @@ final class ConnectionsScreen {
 			'invalid'   => array( 'danger', __( 'That could not be saved. A name, a token and somebody to check the payment are all needed.', 'blueworx-forge' ) ),
 			'unknown'   => array( 'danger', __( 'No such store.', 'blueworx-forge' ) ),
 			'stale'     => array( 'danger', __( 'That changed elsewhere first — reload and try again.', 'blueworx-forge' ) ),
+			'timed'     => array( 'success', __( 'The morning message time is saved.', 'blueworx-forge' ) ),
+			/* translators: %d: number of people messaged */
+			'morning'   => array( 'success', sprintf( __( 'Morning message sent to %d people.', 'blueworx-forge' ), $count ) ),
+			'cut'       => array( 'success', __( 'Disconnected. Their webhook has been forgotten.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {

@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 32, $definitions );
+		$this->assertCount( 34, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -127,6 +127,14 @@ final class SchemaTest extends TestCase {
 			 * guard.
 			 */
 			Schema::subscriptions_table(),
+
+			/*
+			 * A person's Slack row is theirs alone and written by them alone,
+			 * so two edits cannot cross; and a Slack event, like a notification
+			 * event, is claimed once and settled once.
+			 */
+			Schema::slack_people_table(),
+			Schema::slack_events_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {

@@ -12,6 +12,8 @@ namespace Blueworx\Forge\Admin;
 use Blueworx\Forge\Commerce\SureCart\Client;
 use Blueworx\Forge\Commerce\SureCart\Connections;
 use Blueworx\Forge\Commerce\SureCart\Sync;
+use Blueworx\Forge\Slack\Morning;
+use Blueworx\Forge\Slack\People;
 
 /**
  * Connect, edit, test, refresh and remove a store. The same three guards as
@@ -28,6 +30,49 @@ final class ConnectionActions {
 		add_action( 'admin_post_bwx_forge_test_connection', array( self::class, 'test' ) );
 		add_action( 'admin_post_bwx_forge_refresh_connection', array( self::class, 'refresh' ) );
 		add_action( 'admin_post_bwx_forge_remove_connection', array( self::class, 'remove' ) );
+		add_action( 'admin_post_bwx_forge_slack_time', array( self::class, 'slack_time' ) );
+		add_action( 'admin_post_bwx_forge_slack_morning_now', array( self::class, 'slack_morning_now' ) );
+		add_action( 'admin_post_bwx_forge_slack_disconnect', array( self::class, 'slack_disconnect' ) );
+	}
+
+	/**
+	 * Sets the morning message's time and reschedules it.
+	 */
+	public static function slack_time(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_slack_time' );
+
+		$time = self::field( 'time' );
+
+		if ( 1 !== preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $time ) ) {
+			self::back( 'invalid' );
+		}
+
+		Morning::schedule( $time );
+		self::back( 'timed' );
+	}
+
+	/**
+	 * Sends the morning message now.
+	 */
+	public static function slack_morning_now(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_slack_morning_now' );
+
+		self::back( 'morning', Morning::run() );
+	}
+
+	/**
+	 * Cuts a person off from Slack.
+	 */
+	public static function slack_disconnect(): void {
+		$user_id = isset( $_GET['user_id'] ) ? sanitize_text_field( wp_unslash( $_GET['user_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- checked on the next line.
+
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_slack_disconnect_' . $user_id );
+
+		People::disconnect( $user_id );
+		self::back( 'cut' );
 	}
 
 	/**

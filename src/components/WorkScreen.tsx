@@ -61,12 +61,15 @@ export function WorkScreen( {
   view: chosenView,
   onViewChange,
   newWorkAsked = 0,
+  openItem = '',
 }: {
   /** The view the shell wants shown; the screen keeps its own when absent. */
   view?: ViewName;
   onViewChange?: ( view: ViewName ) => void;
   /** Bumped by the shell's "New task"; each bump opens the add form. */
   newWorkAsked?: number;
+  /** A task to open the panel on straight away — a link from Slack. */
+  openItem?: string;
 } = {} ) {
   const data = forgeData();
   const [ sites, setSites ] = useState< Site[] >( [] );
@@ -74,7 +77,7 @@ export function WorkScreen( {
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ columns, setColumns ] = useState< string[] >( [] );
   const [ items, setItems ] = useState< WorkItem[] >( [] );
-  const [ openId, setOpenId ] = useState( '' );
+  const [ openId, setOpenId ] = useState( openItem ?? '' );
   const [ adding, setAdding ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );

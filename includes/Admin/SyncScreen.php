@@ -12,7 +12,9 @@ namespace Blueworx\Forge\Admin;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Health;
+use Blueworx\Forge\Slack\Events as SlackEvents;
 use Blueworx\Forge\Tenancy\Sync;
+use Blueworx\Forge\Tenancy\Users;
 
 /**
  * #177. A broken client site is noticed by us, not by the client.
@@ -79,8 +81,53 @@ final class SyncScreen {
 
 		self::queue( Sync::queue( $named ) );
 		self::everything( $named );
+		self::slack_failures();
 
 		Page::close();
+	}
+
+	/**
+	 * Slack messages that gave up (PR 5): who, what, and Slack's own words.
+	 *
+	 * Here rather than on a screen of its own because this is the screen
+	 * somebody opens when they suspect something is not getting through.
+	 */
+	private static function slack_failures(): void {
+		$failed = SlackEvents::failed();
+
+		Page::panel_open( __( 'Slack messages that failed', 'blueworx-forge' ), 'slack-failures' );
+
+		if ( array() === $failed ) {
+			echo '<p class="bw-card__note" data-bwx-slack-failures="0">' . esc_html__( 'Every Slack message sent lately arrived.', 'blueworx-forge' ) . '</p>';
+			Page::panel_close();
+
+			return;
+		}
+
+		$names = array();
+
+		foreach ( Users::all( null ) as $user ) {
+			$names[ (string) $user['id'] ] = (string) $user['display_name'];
+		}
+
+		echo '<div class="bw-tablescroll"><table class="bw-table" data-bwx-slack-failures="' . esc_attr( (string) count( $failed ) ) . '"><thead><tr>';
+		echo '<th>' . esc_html__( 'Person', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Message', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'What Slack said', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'When', 'blueworx-forge' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $failed as $event ) {
+			echo '<tr>';
+			echo '<td class="bw-table__primary">' . esc_html( $names[ (string) $event['user_id'] ] ?? (string) $event['user_id'] ) . '</td>';
+			echo '<td>' . esc_html( (string) ( $event['payload']['text'] ?? $event['kind'] ) ) . '</td>';
+			echo '<td>' . esc_html( (string) $event['last_detail'] ) . '</td>';
+			echo '<td>' . esc_html( wp_date( 'j M H:i', (int) $event['settled_at'] ) ) . '</td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table></div>';
+		Page::panel_close();
 	}
 
 	/**
