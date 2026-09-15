@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
+import { useLiveReload } from '../live';
 import { Inline, Screen } from './States';
 
 interface Detail {
@@ -360,6 +361,16 @@ export function ItemPanel( {
     // the panel forever. The item's id is the only thing that should reopen it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ itemId ] );
+
+  // A re-check that found something new reloads the panel — unless somebody
+  // is mid-edit, in which case their draft wins and the reload waits for the
+  // next change. load() replaces the draft, and a field emptying under a
+  // person's cursor is worse than a panel a minute behind.
+  useLiveReload( () => {
+    if ( ! detail || JSON.stringify( draft ) === JSON.stringify( asDraft( detail.item ) ) ) {
+      void load();
+    }
+  } );
 
   /**
    * Every write goes through here, so a gate failure is handled once. A refusal

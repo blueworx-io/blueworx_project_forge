@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { OnboardingBoard, OnboardingChoice, OnboardingFilters, OnboardingSite } from '../types';
 import { api, isDenied, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { query, statusWord } from '../onboarding';
 import { OnboardingPanel } from './OnboardingPanel';
 import { Screen } from './States';
@@ -56,6 +57,8 @@ export function OnboardingScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  useLiveReload( load );
 
   /*
    * Changing a filter is what starts a read, so it is what says the screen is

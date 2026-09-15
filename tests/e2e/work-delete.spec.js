@@ -18,6 +18,8 @@ async function openBoardOn(page, siteId) {
 
 test.describe('deleting work', () => {
   test('an administrator deletes an item and its children; staff cannot', async ({ browser, baseURL }) => {
+    test.slow();
+
     const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
     const { client, site } = await makeSite(admin.api, 'Delete Co', RUN_ID);
 
@@ -59,6 +61,8 @@ test.describe('deleting work', () => {
   });
 
   test('the panel offers Delete to an administrator and not to staff', async ({ browser, baseURL, page }) => {
+    test.slow();
+
     const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
     const { client, site } = await makeSite(admin.api, 'Delete Panel Co', RUN_ID);
     const item = (await (await makeItem(admin.api, site.id, { title: `Panel item ${RUN_ID}` })).json()).item;

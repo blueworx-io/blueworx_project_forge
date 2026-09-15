@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Signal, SignalList } from '../types';
 import { api, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { signalTone, signalWord, whenOf } from '../signals';
 
 /**
@@ -42,6 +43,8 @@ export function Signals() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  useLiveReload( load );
 
   // Closing on Escape and on a click elsewhere, because this is a panel over
   // the page rather than a screen: somewhere to glance and leave.

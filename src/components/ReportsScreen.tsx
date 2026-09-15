@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReportsResponse, ReportSummary } from '../types';
 import { api, isDenied, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { Screen } from './States';
 
 /**
@@ -139,6 +140,8 @@ export function ReportsScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  useLiveReload( load );
 
   function ask( next: { from: string; to: string } ) {
     setState( 'loading' );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { IntakeState, QueueFilters, Submission } from '../types';
 import { api, isDenied, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { BulkButton, Check, Modal, ReasonAction, ViewPill } from '../kit';
 import { RequestPanel } from './RequestPanel';
 import { Screen } from './States';
@@ -134,6 +135,8 @@ export function QueueScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [] );
+
+  useLiveReload( load );
 
   /** Sets one set-valued filter, or clears it when nothing is chosen. */
   const set = ( key: 'client_id' | 'intake_state' | 'type', value: string ) => {

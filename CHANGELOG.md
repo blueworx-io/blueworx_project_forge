@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.102.0] - 2026-09-14
+
+### Added
+
+- Switching between screens no longer reloads everything. Each screen shows what it already has at once and quietly checks for changes, updating in place if anything moved.
+- Every page header says when its data was last refreshed, with a button to read everything again.
+
 ## [2.101.0] - 2026-09-14
 
 ### Added

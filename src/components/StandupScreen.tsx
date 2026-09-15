@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, isDenied, messageFor } from '../api';
+import { useLiveReload } from '../live';
 import { SECTIONS, cardDetail, cardTitle, keyOf, ruleTone, ruleWord } from '../standup';
 import { GateList, ItemPanel } from './ItemPanel';
 import { Screen } from './States';
@@ -80,6 +81,8 @@ export function StandupScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  useLiveReload( load );
 
   /*
    * The stage list, for the panel this screen opens. Fetched on its own and
