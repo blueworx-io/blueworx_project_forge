@@ -10,6 +10,10 @@ export interface ForgeData {
   /** The signed-in WordPress user, and the Forge person behind it (#309). */
   currentUserId?: number;
   person?: { id: string; display_name: string } | null;
+  /** Who is signed in, as the corner of every screen shows it. */
+  currentUser?: { name: string; email: string } | null;
+  /** Their WordPress profile, where their own settings live. */
+  profileUrl?: string;
   loginUrl: string;
   logoutUrl: string;
   version: string;
