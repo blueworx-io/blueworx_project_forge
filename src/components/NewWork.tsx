@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api, ApiError } from '../api';
+import { siteLabel, type SiteOption } from '../sites';
 
 const LEVELS = [
   { id: 'project', label: 'Project' },
@@ -25,13 +26,17 @@ const TYPES = [
  */
 export function NewWork( {
   clientSiteId,
+  sites = [],
   onClose,
   onCreated,
 }: {
   clientSiteId: string;
+  /** Offered when the board is on "All clients", so the form has to ask. */
+  sites?: SiteOption[];
   onClose: () => void;
   onCreated: () => void;
 } ) {
+  const [ siteId, setSiteId ] = useState( () => ( 0 < sites.length ? ( sites.find( ( one ) => one.studio )?.id ?? sites[ 0 ].id ) : clientSiteId ) );
   const [ title, setTitle ] = useState( '' );
   const [ problem, setProblem ] = useState( '' );
   const [ level, setLevel ] = useState( 'feature' );
@@ -47,7 +52,7 @@ export function NewWork( {
       await api( '/work-items', {
         method: 'POST',
         body: {
-          client_site_id: clientSiteId,
+          client_site_id: siteId,
           title,
           problem,
           level,
@@ -89,6 +94,25 @@ export function NewWork( {
           <p className="bwx-notice" data-testid="bwx-new-notice" role="status">
             { notice }
           </p>
+        ) }
+
+        { 0 < sites.length && (
+          <div className="bwx-field">
+            <label htmlFor="bwx-new-site">Site</label>
+            <select
+              id="bwx-new-site"
+              className="bwx-select"
+              data-testid="bwx-new-site"
+              value={ siteId }
+              onChange={ ( event ) => setSiteId( event.target.value ) }
+            >
+              { sites.map( ( option ) => (
+                <option key={ option.id } value={ option.id }>
+                  { siteLabel( option, sites ) }
+                </option>
+              ) ) }
+            </select>
+          </div>
         ) }
 
         <div className="bwx-field">

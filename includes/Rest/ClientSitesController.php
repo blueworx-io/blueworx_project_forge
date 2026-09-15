@@ -13,6 +13,7 @@ use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Studio;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -191,6 +192,7 @@ final class ClientSitesController {
 		 */
 		foreach ( Reach::keep_sites( $reach, ClientSites::all( $status ), 'id' ) as $site ) {
 			$site['client_name'] = $names[ (string) $site['client_id'] ] ?? '';
+			$site['studio']      = Studio::is_studio_site( (string) $site['id'] );
 			$sites[]             = $site;
 		}
 

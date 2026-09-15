@@ -15,6 +15,7 @@ use Blueworx\Forge\Rest\IntegrationsController;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Contacts;
+use Blueworx\Forge\Tenancy\Studio;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
@@ -42,6 +43,7 @@ final class ClientActions {
 		add_action( 'admin_post_bwx_forge_deactivate_client', array( self::class, 'deactivate_client' ) );
 		add_action( 'admin_post_bwx_forge_deactivate_client_site', array( self::class, 'deactivate_client_site' ) );
 		add_action( 'admin_post_bwx_forge_edit_client', array( self::class, 'edit_client' ) );
+		add_action( 'admin_post_bwx_forge_rename_studio', array( self::class, 'rename_studio' ) );
 		add_action( 'admin_post_bwx_forge_edit_client_site', array( self::class, 'edit_client_site' ) );
 		add_action( 'admin_post_bwx_forge_issue_site_key', array( self::class, 'issue_site_key' ) );
 		add_action( 'admin_post_bwx_forge_revoke_site_key', array( self::class, 'revoke_site_key' ) );
@@ -225,6 +227,39 @@ final class ClientActions {
 		$updated = 'inactive' === ( $checked['values']['status'] ?? '' )
 			? Clients::deactivate( $client_id, $version, $checked['values'] )
 			: Clients::update( $client_id, $checked['values'], $version );
+
+		self::back( null === $updated ? 'stale' : 'added' );
+	}
+
+	/**
+	 * Renames the studio's own client.
+	 *
+	 * The ordinary client update, narrowed to the one field the studio panel
+	 * shows. Going through Clients::update rather than around it keeps the
+	 * version check: a rename racing an edit in the list below loses honestly.
+	 */
+	public static function rename_studio(): void {
+		self::require_admin();
+		check_admin_referer( 'bwx_forge_rename_studio' );
+
+		$client_id = Studio::client_id();
+
+		if ( '' === $client_id || null === Clients::get( $client_id ) ) {
+			self::back( 'unknown' );
+		}
+
+		$checked = Validate::client(
+			array(
+				'display_name' => isset( $_POST['display_name'] ) ? sanitize_text_field( wp_unslash( $_POST['display_name'] ) ) : '',
+			),
+			true
+		);
+
+		if ( array() !== $checked['errors'] ) {
+			self::back( 'invalid' );
+		}
+
+		$updated = Clients::update( $client_id, $checked['values'], (int) self::field( 'record_version' ) );
 
 		self::back( null === $updated ? 'stale' : 'added' );
 	}

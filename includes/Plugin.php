@@ -43,11 +43,16 @@ final class Plugin {
 	public function boot(): void {
 		Data\Schema::maybe_upgrade();
 
+		// The studio's own client, made on the first request that finds it
+		// missing. After Schema, because it writes to the tables Schema makes.
+		Tenancy\Studio::ensure();
+
 		Frontend::instance()->boot();
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
 
 		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
+		add_action( 'admin_head', array( Admin\MenuIcon::class, 'print_styles' ) );
 
 		// One enqueue for every studio screen, rather than one per screen that
 		// remembered to ask. Admin\Page decides which screens are ours.

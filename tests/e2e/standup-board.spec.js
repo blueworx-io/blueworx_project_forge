@@ -42,9 +42,56 @@ async function openStandup(page) {
   // The first request after a page load pays this instance's cold start, which
   // is longer than the default expect timeout and nothing to do with the test.
   await expect(board).toBeVisible({ timeout: 30_000 });
+  await unfold(page);
 
   return board;
 }
+
+/**
+ * Sections start folded, with only their count showing. The specs below are
+ * about what is in them, so they open every section first.
+ */
+async function unfold(page) {
+  const folded = page.locator('[data-testid="bwx-standup-section-toggle"][aria-expanded="false"]');
+
+  while ((await folded.count()) > 0) {
+    await folded.first().click();
+  }
+}
+
+test('sections start folded and stay open once opened', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const { admin, item } = await withSomethingLate(browser, baseURL);
+  const page = await admin.context.newPage();
+
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-standup').click();
+  await expect(page.getByTestId('bwx-standup')).toBeVisible({ timeout: 30_000 });
+
+  const card = page.locator(`[data-testid="bwx-standup-card"][data-subject="${item.id}"]`);
+
+  // Folded: the section and its count are there, the card is not. Overdue
+  // work is in the "work" section.
+  const late = page.locator('[data-testid="bwx-standup-section"][data-section="work"]');
+  await expect(late).toHaveAttribute('data-open', 'false');
+  await expect(late.getByTestId('bwx-standup-section-count')).toContainText('thing');
+  await expect(card).toHaveCount(0);
+
+  await late.getByTestId('bwx-standup-section-toggle').click();
+  await expect(late).toHaveAttribute('data-open', 'true');
+  await expect(card).toBeVisible();
+
+  // Remembered for the visit: away and back, and it is still open.
+  await page.getByTestId('bwx-screen-mytasks').click();
+  await page.getByTestId('bwx-screen-standup').click();
+  await expect(page.getByTestId('bwx-standup')).toBeVisible({ timeout: 30_000 });
+  await expect(late).toHaveAttribute('data-open', 'true');
+  await expect(card).toBeVisible();
+
+  await page.close();
+  await admin.context.close();
+});
 
 test('the day’s list shows what is late, in a section that names itself', async ({
   browser,

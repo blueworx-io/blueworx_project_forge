@@ -257,6 +257,34 @@ export function StandupScreen() {
   );
 }
 
+/** Where the sections opened this visit are kept. */
+const OPENED = 'bwx-forge-standup-open';
+
+function openedSections(): string[] {
+  try {
+    const raw = window.sessionStorage.getItem( OPENED );
+    const list: unknown = raw ? JSON.parse( raw ) : [];
+
+    return Array.isArray( list ) ? list.filter( ( one ): one is string => 'string' === typeof one ) : [];
+  } catch {
+    return [];
+  }
+}
+
+function wasOpened( id: string ): boolean {
+  return openedSections().includes( id );
+}
+
+function rememberOpened( id: string, open: boolean ): void {
+  try {
+    const rest = openedSections().filter( ( one ) => one !== id );
+
+    window.sessionStorage.setItem( OPENED, JSON.stringify( open ? [ ...rest, id ] : rest ) );
+  } catch {
+    // Storage refused: the section still opens, it just is not remembered.
+  }
+}
+
 /** One section: everything true of one kind, and how much of it is hidden. */
 function Section( {
   id,
@@ -281,6 +309,15 @@ function Section( {
   onComplete: Complete;
   onShowAll: () => void;
 } ) {
+  /*
+   * Folded until asked. The count in the head is the whole truth of a
+   * section, and a standup that opens on every card of every section is a
+   * wall; a person opens the one they are about to talk through. What was
+   * opened is kept for the visit, so moving between screens does not fold
+   * it all back up.
+   */
+  const [ open, setOpen ] = useState( () => wasOpened( id ) );
+
   if ( 0 === cards.length ) {
     return null;
   }
@@ -289,9 +326,23 @@ function Section( {
   const away = cards.length - shown.length;
 
   return (
-    <section className="bwx-standup-section" data-testid="bwx-standup-section" data-section={ id }>
+    <section className="bwx-standup-section" data-testid="bwx-standup-section" data-section={ id } data-open={ open ? 'true' : 'false' }>
       <div className="bwx-standup-section-head">
-        <h2 className="bwx-standup-section-title">{ title }</h2>
+        <h2 className="bwx-standup-section-title">
+          <button
+            type="button"
+            className="bwx-standup-section-toggle"
+            data-testid="bwx-standup-section-toggle"
+            aria-expanded={ open }
+            onClick={ () => {
+              setOpen( ! open );
+              rememberOpened( id, ! open );
+            } }
+          >
+            <span className="bwx-standup-section-caret" aria-hidden="true">{ open ? '▾' : '▸' }</span>
+            { title }
+          </button>
+        </h2>
 
         { /*
            The real count, always. This is the sentence that makes dismissing a
@@ -318,18 +369,20 @@ function Section( {
 
       <p className="bwx-standup-blurb">{ blurb }</p>
 
-      <ul className="bwx-standup-cards">
-        { shown.map( ( card ) => (
-          <Card
-            key={ keyOf( card ) }
-            card={ card }
-            busy={ busy }
-            onDismiss={ () => onDismiss( card ) }
-            onOpen={ onOpen }
-            onComplete={ onComplete }
-          />
-        ) ) }
-      </ul>
+      { open && (
+        <ul className="bwx-standup-cards">
+          { shown.map( ( card ) => (
+            <Card
+              key={ keyOf( card ) }
+              card={ card }
+              busy={ busy }
+              onDismiss={ () => onDismiss( card ) }
+              onOpen={ onOpen }
+              onComplete={ onComplete }
+            />
+          ) ) }
+        </ul>
+      ) }
     </section>
   );
 }

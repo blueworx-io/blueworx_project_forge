@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.101.0] - 2026-09-14
+
+### Added
+
+- Forge has a client for the studio itself, created automatically and named after the site, so your own work can be added and tracked like any client's. Rename it at the top of the Clients screen.
+- Administrators can delete a piece of work, and everything under it, from the item panel.
+- The site picker has an "All clients" choice that shows every site's work together, each card saying whose it is. It opens on the studio's own site the first time and remembers your last choice.
+
+### Changed
+
+- The Forge menu uses an anvil icon.
+- A client with one site is named once in the site picker, not twice.
+- Daily standup sections start folded, showing their counts; open the ones you want and they stay open for the visit.
+
 ## [2.100.1] - 2026-09-14
 
 ### Fixed

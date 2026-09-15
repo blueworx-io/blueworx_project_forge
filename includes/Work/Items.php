@@ -22,8 +22,11 @@ use Blueworx\Forge\Tenancy\Ids;
  *   handed. Stage changes go through Work\Transition, which is the only place
  *   that also records the move — a stage set by an ordinary edit would move
  *   work with no history of it having moved.
- * - **No delete** (NOTIF-5). Work is cancelled or archived, and the row stays,
- *   because a deleted item takes its ledger entries and its changelog with it.
+ * - **No delete in the ordinary course of work** (NOTIF-5). Work is cancelled
+ *   or archived, and the row stays. The one exception is `delete()`, which only
+ *   an administrator can reach: it is for clearing out what should never have
+ *   been there, and even it leaves the hour ledger and the notification record
+ *   alone, because those say what actually happened.
  */
 final class Items {
 
@@ -436,5 +439,84 @@ final class Items {
 			'created_by'               => (int) $row['created_by'],
 			'record_version'           => (int) $row['record_version'],
 		);
+	}
+
+	/**
+	 * The order to remove an item and everything under it: children first,
+	 * the item itself last.
+	 *
+	 * Pure, over `[ id, parent_id ]` rows, so the order can be tested without a
+	 * database. Children before parents means a delete that stops halfway
+	 * leaves a parent that can be tried again, never an orphan nothing lists.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Every item on the site, id and parent_id.
+	 * @param string                           $root The item being deleted.
+	 * @return array<int, string> Ids, deepest first.
+	 */
+	public static function delete_order( array $rows, string $root ): array {
+		$children = array();
+
+		foreach ( $rows as $row ) {
+			$children[ (string) $row['parent_id'] ][] = (string) $row['id'];
+		}
+
+		$order = array();
+		$walk  = static function ( string $id ) use ( &$walk, &$order, $children ): void {
+			foreach ( $children[ $id ] ?? array() as $child ) {
+				$walk( $child );
+			}
+
+			$order[] = $id;
+		};
+
+		$walk( $root );
+
+		return $order;
+	}
+
+	/**
+	 * Removes an item and everything under it, for good.
+	 *
+	 * Administrators only, and the route is the only caller. Comments, history,
+	 * gate records and dependencies go with each item; a request that was
+	 * converted into it is left in place with the link cleared, so the request
+	 * itself is still on record. The hour ledger and the notification register
+	 * are untouched.
+	 *
+	 * @param string $id The item.
+	 * @return int How many items were removed, 0 when there was no such item.
+	 */
+	public static function delete( string $id ): int {
+		global $wpdb;
+
+		$item = self::get( $id );
+
+		if ( null === $item ) {
+			return 0;
+		}
+
+		$table = Schema::work_items_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, parent_id FROM {$table} WHERE client_site_id = %s", (string) $item['client_site_id'] ), ARRAY_A );
+
+		$removed = 0;
+
+		foreach ( self::delete_order( is_array( $rows ) ? $rows : array(), $id ) as $doomed ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own tables; there is no core API for them.
+			$wpdb->delete( Schema::dependencies_table(), array( 'item_id' => $doomed ), array( '%s' ) );
+			$wpdb->delete( Schema::dependencies_table(), array( 'depends_on_id' => $doomed ), array( '%s' ) );
+			$wpdb->delete( Schema::work_events_table(), array( 'item_id' => $doomed ), array( '%s' ) );
+			$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $doomed ), array( '%s' ) );
+			$wpdb->delete( Schema::comments_table(), array( 'item_id' => $doomed ), array( '%s' ) );
+			$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $doomed ), array( '%s' ), array( '%s' ) );
+
+			if ( false !== $wpdb->delete( $table, array( 'id' => $doomed ), array( '%s' ) ) ) {
+				++$removed;
+			}
+			// phpcs:enable
+		}
+
+		return $removed;
 	}
 }

@@ -30,6 +30,9 @@ export interface Stage {
 export interface WorkItem {
   id: string;
   client_site_id: string;
+  /** Present on the all-clients board only: whose work this is. */
+  client_name?: string;
+  site_name?: string;
   parent_id: string;
   level: string;
   level_label: string;

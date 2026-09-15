@@ -139,6 +139,17 @@ body {
   border-color: var( --color-ash );
 }
 
+.bwx-button[ data-variant='danger' ] {
+  background: var( --color-danger-bg );
+  color: var( --color-danger );
+  border-color: var( --color-danger-border );
+  box-shadow: none;
+}
+.bwx-button[ data-variant='danger' ]:hover:not( :disabled ) {
+  background: var( --color-danger );
+  color: var( --color-snow );
+}
+
 .bwx-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -420,6 +431,18 @@ body {
   white-space: nowrap;
 }
 .bwx-card-level {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bwx-card-client {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var( --text-xs );
+  font-weight: var( --weight-medium );
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var( --ink-500 );
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2219,6 +2242,29 @@ td[ data-band='over' ] {
   font-weight: var( --weight-medium );
   letter-spacing: 0;
   color: var( --ink-900 );
+}
+.bwx-standup-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.bwx-standup-section-toggle:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.bwx-standup-section-caret {
+  width: 12px;
+  color: var( --ink-500 );
+}
+.bwx-standup-section[data-open='false'] .bwx-standup-blurb {
+  margin-bottom: 0;
 }
 .bwx-standup-section-head .bwx-mono {
   margin-left: auto;
