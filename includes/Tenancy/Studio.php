@@ -145,6 +145,6 @@ final class Studio {
 	 * @return bool
 	 */
 	public static function is_studio_site( string $site_id ): bool {
-		return '' !== $site_id && $site_id === self::site_id();
+		return '' !== $site_id && self::site_id() === $site_id;
 	}
 }

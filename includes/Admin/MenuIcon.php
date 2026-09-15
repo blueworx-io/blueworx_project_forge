@@ -42,7 +42,7 @@ final class MenuIcon {
 	 * Prints the stylesheet that paints the icon in the menu's own colour.
 	 */
 	public static function print_styles(): void {
-		$mask = "url(\"data:image/svg+xml;base64," . base64_encode( self::svg( '#000' ) ) . '")';
+		$mask = 'url("data:image/svg+xml;base64,' . base64_encode( self::svg( '#000' ) ) . '")';
 		$item = '#adminmenu .toplevel_page_' . SitesScreen::SLUG . ' .wp-menu-image';
 
 		echo '<style id="bwx-forge-menu-icon">';
