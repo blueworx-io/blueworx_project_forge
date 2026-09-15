@@ -14,6 +14,12 @@ commits and pull requests.
 
 - The open BlueWorx work from ClickUp arrives on the studio board with this update, each item in the stage it was at. Runs once, on blueworx.io only.
 
+## [2.106.2] - 2026-09-15
+
+### Fixed
+
+- The client site's Forge menu entry shows the Forge icon, not WordPress's hammer.
+
 ## [2.106.1] - 2026-09-15
 
 ### Changed
