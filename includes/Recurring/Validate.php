@@ -96,7 +96,7 @@ final class Validate {
 
 			$figure = '' === trim( (string) $input[ $hours ] ) ? 0.0 : (float) $input[ $hours ];
 
-			if ( $figure < 0 || ! is_numeric( $input[ $hours ] ) && '' !== trim( (string) $input[ $hours ] ) ) {
+			if ( $figure < 0 || ( ! is_numeric( $input[ $hours ] ) && '' !== trim( (string) $input[ $hours ] ) ) ) {
 				$errors[ $hours ] = 'Hours are a number, zero or more.';
 			} else {
 				$values[ $hours ] = (string) round( $figure, 2 );

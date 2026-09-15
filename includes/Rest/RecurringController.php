@@ -78,7 +78,12 @@ final class RecurringController {
 			)
 		);
 
-		foreach ( array( 'PATCH' => 'update', 'DELETE' => 'end' ) as $method => $callback ) {
+		$editing = array(
+			'PATCH'  => 'update',
+			'DELETE' => 'end',
+		);
+
+		foreach ( $editing as $method => $callback ) {
 			Server::register_route(
 				$route_namespace,
 				'/recurring/(?P<recurring_id>[A-Za-z0-9_\-]+)',

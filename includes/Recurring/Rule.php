@@ -158,9 +158,12 @@ final class Rule {
 
 		// A guard rather than a limit anybody should meet: a daily task
 		// unopened for three years is a thousand rows, and that is enough.
-		while ( $next <= $to && count( $found ) < 1000 ) {
+		$made = 0;
+
+		while ( $next <= $to && $made < 1000 ) {
 			$found[] = $next;
-			$next    = self::next_on_or_after( $rule, self::day( $next )->add( new DateInterval( 'P1D' ) )->format( 'Y-m-d' ) );
+			++$made;
+			$next = self::next_on_or_after( $rule, self::day( $next )->add( new DateInterval( 'P1D' ) )->format( 'Y-m-d' ) );
 		}
 
 		return $found;
