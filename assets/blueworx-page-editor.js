@@ -248,12 +248,15 @@
       h(PageHead, { schema: record.schema }),
       h(SummaryStrip, { schema: record.schema, values: record.values }),
       tabs.length > 1 ? h(Tabs, { tabs: tabs, active: active, onPick: setTab }) : null,
-      record.notice ? h(Notice, { notice: record.notice, onDismiss: record.dismiss,
-        canGo: Boolean(firstErrorTab(record.schema, record.errors)),
-        onGo: function () { const t = firstErrorTab(record.schema, record.errors); if (t) setTab(t); } }) : null,
-      h('div', { className: 'bw-panels' }, (current ? current.panels : []).map(function (panel) {
-        return h(Panel, { key: panel.id, panel: panel, record: record });
-      })),
+      // The notice lives in the panels column, so it is inset with the cards
+      // and shares their stack gap, rather than running edge to edge above them.
+      h('div', { className: 'bw-panels' },
+        record.notice ? h(Notice, { key: 'notice', notice: record.notice, onDismiss: record.dismiss,
+          canGo: Boolean(firstErrorTab(record.schema, record.errors)),
+          onGo: function () { const t = firstErrorTab(record.schema, record.errors); if (t) setTab(t); } }) : null,
+        (current ? current.panels : []).map(function (panel) {
+          return h(Panel, { key: panel.id, panel: panel, record: record });
+        })),
       h(SaveBar, { record: record, dirtyIn: dirtyIn })
     );
   }
@@ -382,11 +385,21 @@
     // screen-level (_screen) error has no field, so no tab, so no target —
     // offer the same dismiss a success notice gets instead of a dead button.
     const offerGo = props.notice.kind === 'danger' && props.canGo;
-    return h('div', { className: 'bw-notice bw-notice--' + props.notice.kind },
-      h('p', null, props.notice.text),
-      offerGo
-        ? h('button', { type: 'button', className: 'bw-btn bw-btn--ghost', onClick: props.onGo }, 'Take me to it')
-        : h('button', { type: 'button', className: 'bw-btn bw-btn--ghost', onClick: props.onDismiss }, 'Dismiss'));
+    // The design system's Notice, piece for piece (components/feedback/Notice):
+    // the tone's icon, a body, and Dismiss as an icon button on the far right.
+    // It used to be a bare paragraph with a text button after it, which sat
+    // neither at the right edge nor on the text's centre line.
+    const icons = { info: 'info', success: 'circle-check', warning: 'triangle-alert', danger: 'circle-alert' };
+    return h('div', { className: 'bw-notice bw-notice--' + props.notice.kind, role: props.notice.kind === 'danger' ? 'alert' : 'status' },
+      h('i', { className: 'bw-icon bw-notice__icon', 'data-lucide': icons[props.notice.kind] || 'info' }),
+      h('div', { className: 'bw-notice__body' },
+        h('p', { className: 'bw-notice__text' }, props.notice.text),
+        offerGo
+          ? h('div', { className: 'bw-notice__actions' },
+            h('button', { type: 'button', className: 'bw-btn bw-btn--ghost bw-btn--sm', onClick: props.onGo }, 'Take me to it'))
+          : null),
+      h('button', { type: 'button', className: 'bw-iconbtn bw-iconbtn--sm', title: 'Dismiss', 'aria-label': 'Dismiss', onClick: props.onDismiss },
+        h('i', { className: 'bw-icon', 'data-lucide': 'x' })));
   }
 
   function Panel(props) {
@@ -483,7 +496,8 @@
     const isGroup = field.kind === 'radio' || field.kind === 'checkboxes' || field.kind === 'scrolllist';
 
     return h('div', { className: wrap },
-      field.kind === 'title' ? null
+      // A title draws its own heading; a link IS its label, so neither gets one.
+      field.kind === 'title' || field.kind === 'link' ? null
         : h(isGroup ? 'span' : 'label', {
             className: 'bw-field__label',
             htmlFor: isGroup ? undefined : field.id,
@@ -1232,6 +1246,12 @@
 
       case 'preview':
         return h(Preview, { field: field });
+
+      // Always a new tab: this screen may hold unsaved changes, and a link
+      // that carried somebody off it would take those with it.
+      case 'link':
+        return h('p', { className: 'bw-field__help bw-link' },
+          h('a', { id: field.id, href: field.url, target: '_blank', rel: 'noreferrer noopener' }, field.label));
 
       case 'facts':
         return h('dl', { className: 'bw-dl' }, (field.rows || []).map(function (row) {

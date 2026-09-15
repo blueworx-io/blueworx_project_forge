@@ -183,24 +183,14 @@
 .fs-profile:focus-visible {
   background: var( --surface-sunken );
 }
-.fs-profile-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
 .fs-profile-name {
   font-size: var( --text-xs );
   font-weight: var( --weight-medium );
   color: var( --ink-900 );
   white-space: nowrap;
 }
-.fs-profile-email {
-  font-size: var( --text-micro );
-  color: var( --ink-500 );
-  white-space: nowrap;
-}
 @media ( max-width: 900px ) {
-  .fs-profile-text {
+  .fs-profile-name {
     display: none;
   }
 }
