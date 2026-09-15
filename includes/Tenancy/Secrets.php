@@ -32,6 +32,7 @@ final class Secrets {
 	public static function seal( string $plain ): string {
 		$nonce = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Ciphertext is binary; this is how it fits a text column.
 		return base64_encode( $nonce . sodium_crypto_secretbox( $plain, $nonce, self::key() ) );
 	}
 
@@ -42,6 +43,7 @@ final class Secrets {
 	 * @return string|null Null when it was not sealed here, or was changed.
 	 */
 	public static function open( string $sealed ): ?string {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- The reverse of seal(); the bytes are ciphertext, not code.
 		$bytes = base64_decode( $sealed, true );
 
 		if ( false === $bytes || strlen( $bytes ) < SODIUM_CRYPTO_SECRETBOX_NONCEBYTES + SODIUM_CRYPTO_SECRETBOX_MACBYTES ) {
