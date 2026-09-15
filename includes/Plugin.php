@@ -47,6 +47,10 @@ final class Plugin {
 		// missing. After Schema, because it writes to the tables Schema makes.
 		Tenancy\Studio::ensure();
 
+		// The studio's open ClickUp work, brought across once (#346). After
+		// Studio, because it needs the studio site to put the work on.
+		Work\ClickUpImport::maybe_run();
+
 		Frontend::instance()->boot();
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
