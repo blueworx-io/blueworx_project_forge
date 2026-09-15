@@ -754,6 +754,7 @@ body.wp-admin.folded .bw-savebar{left:36px}
 .bw-notice__title{font-weight:var(--bw-weight-semibold);font-size:var(--bw-size-body);margin:0 0 2px;color:var(--bw-text-heading)}
 .bw-notice__text{margin:0;font-size:var(--bw-size-body);color:var(--bw-text-muted)}
 .bw-notice__actions{display:flex;gap:var(--bw-space-5);align-items:center;margin-top:var(--bw-space-5)}
+.bw-notice>.bw-iconbtn{flex:none;margin-left:auto;margin-block:calc((var(--bw-size-body) * var(--bw-lh-body) - var(--bw-control-h-sm)) / 2)}
 .bw-notice--info{background:var(--bw-info-wash);border-color:#CBDFF0}
 .bw-notice--success{background:var(--bw-success-wash);border-color:#C6E9CE}
 .bw-notice--warning{background:var(--bw-warning-wash);border-color:#F0DFA8}

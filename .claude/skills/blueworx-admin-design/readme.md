@@ -338,6 +338,7 @@ window, one per screen).
 | Fields that only exist while a condition holds | `bw-conditional` |
 | The record's title, and the slug beneath it | `bw-titleinput`, `bw-permalink` |
 | A small muted note with an icon | `bw-fieldnote` |
+| A line that goes somewhere else — a demo site, a help page | a `link` field: its `label` is the link's text, `url` where it goes; opens in a new tab, no heading, stores nothing |
 | A collapsible group | `bw-accordion` (not a new control) |
 | Rows that fall into named groups, each with its own subtotal | a `repeater` with `group_by` and `subtotal_of` |
 | Phases on a week or date scale | `gantt` |

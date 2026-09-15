@@ -16,7 +16,7 @@ final class Schema {
 		'text', 'textarea', 'richtext', 'number', 'range', 'colour', 'date', 'datetime',
 		'copytext', 'select', 'radio', 'checkboxes', 'toggle', 'tokens', 'scrolllist',
 		'media', 'file', 'repeater', 'record', 'facts', 'table', 'gantt', 'title', 'slug',
-		'preview', 'schedule',
+		'preview', 'schedule', 'link',
 	];
 
 	const CHOICE_KINDS = [ 'select', 'radio', 'checkboxes', 'scrolllist', 'record' ];
@@ -848,6 +848,18 @@ final class Schema {
 		// page yet has nothing to show, and the frame says so.
 		if ( 'preview' === $field['kind'] ) {
 			$field['url'] = isset( $field['url'] ) ? (string) $field['url'] : '';
+		}
+
+		// A link is a line of text that goes somewhere else — a demo site, a
+		// help page — drawn among the fields. Its label is the link's own text,
+		// so there is no separate heading, and it takes nothing back. Unlike a
+		// preview, a link with nowhere to go is a mistake rather than an empty
+		// state, so it is refused here.
+		if ( 'link' === $field['kind'] ) {
+			$field['url'] = isset( $field['url'] ) ? (string) $field['url'] : '';
+			if ( '' === $field['url'] ) {
+				throw new InvalidArgumentException( sprintf( 'The field "%s" on the "%s" editor screen is a link, so it needs a url.', $field['id'], $slug ) );
+			}
 		}
 
 		$field['help']        = $field['help'] ?? '';
