@@ -28,7 +28,14 @@ final class SlackController {
 	 * @param string $route_namespace REST namespace.
 	 */
 	public static function register_routes( string $route_namespace ): void {
-		foreach ( array( 'GET' => 'show', 'POST' => 'connect', 'PATCH' => 'prefs', 'DELETE' => 'disconnect' ) as $method => $callback ) {
+		$mine = array(
+			'GET'    => 'show',
+			'POST'   => 'connect',
+			'PATCH'  => 'prefs',
+			'DELETE' => 'disconnect',
+		);
+
+		foreach ( $mine as $method => $callback ) {
 			Server::register_route(
 				$route_namespace,
 				'/me/slack',

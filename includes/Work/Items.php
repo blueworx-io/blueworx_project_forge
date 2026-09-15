@@ -464,9 +464,10 @@ final class Items {
 
 		$table = Schema::work_items_table();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 				"SELECT * FROM {$table} WHERE ( primary_user_id = %s OR reviewer_id = %s OR deliverer_id = %s ) AND archived = 0 AND terminal_outcome = '' AND stage <> %s ORDER BY planned_due ASC, created_at ASC",
 				$user_id,
 				$user_id,

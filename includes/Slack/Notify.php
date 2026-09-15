@@ -54,7 +54,7 @@ final class Notify {
 		foreach ( array_keys( self::SEATS ) as $seat ) {
 			$now = (string) ( $after[ $seat ] ?? '' );
 
-			if ( '' !== $now && $now !== (string) ( $before[ $seat ] ?? '' ) ) {
+			if ( '' !== $now && (string) ( $before[ $seat ] ?? '' ) !== $now ) {
 				$changes[ $seat ] = $now;
 			}
 		}
