@@ -13,6 +13,11 @@ commits and pull requests.
 ### Added
 
 - The top right of every screen shows who is signed in — name and sign-in address — and opens their WordPress profile.
+## [2.105.1] - 2026-09-15
+
+### Fixed
+
+- The Forge menu icon sits in line with the other menu icons on sites with a restyled admin menu, and follows the menu's hover and current colours the way every other icon does.
 
 ## [2.105.0] - 2026-09-15
 
