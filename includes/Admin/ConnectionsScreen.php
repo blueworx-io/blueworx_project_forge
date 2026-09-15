@@ -98,7 +98,7 @@ final class ConnectionsScreen {
 		wp_nonce_field( 'bwx_forge_slack_time' );
 		echo '<input type="hidden" name="action" value="bwx_forge_slack_time">';
 
-		echo '<p class="bw-muted">' . esc_html__( 'Each person connects Slack on their own profile page. The morning message goes to everyone connected at this time, in the site’s timezone.', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-card__note">' . esc_html__( 'Each person connects Slack on their own profile page. The morning message goes to everyone connected at this time, in the site’s timezone.', 'blueworx-forge' ) . '</p>';
 
 		echo '<div class="bw-formrow">';
 		echo '<label class="bw-formrow__label" for="bwx-slack-time">' . esc_html__( 'Morning message at', 'blueworx-forge' ) . '</label>';
@@ -107,12 +107,16 @@ final class ConnectionsScreen {
 
 		$connected = People::connected();
 
-		echo '<h3 style="margin:16px 0 8px">' . esc_html__( 'Connected', 'blueworx-forge' ) . '</h3>';
+		Page::section_open( __( 'Connected', 'blueworx-forge' ), 'slack-people' );
 
 		if ( array() === $connected ) {
-			echo '<p class="bw-muted" data-bwx-slack-nobody="1">' . esc_html__( 'Nobody has connected Slack yet.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-card__note" data-bwx-slack-nobody="1">' . esc_html__( 'Nobody has connected Slack yet.', 'blueworx-forge' ) . '</p>';
 		} else {
-			echo '<ul class="bw-panel__loose" data-bwx-slack-people="1">';
+			echo '<div class="bw-tablescroll"><table class="bw-table" data-bwx-slack-people="1"><thead><tr>';
+			echo '<th>' . esc_html__( 'Person', 'blueworx-forge' ) . '</th>';
+			echo '<th>' . esc_html__( 'Last message', 'blueworx-forge' ) . '</th>';
+			echo '<th class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
+			echo '</tr></thead><tbody>';
 
 			foreach ( $connected as $person ) {
 				$name = $people[ (string) $person['user_id'] ] ?? (string) $person['user_id'];
@@ -124,14 +128,19 @@ final class ConnectionsScreen {
 						? sprintf( __( 'last message %s', 'blueworx-forge' ), wp_date( 'j M H:i', (int) $person['last_ok_at'] ) )
 						: __( 'nothing sent yet', 'blueworx-forge' ) );
 
-				echo '<li style="display:flex;align-items:center;gap:10px;margin:4px 0" data-bwx-slack-person="' . esc_attr( (string) $person['user_id'] ) . '">';
-				echo '<strong>' . esc_html( $name ) . '</strong> <span class="bw-muted">' . esc_html( $note ) . '</span>';
-				echo '<span style="margin-left:auto"><a class="bw-btn bw-btn--secondary" data-bwx-slack-disconnect="' . esc_attr( (string) $person['user_id'] ) . '" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=bwx_forge_slack_disconnect&user_id=' . rawurlencode( (string) $person['user_id'] ) ), 'bwx_forge_slack_disconnect_' . (string) $person['user_id'] ) ) . '">' . esc_html__( 'Disconnect', 'blueworx-forge' ) . '</a></span>';
-				echo '</li>';
+				echo '<tr data-bwx-slack-person="' . esc_attr( (string) $person['user_id'] ) . '">';
+				echo '<td class="bw-table__primary">' . esc_html( $name ) . '</td>';
+				echo '<td>' . esc_html( $note ) . '</td>';
+				echo '<td class="bw-table__actions"><div class="bw-rowactions">';
+				echo '<a class="bw-rowactions__link bw-rowactions__link--danger" data-bwx-slack-disconnect="' . esc_attr( (string) $person['user_id'] ) . '" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=bwx_forge_slack_disconnect&user_id=' . rawurlencode( (string) $person['user_id'] ) ), 'bwx_forge_slack_disconnect_' . (string) $person['user_id'] ) ) . '">' . esc_html__( 'Disconnect', 'blueworx-forge' ) . '</a>';
+				echo '</div></td>';
+				echo '</tr>';
 			}
 
-			echo '</ul>';
+			echo '</tbody></table></div>';
 		}
+
+		Page::section_close();
 
 		Page::actions_open();
 		submit_button( __( 'Save time', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
@@ -180,65 +189,75 @@ final class ConnectionsScreen {
 		if ( array() === $stores ) {
 			echo '<div class="bw-empty">';
 			echo '<p class="bw-empty__title">' . esc_html__( 'No store is connected yet', 'blueworx-forge' ) . '</p>';
-			echo '<p class="bw-empty__body">' . esc_html__( 'Connect one below with an API token from SureCart → Settings → API.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-empty__text">' . esc_html__( 'Connect one below with an API token from SureCart → Settings → API.', 'blueworx-forge' ) . '</p>';
 			echo '</div>';
 
 			return;
 		}
 
-		echo '<ul class="bw-panels" data-bwx-stores="1">';
+		echo '<div class="bw-tablescroll"><table class="bw-table" data-bwx-stores="1"><thead><tr>';
+		echo '<th>' . esc_html__( 'Store', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Status', 'blueworx-forge' ) . '</th>';
+		echo '<th>' . esc_html__( 'Reminders go to', 'blueworx-forge' ) . '</th>';
+		echo '<th class="bw-table__actions">' . esc_html__( 'Actions', 'blueworx-forge' ) . '</th>';
+		echo '</tr></thead><tbody>';
 
 		foreach ( $stores as $store ) {
 			$settings = (array) $store['settings'];
 
-			echo '<li class="bw-panel__loose" data-bwx-store="' . esc_attr( (string) $store['id'] ) . '">';
-			echo '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
-			echo '<strong data-bwx-store-name>' . esc_html( (string) $store['name'] ) . '</strong> ';
+			echo '<tr data-bwx-store="' . esc_attr( (string) $store['id'] ) . '">';
+			echo '<td class="bw-table__primary" data-bwx-store-name>' . esc_html( (string) $store['name'] ) . '</td>';
+			echo '<td>';
 
 			if ( '' !== (string) $store['last_error'] ) {
-				echo '<span class="bw-chip bw-chip--danger" data-bwx-store-state="failed">' . esc_html( (string) $store['last_error'] ) . '</span>';
+				echo '<span class="bw-badge bw-badge--danger" data-bwx-store-state="failed"><span class="bw-badge__dot"></span>' . esc_html__( 'Failed', 'blueworx-forge' ) . '</span>';
+				echo '<p class="bw-table__sub">' . esc_html( (string) $store['last_error'] ) . '</p>';
 			} elseif ( 0 < (int) $store['last_ok_at'] ) {
+				echo '<span class="bw-badge bw-badge--success" data-bwx-store-state="ok"><span class="bw-badge__dot"></span>' . esc_html__( 'Connected', 'blueworx-forge' ) . '</span>';
 				printf(
-					'<span class="bw-chip bw-chip--success" data-bwx-store-state="ok">%s</span>',
+					'<p class="bw-table__sub">%s</p>',
 					/* translators: 1: number of active subscriptions, 2: date and time */
 					esc_html( sprintf( __( '%1$d active · refreshed %2$s', 'blueworx-forge' ), (int) $store['last_count'], wp_date( 'j M H:i', (int) $store['last_ok_at'] ) ) )
 				);
 			} else {
-				echo '<span class="bw-chip bw-chip--plain" data-bwx-store-state="new">' . esc_html__( 'Not refreshed yet', 'blueworx-forge' ) . '</span>';
+				echo '<span class="bw-badge bw-badge--neutral" data-bwx-store-state="new"><span class="bw-badge__dot"></span>' . esc_html__( 'Not refreshed yet', 'blueworx-forge' ) . '</span>';
 			}
 
-			echo '</div>';
-
-			echo '<p class="bw-muted">';
+			echo '</td>';
+			echo '<td>';
 			echo esc_html(
 				sprintf(
 					/* translators: 1: who checks, 2: who reviews, 3: who ships */
-					__( 'Reminders go to %1$s (checks), %2$s (reviews), %3$s (ships).', 'blueworx-forge' ),
+					__( '%1$s (checks), %2$s (reviews), %3$s (ships)', 'blueworx-forge' ),
 					$people[ (string) ( $settings['primary_user_id'] ?? '' ) ] ?? __( 'nobody', 'blueworx-forge' ),
 					$people[ (string) ( $settings['reviewer_id'] ?? '' ) ] ?? __( 'nobody', 'blueworx-forge' ),
 					$people[ (string) ( $settings['deliverer_id'] ?? '' ) ] ?? __( 'nobody', 'blueworx-forge' )
 				)
 			);
-			echo '</p>';
-
-			echo '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">';
+			echo '</td>';
+			echo '<td class="bw-table__actions"><div class="bw-rowactions">';
 			self::button_form( 'bwx_forge_test_connection', $store, __( 'Test', 'blueworx-forge' ), 'test' );
 			self::button_form( 'bwx_forge_refresh_connection', $store, __( 'Refresh now', 'blueworx-forge' ), 'refresh' );
 			self::button_form( 'bwx_forge_remove_connection', $store, __( 'Remove', 'blueworx-forge' ), 'remove', true );
-			echo '</div>';
-
-			Page::accordion_open( __( 'Edit staff and token', 'blueworx-forge' ), array( 'data-bwx-store-edit' => (string) $store['id'] ) );
-			self::edit_form( $store, $people );
-			Page::accordion_close();
-
-			echo '</li>';
+			echo '</div></td>';
+			echo '</tr>';
 		}
 
-		echo '</ul>';
+		echo '</tbody></table></div>';
+
+		foreach ( $stores as $store ) {
+			Page::accordion_open(
+				/* translators: %s: the store's name */
+				sprintf( __( 'Edit %s', 'blueworx-forge' ), (string) $store['name'] ),
+				array( 'data-bwx-store-edit' => (string) $store['id'] )
+			);
+			self::edit_form( $store, $people );
+			Page::accordion_close();
+		}
 	}
 
 	/**
-	 * One-button forms for test, refresh and remove.
+	 * One-button forms for test, refresh and remove, as row actions.
 	 *
 	 * @param string               $action  The admin-post action.
 	 * @param array<string, mixed> $store   The store.
@@ -247,7 +266,7 @@ final class ConnectionsScreen {
 	 * @param bool                 $confirm Whether to ask first.
 	 */
 	private static function button_form( string $action, array $store, string $label, string $name, bool $confirm = false ): void {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline"';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"';
 
 		if ( $confirm ) {
 			echo ' onsubmit="return window.confirm(' . esc_attr( wp_json_encode( __( 'Remove this store? Its renewal reminders will stop.', 'blueworx-forge' ) ) ) . ')"';
@@ -257,8 +276,8 @@ final class ConnectionsScreen {
 		wp_nonce_field( $action . '_' . (string) $store['id'] );
 		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">';
 		echo '<input type="hidden" name="connection_id" value="' . esc_attr( (string) $store['id'] ) . '">';
-		submit_button( $label, 'bw-btn bw-btn--secondary', 'submit', false, array( 'data-bwx-action' => $name ) );
-		echo '</form> ';
+		echo '<button type="submit" class="bw-rowactions__link' . ( $confirm ? ' bw-rowactions__link--danger' : '' ) . '" data-bwx-action="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</button>';
+		echo '</form>';
 	}
 
 	/**
@@ -280,7 +299,7 @@ final class ConnectionsScreen {
 		self::text_row( 'token', __( 'Replace token (leave blank to keep)', 'blueworx-forge' ), '', false, 'password' );
 		self::seat_rows( $people, $settings );
 
-		echo '<div style="margin-top:12px">';
+		echo '<div class="bw-card__actions">';
 		submit_button( __( 'Save', 'blueworx-forge' ), 'bw-btn bw-btn--primary', 'submit', false );
 		echo '</div></form>';
 	}
@@ -294,7 +313,7 @@ final class ConnectionsScreen {
 		wp_nonce_field( 'bwx_forge_add_connection' );
 		echo '<input type="hidden" name="action" value="bwx_forge_add_connection">';
 
-		echo '<p class="bw-muted">' . esc_html__( 'The token comes from SureCart → Settings → API on the store\'s own site. It is kept sealed and never shown again.', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-card__note">' . esc_html__( 'The token comes from SureCart → Settings → API on the store\'s own site. It is kept sealed and never shown again.', 'blueworx-forge' ) . '</p>';
 
 		self::text_row( 'name', __( 'Name', 'blueworx-forge' ), '', true );
 		self::text_row( 'token', __( 'API token', 'blueworx-forge' ), '', true, 'password' );
@@ -341,8 +360,8 @@ final class ConnectionsScreen {
 
 			echo '<div class="bw-formrow">';
 			echo '<label class="bw-formrow__label" for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label>';
-			echo '<div class="bw-formrow__control" style="display:flex;gap:8px">';
-			echo '<div class="bw-select" style="flex:1"><select class="bw-select__el" id="' . esc_attr( $id ) . '" name="' . esc_attr( $seat ) . '">';
+			echo '<div class="bw-formrow__control"><div class="bw-fields">';
+			echo '<div class="bw-select"><select class="bw-select__el" id="' . esc_attr( $id ) . '" name="' . esc_attr( $seat ) . '">';
 			echo '<option value="">' . esc_html__( 'Nobody', 'blueworx-forge' ) . '</option>';
 
 			foreach ( $people as $person_id => $person_name ) {
@@ -350,8 +369,8 @@ final class ConnectionsScreen {
 			}
 
 			echo '</select><i class="bw-icon bw-select__arrow" data-lucide="chevron-down"></i></div>';
-			echo '<input type="number" min="0" step="0.25" name="' . esc_attr( $hours ) . '" class="bw-input" style="width:90px" aria-label="' . esc_attr( $label . ' ' . __( 'hours', 'blueworx-forge' ) ) . '" value="' . esc_attr( (string) ( $settings[ $hours ] ?? $fallback ) ) . '">';
-			echo '</div></div>';
+			echo '<input type="number" min="0" step="0.25" name="' . esc_attr( $hours ) . '" class="bw-input" aria-label="' . esc_attr( $label . ' ' . __( 'hours', 'blueworx-forge' ) ) . '" placeholder="' . esc_attr__( 'Hours', 'blueworx-forge' ) . '" value="' . esc_attr( (string) ( $settings[ $hours ] ?? $fallback ) ) . '">';
+			echo '</div></div></div>';
 		}
 	}
 

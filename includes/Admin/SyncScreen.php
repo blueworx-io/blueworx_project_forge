@@ -98,7 +98,7 @@ final class SyncScreen {
 		Page::panel_open( __( 'Slack messages that failed', 'blueworx-forge' ), 'slack-failures' );
 
 		if ( array() === $failed ) {
-			echo '<p class="bw-muted" data-bwx-slack-failures="0">' . esc_html__( 'Every Slack message sent lately arrived.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-card__note" data-bwx-slack-failures="0">' . esc_html__( 'Every Slack message sent lately arrived.', 'blueworx-forge' ) . '</p>';
 			Page::panel_close();
 
 			return;

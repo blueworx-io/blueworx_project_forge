@@ -85,13 +85,13 @@ final class ProfileSlack {
 		echo '<tr><th>' . esc_html__( 'Tell me about', 'blueworx-forge' ) . '</th><td><fieldset>';
 
 		foreach ( self::labels() as $key => $label ) {
-			echo '<label style="display:block;margin-bottom:6px"><input type="checkbox" id="bwx-forge-slack-pref-' . esc_attr( $key ) . '" name="bwx_forge_slack_prefs[' . esc_attr( $key ) . ']" value="1"' . checked( ! empty( $prefs[ $key ] ), true, false ) . '> ' . esc_html( $label );
+			echo '<p><label><input type="checkbox" id="bwx-forge-slack-pref-' . esc_attr( $key ) . '" name="bwx_forge_slack_prefs[' . esc_attr( $key ) . ']" value="1"' . checked( ! empty( $prefs[ $key ] ), true, false ) . '> ' . esc_html( $label );
 
 			if ( 'morning' === $key ) {
 				echo ' <span class="description">(' . esc_html( Morning::time() ) . ')</span>';
 			}
 
-			echo '</label>';
+			echo '</label></p>';
 		}
 
 		// Tells save() the boxes were on the page, so an unticked one is a no.

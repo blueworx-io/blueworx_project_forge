@@ -916,13 +916,13 @@ final class ClientsScreen {
 		);
 
 		if ( null === $client ) {
-			echo '<p class="bw-muted">' . esc_html__( 'The studio\'s own client has not been made yet. It is created the next time Forge loads.', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-card__note">' . esc_html__( 'The studio\'s own client has not been made yet. It is created the next time Forge loads.', 'blueworx-forge' ) . '</p>';
 			Page::panel_close();
 
 			return;
 		}
 
-		echo '<p class="bw-muted">' . esc_html__( 'Your own work goes under this client. It appears in the site picker like any other, and the board opens on it.', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-card__note">' . esc_html__( 'Your own work goes under this client. It appears in the site picker like any other, and the board opens on it.', 'blueworx-forge' ) . '</p>';
 
 		wp_nonce_field( 'bwx_forge_rename_studio' );
 		echo '<input type="hidden" name="action" value="bwx_forge_rename_studio">';
