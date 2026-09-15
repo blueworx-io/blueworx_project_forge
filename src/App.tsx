@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarDays, Clock, Columns3, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
+import { BarChart3, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
@@ -11,6 +11,7 @@ import { RecurringScreen } from './components/RecurringScreen';
 import { ReportsScreen } from './components/ReportsScreen';
 import { Signals } from './components/Signals';
 import { StandupScreen } from './components/StandupScreen';
+import { SubscriptionsScreen } from './components/SubscriptionsScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
 import { Button, PageHeader } from './kit';
@@ -58,6 +59,7 @@ const RAIL: Entry[] = [
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
   { group: 'Insight' },
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
+  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions' },
 ];
 
 /**
@@ -105,6 +107,7 @@ const TITLES: Record< ScreenName, string > = {
   standup: 'Daily standup',
   reports: 'Reports',
   recurring: 'Recurring tasks',
+  subscriptions: 'Subscriptions',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -133,6 +136,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   standup: { crumbs: [ 'My day', 'Daily standup' ], eyebrow: 'Today', tile: Clock, hue: 'blue' },
   reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
   recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
+  subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -309,6 +313,7 @@ export function App() {
         { 'standup' === screen && <StandupScreen key={ generation } /> }
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
+        { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
       </main>
     </div>
   );

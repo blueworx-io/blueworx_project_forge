@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 22;
+	public const VERSION = 23;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -335,6 +335,28 @@ final class Schema {
 	}
 
 	/**
+	 * The connections table's full name.
+	 *
+	 * @return string
+	 */
+	public static function connections_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_connections';
+	}
+
+	/**
+	 * The subscriptions table's full name.
+	 *
+	 * @return string
+	 */
+	public static function subscriptions_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_subscriptions';
+	}
+
+	/**
 	 * The recurring sources table's full name.
 	 *
 	 * @return string
@@ -424,6 +446,8 @@ final class Schema {
 		$meeting_events   = self::meeting_events_table();
 		$recurring        = self::recurring_table();
 		$occurrences_rec  = self::recurring_occurrences_table();
+		$connections      = self::connections_table();
+		$subscriptions    = self::subscriptions_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1398,7 +1422,7 @@ final class Schema {
 	next_due varchar(10) NOT NULL DEFAULT '',
 	last_created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	status varchar(20) NOT NULL DEFAULT 'active',
-	source_ref varchar(64) NOT NULL DEFAULT '',
+	source_ref varchar(120) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1418,6 +1442,47 @@ final class Schema {
 	PRIMARY KEY  (id),
 	UNIQUE KEY source_day (recurring_id, due_on),
 	KEY work_item_id (work_item_id)
+) {$collate};",
+
+			/*
+			 * Outside services (PR 4). A connection is a sealed token and
+			 * who its reminders are for; the subscriptions table is Forge's
+			 * copy of what the service last said, replaced on every refresh.
+			 */
+			$connections      => "CREATE TABLE {$connections} (
+	id varchar(32) NOT NULL,
+	kind varchar(20) NOT NULL DEFAULT 'surecart',
+	name varchar(191) NOT NULL DEFAULT '',
+	secret text NOT NULL,
+	settings text NOT NULL,
+	status varchar(20) NOT NULL DEFAULT 'active',
+	last_ok_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_error varchar(191) NOT NULL DEFAULT '',
+	last_count int(11) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY kind_status (kind, status)
+) {$collate};",
+
+			$subscriptions    => "CREATE TABLE {$subscriptions} (
+	id varchar(32) NOT NULL,
+	connection_id varchar(32) NOT NULL,
+	external_id varchar(64) NOT NULL DEFAULT '',
+	customer_name varchar(191) NOT NULL DEFAULT '',
+	customer_email varchar(191) NOT NULL DEFAULT '',
+	product_name varchar(191) NOT NULL DEFAULT '',
+	amount int(11) NOT NULL DEFAULT 0,
+	currency varchar(3) NOT NULL DEFAULT '',
+	billing varchar(40) NOT NULL DEFAULT '',
+	status varchar(20) NOT NULL DEFAULT '',
+	renews_on varchar(10) NOT NULL DEFAULT '',
+	fetched_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY store_subscription (connection_id, external_id),
+	KEY renews_on (renews_on)
 ) {$collate};",
 		);
 	}

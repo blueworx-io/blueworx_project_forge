@@ -1,0 +1,60 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "sub_01",
+      "object": "subscription",
+      "status": "active",
+      "current_period_start_at": 1786752000,
+      "current_period_end_at": 1789430400,
+      "customer": {
+        "id": "cus_01",
+        "object": "customer",
+        "name": "Acme Ltd",
+        "email": "billing@acme.test"
+      },
+      "price": {
+        "id": "pri_01",
+        "object": "price",
+        "amount": 12000,
+        "currency": "gbp",
+        "recurring_interval": "month",
+        "recurring_interval_count": 1,
+        "product": {
+          "id": "prod_01",
+          "object": "product",
+          "name": "Care Plan"
+        }
+      }
+    },
+    {
+      "id": "sub_02",
+      "object": "subscription",
+      "status": "active",
+      "current_period_end_at": 1792108800,
+      "customer": {
+        "id": "cus_02",
+        "first_name": "Jo",
+        "last_name": "Bloggs",
+        "email": "jo@example.test"
+      },
+      "price": {
+        "id": "pri_02",
+        "amount": 49900,
+        "currency": "usd",
+        "recurring_interval": "year",
+        "recurring_interval_count": 1,
+        "product": { "name": "Hosting" }
+      }
+    },
+    {
+      "id": "sub_03",
+      "object": "subscription",
+      "status": "canceled",
+      "current_period_end_at": 1789430400,
+      "customer": { "name": "Gone Co", "email": "" },
+      "price": { "amount": 1000, "currency": "eur", "recurring_interval": "month", "recurring_interval_count": 3, "product": { "name": "Extra" } }
+    }
+  ],
+  "pagination": { "count": 3, "limit": 100, "page": 1 }
+}

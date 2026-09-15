@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Recurring;
 
+use Blueworx\Forge\Commerce\SureCart\Sync;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Transition;
@@ -62,6 +63,10 @@ final class Materialise {
 
 		self::$done = true;
 		set_transient( self::RAN, 1, self::EVERY );
+
+		// Renewal dates first, so a subscription that renews today has its
+		// source pinned to today before today's tasks are made.
+		Sync::maybe();
 
 		return self::run( wp_date( 'Y-m-d' ) );
 	}
@@ -153,7 +158,7 @@ final class Materialise {
 		$description = trim( (string) $source['description'] );
 
 		return array(
-			'title'            => self::title( (string) $source['title'], $date ),
+			'title'            => self::title( (string) $source['title'], $date, (string) $source['kind'] ),
 			'problem'          => '' === $description ? (string) $source['title'] : $description,
 			'level'            => 'sub-feature',
 			'work_type'        => (string) $source['work_type'],
@@ -174,11 +179,19 @@ final class Materialise {
 	/**
 	 * "Weekly backups — 14 Sep": dated, so two weeks' worth do not look alike.
 	 *
+	 * A subscription reminder keeps its title as it is: it is made once per
+	 * renewal, and the title already names the customer and the amount.
+	 *
 	 * @param string $title The source's title.
 	 * @param string $date  YYYY-MM-DD.
+	 * @param string $kind  Sources::SCHEDULE or Sources::SUBSCRIPTION.
 	 * @return string
 	 */
-	public static function title( string $title, string $date ): string {
+	public static function title( string $title, string $date, string $kind = Sources::SCHEDULE ): string {
+		if ( Sources::SUBSCRIPTION === $kind ) {
+			return $title;
+		}
+
 		$day = DateTimeImmutable::createFromFormat( '!Y-m-d', $date, wp_timezone() );
 
 		return false === $day ? $title : $title . ' — ' . $day->format( 'j M' );

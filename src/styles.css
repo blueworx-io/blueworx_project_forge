@@ -1363,6 +1363,40 @@ body {
   gap: 12px;
 }
 
+/* ---- Subscriptions ---- */
+.bwx-subs {
+  padding: 16px 20px;
+}
+.bwx-subs-stores {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var( --text-small );
+}
+.bwx-subs-store-error {
+  color: var( --color-danger );
+}
+.bwx-subs-customer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bwx-subs-email {
+  font-size: var( --text-xs );
+  color: var( --ink-500 );
+}
+.bwx-subs-reminder {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.bwx-muted {
+  color: var( --ink-500 );
+}
+
 /* ---- Recurring tasks ---- */
 .bwx-recurring {
   padding: 16px 20px;

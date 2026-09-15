@@ -138,7 +138,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -412,6 +412,35 @@ export interface RecurringSource {
   source_ref: string;
   record_version: number;
   last?: { due_on: string; work_item_id: string } | null;
+  [ key: string ]: unknown;
+}
+
+/** A connected SureCart store, as the Subscriptions screen sees it (PR 4). */
+export interface SubscriptionConnection {
+  id: string;
+  kind: string;
+  name: string;
+  status: string;
+  last_ok_at: number;
+  last_error: string;
+  last_count: number;
+}
+
+/** One subscription, as SureCart last described it. */
+export interface Subscription {
+  id: string;
+  connection_id: string;
+  external_id: string;
+  customer_name: string;
+  customer_email: string;
+  product_name: string;
+  amount: number;
+  currency: string;
+  interval: string;
+  status: string;
+  renews_on: string;
+  fetched_at: number;
+  reminder: { work_item_id: string; due_on: string; stage: string } | null;
   [ key: string ]: unknown;
 }
 

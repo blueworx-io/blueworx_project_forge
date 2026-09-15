@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.104.0] - 2026-09-15
+
+### Added
+
+- SureCart stores can be connected under Forge → Connections with an API token, choosing which staff look after each one. Active subscriptions appear under Insight › Subscriptions, and on each renewal day a "Subscription Renewal: Customer - (£Amount)" task lands on the studio's board for those staff, due that day — so My tasks and Daily standup carry it too.
+
 ## [2.103.0] - 2026-09-15
 
 ### Added
