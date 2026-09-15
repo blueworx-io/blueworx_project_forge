@@ -88,7 +88,7 @@ final class ConnectionsScreen {
 	/**
 	 * The morning message's time, a way to send it now, and who is connected.
 	 *
-	 * People connect themselves, from My tasks; what an administrator can do
+	 * People connect themselves, on their profile; what an administrator can do
 	 * here is see who has, cut one off, and set the hour everyone's morning
 	 * message goes.
 	 */
@@ -98,7 +98,7 @@ final class ConnectionsScreen {
 		wp_nonce_field( 'bwx_forge_slack_time' );
 		echo '<input type="hidden" name="action" value="bwx_forge_slack_time">';
 
-		echo '<p class="bw-muted">' . esc_html__( 'Each person connects Slack from My tasks. The morning message goes to everyone connected at this time, in the site’s timezone.', 'blueworx-forge' ) . '</p>';
+		echo '<p class="bw-muted">' . esc_html__( 'Each person connects Slack on their own profile page. The morning message goes to everyone connected at this time, in the site’s timezone.', 'blueworx-forge' ) . '</p>';
 
 		echo '<div class="bw-formrow">';
 		echo '<label class="bw-formrow__label" for="bwx-slack-time">' . esc_html__( 'Morning message at', 'blueworx-forge' ) . '</label>';

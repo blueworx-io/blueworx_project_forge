@@ -12,7 +12,7 @@ commits and pull requests.
 
 ### Added
 
-- Staff can connect Slack from My tasks by pasting an incoming webhook, and be told when work is assigned to them, when something is ready for their review or delivery, when a task of theirs is commented on, and each morning what is due today. Each of the four can be switched off. The morning time is set under Forge → Connections, and messages that could not be sent are listed on Sync health.
+- Staff can connect Slack on their WordPress profile by pasting an incoming webhook, and be told when work is assigned to them, when something is ready for their review or delivery, when a task of theirs is commented on, and each morning what is due today. Each of the four can be switched off. The morning time is set under Forge → Connections, and messages that could not be sent are listed on Sync health.
 
 ## [2.104.0] - 2026-09-15
 

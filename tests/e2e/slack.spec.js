@@ -3,8 +3,8 @@ import { signIn } from '../helpers/sign-in.js';
 import { signedIn, makeSite, makePerson, makeItem, PASSWORD } from './helpers/forge.js';
 import { installSlackStub, removeSlackStub, stubWebhook, slackMessages, clearSlackMessages } from './helpers/slack.js';
 
-// Slack for staff, against a stand-in webhook: connect from My tasks, be
-// told once when assigned, once when commented on, and once each morning.
+// Slack for staff, against a stand-in webhook: connect on the profile page,
+// be told once when assigned, once when commented on, and once each morning.
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
@@ -25,16 +25,15 @@ test('a person connects Slack and hears about work once', async ({ browser, base
   const person = await makePerson(admin.api, client.id, 'staff', 'slacker');
   const who = `p${RUN_ID.replace(/\D/g, '')}`;
 
-  // Connect from My tasks, as the person.
+  // Connect on the profile page, as the person.
   await signIn(page, person.login, PASSWORD);
-  await page.goto('/blueworx-forge/');
-  await page.getByTestId('bwx-screen-mytasks').click();
-  await expect(page.getByTestId('bwx-slack')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('bwx-slack-toggle').click();
-  await page.getByTestId('bwx-slack-url').fill(stubWebhook(baseURL, who));
-  await page.getByTestId('bwx-slack-connect').click();
+  await page.goto('/wp-admin/profile.php');
+  await expect(page.locator('[data-bwx-slack="not-connected"]')).toBeVisible();
+  await page.locator('#bwx-forge-slack-url').fill(stubWebhook(baseURL, who));
+  await page.locator('#submit').click();
   // The first call after the stand-in lands is a slow one on the test server.
-  await expect(page.getByTestId('bwx-slack')).toHaveAttribute('data-connected', 'true', { timeout: 30_000 });
+  await expect(page.locator('[data-bwx-slack="connected"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-bwx-slack="connected"]')).toContainText('Last message');
 
   let messages = await slackMessages(admin.api.request, who);
   expect(messages).toHaveLength(1);
@@ -65,8 +64,10 @@ test('a person connects Slack and hears about work once', async ({ browser, base
   expect(messages[2].body.text).toContain('Looks fine to me');
 
   // A preference switched off is honoured.
-  await page.getByTestId('bwx-slack-pref-comment').uncheck();
-  await expect(page.getByTestId('bwx-slack-pref-comment')).not.toBeChecked();
+  await page.locator('#bwx-forge-slack-pref-comment').uncheck();
+  await page.locator('#submit').click();
+  await expect(page.locator('[data-bwx-slack="connected"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#bwx-forge-slack-pref-comment')).not.toBeChecked();
   const quiet = await admin.api.post(`/work-items/${item.id}/comments`, { body: 'Second thoughts', kind: 'comment', visibility: 'internal' });
   expect(quiet.status()).toBe(200);
   expect(await slackMessages(admin.api.request, who)).toHaveLength(3);
@@ -90,9 +91,9 @@ test('a person connects Slack and hears about work once', async ({ browser, base
   expect(JSON.stringify(mornings[0].body.blocks)).toContain(`Slack task ${RUN_ID}`);
 
   // Disconnect forgets the webhook; nothing more arrives.
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.getByTestId('bwx-slack-disconnect').click();
-  await expect(page.getByTestId('bwx-slack')).toHaveAttribute('data-connected', 'false');
+  await page.locator('#bwx-forge-slack-disconnect').check();
+  await page.locator('#submit').click();
+  await expect(page.locator('[data-bwx-slack="not-connected"]')).toBeVisible({ timeout: 30_000 });
   const after = await makeItem(admin.api, site.id, { title: `Unheard ${RUN_ID}`, primary_user_id: person.id });
   expect(after.status()).toBe(200);
   expect(await slackMessages(admin.api.request, who)).toHaveLength(messages.length);

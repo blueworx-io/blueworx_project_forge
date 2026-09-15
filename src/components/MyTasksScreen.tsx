@@ -6,7 +6,6 @@ import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { ItemPanel } from './ItemPanel';
-import { SlackPanel } from './SlackPanel';
 import { Screen } from './States';
 
 /*
@@ -212,7 +211,6 @@ export function MyTasksScreen() {
 
       { 'ready' === state && (
         <div className="bwx-list bwx-mytasks" data-testid="bwx-mytasks" data-person={ me?.id }>
-          <SlackPanel />
           <DataView
             title={ `${ me?.display_name ?? 'Your' } — tasks` }
             titleRight={ <span className="bwx-mono">{ counts.all } in all</span> }

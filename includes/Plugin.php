@@ -86,6 +86,7 @@ final class Plugin {
 		add_action( 'admin_menu', array( Admin\SyncScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionsScreen::class, 'register' ) );
 		Admin\ConnectionActions::boot();
+		Admin\ProfileSlack::boot();
 		add_action( 'admin_menu', array( Admin\PackagesScreen::class, 'register' ) );
 
 		Admin\PackageActions::boot();
