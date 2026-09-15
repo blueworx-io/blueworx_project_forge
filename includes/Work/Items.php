@@ -54,6 +54,9 @@ final class Items {
 			RoleHours::seed( self::writable( $values ) ),
 			array(
 				'id'             => Ids::create( self::PREFIX ),
+				// Only the recurring engine names one, at creation and never
+				// afterwards: which arrangement this task came from.
+				'recurring_id'   => (string) ( $values['recurring_id'] ?? '' ),
 				'client_site_id' => $client_site_id,
 				'client_id'      => $client_id,
 				'stage'          => Stages::FIRST,
@@ -350,6 +353,7 @@ final class Items {
 			'terminal_outcome'         => '',
 			'duplicate_of'             => '',
 			'archived'                 => 0,
+			'recurring_id'             => '',
 			'review_attempt'           => 1,
 			'primary_user_id'          => '',
 			'reviewer_id'              => '',
@@ -409,6 +413,7 @@ final class Items {
 			'terminal_label'           => Outcomes::label( (string) $row['terminal_outcome'] ),
 			'duplicate_of'             => (string) $row['duplicate_of'],
 			'archived'                 => (bool) $row['archived'],
+			'recurring_id'             => (string) ( $row['recurring_id'] ?? '' ),
 			'review_attempt'           => (int) $row['review_attempt'],
 			'primary_user_id'          => (string) $row['primary_user_id'],
 			'reviewer_id'              => (string) $row['reviewer_id'],

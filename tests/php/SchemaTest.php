@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 28, $definitions );
+		$this->assertCount( 30, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -110,6 +110,15 @@ final class SchemaTest extends TestCase {
 			 * row anybody could edit would let the second story be told.
 			 */
 			Schema::meeting_events_table(),
+
+			/*
+			 * A recurring occurrence (PR 3) is a claim: the row says "this
+			 * source's task for this day is being made", and its unique key
+			 * on (source, day) is what lets one of two racing callers through.
+			 * It is written once and the task's id filled in once; nothing
+			 * edits it after that.
+			 */
+			Schema::recurring_occurrences_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {

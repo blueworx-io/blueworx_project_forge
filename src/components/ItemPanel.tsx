@@ -1345,6 +1345,10 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       return `Ended as ${ event.outcome }`;
     case 'archived':
       return 'Archived';
+    case 'placed':
+      // A recurring task or a renewal reminder, put straight where it is
+      // worked from. The reason beside it says which and for what day.
+      return `Placed in ${ label( event.to_stage ) } by the schedule`;
     case 'over-allocated':
       // CAP-4. The reason sits beside it in the entry, so the line says what
       // was done and the reason says why.

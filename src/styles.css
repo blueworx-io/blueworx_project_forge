@@ -1363,6 +1363,61 @@ body {
   gap: 12px;
 }
 
+/* ---- Recurring tasks ---- */
+.bwx-recurring {
+  padding: 16px 20px;
+}
+.bwx-recurring-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.bwx-recurring-actions,
+.bwx-recurring-toolbar {
+  display: inline-flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+.bwx-recurring-days {
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.bwx-recurring-days legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+.bwx-recurring-day {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var( --text-small );
+}
+.bwx-recurring-dates {
+  display: flex;
+  gap: 12px;
+}
+.bwx-recurring-dates > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.bwx-recurring-seat-row {
+  display: flex;
+  gap: 8px;
+}
+.bwx-recurring-seat-row .bwx-select {
+  flex: 1;
+}
+.bwx-recurring-hours {
+  width: 90px;
+}
+
 .bwx-hint {
   margin: 0;
   font-size: var( --text-small );

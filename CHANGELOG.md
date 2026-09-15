@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.103.0] - 2026-09-15
+
+### Added
+
+- A Recurring tasks screen for the studio's own site. Set a task to repeat daily, weekly on chosen days, or monthly, with the same seats and hours as any task. Each due day becomes a dated task in Up Next ("Weekly backups — 14 Sep"), and a missed day is still made the next time anyone opens Forge.
+
 ## [2.102.0] - 2026-09-14
 
 ### Added
