@@ -14,7 +14,7 @@ import { StandupScreen } from './components/StandupScreen';
 import { SubscriptionsScreen } from './components/SubscriptionsScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
-import { Button, PageHeader } from './kit';
+import { Avatar, Button, PageHeader } from './kit';
 import type { TileHue } from './kit';
 import './shell.css';
 
@@ -71,6 +71,30 @@ const RAIL: Entry[] = [
  * or not it found anything. The button forgets everything kept and remounts
  * the screen, so what follows is a real read of every path it uses.
  */
+/**
+ * Who is signed in, top right of every screen. Name and sign-in address, so
+ * two people sharing a machine can tell whose Forge this is; it opens the
+ * WordPress profile, where a person's own settings live.
+ */
+function Profile() {
+  const data = forgeData();
+  const who = data?.currentUser;
+
+  if ( ! who ) {
+    return null;
+  }
+
+  return (
+    <a className="fs-profile" href={ data?.profileUrl ?? '#' } data-testid="bwx-profile" title="Your profile">
+      <Avatar name={ who.name } />
+      <span className="fs-profile-text">
+        <span className="fs-profile-name" data-testid="bwx-profile-name">{ who.name }</span>
+        <span className="fs-profile-email" data-testid="bwx-profile-email">{ who.email }</span>
+      </span>
+    </a>
+  );
+}
+
 function Refreshed( { onRefresh }: { onRefresh: () => void } ) {
   const [ at, setAt ] = useState( refreshedAt() );
 
@@ -297,6 +321,7 @@ export function App() {
           >
             New task
           </Button>
+          <Profile />
         </div>
 
         { /*

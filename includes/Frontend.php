@@ -169,6 +169,7 @@ final class Frontend {
 		// The Forge person behind this account, so a personal screen (#309) can
 		// ask for their work without a route only administrators may read.
 		$person = Tenancy\Users::by_wp_user( get_current_user_id() );
+		$user   = wp_get_current_user();
 
 		$data = array(
 			'restUrl'       => rest_url( 'blueworx-forge/v1' ),
@@ -183,6 +184,14 @@ final class Frontend {
 				'id'           => (string) $person['id'],
 				'display_name' => (string) $person['display_name'],
 			),
+			// Who is signed in, for the corner of every screen: the Forge person's
+			// name where there is one, the account's own otherwise, and the
+			// address the account signs in with.
+			'currentUser'   => 0 === (int) $user->ID ? null : array(
+				'name'  => null === $person ? (string) $user->display_name : (string) $person['display_name'],
+				'email' => (string) $user->user_email,
+			),
+			'profileUrl'    => admin_url( 'profile.php' ),
 			'loginUrl'      => wp_login_url( $this->app_page_url() ),
 			'logoutUrl'     => wp_logout_url( $this->app_page_url() ),
 			'version'       => BWX_FORGE_VERSION,
