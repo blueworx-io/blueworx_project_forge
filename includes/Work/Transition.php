@@ -23,6 +23,7 @@ use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Onboarding\LaunchGate;
 use Blueworx\Forge\Onboarding\Progress;
 use Blueworx\Forge\Onboarding\Steps;
+use Blueworx\Forge\Slack\Notify;
 use WP_Error;
 
 /**
@@ -1216,6 +1217,13 @@ final class Transition {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'COMMIT' );
+
+		// After the commit: the Reviewer or Deliverer whose turn it now is
+		// hears in Slack (PR 5). Outside the transaction for the same reason
+		// the client email is claimed inside it but sent elsewhere — a slow
+		// Slack must not hold the move open, and a failed ping is not a
+		// failed move.
+		Notify::moved( $moved_item );
 
 		return $moved_item;
 	}

@@ -1363,6 +1363,66 @@ body {
   gap: 12px;
 }
 
+/* ---- Slack, on My tasks ---- */
+.bwx-slack {
+  margin-bottom: 12px;
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-md, 10px );
+  background: var( --surface-card );
+}
+.bwx-slack-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var( --weight-medium );
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.bwx-slack-toggle:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: -2px;
+  border-radius: var( --radius-md, 10px );
+}
+.bwx-slack-caret {
+  width: 12px;
+  color: var( --ink-500 );
+}
+.bwx-slack-status {
+  margin-left: auto;
+  font-size: var( --text-xs );
+  color: var( --ink-500 );
+}
+.bwx-slack-body {
+  padding: 0 14px 14px;
+}
+.bwx-slack-prefs {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var( --text-small );
+}
+.bwx-slack-prefs label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.bwx-slack-time {
+  color: var( --ink-500 );
+}
+.bwx-slack-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ---- Subscriptions ---- */
 .bwx-subs {
   padding: 16px 20px;

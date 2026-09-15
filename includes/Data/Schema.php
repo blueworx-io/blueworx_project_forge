@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 23;
+	public const VERSION = 24;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -335,6 +335,28 @@ final class Schema {
 	}
 
 	/**
+	 * The Slack people table's full name.
+	 *
+	 * @return string
+	 */
+	public static function slack_people_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_slack_people';
+	}
+
+	/**
+	 * The Slack events table's full name.
+	 *
+	 * @return string
+	 */
+	public static function slack_events_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_slack_events';
+	}
+
+	/**
 	 * The connections table's full name.
 	 *
 	 * @return string
@@ -448,6 +470,8 @@ final class Schema {
 		$occurrences_rec  = self::recurring_occurrences_table();
 		$connections      = self::connections_table();
 		$subscriptions    = self::subscriptions_table();
+		$slack_people     = self::slack_people_table();
+		$slack_events     = self::slack_events_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1483,6 +1507,40 @@ final class Schema {
 	PRIMARY KEY  (id),
 	UNIQUE KEY store_subscription (connection_id, external_id),
 	KEY renews_on (renews_on)
+) {$collate};",
+
+			/*
+			 * Slack for staff (PR 5). One row per connected person, keyed by
+			 * the person's own id, with the webhook sealed; and a register of every message raised, whose
+			 * primary key is the claim — the same idea as the notification
+			 * register, kept apart so a Slack ping can never be mistaken for
+			 * an email a client site should send.
+			 */
+			$slack_people     => "CREATE TABLE {$slack_people} (
+	id varchar(32) NOT NULL,
+	secret text NOT NULL,
+	prefs text NOT NULL,
+	connected_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_ok_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_error varchar(191) NOT NULL DEFAULT '',
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id)
+) {$collate};",
+
+			$slack_events     => "CREATE TABLE {$slack_events} (
+	id varchar(32) NOT NULL,
+	kind varchar(20) NOT NULL,
+	subject_id varchar(32) NOT NULL DEFAULT '',
+	user_id varchar(32) NOT NULL,
+	outcome varchar(20) NOT NULL DEFAULT 'raised',
+	attempts int(11) unsigned NOT NULL DEFAULT 0,
+	last_detail varchar(191) NOT NULL DEFAULT '',
+	payload text NOT NULL,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	settled_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY user_outcome (user_id, outcome),
+	KEY outcome_settled (outcome, settled_at)
 ) {$collate};",
 		);
 	}

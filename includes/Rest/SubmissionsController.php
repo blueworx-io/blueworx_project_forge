@@ -19,6 +19,7 @@ use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Queue;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
+use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Work\Transition;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -438,6 +439,7 @@ final class SubmissionsController {
 		}
 
 		Transition::record_creation( $item, $actor );
+		Notify::assigned( array(), $item );
 
 		if ( Stages::FIRST === (string) $asked['entry_stage'] ) {
 			return $item;

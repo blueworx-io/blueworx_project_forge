@@ -13,6 +13,7 @@ use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Recurring\Materialise;
+use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
@@ -1053,6 +1054,9 @@ final class WorkItemsController {
 
 		Transition::record_creation( $item, get_current_user_id() );
 
+		// Anyone given a seat on the new work hears about it in Slack (PR 5).
+		Notify::assigned( array(), $item );
+
 		$response = array(
 			'ok'   => true,
 			'item' => $item,
@@ -1170,6 +1174,11 @@ final class WorkItemsController {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
 		$wpdb->query( 'COMMIT' );
+
+		// After the commit, not inside it: a Slack that is slow must not hold
+		// a database transaction open, and a Slack that is down must not
+		// undo a save.
+		Notify::assigned( $item, $updated );
 
 		return rest_ensure_response(
 			array(

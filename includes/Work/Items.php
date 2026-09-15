@@ -447,6 +447,39 @@ final class Items {
 	}
 
 	/**
+	 * Every open item a person holds a seat on, across every site.
+	 *
+	 * For the morning Slack message, which is about one person rather than
+	 * one site. Open means not archived, not ended, not released.
+	 *
+	 * @param string $user_id Forge person id.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function held_by( string $user_id ): array {
+		global $wpdb;
+
+		if ( '' === $user_id ) {
+			return array();
+		}
+
+		$table = Schema::work_items_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE ( primary_user_id = %s OR reviewer_id = %s OR deliverer_id = %s ) AND archived = 0 AND terminal_outcome = '' AND stage <> %s ORDER BY planned_due ASC, created_at ASC",
+				$user_id,
+				$user_id,
+				$user_id,
+				Stages::RELEASED
+			),
+			ARRAY_A
+		);
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * The order to remove an item and everything under it: children first,
 	 * the item itself last.
 	 *

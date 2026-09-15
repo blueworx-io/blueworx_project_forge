@@ -165,6 +165,21 @@ function useRequestsWaiting( screen: ScreenName ): number | null {
 export function App() {
   const data = forgeData();
   const [ screen, setScreen ] = useState< ScreenName >( 'work' );
+
+  /*
+   * A link from Slack lands on the app page with the task in the hash
+   * (PR 5). The board opens and the panel opens on that task; the hash is
+   * then cleared so a reload is a plain reload.
+   */
+  const [ linkedItem ] = useState( () => {
+    const found = /(?:^|[#&])item=([A-Za-z0-9_-]+)/.exec( window.location.hash );
+
+    if ( found ) {
+      window.history.replaceState( null, '', window.location.pathname + window.location.search );
+    }
+
+    return found ? found[ 1 ] : '';
+  } );
   const [ view, setView ] = useState< ViewName >( 'board' );
   const [ newWorkAsked, setNewWorkAsked ] = useState( 0 );
   const [ generation, setGeneration ] = useState( 0 );
@@ -306,7 +321,7 @@ export function App() {
            same thing switching screens does, on demand.
          */ }
         { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
-        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } /> }
+        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ linkedItem } /> }
         { 'requests' === screen && <QueueScreen key={ generation } /> }
         { 'capacity' === screen && <CapacityScreen key={ generation } /> }
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
