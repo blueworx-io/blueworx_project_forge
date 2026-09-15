@@ -160,7 +160,7 @@ final class Screen {
 			Access::USE,
 			self::SLUG,
 			array( self::class, 'render' ),
-			'dashicons-hammer',
+			MenuIcon::data_uri(),
 			58
 		);
 
