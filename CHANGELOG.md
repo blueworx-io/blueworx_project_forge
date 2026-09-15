@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.107.0] - 2026-09-15
+
+### Added
+
+- The open BlueWorx work from ClickUp arrives on the studio board with this update, each item in the stage it was at. Runs once, on blueworx.io only.
+
 ## [2.106.1] - 2026-09-15
 
 ### Changed
