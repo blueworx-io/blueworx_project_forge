@@ -62,6 +62,11 @@ final class Stages {
 	public const BLOCKED = 'blocked';
 
 	/**
+	 * Planned and waiting to be picked up. Where a recurring task is born.
+	 */
+	public const UP_NEXT = 'up-next';
+
+	/**
 	 * Approved and ready, but not yet live. Named for the same reason as the
 	 * one below, and because NOTIF-2 turns on the difference between the two:
 	 * this one tells a client their work is ready, and only the next one tells

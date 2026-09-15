@@ -160,7 +160,16 @@ final class Events {
 		self::DEPENDENCY_ADDED,
 		self::DEPENDENCY_REMOVED,
 		self::NOTIFIED,
+		self::PLACED,
 	);
+
+	/**
+	 * Put at a stage it never walked to, by the recurring engine: a task
+	 * that is born in Up Next because that is where a scheduled chore is
+	 * worked from. Its own action rather than an override, because nobody
+	 * went round the workflow — there was never a path to go round.
+	 */
+	public const PLACED = 'placed';
 
 	/**
 	 * Done by somebody standing in for the person the item names (AUTH-4).
@@ -171,6 +180,11 @@ final class Events {
 	 * Done through the WF-5 override.
 	 */
 	public const VIA_OVERRIDE = 'override';
+
+	/**
+	 * Done by the recurring engine, on a schedule.
+	 */
+	public const VIA_SCHEDULE = 'schedule';
 
 	/**
 	 * Appends an entry.

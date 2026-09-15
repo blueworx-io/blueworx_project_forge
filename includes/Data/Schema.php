@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 21;
+	public const VERSION = 22;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -335,6 +335,28 @@ final class Schema {
 	}
 
 	/**
+	 * The recurring sources table's full name.
+	 *
+	 * @return string
+	 */
+	public static function recurring_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_recurring';
+	}
+
+	/**
+	 * The recurring occurrences table's full name.
+	 *
+	 * @return string
+	 */
+	public static function recurring_occurrences_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_recurring_occurrences';
+	}
+
+	/**
 	 * The notification events table's full name.
 	 *
 	 * @return string
@@ -400,6 +422,8 @@ final class Schema {
 		$meeting_series   = self::meeting_series_table();
 		$occurrences      = self::meeting_occurrences_table();
 		$meeting_events   = self::meeting_events_table();
+		$recurring        = self::recurring_table();
+		$occurrences_rec  = self::recurring_occurrences_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -633,6 +657,7 @@ final class Schema {
 	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
 	release_method varchar(20) NOT NULL DEFAULT '',
 	release_destination varchar(191) NOT NULL DEFAULT '',
+	recurring_id varchar(32) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -644,7 +669,8 @@ final class Schema {
 	KEY stage (stage),
 	KEY level (level),
 	KEY archived (archived),
-	KEY terminal_outcome (terminal_outcome)
+	KEY terminal_outcome (terminal_outcome),
+	KEY recurring_id (recurring_id)
 ) {$collate};",
 
 			/*
@@ -1343,6 +1369,55 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY occurrence_time (occurrence_id, occurred_at),
 	KEY series_time (series_id, occurred_at)
+) {$collate};",
+
+			/*
+			 * Recurring tasks (PR 3). A source is the arrangement — what
+			 * repeats, how often, who — and the occurrences table is the
+			 * record of which due days have already become tasks. Its primary
+			 * key is the claim: two callers racing to make Monday's task both
+			 * insert (source, Monday) and the database lets one through.
+			 */
+			$recurring        => "CREATE TABLE {$recurring} (
+	id varchar(32) NOT NULL,
+	kind varchar(20) NOT NULL DEFAULT 'schedule',
+	client_site_id varchar(32) NOT NULL,
+	client_id varchar(32) NOT NULL,
+	title varchar(191) NOT NULL DEFAULT '',
+	description text NOT NULL,
+	work_type varchar(20) NOT NULL DEFAULT 'task',
+	primary_user_id varchar(32) NOT NULL DEFAULT '',
+	reviewer_id varchar(32) NOT NULL DEFAULT '',
+	deliverer_id varchar(32) NOT NULL DEFAULT '',
+	hours_primary decimal(8,2) NOT NULL DEFAULT 0,
+	hours_review decimal(8,2) NOT NULL DEFAULT 0,
+	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
+	rule text NOT NULL,
+	starts_on varchar(10) NOT NULL DEFAULT '',
+	ends_on varchar(10) NOT NULL DEFAULT '',
+	next_due varchar(10) NOT NULL DEFAULT '',
+	last_created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	status varchar(20) NOT NULL DEFAULT 'active',
+	source_ref varchar(64) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY site_status (client_site_id, status),
+	KEY next_due (next_due),
+	KEY source_ref (source_ref)
+) {$collate};",
+
+			$occurrences_rec  => "CREATE TABLE {$occurrences_rec} (
+	id varchar(32) NOT NULL,
+	recurring_id varchar(32) NOT NULL,
+	due_on varchar(10) NOT NULL,
+	work_item_id varchar(32) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY source_day (recurring_id, due_on),
+	KEY work_item_id (work_item_id)
 ) {$collate};",
 		);
 	}

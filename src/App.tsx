@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarDays, Clock, Columns3, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw } from 'lucide-react';
+import { BarChart3, CalendarDays, Clock, Columns3, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { CapacityScreen } from './components/CapacityScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { QueueScreen } from './components/QueueScreen';
+import { RecurringScreen } from './components/RecurringScreen';
 import { ReportsScreen } from './components/ReportsScreen';
 import { Signals } from './components/Signals';
 import { StandupScreen } from './components/StandupScreen';
@@ -48,6 +49,7 @@ const RAIL: Entry[] = [
   { key: 'work', view: 'gantt', label: 'Gantt', icon: GanttChart, testId: 'bwx-screen-gantt' },
   { key: 'work', view: 'calendar', label: 'Calendar', icon: CalendarDays, testId: 'bwx-screen-calendar' },
   { key: 'capacity', label: 'Capacity', icon: Gauge, testId: 'bwx-screen-capacity' },
+  { key: 'recurring', label: 'Recurring tasks', icon: Repeat, testId: 'bwx-screen-recurring' },
   { group: 'Intake' },
   { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests' },
   { group: 'Clients' },
@@ -102,6 +104,7 @@ const TITLES: Record< ScreenName, string > = {
   onboarding: 'Onboarding board',
   standup: 'Daily standup',
   reports: 'Reports',
+  recurring: 'Recurring tasks',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -129,6 +132,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   onboarding: { crumbs: [ 'Clients', 'Onboarding board' ], eyebrow: 'New-client setup', tile: FileCheck2, hue: 'blue' },
   standup: { crumbs: [ 'My day', 'Daily standup' ], eyebrow: 'Today', tile: Clock, hue: 'blue' },
   reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
+  recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -304,6 +308,7 @@ export function App() {
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
         { 'standup' === screen && <StandupScreen key={ generation } /> }
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
+        { 'recurring' === screen && <RecurringScreen key={ generation } /> }
       </main>
     </div>
   );

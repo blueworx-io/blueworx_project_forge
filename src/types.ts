@@ -138,7 +138,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -379,6 +379,40 @@ export interface WorkEvent {
   reason: string;
   detail: string;
   occurred_at: number;
+}
+
+/** How often a recurring task is due (PR 3). */
+export type RecurringRule =
+  | { every: 'day' }
+  | { every: 'week'; days: number[] }
+  | { every: 'month'; day: number };
+
+/** One recurring arrangement on the studio's site. */
+export interface RecurringSource {
+  id: string;
+  kind: 'schedule' | 'subscription';
+  client_site_id: string;
+  client_id: string;
+  title: string;
+  description: string;
+  work_type: string;
+  primary_user_id: string;
+  reviewer_id: string;
+  deliverer_id: string;
+  hours_primary: number;
+  hours_review: number;
+  hours_delivery: number;
+  rule: RecurringRule;
+  cadence: string;
+  starts_on: string;
+  ends_on: string;
+  next_due: string;
+  last_created_at: number;
+  status: 'active' | 'paused' | 'ended';
+  source_ref: string;
+  record_version: number;
+  last?: { due_on: string; work_item_id: string } | null;
+  [ key: string ]: unknown;
 }
 
 export interface ClientSite {

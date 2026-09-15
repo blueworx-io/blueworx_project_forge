@@ -616,6 +616,50 @@ final class Transition {
 	}
 
 	/**
+	 * The seventh door: a task the schedule puts straight where it is worked
+	 * from.
+	 *
+	 * A recurring chore has no future-idea, no triage and no design to pass;
+	 * it is in Up Next because it is Monday. So it is placed there by the
+	 * engine, recorded as such, with no override mark — nothing was gone
+	 * round, because there was never a path. Where it may be placed is still
+	 * the stage registry's decision: a stage that cannot hold the work type
+	 * is refused here as everywhere.
+	 *
+	 * @param array<string, mixed> $item  The item, as created.
+	 * @param string               $to    The stage to place it at.
+	 * @param int                  $actor Who is doing it; 0 for the engine.
+	 * @param string               $why   What put it there, for the history.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function place( array $item, string $to, int $actor, string $why ) {
+		if ( ! Stages::exists( $to ) || ! Stages::may_hold( $to, (string) $item['work_type'] ) ) {
+			return new WP_Error(
+				'bwx_forge_place_not_allowed',
+				__( 'That work cannot be placed there.', 'blueworx-forge' ),
+				array(
+					'status'    => 409,
+					'attempted' => $to,
+				)
+			);
+		}
+
+		return self::commit(
+			$item,
+			$to,
+			array(),
+			array(
+				'action' => Events::PLACED,
+				'gate'   => '',
+				'reason' => $why,
+				'via'    => Events::VIA_SCHEDULE,
+			),
+			(int) $item['record_version'],
+			$actor
+		);
+	}
+
+	/**
 	 * Records that this work is what a client's request became (#132).
 	 *
 	 * On the item rather than on the submission, because the submission's own

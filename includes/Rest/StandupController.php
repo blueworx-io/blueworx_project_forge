@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Recurring\Materialise;
 use Blueworx\Forge\Standup\Board;
 use Blueworx\Forge\Standup\Rules;
 use Blueworx\Forge\Tenancy\Reach;
@@ -81,6 +82,10 @@ final class StandupController {
 				)
 			);
 		}
+
+		// Anything the schedule owes today is made before the day's list is
+		// read, so a Monday chore is on Monday's list.
+		Materialise::maybe();
 
 		$today = gmdate( 'Y-m-d', bwx_forge_now() );
 		$cards = Board::for_reach( $reach, $today );

@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Notifications\Register as Notifications;
+use Blueworx\Forge\Recurring\Materialise;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
@@ -409,6 +410,8 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function index_all( WP_REST_Request $request ) {
+		Materialise::maybe();
+
 		$reach = Boundary::current();
 		$sites = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
 		$names = array();
@@ -495,6 +498,10 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function index( WP_REST_Request $request ) {
+		// Anything the schedule owes today is made before the list is read
+		// (PR 3): a due day becomes a task the first time anyone looks.
+		Materialise::maybe();
+
 		$site = ClientSites::get( (string) $request->get_param( 'client_site_id' ) );
 
 		if ( null === $site ) {
