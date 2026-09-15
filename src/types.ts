@@ -11,7 +11,7 @@ export interface ForgeData {
   currentUserId?: number;
   person?: { id: string; display_name: string } | null;
   /** Who is signed in, as the corner of every screen shows it. */
-  currentUser?: { name: string; email: string } | null;
+  currentUser?: { name: string } | null;
   /** Their WordPress profile, where their own settings live. */
   profileUrl?: string;
   loginUrl: string;
