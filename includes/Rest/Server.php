@@ -91,6 +91,7 @@ final class Server {
 		OnboardingController::register_routes( self::NAMESPACE );
 		StandupController::register_routes( self::NAMESPACE );
 		RecurringController::register_routes( self::NAMESPACE );
+		SubscriptionsController::register_routes( self::NAMESPACE );
 		ReportsController::register_routes( self::NAMESPACE );
 		SignalsController::register_routes( self::NAMESPACE );
 	}

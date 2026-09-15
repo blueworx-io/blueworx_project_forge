@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 30, $definitions );
+		$this->assertCount( 32, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -119,6 +119,14 @@ final class SchemaTest extends TestCase {
 			 * edits it after that.
 			 */
 			Schema::recurring_occurrences_table(),
+
+			/*
+			 * A subscription row is Forge's copy of what SureCart said at the
+			 * last refresh. Nobody edits it; the next refresh replaces the
+			 * store's rows outright, so there is nothing for a version to
+			 * guard.
+			 */
+			Schema::subscriptions_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {

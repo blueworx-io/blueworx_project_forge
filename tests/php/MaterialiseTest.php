@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\Recurring\Materialise;
+use Blueworx\Forge\Recurring\Sources;
 use PHPUnit\Framework\TestCase;
 
 final class MaterialiseTest extends TestCase {
@@ -31,6 +32,7 @@ final class MaterialiseTest extends TestCase {
 	public function test_the_title_carries_the_date(): void {
 		self::assertSame( 'Weekly backups — 14 Sep', Materialise::title( 'Weekly backups', '2026-09-14' ) );
 		self::assertSame( 'Weekly backups — 1 Jan', Materialise::title( 'Weekly backups', '2027-01-01' ) );
+		self::assertSame( 'Subscription Renewal: Acme - (£10.00)', Materialise::title( 'Subscription Renewal: Acme - (£10.00)', '2027-01-01', Sources::SUBSCRIPTION ) );
 	}
 
 	public function test_a_task_is_due_on_its_day_with_the_seats_and_hours(): void {
