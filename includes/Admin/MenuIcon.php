@@ -35,6 +35,7 @@ final class MenuIcon {
 	 * @return string
 	 */
 	public static function data_uri(): string {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- A data URI for an SVG, as WordPress's own menu icons are.
 		return 'data:image/svg+xml;base64,' . base64_encode( self::svg( self::REST ) );
 	}
 
@@ -42,6 +43,7 @@ final class MenuIcon {
 	 * Prints the stylesheet that paints the icon in the menu's own colour.
 	 */
 	public static function print_styles(): void {
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- A data URI for an SVG, as WordPress's own menu icons are.
 		$mask = 'url("data:image/svg+xml;base64,' . base64_encode( self::svg( '#000' ) ) . '")';
 		$item = '#adminmenu .toplevel_page_' . SitesScreen::SLUG . ' .wp-menu-image';
 
