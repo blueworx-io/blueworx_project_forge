@@ -207,7 +207,7 @@ export function App() {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
-    return { item, screen: screen in TITLES ? ( screen as ScreenName ) : null, person };
+    return { item, screen: Object.hasOwn( TITLES, screen ) ? ( screen as ScreenName ) : null, person };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );

@@ -64,6 +64,7 @@ test('a person with hours shows the week, the pattern, and the history', async (
   await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('36h');
   await expect(page.getByTestId('bwx-availability-day-hours_fri')).toHaveText('4');
   await expect(page.locator('[data-testid="bwx-availability-history"] tbody tr')).toHaveCount(1);
+  await expect(page.locator('[data-testid="bwx-availability-days"] tbody tr')).toHaveCount(7);
 });
 
 test('setting the week from the screen changes the total without a reload', async ({ page }) => {
@@ -121,6 +122,8 @@ test('time off is added from the screen, listed, and taken out of the week', asy
   const row = page.locator('[data-testid="bwx-availability-leave"] tbody tr', { hasText: `Course ${STAMP}` });
   await expect(row).toBeVisible();
   await expect(row).toContainText('Training');
+  // The day-by-day reason is the stored kind, not its display label.
+  await expect(page.locator('[data-testid="bwx-availability-days"] tbody tr').first()).toContainText('training');
 });
 
 test('removing time off gives the week back', async ({ page }) => {

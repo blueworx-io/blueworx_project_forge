@@ -131,6 +131,13 @@ export function AvailabilityScreen( { person }: { person: string } ) {
     { key: 'note', label: 'Note', wrap: true, render: ( p ) => p.note || '—' },
   ];
 
+  const dayColumns: Column< AvailabilityAnswer[ 'week' ][ 'days' ][ number ] >[] = [
+    { key: 'date', label: 'Date', mono: true, width: 120, render: ( d ) => d.date },
+    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, render: ( d ) => `${ hours( d.hours ) }h` },
+    { key: 'base_hours', label: 'Base', mono: true, align: 'right', width: 80, render: ( d ) => `${ hours( d.base_hours ) }h` },
+    { key: 'reason', label: 'Why', wrap: true, render: ( d ) => d.reason || '—' },
+  ];
+
   const leaveColumns: Column< LeaveRecord >[] = [
     { key: 'starts', label: 'From', mono: true, width: 120, sortBy: ( l ) => l.starts_on, render: ( l ) => l.starts_on },
     { key: 'ends', label: 'To', mono: true, width: 120, sortBy: ( l ) => l.ends_on, render: ( l ) => l.ends_on },
@@ -183,6 +190,11 @@ export function AvailabilityScreen( { person }: { person: string } ) {
                   label="Available hours"
                   value={ <span data-testid="bwx-availability-week-hours">{ `${ hours( answer.week.hours ) }h` }</span> }
                   sub={ `Across the next seven days, ${ answer.week.from } to ${ answer.week.to }.` }
+                />
+                <DataView< AvailabilityAnswer[ 'week' ][ 'days' ][ number ] >
+                  columns={ dayColumns }
+                  rows={ answer.week.days }
+                  testId="bwx-availability-days"
                 />
               </div>
             ) : (
@@ -359,7 +371,7 @@ function HoursForm( {
       </div>
 
       <Field label="Note">
-        { ( id ) => <TextInput id={ id } data-testid="bwx-availability-hours-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
+        { ( id ) => <TextInput id={ id } maxLength={ 191 } data-testid="bwx-availability-hours-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
       </Field>
 
       <div className="bwx-moves">
@@ -419,7 +431,7 @@ function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose:
         { ( id ) => <Select id={ id } data-testid="bwx-availability-leave-kind" value={ kind } onChange={ ( event ) => setKind( event.target.value as LeaveRecord[ 'kind' ] ) } options={ KINDS } /> }
       </Field>
       <Field label="Note">
-        { ( id ) => <TextInput id={ id } data-testid="bwx-availability-leave-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
+        { ( id ) => <TextInput id={ id } maxLength={ 191 } data-testid="bwx-availability-leave-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
       </Field>
 
       <div className="bwx-moves">
