@@ -1757,16 +1757,9 @@ function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose:
 
 Add `import type { ReactNode } from 'react';` and use `ReactNode` in `Aside`'s props instead of `React.ReactNode`.
 
-`.bwx-panel-title`: check `src/styles.css` ~line 547 for what the recurring form's `h2` uses; the recurring form inlines a style. Add a class rule instead:
+`.bwx-panel-title` already exists in `src/styles.css` (~line 2161); use it as is. Add:
 
 ```css
-.bwx-panel-title {
-  flex: 1;
-  margin: 0;
-  font-size: var( --text-subheading );
-  font-weight: 500;
-}
-
 .bwx-availability-hours-grid {
   display: grid;
   grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
@@ -1774,7 +1767,7 @@ Add `import type { ReactNode } from 'react';` and use `ReactNode` in `Aside`'s p
 }
 ```
 
-Append both to `src/styles.css` under the availability block.
+Append it to `src/styles.css` under the availability block.
 
 - [ ] **Step 4: Build and run**
 
