@@ -17,11 +17,13 @@ test.describe.configure({ mode: 'serial' });
 let api;
 let context;
 let person;
+let clientId;
 
 test.beforeAll(async ({ browser, baseURL }) => {
   ({ context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS));
   const where = await makeSite(api, 'Availability REST', RUN_ID);
-  person = await makePerson(api, where.client.id, 'staff', `avail${STAMP}`);
+  clientId = where.client.id;
+  person = await makePerson(api, clientId, 'staff', `avail${STAMP}`);
 });
 
 test.afterAll(async () => {
@@ -136,11 +138,35 @@ test('removing time off gives the hours back', async () => {
   expect(answer.leave.find((one) => one.id === thisWeek.id)).toBeUndefined();
 });
 
-test('removing somebody else\'s record through this person is refused', async () => {
+test('a record that is not there is a 404', async () => {
   const removed = await api.request.delete(`${BASE}/users/${person.id}/leave/una_nothere${STAMP}`, { headers: api.headers });
 
   expect(removed.status()).toBe(404);
   expect((await removed.json()).code).toBe('bwx_forge_unknown_leave');
+});
+
+test('removing somebody else\'s record through this person is refused', async () => {
+  const other = await makePerson(api, clientId, 'staff', `other${STAMP}`);
+
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const day = (d) => d.toISOString().slice(0, 10);
+
+  const added = await api.post(`/users/${other.id}/leave`, {
+    starts_on: day(today),
+    ends_on: day(tomorrow),
+    kind: 'leave',
+  });
+  expect(added.status(), await added.text()).toBe(200);
+  const otherRecord = (await added.json()).record;
+
+  const removed = await api.request.delete(`${BASE}/users/${person.id}/leave/${otherRecord.id}`, { headers: api.headers });
+  expect(removed.status()).toBe(404);
+  expect((await removed.json()).code).toBe('bwx_forge_unknown_leave');
+
+  const answer = await api.get(`/users/${other.id}/availability`);
+  expect(answer.leave.some((one) => one.id === otherRecord.id)).toBe(true);
 });
 
 test('a replayed leave under one retry key makes one record, not two', async () => {

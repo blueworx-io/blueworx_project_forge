@@ -214,8 +214,10 @@ final class AvailabilityController {
 	/**
 	 * Removes one record, if it is this person's.
 	 *
-	 * Checked against the person in the path rather than deleted by id
-	 * alone, so a route about one person cannot be used to change another.
+	 * The record is read by id and its owner compared to the person in the
+	 * path, rather than found by scanning the display window: that window is
+	 * only a year either side of today (see {@see self::answer()}), and a
+	 * genuine record outside it would otherwise answer as not found.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
@@ -228,17 +230,9 @@ final class AvailabilityController {
 		}
 
 		$leave_id = (string) $request['leave_id'];
-		$answer   = self::answer( $user );
-		$owned    = false;
+		$record   = Unavailability::get( $leave_id );
 
-		foreach ( $answer['leave'] as $record ) {
-			if ( (string) $record['id'] === $leave_id ) {
-				$owned = true;
-				break;
-			}
-		}
-
-		if ( ! $owned || ! Unavailability::remove( $leave_id ) ) {
+		if ( null === $record || (string) $record['user_id'] !== (string) $user['id'] || ! Unavailability::remove( $leave_id ) ) {
 			return Errors::rest( 'unknown_leave', __( 'There is no such time off.', 'blueworx-forge' ), 404 );
 		}
 

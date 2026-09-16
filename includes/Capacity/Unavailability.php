@@ -87,6 +87,23 @@ final class Unavailability {
 	}
 
 	/**
+	 * One record, by id.
+	 *
+	 * @param string $id Record id.
+	 * @return array<string, mixed>|null
+	 */
+	public static function get( string $id ): ?array {
+		global $wpdb;
+
+		$table = Schema::unavailability_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %s", $id ), ARRAY_A );
+
+		return is_array( $row ) ? self::hydrate( $row ) : null;
+	}
+
+	/**
 	 * Removes a record.
 	 *
 	 * @param string $id Record id.
