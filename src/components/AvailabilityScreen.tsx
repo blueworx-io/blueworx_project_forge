@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import type { AvailabilityAnswer, AvailabilityPattern, LeaveRecord, Person } from '../types';
-import { api, isDenied, messageFor } from '../api';
+import { api, ApiError, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { DataView, EmptyState, Panel, Select, Stat } from '../kit';
+import { Button, DataView, EmptyState, Field, Panel, Select, Stat, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { everybody } from './ItemPanel';
 import { Screen } from './States';
@@ -53,6 +54,31 @@ export function AvailabilityScreen( { person }: { person: string } ) {
   const [ answer, setAnswer ] = useState< AvailabilityAnswer | null >( null );
   const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( person ? 'loading' : 'idle' );
   const [ notice, setNotice ] = useState( '' );
+  const [ panel, setPanel ] = useState< 'hours' | 'leave' | null >( null );
+  const [ busy, setBusy ] = useState( false );
+
+  /** A write's answer is the whole picture, so it is shown rather than re-read. */
+  function landed( fresh: AvailabilityAnswer ) {
+    setAnswer( fresh );
+    setPanel( null );
+  }
+
+  async function removeLeave( record: LeaveRecord ) {
+    if ( ! window.confirm( `Remove ${ kindLabel( record.kind ).toLowerCase() } from ${ record.starts_on } to ${ record.ends_on }?` ) ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      landed( await api< AvailabilityAnswer >( `/users/${ personId }/leave/${ record.id }`, { method: 'DELETE' } ) );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That time off could not be removed.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
 
   async function load( id: string = personId ) {
     setNotice( '' );
@@ -110,6 +136,16 @@ export function AvailabilityScreen( { person }: { person: string } ) {
     { key: 'ends', label: 'To', mono: true, width: 120, sortBy: ( l ) => l.ends_on, render: ( l ) => l.ends_on },
     { key: 'kind', label: 'Kind', width: 140, render: ( l ) => kindLabel( l.kind ) },
     { key: 'note', label: 'Note', wrap: true, render: ( l ) => l.note || '—' },
+    {
+      key: 'actions',
+      label: '',
+      width: 100,
+      render: ( l ) => (
+        <Button variant="ghost" size="sm" data-testid="bwx-availability-leave-remove" disabled={ busy } onClick={ () => void removeLeave( l ) }>
+          Remove
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -156,7 +192,14 @@ export function AvailabilityScreen( { person }: { person: string } ) {
             ) }
           </Panel>
 
-          <Panel title="Working week">
+          <Panel
+            title="Working week"
+            right={
+              <Button size="sm" data-testid="bwx-availability-set-hours" disabled={ busy } onClick={ () => setPanel( 'hours' ) }>
+                Set hours
+              </Button>
+            }
+          >
             { answer.current ? (
               <dl className="bwx-availability-week" data-testid="bwx-availability-current">
                 { DAYS.map( ( [ key, label ] ) => (
@@ -185,7 +228,14 @@ export function AvailabilityScreen( { person }: { person: string } ) {
             />
           </Panel>
 
-          <Panel title="Time off">
+          <Panel
+            title="Time off"
+            right={
+              <Button size="sm" data-testid="bwx-availability-add-leave" disabled={ busy } onClick={ () => setPanel( 'leave' ) }>
+                Add time off
+              </Button>
+            }
+          >
             <DataView< LeaveRecord >
               columns={ leaveColumns }
               rows={ answer.leave }
@@ -201,8 +251,185 @@ export function AvailabilityScreen( { person }: { person: string } ) {
               </span>
             ) }
           </Panel>
+
+          { 'hours' === panel && <HoursForm personId={ personId } current={ answer.current } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
+          { 'leave' === panel && <LeaveForm personId={ personId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
         </>
       ) }
     </div>
+  );
+}
+
+/** What a form shows when the server refuses by field, or otherwise. */
+function refusal( error: unknown, fallback: string ): string {
+  const fields = error instanceof ApiError ? ( error.data.fields as Record< string, string > | undefined ) : undefined;
+
+  return fields ? Object.values( fields ).join( ' ' ) : messageFor( error, fallback );
+}
+
+/** The side panel both forms sit in, shaped as the recurring form is. */
+function Aside( { label, testId, onClose, children }: { label: string; testId: string; onClose: () => void; children: ReactNode } ) {
+  return (
+    <div className="bwx-panel-scrim" onClick={ ( event ) => event.target === event.currentTarget && onClose() }>
+      <aside className="bwx-panel" role="dialog" aria-modal="true" aria-label={ label } data-testid={ testId } onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }>
+        <header className="bwx-panel-head">
+          <h2 className="bwx-panel-title">{ label }</h2>
+          <button type="button" className="bwx-icon-button" onClick={ onClose } aria-label="Close">
+            ✕
+          </button>
+        </header>
+        { children }
+      </aside>
+    </div>
+  );
+}
+
+function today(): string {
+  return new Date().toISOString().slice( 0, 10 );
+}
+
+/** Recording a working week from a date. Starts from the week in force, so a small change is a small edit. */
+function HoursForm( {
+  personId,
+  current,
+  onClose,
+  onSaved,
+}: {
+  personId: string;
+  current: AvailabilityPattern | null;
+  onClose: () => void;
+  onSaved: ( answer: AvailabilityAnswer ) => void;
+} ) {
+  const [ from, setFrom ] = useState( today() );
+  const [ week, setWeek ] = useState< Record< string, string > >( () =>
+    Object.fromEntries( DAYS.map( ( [ key ] ) => [ key, current ? hours( current[ key ] ) : '' ] ) )
+  );
+  const [ note, setNote ] = useState( '' );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+
+    const body: Record< string, unknown > = { effective_from: from, note };
+
+    for ( const [ key ] of DAYS ) {
+      body[ key ] = Number( week[ key ] ) || 0;
+    }
+
+    try {
+      onSaved( await api< AvailabilityAnswer >( `/users/${ personId }/availability/hours`, { method: 'POST', body } ) );
+    } catch ( error ) {
+      setNotice( refusal( error, 'Those hours could not be saved.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Aside label="Set working hours" testId="bwx-availability-hours-form" onClose={ onClose }>
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-availability-hours-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <Field label="From" required help="A new week from this date. Earlier weeks keep the hours they had.">
+        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-availability-effective-from" value={ from } onChange={ ( event ) => setFrom( event.target.value ) } /> }
+      </Field>
+
+      <div className="bwx-availability-hours-grid">
+        { DAYS.map( ( [ key, label ] ) => (
+          <Field key={ key } label={ label }>
+            { ( id ) => (
+              <TextInput
+                id={ id }
+                type="number"
+                min="0"
+                step="0.25"
+                inputMode="decimal"
+                data-testid={ `bwx-availability-hours-${ key }` }
+                value={ week[ key ] }
+                onChange={ ( event ) => setWeek( { ...week, [ key ]: event.target.value } ) }
+              />
+            ) }
+          </Field>
+        ) ) }
+      </div>
+
+      <Field label="Note">
+        { ( id ) => <TextInput id={ id } data-testid="bwx-availability-hours-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
+      </Field>
+
+      <div className="bwx-moves">
+        <Button data-testid="bwx-availability-hours-save" disabled={ busy } onClick={ () => void save() }>
+          Save
+        </Button>
+        <Button variant="ghost" onClick={ onClose }>
+          Cancel
+        </Button>
+      </div>
+    </Aside>
+  );
+}
+
+/** Recording time somebody is away. */
+function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose: () => void; onSaved: ( answer: AvailabilityAnswer ) => void } ) {
+  const [ starts, setStarts ] = useState( today() );
+  const [ ends, setEnds ] = useState( today() );
+  const [ kind, setKind ] = useState< LeaveRecord[ 'kind' ] >( 'leave' );
+  const [ note, setNote ] = useState( '' );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      onSaved(
+        await api< AvailabilityAnswer >( `/users/${ personId }/leave`, {
+          method: 'POST',
+          body: { starts_on: starts, ends_on: ends, kind, note },
+        } )
+      );
+    } catch ( error ) {
+      setNotice( refusal( error, 'That time off could not be saved.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Aside label="Add time off" testId="bwx-availability-leave-form" onClose={ onClose }>
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-availability-leave-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <Field label="First day" required>
+        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-availability-leave-starts" value={ starts } onChange={ ( event ) => setStarts( event.target.value ) } /> }
+      </Field>
+      <Field label="Last day" required help="Both days are included.">
+        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-availability-leave-ends" value={ ends } onChange={ ( event ) => setEnds( event.target.value ) } /> }
+      </Field>
+      <Field label="Kind">
+        { ( id ) => <Select id={ id } data-testid="bwx-availability-leave-kind" value={ kind } onChange={ ( event ) => setKind( event.target.value as LeaveRecord[ 'kind' ] ) } options={ KINDS } /> }
+      </Field>
+      <Field label="Note">
+        { ( id ) => <TextInput id={ id } data-testid="bwx-availability-leave-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
+      </Field>
+
+      <div className="bwx-moves">
+        <Button data-testid="bwx-availability-leave-save" disabled={ busy } onClick={ () => void save() }>
+          Add
+        </Button>
+        <Button variant="ghost" onClick={ onClose }>
+          Cancel
+        </Button>
+      </div>
+    </Aside>
   );
 }

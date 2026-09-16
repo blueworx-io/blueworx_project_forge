@@ -65,3 +65,72 @@ test('a person with hours shows the week, the pattern, and the history', async (
   await expect(page.getByTestId('bwx-availability-day-hours_fri')).toHaveText('4');
   await expect(page.locator('[data-testid="bwx-availability-history"] tbody tr')).toHaveCount(1);
 });
+
+test('setting the week from the screen changes the total without a reload', async ({ page }) => {
+  await page.getByTestId('bwx-screen-availability').click();
+  await page.getByTestId('bwx-availability-person').selectOption(person.id);
+  await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('36h');
+
+  await page.getByTestId('bwx-availability-set-hours').click();
+  const form = page.getByTestId('bwx-availability-hours-form');
+  await form.getByTestId('bwx-availability-effective-from').fill('2021-01-01');
+  for (const day of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']) {
+    await form.getByTestId(`bwx-availability-hours-hours_${day}`).fill('5');
+  }
+  await form.getByTestId('bwx-availability-hours-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('35h');
+  await expect(page.locator('[data-testid="bwx-availability-history"] tbody tr')).toHaveCount(2);
+});
+
+test('a week with no date is refused on the form, in words', async ({ page }) => {
+  await page.getByTestId('bwx-screen-availability').click();
+  await page.getByTestId('bwx-availability-person').selectOption(person.id);
+
+  await page.getByTestId('bwx-availability-set-hours').click();
+  const form = page.getByTestId('bwx-availability-hours-form');
+  await form.getByTestId('bwx-availability-effective-from').fill('');
+  await form.getByTestId('bwx-availability-hours-save').click();
+
+  await expect(form.getByTestId('bwx-availability-hours-notice')).toContainText('date');
+});
+
+test('time off is added from the screen, listed, and taken out of the week', async ({ page }) => {
+  const day = (offset) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + offset);
+
+    return d.toISOString().slice(0, 10);
+  };
+
+  await page.getByTestId('bwx-screen-availability').click();
+  await page.getByTestId('bwx-availability-person').selectOption(person.id);
+  await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('35h');
+
+  await page.getByTestId('bwx-availability-add-leave').click();
+  const form = page.getByTestId('bwx-availability-leave-form');
+  await form.getByTestId('bwx-availability-leave-starts').fill(day(0));
+  await form.getByTestId('bwx-availability-leave-ends').fill(day(6));
+  await form.getByTestId('bwx-availability-leave-kind').selectOption('training');
+  await form.getByTestId('bwx-availability-leave-note').fill(`Course ${STAMP}`);
+  await form.getByTestId('bwx-availability-leave-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('0h');
+  const row = page.locator('[data-testid="bwx-availability-leave"] tbody tr', { hasText: `Course ${STAMP}` });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('Training');
+});
+
+test('removing time off gives the week back', async ({ page }) => {
+  await page.getByTestId('bwx-screen-availability').click();
+  await page.getByTestId('bwx-availability-person').selectOption(person.id);
+
+  const row = page.locator('[data-testid="bwx-availability-leave"] tbody tr', { hasText: `Course ${STAMP}` });
+  page.once('dialog', (dialog) => dialog.accept());
+  await row.getByTestId('bwx-availability-leave-remove').click();
+
+  await expect(row).toHaveCount(0);
+  await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('35h');
+});
