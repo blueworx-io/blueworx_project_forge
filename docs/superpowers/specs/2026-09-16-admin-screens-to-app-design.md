@@ -44,7 +44,8 @@ users, memberships) the screen uses it; where one is missing, the PR adds it.
 New routes follow the conventions in `docs/architecture/rest-conventions.md`
 and the checks in `tests/e2e/rest-conventions.spec.js` and
 `write-conventions.spec.js`: administrator-only through
-`Rest\Permissions`, versioned, idempotency key on every write, errors through
+`Rest\Permissions`, versioned, idempotency key on any write whose replay
+would leave a second record, errors through
 `Rest\Errors`. Controllers are thin. The logic stays where the admin actions
 already call it — `Capacity`, `Commerce`, `Meetings`, `Tenancy` — and a
 controller that finds itself doing arithmetic or validation the domain class
@@ -116,12 +117,16 @@ actions: set a person's weekly hours, add a leave period, remove one. Logic in
 
 **Routes:**
 
-- `GET /people/<id>/availability` — the weekly pattern and every leave period,
-  with the effective-from date of the pattern.
-- `PUT /people/<id>/availability/hours` — set the week. Body: hours per day and
-  effective-from. Returns the record.
-- `POST /people/<id>/leave` — add a period: from, to, reason. Returns it.
-- `DELETE /people/<id>/leave/<leave_id>` — remove a period.
+- `GET /users/<id>/availability` — the pattern in force, its history, every
+  leave period a year either side of today, and the next seven days' hours.
+- `POST /users/<id>/availability/hours` — record a week from a date. A POST,
+  not a PUT, because a pattern is append-only: a new row, and the latest wins.
+- `POST /users/<id>/leave` — add a period: from, to, kind, note. Replay-safe
+  under an idempotency key, since a duplicate here shows as two rows.
+- `DELETE /users/<id>/leave/<leave_id>` — remove a period.
+
+Every write returns the same answer the GET gives, so the screen never has
+to re-read after saving.
 
 **Screen:** a person picker across the top; beneath it the week as seven
 fields, and the leave periods as a DataView with an add panel and a remove
