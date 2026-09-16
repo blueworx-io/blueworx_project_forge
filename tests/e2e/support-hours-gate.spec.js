@@ -23,14 +23,13 @@ const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'design
 // suite runs on.
 const FROM = '2026-11-02';
 const TO = '2026-11-06';
-const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 /**
  * A site, hours on its package, and three people to fill the seats.
  *
- * Its own people rather than the shared helper's, because one of these tests
- * has to pick a person out of a list by name — and the shared helper names
- * everybody it makes the same thing.
+ * Its own people rather than the shared helper's, because the shared helper
+ * names everybody it makes the same thing and this suite needs the three
+ * roles told apart.
  */
 async function withSite(browser, baseURL, hours) {
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -46,38 +45,12 @@ async function withSite(browser, baseURL, hours) {
     admin,
     api: admin.api,
     site,
-    names: { primary: named('gateprimary') },
     people: {
       primary: await Forge.makePerson(admin.api, client.id, 'staff', named('gateprimary')),
       reviewer: await Forge.makePerson(admin.api, client.id, 'staff', named('gatereviewer')),
       deliverer: await Forge.makePerson(admin.api, client.id, 'staff', named('gatedeliverer')),
     },
   };
-}
-
-/**
- * Somebody's working week, written from the availability screen.
- *
- * #136 gave patterns no REST route, since setting somebody up is configuration
- * rather than work (ARCH-7). It matters here because a person with no pattern
- * is nobody the capacity check has an opinion about — so without this the
- * capacity answer cannot be made to fail, and the test that needs one failure
- * and one pass has nothing to test.
- */
-async function giveWorkingHours(page, name, perDay) {
-  await page.goto('/wp-admin/admin.php?page=blueworx-forge-availability');
-  await page.selectOption('#bwx-person', { label: name });
-  await page.click('form[data-bwx-person-picker] input[type="submit"]');
-
-  await expect(page.locator('[data-bwx-person-name]')).toHaveText(name);
-  await page.fill('#bwx-effective-from', '2020-01-01');
-
-  for (const day of DAYS) {
-    await page.fill(`#bwx-hours_${day}`, String(perDay));
-  }
-
-  await page.click('form[data-bwx-set-hours] input[type="submit"]');
-  await expect(page.locator('[data-bwx-result="hours-set"]')).toBeVisible();
 }
 
 /** The seats and the plan. */
@@ -104,11 +77,9 @@ test('the gate answers hours and capacity separately, and reports both', async (
    * the money answer passes while the time answer fails, which is the pair
    * this issue is about.
    */
-  const { admin, api, site, people, names } = await withSite(browser, baseURL, 400);
-  const page = await admin.context.newPage();
+  const { admin, api, site, people } = await withSite(browser, baseURL, 400);
 
-  await giveWorkingHours(page, names.primary, 8);
-  await page.close();
+  await Forge.setHours(api, people.primary.id, 8);
 
   const created = await Forge.makeItem(api, site.id, { title: `Two answers ${RUN_ID}` });
 

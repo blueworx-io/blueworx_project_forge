@@ -338,3 +338,25 @@ export async function hourLedger(admin, siteId) {
 
   return { balance: Number(balance), entries };
 }
+
+/**
+ * Somebody's working week, the same hours every day, from a date far enough
+ * back to cover any window a spec uses.
+ *
+ * Works with the pair suite's studio caller too: both expose `post`.
+ */
+export async function setHours(api, personId, perDay, from = '2020-01-01') {
+  const wrote = await api.post(`/users/${personId}/availability/hours`, {
+    effective_from: from,
+    hours_sun: perDay,
+    hours_mon: perDay,
+    hours_tue: perDay,
+    hours_wed: perDay,
+    hours_thu: perDay,
+    hours_fri: perDay,
+    hours_sat: perDay,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  return (await wrote.json()).pattern;
+}
