@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
+import { BarChart3, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
+import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
@@ -57,6 +58,8 @@ const RAIL: Entry[] = [
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
   { href: 'admin.php?page=blueworx-forge-packages', label: 'Packages & hours', icon: Receipt, testId: 'bwx-link-packages' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
+  { group: 'Team' },
+  { key: 'availability', label: 'Availability', icon: CalendarCheck, testId: 'bwx-screen-availability' },
   { group: 'Insight' },
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions' },
@@ -128,6 +131,7 @@ const TITLES: Record< ScreenName, string > = {
   reports: 'Reports',
   recurring: 'Recurring tasks',
   subscriptions: 'Subscriptions',
+  availability: 'Availability',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -157,6 +161,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
   recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
+  availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -350,6 +355,7 @@ export function App() {
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
+        { 'availability' === screen && <AvailabilityScreen key={ generation } person="" /> }
       </main>
     </div>
   );

@@ -2575,3 +2575,11 @@ td[ data-band='over' ] {
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+
+/* ---- Availability (#136) ---- */
+
+.bwx-availability {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
