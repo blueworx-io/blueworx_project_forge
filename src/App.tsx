@@ -189,22 +189,24 @@ function useRequestsWaiting( screen: ScreenName ): number | null {
 
 export function App() {
   const data = forgeData();
-  const [ screen, setScreen ] = useState< ScreenName >( 'work' );
-
-  /*
-   * A link from Slack lands on the app page with the task in the hash
-   * (PR 5). The board opens and the panel opens on that task; the hash is
-   * then cleared so a reload is a plain reload.
+  /**
+   * A link can land on a screen: from Slack on the task in the hash (PR 5),
+   * or from anywhere on a screen and, for availability, a person. Read once
+   * and cleared, so a reload is a plain reload.
    */
-  const [ linkedItem ] = useState( () => {
-    const found = /(?:^|[#&])item=([A-Za-z0-9_-]+)/.exec( window.location.hash );
+  const [ landing ] = useState( () => {
+    const hash = window.location.hash;
+    const item = /(?:^|[#&])item=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    const screen = /(?:^|[#&])screen=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
+    const person = /(?:^|[#&])person=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
 
-    if ( found ) {
+    if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
-    return found ? found[ 1 ] : '';
+    return { item, screen: screen in TITLES ? ( screen as ScreenName ) : null, person };
   } );
+  const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
   const [ newWorkAsked, setNewWorkAsked ] = useState( 0 );
   const [ generation, setGeneration ] = useState( 0 );
@@ -347,7 +349,7 @@ export function App() {
            same thing switching screens does, on demand.
          */ }
         { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
-        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ linkedItem } /> }
+        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ landing.item } /> }
         { 'requests' === screen && <QueueScreen key={ generation } /> }
         { 'capacity' === screen && <CapacityScreen key={ generation } /> }
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
@@ -355,7 +357,7 @@ export function App() {
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
-        { 'availability' === screen && <AvailabilityScreen key={ generation } person="" /> }
+        { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
       </main>
     </div>
   );

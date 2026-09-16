@@ -134,3 +134,17 @@ test('removing time off gives the week back', async ({ page }) => {
   await expect(row).toHaveCount(0);
   await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('35h');
 });
+
+test('a link with the screen and person in the hash lands on them', async ({ page }) => {
+  await page.goto(`/blueworx-forge/#screen=availability&person=${person.id}`);
+  // The beforeEach already opened the app without a hash, so this is a
+  // same-document fragment change, not a real navigation; a link from
+  // outside always arrives as a fresh load, so force one to match that.
+  await page.reload();
+
+  await expect(page.getByTestId('bwx-availability')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('bwx-availability-person')).toHaveValue(person.id);
+  await expect(page.getByTestId('bwx-availability-week-hours')).toHaveText('35h');
+  // Read once and cleared, so a reload is a plain reload.
+  expect(new URL(page.url()).hash).toBe('');
+});
