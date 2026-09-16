@@ -48,6 +48,17 @@ final class AvailabilityController {
 				'scope'               => $scope,
 			)
 		);
+
+		Server::register_route(
+			$route_namespace,
+			'/users/(?P<user_id>[A-Za-z0-9_\-]+)/availability/hours',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'set_hours' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
 	}
 
 	/**
@@ -64,6 +75,80 @@ final class AvailabilityController {
 		}
 
 		return rest_ensure_response( self::answer( $user ) );
+	}
+
+	/**
+	 * Records a working week from a date.
+	 *
+	 * Always an append, as {@see Patterns::record()} is: a correction is a
+	 * new row that wins from its date, and the old one stays in the history.
+	 * That is why this is a POST and not a PUT.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function set_hours( WP_REST_Request $request ) {
+		$user = Users::get( (string) $request['user_id'] );
+
+		if ( null === $user ) {
+			return self::unknown_user();
+		}
+
+		$body           = (array) $request->get_json_params();
+		$effective_from = sanitize_text_field( (string) ( $body['effective_from'] ?? '' ) );
+
+		if ( ! self::is_date( $effective_from ) ) {
+			return self::invalid( array( 'effective_from' => __( 'Say the date these hours start from.', 'blueworx-forge' ) ) );
+		}
+
+		$hours = array();
+
+		foreach ( Patterns::day_columns() as $column ) {
+			$hours[ $column ] = (float) ( $body[ $column ] ?? 0 );
+		}
+
+		$note    = sanitize_text_field( (string) ( $body['note'] ?? '' ) );
+		$pattern = Patterns::record( (string) $user['id'], $effective_from, $hours, get_current_user_id(), $note );
+
+		if ( null === $pattern ) {
+			return Errors::rest( 'write_failed', __( 'Those hours could not be saved.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response( array_merge( array( 'pattern' => $pattern ), self::answer( $user ) ) );
+	}
+
+	/**
+	 * Whether a value is a date this can store.
+	 *
+	 * Checked rather than trusted, for the reason the admin screen checks:
+	 * a malformed date stored here sorts wrong against every other date.
+	 *
+	 * @param string $value Candidate.
+	 * @return bool
+	 */
+	private static function is_date( string $value ): bool {
+		if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) {
+			return false;
+		}
+
+		list( $year, $month, $day ) = array_map( 'intval', explode( '-', $value ) );
+
+		return checkdate( $month, $day, $year );
+	}
+
+	/**
+	 * The refusal for input that cannot be stored, by field.
+	 *
+	 * @param array<string, string> $fields Field to what is wrong with it.
+	 * @return \WP_Error
+	 */
+	private static function invalid( array $fields ) {
+		return Errors::rest(
+			'invalid_availability',
+			__( 'That could not be saved.', 'blueworx-forge' ),
+			400,
+			array( 'fields' => $fields )
+		);
 	}
 
 	/**

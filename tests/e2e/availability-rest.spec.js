@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makePerson } from './helpers/forge.js';
+import { signedIn, makeSite, makePerson, PASSWORD } from './helpers/forge.js';
 
 // PR 1 of the move out of WordPress admin: a person's working week and time
 // off over REST. Nothing here is deleted and the instance is reused, so every
@@ -45,4 +45,47 @@ test('an unknown person is a 404, not an empty answer', async () => {
 
   expect(response.status()).toBe(404);
   expect((await response.json()).code).toBe('bwx_forge_unknown_user');
+});
+
+test('recording a week makes it the pattern in force and totals the next seven days', async () => {
+  const wrote = await api.post(`/users/${person.id}/availability/hours`, { effective_from: '2020-01-01', ...WEEK });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.pattern.hours_week).toBe(36);
+  expect(answer.recorded).toBe(true);
+  expect(answer.current.id).toBe(answer.pattern.id);
+  expect(answer.history).toHaveLength(1);
+  // Seven days from any day of the week cover each weekday exactly once.
+  expect(answer.week.hours).toBe(36);
+});
+
+test('a second week from a later date wins, and the first stays in the history', async () => {
+  const wrote = await api.post(`/users/${person.id}/availability/hours`, { effective_from: '2021-01-01', ...WEEK, hours_fri: 8 });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.current.hours_week).toBe(40);
+  expect(answer.history).toHaveLength(2);
+});
+
+test('a week without a real date is refused by field', async () => {
+  const wrote = await api.post(`/users/${person.id}/availability/hours`, { effective_from: '2021-02-30', ...WEEK });
+
+  expect(wrote.status()).toBe(400);
+  const body = await wrote.json();
+  expect(body.code).toBe('bwx_forge_invalid_availability');
+  expect(body.data.fields.effective_from).toBeTruthy();
+});
+
+test('somebody who is not an administrator cannot read or write hours', async ({ browser, baseURL }) => {
+  const other = await signedIn(browser, baseURL, person.login, PASSWORD);
+
+  const read = await other.api.request.get(`${BASE}/users/${person.id}/availability`, { headers: other.api.headers });
+  expect(read.status()).toBe(403);
+
+  const wrote = await other.api.post(`/users/${person.id}/availability/hours`, { effective_from: '2020-01-01', ...WEEK });
+  expect(wrote.status()).toBe(403);
+
+  await other.context.close();
 });
