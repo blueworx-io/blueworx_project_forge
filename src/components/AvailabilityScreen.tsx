@@ -44,7 +44,7 @@ function kindLabel( kind: string ): string {
 
 /** 8 → "8", 7.5 → "7.5". */
 function hours( value: number ): string {
-  return Number.isInteger( value ) ? String( value ) : value.toFixed( 2 ).replace( /0+$/, '' );
+  return String( Number( value.toFixed( 2 ) ) );
 }
 
 export function AvailabilityScreen( { person }: { person: string } ) {
@@ -55,6 +55,8 @@ export function AvailabilityScreen( { person }: { person: string } ) {
   const [ notice, setNotice ] = useState( '' );
 
   async function load( id: string = personId ) {
+    setNotice( '' );
+
     if ( '' === id ) {
       setAnswer( null );
       setState( 'idle' );
@@ -99,7 +101,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
       width: 56,
       render: ( p ) => hours( p[ key ] ),
     } ) ),
-    { key: 'week', label: 'Week', mono: true, align: 'right', width: 72, render: ( p ) => `${ hours( p.hours_week ) }h` },
+    { key: 'week', label: 'Week', mono: true, align: 'right', width: 72, sortBy: ( p ) => p.hours_week, render: ( p ) => `${ hours( p.hours_week ) }h` },
     { key: 'note', label: 'Note', wrap: true, render: ( p ) => p.note || '—' },
   ];
 
