@@ -89,3 +89,88 @@ test('somebody who is not an administrator cannot read or write hours', async ({
 
   await other.context.close();
 });
+
+test('time off is recorded, listed, and taken out of the week', async () => {
+  const added = await api.post(`/users/${person.id}/leave`, {
+    starts_on: '2020-01-06',
+    ends_on: '2020-01-10',
+    kind: 'leave',
+    note: `Away ${RUN_ID}`,
+  });
+  expect(added.status(), await added.text()).toBe(200);
+
+  const answer = await added.json();
+  expect(answer.record.id).toMatch(/^una_/);
+  expect(answer.record.kind).toBe('leave');
+  expect(answer.record.starts_on).toBe('2020-01-06');
+  // Outside the year-either-side window the listing shows, so not listed —
+  // which is the admin page's behaviour too.
+  expect(answer.leave.find((one) => one.id === answer.record.id)).toBeUndefined();
+});
+
+test('time off that overlaps this week reduces the hours available', async () => {
+  const from = new Date();
+  const to = new Date();
+  to.setUTCDate(to.getUTCDate() + 6);
+  const day = (d) => d.toISOString().slice(0, 10);
+
+  const added = await api.post(`/users/${person.id}/leave`, { starts_on: day(from), ends_on: day(to), kind: 'training' });
+  expect(added.status(), await added.text()).toBe(200);
+
+  const answer = await added.json();
+  expect(answer.record.kind).toBe('training');
+  expect(answer.week.hours).toBe(0);
+  expect(answer.leave.some((one) => one.id === answer.record.id)).toBe(true);
+});
+
+test('removing time off gives the hours back', async () => {
+  const before = await api.get(`/users/${person.id}/availability`);
+  const thisWeek = before.leave.find((one) => one.kind === 'training');
+  expect(thisWeek).toBeTruthy();
+
+  const removed = await api.request.delete(`${BASE}/users/${person.id}/leave/${thisWeek.id}`, { headers: api.headers });
+  expect(removed.status(), await removed.text()).toBe(200);
+
+  const answer = await removed.json();
+  expect(answer.week.hours).toBe(40);
+  expect(answer.leave.find((one) => one.id === thisWeek.id)).toBeUndefined();
+});
+
+test('removing somebody else\'s record through this person is refused', async () => {
+  const removed = await api.request.delete(`${BASE}/users/${person.id}/leave/una_nothere${STAMP}`, { headers: api.headers });
+
+  expect(removed.status()).toBe(404);
+  expect((await removed.json()).code).toBe('bwx_forge_unknown_leave');
+});
+
+test('a replayed leave under one retry key makes one record, not two', async () => {
+  const key = `leave-${RUN_ID}`;
+  const body = { starts_on: '2019-06-01', ends_on: '2019-06-02', kind: 'other' };
+  const headers = { ...api.headers, 'Idempotency-Key': key };
+
+  const first = await api.request.post(`${BASE}/users/${person.id}/leave`, { headers, data: body });
+  const again = await api.request.post(`${BASE}/users/${person.id}/leave`, { headers, data: body });
+
+  expect(first.status()).toBe(200);
+  expect(again.status()).toBe(200);
+  expect((await again.json()).record.id).toBe((await first.json()).record.id);
+});
+
+test('a leave with its dates the wrong way round is stored the right way round', async () => {
+  const added = await api.post(`/users/${person.id}/leave`, { starts_on: '2019-03-10', ends_on: '2019-03-08', kind: 'leave' });
+  expect(added.status(), await added.text()).toBe(200);
+
+  const { record } = await added.json();
+  expect(record.starts_on).toBe('2019-03-08');
+  expect(record.ends_on).toBe('2019-03-10');
+});
+
+test('a leave with no real dates is refused by field', async () => {
+  const added = await api.post(`/users/${person.id}/leave`, { starts_on: 'soon', ends_on: '', kind: 'leave' });
+
+  expect(added.status()).toBe(400);
+  const body = await added.json();
+  expect(body.code).toBe('bwx_forge_invalid_availability');
+  expect(body.data.fields.starts_on).toBeTruthy();
+  expect(body.data.fields.ends_on).toBeTruthy();
+});

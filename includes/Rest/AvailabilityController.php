@@ -28,6 +28,12 @@ use WP_REST_Request;
 final class AvailabilityController {
 
 	/**
+	 * The idempotency operation for adding time off. Scoped by person when
+	 * used, so one retry key cannot answer another person's replay.
+	 */
+	private const LEAVE_OPERATION = 'availability.leave.create';
+
+	/**
 	 * Registers this controller's routes.
 	 *
 	 * @param string $route_namespace REST namespace.
@@ -55,6 +61,28 @@ final class AvailabilityController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'set_hours' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/users/(?P<user_id>[A-Za-z0-9_\-]+)/leave',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'add_leave' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/users/(?P<user_id>[A-Za-z0-9_\-]+)/leave/(?P<leave_id>[A-Za-z0-9_\-]+)',
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'remove_leave' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => $scope,
 			)
@@ -115,6 +143,106 @@ final class AvailabilityController {
 		}
 
 		return rest_ensure_response( array_merge( array( 'pattern' => $pattern ), self::answer( $user ) ) );
+	}
+
+	/**
+	 * Records time somebody is not available for.
+	 *
+	 * Replay-safe under an idempotency key: a resend that made a second row
+	 * would show two identical periods, and somebody would delete one.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function add_leave( WP_REST_Request $request ) {
+		$user = Users::get( (string) $request['user_id'] );
+
+		if ( null === $user ) {
+			return self::unknown_user();
+		}
+
+		$key       = (string) $request->get_header( Idempotency::HEADER );
+		$operation = self::LEAVE_OPERATION . ':' . (string) $user['id'];
+
+		if ( '' !== $key ) {
+			if ( ! Idempotency::is_valid_key( $key ) ) {
+				return Errors::rest( 'invalid_idempotency_key', __( 'That retry key cannot be used.', 'blueworx-forge' ), 400 );
+			}
+
+			$replay = Idempotency::replay( $operation, $key );
+
+			if ( null !== $replay ) {
+				return rest_ensure_response( $replay );
+			}
+		}
+
+		$body      = (array) $request->get_json_params();
+		$starts_on = sanitize_text_field( (string) ( $body['starts_on'] ?? '' ) );
+		$ends_on   = sanitize_text_field( (string) ( $body['ends_on'] ?? '' ) );
+		$fields    = array();
+
+		if ( ! self::is_date( $starts_on ) ) {
+			$fields['starts_on'] = __( 'Say the first day away.', 'blueworx-forge' );
+		}
+
+		if ( ! self::is_date( $ends_on ) ) {
+			$fields['ends_on'] = __( 'Say the last day away.', 'blueworx-forge' );
+		}
+
+		if ( array() !== $fields ) {
+			return self::invalid( $fields );
+		}
+
+		$kind = sanitize_key( (string) ( $body['kind'] ?? 'leave' ) );
+		$note = sanitize_text_field( (string) ( $body['note'] ?? '' ) );
+
+		$record = Unavailability::add( (string) $user['id'], $starts_on, $ends_on, $kind, get_current_user_id(), $note );
+
+		if ( null === $record ) {
+			return Errors::rest( 'write_failed', __( 'That time off could not be saved.', 'blueworx-forge' ), 500 );
+		}
+
+		$response = array_merge( array( 'record' => $record ), self::answer( $user ) );
+
+		if ( '' !== $key ) {
+			Idempotency::remember( $operation, $key, $response );
+		}
+
+		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * Removes one record, if it is this person's.
+	 *
+	 * Checked against the person in the path rather than deleted by id
+	 * alone, so a route about one person cannot be used to change another.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function remove_leave( WP_REST_Request $request ) {
+		$user = Users::get( (string) $request['user_id'] );
+
+		if ( null === $user ) {
+			return self::unknown_user();
+		}
+
+		$leave_id = (string) $request['leave_id'];
+		$answer   = self::answer( $user );
+		$owned    = false;
+
+		foreach ( $answer['leave'] as $record ) {
+			if ( (string) $record['id'] === $leave_id ) {
+				$owned = true;
+				break;
+			}
+		}
+
+		if ( ! $owned || ! Unavailability::remove( $leave_id ) ) {
+			return Errors::rest( 'unknown_leave', __( 'There is no such time off.', 'blueworx-forge' ), 404 );
+		}
+
+		return rest_ensure_response( self::answer( $user ) );
 	}
 
 	/**
