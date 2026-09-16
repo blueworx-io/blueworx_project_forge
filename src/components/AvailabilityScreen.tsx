@@ -274,7 +274,7 @@ function Aside( { label, testId, onClose, children }: { label: string; testId: s
       <aside className="bwx-panel" role="dialog" aria-modal="true" aria-label={ label } data-testid={ testId } onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }>
         <header className="bwx-panel-head">
           <h2 className="bwx-panel-title">{ label }</h2>
-          <button type="button" className="bwx-icon-button" onClick={ onClose } aria-label="Close">
+          <button type="button" className="bwx-icon-button" data-testid="bwx-availability-panel-close" onClick={ onClose } aria-label="Close">
             ✕
           </button>
         </header>
@@ -336,7 +336,7 @@ function HoursForm( {
       ) }
 
       <Field label="From" required help="A new week from this date. Earlier weeks keep the hours they had.">
-        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-availability-effective-from" value={ from } onChange={ ( event ) => setFrom( event.target.value ) } /> }
+        { ( id ) => <TextInput id={ id } type="date" autoFocus data-testid="bwx-availability-effective-from" value={ from } onChange={ ( event ) => setFrom( event.target.value ) } /> }
       </Field>
 
       <div className="bwx-availability-hours-grid">
@@ -366,7 +366,7 @@ function HoursForm( {
         <Button data-testid="bwx-availability-hours-save" disabled={ busy } onClick={ () => void save() }>
           Save
         </Button>
-        <Button variant="ghost" onClick={ onClose }>
+        <Button variant="ghost" data-testid="bwx-availability-hours-cancel" onClick={ onClose }>
           Cancel
         </Button>
       </div>
@@ -410,7 +410,7 @@ function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose:
       ) }
 
       <Field label="First day" required>
-        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-availability-leave-starts" value={ starts } onChange={ ( event ) => setStarts( event.target.value ) } /> }
+        { ( id ) => <TextInput id={ id } type="date" autoFocus data-testid="bwx-availability-leave-starts" value={ starts } onChange={ ( event ) => setStarts( event.target.value ) } /> }
       </Field>
       <Field label="Last day" required help="Both days are included.">
         { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-availability-leave-ends" value={ ends } onChange={ ( event ) => setEnds( event.target.value ) } /> }
@@ -426,7 +426,7 @@ function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose:
         <Button data-testid="bwx-availability-leave-save" disabled={ busy } onClick={ () => void save() }>
           Add
         </Button>
-        <Button variant="ghost" onClick={ onClose }>
+        <Button variant="ghost" data-testid="bwx-availability-leave-cancel" onClick={ onClose }>
           Cancel
         </Button>
       </div>
