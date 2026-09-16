@@ -35,6 +35,9 @@ import './shell.css';
  *
  * Packages & hours and Sync health are still WordPress admin screens; the
  * rail links to them so nothing is further away than it was.
+ *
+ * Availability is the first configuration screen to move in (spec
+ * 2026-09-16); the rest follow it, one pull request each.
  */
 
 type Entry =
