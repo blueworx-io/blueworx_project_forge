@@ -402,7 +402,13 @@ test.describe('the clients screen, over REST', () => {
     expect(answer.contact.needs_reassignment).toBe(false);
     expect(answer.contact.fallback).toBe('');
 
-    expect((await clientInList(where.client.id)).contact.contact.id).toBe(staff.id);
+    // A name, an id and whether they are still here — and nothing else about
+    // them. The list is open to anybody signed in; the person's record is not.
+    expect(Object.keys(answer.contact.contact).sort()).toEqual(['display_name', 'id', 'status']);
+
+    const listed = (await clientInList(where.client.id)).contact.contact;
+    expect(listed.id).toBe(staff.id);
+    expect(Object.keys(listed).sort()).toEqual(['display_name', 'id', 'status']);
 
     // Somebody who has left cannot be named.
     const leaver = await makePerson(api, where.client.id, 'staff', `leaver${STAMP}`);

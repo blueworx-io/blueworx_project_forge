@@ -198,7 +198,7 @@ final class ClientsController {
 				: ( $people[ (string) $assignment['user_id'] ] ?? null );
 
 			$clients[ $index ]['is_studio'] = '' !== $studio && $studio === (string) $client['id'];
-			$clients[ $index ]['contact']   = Contacts::resolve( $assignment, $person );
+			$clients[ $index ]['contact']   = self::contact( $assignment, $person );
 		}
 
 		return rest_ensure_response(
@@ -438,7 +438,7 @@ final class ClientsController {
 		$response = array(
 			'ok'         => true,
 			'client'     => $client,
-			'contact'    => Contacts::resolve( $assignment, $person ),
+			'contact'    => self::contact( $assignment, $person ),
 			'assignment' => $assignment,
 		);
 
@@ -516,5 +516,33 @@ final class ClientsController {
 				'client' => $updated,
 			)
 		);
+	}
+
+	/**
+	 * Who our contact is, as the clients screen may read it.
+	 *
+	 * Contacts::resolve()'s shape, with the person cut down to a name. The
+	 * list this rides on is open to anybody signed in, and a person's record
+	 * — their address, their account, what they are allowed to do — is what
+	 * the /users routes keep for administrators. The id is there so the form
+	 * can preselect them, and the status so "has left" can be said; nothing
+	 * else about them belongs on a client.
+	 *
+	 * @param array<string, mixed>|null $assignment The latest assignment, or null.
+	 * @param array<string, mixed>|null $person     The person it names, or null.
+	 * @return array{contact: array<string, mixed>|null, needs_reassignment: bool, fallback: string}
+	 */
+	private static function contact( ?array $assignment, ?array $person ): array {
+		$state = Contacts::resolve( $assignment, $person );
+
+		if ( null !== $state['contact'] ) {
+			$state['contact'] = array(
+				'id'           => (string) $state['contact']['id'],
+				'display_name' => (string) $state['contact']['display_name'],
+				'status'       => (string) $state['contact']['status'],
+			);
+		}
+
+		return $state;
 	}
 }
