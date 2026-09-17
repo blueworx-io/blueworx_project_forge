@@ -65,6 +65,39 @@ final class PackagesController {
 				'scope'               => $scope,
 			)
 		);
+
+		Server::register_route(
+			$route_namespace,
+			'/packages/order',
+			array(
+				'methods'             => 'PUT',
+				'callback'            => array( self::class, 'reorder' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/packages/(?P<package_id>[A-Za-z0-9_\-]+)',
+			array(
+				'methods'             => 'PATCH',
+				'callback'            => array( self::class, 'set_status' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/packages/(?P<package_id>[A-Za-z0-9_\-]+)/versions',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'revise' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
 	}
 
 	/**
@@ -123,6 +156,110 @@ final class PackagesController {
 		}
 
 		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * Writes the next version of a package.
+	 *
+	 * Always an append, as {@see Packages::revise()} is: no route edits a
+	 * version that exists, which is COMM-1 made visible. Not idempotency-keyed
+	 * because a replay is already a no-op — the same terms twice write nothing
+	 * the second time, and the answer says so in `changed`.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function revise( WP_REST_Request $request ) {
+		$package_id = (string) $request['package_id'];
+		$before     = Packages::current_version( $package_id );
+
+		if ( null === Packages::get( $package_id ) || null === $before ) {
+			return self::unknown_package();
+		}
+
+		$terms  = self::submitted( $request );
+		$reason = Terms::refuse( Terms::sanitise( $terms ) );
+
+		if ( '' !== $reason ) {
+			return Errors::rest( 'invalid_package', $reason, 400 );
+		}
+
+		$package = Packages::revise( $package_id, $terms, get_current_user_id() );
+
+		if ( null === $package ) {
+			return Errors::rest( 'write_failed', __( 'That version could not be saved.', 'blueworx-forge' ), 500 );
+		}
+
+		$shaped = self::shape( $package );
+
+		return rest_ensure_response(
+			array_merge(
+				array(
+					'package' => $shaped,
+					'changed' => null !== $shaped['current'] && (int) $shaped['current']['version'] > (int) $before['version'],
+				),
+				self::answer()
+			)
+		);
+	}
+
+	/**
+	 * Takes a package off the shelf, or puts it back. Nothing else about a
+	 * package is edited in place; the rest is a version.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function set_status( WP_REST_Request $request ) {
+		$package_id = (string) $request['package_id'];
+
+		if ( null === Packages::get( $package_id ) ) {
+			return self::unknown_package();
+		}
+
+		$body   = (array) $request->get_json_params();
+		$status = sanitize_key( (string) ( $body['status'] ?? '' ) );
+
+		if ( ! Terms::is_status( $status ) ) {
+			return Errors::rest( 'invalid_status', __( 'A package is on the shelf or retired; nothing else.', 'blueworx-forge' ), 400 );
+		}
+
+		$package = Packages::set_status( $package_id, $status );
+
+		if ( null === $package ) {
+			return Errors::rest( 'write_failed', __( 'That package could not be changed.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response( array_merge( array( 'package' => self::shape( $package ) ), self::answer() ) );
+	}
+
+	/**
+	 * Puts the catalogue in the given order. Anything left out keeps its place
+	 * after everything named ({@see Packages::reorder()}).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function reorder( WP_REST_Request $request ) {
+		$body  = (array) $request->get_json_params();
+		$order = $body['order'] ?? null;
+
+		if ( ! is_array( $order ) ) {
+			return Errors::rest( 'invalid_order', __( 'Say which packages go in which order.', 'blueworx-forge' ), 400 );
+		}
+
+		Packages::reorder( array_map( 'sanitize_text_field', array_map( 'strval', $order ) ) );
+
+		return rest_ensure_response( self::answer() );
+	}
+
+	/**
+	 * The refusal for a package that is not there.
+	 *
+	 * @return \WP_Error
+	 */
+	private static function unknown_package() {
+		return Errors::rest( 'unknown_package', __( 'There is no such package.', 'blueworx-forge' ), 404 );
 	}
 
 	/**

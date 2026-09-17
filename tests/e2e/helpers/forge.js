@@ -48,6 +48,7 @@ export function forge(request, nonce) {
     get: (path) => request.get(`${BASE}${path}`, { headers }).then((r) => r.json()),
     post: (path, data) => request.post(`${BASE}${path}`, { headers, data }),
     patch: (path, data) => request.patch(`${BASE}${path}`, { headers, data }),
+    put: (path, data) => request.put(`${BASE}${path}`, { headers, data }),
   };
 }
 

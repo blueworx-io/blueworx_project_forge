@@ -108,3 +108,79 @@ test('somebody who is not an administrator cannot add a package', async ({ brows
 
   await other.context.close();
 });
+
+test('revising writes version 2 and leaves version 1 exactly as it was', async () => {
+  const wrote = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 15, price: 1500 });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.changed).toBe(true);
+  expect(answer.package.current.version).toBe(2);
+  expect(answer.package.current.hours).toBe(15);
+  expect(answer.package.versions).toHaveLength(2);
+
+  const first = answer.package.versions.find((one) => one.version === 1);
+  expect(first.hours).toBe(12);
+  expect(first.price).toBe(1200);
+});
+
+test('revising with the same terms writes nothing and says so', async () => {
+  const wrote = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 15, price: 1500 });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.changed).toBe(false);
+  expect(answer.package.current.version).toBe(2);
+  expect(answer.package.versions).toHaveLength(2);
+});
+
+test('a revision that is not an offer is refused, and a package that is not there is a 404', async () => {
+  const refused = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 0 });
+  expect(refused.status()).toBe(400);
+  expect((await refused.json()).code).toBe('bwx_forge_invalid_package');
+
+  const missing = await api.post(`/packages/pkg_nobody${STAMP}/versions`, TERMS);
+  expect(missing.status()).toBe(404);
+  expect((await missing.json()).code).toBe('bwx_forge_unknown_package');
+});
+
+test('a package can be retired and put back, and only those two', async () => {
+  const retired = await api.patch(`/packages/${made.id}`, { status: 'retired' });
+  expect(retired.status(), await retired.text()).toBe(200);
+  const gone = (await retired.json()).package;
+  expect(gone.status).toBe('retired');
+  expect(gone.retired_at).toBeGreaterThan(0);
+  expect(gone.current.version).toBe(2);
+
+  const restored = await api.patch(`/packages/${made.id}`, { status: 'active' });
+  expect(restored.status()).toBe(200);
+  const back = (await restored.json()).package;
+  expect(back.status).toBe('active');
+  expect(back.retired_at).toBe(0);
+
+  const nonsense = await api.patch(`/packages/${made.id}`, { status: 'deleted' });
+  expect(nonsense.status()).toBe(400);
+  expect((await nonsense.json()).code).toBe('bwx_forge_invalid_status');
+
+  const missing = await api.patch(`/packages/pkg_nobody${STAMP}`, { status: 'retired' });
+  expect(missing.status()).toBe(404);
+});
+
+test('the catalogue takes the order it is given, and a package left out keeps its place after the rest', async () => {
+  const second = (await (await api.post('/packages', { ...TERMS, name: `Second ${RUN_ID}` })).json()).package;
+  const third = (await (await api.post('/packages', { ...TERMS, name: `Third ${RUN_ID}` })).json()).package;
+
+  const before = (await api.get('/packages')).packages.map((one) => one.id);
+  const others = before.filter((id) => ![made.id, second.id, third.id].includes(id));
+
+  // Everything else first, in the order it had; then third, then made; second left out.
+  const wrote = await api.put('/packages/order', { order: [...others, third.id, made.id] });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const after = (await wrote.json()).packages.map((one) => one.id);
+  expect(after.slice(-3)).toEqual([third.id, made.id, second.id]);
+
+  const junk = await api.put('/packages/order', { order: 'first' });
+  expect(junk.status()).toBe(400);
+  expect((await junk.json()).code).toBe('bwx_forge_invalid_order');
+});
