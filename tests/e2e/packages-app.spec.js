@@ -45,3 +45,87 @@ test('the rail offers Packages under Insight, and the catalogue lists what is on
   await expect(row).toContainText('10h');
   await expect(row).toContainText('v1');
 });
+
+test('a package is added from a panel and appears on the shelf as version 1', async ({ page }) => {
+  const name = `Added ${RUN_ID}`;
+
+  await page.getByTestId('bwx-packages-add').click();
+  const form = page.getByTestId('bwx-packages-form');
+  await expect(form).toBeVisible();
+
+  await form.getByTestId('bwx-packages-form-name').fill(name);
+  await form.getByTestId('bwx-packages-form-hours').fill('20');
+  await form.getByTestId('bwx-packages-form-price').fill('2000');
+  await form.getByTestId('bwx-packages-form-months').fill('6');
+  await form.getByTestId('bwx-packages-form-terms').fill('Twenty hours over six months.');
+  await form.getByTestId('bwx-packages-form-save').click();
+
+  await expect(form).toBeHidden();
+  const row = rowFor(page, name);
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('20h');
+  await expect(row).toContainText('GBP 2,000');
+  await expect(row).toContainText('6 months');
+  await expect(row).toContainText('v1');
+});
+
+test('a package with no name is refused in the form, with the reason', async ({ page }) => {
+  await page.getByTestId('bwx-packages-add').click();
+  const form = page.getByTestId('bwx-packages-form');
+
+  await form.getByTestId('bwx-packages-form-hours').fill('5');
+  await form.getByTestId('bwx-packages-form-save').click();
+
+  await expect(form.getByTestId('bwx-packages-form-notice')).toContainText('needs a name');
+  await form.getByTestId('bwx-packages-form-cancel').click();
+  await expect(form).toBeHidden();
+});
+
+test('picking a package shows every version; revising writes the next one and keeps the last', async ({ page }) => {
+  await rowFor(page, seeded.name).click();
+
+  const selected = page.getByTestId('bwx-packages-selected');
+  await expect(selected).toHaveAttribute('data-package', seeded.id);
+  await expect(selected.getByTestId('bwx-packages-history').locator('tbody tr')).toHaveCount(1);
+
+  await page.getByTestId('bwx-packages-revise').click();
+  const form = page.getByTestId('bwx-packages-form');
+  await expect(form.getByTestId('bwx-packages-form-hint')).toContainText('version 2');
+  await expect(form.getByTestId('bwx-packages-form-hours')).toHaveValue('10');
+
+  await form.getByTestId('bwx-packages-form-hours').fill('12');
+  await form.getByTestId('bwx-packages-form-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(rowFor(page, seeded.name)).toContainText('v2');
+  await expect(rowFor(page, seeded.name)).toContainText('12h');
+
+  const history = selected.getByTestId('bwx-packages-history').locator('tbody tr');
+  await expect(history).toHaveCount(2);
+  await expect(history.filter({ hasText: 'v1' })).toContainText('10h');
+  await expect(history.filter({ hasText: 'v2' })).toContainText('12h');
+});
+
+test('revising without changing anything writes no version, and says so', async ({ page }) => {
+  await rowFor(page, seeded.name).click();
+  await page.getByTestId('bwx-packages-revise').click();
+  await page.getByTestId('bwx-packages-form-save').click();
+
+  await expect(page.getByTestId('bwx-packages-form')).toBeHidden();
+  await expect(page.getByTestId('bwx-packages-notice')).toContainText('Nothing changed');
+  await expect(rowFor(page, seeded.name)).toContainText('v2');
+});
+
+test('a package is retired, and put back on the shelf', async ({ page }) => {
+  await rowFor(page, seeded.name).click();
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByTestId('bwx-packages-status').click();
+  await expect(rowFor(page, seeded.name)).toContainText('Retired');
+  await expect(page.getByTestId('bwx-packages-status')).toHaveText('Put back on the shelf');
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByTestId('bwx-packages-status').click();
+  await expect(rowFor(page, seeded.name)).toContainText('On the shelf');
+  await expect(page.getByTestId('bwx-packages-status')).toHaveText('Retire');
+});
