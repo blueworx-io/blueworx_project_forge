@@ -37,7 +37,7 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   // #149. Chargeable work reserves its hours the moment it is planned, and
   // the ledger will not take a site below nought — so a site with no package
   // cannot plan work at all, whatever the spec is really about.
-  await onSupport({ context }, where.site.id, 400);
+  await onSupport({ context, api }, where.site.id, 400);
 
   const person = await makePerson(api, where.client.id, 'staff', PERSON);
   const reviewer = await makePerson(api, where.client.id, 'staff', `gatereviewer${STAMP}`);
@@ -120,7 +120,7 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
 
   const where = await makeSite(api, 'Capacity gate fits', RUN_ID);
 
-  await onSupport({ context }, where.site.id, 400);
+  await onSupport({ context, api }, where.site.id, 400);
 
   const person = await makePerson(api, where.client.id, 'staff', `roomy${STAMP}`);
   const reviewer = await makePerson(api, where.client.id, 'staff', `roomyreviewer${STAMP}`);
