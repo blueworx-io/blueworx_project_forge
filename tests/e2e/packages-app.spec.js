@@ -129,3 +129,34 @@ test('a package is retired, and put back on the shelf', async ({ page }) => {
   await expect(rowFor(page, seeded.name)).toContainText('On the shelf');
   await expect(page.getByTestId('bwx-packages-status')).toHaveText('Retire');
 });
+
+test('a package moves up and down the catalogue, and the order is kept', async ({ page }) => {
+  // Two of this run's own, added last, so they are neighbours at the end.
+  const a = await makePackage(admin.api, `Order A ${RUN_ID}`);
+  const b = await makePackage(admin.api, `Order B ${RUN_ID}`);
+  // The rail's own click never writes the screen into the URL, so a bare
+  // reload would land back on the default screen (see the availability
+  // spec's same pattern) — go by a link with the screen in the hash first.
+  await page.goto('/blueworx-forge/#screen=packages');
+  await page.reload();
+  await expect(page.getByTestId('bwx-packages-count')).toBeVisible({ timeout: 30_000 });
+
+  const names = () => page.getByTestId('bwx-packages-list').locator('tbody tr td:first-child + td').allTextContents();
+  const indexOf = async (name) => (await names()).findIndex((text) => text.includes(name));
+
+  expect(await indexOf(a.name)).toBeLessThan(await indexOf(b.name));
+
+  await rowFor(page, b.name).getByTestId('bwx-packages-up').click();
+  await expect.poll(async () => (await indexOf(b.name)) < (await indexOf(a.name))).toBe(true);
+
+  await page.goto('/blueworx-forge/#screen=packages');
+  await page.reload();
+  await expect(page.getByTestId('bwx-packages-count')).toBeVisible({ timeout: 30_000 });
+  expect(await indexOf(b.name)).toBeLessThan(await indexOf(a.name));
+
+  await rowFor(page, b.name).getByTestId('bwx-packages-down').click();
+  await expect.poll(async () => (await indexOf(a.name)) < (await indexOf(b.name))).toBe(true);
+
+  // The last row cannot go further down.
+  await expect(rowFor(page, b.name).getByTestId('bwx-packages-down')).toBeDisabled();
+});

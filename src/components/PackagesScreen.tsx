@@ -76,6 +76,30 @@ export function PackagesScreen() {
     }
   }
 
+  /** Swaps a package with its neighbour and sends the whole order, which is what the route takes. */
+  async function move( target: SupportPackage, by: -1 | 1 ) {
+    const ids = packages.map( ( one ) => one.id );
+    const at = ids.indexOf( target.id );
+    const to = at + by;
+
+    if ( at < 0 || to < 0 || to >= ids.length ) {
+      return;
+    }
+
+    [ ids[ at ], ids[ to ] ] = [ ids[ to ], ids[ at ] ];
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      landed( await api< PackagesAnswer >( '/packages/order', { method: 'PUT', body: { order: ids } } ) );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'The order could not be saved.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   async function load() {
     setNotice( '' );
 
@@ -98,6 +122,25 @@ export function PackagesScreen() {
   useLiveReload( () => load() );
 
   const columns: Column< SupportPackage >[] = [
+    {
+      key: 'order',
+      label: 'Order',
+      width: 88,
+      render: ( p ) => {
+        const at = packages.findIndex( ( one ) => one.id === p.id );
+
+        return (
+          <span className="bwx-packages-order">
+            <Button variant="ghost" size="sm" aria-label={ `Move ${ p.name } up` } data-testid="bwx-packages-up" disabled={ busy || 0 === at } onClick={ ( event ) => { event.stopPropagation(); void move( p, -1 ); } }>
+              ↑
+            </Button>
+            <Button variant="ghost" size="sm" aria-label={ `Move ${ p.name } down` } data-testid="bwx-packages-down" disabled={ busy || at === packages.length - 1 } onClick={ ( event ) => { event.stopPropagation(); void move( p, 1 ); } }>
+              ↓
+            </Button>
+          </span>
+        );
+      },
+    },
     { key: 'name', label: 'Name', wrap: true, render: ( p ) => p.name },
     {
       key: 'status',

@@ -2637,3 +2637,8 @@ td[ data-band='over' ] {
   display: grid;
   gap: 16px;
 }
+
+.bwx-packages-order {
+  display: inline-flex;
+  gap: 2px;
+}
