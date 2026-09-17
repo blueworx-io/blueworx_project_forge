@@ -2643,6 +2643,17 @@ td[ data-band='over' ] {
   gap: 2px;
 }
 
+/* ---- Clients (PR 4 of spec 2026-09-16) ---- */
+
+.bwx-clients {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
 /* ---- People (PR 3 of spec 2026-09-16) ---- */
 
 .bwx-people {

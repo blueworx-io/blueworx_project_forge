@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
+import { BarChart3, Building2, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
+import { ClientsScreen } from './components/ClientsScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
@@ -60,6 +61,7 @@ const RAIL: Entry[] = [
   { group: 'Intake' },
   { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests' },
   { group: 'Clients' },
+  { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
   { group: 'Team' },
@@ -140,6 +142,7 @@ const TITLES: Record< ScreenName, string > = {
   availability: 'Availability',
   packages: 'Support packages',
   people: 'People',
+  clients: 'Clients',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -172,6 +175,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
+  clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -370,6 +374,7 @@ export function App() {
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
+        { 'clients' === screen && <ClientsScreen key={ generation } /> }
       </main>
     </div>
   );

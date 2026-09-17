@@ -36,6 +36,7 @@ const APP_SCREENS = [
   [ 'Work', 'bwx-screen-work' ],
   [ 'Requests', 'bwx-screen-requests' ],
   [ 'Capacity', 'bwx-screen-capacity' ],
+  [ 'Clients', 'bwx-screen-clients' ],
   [ 'Onboarding', 'bwx-screen-onboarding' ],
   [ 'Today', 'bwx-screen-standup' ],
   [ 'Reports', 'bwx-screen-reports' ],
