@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
+import { BarChart3, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
@@ -8,6 +8,7 @@ import { CapacityScreen } from './components/CapacityScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
+import { PeopleScreen } from './components/PeopleScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { RecurringScreen } from './components/RecurringScreen';
 import { ReportsScreen } from './components/ReportsScreen';
@@ -62,6 +63,7 @@ const RAIL: Entry[] = [
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
   { group: 'Team' },
+  { key: 'people', label: 'People', icon: Users, testId: 'bwx-screen-people' },
   { key: 'availability', label: 'Availability', icon: CalendarCheck, testId: 'bwx-screen-availability' },
   { group: 'Insight' },
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
@@ -137,6 +139,7 @@ const TITLES: Record< ScreenName, string > = {
   subscriptions: 'Subscriptions',
   availability: 'Availability',
   packages: 'Support packages',
+  people: 'People',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -168,6 +171,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
+  people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -365,6 +369,7 @@ export function App() {
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
+        { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
       </main>
     </div>
   );
