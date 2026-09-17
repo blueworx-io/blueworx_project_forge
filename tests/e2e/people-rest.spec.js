@@ -553,4 +553,188 @@ test.describe('the people screen, over REST', () => {
 
     await other.context.close();
   });
+
+  // --- Task 2: edit, offboard, delete, and ending a membership -----------
+
+  test('editing a name follows through to the account, and an address somebody else holds is refused', async () => {
+    const added = await api.post('/users', { display_name: `Editable ${RUN_ID}`, email: `editable.${STAMP}@example.test` });
+    expect(added.status(), await added.text()).toBe(200);
+    const person = (await added.json()).user;
+
+    const renamed = await api.patch(`/users/${person.id}`, {
+      display_name: `Renamed ${RUN_ID}`,
+      record_version: person.record_version,
+    });
+    expect(renamed.status(), await renamed.text()).toBe(200);
+
+    const answer = await renamed.json();
+    expect(answer.user.display_name).toBe(`Renamed ${RUN_ID}`);
+    expect(answer.user.account.login).toBeTruthy();
+    expect(answer.memberships).toEqual([]);
+    expect((await wpAccount(person.wp_user_id)).name).toBe(`Renamed ${RUN_ID}`);
+
+    // Held by somebody in Forge.
+    const clash = await api.patch(`/users/${person.id}`, {
+      email: fromAccount.email,
+      record_version: answer.user.record_version,
+    });
+    expect(clash.status()).toBe(409);
+    expect((await clash.json()).code).toBe('bwx_forge_user_exists');
+
+    // Held by a WordPress account nobody in Forge has: asked before the write,
+    // because WordPress would refuse it afterwards and the two sides would
+    // disagree about who somebody is.
+    const account = await makeAccount('wpclash');
+    const wpClash = await api.patch(`/users/${person.id}`, {
+      email: account.email,
+      record_version: answer.user.record_version,
+    });
+    expect(wpClash.status()).toBe(409);
+    expect((await wpClash.json()).code).toBe('bwx_forge_user_exists');
+
+    const stale = await api.patch(`/users/${person.id}`, {
+      display_name: `Too Late ${RUN_ID}`,
+      record_version: person.record_version,
+    });
+    expect(stale.status()).toBe(409);
+    expect((await stale.json()).code).toBe('bwx_forge_stale_write');
+  });
+
+  test('offboarding ends every membership, and only then can somebody with no history be deleted', async () => {
+    const person = await makePerson(api, where.client.id, 'staff', `leaver${STAMP}`);
+
+    const early = await remove(`/users/${person.id}`);
+    expect(early.status()).toBe(400);
+    expect((await early.json()).code).toBe('bwx_forge_person_active');
+
+    const gone = await api.post(`/users/${person.id}/offboard`, { record_version: person.user.record_version });
+    expect(gone.status(), await gone.text()).toBe(200);
+
+    const answer = await gone.json();
+    expect(answer.user.status).toBe('inactive');
+    expect(answer.memberships).toHaveLength(1);
+    expect(answer.memberships[0].status).toBe('inactive');
+    expect(answer.memberships[0].client_name).toBe(where.client.display_name);
+    expect(answer.memberships[0].site_name).toBeNull();
+
+    const stale = await api.post(`/users/${person.id}/offboard`, { record_version: person.user.record_version });
+    expect(stale.status()).toBe(409);
+    expect((await stale.json()).code).toBe('bwx_forge_stale_write');
+
+    const removed = await remove(`/users/${person.id}`);
+    expect(removed.status(), await removed.text()).toBe(200);
+    expect(await removed.json()).toEqual({ ok: true, deleted: person.id });
+
+    const read = await api.request.get(`${BASE}/users/${person.id}`, { headers: api.headers });
+    expect(read.status()).toBe(404);
+
+    // Their account stays: WordPress deleting a user reassigns or destroys
+    // everything they wrote.
+    expect((await wpAccount(person.user.wp_user_id)).username).toBe(person.login);
+  });
+
+  test('somebody with work attributed to them can be offboarded but never deleted', async () => {
+    const person = await makePerson(api, where.client.id, 'staff', `worker${STAMP}`);
+
+    const item = await makeItem(api, where.site.id, { title: `Held ${RUN_ID}`, primary_user_id: person.id });
+    expect(item.status(), await item.text()).toBe(200);
+
+    const gone = await api.post(`/users/${person.id}/offboard`, { record_version: person.user.record_version });
+    expect(gone.status(), await gone.text()).toBe(200);
+
+    const refused = await remove(`/users/${person.id}`);
+    expect(refused.status()).toBe(400);
+    expect((await refused.json()).code).toBe('bwx_forge_person_has_history');
+  });
+
+  test('a membership takes the grants its role may hold, and can be ended', async () => {
+    const person = await makePerson(api, where.client.id, 'staff', `member${STAMP}`);
+
+    // One read carries the person, their account and everywhere they work.
+    const held = await api.get(`/users/${person.id}`);
+    expect(held.user.account).toEqual({ id: person.user.wp_user_id, login: person.login });
+    expect(held.memberships).toHaveLength(1);
+
+    const membership = held.memberships[0];
+    expect(membership.client_name).toBe(where.client.display_name);
+    expect(membership.site_name).toBeNull();
+
+    const granted = await api.patch(`/memberships/${membership.id}`, {
+      grants: ['approver'],
+      record_version: membership.record_version,
+    });
+    expect(granted.status(), await granted.text()).toBe(200);
+    const withGrant = (await granted.json()).membership;
+    expect(withGrant.grants).toBe('approver');
+
+    const ended = await api.patch(`/memberships/${membership.id}`, {
+      status: 'inactive',
+      record_version: withGrant.record_version,
+    });
+    expect(ended.status(), await ended.text()).toBe(200);
+    expect((await ended.json()).membership.status).toBe('inactive');
+
+    const after = await api.get(`/users/${person.id}`);
+    expect(after.memberships[0].status).toBe('inactive');
+    expect(after.user.status).toBe('active');
+
+    // Studio authority is refused to a client role, checked against the role
+    // they actually hold rather than one the body could name.
+    const client = await makePerson(api, where.client.id, 'client_admin', `clientside${STAMP}`);
+    const theirs = (await api.get(`/users/${client.id}`)).memberships[0];
+
+    const refused = await api.patch(`/memberships/${theirs.id}`, {
+      grants: ['approver'],
+      record_version: theirs.record_version,
+    });
+    expect(refused.status()).toBe(400);
+    expect((await refused.json()).data.fields.grants).toBeTruthy();
+  });
+
+  test('somebody who is not an administrator can neither offboard nor delete anybody', async ({ browser, baseURL }) => {
+    const other = await signedIn(browser, baseURL, staff.login, PASSWORD);
+    const target = await makePerson(api, where.client.id, 'staff', `target${STAMP}`);
+
+    const offboarded = await other.api.post(`/users/${target.id}/offboard`, { record_version: target.user.record_version });
+    expect(offboarded.status()).toBe(403);
+
+    const deleted = await other.api.request.delete(`${BASE}/users/${target.id}`, { headers: other.api.headers });
+    expect(deleted.status()).toBe(403);
+
+    await other.context.close();
+  });
+
+  // --- The two reads the screen draws itself from -------------------------
+
+  test('the people list can carry everybody\'s memberships and account in one read', async () => {
+    const person = await makePerson(api, where.client.id, 'internal_viewer', `listed${STAMP}`);
+
+    const plain = await api.get('/users?status=all');
+    const bare = plain.users.find((one) => one.id === person.id);
+    expect(bare).toBeTruthy();
+    expect(bare.memberships).toBeUndefined();
+
+    const full = await api.get('/users?status=all&with=memberships');
+    const card = full.users.find((one) => one.id === person.id);
+    expect(card.account).toEqual({ id: person.user.wp_user_id, login: person.login });
+    expect(card.memberships).toHaveLength(1);
+    expect(card.memberships[0].role).toBe('internal_viewer');
+    expect(card.memberships[0].client_name).toBe(where.client.display_name);
+
+    // Everybody carries the shape, including somebody with nothing yet.
+    expect(full.users.every((one) => Array.isArray(one.memberships) && 'account' in one)).toBe(true);
+  });
+
+  test('the grants are listed with what each one means, split by where it is held', async () => {
+    const answer = await api.get('/grants');
+
+    expect(answer.ok).toBe(true);
+    expect(answer.on_user.map((one) => one.grant)).toEqual(['cross_client']);
+    expect(answer.on_membership.map((one) => one.grant)).toEqual(['principal', 'approver']);
+
+    for (const one of [...answer.on_user, ...answer.on_membership]) {
+      expect(one.label).toBeTruthy();
+      expect(one.description).toBeTruthy();
+    }
+  });
 });

@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\Tenancy\Accounts;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
@@ -77,6 +78,11 @@ final class UsersController {
 						'type'    => 'string',
 						'default' => 'active',
 					),
+					'with'   => array(
+						'type'        => 'string',
+						'default'     => '',
+						'description' => 'Set to "memberships" to carry each person\'s memberships and account.',
+					),
 				),
 			)
 		);
@@ -116,6 +122,17 @@ final class UsersController {
 
 		Server::register_route(
 			$route_namespace,
+			'/grants',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'grants' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => self::OPEN,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
 			'/users/(?P<user_id>[A-Za-z0-9_\-]+)',
 			array(
 				'methods'             => 'GET',
@@ -139,10 +156,33 @@ final class UsersController {
 
 		Server::register_route(
 			$route_namespace,
+			'/users/(?P<user_id>[A-Za-z0-9_\-]+)',
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'delete' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => self::OPEN,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
 			'/users/(?P<user_id>[A-Za-z0-9_\-]+)/account',
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'link_account' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => self::OPEN,
+				'args'                => $version,
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/users/(?P<user_id>[A-Za-z0-9_\-]+)/offboard',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'offboard' ),
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => self::OPEN,
 				'args'                => $version,
@@ -175,17 +215,72 @@ final class UsersController {
 	 */
 	public static function index( WP_REST_Request $request ): WP_REST_Response {
 		$status = (string) $request->get_param( 'status' );
+		$users  = Users::all( 'all' === $status ? null : $status );
+
+		if ( 'memberships' === (string) $request->get_param( 'with' ) ) {
+			$users = self::with_memberships( $users );
+		}
 
 		return rest_ensure_response(
 			array(
 				'ok'    => true,
-				'users' => Users::all( 'all' === $status ? null : $status ),
+				'users' => $users,
 			)
 		);
 	}
 
 	/**
-	 * One person.
+	 * Everybody with their memberships and account, so the People screen draws
+	 * itself from one read.
+	 *
+	 * Four reads for the whole list, however long it is: every membership,
+	 * every client, every site, and the accounts in one warm of the user cache.
+	 * The screen must not make a call per card to label it.
+	 *
+	 * @param array<int, array<string, mixed>> $users Every person listed.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function with_memberships( array $users ): array {
+		$by_user = array();
+
+		foreach ( Memberships::by_client( null ) as $held ) {
+			foreach ( $held as $membership ) {
+				$by_user[ (string) $membership['user_id'] ][] = $membership;
+			}
+		}
+
+		$clients = array();
+		$sites   = array();
+
+		foreach ( Clients::all( null ) as $client ) {
+			$clients[ (string) $client['id'] ] = $client;
+		}
+
+		foreach ( ClientSites::all( null ) as $site ) {
+			$sites[ (string) $site['id'] ] = $site;
+		}
+
+		$wp_ids = array_filter( array_map( 'intval', array_column( $users, 'wp_user_id' ) ) );
+
+		if ( array() !== $wp_ids ) {
+			cache_users( array_values( $wp_ids ) );
+		}
+
+		$listed = array();
+
+		foreach ( $users as $user ) {
+			$person = self::person( $user, $by_user[ (string) $user['id'] ] ?? array(), $clients, $sites );
+
+			$person['user']['memberships'] = $person['memberships'];
+
+			$listed[] = $person['user'];
+		}
+
+		return $listed;
+	}
+
+	/**
+	 * One person, with their account and everywhere they work.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|\WP_Error
@@ -194,13 +289,32 @@ final class UsersController {
 		$user = Users::get( (string) $request['user_id'] );
 
 		if ( null === $user ) {
-			return Errors::rest( 'unknown_user', __( 'There is no such person.', 'blueworx-forge' ), 404 );
+			return self::unknown_user();
 		}
+
+		return rest_ensure_response( self::answer( $user ) );
+	}
+
+	/**
+	 * Every grant there is, with what it means, split by where it is held —
+	 * for the screen that hands them out.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function grants(): WP_REST_Response {
+		$describe = static function ( string $grant ): array {
+			return array(
+				'grant'       => $grant,
+				'label'       => Grants::label( $grant ),
+				'description' => Grants::description( $grant ),
+			);
+		};
 
 		return rest_ensure_response(
 			array(
-				'ok'   => true,
-				'user' => $user,
+				'ok'            => true,
+				'on_user'       => array_map( $describe, Grants::ON_USER ),
+				'on_membership' => array_map( $describe, Grants::ON_MEMBERSHIP ),
 			)
 		);
 	}
@@ -501,7 +615,7 @@ final class UsersController {
 		$user = Users::get( (string) $request['user_id'] );
 
 		if ( null === $user ) {
-			return Errors::rest( 'unknown_user', __( 'There is no such person.', 'blueworx-forge' ), 404 );
+			return self::unknown_user();
 		}
 
 		$sent  = $request->get_param( Versioning::PARAM );
@@ -522,15 +636,35 @@ final class UsersController {
 			);
 		}
 
-		// Moving somebody to an address that is already somebody else's would
-		// merge two people, so it is refused here rather than left to the index.
 		if ( array_key_exists( 'email', $checked['values'] ) ) {
-			$holder = Users::by_email( (string) $checked['values']['email'] );
+			$email  = (string) $checked['values']['email'];
+			$holder = Users::by_email( $email );
 
+			// Moving somebody to an address that is already somebody else's would
+			// merge two people, so it is refused here rather than left to the index.
 			if ( null !== $holder && $holder['id'] !== $user['id'] ) {
 				return Errors::rest(
 					'user_exists',
 					__( 'Somebody else already has that email address.', 'blueworx-forge' ),
+					409
+				);
+			}
+
+			// #292. The same question asked of WordPress, before the write rather
+			// than after it. An address another account holds is refused there
+			// too, and finding that out afterwards would leave the two sides
+			// disagreeing about who somebody is.
+			//
+			// Only for somebody who has an account, because only their save
+			// writes to WordPress. Somebody added before #292 has none, and an
+			// account that happens to hold their address is not a clash — it is
+			// the one they will be joined to when they are given an account.
+			$wp_holder = (int) $user['wp_user_id'] > 0 ? get_user_by( 'email', $email ) : false;
+
+			if ( $wp_holder && (int) $wp_holder->ID !== (int) $user['wp_user_id'] ) {
+				return Errors::rest(
+					'user_exists',
+					__( 'Another WordPress account already has that email address.', 'blueworx-forge' ),
 					409
 				);
 			}
@@ -544,32 +678,83 @@ final class UsersController {
 			: Users::update( $user['id'], $checked['values'], (int) $sent );
 
 		if ( null === $updated ) {
-			// Either the row moved between the check above and the write, or the
-			// write itself failed. Re-read and ask Versioning again, so a real
-			// failure is never reported as a silent success.
-			$current = Users::get( $user['id'] );
+			return self::not_written( $user['id'], (int) $sent );
+		}
 
-			$mismatch = Versioning::check(
-				(int) $sent,
-				null === $current ? 0 : $current['record_version'],
-				null === $current ? array() : $current
-			);
+		// #292. The account follows the person. Offboarding deliberately does
+		// not delete it — their history is attributed to it, and WordPress
+		// deleting a user reassigns or destroys everything they wrote.
+		Accounts::push( $updated );
 
-			if ( null !== $mismatch ) {
-				return $mismatch;
-			}
+		return rest_ensure_response( self::answer( $updated ) );
+	}
 
+	/**
+	 * Offboards somebody: the account and every membership, in one action.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function offboard( WP_REST_Request $request ) {
+		$user = Users::get( (string) $request['user_id'] );
+
+		if ( null === $user ) {
+			return self::unknown_user();
+		}
+
+		$sent  = $request->get_param( Versioning::PARAM );
+		$stale = Versioning::check( null === $sent ? null : (int) $sent, $user['record_version'], $user );
+
+		if ( null !== $stale ) {
+			return $stale;
+		}
+
+		$updated = Users::deactivate( $user['id'], (int) $sent );
+
+		if ( null === $updated ) {
+			return self::not_written( $user['id'], (int) $sent );
+		}
+
+		return rest_ensure_response( self::answer( $updated ) );
+	}
+
+	/**
+	 * Deletes somebody from Forge. Their WordPress account stays.
+	 *
+	 * Only somebody already offboarded can go: offboarding is the step that
+	 * ends their access, and deleting is for a record that should never have
+	 * been here — somebody added by mistake, or twice.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function delete( WP_REST_Request $request ) {
+		$user = Users::get( (string) $request['user_id'] );
+
+		if ( null === $user ) {
+			return self::unknown_user();
+		}
+
+		if ( 'active' === (string) $user['status'] ) {
 			return Errors::rest(
-				'write_failed',
-				__( 'That change could not be saved.', 'blueworx-forge' ),
-				500
+				'person_active',
+				__( 'Offboard them first.', 'blueworx-forge' ),
+				400
+			);
+		}
+
+		if ( ! Users::delete( $user['id'] ) ) {
+			return Errors::rest(
+				'person_has_history',
+				__( 'Somebody with work attributed to them cannot be deleted, only offboarded.', 'blueworx-forge' ),
+				400
 			);
 		}
 
 		return rest_ensure_response(
 			array(
-				'ok'   => true,
-				'user' => $updated,
+				'ok'      => true,
+				'deleted' => $user['id'],
 			)
 		);
 	}

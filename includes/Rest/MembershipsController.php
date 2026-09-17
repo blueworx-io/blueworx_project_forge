@@ -277,7 +277,20 @@ final class MembershipsController {
 			return $stale;
 		}
 
-		$checked = Validate::membership( (array) $request->get_json_params(), true );
+		$body = (array) $request->get_json_params();
+
+		// #93. Grants are checked against the role they actually hold, not one
+		// the body could name: the rule that refuses studio authority to a
+		// client role has nothing to check against a body that says only
+		// "grants". The stored role is lent to the validator and taken back
+		// afterwards, so it is not written as though it were an edit.
+		$role_lent = array_key_exists( 'grants', $body ) && ! array_key_exists( 'role', $body );
+
+		if ( $role_lent ) {
+			$body['role'] = (string) $membership['role'];
+		}
+
+		$checked = Validate::membership( $body, true );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -286,6 +299,10 @@ final class MembershipsController {
 				400,
 				array( 'fields' => $checked['errors'] )
 			);
+		}
+
+		if ( $role_lent ) {
+			unset( $checked['values']['role'] );
 		}
 
 		// The same cross-client check as on the way in. An edit that moved the
@@ -322,7 +339,11 @@ final class MembershipsController {
 			}
 		}
 
-		$updated = Memberships::update( $membership['id'], $checked['values'], (int) $sent );
+		// Ending it goes through deactivate(), the same door offboarding and
+		// closing a client use, so every way a membership ends reads the same.
+		$updated = 'inactive' === (string) ( $checked['values']['status'] ?? '' )
+			? Memberships::deactivate( $membership['id'], (int) $sent )
+			: Memberships::update( $membership['id'], $checked['values'], (int) $sent );
 
 		if ( null === $updated ) {
 			$current = Memberships::get( $membership['id'] );
