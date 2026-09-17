@@ -54,6 +54,17 @@ final class PackagesController {
 				'scope'               => $scope,
 			)
 		);
+
+		Server::register_route(
+			$route_namespace,
+			'/packages',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'add' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => $scope,
+			)
+		);
 	}
 
 	/**
@@ -66,6 +77,75 @@ final class PackagesController {
 		unset( $request );
 
 		return rest_ensure_response( self::answer() );
+	}
+
+	/**
+	 * Adds a package, and its first version.
+	 *
+	 * Replay-safe under an idempotency key: a resend that made a second
+	 * package would put two identical offers on the shelf.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function add( WP_REST_Request $request ) {
+		$key = (string) $request->get_header( Idempotency::HEADER );
+
+		if ( '' !== $key ) {
+			if ( ! Idempotency::is_valid_key( $key ) ) {
+				return Errors::rest( 'invalid_idempotency_key', __( 'That retry key cannot be used.', 'blueworx-forge' ), 400 );
+			}
+
+			$replay = Idempotency::replay( self::CREATE_OPERATION, $key );
+
+			if ( null !== $replay ) {
+				return rest_ensure_response( $replay );
+			}
+		}
+
+		$terms  = self::submitted( $request );
+		$reason = Terms::refuse( Terms::sanitise( $terms ) );
+
+		if ( '' !== $reason ) {
+			return Errors::rest( 'invalid_package', $reason, 400 );
+		}
+
+		$package = Packages::create( $terms, get_current_user_id() );
+
+		if ( null === $package ) {
+			return Errors::rest( 'write_failed', __( 'That package could not be saved.', 'blueworx-forge' ), 500 );
+		}
+
+		$response = array_merge( array( 'package' => self::shape( $package ) ), self::answer() );
+
+		if ( '' !== $key ) {
+			Idempotency::remember( self::CREATE_OPERATION, $key, $response );
+		}
+
+		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * The terms as posted, untouched beyond what WordPress does to text.
+	 *
+	 * Cleaning up is {@see Terms::sanitise()}'s job and is not repeated here,
+	 * for the reason the admin actions give: two places that tidy the same
+	 * values are two places that can disagree about what a valid one is.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string, mixed>
+	 */
+	private static function submitted( WP_REST_Request $request ): array {
+		$body = (array) $request->get_json_params();
+
+		return array(
+			'name'            => sanitize_text_field( (string) ( $body['name'] ?? '' ) ),
+			'hours'           => (float) ( $body['hours'] ?? 0 ),
+			'price'           => (float) ( $body['price'] ?? 0 ),
+			'currency'        => sanitize_text_field( (string) ( $body['currency'] ?? 'GBP' ) ),
+			'validity_months' => (int) ( $body['validity_months'] ?? Terms::DEFAULT_VALIDITY_MONTHS ),
+			'terms'           => sanitize_textarea_field( (string) ( $body['terms'] ?? '' ) ),
+		);
 	}
 
 	/**

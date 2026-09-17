@@ -51,3 +51,60 @@ test('somebody who is not an administrator cannot read the catalogue', async ({ 
 
   await other.context.close();
 });
+
+let made;
+
+test('adding a package writes version 1 and puts it at the end of the catalogue', async () => {
+  const wrote = await api.post('/packages', TERMS);
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  made = answer.package;
+
+  expect(made.id).toMatch(/^pkg_/);
+  expect(made.status).toBe('active');
+  expect(made.current.version).toBe(1);
+  expect(made.current.hours).toBe(12);
+  expect(made.current.price).toBe(1200);
+  expect(made.versions).toHaveLength(1);
+
+  const last = answer.packages[answer.packages.length - 1];
+  expect(last.id).toBe(made.id);
+});
+
+test('a package with no name, or no hours, is refused with the reason', async () => {
+  const noName = await api.post('/packages', { ...TERMS, name: '' });
+  expect(noName.status()).toBe(400);
+  const noNameBody = await noName.json();
+  expect(noNameBody.code).toBe('bwx_forge_invalid_package');
+  expect(noNameBody.message).toContain('needs a name');
+
+  const noHours = await api.post('/packages', { ...TERMS, name: `Empty ${RUN_ID}`, hours: 0 });
+  expect(noHours.status()).toBe(400);
+  expect((await noHours.json()).message).toContain('some hours');
+});
+
+test('a replayed add under one retry key makes one package, not two', async () => {
+  const key = `package-${RUN_ID}`;
+  const body = { ...TERMS, name: `Replayed ${RUN_ID}` };
+  const headers = { ...api.headers, 'Idempotency-Key': key };
+
+  const first = await api.request.post(`${BASE}/packages`, { headers, data: body });
+  const again = await api.request.post(`${BASE}/packages`, { headers, data: body });
+
+  expect(first.status()).toBe(200);
+  expect(again.status()).toBe(200);
+  expect((await again.json()).package.id).toBe((await first.json()).package.id);
+
+  const answer = await api.get('/packages');
+  expect(answer.packages.filter((one) => one.name === body.name)).toHaveLength(1);
+});
+
+test('somebody who is not an administrator cannot add a package', async ({ browser, baseURL }) => {
+  const other = await signedIn(browser, baseURL, person.login, PASSWORD);
+
+  const wrote = await other.api.post('/packages', { ...TERMS, name: `Denied ${RUN_ID}` });
+  expect(wrote.status()).toBe(403);
+
+  await other.context.close();
+});
