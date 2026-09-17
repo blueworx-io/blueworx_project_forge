@@ -160,3 +160,24 @@ test('a package moves up and down the catalogue, and the order is kept', async (
   // The last row cannot go further down.
   await expect(rowFor(page, b.name).getByTestId('bwx-packages-down')).toBeDisabled();
 });
+
+test('a key on an ordering button moves the row and never selects it', async ({ page }) => {
+  const c = await makePackage(admin.api, `Order C ${RUN_ID}`);
+  const d = await makePackage(admin.api, `Order D ${RUN_ID}`);
+  await page.goto('/blueworx-forge/#screen=packages');
+  await page.reload();
+  await expect(page.getByTestId('bwx-packages-count')).toBeVisible({ timeout: 30_000 });
+
+  const names = () => page.getByTestId('bwx-packages-list').locator('tbody tr td:first-child + td').allTextContents();
+  const indexOf = async (name) => (await names()).findIndex((text) => text.includes(name));
+
+  expect(await indexOf(c.name)).toBeLessThan(await indexOf(d.name));
+  await expect(page.getByTestId('bwx-packages-selected')).toHaveCount(0);
+
+  await rowFor(page, d.name).getByTestId('bwx-packages-up').focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await indexOf(d.name)) < (await indexOf(c.name))).toBe(true);
+
+  // The key belonged to the button, not the row, so nothing got selected.
+  await expect(page.getByTestId('bwx-packages-selected')).toHaveCount(0);
+});
