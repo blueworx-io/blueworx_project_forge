@@ -164,17 +164,27 @@ final class PackagesController {
 	 * Always an append, as {@see Packages::revise()} is: no route edits a
 	 * version that exists, which is COMM-1 made visible. Not idempotency-keyed
 	 * because a replay is already a no-op — the same terms twice write nothing
-	 * the second time, and the answer says so in `changed`.
+	 * the second time, and the answer says so in `changed`. Carries the
+	 * `record_version` it was made against (ARCH-5), same as any other write
+	 * to a record that can move underneath the caller.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function revise( WP_REST_Request $request ) {
 		$package_id = (string) $request['package_id'];
+		$package    = Packages::get( $package_id );
 		$before     = Packages::current_version( $package_id );
 
-		if ( null === Packages::get( $package_id ) || null === $before ) {
+		if ( null === $package || null === $before ) {
 			return self::unknown_package();
+		}
+
+		$sent  = $request->get_param( Versioning::PARAM );
+		$stale = Versioning::check( null === $sent ? null : (int) $sent, (int) $package['record_version'], $package );
+
+		if ( null !== $stale ) {
+			return $stale;
 		}
 
 		$terms  = self::submitted( $request );
@@ -205,16 +215,26 @@ final class PackagesController {
 
 	/**
 	 * Takes a package off the shelf, or puts it back. Nothing else about a
-	 * package is edited in place; the rest is a version.
+	 * package is edited in place; the rest is a version. Carries the
+	 * `record_version` it was made against (ARCH-5), same as any other write
+	 * to a record that can move underneath the caller.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function set_status( WP_REST_Request $request ) {
 		$package_id = (string) $request['package_id'];
+		$package    = Packages::get( $package_id );
 
-		if ( null === Packages::get( $package_id ) ) {
+		if ( null === $package ) {
 			return self::unknown_package();
+		}
+
+		$sent  = $request->get_param( Versioning::PARAM );
+		$stale = Versioning::check( null === $sent ? null : (int) $sent, (int) $package['record_version'], $package );
+
+		if ( null !== $stale ) {
+			return $stale;
 		}
 
 		$body   = (array) $request->get_json_params();

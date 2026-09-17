@@ -68,7 +68,7 @@ export function PackagesScreen() {
     setNotice( '' );
 
     try {
-      landed( await api< PackagesAnswer >( `/packages/${ target.id }`, { method: 'PATCH', body: { status: retiring ? 'retired' : 'active' } } ) );
+      landed( await api< PackagesAnswer >( `/packages/${ target.id }`, { method: 'PATCH', body: { status: retiring ? 'retired' : 'active', record_version: target.record_version } } ) );
     } catch ( error ) {
       setNotice( messageFor( error, 'That package could not be changed.' ) );
     } finally {
@@ -264,7 +264,7 @@ function PackageForm( {
 
     try {
       if ( revising ) {
-        const answer = await api< PackagesAnswer >( `/packages/${ revising.id }/versions`, { method: 'POST', body } );
+        const answer = await api< PackagesAnswer >( `/packages/${ revising.id }/versions`, { method: 'POST', body: { ...body, record_version: revising.record_version } } );
 
         onSaved( answer, answer.changed ? '' : 'Nothing changed, so no new version was written.' );
       } else {

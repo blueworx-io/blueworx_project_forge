@@ -110,10 +110,11 @@ test('somebody who is not an administrator cannot add a package', async ({ brows
 });
 
 test('revising writes version 2 and leaves version 1 exactly as it was', async () => {
-  const wrote = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 15, price: 1500 });
+  const wrote = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 15, price: 1500, record_version: made.record_version });
   expect(wrote.status(), await wrote.text()).toBe(200);
 
   const answer = await wrote.json();
+  made = answer.package;
   expect(answer.changed).toBe(true);
   expect(answer.package.current.version).toBe(2);
   expect(answer.package.current.hours).toBe(15);
@@ -125,17 +126,18 @@ test('revising writes version 2 and leaves version 1 exactly as it was', async (
 });
 
 test('revising with the same terms writes nothing and says so', async () => {
-  const wrote = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 15, price: 1500 });
+  const wrote = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 15, price: 1500, record_version: made.record_version });
   expect(wrote.status(), await wrote.text()).toBe(200);
 
   const answer = await wrote.json();
+  made = answer.package;
   expect(answer.changed).toBe(false);
   expect(answer.package.current.version).toBe(2);
   expect(answer.package.versions).toHaveLength(2);
 });
 
 test('a revision that is not an offer is refused, and a package that is not there is a 404', async () => {
-  const refused = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 0 });
+  const refused = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 0, record_version: made.record_version });
   expect(refused.status()).toBe(400);
   expect((await refused.json()).code).toBe('bwx_forge_invalid_package');
 
@@ -145,25 +147,44 @@ test('a revision that is not an offer is refused, and a package that is not ther
 });
 
 test('a package can be retired and put back, and only those two', async () => {
-  const retired = await api.patch(`/packages/${made.id}`, { status: 'retired' });
+  const retired = await api.patch(`/packages/${made.id}`, { status: 'retired', record_version: made.record_version });
   expect(retired.status(), await retired.text()).toBe(200);
   const gone = (await retired.json()).package;
+  made = gone;
   expect(gone.status).toBe('retired');
   expect(gone.retired_at).toBeGreaterThan(0);
   expect(gone.current.version).toBe(2);
 
-  const restored = await api.patch(`/packages/${made.id}`, { status: 'active' });
+  const restored = await api.patch(`/packages/${made.id}`, { status: 'active', record_version: made.record_version });
   expect(restored.status()).toBe(200);
   const back = (await restored.json()).package;
+  made = back;
   expect(back.status).toBe('active');
   expect(back.retired_at).toBe(0);
 
-  const nonsense = await api.patch(`/packages/${made.id}`, { status: 'deleted' });
+  const nonsense = await api.patch(`/packages/${made.id}`, { status: 'deleted', record_version: made.record_version });
   expect(nonsense.status()).toBe(400);
   expect((await nonsense.json()).code).toBe('bwx_forge_invalid_status');
 
   const missing = await api.patch(`/packages/pkg_nobody${STAMP}`, { status: 'retired' });
   expect(missing.status()).toBe(404);
+});
+
+test('a revision or status change made against an old version is refused, and says which version is current', async () => {
+  const stale = await api.post(`/packages/${made.id}/versions`, { ...TERMS, hours: 16, record_version: made.record_version - 1 });
+  expect(stale.status()).toBe(409);
+  const body = await stale.json();
+  expect(body.code).toBe('bwx_forge_stale_write');
+  expect(body.data.current_version).toBe(made.record_version);
+
+  const unsaid = await api.patch(`/packages/${made.id}`, { status: 'retired' });
+  expect(unsaid.status()).toBe(400);
+  expect((await unsaid.json()).code).toBe('bwx_forge_missing_version');
+
+  // Nothing moved.
+  const still = (await api.get('/packages')).packages.find((one) => one.id === made.id);
+  expect(still.record_version).toBe(made.record_version);
+  expect(still.status).toBe('active');
 });
 
 test('the catalogue takes the order it is given, and a package left out keeps its place after the rest', async () => {
