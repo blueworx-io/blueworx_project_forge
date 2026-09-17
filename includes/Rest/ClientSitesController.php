@@ -9,6 +9,10 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Onboarding\Assignment;
+use Blueworx\Forge\Onboarding\Progress;
+use Blueworx\Forge\Onboarding\Steps;
+use Blueworx\Forge\Onboarding\Templates;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Integrations;
@@ -142,6 +146,21 @@ final class ClientSitesController {
 				),
 			)
 		);
+
+		Server::register_route(
+			$route_namespace,
+			'/client-sites/(?P<site_id>[A-Za-z0-9_\-]+)/onboarding',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'start_onboarding' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_SITE,
+					'param'  => 'site_id',
+					'record' => 'client_site',
+				),
+			)
+		);
 	}
 
 	/**
@@ -228,8 +247,17 @@ final class ClientSitesController {
 		 */
 		$integrations = Integrations::for_client( $client_id );
 
+		/*
+		 * And where each site is with its onboarding (#160), the other fact the
+		 * clients screen draws per site. The steps are read in one query for
+		 * every site under the client, for the reason Steps::for_sites() gives.
+		 */
+		$template = Templates::current();
+		$steps    = Steps::for_sites( array_column( $sites, 'id' ) );
+
 		foreach ( $sites as $index => $site ) {
 			$sites[ $index ]['integration'] = $integrations[ $site['id'] ] ?? null;
+			$sites[ $index ]['onboarding']  = self::onboarding_of( (string) $site['id'], $template, $steps[ (string) $site['id'] ] ?? array() );
 		}
 
 		return rest_ensure_response(
@@ -237,6 +265,47 @@ final class ClientSitesController {
 				'ok'    => true,
 				'sites' => $sites,
 			)
+		);
+	}
+
+	/**
+	 * Where a site is with its onboarding, as the clients screen shows it.
+	 *
+	 * Three states, exactly the ones the admin page draws: started, with how
+	 * far it has got and whether it may launch; not started, but the current
+	 * checklist is there to be given (its version is what the button names);
+	 * and null when there is nothing to give because none has been published.
+	 *
+	 * @param string                           $site_id  The site.
+	 * @param array<string, mixed>|null        $template The checklist in force, if any.
+	 * @param array<int, array<string, mixed>> $steps    The site's steps.
+	 * @return array<string, mixed>|null
+	 */
+	private static function onboarding_of( string $site_id, ?array $template, array $steps ): ?array {
+		$onboarding = Assignment::for_site( $site_id );
+
+		if ( null !== $onboarding ) {
+			$progress = Progress::of( $steps );
+
+			return array(
+				'started'          => true,
+				'ready'            => (bool) $progress['launch_ready'],
+				'template_version' => (int) $onboarding['template_version'],
+				'completion'       => $progress['completion'],
+				'blocking'         => count( $progress['blocking'] ),
+			);
+		}
+
+		if ( null === $template ) {
+			return null;
+		}
+
+		return array(
+			'started'          => false,
+			'ready'            => false,
+			'template_version' => (int) $template['version'],
+			'completion'       => 0,
+			'blocking'         => 0,
 		);
 	}
 
@@ -413,6 +482,71 @@ final class ClientSitesController {
 			array(
 				'ok'   => true,
 				'site' => $updated,
+			)
+		);
+	}
+
+	/**
+	 * Gives a site the current checklist (#160).
+	 *
+	 * Once, and then never again. ONB-1 fixes a client's checklist at the
+	 * moment they are given it, so there is no route to change it afterwards —
+	 * and Assignment refuses a second one as well, because a rule kept only at
+	 * the route is a rule that lasts until the next caller.
+	 *
+	 * Idempotent by nature, so it takes no retry key: the first call starts
+	 * the onboarding and every call after it is the 409, never a second
+	 * checklist. A retry that lost its answer can read the site's list to see
+	 * that it landed.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function start_onboarding( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$template = Templates::current();
+
+		if ( null === $template ) {
+			return Errors::rest(
+				'no_checklist',
+				__( 'No onboarding checklist has been published yet.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		if ( null !== Assignment::for_site( $site['id'] ) ) {
+			return Errors::rest(
+				'already_onboarding',
+				__( 'That site already has a checklist. A client onboards once.', 'blueworx-forge' ),
+				409
+			);
+		}
+
+		$onboarding = Assignment::assign(
+			$site['id'],
+			(string) $site['client_id'],
+			(string) $template['id'],
+			get_current_user_id()
+		);
+
+		if ( null === $onboarding ) {
+			return Errors::rest(
+				'write_failed',
+				__( 'That site\'s onboarding could not be started.', 'blueworx-forge' ),
+				500
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'         => true,
+				'site'       => $site,
+				'onboarding' => $onboarding,
 			)
 		);
 	}
