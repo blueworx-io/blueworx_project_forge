@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
-import type { GrantOption, GrantsAnswer, Membership, PersonAnswer, PersonRecord, UnlinkedAccount } from '../types';
+import type { Client, ClientSite, GrantOption, GrantsAnswer, Membership, PersonAnswer, PersonRecord, UnlinkedAccount } from '../types';
 import { api, ApiError, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
@@ -46,10 +46,27 @@ function byName( a: PersonRecord, b: PersonRecord ): number {
   return a.display_name.localeCompare( b.display_name );
 }
 
+/** The five access roles, in the order the matrix lists them, labelled as `Roles::label` does. */
+export const ROLES: Array< { value: string; label: string } > = [
+  { value: 'primary_admin', label: 'Primary administrator' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'client_admin', label: 'Client administrator' },
+  { value: 'client_viewer', label: 'Client viewer' },
+  { value: 'internal_viewer', label: 'Internal viewer' },
+];
+
+/** The roles held by a client's own people: the membership grants are studio authority, and not theirs to hold. */
+function clientSide( role: string ): boolean {
+  return 'client_admin' === role || 'client_viewer' === role;
+}
+
 type Opened =
   | { kind: 'add' }
   | { kind: 'account' }
-  | { kind: 'edit'; id: string };
+  | { kind: 'edit'; id: string }
+  | { kind: 'link'; id: string }
+  | { kind: 'membership'; id: string }
+  | { kind: 'grants'; id: string; membership: string };
 
 export function PeopleScreen( { person }: { person: string } ) {
   const [ people, setPeople ] = useState< PersonRecord[] >( [] );
@@ -71,6 +88,67 @@ export function PeopleScreen( { person }: { person: string } ) {
     setPeople( ( current ) => [ ...current.filter( ( one ) => one.id !== fresh.id ), fresh ].sort( byName ) );
     setOpened( null );
     setNotice( said );
+  }
+
+  /** A confirmed action on a card. The answer is the person, so it lands like a form's. */
+  async function act( question: string, write: () => Promise< PersonAnswer >, said: string, fallback: string ) {
+    if ( ! window.confirm( question ) ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      landed( await write(), said );
+    } catch ( error ) {
+      setNotice( messageFor( error, fallback ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  function offboard( target: PersonRecord ) {
+    void act(
+      `Offboard ${ target.display_name }? Every membership ends and they can no longer sign in.`,
+      () => api< PersonAnswer >( `/users/${ target.id }/offboard`, { method: 'POST', body: { record_version: target.record_version } } ),
+      `${ target.display_name } has been offboarded. Their access to every client has ended; their history stays.`,
+      'That person could not be offboarded.'
+    );
+  }
+
+  /** A membership's own write answers the membership; the card wants the person, so they are read again. */
+  function endMembership( target: PersonRecord, membership: Membership ) {
+    void act(
+      `End ${ target.display_name }'s access to ${ membership.client_name }? Their history there stays.`,
+      async () => {
+        await api( `/memberships/${ membership.id }`, { method: 'PATCH', body: { status: 'inactive', record_version: membership.record_version } } );
+
+        return api< PersonAnswer >( `/users/${ target.id }` );
+      },
+      `${ target.display_name } no longer has access to ${ membership.client_name }.`,
+      'That access could not be ended.'
+    );
+  }
+
+  async function remove( target: PersonRecord ) {
+    if ( ! window.confirm( `Delete ${ target.display_name } from Forge? Their WordPress account stays.` ) ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api< { ok: true; deleted: string } >( `/users/${ target.id }`, { method: 'DELETE' } );
+
+      setPeople( ( current ) => current.filter( ( one ) => one.id !== target.id ) );
+      setNotice( `Deleted ${ target.display_name } from Forge. Their WordPress account is still there.` );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That person could not be deleted.' ) );
+    } finally {
+      setBusy( false );
+    }
   }
 
   async function load() {
@@ -136,8 +214,15 @@ export function PeopleScreen( { person }: { person: string } ) {
                   key={ one.id }
                   person={ one }
                   everyone={ everyone }
+                  known={ grants?.on_membership ?? [] }
                   busy={ busy }
                   onEdit={ () => setOpened( { kind: 'edit', id: one.id } ) }
+                  onLink={ () => setOpened( { kind: 'link', id: one.id } ) }
+                  onAddMembership={ () => setOpened( { kind: 'membership', id: one.id } ) }
+                  onGrants={ ( membership ) => setOpened( { kind: 'grants', id: one.id, membership: membership.id } ) }
+                  onEnd={ ( membership ) => endMembership( one, membership ) }
+                  onOffboard={ () => offboard( one ) }
+                  onDelete={ () => void remove( one ) }
                 />
               ) ) }
             </div>
@@ -147,6 +232,17 @@ export function PeopleScreen( { person }: { person: string } ) {
           { opened && 'account' === opened.kind && <FromAccountForm onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'edit' === opened.kind && target && grants && (
             <EditForm person={ target } grants={ grants.on_user } onClose={ () => setOpened( null ) } onSaved={ landed } />
+          ) }
+          { opened && 'link' === opened.kind && target && <LinkForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
+          { opened && 'membership' === opened.kind && target && <MembershipForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
+          { opened && 'grants' === opened.kind && target && grants && (
+            <GrantsForm
+              person={ target }
+              membership={ target.memberships.find( ( one ) => one.id === opened.membership ) ?? null }
+              grants={ grants.on_membership }
+              onClose={ () => setOpened( null ) }
+              onSaved={ landed }
+            />
           ) }
         </>
       ) }
@@ -158,13 +254,28 @@ export function PeopleScreen( { person }: { person: string } ) {
 function PersonCard( {
   person,
   everyone,
+  known,
   busy,
   onEdit,
+  onLink,
+  onAddMembership,
+  onGrants,
+  onEnd,
+  onOffboard,
+  onDelete,
 }: {
   person: PersonRecord;
   everyone: boolean;
+  /** Every grant a membership can hold, for labelling the ones held. */
+  known: GrantOption[];
   busy: boolean;
   onEdit: () => void;
+  onLink: () => void;
+  onAddMembership: () => void;
+  onGrants: ( membership: Membership ) => void;
+  onEnd: ( membership: Membership ) => void;
+  onOffboard: () => void;
+  onDelete: () => void;
 } ) {
   const active = 'active' === person.status;
   const memberships = everyone ? person.memberships : person.memberships.filter( ( one ) => 'active' === one.status );
@@ -179,7 +290,25 @@ function PersonCard( {
       width: 90,
       render: ( m ) => ( 'active' === m.status ? <Tag tone="ok">Active</Tag> : <Tag tone="neutral">Ended</Tag> ),
     },
-    { key: 'grants', label: 'Grants', wrap: true, render: ( m ) => heldGrants( m.grants ).map( shortLabel ).join( ', ' ) || '—' },
+    { key: 'grants', label: 'Grants', wrap: true, render: ( m ) => heldGrants( m.grants ).map( ( grant ) => shortLabel( known.find( ( one ) => one.grant === grant )?.label ?? grant ) ).join( ', ' ) || '—' },
+    {
+      key: 'actions',
+      label: '',
+      width: 190,
+      render: ( m ) =>
+        'active' === m.status && active ? (
+          <span className="bwx-moves">
+            { ! clientSide( m.role ) && (
+              <Button size="sm" variant="ghost" data-testid="bwx-people-membership-grants" aria-label={ `Grants with ${ m.client_name }` } disabled={ busy } onClick={ () => onGrants( m ) }>
+                Grants
+              </Button>
+            ) }
+            <Button size="sm" variant="ghost" data-testid="bwx-people-membership-end" aria-label={ `End access to ${ m.client_name }` } disabled={ busy } onClick={ () => onEnd( m ) }>
+              End
+            </Button>
+          </span>
+        ) : null,
+    },
   ];
 
   return (
@@ -195,6 +324,25 @@ function PersonCard( {
             <Button size="sm" variant="ghost" data-testid="bwx-people-edit" disabled={ busy } onClick={ onEdit }>
               Edit
             </Button>
+            { ! person.account && (
+              <Button size="sm" variant="ghost" data-testid="bwx-people-link" disabled={ busy } onClick={ onLink }>
+                Give them an account
+              </Button>
+            ) }
+            { active && (
+              <Button size="sm" variant="ghost" data-testid="bwx-people-add-membership" disabled={ busy } onClick={ onAddMembership }>
+                Add access
+              </Button>
+            ) }
+            { active ? (
+              <Button size="sm" variant="ghost" data-testid="bwx-people-offboard" disabled={ busy } onClick={ onOffboard }>
+                Offboard
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" data-testid="bwx-people-delete" disabled={ busy } onClick={ onDelete }>
+                Delete
+              </Button>
+            ) }
           </div>
         }
       >
@@ -445,6 +593,302 @@ function EditForm( {
           <div key={ one.grant }>
             <label className="bwx-field-inline">
               <input type="checkbox" data-testid={ `bwx-people-edit-grant-${ one.grant }` } checked={ held.includes( one.grant ) } onChange={ () => toggle( one.grant ) } />
+              <span>{ one.label }</span>
+            </label>
+            { '' !== one.description && <p className="bwx-hint">{ one.description }</p> }
+          </div>
+        ) ) }
+      </fieldset>
+    </Modal>
+  );
+}
+
+/** An account for somebody who has none: one nobody holds, or a new one made from their record. */
+function LinkForm( {
+  person,
+  onClose,
+  onSaved,
+}: {
+  person: PersonRecord;
+  onClose: () => void;
+  onSaved: ( answer: PersonAnswer, said?: string ) => void;
+} ) {
+  const [ accounts, setAccounts ] = useState< UnlinkedAccount[] | null >( null );
+  const [ picked, setPicked ] = useState( '0' );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  useEffect( () => {
+    api< { ok: true; accounts: UnlinkedAccount[] } >( '/accounts' )
+      .then( ( answer ) => setAccounts( answer.accounts ) )
+      .catch( ( error: unknown ) => {
+        setAccounts( [] );
+        setNotice( messageFor( error, 'The accounts could not be read.' ) );
+      } );
+  }, [] );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      onSaved(
+        await api< PersonAnswer >( `/users/${ person.id }/account`, {
+          method: 'POST',
+          body: { wp_user_id: Number( picked ), record_version: person.record_version },
+        } ),
+        '0' === picked ? `${ person.display_name } has a WordPress account now.` : ''
+      );
+    } catch ( error ) {
+      setNotice( refusal( error, 'That account could not be given.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Modal
+      title={ `Give ${ person.display_name } an account` }
+      width={ 520 }
+      testId="bwx-people-link-form"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-people-link-save" disabled={ busy || null === accounts } onClick={ () => void save() }>
+            Save account
+          </Button>
+          <Button variant="ghost" data-testid="bwx-people-link-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-people-link-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <Field label="WordPress user" help="An existing account keeps its own name and address. A new one takes theirs.">
+        { ( id ) => (
+          <Select
+            id={ id }
+            data-testid="bwx-people-link-pick"
+            value={ picked }
+            disabled={ null === accounts }
+            onChange={ ( event ) => setPicked( event.target.value ) }
+            options={ [
+              { value: '0', label: 'Make them a new one' },
+              ...( accounts ?? [] ).map( ( one ) => ( { value: String( one.id ), label: `${ one.display_name } (${ one.login })` } ) ),
+            ] }
+          />
+        ) }
+      </Field>
+    </Modal>
+  );
+}
+
+/** A role with a client, reaching every site the client has or one of them. */
+function MembershipForm( {
+  person,
+  onClose,
+  onSaved,
+}: {
+  person: PersonRecord;
+  onClose: () => void;
+  onSaved: ( answer: PersonAnswer, said?: string ) => void;
+} ) {
+  const [ clients, setClients ] = useState< Client[] | null >( null );
+  const [ sites, setSites ] = useState< ClientSite[] >( [] );
+  const [ clientId, setClientId ] = useState( '' );
+  const [ role, setRole ] = useState( 'staff' );
+  const [ siteId, setSiteId ] = useState( '' );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  useEffect( () => {
+    api< { ok: true; clients: Client[] } >( '/clients' )
+      .then( ( answer ) => setClients( answer.clients ) )
+      .catch( ( error: unknown ) => {
+        setClients( [] );
+        setNotice( messageFor( error, 'The clients could not be read.' ) );
+      } );
+  }, [] );
+
+  // The sites follow the client: a site of one client means nothing on another.
+  useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSites( [] );
+    setSiteId( '' );
+
+    if ( '' === clientId ) {
+      return;
+    }
+
+    let live = true;
+
+    api< { ok: true; sites: ClientSite[] } >( `/clients/${ clientId }/sites` )
+      .then( ( answer ) => {
+        if ( live ) {
+          setSites( answer.sites );
+        }
+      } )
+      .catch( () => undefined );
+
+    return () => {
+      live = false;
+    };
+  }, [ clientId ] );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api( `/clients/${ clientId }/memberships`, { method: 'POST', body: { user_id: person.id, role, client_site_id: siteId } } );
+
+      // The membership's own answer is the membership; the card wants the
+      // person with everywhere they work, so they are read again.
+      onSaved( await api< PersonAnswer >( `/users/${ person.id }` ) );
+    } catch ( error ) {
+      setNotice( refusal( error, 'That access could not be granted.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Modal
+      title={ `Give ${ person.display_name } access to a client` }
+      width={ 520 }
+      testId="bwx-people-membership-form"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-people-membership-save" disabled={ busy || '' === clientId } onClick={ () => void save() }>
+            Give access
+          </Button>
+          <Button variant="ghost" data-testid="bwx-people-membership-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-people-membership-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <Field label="Client" required>
+        { ( id ) => (
+          <Select
+            id={ id }
+            data-testid="bwx-people-membership-client"
+            value={ clientId }
+            disabled={ null === clients }
+            onChange={ ( event ) => setClientId( event.target.value ) }
+            options={ [
+              { value: '', label: null === clients ? 'Reading the clients…' : 'Choose a client' },
+              ...( clients ?? [] ).map( ( one ) => ( { value: one.id, label: one.display_name } ) ),
+            ] }
+          />
+        ) }
+      </Field>
+      <Field label="Role" required>
+        { ( id ) => <Select id={ id } data-testid="bwx-people-membership-role" value={ role } onChange={ ( event ) => setRole( event.target.value ) } options={ ROLES } /> }
+      </Field>
+      <Field label="Reaches" help="Every site the client has, or one of them.">
+        { ( id ) => (
+          <Select
+            id={ id }
+            data-testid="bwx-people-membership-site"
+            value={ siteId }
+            disabled={ '' === clientId }
+            onChange={ ( event ) => setSiteId( event.target.value ) }
+            options={ [ { value: '', label: 'Every site' }, ...sites.map( ( one ) => ( { value: one.id, label: one.name } ) ) ] }
+          />
+        ) }
+      </Field>
+    </Modal>
+  );
+}
+
+/** The grants held with one client (#93): studio authority, given per membership. */
+function GrantsForm( {
+  person,
+  membership,
+  grants,
+  onClose,
+  onSaved,
+}: {
+  person: PersonRecord;
+  membership: Membership | null;
+  grants: GrantOption[];
+  onClose: () => void;
+  onSaved: ( answer: PersonAnswer, said?: string ) => void;
+} ) {
+  const [ held, setHeld ] = useState< string[] >( () => heldGrants( membership?.grants ?? '' ) );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  if ( ! membership ) {
+    return null;
+  }
+
+  async function save() {
+    if ( ! membership ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api( `/memberships/${ membership.id }`, { method: 'PATCH', body: { grants: held, record_version: membership.record_version } } );
+
+      onSaved( await api< PersonAnswer >( `/users/${ person.id }` ) );
+    } catch ( error ) {
+      setNotice( refusal( error, 'Those grants could not be saved.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  function toggle( grant: string ) {
+    setHeld( ( current ) => ( current.includes( grant ) ? current.filter( ( one ) => one !== grant ) : [ ...current, grant ] ) );
+  }
+
+  return (
+    <Modal
+      title={ `${ person.display_name } with ${ membership.client_name }` }
+      description="What they may do there, beyond what their role gives them."
+      width={ 560 }
+      testId="bwx-people-grants-form"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-people-grants-save" disabled={ busy } onClick={ () => void save() }>
+            Save grants
+          </Button>
+          <Button variant="ghost" data-testid="bwx-people-grants-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-people-grants-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <fieldset className="bwx-field">
+        <legend>Grants</legend>
+        { grants.map( ( one ) => (
+          <div key={ one.grant }>
+            <label className="bwx-field-inline">
+              <input type="checkbox" data-testid={ `bwx-people-grant-${ one.grant }` } checked={ held.includes( one.grant ) } onChange={ () => toggle( one.grant ) } />
               <span>{ one.label }</span>
             </label>
             { '' !== one.description && <p className="bwx-hint">{ one.description }</p> }
