@@ -393,14 +393,17 @@ final class UsersController {
 		}
 
 		/*
-		 * #292. A body that says nothing about an account gets one made, as the
-		 * admin page does: a person who cannot sign in is not a person we have
-		 * added. The account comes first so a refusal from WordPress leaves
-		 * nothing behind. A body that names one — including 0, meaning none —
-		 * is taken as it stands, which is how the test helpers join a person to
-		 * an account they made themselves.
+		 * #292. The screen's "add somebody new" asks for an account with them,
+		 * as the admin page makes one: a person who cannot sign in is not a
+		 * person we have added. The account comes first so a refusal from
+		 * WordPress leaves nothing behind.
+		 *
+		 * Opt-in rather than the default, because a body naming neither has
+		 * always made a person with no account — the shape everybody added
+		 * before #292 has — and callers still rely on being able to make one.
+		 * A body that names an account is taken as it stands.
 		 */
-		if ( ! array_key_exists( 'wp_user_id', $body ) ) {
+		if ( ! empty( $body['make_account'] ) && ! array_key_exists( 'wp_user_id', $body ) ) {
 			$wp_user_id = Accounts::ensure(
 				(string) $checked['values']['display_name'],
 				(string) $checked['values']['email']

@@ -376,7 +376,7 @@ function AddForm( { onClose, onSaved }: { onClose: () => void; onSaved: ( answer
     setNotice( '' );
 
     try {
-      onSaved( await api< PersonAnswer >( '/users', { method: 'POST', body: { display_name: name, email } } ) );
+      onSaved( await api< PersonAnswer >( '/users', { method: 'POST', body: { display_name: name, email, make_account: true } } ) );
     } catch ( error ) {
       setNotice( refusal( error, 'That person could not be added.' ) );
     } finally {

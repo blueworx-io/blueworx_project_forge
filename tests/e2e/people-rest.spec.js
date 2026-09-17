@@ -451,9 +451,9 @@ test.describe('the people screen, over REST', () => {
     expect(after.accounts.map((one) => one.id)).not.toContain(account.id);
   });
 
-  test('adding somebody new makes them a WordPress account with their name and address', async () => {
+  test('adding somebody new with make_account makes them a WordPress account with their name and address', async () => {
     const email = `newbie.${STAMP}@example.test`;
-    const added = await api.post('/users', { display_name: `Newbie ${RUN_ID}`, email });
+    const added = await api.post('/users', { display_name: `Newbie ${RUN_ID}`, email, make_account: true });
     expect(added.status(), await added.text()).toBe(200);
 
     const answer = await added.json();
@@ -464,6 +464,15 @@ test.describe('the people screen, over REST', () => {
     const account = await wpAccount(answer.user.wp_user_id);
     expect(account.email).toBe(email);
     expect(account.name).toBe(`Newbie ${RUN_ID}`);
+
+    // Opt-in: a body that says nothing about an account still makes somebody
+    // with none, the shape everybody added before #292 has and the admin
+    // page's specs still rely on.
+    const bare = await api.post('/users', { display_name: `Bare ${RUN_ID}`, email: `bare.${STAMP}@example.test` });
+    expect(bare.status(), await bare.text()).toBe(200);
+    const nobody = (await bare.json()).user;
+    expect(nobody.wp_user_id).toBe(0);
+    expect(nobody.account).toBeNull();
   });
 
   test('adding from an account twice, or from an account that does not exist, is refused', async () => {
@@ -477,8 +486,8 @@ test.describe('the people screen, over REST', () => {
   });
 
   test('somebody with no account can be joined to a free one, or given a new one, and never one somebody else holds', async () => {
-    // wp_user_id sent as 0 is the one way over REST to make somebody with no
-    // account, the shape everybody added before #292 has.
+    // Nothing said about an account (or wp_user_id sent as 0) makes somebody
+    // with none, the shape everybody added before #292 has.
     const added = await api.post('/users', {
       display_name: `Unlinked ${RUN_ID}`,
       email: `unlinked.${STAMP}@example.test`,
@@ -557,7 +566,11 @@ test.describe('the people screen, over REST', () => {
   // --- Task 2: edit, offboard, delete, and ending a membership -----------
 
   test('editing a name follows through to the account, and an address somebody else holds is refused', async () => {
-    const added = await api.post('/users', { display_name: `Editable ${RUN_ID}`, email: `editable.${STAMP}@example.test` });
+    const added = await api.post('/users', {
+      display_name: `Editable ${RUN_ID}`,
+      email: `editable.${STAMP}@example.test`,
+      make_account: true,
+    });
     expect(added.status(), await added.text()).toBe(200);
     const person = (await added.json()).user;
 
