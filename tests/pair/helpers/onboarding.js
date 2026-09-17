@@ -1,20 +1,20 @@
 import { expect } from '@playwright/test';
+import { startOnboarding } from '../../e2e/helpers/forge.js';
 
 // Getting a site to the point where a client has a checklist to work through:
 // publish a template, then give it to the site.
 //
 // It lived in client-checklist.spec.js until #181 wanted the same preamble for
 // the acceptance specs. Copying it would have been the shorter change and the
-// wrong one — this walks two admin screens and carries hard-won knowledge about
-// what a reused instance leaves behind, and a second copy would drift from this
-// one silently.
+// wrong one — this walks the template screen and carries hard-won knowledge
+// about what a reused instance leaves behind, and a second copy would drift
+// from this one silently.
 //
 // Both callers pass the same shape: a `studio` with a `context` signed in to the
-// studio's WordPress. Not matched by testMatch, so it is a module rather than a
-// suite that asserts nothing.
+// studio's WordPress, which is also the REST caller. Not matched by testMatch,
+// so it is a module rather than a suite that asserts nothing.
 
 const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
-const CLIENTS = '/wp-admin/admin.php?page=blueworx-forge-clients';
 
 /**
  * A published checklist with exactly these steps on it, all owned by the client.
@@ -90,26 +90,12 @@ export async function publishChecklist(studio, titles, label) {
 }
 
 /**
- * Gives the published checklist to one site.
+ * Gives the published checklist to one site, over REST.
  *
- * The site row is an <li> keyed by site id and the control is a button with a
- * confirm on it. Both matter: keying on the id rather than the name means a
- * second client called something similar cannot be clicked by mistake.
+ * The `studio` the pair helper returns is itself the caller: keyed on the
+ * site id rather than the name, so a second client called something similar
+ * cannot be given it by mistake.
  */
 export async function giveChecklistTo(studio, siteId) {
-  const page = await studio.context.newPage();
-
-  page.on('dialog', (dialog) => dialog.accept());
-
-  await page.goto(CLIENTS);
-
-  const row = page.locator(`[data-bwx-site="${siteId}"]`);
-  await expect(row).toHaveCount(1);
-
-  await row.locator('[data-bwx-action="bwx_forge_assign_onboarding"]').click();
-  await page.waitForLoadState();
-
-  await expect(page.locator(`[data-bwx-onboarding="${siteId}"]`)).toHaveCount(1);
-
-  await page.close();
+  await startOnboarding(studio, siteId);
 }

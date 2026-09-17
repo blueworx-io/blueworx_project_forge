@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
+import { forge, startOnboarding } from './helpers/forge.js';
 
-// #160 walked as the studio walks it: publish a checklist, give it to a site,
-// and watch it become that site's own — fixed at the version they were given.
+// #160 walked as the studio walks it: publish a checklist, give it to a site
+// over REST, and watch it become that site's own — fixed at the version they
+// were given — on the page that still shows it.
 //
 // Nothing is ever deleted and the instance is kept between runs, so every name
 // carries a run id or the spec passes once and fails for ever after.
@@ -11,6 +13,16 @@ const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
 const CLIENTS = '/wp-admin/admin.php?page=blueworx-forge-clients';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+
+/** The REST caller for the signed-in page: the app page localises the nonce. */
+async function callerFor(page) {
+  await page.goto('/blueworx-forge/');
+
+  const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);
+  expect(nonce, 'no REST nonce was localised for the signed-in user').toBeTruthy();
+
+  return forge(page.request, nonce);
+}
 
 /** Makes sure there is a published checklist with at least one step in it. */
 async function publishAChecklist(page) {
@@ -61,6 +73,7 @@ test('a site is given the checklist once, and it is theirs from then on', async 
   test.setTimeout(180_000);
 
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
   const siteId = await makeClientWithSite(page, "a");
@@ -72,9 +85,8 @@ test('a site is given the checklist once, and it is theirs from then on', async 
 
   await expect(assign).toBeVisible();
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await assign.locator('button').click();
-  await expect(page.locator('[data-bwx-notice="onboarding-started"]')).toBeVisible();
+  await startOnboarding(api, siteId);
+  await page.goto(CLIENTS);
 
   // After: it says where they are, and offers no way to give them another.
   const state = page.locator(`li[data-bwx-site="${siteId}"] [data-bwx-onboarding="${siteId}"]`);
@@ -91,14 +103,13 @@ test('a brand new checklist is nought per cent done and not ready to launch', as
   test.setTimeout(180_000);
 
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
   const siteId = await makeClientWithSite(page, "b");
-  const assign = page.locator(`li[data-bwx-site="${siteId}"] [data-bwx-assign-onboarding="1"]`);
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await assign.locator('button').click();
-  await expect(page.locator('[data-bwx-notice="onboarding-started"]')).toBeVisible();
+  await startOnboarding(api, siteId);
+  await page.goto(CLIENTS);
 
   const state = page.locator(`li[data-bwx-site="${siteId}"] [data-bwx-onboarding="${siteId}"]`);
 

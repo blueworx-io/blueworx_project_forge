@@ -289,6 +289,23 @@ export async function makePackage(api, label, { hours = 12, price = 1200, validi
 }
 
 /**
+ * Gives a site the current published checklist over REST, and returns the
+ * assignment.
+ *
+ * #160. A client onboards once, so the route answers 409 to a second call —
+ * a spec that needs a site onboarding starts it here and never again. The
+ * checklist itself is still published through the template screen (#159 put
+ * that behind the screen). `api` is any caller with `.post` — a `signedIn()`
+ * admin's `api`, or the pair helper's `studio`.
+ */
+export async function startOnboarding(api, siteId) {
+  const started = await api.post(`/client-sites/${siteId}/onboarding`, {});
+  expect(started.status(), await started.text()).toBe(200);
+
+  return (await started.json()).onboarding;
+}
+
+/**
  * Puts a site on a package with enough hours to plan work against.
  *
  * #149. Chargeable work reserves its hours the moment it reaches Up Next, and

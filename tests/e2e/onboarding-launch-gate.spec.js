@@ -22,7 +22,6 @@ const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
-const CLIENTS = '/wp-admin/admin.php?page=blueworx-forge-clients';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
@@ -86,20 +85,6 @@ async function publishAChecklist(page, title) {
   await expect(page.locator('[data-bwx-result="published"]')).toBeVisible();
 }
 
-/** Gives a site the current checklist, through the screen the studio uses. */
-async function giveChecklistTo(page, siteId) {
-  await page.goto(CLIENTS);
-
-  const assign = page.locator(`li[data-bwx-site="${siteId}"] [data-bwx-assign-onboarding="1"]`);
-
-  await expect(assign).toBeVisible();
-
-  page.once('dialog', (dialog) => dialog.accept());
-  await assign.locator('button').click();
-
-  await expect(page.locator(`[data-bwx-onboarding="${siteId}"]`)).toBeVisible();
-}
-
 /**
  * A fresh item at Completed with the release gate already satisfied.
  *
@@ -136,7 +121,7 @@ test('a first go-live waits for onboarding', async ({ browser, baseURL }) => {
   const step = `Delegate the domain ${RUN_ID}`;
 
   await publishAChecklist(page, step);
-  await giveChecklistTo(page, site.id);
+  await Forge.startOnboarding(me.api, site.id);
 
   const ready = await itemReadyToRelease(me.api, crew, site.id, `First release ${RUN_ID}`);
 
@@ -210,7 +195,7 @@ test('a site that is already live is not held up by its onboarding', async ({
   const page = await me.context.newPage();
 
   await publishAChecklist(page, `Settle the mail provider ${RUN_ID}`);
-  await giveChecklistTo(page, site.id);
+  await Forge.startOnboarding(me.api, site.id);
 
   const secondReady = await itemReadyToRelease(me.api, crew, site.id, `Later fix ${RUN_ID}`);
 
