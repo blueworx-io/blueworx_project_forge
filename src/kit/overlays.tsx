@@ -15,6 +15,7 @@ export function Modal( {
   children,
   footer,
   onClose,
+  testId,
 }: {
   title: ReactNode;
   description?: ReactNode;
@@ -22,6 +23,7 @@ export function Modal( {
   children?: ReactNode;
   footer?: ReactNode;
   onClose: () => void;
+  testId?: string;
 } ) {
   const titleId = useId();
   const descriptionId = useId();
@@ -73,6 +75,7 @@ export function Modal( {
         aria-labelledby={ titleId }
         aria-describedby={ description ? descriptionId : undefined }
         className="fk-dialog"
+        data-testid={ testId }
         style={ { width } }
         onClick={ ( event ) => event.stopPropagation() }
       >

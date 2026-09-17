@@ -40,6 +40,7 @@ const APP_SCREENS = [
   [ 'Today', 'bwx-screen-standup' ],
   [ 'Reports', 'bwx-screen-reports' ],
   [ 'Availability', 'bwx-screen-availability' ],
+  [ 'Packages', 'bwx-screen-packages' ],
 ];
 
 test.describe( 'the studio is usable by everyone', () => {
