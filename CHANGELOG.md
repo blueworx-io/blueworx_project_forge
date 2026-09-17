@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.109.0] - 2026-09-17
+
+### Added
+
+- Support packages are now in the app, under Insight: see what is on offer, add a package, revise it as a new version with every earlier version still on record, retire or restore it, and put the catalogue in order — without going to WordPress admin. The admin page stays for now.
+
 ## [2.108.0] - 2026-09-16
 
 ### Added
