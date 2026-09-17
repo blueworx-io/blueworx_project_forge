@@ -21,7 +21,6 @@ const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-const PACKAGES = '/wp-admin/admin.php?page=blueworx-forge-packages';
 const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';
 
 /** Today and a date some days from it, as the screen writes them. */
@@ -41,18 +40,10 @@ async function withSiteAndPackage(browser, baseURL) {
   const label = `Standard ${RUN_ID}-${++made}`;
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const { site } = await Forge.makeSite(admin.api, `Support Co ${RUN_ID}`, RUN_ID);
+
+  await Forge.makePackage(admin.api, label, { hours: 12, price: 1200 });
+
   const page = await admin.context.newPage();
-
-  await page.goto(PACKAGES);
-
-  const form = page.locator('form').filter({ has: page.locator('input[value="bwx_forge_add_package"]') });
-
-  await form.locator('input[name="name"]').fill(label);
-  await form.locator('input[name="hours"]').fill('12');
-  await form.locator('input[name="price"]').fill('1200');
-  await form.locator('input[name="validity_months"]').fill('12');
-  await form.locator('#bwx-add').click();
-  await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
 
   return { admin, site, page, label };
 }

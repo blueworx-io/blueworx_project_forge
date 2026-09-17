@@ -19,7 +19,6 @@ const STAMP = RUN.replace(/[^a-z0-9]/gi, '');
 const GRANTED = 200;
 
 const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';
-const PACKAGES = '/wp-admin/admin.php?page=blueworx-forge-packages';
 const MEETINGS = '/wp-admin/admin.php?page=blueworx-forge-meetings';
 
 const TO_UP_NEXT = [
@@ -75,18 +74,7 @@ test.describe('the commercial acceptance criteria', () => {
     const label = `Exact ${RUN}`;
 
     // A package whose terms are unambiguous: forty hours, twelve months.
-    await page.goto(PACKAGES);
-
-    const form = page
-      .locator('form')
-      .filter({ has: page.locator('input[value="bwx_forge_add_package"]') });
-
-    await form.locator('input[name="name"]').fill(label);
-    await form.locator('input[name="hours"]').fill('40');
-    await form.locator('input[name="price"]').fill('1200');
-    await form.locator('input[name="validity_months"]').fill('12');
-    await form.locator('#bwx-add').click();
-    await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
+    await Forge.makePackage(pair.studio, label, { hours: 40, price: 1200, validity_months: 12 });
 
     /*
      * Assigned across a leap-year boundary. The whole term is a year whichever

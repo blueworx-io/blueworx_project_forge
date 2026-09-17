@@ -274,6 +274,21 @@ export async function makeSubmission(site, values) {
 }
 
 /**
+ * Adds a package to the catalogue over REST, and returns it.
+ *
+ * A name of its own each time, because the instance is shared between runs
+ * and a name reused across specs leaves several identical rows with no way
+ * to say which is this one's. `api` is any caller with `.post` — a
+ * `signedIn()` admin's `api`, or the pair helper's `studio`.
+ */
+export async function makePackage(api, label, { hours = 12, price = 1200, validity_months = 12 } = {}) {
+  const wrote = await api.post('/packages', { name: label, hours, price, currency: 'GBP', validity_months, terms: '' });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  return (await wrote.json()).package;
+}
+
+/**
  * Puts a site on a package with enough hours to plan work against.
  *
  * #149. Chargeable work reserves its hours the moment it reaches Up Next, and
@@ -282,24 +297,17 @@ export async function makeSubmission(site, values) {
  * was actually about. This is the one line that stops that being every spec's
  * problem.
  *
- * A package of its own each time, because the instance is shared between runs
- * and a name reused across specs leaves several identical options in the list
- * with no way to say which is this one's.
+ * The package is added over REST; the assignment still goes through the
+ * Support admin page until that screen moves (PR 5). A package of its own
+ * each time, because the instance is shared between runs and a name reused
+ * across specs leaves several identical options in the list with no way to
+ * say which is this one's.
  */
 export async function onSupport(admin, siteId, hours = 200) {
   const label = `Hours ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  await makePackage(admin.api ?? admin, label, { hours, price: 1000 });
+
   const page = await admin.context.newPage();
-
-  await page.goto('/wp-admin/admin.php?page=blueworx-forge-packages');
-
-  const form = page.locator('form').filter({ has: page.locator('input[value="bwx_forge_add_package"]') });
-
-  await form.locator('input[name="name"]').fill(label);
-  await form.locator('input[name="hours"]').fill(String(hours));
-  await form.locator('input[name="price"]').fill('1000');
-  await form.locator('input[name="validity_months"]').fill('12');
-  await form.locator('#bwx-add').click();
-  await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
 
   await page.goto(`/wp-admin/admin.php?page=blueworx-forge-support&site=${siteId}`);
 
