@@ -314,55 +314,49 @@ export async function startOnboarding(api, siteId) {
  * was actually about. This is the one line that stops that being every spec's
  * problem.
  *
- * The package is added over REST; the assignment still goes through the
- * Support admin page until that screen moves (PR 5). A package of its own
- * each time, because the instance is shared between runs and a name reused
- * across specs leaves several identical options in the list with no way to
- * say which is this one's.
+ * Both halves go over REST now (PR 5). A package of its own each time,
+ * because the instance is shared between runs and a name reused across
+ * specs leaves several identical packages with no way to say which is this
+ * one's. `admin` is a `signedIn()` result or any caller with `.post`.
  */
 export async function onSupport(admin, siteId, hours = 200) {
   const label = `Hours ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-  await makePackage(admin.api ?? admin, label, { hours, price: 1000 });
+  const api = admin.api ?? admin;
+  const pkg = await makePackage(api, label, { hours, price: 1000 });
 
-  const page = await admin.context.newPage();
-
-  await page.goto(`/wp-admin/admin.php?page=blueworx-forge-support&site=${siteId}`);
-
-  const option = page.locator('#bwx-assign-package option', { hasText: label });
-  const value = await option.getAttribute('value');
-
-  expect(value, 'the package just added is on offer').toBeTruthy();
-
-  await page.locator('#bwx-assign-package').selectOption(value);
-  await page.locator('#bwx-assign-from').fill(new Date().toISOString().slice(0, 10));
-  await page.locator('#bwx-assign').click();
-
-  await expect(page.locator('[data-bwx-support-state="active"]')).toBeVisible();
-
-  await page.close();
+  await assignSupport(api, siteId, pkg.current.id, new Date().toISOString().slice(0, 10));
 
   return { label, hours };
 }
 
-/** What the ledger holds against one site, read from the studio's own screen. */
+/**
+ * Puts a site on one package version from a date, over REST, and asserts it
+ * is on support afterwards. `api` is any caller with `.post`.
+ */
+export async function assignSupport(api, siteId, packageVersionId, from) {
+  const wrote = await api.post(`/client-sites/${siteId}/support`, { package_version: packageVersionId, starts_on: from });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.position.state, 'the site is on support').toBe('active');
+
+  return answer.assignment;
+}
+
+/**
+ * What the ledger holds against one site, read over REST. Each entry is
+ * `[event_type, hours, source]`, the shape the studio's screen used to
+ * give, so a spec reading `[type, hours]` pairs reads the same as before.
+ */
 export async function hourLedger(admin, siteId) {
-  const page = await admin.context.newPage();
+  const answer = await (admin.api ?? admin).get(`/client-sites/${siteId}/support`);
 
-  await page.goto(`/wp-admin/admin.php?page=blueworx-forge-support&site=${siteId}`);
-  await expect(page.locator('[data-bwx-support-state]')).toBeVisible();
+  expect(answer.ok, `no support answer for ${siteId}: ${JSON.stringify(answer)}`).toBe(true);
 
-  const balance = await page.locator('[data-bwx-balance]').getAttribute('data-bwx-balance');
-  const entries = await page.locator('[data-bwx-entry]').evaluateAll((rows) =>
-    rows.map((row) => [
-      row.getAttribute('data-bwx-entry'),
-      Number(row.getAttribute('data-bwx-entry-hours')),
-      row.getAttribute('data-bwx-entry-source') ?? '',
-    ])
-  );
-
-  await page.close();
-
-  return { balance: Number(balance), entries };
+  return {
+    balance: Number(answer.position.balance),
+    entries: answer.ledger.map((entry) => [entry.event_type, Number(entry.hours), entry.source ?? '']),
+  };
 }
 
 /**
