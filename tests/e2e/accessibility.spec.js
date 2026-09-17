@@ -72,6 +72,7 @@ test.describe( 'the studio is usable by everyone', () => {
     const { site } = await Forge.makeSite( admin.api, `Access App Co ${ RUN_ID }`, RUN_ID );
 
     await Forge.makeItem( admin.api, site.id, { title: `Something to draw ${ RUN_ID }` } );
+    await Forge.makePackage( admin.api, `Access ${ RUN_ID }` );
 
     const page = await admin.context.newPage();
 
