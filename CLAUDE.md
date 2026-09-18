@@ -296,11 +296,10 @@ written into `phpcs.xml.dist`; nothing security-related is among them.
 
 ## Rules
 
-- **Where a screen belongs (ARCH-7).** Screens people use to do the work — the
-  board, work items, every view of work — are the React application. Screens that
-  configure the system — clients, sites, people, memberships, connection keys —
-  are plain WordPress admin pages. A screen is built once, in one of the two, and
-  never rebuilt in the other.
+- **Where a screen belongs (ARCH-7).** Every screen the studio uses — to do the
+  work or to configure it — is the React application. WordPress admin holds only
+  what needs WordPress itself: the app page, site connection, updates and sync
+  health. A screen is built once, and never rebuilt in the other.
 - Use the `frontend-design` skill for all UI work.
 - When a Figma URL is provided, use the Figma MCP tools before writing any code.
 - Reuse the patterns already established in the repo — don't reinvent what exists.
