@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.108.0] - 2026-09-16
+
+### Added
+
+- Availability is now in the app, under Team: pick a person, see their week, set their hours and record time off, without going to WordPress admin. The admin page stays for now.
+
 ## [2.107.0] - 2026-09-15
 
 ### Added

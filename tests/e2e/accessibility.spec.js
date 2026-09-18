@@ -39,6 +39,7 @@ const APP_SCREENS = [
   [ 'Onboarding', 'bwx-screen-onboarding' ],
   [ 'Today', 'bwx-screen-standup' ],
   [ 'Reports', 'bwx-screen-reports' ],
+  [ 'Availability', 'bwx-screen-availability' ],
 ];
 
 test.describe( 'the studio is usable by everyone', () => {

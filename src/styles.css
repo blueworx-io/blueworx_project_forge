@@ -2575,3 +2575,55 @@ td[ data-band='over' ] {
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+
+/* ---- Availability (#136) ---- */
+
+.bwx-availability {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.bwx-availability-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.bwx-availability-picker label {
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+
+.bwx-availability-week {
+  display: grid;
+  grid-template-columns: repeat( 8, minmax( 0, 1fr ) );
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.bwx-availability-week dt {
+  font-size: var( --text-small );
+  color: var( --ink-500 );
+}
+
+.bwx-availability-week dd {
+  margin: 0;
+  font-family: var( --font-mono );
+  font-size: var( --text-subheading );
+}
+
+@media ( max-width: 640px ) {
+  .bwx-availability-week {
+    grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+  }
+}
+
+.bwx-availability-hours-grid {
+  display: grid;
+  grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+  gap: var( --space-2, 8px );
+}

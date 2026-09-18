@@ -142,7 +142,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -721,4 +721,52 @@ export interface Person {
   status: string;
   /** The WordPress account this person signs in with; 0 when none. */
   wp_user_id?: number;
+}
+
+/** One working-week pattern, from a date (#136). Sunday first, as PHP numbers weekdays. */
+export interface AvailabilityPattern {
+  id: string;
+  user_id: string;
+  effective_from: string;
+  note: string;
+  hours_sun: number;
+  hours_mon: number;
+  hours_tue: number;
+  hours_wed: number;
+  hours_thu: number;
+  hours_fri: number;
+  hours_sat: number;
+  hours_week: number;
+  created_at: number;
+  created_by: number;
+}
+
+export type LeaveKind = 'leave' | 'public-holiday' | 'training' | 'other';
+
+/** A period somebody is not available for, inclusive of both ends. */
+export interface LeaveRecord {
+  id: string;
+  user_id: string;
+  starts_on: string;
+  ends_on: string;
+  kind: LeaveKind;
+  note: string;
+  created_at: number;
+  created_by: number;
+}
+
+/** What `/users/<id>/availability` answers, and what every write there answers too. */
+export interface AvailabilityAnswer {
+  ok: true;
+  person: { id: string; display_name: string };
+  recorded: boolean;
+  current: AvailabilityPattern | null;
+  history: AvailabilityPattern[];
+  leave: LeaveRecord[];
+  week: {
+    from: string;
+    to: string;
+    hours: number;
+    days: Array< { date: string; hours: number; base_hours: number; reason: string } >;
+  };
 }

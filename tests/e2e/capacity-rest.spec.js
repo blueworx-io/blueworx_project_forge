@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makePerson, makeItem, walkTo, onSupport } from './helpers/forge.js';
+import { signedIn, makeSite, makePerson, makeItem, walkTo, onSupport, setHours } from './helpers/forge.js';
 
 // #138's acceptance in one spec: a person on two clients shows one combined
 // commitment, not two pictures that each look comfortable. Nothing here is
@@ -15,36 +15,6 @@ const PERSON = `capacity${STAMP}`;
 // arithmetic is the same whichever day the suite happens to run.
 const FROM = '2026-09-07';
 const TO = '2026-09-11';
-const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-
-// Patterns are written from the availability screen and nowhere else — #136
-// deliberately gave them no REST route, since setting somebody up is
-// configuration rather than work (ARCH-7). So this walks the screen.
-//
-// It does not sign in: the context already is. Signing in again would issue a
-// fresh session and quietly invalidate the REST nonce the rest of the spec
-// holds, which then fails several steps later as a cookie error with no
-// visible cause.
-async function setHoursThroughTheScreen(page, name, hours) {
-  await page.goto('/wp-admin/admin.php?page=blueworx-forge-availability');
-  await page.selectOption('#bwx-person', { label: name });
-  await page.click('form[data-bwx-person-picker] input[type="submit"]');
-
-  // Wait for the person's page, not just for the click. Picking somebody is a
-  // form post, so filling the hours straight afterwards can run against the
-  // page that is still on screen — which fails as a missing field rather than
-  // as anything that names the real problem.
-  await expect(page.locator('[data-bwx-person-name]')).toHaveText(name);
-
-  await page.fill('#bwx-effective-from', '2020-01-01');
-
-  for (const day of DAYS) {
-    await page.fill(`#bwx-hours_${day}`, String(hours));
-  }
-
-  await page.click('form[data-bwx-set-hours] input[type="submit"]');
-  await expect(page.locator('[data-bwx-result="hours-set"]')).toBeVisible();
-}
 
 test('a person on two clients shows one combined commitment', async ({ browser, baseURL }) => {
   // Longer than the suite default, and not because anything here is slow: the
@@ -76,9 +46,7 @@ test('a person on two clients shows one combined commitment', async ({ browser, 
   });
   expect(joined.status(), await joined.text()).toBe(200);
 
-  const page = await context.newPage();
-  await setHoursThroughTheScreen(page, PERSON, 8);
-  await page.close();
+  await setHours(api, person.id, 8);
 
   for (const where of [first, second]) {
     // The gate at Up Next wants all three seats filled, and a reviewer who is

@@ -22,7 +22,6 @@ const PERSON = `paircapacity${STAMP}`;
 // suite runs on.
 const FROM = '2026-09-07';
 const TO = '2026-09-11';
-const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 const TO_UP_NEXT = [
   'triage',
@@ -33,32 +32,6 @@ const TO_UP_NEXT = [
 ];
 
 test.beforeAll(requireEnvironment);
-
-/**
- * Working hours, set from the availability screen.
- *
- * #136 gave patterns no REST route on purpose — setting somebody up is
- * configuration rather than work (ARCH-7) — so this walks the screen. It does
- * not sign in again: the context already is, and a second sign-in would issue a
- * fresh session and quietly invalidate the REST nonce the rest of the spec
- * holds.
- */
-async function setHoursThroughTheScreen(page, name, hours) {
-  await page.goto('/wp-admin/admin.php?page=blueworx-forge-availability');
-  await page.selectOption('#bwx-person', { label: name });
-  await page.click('form[data-bwx-person-picker] input[type="submit"]');
-
-  await expect(page.locator('[data-bwx-person-name]')).toHaveText(name);
-
-  await page.fill('#bwx-effective-from', '2020-01-01');
-
-  for (const day of DAYS) {
-    await page.fill(`#bwx-hours_${day}`, String(hours));
-  }
-
-  await page.click('form[data-bwx-set-hours] input[type="submit"]');
-  await expect(page.locator('[data-bwx-result="hours-set"]')).toBeVisible();
-}
 
 test.describe('the capacity acceptance criteria', () => {
   test('AC-11: a person on two clients is counted once, and the drill-down reconciles', async ({
@@ -94,9 +67,7 @@ test.describe('the capacity acceptance criteria', () => {
 
     expect(joined.status(), await joined.text()).toBe(200);
 
-    const page = await pair.studio.context.newPage();
-    await setHoursThroughTheScreen(page, PERSON, 8);
-    await page.close();
+    await Forge.setHours(pair.studio, person.id, 8);
 
     for (const where of [
       { clientId: pair.client.id, siteId: pair.site.id },
@@ -161,9 +132,7 @@ test.describe('the capacity acceptance criteria', () => {
     const reviewer = await Forge.makePerson(pair.studio, pair.client.id, 'staff', `orev${STAMP}`);
     const deliverer = await Forge.makePerson(pair.studio, pair.client.id, 'staff', `odel${STAMP}`);
 
-    const page = await pair.studio.context.newPage();
-    await setHoursThroughTheScreen(page, `over${STAMP}`, 8);
-    await page.close();
+    await Forge.setHours(pair.studio, person.id, 8);
 
     // #149. Chargeable work reserves its hours the moment it is planned, and
     // the ledger will not take a site below nought — so a site with no package

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makePerson, makeItem, walkTo, satisfy, onSupport } from './helpers/forge.js';
+import { signedIn, makeSite, makePerson, makeItem, walkTo, satisfy, onSupport, setHours } from './helpers/forge.js';
 
 // #141, #142 and #143 against a real WordPress. The gate at the end of Up Next
 // refuses work there is no room for, names who and when, and lets a studio
@@ -18,33 +18,7 @@ const PERSON = `overbooked${STAMP}`;
 // day is 56 hours available across the seven; the job asks for 90.
 const FROM = '2026-10-05';
 const TO = '2026-10-09';
-const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const TOO_MANY_HOURS = 90;
-
-// Patterns are written from the availability screen and nowhere else — #136
-// gave them no REST route, since setting somebody up is configuration rather
-// than work (ARCH-7). So this walks the screen.
-//
-// It does not sign in: the context already is. Signing in again would issue a
-// fresh session and quietly invalidate the REST nonce the rest of the spec
-// holds, which then fails several steps later as a cookie error with no
-// visible cause.
-async function setHoursThroughTheScreen(page, name, hours) {
-  await page.goto('/wp-admin/admin.php?page=blueworx-forge-availability');
-  await page.selectOption('#bwx-person', { label: name });
-  await page.click('form[data-bwx-person-picker] input[type="submit"]');
-
-  await expect(page.locator('[data-bwx-person-name]')).toHaveText(name);
-
-  await page.fill('#bwx-effective-from', '2020-01-01');
-
-  for (const day of DAYS) {
-    await page.fill(`#bwx-hours_${day}`, String(hours));
-  }
-
-  await page.click('form[data-bwx-set-hours] input[type="submit"]');
-  await expect(page.locator('[data-bwx-result="hours-set"]')).toBeVisible();
-}
 
 test('work with no room behind it is refused by name, and goes ahead for a reason', async ({
   browser,
@@ -69,9 +43,7 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   const reviewer = await makePerson(api, where.client.id, 'staff', `gatereviewer${STAMP}`);
   const deliverer = await makePerson(api, where.client.id, 'staff', `gatedeliverer${STAMP}`);
 
-  const page = await context.newPage();
-  await setHoursThroughTheScreen(page, PERSON, 8);
-  await page.close();
+  await setHours(api, person.id, 8);
 
   const created = await makeItem(api, where.site.id, { title: `Too much work ${RUN_ID}` });
   expect(created.status(), await created.text()).toBe(200);
@@ -154,9 +126,7 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
   const reviewer = await makePerson(api, where.client.id, 'staff', `roomyreviewer${STAMP}`);
   const deliverer = await makePerson(api, where.client.id, 'staff', `roomydeliverer${STAMP}`);
 
-  const page = await context.newPage();
-  await setHoursThroughTheScreen(page, `roomy${STAMP}`, 8);
-  await page.close();
+  await setHours(api, person.id, 8);
 
   const created = await makeItem(api, where.site.id, { title: `Reasonable work ${RUN_ID}` });
 

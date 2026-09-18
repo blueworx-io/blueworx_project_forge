@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
+import { BarChart3, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
+import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
@@ -34,6 +35,9 @@ import './shell.css';
  *
  * Packages & hours and Sync health are still WordPress admin screens; the
  * rail links to them so nothing is further away than it was.
+ *
+ * Availability is the first configuration screen to move in (spec
+ * 2026-09-16); the rest follow it, one pull request each.
  */
 
 type Entry =
@@ -57,6 +61,8 @@ const RAIL: Entry[] = [
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
   { href: 'admin.php?page=blueworx-forge-packages', label: 'Packages & hours', icon: Receipt, testId: 'bwx-link-packages' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
+  { group: 'Team' },
+  { key: 'availability', label: 'Availability', icon: CalendarCheck, testId: 'bwx-screen-availability' },
   { group: 'Insight' },
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions' },
@@ -128,6 +134,7 @@ const TITLES: Record< ScreenName, string > = {
   reports: 'Reports',
   recurring: 'Recurring tasks',
   subscriptions: 'Subscriptions',
+  availability: 'Availability',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -157,6 +164,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
   recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
+  availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -184,22 +192,24 @@ function useRequestsWaiting( screen: ScreenName ): number | null {
 
 export function App() {
   const data = forgeData();
-  const [ screen, setScreen ] = useState< ScreenName >( 'work' );
-
-  /*
-   * A link from Slack lands on the app page with the task in the hash
-   * (PR 5). The board opens and the panel opens on that task; the hash is
-   * then cleared so a reload is a plain reload.
+  /**
+   * A link can land on a screen: from Slack on the task in the hash (PR 5),
+   * or from anywhere on a screen and, for availability, a person. Read once
+   * and cleared, so a reload is a plain reload.
    */
-  const [ linkedItem ] = useState( () => {
-    const found = /(?:^|[#&])item=([A-Za-z0-9_-]+)/.exec( window.location.hash );
+  const [ landing ] = useState( () => {
+    const hash = window.location.hash;
+    const item = /(?:^|[#&])item=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    const screen = /(?:^|[#&])screen=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
+    const person = /(?:^|[#&])person=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
 
-    if ( found ) {
+    if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
-    return found ? found[ 1 ] : '';
+    return { item, screen: Object.hasOwn( TITLES, screen ) ? ( screen as ScreenName ) : null, person };
   } );
+  const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
   const [ newWorkAsked, setNewWorkAsked ] = useState( 0 );
   const [ generation, setGeneration ] = useState( 0 );
@@ -342,7 +352,7 @@ export function App() {
            same thing switching screens does, on demand.
          */ }
         { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
-        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ linkedItem } /> }
+        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ landing.item } /> }
         { 'requests' === screen && <QueueScreen key={ generation } /> }
         { 'capacity' === screen && <CapacityScreen key={ generation } /> }
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
@@ -350,6 +360,7 @@ export function App() {
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
+        { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
       </main>
     </div>
   );
