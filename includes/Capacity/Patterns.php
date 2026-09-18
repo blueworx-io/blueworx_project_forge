@@ -31,6 +31,11 @@ final class Patterns {
 	public const PREFIX = 'avp';
 
 	/**
+	 * The most a day may hold (Luke, 2026-09-17: "max 12 hours per day").
+	 */
+	public const MAX_DAY = 12.0;
+
+	/**
 	 * The seven columns, in the order PHP's `w` format numbers them — Sunday
 	 * first. Keeping that order here means the lookup is an index rather than a
 	 * mapping somebody has to keep in step.
@@ -60,15 +65,18 @@ final class Patterns {
 	 * @param array<string, float> $hours          Hours by column name.
 	 * @param int                  $author         WordPress user id of the author.
 	 * @param string               $note           Optional note.
+	 * @param string               $effective_to   YYYY-MM-DD the pattern's last
+	 *                                             day, or '' for ongoing.
 	 * @return array<string, mixed>|null
 	 */
-	public static function record( string $user_id, string $effective_from, array $hours, int $author, string $note = '' ): ?array {
+	public static function record( string $user_id, string $effective_from, array $hours, int $author, string $note = '', string $effective_to = '' ): ?array {
 		global $wpdb;
 
 		$row = array(
 			'id'             => Ids::create( self::PREFIX ),
 			'user_id'        => $user_id,
 			'effective_from' => $effective_from,
+			'effective_to'   => '' === $effective_to ? null : $effective_to,
 			'note'           => $note,
 			'created_at'     => bwx_forge_now(),
 			'created_by'     => $author,
@@ -76,8 +84,9 @@ final class Patterns {
 
 		foreach ( self::DAY_COLUMNS as $column ) {
 			// Negative hours are not a shorter week, they are a typo, and a
-			// negative day would quietly reduce the week's total.
-			$row[ $column ] = round( max( 0.0, (float) ( $hours[ $column ] ?? 0 ) ), 2 );
+			// negative day would quietly reduce the week's total. Above twelve
+			// is a typo the other way; the route refuses it, this makes sure.
+			$row[ $column ] = round( min( self::MAX_DAY, max( 0.0, (float) ( $hours[ $column ] ?? 0 ) ) ), 2 );
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; there is no core API for it.
@@ -125,6 +134,10 @@ final class Patterns {
 	 * the date — can be tested without a database, and so a caller working
 	 * across a period reads a person's history once rather than once per day.
 	 *
+	 * A pattern with an end is in force up to and including that day and not
+	 * after (2026-09-18): once it has ended, whatever was in force before it
+	 * is again. Reduced hours for a month hand back to the ordinary week.
+	 *
 	 * @param array<int, array<string, mixed>> $history Patterns, in any order.
 	 * @param string                           $date    YYYY-MM-DD.
 	 * @return array<string, mixed>|null
@@ -134,8 +147,9 @@ final class Patterns {
 
 		foreach ( $history as $pattern ) {
 			$from = (string) ( $pattern['effective_from'] ?? '' );
+			$to   = (string) ( $pattern['effective_to'] ?? '' );
 
-			if ( '' === $from || $from > $date ) {
+			if ( '' === $from || $from > $date || ( '' !== $to && $to < $date ) ) {
 				continue;
 			}
 
@@ -253,6 +267,7 @@ final class Patterns {
 			'id'             => (string) $row['id'],
 			'user_id'        => (string) $row['user_id'],
 			'effective_from' => (string) $row['effective_from'],
+			'effective_to'   => (string) ( $row['effective_to'] ?? '' ),
 			'note'           => (string) ( $row['note'] ?? '' ),
 			'created_at'     => (int) ( $row['created_at'] ?? 0 ),
 			'created_by'     => (int) ( $row['created_by'] ?? 0 ),

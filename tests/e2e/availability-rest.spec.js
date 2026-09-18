@@ -71,6 +71,37 @@ test('a second week from a later date wins, and the first stays in the history',
   expect(answer.history).toHaveLength(2);
 });
 
+test('a week until a date hands back to the one before it, and is kept in the history', async () => {
+  // Reduced hours for one past month only: the 2021 week is in force again today.
+  const wrote = await api.post(`/users/${person.id}/availability/hours`, {
+    effective_from: '2022-03-01',
+    effective_to: '2022-03-31',
+    ...WEEK,
+    hours_mon: 4,
+    hours_tue: 4,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.pattern.effective_to).toBe('2022-03-31');
+  expect(answer.current.effective_from).toBe('2021-01-01');
+  expect(answer.current.hours_week).toBe(40);
+  expect(answer.history).toHaveLength(3);
+});
+
+test('an end before the start, or a day over twelve hours, is refused by field', async () => {
+  const backwards = await api.post(`/users/${person.id}/availability/hours`, { effective_from: '2022-05-01', effective_to: '2022-04-01', ...WEEK });
+  expect(backwards.status()).toBe(400);
+  expect((await backwards.json()).data.fields.effective_to).toContain('on or after');
+
+  const long = await api.post(`/users/${person.id}/availability/hours`, { effective_from: '2022-05-01', ...WEEK, hours_wed: 13 });
+  expect(long.status()).toBe(400);
+  expect((await long.json()).data.fields.hours_wed).toContain('12');
+
+  // Neither was written.
+  expect((await api.get(`/users/${person.id}/availability`)).history).toHaveLength(3);
+});
+
 test('a week without a real date is refused by field', async () => {
   const wrote = await api.post(`/users/${person.id}/availability/hours`, { effective_from: '2021-02-30', ...WEEK });
 

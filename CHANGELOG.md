@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.118.0] - 2026-09-18
+
+### Added
+
+- A working week can be set until a date as well as from one. After the last day, the week that was in force before it applies again — so reduced hours for a month hand back to the usual week without a second entry.
+
+### Changed
+
+- No day may hold more than 12 hours; the form and the server both refuse it.
+
 ## [2.117.0] - 2026-09-18
 
 ### Changed

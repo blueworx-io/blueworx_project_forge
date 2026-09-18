@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 25;
+	public const VERSION = 26;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -889,6 +889,7 @@ final class Schema {
 	id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,
 	effective_from varchar(10) NOT NULL,
+	effective_to varchar(10) NULL,
 	hours_mon decimal(5,2) NOT NULL DEFAULT 0,
 	hours_tue decimal(5,2) NOT NULL DEFAULT 0,
 	hours_wed decimal(5,2) NOT NULL DEFAULT 0,
