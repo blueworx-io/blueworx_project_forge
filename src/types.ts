@@ -142,7 +142,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'support';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -949,4 +949,89 @@ export interface PackagesAnswer {
   packages: SupportPackage[];
   package?: SupportPackage;
   changed?: boolean;
+}
+
+/* ---- Support (PR 5 of spec 2026-09-16) ---- */
+
+/** A site's position today, as `Commerce\Support` names it. */
+export type SupportState = 'none' | 'scheduled' | 'active' | 'suspended' | 'lapsed';
+
+export interface SupportPosition {
+  state: SupportState;
+  label: string;
+  may_use_hours: boolean;
+  covered_until: string | null;
+  balance: number;
+}
+
+/** One period a site has been in, with the package's name and version beside it. */
+export interface SupportPeriod {
+  id: string;
+  client_site_id: string;
+  client_id: string;
+  package_version_id: string;
+  state: SupportState;
+  starts_on: string;
+  ends_on: string;
+  term_ends_on: string;
+  began_because: string;
+  ended_because: string;
+  hours_granted: number;
+  price_charged: number;
+  currency: string;
+  prorated: boolean;
+  note: string;
+  created_at: number;
+  updated_at: number;
+  created_by: number;
+  record_version: number;
+  package_name: string;
+  package_version: number;
+}
+
+/** One line of the hour ledger. `hours` is signed. */
+export interface LedgerEntry {
+  id: string;
+  client_site_id: string;
+  event_type: string;
+  hours: number;
+  source_type: string;
+  source_id: string;
+  reason: string;
+  expires_at: number;
+  actor: number;
+  occurred_at: number;
+  created_at: number;
+  created_by: number;
+  when: string;
+  source: string;
+}
+
+/** A package on offer, as the assign form lists it: the catalogue entry and its version in force. */
+export interface SupportOffer {
+  id: string;
+  name: string;
+  current: { id: string; hours: number; price: number; currency: string; validity_months: number };
+}
+
+/** What `/client-sites/<id>/support` answers, and what every write there answers too. */
+export interface SupportAnswer {
+  ok: true;
+  site: { id: string; name: string; client_id: string };
+  position: SupportPosition;
+  periods: SupportPeriod[];
+  ledger: LedgerEntry[];
+  packages: SupportOffer[];
+  assignment?: SupportPeriod;
+  entry?: LedgerEntry;
+}
+
+/** What assigning would grant, before anything is written (COMM-2). */
+export interface SupportPreview {
+  ok: true;
+  hours: number;
+  price: number;
+  currency: string;
+  ends_on: string;
+  prorated: boolean;
 }

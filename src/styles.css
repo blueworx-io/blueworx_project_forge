@@ -2643,6 +2643,37 @@ td[ data-band='over' ] {
   gap: 2px;
 }
 
+/* ---- Support (PR 5 of spec 2026-09-16) ---- */
+
+.bwx-support {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+/* The two stats side by side: what the site is on, and what it has. */
+.bwx-support-position {
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax( 220px, 1fr ) );
+  gap: 16px;
+}
+
+/* One site, chosen — shared by every screen that is about a single site. */
+.bwx-site-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.bwx-site-picker label {
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+
 /* ---- Clients (PR 4 of spec 2026-09-16) ---- */
 
 .bwx-clients {

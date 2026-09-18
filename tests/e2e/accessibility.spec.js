@@ -43,6 +43,7 @@ const APP_SCREENS = [
   [ 'People', 'bwx-screen-people' ],
   [ 'Availability', 'bwx-screen-availability' ],
   [ 'Packages', 'bwx-screen-packages' ],
+  [ 'Support', 'bwx-screen-support' ],
 ];
 
 test.describe( 'the studio is usable by everyone', () => {
@@ -74,7 +75,9 @@ test.describe( 'the studio is usable by everyone', () => {
     const { client, site } = await Forge.makeSite( admin.api, `Access App Co ${ RUN_ID }`, RUN_ID );
 
     await Forge.makeItem( admin.api, site.id, { title: `Something to draw ${ RUN_ID }` } );
-    await Forge.makePackage( admin.api, `Access ${ RUN_ID }` );
+    // The site on that package, so Support is checked with a period and a
+    // ledger line rather than two empty tables.
+    await Forge.onSupport( admin, site.id );
     // A person with a membership, so People is checked with a card and a
     // table on it rather than empty.
     await Forge.makePerson( admin.api, client.id, 'staff', `access${ RUN_ID.replace( '-', '' ) }` );
@@ -83,6 +86,11 @@ test.describe( 'the studio is usable by everyone', () => {
 
     await page.goto( '/blueworx-forge/' );
     await expect( page.getByTestId( 'bwx-forge-ready' ) ).toBeVisible();
+
+    // Support opens on the site last chosen in this browser, or on nothing.
+    // Remembering the walk's site (the key is src/sites.ts's) means the
+    // position, the periods and the ledger are checked, not the empty state.
+    await page.evaluate( ( id ) => window.localStorage.setItem( 'bwx-forge-site', id ), site.id );
 
     for ( const [ name, testId ] of APP_SCREENS ) {
       await page.getByTestId( testId ).click();
