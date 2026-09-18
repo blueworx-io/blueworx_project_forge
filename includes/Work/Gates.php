@@ -413,6 +413,11 @@ final class Gates {
 	private static function filled( string $field, array $item ): bool {
 		$value = $item[ $field ] ?? '';
 
+		if ( in_array( $field, Fields::RICH, true ) ) {
+			// Formatting with nothing in it is nothing.
+			return '' !== Fields::plain( (string) $value );
+		}
+
 		if ( 'commercial_class' === $field ) {
 			// 'unclassified' is the column's default, so it means nobody has
 			// classified it — the opposite of an answer.

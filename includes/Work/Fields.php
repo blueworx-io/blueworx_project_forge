@@ -144,6 +144,53 @@ final class Fields {
 	);
 
 	/**
+	 * The two long fields that carry formatting: what an item is, and when it
+	 * is done. Stored as HTML, and only this HTML.
+	 */
+	public const RICH = array( 'problem', 'acceptance_criteria' );
+
+	/**
+	 * The formatting a rich field may hold, in the shape wp_kses() takes.
+	 * Bold, italics, underline, the two kinds of list, and a link — and no
+	 * attributes but the link's address.
+	 */
+	public const ALLOWED_HTML = array(
+		'p'      => array(),
+		'br'     => array(),
+		'strong' => array(),
+		'em'     => array(),
+		'u'      => array(),
+		'ul'     => array(),
+		'ol'     => array(),
+		'li'     => array(),
+		'a'      => array( 'href' => true ),
+	);
+
+	/**
+	 * A checklist row's longest line.
+	 */
+	public const CHECKLIST_LINE = 191;
+
+	/**
+	 * How many rows a checklist holds at most.
+	 */
+	public const CHECKLIST_ROWS = 10;
+
+	/**
+	 * A rich field as plain text: what "is it filled in", a search and a
+	 * one-line use all read. Paragraph and line ends become newlines first, so
+	 * two lines do not run into one word.
+	 *
+	 * @param string $html The stored value.
+	 * @return string
+	 */
+	public static function plain( string $html ): string {
+		$broken = str_replace( array( '<br>', '<br/>', '<br />', '</li>' ), "\n", str_replace( '</p>', "\n\n", $html ) );
+
+		return trim( wp_strip_all_tags( $broken ) );
+	}
+
+	/**
 	 * How an item is classified commercially (COMM-5). A free bug is one we
 	 * caused; a free general item is one nobody is charged for at all.
 	 */
@@ -176,7 +223,7 @@ final class Fields {
 			self::PLANNING,
 			self::COMMERCIAL,
 			self::DELIVERY,
-			array( 'level', 'work_type', 'parent_id' )
+			array( 'level', 'work_type', 'parent_id', 'checklist' )
 		);
 	}
 }

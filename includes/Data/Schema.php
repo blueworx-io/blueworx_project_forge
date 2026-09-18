@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 24;
+	public const VERSION = 25;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -673,6 +673,7 @@ final class Schema {
 	requirements text NOT NULL,
 	acceptance_criteria text NOT NULL,
 	references_text text NOT NULL,
+	checklist text NULL,
 	stage varchar(32) NOT NULL DEFAULT 'future-idea',
 	prior_stage varchar(32) NOT NULL DEFAULT '',
 	blocked_at bigint(20) unsigned NOT NULL DEFAULT 0,
