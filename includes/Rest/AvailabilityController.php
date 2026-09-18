@@ -16,13 +16,13 @@ use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
 
 /**
- * What the availability admin screen does, as routes, so the studio app can
- * be the one place this is done. The reads and writes are the ones
- * `Admin\AvailabilityActions` makes; the shapes are the Capacity classes'
- * own. Every answer is the whole picture for one person, so a screen that
- * has just written never has to read again.
+ * What the Availability admin page did, as routes, so the studio app is the
+ * one place this is done. The reads and writes are the ones that page made;
+ * the shapes are the Capacity classes' own. Every answer is the whole
+ * picture for one person, so a screen that has just written never has to
+ * read again.
  *
- * Administrators only, reads included: the admin page it replaces requires
+ * Administrators only, reads included: the admin page it replaced required
  * the same, and a person's hours are configuration, not work.
  */
 final class AvailabilityController {

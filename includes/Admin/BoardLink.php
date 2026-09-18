@@ -14,9 +14,10 @@ use Blueworx\Forge\Frontend;
 /**
  * A "Board" entry in the Forge menu, pointing at the front-end app.
  *
- * ARCH-7 puts the work on a front-end page and the configuration in the admin,
- * which leaves the screen people live in all day as the only one with no way
- * to reach it: you had to know the address. This is that way.
+ * ARCH-7 puts every screen the studio uses on a front-end page and leaves the
+ * admin with only what needs WordPress itself, which leaves the screen people
+ * live in all day as the only one with no way to reach it from here: you had
+ * to know the address. This is that way.
  *
  * **It is a link, not a page.** WordPress renders a submenu whose slug is a
  * full URL as a plain anchor, so nothing is registered to render and nothing

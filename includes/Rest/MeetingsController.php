@@ -22,12 +22,12 @@ use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
 
 /**
- * What the Meetings admin screen does, as routes, so the studio app can be
- * the one place it is done (PR 6 of spec 2026-09-17). The writes are the
- * ones `Admin\MeetingActions` makes; the rules are `Meetings\Validate`'s,
- * `Meetings\Series`' and `Meetings\Diary`'s own, and nothing is checked here
- * that they do not check themselves — a null from the domain becomes the
- * sentence the admin page shows, and that is all.
+ * What the Meetings admin page did, as routes, so the studio app is the one
+ * place it is done (PR 6 of spec 2026-09-17). The writes are the ones that
+ * page made; the rules are `Meetings\Validate`'s, `Meetings\Series`' and
+ * `Meetings\Diary`'s own, and nothing is checked here that they do not check
+ * themselves — a null from the domain becomes the sentence the page showed,
+ * and that is all.
  *
  * **Every answer is settled first.** There is no cron in this plugin, so
  * {@see Hours::reconcile_site()} runs before the picture is drawn, on a read

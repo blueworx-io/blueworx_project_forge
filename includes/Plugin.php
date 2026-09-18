@@ -66,14 +66,6 @@ final class Plugin {
 
 		Admin\SiteActions::boot();
 
-		add_action( 'admin_menu', array( Admin\ClientsScreen::class, 'register' ) );
-
-		Admin\ClientActions::boot();
-
-		add_action( 'admin_menu', array( Admin\PeopleScreen::class, 'register' ) );
-
-		Admin\PeopleActions::boot();
-
 		/*
 		 * Last in the menu, whatever order the screens are hooked up in here.
 		 * Updates is the one entry nobody opens as part of doing the work — it
@@ -84,17 +76,11 @@ final class Plugin {
 
 		Admin\UpdatesActions::boot();
 
-		add_action( 'admin_menu', array( Admin\AvailabilityScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\OnboardingTemplateScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\SyncScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionsScreen::class, 'register' ) );
 		Admin\ConnectionActions::boot();
 		Admin\ProfileSlack::boot();
-		add_action( 'admin_menu', array( Admin\PackagesScreen::class, 'register' ) );
-
-		Admin\PackageActions::boot();
-
-		add_action( 'admin_menu', array( Admin\SupportScreen::class, 'register' ) );
 
 		/*
 		 * #157. The one studio screen that spans clients on purpose: who needs
@@ -102,18 +88,6 @@ final class Plugin {
 		 */
 		add_action( 'admin_menu', array( Admin\SalesScreen::class, 'register' ) );
 
-		Admin\SupportActions::boot();
-
-		/*
-		 * #152 to #155. Standing meetings are something you configure about a
-		 * client, like their package and their people — so under ARCH-7 they
-		 * get a WordPress admin page rather than a place on the board.
-		 */
-		add_action( 'admin_menu', array( Admin\MeetingsScreen::class, 'register' ) );
-
-		Admin\MeetingActions::boot();
-
-		Admin\AvailabilityActions::boot();
 		Admin\OnboardingTemplateActions::boot();
 
 		Tenancy\IntegrationEvents::boot();

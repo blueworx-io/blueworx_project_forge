@@ -13,6 +13,7 @@ use Blueworx\Forge\Commerce\Assignments;
 use Blueworx\Forge\Commerce\Attention;
 use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\Support;
+use Blueworx\Forge\Frontend;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
 
@@ -120,7 +121,7 @@ final class SalesScreen {
 			echo '</div></td><td class="bw-table__actions">';
 			printf(
 				'<a class="bw-btn bw-btn--secondary bw-btn--sm" href="%1$s">%2$s</a>',
-				esc_url( SupportScreen::url( $row['site_id'] ) ),
+				esc_url( Frontend::instance()->app_page_url() . '#screen=support&site=' . rawurlencode( $row['site_id'] ) ),
 				esc_html__( 'Open', 'blueworx-forge' )
 			);
 			echo '</td></tr>';

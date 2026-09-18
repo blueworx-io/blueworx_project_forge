@@ -14,11 +14,11 @@ use Blueworx\Forge\Commerce\Terms;
 use WP_REST_Request;
 
 /**
- * What the package catalogue admin screen does, as routes, so the studio app
- * can be the one place it is done (PR 2 of spec 2026-09-16). The writes are
- * the ones `Admin\PackageActions` makes; the rules are `Commerce\Packages`'
- * and `Commerce\Terms`' own. Every answer is the whole catalogue, so a
- * screen that has just written never has to read again.
+ * What the Packages admin page did, as routes, so the studio app is the one
+ * place it is done (PR 2 of spec 2026-09-16). The writes are the ones that
+ * page made; the rules are `Commerce\Packages`' and `Commerce\Terms`' own.
+ * Every answer is the whole catalogue, so a screen that has just written
+ * never has to read again.
  *
  * COMM-1 is visible in the shape: a package is revised by posting a new
  * version, and no route edits a version that exists.
