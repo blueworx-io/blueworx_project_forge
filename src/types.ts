@@ -382,7 +382,11 @@ export interface WorkEvent {
   outcome: string;
   reason: string;
   detail: string;
+  /** Which field, when the action is an edit. */
+  field: string;
   occurred_at: number;
+  /** Who did it, by display name; empty when it was the system. */
+  actor_name: string;
 }
 
 /** How often a recurring task is due (PR 3). */

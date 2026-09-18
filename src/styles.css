@@ -592,7 +592,7 @@ body {
    sentence. */
 .bwx-seat {
   display: grid;
-  grid-template-columns: minmax( 0, 1fr ) 96px;
+  grid-template-columns: minmax( 0, 1fr ) 140px;
   gap: 12px;
   align-items: end;
 }
@@ -2258,15 +2258,161 @@ td[ data-band='over' ] {
   color: var( --ink-500 );
 }
 
-/* A section that opens with an eyebrow is a panel: the eyebrow is its head. */
-.bwx-panel > div:has( > .bwx-eyebrow:first-child ),
-.bwx-panel > div[data-testid='bwx-return'],
-.bwx-panel > div[data-testid='bwx-gate'],
-.bwx-panel [data-testid='bwx-gate'] {
+/*
+ * The item panel's frame: a head that stays, a body that scrolls, a foot that
+ * stays. The other asides share .bwx-panel and keep scrolling as a whole.
+ */
+.bwx-panel--framed {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.bwx-panel--framed > .bwx-panel-head {
+  padding: 20px 24px 14px;
+  margin: 0;
+}
+.bwx-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bwx-panel-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid var( --border-hairline );
+  background: var( --surface-card );
+}
+.bwx-panel-foot > :last-child {
+  margin-left: auto;
+}
+
+/* A section that opens with an eyebrow is a card: the eyebrow is its head. */
+.bwx-panel-body > div:has( > .bwx-eyebrow:first-child ),
+.bwx-panel-body > details:has( > .bwx-eyebrow:first-child ),
+.bwx-panel-body > div[data-testid='bwx-gate'],
+.bwx-panel-body [data-testid='bwx-gate'] {
   background: var( --surface-card );
   border: 1px solid var( --border-hairline );
   border-radius: 12px;
   padding: 12px 16px;
+}
+
+/* Actions sit on the right of their row, and a form ends in a small footer. */
+.bwx-panel-body .bwx-moves {
+  justify-content: flex-end;
+}
+.bwx-panel-body .bwx-field + .bwx-field,
+.bwx-panel-body .bwx-field + .bwx-pair,
+.bwx-panel-body .bwx-pair + .bwx-field,
+.bwx-panel-body .bwx-seat + .bwx-seat,
+.bwx-panel-body .bwx-field + .bwx-seat,
+.bwx-panel-body .bwx-seat + .bwx-pair {
+  margin-top: 12px;
+}
+.bwx-panel-body .bwx-form-foot {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var( --border-hairline );
+}
+
+/* Send back, Block, End it: each a direction and a colour. */
+.bwx-toggles {
+  justify-content: flex-end;
+}
+.bwx-toggle {
+  background: var( --surface-card );
+  box-shadow: var( --shadow-xs );
+}
+.bwx-toggle[ data-tone='return' ] {
+  color: var( --color-warning );
+  border-color: var( --color-warning-border );
+}
+.bwx-toggle[ data-tone='block' ] {
+  color: var( --stage-blocked-ink );
+  border-color: var( --stage-blocked-edge );
+}
+.bwx-toggle[ data-tone='end' ] {
+  color: var( --phase-done-ink );
+  border-color: var( --phase-done-border );
+}
+.bwx-toggle[ data-tone='return' ]:hover:not( :disabled ),
+.bwx-toggle[ data-tone='return' ][ aria-pressed='true' ] {
+  background: var( --color-warning-bg );
+}
+.bwx-toggle[ data-tone='block' ]:hover:not( :disabled ),
+.bwx-toggle[ data-tone='block' ][ aria-pressed='true' ] {
+  background: var( --stage-blocked-wash );
+}
+.bwx-toggle[ data-tone='end' ]:hover:not( :disabled ),
+.bwx-toggle[ data-tone='end' ][ aria-pressed='true' ] {
+  background: var( --phase-done-bg );
+}
+.bwx-actions-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var( --border-hairline );
+}
+
+/* A "before" row: what and how on the left, its control on the right. */
+.bwx-panel-body .bwx-unmet li {
+  display: grid;
+  grid-template-columns: minmax( 0, 1fr ) auto;
+  column-gap: 12px;
+  align-items: center;
+}
+.bwx-panel-body .bwx-unmet li > .bwx-unmet-label,
+.bwx-panel-body .bwx-unmet li > .bwx-unmet-how,
+.bwx-panel-body .bwx-unmet li > .bwx-over,
+.bwx-panel-body .bwx-unmet li > .bwx-short {
+  grid-column: 1;
+}
+.bwx-panel-body .bwx-unmet li > .bwx-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.bwx-panel-body .bwx-unmet li > .bwx-input,
+.bwx-panel-body .bwx-unmet li > .bwx-moves {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+/* History folds; each line ends in who did it. */
+.bwx-history-wrap > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.bwx-history-wrap > summary::-webkit-details-marker {
+  display: none;
+}
+.bwx-history-wrap > summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 14px;
+  color: var( --ink-500 );
+}
+.bwx-history-wrap[ open ] > summary::before {
+  content: '▾';
+}
+.bwx-history-wrap:not( [open] ) > summary {
+  margin-bottom: 0;
+}
+.bwx-history-who {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var( --surface-sunken );
+  border: 1px solid var( --border-hairline );
+  font-size: var( --text-micro );
+  color: var( --ink-700 );
+  white-space: nowrap;
 }
 .bwx-panel .bwx-eyebrow {
   font-size: 11px;
@@ -2360,6 +2506,9 @@ td[ data-band='over' ] {
   gap: 0;
 }
 .bwx-panel .bwx-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 0;
   border-top: 1px solid var( --border-hairline );
   font-size: var( --text-small );

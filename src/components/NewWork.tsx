@@ -30,12 +30,15 @@ export function NewWork( {
   onCreated,
 }: {
   clientSiteId: string;
-  /** Offered when the board is on "All clients", so the form has to ask. */
+  /** Every site there is, so the form can ask which client this is for. */
   sites?: SiteOption[];
   onClose: () => void;
   onCreated: () => void;
 } ) {
-  const [ siteId, setSiteId ] = useState( () => ( 0 < sites.length ? ( sites.find( ( one ) => one.studio )?.id ?? sites[ 0 ].id ) : clientSiteId ) );
+  // The board's site when it is on one; otherwise the studio's own, then whatever is first.
+  const [ siteId, setSiteId ] = useState( () =>
+    sites.some( ( one ) => one.id === clientSiteId ) ? clientSiteId : sites.find( ( one ) => one.studio )?.id ?? sites[ 0 ]?.id ?? clientSiteId
+  );
   const [ title, setTitle ] = useState( '' );
   const [ problem, setProblem ] = useState( '' );
   const [ level, setLevel ] = useState( 'feature' );
@@ -97,7 +100,7 @@ export function NewWork( {
 
         { 0 < sites.length && (
           <div className="bwx-field">
-            <label htmlFor="bwx-new-site">Site</label>
+            <label htmlFor="bwx-new-site">Client</label>
             <select
               id="bwx-new-site"
               className="bwx-select"
@@ -126,7 +129,7 @@ export function NewWork( {
         </div>
 
         <div className="bwx-field">
-          <label htmlFor="bwx-new-problem">Problem it solves</label>
+          <label htmlFor="bwx-new-problem">Item description</label>
           <textarea
             id="bwx-new-problem"
             className="bwx-textarea"

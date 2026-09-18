@@ -561,7 +561,7 @@ export function WorkScreen( {
       { adding && '' !== siteId && (
         <NewWork
           clientSiteId={ siteId }
-          sites={ ALL_SITES === siteId ? sites : [] }
+          sites={ sites }
           onClose={ () => setAdding( false ) }
           onCreated={ () => void loadItems( siteId ) }
         />

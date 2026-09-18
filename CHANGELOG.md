@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.115.0] - 2026-09-18
+
+### Changed
+
+- The task panel has a fixed header and footer — Delete on the left, Save changes on the right — with every block in its own card and its buttons on the right. Problem it solves is now Item description, Done when is Completed when, and Scope and Requirements are gone. Who pays for it offers To be confirmed, Site bug, Client, or No charge; Site bug means we delivered the thing that broke, so the separate tick is gone. History stays folded until opened, lists what actually happened with one line per save and who did it, and adding a comment never needed Save. New task asks which client it is for.
+
 ## [2.114.1] - 2026-09-18
 
 ### Changed
