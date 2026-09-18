@@ -9,7 +9,7 @@ import { phaseOf } from '../phases';
  * the stylesheet carries the design, and neither holds a literal.
  */
 
-export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger' | 'link';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export function Button( {

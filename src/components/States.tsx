@@ -85,3 +85,34 @@ export function Inline( {
     </p>
   );
 }
+
+/**
+ * What a screen says after something happened, and how it went. Green is
+ * "that worked", yellow is "mind this", red is "that did not work" — the
+ * colour repeats what the words say, so a message is never red by default.
+ */
+export type SaidTone = 'ok' | 'warn' | 'danger';
+
+export interface Said {
+  text: string;
+  tone: SaidTone;
+}
+
+export const NOTHING_SAID: Said = { text: '', tone: 'ok' };
+
+export const ok = ( text: string ): Said => ( { text, tone: 'ok' } );
+export const warn = ( text: string ): Said => ( { text, tone: 'warn' } );
+export const failed = ( text: string ): Said => ( { text, tone: 'danger' } );
+
+/** The banner itself; nothing when there is nothing to say. */
+export function Notice( { said, testId }: { said: Said; testId?: string } ) {
+  if ( '' === said.text ) {
+    return null;
+  }
+
+  return (
+    <p className="bwx-notice" data-tone={ said.tone } data-testid={ testId } role="status">
+      { said.text }
+    </p>
+  );
+}

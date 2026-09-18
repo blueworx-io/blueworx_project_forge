@@ -657,6 +657,19 @@ body {
   color: var( --color-steel );
 }
 
+/* Green for something that worked, yellow for something to mind; red is the default, for something that did not. */
+.bwx-notice[ data-tone='ok' ] {
+  border-color: var( --color-success-border );
+  background: var( --color-success-bg );
+  color: var( --color-success );
+}
+
+.bwx-notice[ data-tone='warn' ] {
+  border-color: var( --color-warning-border );
+  background: var( --color-warning-bg );
+  color: var( --color-warning );
+}
+
 @media ( prefers-reduced-motion: reduce ) {
   .bwx-card {
     transition: none;

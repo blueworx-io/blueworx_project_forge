@@ -10,7 +10,6 @@ const LEVELS = [
 ];
 
 const TYPES = [
-  { id: 'feature', label: 'Feature' },
   { id: 'bug', label: 'Bug' },
   { id: 'feedback', label: 'Feedback' },
   { id: 'task', label: 'Task' },
@@ -40,7 +39,7 @@ export function NewWork( {
   const [ title, setTitle ] = useState( '' );
   const [ problem, setProblem ] = useState( '' );
   const [ level, setLevel ] = useState( 'feature' );
-  const [ workType, setWorkType ] = useState( 'feature' );
+  const [ workType, setWorkType ] = useState( 'task' );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 

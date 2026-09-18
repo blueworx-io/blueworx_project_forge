@@ -31,7 +31,6 @@ const WEEKDAYS = [
 
 const TYPES = [
   { id: 'task', label: 'Task' },
-  { id: 'feature', label: 'Feature' },
   { id: 'bug', label: 'Bug' },
   { id: 'feedback', label: 'Feedback' },
 ];
