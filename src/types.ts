@@ -142,7 +142,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -721,6 +721,75 @@ export interface Person {
   status: string;
   /** The WordPress account this person signs in with; 0 when none. */
   wp_user_id?: number;
+}
+
+/* ---- People (PR 3 of spec 2026-09-16) ---- */
+
+/** The WordPress account a person signs in with, as the person answer names it. */
+export interface PersonAccount {
+  id: number;
+  login: string;
+}
+
+/** A person's role with one client (#90), labelled for reading. */
+export interface Membership {
+  id: string;
+  user_id: string;
+  client_id: string;
+  /** Empty when the membership reaches every site the client has. */
+  client_site_id: string;
+  role: string;
+  role_label: string;
+  /** Comma-separated, as stored. */
+  grants: string;
+  status: string;
+  created_at: number;
+  updated_at: number;
+  created_by: number;
+  record_version: number;
+  client_name: string;
+  site_name: string | null;
+  [ key: string ]: unknown;
+}
+
+/** A person as the People screen holds them: the record, their account, and everywhere they work. */
+export interface PersonRecord extends Person {
+  email: string;
+  /** Comma-separated, as stored. */
+  grants: string;
+  wp_user_id: number;
+  record_version: number;
+  account: PersonAccount | null;
+  memberships: Membership[];
+}
+
+/** What every write to a person answers, and `GET /users/<id>`. */
+export interface PersonAnswer {
+  ok: true;
+  user: Omit< PersonRecord, 'memberships' >;
+  memberships: Membership[];
+}
+
+/** One grant, with what it means (#93). */
+export interface GrantOption {
+  grant: string;
+  label: string;
+  description: string;
+}
+
+/** What `GET /grants` answers: the grants held on the person, and the ones held with a client. */
+export interface GrantsAnswer {
+  ok: true;
+  on_user: GrantOption[];
+  on_membership: GrantOption[];
+}
+
+/** A WordPress account nobody in Forge holds yet, from `GET /accounts`. */
+export interface UnlinkedAccount {
+  id: number;
+  login: string;
+  display_name: string;
+  user_email: string;
 }
 
 /** One working-week pattern, from a date (#136). Sunday first, as PHP numbers weekdays. */

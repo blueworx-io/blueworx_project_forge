@@ -39,6 +39,7 @@ const APP_SCREENS = [
   [ 'Onboarding', 'bwx-screen-onboarding' ],
   [ 'Today', 'bwx-screen-standup' ],
   [ 'Reports', 'bwx-screen-reports' ],
+  [ 'People', 'bwx-screen-people' ],
   [ 'Availability', 'bwx-screen-availability' ],
   [ 'Packages', 'bwx-screen-packages' ],
 ];
@@ -69,10 +70,13 @@ test.describe( 'the studio is usable by everyone', () => {
     test.slow();
 
     const admin = await Forge.signedIn( browser, baseURL, ADMIN_USER, ADMIN_PASS );
-    const { site } = await Forge.makeSite( admin.api, `Access App Co ${ RUN_ID }`, RUN_ID );
+    const { client, site } = await Forge.makeSite( admin.api, `Access App Co ${ RUN_ID }`, RUN_ID );
 
     await Forge.makeItem( admin.api, site.id, { title: `Something to draw ${ RUN_ID }` } );
     await Forge.makePackage( admin.api, `Access ${ RUN_ID }` );
+    // A person with a membership, so People is checked with a card and a
+    // table on it rather than empty.
+    await Forge.makePerson( admin.api, client.id, 'staff', `access${ RUN_ID.replace( '-', '' ) }` );
 
     const page = await admin.context.newPage();
 

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.110.0] - 2026-09-17
+
+### Added
+
+- People are now in the app, under Team: one card per person with every client they work with beneath it. Add somebody, give them an account, edit, offboard, set their access and grants — without going to WordPress admin. The admin page stays for now.
+
 ## [2.109.0] - 2026-09-17
 
 ### Added

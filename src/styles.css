@@ -2642,3 +2642,24 @@ td[ data-band='over' ] {
   display: inline-flex;
   gap: 2px;
 }
+
+/* ---- People (PR 3 of spec 2026-09-16) ---- */
+
+.bwx-people {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+/* One person, one card; two abreast where there is room, because a card
+   carries a table and a table squeezed into thirds cannot say who reaches
+   what. */
+.bwx-people-cards {
+  display: grid;
+  grid-template-columns: repeat( auto-fill, minmax( 640px, 1fr ) );
+  gap: 16px;
+  align-items: start;
+}
