@@ -7,7 +7,7 @@ import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Panel, Select, Stat, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { everybody } from './ItemPanel';
-import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
+import { failed, NOTHING_SAID, Notice, Screen } from './States';
 import type { Said } from './States';
 
 /**

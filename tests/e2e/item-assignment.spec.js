@@ -103,11 +103,11 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
 
   // Everything Up Next wants, filled in on the screen it is asked for on.
   await page.selectOption('#bwx-primary_user_id', people.primary.id);
-  await page.fill('#bwx-hours_primary', '6');
+  await page.selectOption('#bwx-hours_primary', '3');
   await page.selectOption('#bwx-reviewer_id', people.reviewer.id);
-  await page.fill('#bwx-hours_review', '1');
+  await page.selectOption('#bwx-hours_review', '1');
   await page.selectOption('#bwx-deliverer_id', people.deliverer.id);
-  await page.fill('#bwx-hours_delivery', '1');
+  await page.selectOption('#bwx-hours_delivery', '1');
   await page.fill('#bwx-planned_start', '2026-10-05');
   await page.fill('#bwx-planned_due', '2026-10-09');
   await page.locator('[data-testid="bwx-save"]').click();
@@ -140,7 +140,7 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
   const saved = await admin.api.get(`/work-items/${item.id}`);
 
   expect(saved.item.primary_user_id).toBe(people.primary.id);
-  expect(saved.item.hours_primary).toBe(6);
+  expect(saved.item.hours_primary).toBe(3);
   expect(saved.item.planned_due).toBe('2026-10-09');
 
   await page.close();

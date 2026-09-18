@@ -3,6 +3,7 @@ import { Repeat } from 'lucide-react';
 import type { Person, RecurringRule, RecurringSource, Stage } from '../types';
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
+import { HoursSelect } from '../hours';
 import { DataView, EmptyState, Tag } from '../kit';
 import type { Column } from '../kit';
 import { everybody, ItemPanel } from './ItemPanel';
@@ -373,16 +374,12 @@ function SourceForm( {
             </option>
           ) ) }
         </select>
-        <input
-          className="bwx-input bwx-recurring-hours"
-          data-testid={ `bwx-recurring-${ hours }` }
-          type="number"
-          min="0"
-          step="0.25"
-          placeholder="hours"
-          aria-label={ `${ label } hours` }
+        <HoursSelect
+          className="bwx-select bwx-recurring-hours"
+          testId={ `bwx-recurring-${ hours }` }
+          label={ `${ label } hours` }
           value={ draft[ hours ] }
-          onChange={ ( event ) => set( hours, event.target.value ) }
+          onChange={ ( value ) => set( hours, value ) }
         />
       </span>
     </div>

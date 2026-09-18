@@ -176,6 +176,7 @@ export function StandupScreen() {
         <p
           className="bwx-notice"
           role="status"
+          data-tone={ 'Recorded.' === notice ? 'ok' : undefined }
           data-testid="bwx-standup-notice"
           style={ { margin: '12px 20px 0' } }
         >
