@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
+import { forge, startOnboarding } from './helpers/forge.js';
 
 // #165. Every client's launch readiness in one view.
 //
@@ -46,8 +47,18 @@ async function publishAChecklist(page) {
   await expect(page.locator('[data-bwx-result="published"]')).toBeVisible();
 }
 
+/** The REST caller for the signed-in page: the app page localises the nonce. */
+async function callerFor(page) {
+  await page.goto('/blueworx-forge/');
+
+  const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);
+  expect(nonce, 'no REST nonce was localised for the signed-in user').toBeTruthy();
+
+  return forge(page.request, nonce);
+}
+
 /** Adds a client with one site, gives the site the checklist, returns its id. */
-async function onboardingSite(page) {
+async function onboardingSite(page, api) {
   const clientName = `Board client ${RUN_ID}`;
   const siteName = `Board site ${RUN_ID}`;
 
@@ -70,9 +81,7 @@ async function onboardingSite(page) {
 
   const siteId = await site.getAttribute('data-bwx-site');
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.locator(`li[data-bwx-site="${siteId}"] [data-bwx-assign-onboarding="1"] button`).click();
-  await expect(page.locator('[data-bwx-notice="onboarding-started"]')).toBeVisible();
+  await startOnboarding(api, siteId);
 
   return siteId;
 }
@@ -114,9 +123,10 @@ test('the board reconciles to the same steps the client sees', async ({ page }) 
   test.setTimeout(180_000);
 
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page);
+  const siteId = await onboardingSite(page, api);
 
   await openBoard(page);
 
@@ -145,9 +155,10 @@ test('a brand new checklist reads as nothing done rather than as finished', asyn
   test.setTimeout(180_000);
 
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page);
+  const siteId = await onboardingSite(page, api);
 
   await openBoard(page);
 
@@ -165,9 +176,10 @@ test('a filter narrows what is listed and never what is counted', async ({ page 
   test.setTimeout(180_000);
 
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page);
+  const siteId = await onboardingSite(page, api);
 
   await openBoard(page);
 
@@ -195,9 +207,10 @@ test('a row opens to the steps behind its figures', async ({ page }) => {
   test.setTimeout(180_000);
 
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page);
+  const siteId = await onboardingSite(page, api);
 
   await openBoard(page);
 
@@ -237,9 +250,10 @@ test('a step waiting on us is approved from the board, and the figures move', as
   // not the button: something is handed over, it shows up as ours to answer, it
   // is answered here, and the client's launch readiness changes because of it.
   await signIn(page);
+  const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page);
+  const siteId = await onboardingSite(page, api);
 
   await openBoard(page);
 

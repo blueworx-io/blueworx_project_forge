@@ -142,7 +142,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -459,6 +459,77 @@ export interface Client {
   id: string;
   display_name: string;
   status: string;
+}
+
+/* ---- Clients screen (PR 4 of spec 2026-09-16) ---- */
+
+/** Who looks after a client on our side, as `Contacts::resolve()` answers it. */
+export interface ClientContact {
+  /** The person named, still here or not; null when nobody has been named or they were cleared. */
+  contact: Person | null;
+  /** True when nobody active is named, so the studio stands in. */
+  needs_reassignment: boolean;
+  fallback: 'studio' | '';
+}
+
+/** The whole client record, as every write to a client answers it. */
+export interface ClientRow extends Client {
+  legal_name: string;
+  timezone: string;
+  email_domains: string[];
+  record_version: number;
+}
+
+/** A client as the Clients screen holds it: the record, and the two facts the list joins on. */
+export interface ClientRecord extends ClientRow {
+  is_studio: boolean;
+  contact: ClientContact;
+  [ key: string ]: unknown;
+}
+
+/** One site's connection record, with its health worked out on the server (#89). */
+export interface SiteIntegration {
+  id: string;
+  client_site_id: string;
+  registry_site_id: string;
+  key_state: 'unissued' | 'active' | 'revoked';
+  key_issued_at: number;
+  key_rotated_at: number;
+  key_revoked_at: number;
+  last_seen_at: number;
+  mail_capable: 'unknown' | 'yes' | 'no';
+  health: 'unconfigured' | 'revoked' | 'never_connected' | 'connected' | 'broken' | 'idle';
+  health_label: string;
+  record_version: number;
+  [ key: string ]: unknown;
+}
+
+/** Where a site is with its onboarding (#160); null when no checklist has been published to give. */
+export interface SiteOnboarding {
+  started: boolean;
+  ready: boolean;
+  template_version: number;
+  /** Percentage of required steps done; a float, for showing rather than comparing. */
+  completion: number;
+  /** Launch-critical steps still outstanding. */
+  blocking: number;
+}
+
+/** A site as the Clients screen holds it, from `GET /clients/<id>/sites`. */
+export interface ClientSiteRecord extends ClientSite {
+  url: string;
+  record_version: number;
+  integration: SiteIntegration | null;
+  onboarding: SiteOnboarding | null;
+  [ key: string ]: unknown;
+}
+
+/** What `POST /client-sites/<id>/integration/key` answers: the key, once, and nowhere else. */
+export interface IssuedKey {
+  ok: true;
+  rotated: boolean;
+  key: string;
+  integration: SiteIntegration;
 }
 
 /* ---- Onboarding board (#165) ---- */
