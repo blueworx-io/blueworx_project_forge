@@ -18,6 +18,7 @@ use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Dependencies;
@@ -1373,13 +1374,26 @@ final class WorkItemsController {
 
 		$body = (array) $request->get_json_params();
 
+		/*
+		 * The Block form picks (2026-09-18): the blocker and the dependency
+		 * may be one of the site's items and the owner one of our people or
+		 * the client. What is stored is the label — the title, the name — so
+		 * the record reads the same whether it was picked or typed.
+		 */
+		$reason     = self::item_label( (string) ( $body['reason'] ?? '' ), $ready['item'] );
+		$dependency = self::item_label( (string) ( $body['dependency'] ?? '' ), $ready['item'] );
+
+		if ( null === $reason || null === $dependency ) {
+			return Boundary::absent( 'work_item' );
+		}
+
 		return self::answer(
 			Transition::block(
 				$ready['item'],
 				array(
-					'reason'      => (string) ( $body['reason'] ?? '' ),
-					'owner'       => (string) ( $body['owner'] ?? '' ),
-					'dependency'  => (string) ( $body['dependency'] ?? '' ),
+					'reason'      => $reason,
+					'owner'       => self::person_label( (string) ( $body['owner'] ?? '' ) ),
+					'dependency'  => $dependency,
 					'target_date' => (string) ( $body['target_date'] ?? '' ),
 					'next_action' => (string) ( $body['next_action'] ?? '' ),
 				),
@@ -1387,6 +1401,50 @@ final class WorkItemsController {
 				get_current_user_id()
 			)
 		);
+	}
+
+	/**
+	 * A picked item's title, or the text as typed.
+	 *
+	 * An item on another site gets the same answer as one that does not
+	 * exist, for the reason add_dependency() gives.
+	 *
+	 * @param string               $value An item id, or words.
+	 * @param array<string, mixed> $item  The item being blocked.
+	 * @return string|null Null when the id names nothing this item may see.
+	 */
+	private static function item_label( string $value, array $item ): ?string {
+		if ( 0 !== strpos( $value, Items::PREFIX . '_' ) ) {
+			return $value;
+		}
+
+		$picked = Items::get( $value );
+
+		if ( null === $picked || (string) $picked['client_site_id'] !== (string) $item['client_site_id'] ) {
+			return null;
+		}
+
+		return (string) $picked['title'];
+	}
+
+	/**
+	 * A picked person's name, "The client", or the text as typed.
+	 *
+	 * @param string $value A person id, 'client', or words.
+	 * @return string
+	 */
+	private static function person_label( string $value ): string {
+		if ( 'client' === $value ) {
+			return 'The client';
+		}
+
+		if ( 0 !== strpos( $value, Users::PREFIX . '_' ) ) {
+			return $value;
+		}
+
+		$person = Users::get( $value );
+
+		return null === $person ? $value : (string) $person['display_name'];
 	}
 
 	/**
@@ -1489,19 +1547,6 @@ final class WorkItemsController {
 	}
 
 	/**
-	 * Asks the permission layer, and refuses in the shape every route answers
-	 * with.
-	 *
-	 * Every workflow mutation goes through here, which is what makes the client
-	 * transition lock a lock rather than a habit (#115): there is no route that
-	 * moves work without asking, so there is no route a client role can reach
-	 * by finding the one that forgot.
-	 *
-	 * @param string               $capability What is being exercised.
-	 * @param array<string, mixed> $item       The item it is being exercised on.
-	 * @return \WP_Error|null Null when it is allowed.
-	 */
-	/**
 	 * A history entry with the name of whoever did it, for the panel's pill.
 	 *
 	 * @param array<string, mixed> $entry One event.
@@ -1516,6 +1561,19 @@ final class WorkItemsController {
 		return $entry;
 	}
 
+	/**
+	 * Asks the permission layer, and refuses in the shape every route answers
+	 * with.
+	 *
+	 * Every workflow mutation goes through here, which is what makes the client
+	 * transition lock a lock rather than a habit (#115): there is no route that
+	 * moves work without asking, so there is no route a client role can reach
+	 * by finding the one that forgot.
+	 *
+	 * @param string               $capability What is being exercised.
+	 * @param array<string, mixed> $item       The item it is being exercised on.
+	 * @return \WP_Error|null Null when it is allowed.
+	 */
 	private static function permit( string $capability, array $item ) {
 		return Access::refuse_unless( $capability, (string) $item['client_id'], $item );
 	}

@@ -824,16 +824,100 @@ final class Transition {
 			$context['support_hours'] = WorkLedger::gate( $item );
 		}
 
+		/*
+		 * What the auto items read (2026-09-18), each looked up only when a
+		 * gate in this move asks. Evidence is an entry with a link since the
+		 * item entered the stage it is at; feedback is the client questions
+		 * still open; the dependencies are the stages of what this waits on.
+		 */
+		if ( self::asks_about( $gates, 'evidence' ) ) {
+			$context['evidence_since_entry'] = self::evidence_since_entry( $item );
+		}
+
+		if ( self::asks_about( $gates, 'feedback' ) ) {
+			$context['outstanding_questions'] = count( Comments::outstanding( (string) $item['id'] ) );
+		}
+
+		if ( self::asks_about( $gates, 'dependencies' ) || self::asks_about( $gates, 'dependencies_ready' ) ) {
+			$context['dependencies'] = self::dependency_stages( $item );
+		}
+
+		$all = array();
+
 		foreach ( $gates as $gate ) {
 			$result = Gates::evaluate( $gate, $item, $records, $context );
 			$unmet  = array_merge( $unmet, $result['unmet'] );
 			$checks = array_merge( $checks, $result['checks'] );
+			$all    = array_merge( $all, $result['all'] );
 		}
 
 		return array(
 			'unmet'  => $unmet,
 			'checks' => $checks,
+			'all'    => $all,
 		);
+	}
+
+	/**
+	 * Whether an entry with a link was added since the item entered the stage
+	 * it is at.
+	 *
+	 * Since the stage was entered, not ever: evidence of the work is evidence
+	 * of this round of it, and a link attached at Bug Tracking says nothing
+	 * about what was tested in Development.
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return bool
+	 */
+	private static function evidence_since_entry( array $item ): bool {
+		$since = self::entered_stage_at( $item );
+
+		foreach ( Comments::for_item( (string) $item['id'], Comments::SCOPE_STAFF ) as $entry ) {
+			if ( '' !== (string) $entry['url'] && (int) $entry['created_at'] >= $since ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * When the item entered the stage it is at: the newest event that put it
+	 * there, or the beginning of time when nothing did.
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return int
+	 */
+	private static function entered_stage_at( array $item ): int {
+		$entered = 0;
+
+		foreach ( Events::for_item( (string) $item['id'] ) as $event ) {
+			if ( (string) $event['to_stage'] === (string) $item['stage'] ) {
+				$entered = (int) $event['occurred_at'];
+			}
+		}
+
+		return $entered;
+	}
+
+	/**
+	 * The stages of everything this item waits on.
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return array<int, string>
+	 */
+	private static function dependency_stages( array $item ): array {
+		$stages = array();
+
+		foreach ( Dependencies::for_item( (string) $item['id'] ) as $row ) {
+			$upstream = Items::get( (string) $row['depends_on_id'] );
+
+			if ( null !== $upstream ) {
+				$stages[] = (string) $upstream['stage'];
+			}
+		}
+
+		return $stages;
 	}
 
 	/**
@@ -851,9 +935,10 @@ final class Transition {
 	private static function asks_about( array $gates, string $check ): bool {
 		foreach ( $gates as $gate ) {
 			foreach ( Gates::requirements( $gate ) as $requirement ) {
-				$asks = (string) ( $requirement['check'] ?? '' );
+				// A record requirement's fallback resolver counts as asking too.
+				$asks = array( (string) ( $requirement['check'] ?? '' ), (string) ( $requirement['auto'] ?? '' ) );
 
-				if ( $asks === $check ) {
+				if ( in_array( $check, $asks, true ) ) {
 					return true;
 				}
 			}
