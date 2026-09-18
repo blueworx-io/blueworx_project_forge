@@ -2359,6 +2359,9 @@ td[ data-band='over' ] {
   padding-top: 12px;
   border-top: 1px solid var( --border-hairline );
 }
+.bwx-actions-form .bwx-select {
+  width: 100%;
+}
 
 /* A "before" row: what and how on the left, its control on the right. */
 .bwx-panel-body .bwx-unmet li {
@@ -2373,9 +2376,19 @@ td[ data-band='over' ] {
 .bwx-panel-body .bwx-unmet li > .bwx-short {
   grid-column: 1;
 }
-.bwx-panel-body .bwx-unmet li > .bwx-button {
+.bwx-panel-body .bwx-unmet li > .bwx-button,
+.bwx-panel-body .bwx-unmet li > .bwx-select,
+.bwx-panel-body .bwx-unmet li > .bwx-unmet-who {
   grid-column: 2;
   grid-row: 1 / span 2;
+}
+.bwx-panel-body .bwx-unmet li > .bwx-select {
+  width: auto;
+  max-width: 220px;
+}
+.bwx-unmet-who {
+  font-size: var( --text-micro );
+  color: var( --color-steel );
 }
 .bwx-panel-body .bwx-unmet li > .bwx-input,
 .bwx-panel-body .bwx-unmet li > .bwx-moves {

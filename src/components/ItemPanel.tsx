@@ -42,6 +42,35 @@ const EDITABLE = [
 /** How many lines a checklist holds, as the server bounds it. */
 const CHECKLIST_ROWS = 10;
 
+/**
+ * The two definition boxes that had no box at all until 2026-09-18. Shown
+ * once the item has reached the stage that wants them, or when they hold
+ * something.
+ */
+const DEFINITION_BOXES = [
+  { field: 'non_goals', label: 'Not covered', needed: 'documentation-period' },
+  { field: 'references', label: 'Reference material', needed: 'documentation-period' },
+] as const;
+
+/** The picks whose item choice is a dependency rather than a record. */
+const DEPENDENCY_PICKS = [ 'G-DOCUMENTATION-6', 'G-TECHNICAL-AUDIT-2', 'G-UP-NEXT-7' ];
+
+/** The pick whose item choice is the parent. */
+const PARENT_PICK = 'G-TRIAGE-3';
+
+/** The pick whose item choice is what End it → duplicate uses. */
+const DUPLICATE_PICK = 'G-TRIAGE-6';
+
+/** The pick whose other answers hand over to End it. */
+const TRIAGE_OUTCOME_PICK = 'G-TRIAGE-7';
+
+/** Whose a requirement is, when it is not anybody's. */
+const FOR_WHOM: Record< string, string > = {
+  PU: 'For the person doing the work',
+  REV: 'For the reviewer',
+  DEL: 'For the deliverer',
+};
+
 const OUTCOME_LABEL: Record< string, string > = {
   rejected: 'Reject',
   duplicate: 'Mark duplicate',
@@ -49,13 +78,6 @@ const OUTCOME_LABEL: Record< string, string > = {
   deferred: 'Defer',
 };
 
-const BLOCKER_FIELDS = [
-  { field: 'reason', label: 'What is blocking it' },
-  { field: 'owner', label: 'Who owns the blocker' },
-  { field: 'dependency', label: 'What it is waiting on' },
-  { field: 'target_date', label: 'Target resolution date' },
-  { field: 'next_action', label: 'Next action' },
-] as const;
 
 /**
  * The three seats, named for what the person does.
@@ -133,6 +155,8 @@ const NEEDED_FROM: Record< string, string > = {
   remaining_estimate: 'in-development',
   release_method: 'completed',
   release_destination: 'completed',
+  non_goals: 'documentation-period',
+  references: 'documentation-period',
 };
 
 /**
@@ -144,6 +168,27 @@ const NEEDED_FROM: Record< string, string > = {
  * tries again.
  */
 let roster: Promise< Person[] > | null = null;
+
+/**
+ * Every requirement there is, by id, fetched once. A box answered at an
+ * earlier stage is still shown with what it holds, and only the definition
+ * knows what kind of box it was.
+ */
+let rulebook: Promise< Record< string, Requirement > > | null = null;
+
+function requirements(): Promise< Record< string, Requirement > > {
+  if ( null === rulebook ) {
+    rulebook = api< { gates: Record< string, Requirement[] > } >( '/gates' )
+      .then( ( answer ) => Object.fromEntries( Object.values( answer.gates ).flat().map( ( row ) => [ row.id, row ] ) ) )
+      .catch( () => {
+        rulebook = null;
+
+        return {};
+      } );
+  }
+
+  return rulebook;
+}
 
 export function everybody(): Promise< Person[] > {
   if ( null === roster ) {
@@ -168,7 +213,7 @@ export function everybody(): Promise< Person[] > {
  */
 function asDraft( item: WorkItem ): Record< string, string > {
   const draft: Record< string, string > = Object.fromEntries(
-    EDITABLE.map( ( { field } ) => [ field, String( item[ field ] ?? '' ) ] )
+    [ ...EDITABLE, ...DEFINITION_BOXES ].map( ( { field } ) => [ field, String( item[ field ] ?? '' ) ] )
   );
 
   for ( const field of ASSIGNMENT ) {
@@ -281,6 +326,20 @@ export function ItemPanel( {
   const overBooked = unmet.some( ( requirement ) => 0 < ( requirement.over?.length ?? 0 ) );
   const [ blocker, setBlocker ] = useState< Record< string, string > >( {} );
   const [ checklist, setChecklist ] = useState< ChecklistRow[] >( [] );
+
+  /*
+   * The before-items answered here and saved with Save changes (2026-09-18):
+   * a pick is a dropdown on its row, a box is a box on the Task card. Both
+   * are keyed by requirement id and become gate records when saved.
+   */
+  const [ picks, setPicks ] = useState< Record< string, string > >( {} );
+  const [ boxes, setBoxes ] = useState< Record< string, string > >( {} );
+
+  /** The site's other open items, for the picks that choose one. */
+  const [ siteItems, setSiteItems ] = useState< WorkItem[] >( [] );
+
+  /** Every requirement by id, for the boxes answered at an earlier stage. */
+  const [ rules, setRules ] = useState< Record< string, Requirement > >( {} );
   const [ resolution, setResolution ] = useState( '' );
   const [ ending, setEnding ] = useState( { outcome: '', reason: '', duplicate_of: '' } );
   const [ comment, setComment ] = useState( {
@@ -311,6 +370,14 @@ export function ItemPanel( {
       setLoadState( 'ready' );
       setDraft( asDraft( loaded.item ) );
       setChecklist( loaded.item.checklist ?? [] );
+      setPicks( {} );
+      setBoxes( {} );
+
+      // The site's other open items, for the picks that choose one. Read
+      // after the item so a slow list never holds the panel up.
+      void api< { items: WorkItem[] } >( `/work-items?client_site_id=${ loaded.item.client_site_id }` )
+        .then( ( answer ) => setSiteItems( answer.items.filter( ( one ) => one.id !== loaded.item.id && ! one.archived && ( '' === one.terminal_outcome || 'deferred' === one.terminal_outcome ) ) ) )
+        .catch( () => setSiteItems( [] ) );
     } catch ( error ) {
       // Told apart deliberately: "we could not load this" and "this is not
       // yours to read" are different problems with different next steps.
@@ -361,6 +428,7 @@ export function ItemPanel( {
 
     // The people who could hold a seat, so the pickers have names in them.
     void everybody().then( setStaffList );
+    void requirements().then( setRules );
 
     // Focus lands in the panel when it opens, so a keyboard user is not left
     // behind on the board underneath it.
@@ -430,6 +498,42 @@ export function ItemPanel( {
     return JSON.stringify( kept ) === JSON.stringify( detail?.item.checklist ?? [] ) ? {} : { checklist: kept };
   }
 
+  /** What a pick or box already holds on the item, as recorded. */
+  const recorded = ( id: string ) => detail?.records[ id ]?.value ?? '';
+
+  /**
+   * The picks and boxes that changed, each as the write that stores it: a
+   * parent is the item's own field, a dependency is its own table, and
+   * everything else is a gate record with the answer as its value.
+   */
+  async function saveAnswers() {
+    for ( const [ id, value ] of Object.entries( picks ) ) {
+      if ( '' === value || value === recorded( id ) ) {
+        continue;
+      }
+
+      if ( DEPENDENCY_PICKS.includes( id ) && value.startsWith( 'wrk_' ) ) {
+        await api( `/work-items/${ itemId }/dependencies`, { method: 'POST', body: { depends_on_id: value } } );
+        continue;
+      }
+
+      if ( PARENT_PICK === id && value.startsWith( 'wrk_' ) ) {
+        // Written with the draft, above.
+        continue;
+      }
+
+      await api( `/work-items/${ itemId }/gate`, { method: 'POST', body: { requirement: id, value, evidence: '' } } );
+    }
+
+    for ( const [ id, value ] of Object.entries( boxes ) ) {
+      if ( '' === value.trim() || value === recorded( id ) ) {
+        continue;
+      }
+
+      await api( `/work-items/${ itemId }/gate`, { method: 'POST', body: { requirement: id, value, evidence: '' } } );
+    }
+  }
+
   async function save() {
     if ( ! detail ) {
       return;
@@ -438,11 +542,27 @@ export function ItemPanel( {
     setBusy( true );
     setNotice( '' );
 
+    const parent = picks[ PARENT_PICK ] ?? '';
+    const edits = {
+      ...draft,
+      ...checklistChange(),
+      ...( parent.startsWith( 'wrk_' ) ? { parent_id: parent } : {} ),
+    };
+
+    // Only an edit is written as an edit. A save that only answered a pick
+    // writes the answer and nothing else, so there is no empty edit in the
+    // history and no refusal about a change nobody made.
+    const edited = JSON.stringify( edits ) !== JSON.stringify( asDraft( detail.item ) );
+
     try {
-      await api( `/work-items/${ itemId }`, {
-        method: 'PATCH',
-        body: { ...draft, ...checklistChange(), record_version: detail.item.record_version },
-      } );
+      if ( edited ) {
+        await api( `/work-items/${ itemId }`, {
+          method: 'PATCH',
+          body: { ...edits, record_version: detail.item.record_version },
+        } );
+      }
+
+      await saveAnswers();
       await load();
       onChanged();
       setNotice( 'Saved.' );
@@ -450,6 +570,82 @@ export function ItemPanel( {
       setNotice( refusal( error ) );
     } finally {
       setBusy( false );
+    }
+  }
+
+  /**
+   * A pick changing. Most are held until Save changes; two hand over: a
+   * triage outcome other than Proceed opens End it with that outcome, and a
+   * duplicate found is what End it → duplicate will use.
+   */
+  function choose( id: string, value: string ) {
+    if ( TRIAGE_OUTCOME_PICK === id && '' !== value && 'proceed' !== value ) {
+      setShowing( 'end' );
+      setEnding( { ...ending, outcome: value } );
+
+      return;
+    }
+
+    if ( DUPLICATE_PICK === id && value.startsWith( 'wrk_' ) ) {
+      setEnding( { ...ending, duplicate_of: value } );
+    }
+
+    setPicks( { ...picks, [ id ]: value } );
+  }
+
+  /** Every row the next stages want, once each. */
+  function stageRows(): Requirement[] {
+    const seen = new Set< string >();
+    const rows: Requirement[] = [];
+
+    for ( const to of detail?.available ?? [] ) {
+      for ( const row of detail?.readiness[ to ]?.all ?? [] ) {
+        if ( ! seen.has( row.id ) ) {
+          seen.add( row.id );
+          rows.push( row );
+        }
+      }
+    }
+
+    return rows;
+  }
+
+  /**
+   * The boxes to show on the task: what a next stage wants, and what was
+   * answered at an earlier stage and is still worth reading.
+   */
+  function boxRows(): Requirement[] {
+    const wanted = stageRows().filter( ( row ) => 'box' === row.control && ( ! row.met || '' !== recorded( row.id ) ) );
+    const shown = new Set( wanted.map( ( row ) => row.id ) );
+    const held = Object.keys( detail?.records ?? {} )
+      .filter( ( id ) => ! shown.has( id ) && '' !== recorded( id ) && 'box' === rules[ id ]?.control )
+      .map( ( id ) => rules[ id ] );
+
+    return [ ...wanted, ...held ];
+  }
+
+  /**
+   * Whether the signed-in person may answer a requirement that belongs to a
+   * seat. Somebody with no Forge person behind them (an administrator) is
+   * offered everything and the server decides.
+   */
+  function allowed( requirement: Requirement ): boolean {
+    const me = forgeData()?.person?.id ?? '';
+    const it = detail?.item;
+
+    if ( '' === me || ! it ) {
+      return true;
+    }
+
+    switch ( requirement.who ) {
+      case 'PU':
+        return it.primary_user_id === me;
+      case 'REV':
+        return it.reviewer_id === me || it.reviewer_substitute_id === me;
+      case 'DEL':
+        return it.deliverer_id === me || it.deliverer_substitute_id === me;
+      default:
+        return true;
     }
   }
 
@@ -834,6 +1030,11 @@ export function ItemPanel( {
                 records={ detail.records }
                 busy={ busy }
                 onComplete={ complete }
+                picks={ picks }
+                onPick={ choose }
+                items={ siteItems }
+                people={ staffList }
+                allowed={ allowed }
               />
             ) ) }
 
@@ -947,28 +1148,103 @@ export function ItemPanel( {
 
             { 'block' === showing && (
               <div className="bwx-actions-form" data-testid="bwx-block">
-                { BLOCKER_FIELDS.map( ( { field, label: name } ) => (
+                { /*
+                    The Block form picks (2026-09-18): the blocker and what it
+                    waits on are one of the site's items or something else in
+                    words; the owner is one of our people or the client. The
+                    server stores the label either way.
+                 */ }
+                { [
+                  { field: 'reason', name: 'What is blocking it' },
+                  { field: 'dependency', name: 'What it is waiting on' },
+                ].map( ( { field, name } ) => (
                   <div className="bwx-field" key={ field }>
                     <label htmlFor={ `bwx-blocker-${ field }` }>{ name }</label>
-                    <input
+                    <select
                       id={ `bwx-blocker-${ field }` }
-                      className="bwx-input"
+                      className="bwx-select"
                       data-testid={ `bwx-blocker-${ field }` }
-                      type={ 'target_date' === field ? 'date' : 'text' }
                       value={ blocker[ field ] ?? '' }
-                      onChange={ ( event ) =>
-                        setBlocker( { ...blocker, [ field ]: event.target.value } )
-                      }
-                    />
+                      onChange={ ( event ) => setBlocker( { ...blocker, [ field ]: event.target.value } ) }
+                    >
+                      <option value="">Choose</option>
+                      <option value="other">Something else</option>
+                      { siteItems.map( ( one ) => (
+                        <option key={ one.id } value={ one.id }>
+                          { one.title }
+                        </option>
+                      ) ) }
+                    </select>
+                    { 'other' === blocker[ field ] && (
+                      <input
+                        className="bwx-input"
+                        data-testid={ `bwx-blocker-${ field }-text` }
+                        aria-label={ `${ name } — what` }
+                        placeholder="Say what"
+                        value={ blocker[ `${ field }_text` ] ?? '' }
+                        onChange={ ( event ) => setBlocker( { ...blocker, [ `${ field }_text` ]: event.target.value } ) }
+                      />
+                    ) }
                   </div>
                 ) ) }
+                <div className="bwx-field">
+                  <label htmlFor="bwx-blocker-owner">Who owns the blocker</label>
+                  <select
+                    id="bwx-blocker-owner"
+                    className="bwx-select"
+                    data-testid="bwx-blocker-owner"
+                    value={ blocker.owner ?? '' }
+                    onChange={ ( event ) => setBlocker( { ...blocker, owner: event.target.value } ) }
+                  >
+                    <option value="">Choose</option>
+                    <option value="client">The client</option>
+                    { staffList.map( ( person ) => (
+                      <option key={ person.id } value={ person.id }>
+                        { person.display_name }
+                      </option>
+                    ) ) }
+                  </select>
+                </div>
+                <div className="bwx-field">
+                  <label htmlFor="bwx-blocker-target_date">Target resolution date</label>
+                  <input
+                    id="bwx-blocker-target_date"
+                    className="bwx-input"
+                    data-testid="bwx-blocker-target_date"
+                    type="date"
+                    value={ blocker.target_date ?? '' }
+                    onChange={ ( event ) => setBlocker( { ...blocker, target_date: event.target.value } ) }
+                  />
+                </div>
+                <div className="bwx-field">
+                  <label htmlFor="bwx-blocker-next_action">Next action</label>
+                  <input
+                    id="bwx-blocker-next_action"
+                    className="bwx-input"
+                    data-testid="bwx-blocker-next_action"
+                    value={ blocker.next_action ?? '' }
+                    onChange={ ( event ) => setBlocker( { ...blocker, next_action: event.target.value } ) }
+                  />
+                </div>
                 <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
                     data-testid="bwx-block"
                     disabled={ busy }
-                    onClick={ () => void act( '/block', blocker, 'Blocked. Its place is kept.' ) }
+                    onClick={ () =>
+                      void act(
+                        '/block',
+                        {
+                          reason: 'other' === blocker.reason ? blocker.reason_text ?? '' : blocker.reason ?? '',
+                          owner: blocker.owner ?? '',
+                          dependency: 'other' === blocker.dependency ? blocker.dependency_text ?? '' : blocker.dependency ?? '',
+                          target_date: blocker.target_date ?? '',
+                          next_action: blocker.next_action ?? '',
+                        },
+                        'Blocked. Its place is kept.'
+                      )
+                    }
                   >
                     Block it
                   </button>
@@ -997,15 +1273,22 @@ export function ItemPanel( {
                 { 'duplicate' === ending.outcome ? (
                   <div className="bwx-field">
                     <label htmlFor="bwx-duplicate">Which item survives</label>
-                    <input
+                    <select
                       id="bwx-duplicate"
-                      className="bwx-input"
+                      className="bwx-select"
                       data-testid="bwx-duplicate"
                       value={ ending.duplicate_of }
                       onChange={ ( event ) =>
                         setEnding( { ...ending, duplicate_of: event.target.value } )
                       }
-                    />
+                    >
+                      <option value="">Choose the item</option>
+                      { siteItems.map( ( one ) => (
+                        <option key={ one.id } value={ one.id }>
+                          { one.title }
+                        </option>
+                      ) ) }
+                    </select>
                   </div>
                 ) : (
                   <div className="bwx-field">
@@ -1127,6 +1410,39 @@ export function ItemPanel( {
                 </div>
               ) }
             </div>
+
+            { /*
+                The two definition boxes, once the item has got as far as the
+                stage that wants them or when they hold something already.
+             */ }
+            { DEFINITION_BOXES.filter( ( box ) => reached( box.needed ) || '' !== ( draft[ box.field ] ?? '' ) ).map( ( { field, label: name } ) => (
+              <div className="bwx-field" key={ field }>
+                { naming( field, name ) }
+                <textarea
+                  id={ `bwx-${ field }` }
+                  className="bwx-textarea"
+                  data-testid={ `bwx-${ field }` }
+                  value={ draft[ field ] ?? '' }
+                  onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+                />
+              </div>
+            ) ) }
+
+            { /*
+                The stage boxes (2026-09-18): every before-item that wants
+                words, a number or a date, shown only while a next stage asks
+                for it or once it holds an answer. Saved with Save changes as
+                a gate record, so who answered and when is kept.
+             */ }
+            { boxRows().map( ( row ) => (
+              <StageBox
+                key={ row.id }
+                row={ row }
+                value={ boxes[ row.id ] ?? recorded( row.id ) }
+                allowed={ allowed( row ) }
+                onChange={ ( value ) => setBoxes( { ...boxes, [ row.id ]: value } ) }
+              />
+            ) ) }
             </div>
 
             { /*
@@ -1540,82 +1856,94 @@ export function GateList( {
   records,
   busy,
   onComplete,
+  picks = {},
+  onPick,
+  items = [],
+  people = [],
+  allowed = () => true,
 }: {
   heading: string;
   readiness?: Readiness;
   records: Record< string, GateRecord >;
   busy: boolean;
   onComplete: ( requirement: Requirement, value: string, evidence: string ) => Promise< void >;
+  /** Picks drafted and not yet saved; with onPick, a pick waits for Save changes. */
+  picks?: Record< string, string >;
+  /** Where a pick goes. Absent, it is recorded the moment it is made. */
+  onPick?: ( id: string, value: string ) => void;
+  /** The site's other items, for the picks that choose one. */
+  items?: WorkItem[];
+  /** Our people, for the picks that choose one. */
+  people?: Person[];
+  /** Whether the signed-in person may answer a requirement that belongs to a seat. */
+  allowed?: ( requirement: Requirement ) => boolean;
 } ) {
-  const [ open, setOpen ] = useState( '' );
-  const [ value, setValue ] = useState( '' );
-  const [ evidence, setEvidence ] = useState( '' );
-
   if ( ! readiness || 0 === readiness.unmet.length ) {
     return null;
   }
+
+  // Every row when the gate came whole, otherwise only what is left of it.
+  const rows = readiness.all ?? readiness.unmet;
 
   return (
     <div data-testid="bwx-gate">
       <p className="bwx-eyebrow">{ heading }</p>
       <ul className="bwx-unmet">
-        { readiness.unmet.map( ( requirement ) => (
-          <li key={ requirement.id } data-requirement={ requirement.id } data-met="false">
-            <span className="bwx-unmet-label">{ requirement.label }</span>
-            <span className="bwx-unmet-how">{ requirement.satisfied_by }</span>
+        { rows.map( ( requirement ) => {
+          const met = requirement.met ?? false;
+          const isPick = 'record' === requirement.by && 'pick' === requirement.control;
+          const value = picks[ requirement.id ] ?? records[ requirement.id ]?.value ?? '';
 
-            { /* Field requirements are satisfied by filling the field in above,
-                 not by ticking them here — so only the recorded ones get a
-                 control, and the rest read as instructions. */ }
-            { 'record' === requirement.by && undefined === records[ requirement.id ] && (
-              open === requirement.id ? (
-                <>
-                  <input
-                    className="bwx-input"
-                    aria-label={ `${ requirement.label } — what was done` }
-                    value={ value }
-                    onChange={ ( event ) => setValue( event.target.value ) }
-                  />
-                  { requirement.evidence && (
-                    <input
-                      className="bwx-input"
-                      aria-label={ `${ requirement.label } — link to the evidence` }
-                      placeholder="Link to the evidence"
-                      value={ evidence }
-                      onChange={ ( event ) => setEvidence( event.target.value ) }
-                    />
-                  ) }
-                  <div className="bwx-moves">
-                    <button
-                      type="button"
-                      className="bwx-button"
-                      data-testid="bwx-record"
-                      disabled={ busy }
-                      onClick={ () => {
-                        void onComplete( requirement, value, evidence ).then( () => {
-                          setOpen( '' );
-                          setValue( '' );
-                          setEvidence( '' );
-                        } );
-                      } }
-                    >
-                      Record it
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="bwx-button"
-                  data-testid="bwx-open-record"
-                  onClick={ () => setOpen( requirement.id ) }
+          return (
+            <li key={ requirement.id } data-requirement={ requirement.id } data-met={ met ? 'true' : 'false' }>
+              <span className="bwx-unmet-label">{ requirement.label }</span>
+              { ! met && <span className="bwx-unmet-how">{ requirement.satisfied_by }</span> }
+
+              { /*
+                  A pick is answered on its row. A box is answered on the
+                  Task card and a field further up the form; an auto item is
+                  answered by the task itself — none of those gets a control
+                  here, and their sentence says what would meet them.
+               */ }
+              { ! met && isPick && ! allowed( requirement ) && (
+                <span className="bwx-unmet-who">{ FOR_WHOM[ requirement.who ] ?? '' }</span>
+              ) }
+              { ! met && isPick && allowed( requirement ) && (
+                <select
+                  className="bwx-select"
+                  data-testid="bwx-pick"
+                  aria-label={ requirement.label }
+                  disabled={ busy }
+                  value={ value }
+                  onChange={ ( event ) => {
+                    if ( onPick ) {
+                      onPick( requirement.id, event.target.value );
+                    } else if ( '' !== event.target.value ) {
+                      void onComplete( requirement, event.target.value, '' );
+                    }
+                  } }
                 >
-                  Record
-                </button>
-              )
-            ) }
-          </li>
-        ) ) }
+                  <option value="">{ 1 === ( requirement.options?.length ?? 0 ) ? 'Not yet' : 'Choose' }</option>
+                  { ( requirement.options ?? [] ).map( ( option ) => (
+                    <option key={ option.value } value={ option.value }>
+                      { option.label }
+                    </option>
+                  ) ) }
+                  { 'items' === requirement.source && items.map( ( one ) => (
+                    <option key={ one.id } value={ one.id }>
+                      { one.title }
+                    </option>
+                  ) ) }
+                  { 'people' === requirement.source && people.map( ( person ) => (
+                    <option key={ person.id } value={ person.id }>
+                      { person.display_name }
+                    </option>
+                  ) ) }
+                </select>
+              ) }
+            </li>
+          );
+        } ) }
       </ul>
 
       { readiness.checks.map( ( check ) => (
@@ -1624,6 +1952,94 @@ export function GateList( {
           <span className="bwx-mono">{ check.result }</span>
         </p>
       ) ) }
+    </div>
+  );
+}
+
+/**
+ * One stage box: a before-item answered in words, a number, a date, a date and
+ * time, or a low and a high estimate.
+ */
+function StageBox( {
+  row,
+  value,
+  allowed,
+  onChange,
+}: {
+  row: Requirement;
+  value: string;
+  allowed: boolean;
+  onChange: ( value: string ) => void;
+} ) {
+  const id = `bwx-box-${ row.id }`;
+  const kind = row.input ?? 'text';
+
+  if ( 'range' === kind ) {
+    const [ low = '', high = '' ] = value.split( '-' );
+
+    return (
+      <div className="bwx-field">
+        <label htmlFor={ id }>{ row.label }</label>
+        <div className="bwx-pair">
+          <input
+            id={ id }
+            className="bwx-input"
+            data-testid={ id }
+            type="number"
+            min="0"
+            step="0.5"
+            aria-label={ `${ row.label } — low` }
+            placeholder="Low"
+            disabled={ ! allowed }
+            value={ low }
+            onChange={ ( event ) => onChange( `${ event.target.value }-${ high }` ) }
+          />
+          <input
+            className="bwx-input"
+            data-testid={ `${ id }-high` }
+            type="number"
+            min="0"
+            step="0.5"
+            aria-label={ `${ row.label } — high` }
+            placeholder="High"
+            disabled={ ! allowed }
+            value={ high }
+            onChange={ ( event ) => onChange( `${ low }-${ event.target.value }` ) }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const type = { number: 'number', date: 'date', datetime: 'datetime-local' }[ kind ];
+
+  return (
+    <div className="bwx-field">
+      <label htmlFor={ id }>
+        { row.label }
+        { ! allowed && <span className="bwx-needed">{ `(${ ( FOR_WHOM[ row.who ] ?? '' ).toLowerCase() })` }</span> }
+      </label>
+      { type ? (
+        <input
+          id={ id }
+          className="bwx-input"
+          data-testid={ id }
+          type={ type }
+          step={ 'number' === type ? '0.5' : undefined }
+          disabled={ ! allowed }
+          value={ value }
+          onChange={ ( event ) => onChange( event.target.value ) }
+        />
+      ) : (
+        <textarea
+          id={ id }
+          className="bwx-textarea"
+          data-testid={ id }
+          disabled={ ! allowed }
+          value={ value }
+          onChange={ ( event ) => onChange( event.target.value ) }
+        />
+      ) }
     </div>
   );
 }

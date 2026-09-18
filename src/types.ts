@@ -55,6 +55,8 @@ export interface WorkItem {
   scope: string;
   requirements: string;
   acceptance_criteria: string;
+  non_goals: string;
+  references: string;
   stage: string;
   stage_label: string;
   prior_stage: string;
@@ -89,6 +91,8 @@ export interface WorkItem {
   primary_user_id: string;
   reviewer_id: string;
   deliverer_id: string;
+  reviewer_substitute_id?: string;
+  deliverer_substitute_id?: string;
   hours_primary: number;
   hours_review: number;
   hours_delivery: number;
@@ -306,9 +310,22 @@ export interface Requirement {
   type: string;
   evidence: boolean;
   who: string;
-  /** Whether it is satisfied by a field, a recorded completion, or the system. */
-  by: 'field' | 'record' | 'system';
+  /**
+   * Whether it is satisfied by a field, a recorded completion, the system, or
+   * worked out from the task itself.
+   */
+  by: 'field' | 'record' | 'system' | 'auto';
   fields: string[];
+  /** Whether the task meets it now; present when the whole gate is listed. */
+  met?: boolean;
+  /** For a recorded one, how a screen asks: a dropdown on the row, or a box on the task. */
+  control?: '' | 'pick' | 'box';
+  /** A pick's fixed choices. */
+  options?: Array< { value: string; label: string } >;
+  /** What a pick appends after its fixed choices: the site's other items, or people. */
+  source?: '' | 'items' | 'people';
+  /** What kind of box: text, number, date, datetime or range. */
+  input?: string;
   /**
    * Who the capacity check found no room for, and in which weeks. Only the
    * capacity requirement carries it — a refusal that named nobody would leave
@@ -347,6 +364,8 @@ export interface GateCheck {
 export interface Readiness {
   unmet: Requirement[];
   checks: GateCheck[];
+  /** Every requirement of the gate, met or not. */
+  all?: Requirement[];
 }
 
 /** Somebody's completion of a requirement, with their name and the time on it. */

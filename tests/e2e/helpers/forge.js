@@ -157,11 +157,34 @@ export async function satisfy(api, item, to, seats = {}) {
     }
 
     if ('record' === requirement.by) {
+      // A pick is answered with its first choice; a box with words.
+      const first = requirement.options?.[0]?.value ?? 'Done.';
+
       await api.post(`/work-items/${item.id}/gate`, {
         requirement: requirement.id,
-        value: 'Done.',
-        evidence: requirement.evidence ? 'https://example.test/evidence' : '',
+        value: 'pick' === requirement.control ? first : 'Done.',
+        evidence: '',
       });
+      continue;
+    }
+
+    // Worked out from the task (2026-09-18): evidence is a comment with a
+    // link, hours are the three seats' hours. Anything else resolves itself.
+    if ('auto' === requirement.by && 'attachment' === requirement.type) {
+      await api.post(`/work-items/${item.id}/comments`, {
+        body: 'Evidence.',
+        url: 'https://example.test/evidence',
+        kind: 'evidence',
+        visibility: 'internal',
+      });
+    }
+
+    if ('auto' === requirement.by && 'G-UP-NEXT-4' === requirement.id) {
+      for (const field of ['hours_primary', 'hours_review', 'hours_delivery']) {
+        if (undefined === patch[field]) {
+          patch[field] = 1;
+        }
+      }
     }
   }
 
