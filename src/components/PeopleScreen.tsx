@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import type { Client, ClientSite, GrantOption, GrantsAnswer, Membership, PersonAnswer, PersonRecord, UnlinkedAccount } from '../types';
-import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
+import { api, ApiError, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
-import { Screen } from './States';
+import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
+import type { Said } from './States';
 
 /**
  * Everyone, and everywhere they work (PR 3 of spec 2026-09-16), in the app.
@@ -72,7 +73,7 @@ export function PeopleScreen( { person }: { person: string } ) {
   const [ people, setPeople ] = useState< PersonRecord[] >( [] );
   const [ grants, setGrants ] = useState< GrantsAnswer | null >( null );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
-  const [ notice, setNotice ] = useState( '' );
+  const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ everyone, setEveryone ] = useState( false );
   // A link can land on somebody: their panel opens once the list has them.
   const [ opened, setOpened ] = useState< Opened | null >( '' === person ? null : { kind: 'edit', id: person } );
@@ -87,7 +88,7 @@ export function PeopleScreen( { person }: { person: string } ) {
 
     setPeople( ( current ) => [ ...current.filter( ( one ) => one.id !== fresh.id ), fresh ].sort( byName ) );
     setOpened( null );
-    setNotice( said );
+    setNotice( '' === said ? NOTHING_SAID : ok( said ) );
   }
 
   /** A confirmed action on a card. The answer is the person, so it lands like a form's. */
@@ -97,12 +98,12 @@ export function PeopleScreen( { person }: { person: string } ) {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       landed( await write(), said );
     } catch ( error ) {
-      setNotice( messageFor( error, fallback ) );
+      setNotice( failed( messageFor( error, fallback ) ) );
     } finally {
       setBusy( false );
     }
@@ -137,22 +138,22 @@ export function PeopleScreen( { person }: { person: string } ) {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       await api< { ok: true; deleted: string } >( `/users/${ target.id }`, { method: 'DELETE' } );
 
       setPeople( ( current ) => current.filter( ( one ) => one.id !== target.id ) );
-      setNotice( `Deleted ${ target.display_name } from Forge. Their WordPress account is still there.` );
+      setNotice( ok( `Deleted ${ target.display_name } from Forge. Their WordPress account is still there.` ) );
     } catch ( error ) {
-      setNotice( messageFor( error, 'That person could not be deleted.' ) );
+      setNotice( failed( messageFor( error, 'That person could not be deleted.' ) ) );
     } finally {
       setBusy( false );
     }
   }
 
   async function load() {
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       const [ fresh, known ] = await Promise.all( [
@@ -165,7 +166,7 @@ export function PeopleScreen( { person }: { person: string } ) {
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
-      setNotice( messageFor( error, 'The people could not be read.' ) );
+      setNotice( failed( messageFor( error, 'The people could not be read.' ) ) );
     }
   }
 
@@ -180,15 +181,11 @@ export function PeopleScreen( { person }: { person: string } ) {
     <div className="bwx-people" data-testid="bwx-people">
       { 'loading' === state && <Screen state="loading" testId="bwx-people-state" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-people-state" detail="People are configuration, and configuration is the administrator's." /> }
-      { 'error' === state && <Screen state="error" testId="bwx-people-state" detail={ notice } /> }
+      { 'error' === state && <Screen state="error" testId="bwx-people-state" detail={ notice.text } /> }
 
       { 'ready' === state && (
         <>
-          { '' !== notice && (
-            <p className="bwx-notice" data-testid="bwx-people-notice" role="status">
-              { notice }
-            </p>
-          ) }
+          <Notice said={ notice } testId="bwx-people-notice" />
 
           <div className="bwx-moves">
             <Button size="sm" data-testid="bwx-people-add" disabled={ busy } onClick={ () => setOpened( { kind: 'add' } ) }>
@@ -279,7 +276,6 @@ function PersonCard( {
 } ) {
   const active = 'active' === person.status;
   const memberships = everyone ? person.memberships : person.memberships.filter( ( one ) => 'active' === one.status );
-  const adminUrl = forgeData()?.adminUrl ?? `${ forgeData()?.siteUrl ?? '' }/wp-admin/`;
 
   const columns: Column< Membership >[] = [
     { key: 'client', label: 'Client', wrap: true, render: ( m ) => m.client_name || 'Unknown client' },
@@ -315,9 +311,15 @@ function PersonCard( {
   return (
     <div data-testid="bwx-people-card" data-person={ person.id }>
       <Panel
+        flush
         title={
           <>
             { person.display_name } { active ? <Tag tone="ok">Active</Tag> : <Tag tone="neutral">Offboarded</Tag> }
+            { ! person.account && (
+              <span data-testid="bwx-people-card-account">
+                <Tag tone="warn">No account</Tag>
+              </span>
+            ) }
           </>
         }
         right={
@@ -347,18 +349,8 @@ function PersonCard( {
           </div>
         }
       >
-        <p className="bwx-hint">
-          <span data-testid="bwx-people-card-email">{ person.email }</span>
-          { ' · ' }
-          <span data-testid="bwx-people-card-account">
-            { person.account ? (
-              <a href={ `${ adminUrl }user-edit.php?user_id=${ person.wp_user_id }` }>{ `Signs in as ${ person.account.login }` }</a>
-            ) : (
-              'No WordPress account — they cannot sign in.'
-            ) }
-          </span>
-        </p>
         <DataView< Membership >
+          bare
           columns={ columns }
           rows={ memberships }
           sortable={ false }
