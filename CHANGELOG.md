@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.121.0] - 2026-09-18
+
+### Added
+
+- Calendar dates: company days, birthdays, campaign days and the like, for all staff or for named people. Added and removed from the calendar's new List range (last in the switcher), which lists the next thirty days day by day.
+- The calendar and the daily standup now show recurring chores, calendar dates, meetings, subscription renewals and who is away, alongside the work. The standup opens with Today's diary.
+
 ## [2.120.0] - 2026-09-18
 
 ### Changed

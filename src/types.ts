@@ -52,6 +52,8 @@ export interface WorkItem {
   problem: string;
   /** Up to ten one-line items, ticked off in the panel. */
   checklist: ChecklistRow[];
+  /** Which recurring arrangement made this, or '' for work somebody created. */
+  recurring_id?: string;
   /** A recurring chore's people, who has ticked it (person id to unix time), and the hours each spends. */
   assignees: string[];
   ticks: Record< string, number >;
@@ -725,6 +727,37 @@ export interface StandupList {
   generated: number;
   rules: string[];
   cards: StandupCard[];
+  /** Today's diary: chores, dates, meetings, renewals and who is away (2026-09-18). */
+  diary?: DiaryEntry[];
+}
+
+/** One thing on the studio's diary, whatever kind it is (2026-09-18). */
+export interface DiaryEntry {
+  id: string;
+  kind: 'recurring' | 'date' | 'meeting' | 'subscription' | 'leave';
+  label: string;
+  date: string;
+  /** Last day of a span, or '' for one day. */
+  ends_on: string;
+  title: string;
+  detail: string;
+  /** Person ids, or 'all'. */
+  people: string[] | 'all';
+  /** The work item behind a chore, for opening it. */
+  item_id: string;
+}
+
+/** A company day, birthday, campaign or other date the studio keeps. */
+export interface CalendarDate {
+  id: string;
+  kind: string;
+  kind_label: string;
+  title: string;
+  on_date: string;
+  ends_on: string;
+  people: string[] | 'all';
+  note: string;
+  record_version: number;
 }
 
 /**

@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Recurring\Materialise;
+use Blueworx\Forge\Calendar\Feed;
 use Blueworx\Forge\Standup\Board;
 use Blueworx\Forge\Standup\Rules;
 use Blueworx\Forge\Tenancy\Reach;
@@ -105,6 +106,10 @@ final class StandupController {
 				'generated' => bwx_forge_now(),
 				'rules'     => Rules::ALL,
 				'cards'     => $cards,
+
+				// Today's diary (2026-09-18): chores, dates, meetings, renewals
+				// and who is away — the same list the calendar draws.
+				'diary'     => Feed::for_reach( $reach, $today, $today ),
 			)
 		);
 	}

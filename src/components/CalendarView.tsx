@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { WorkItem } from '../types';
+import type { DiaryEntry, WorkItem } from '../types';
 import { phaseOf } from '../phases';
 import {
   KIND_LABEL,
@@ -12,6 +12,7 @@ import {
   todayIso,
 } from '../calendar';
 import type { Mode } from '../calendar';
+import { DIARY_KINDS, DiaryList, diaryByDay, useDiary } from './Diary';
 
 /** How many entries a month cell shows before it says there are more. */
 const CELL_LIMIT = 3;
@@ -36,9 +37,12 @@ const WEEKDAYS = [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ];
 export function CalendarView( {
   items,
   onOpen,
+  onOpenId,
 }: {
   items: WorkItem[];
   onOpen: ( item: WorkItem ) => void;
+  /** Opening a chore from the diary, which is not among the site's items. */
+  onOpenId: ( itemId: string ) => void;
 } ) {
   const today = todayIso();
 
@@ -49,11 +53,16 @@ export function CalendarView( {
   const days = daysFor( mode, anchor );
   const entries = byDay( entriesFor( items ) );
 
+  // The diary for the days drawn (2026-09-18): chores, dates, meetings,
+  // renewals and who is away, beside the work.
+  const diary = useDiary( days[ 0 ], days[ days.length - 1 ] );
+  const diaryDays = diaryByDay( diary.entries );
+
   return (
     <div className="bwx-calendar" data-testid="bwx-calendar" data-mode={ mode }>
       <div className="bwx-calendar-head">
         <div className="bwx-views" role="group" aria-label="Calendar range">
-          { ( [ 'month', 'week', 'day' ] as Mode[] ).map( ( each ) => (
+          { ( [ 'month', 'week', 'day', 'list' ] as Mode[] ).map( ( each ) => (
             <button
               key={ each }
               type="button"
@@ -118,7 +127,11 @@ export function CalendarView( {
         </label>
       </div>
 
-      { 'day' !== mode && (
+      { 'list' === mode && (
+        <DiaryList entries={ diary.entries } onOpen={ onOpenId } onChanged={ diary.reload } />
+      ) }
+
+      { 'day' !== mode && 'list' !== mode && (
         <div className="bwx-calendar-weekdays" aria-hidden="true">
           { WEEKDAYS.map( ( name ) => (
             <span key={ name }>{ name }</span>
@@ -126,9 +139,11 @@ export function CalendarView( {
         </div>
       ) }
 
+      { 'list' !== mode && (
       <div className="bwx-calendar-grid">
         { days.map( ( date ) => {
           const held = entries[ date ] ?? [];
+          const onDiary = diaryDays[ date ] ?? [];
           const capped = 'month' === mode && date !== expanded;
           const shown = capped ? held.slice( 0, CELL_LIMIT ) : held;
 
@@ -152,6 +167,23 @@ export function CalendarView( {
               </span>
 
               <ul className="bwx-calendar-entries">
+                { onDiary.map( ( entry: DiaryEntry ) => (
+                  <li key={ entry.id }>
+                    <button
+                      type="button"
+                      className="bwx-calendar-entry bwx-calendar-diary"
+                      data-testid="bwx-calendar-diary"
+                      data-kind={ entry.kind }
+                      data-entry={ entry.id }
+                      data-tone={ DIARY_KINDS[ entry.kind ].tone }
+                      title={ entry.detail }
+                      onClick={ () => '' !== entry.item_id && onOpenId( entry.item_id ) }
+                    >
+                      <span className="bwx-calendar-kind">{ DIARY_KINDS[ entry.kind ].label }</span>
+                      <span className="bwx-calendar-entry-title">{ entry.title }</span>
+                    </button>
+                  </li>
+                ) ) }
                 { shown.map( ( entry ) => (
                   <li key={ `${ entry.item.id }-${ entry.kind }` }>
                     <button
@@ -191,8 +223,9 @@ export function CalendarView( {
           );
         } ) }
       </div>
+      ) }
 
-      { 0 === Object.keys( entries ).length && (
+      { 'list' !== mode && 0 === Object.keys( entries ).length && 0 === diary.entries.length && (
         <p className="bwx-calendar-empty" data-testid="bwx-calendar-empty">
           Nothing here has dates yet, so there is nothing to put on a calendar.
         </p>

@@ -3080,6 +3080,88 @@ td[ data-band='over' ] {
   align-items: start;
 }
 
+/* The diary: one line per thing on the day, and the calendar's list. */
+.bwx-diary-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bwx-diary-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var( --text-small );
+}
+.bwx-diary-kind {
+  flex: 0 0 64px;
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var( --ink-700 );
+}
+.bwx-diary-kind[ data-tone='teal' ] { color: var( --phase-pipeline-ink ); }
+.bwx-diary-kind[ data-tone='violet' ] { color: var( --phase-idea-ink ); }
+.bwx-diary-kind[ data-tone='rose' ] { color: var( --phase-exception-ink ); }
+.bwx-diary-kind[ data-tone='emerald' ] { color: var( --phase-done-ink ); }
+.bwx-diary-kind[ data-tone='amber' ] { color: var( --phase-gate-ink ); }
+.bwx-diary-detail {
+  color: var( --color-steel );
+}
+.bwx-diary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.bwx-diary-row > .bwx-diary-line {
+  flex: 1;
+  min-width: 0;
+}
+.bwx-diary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+.bwx-diary-day {
+  border: 1px solid var( --border-hairline );
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var( --surface-raised, #fff );
+}
+.bwx-diary-date {
+  margin: 0 0 8px;
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+}
+.bwx-diary-add {
+  border: 1px solid var( --border-hairline );
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var( --surface-raised, #fff );
+}
+.bwx-diary-add-row {
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax( 180px, 1fr ) );
+  gap: 12px;
+}
+.bwx-standup-diary {
+  margin: 20px 20px 0;
+  padding: 12px 16px;
+  border: 1px solid var( --border-hairline );
+  border-radius: 10px;
+  background: var( --surface-raised, #fff );
+}
+.bwx-calendar-diary[ data-tone='teal' ] { --entry-ink: var( --phase-pipeline-ink ); --entry-wash: var( --phase-pipeline-bg ); --entry-edge: var( --phase-pipeline-border ); }
+.bwx-calendar-diary[ data-tone='violet' ] { --entry-ink: var( --phase-idea-ink ); --entry-wash: var( --phase-idea-bg ); --entry-edge: var( --phase-idea-border ); }
+.bwx-calendar-diary[ data-tone='rose' ] { --entry-ink: var( --phase-exception-ink ); --entry-wash: var( --phase-exception-bg ); --entry-edge: var( --phase-exception-border ); }
+.bwx-calendar-diary[ data-tone='emerald' ] { --entry-ink: var( --phase-done-ink ); --entry-wash: var( --phase-done-bg ); --entry-edge: var( --phase-done-border ); }
+.bwx-calendar-diary[ data-tone='amber' ] { --entry-ink: var( --phase-gate-ink ); --entry-wash: var( --phase-gate-bg ); --entry-edge: var( --phase-gate-border ); }
+
 /* Recurring: who does it, and a chore's ticks. */
 .bwx-recurring-people {
   border: 0;

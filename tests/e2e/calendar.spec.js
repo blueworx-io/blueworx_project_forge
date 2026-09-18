@@ -169,6 +169,10 @@ test.describe( 'the calendar', () => {
   test( 'the calendar and the board hold the same work, counted the only way they can be', async ( { page } ) => {
     await openCalendar( page );
 
+    // The entries are read once they are drawn, not the moment the grid is:
+    // reading first collects an empty calendar and calls the board wrong.
+    await expect( entriesFor( page, world.twice.id ) ).toHaveCount( 2 );
+
     // Not entry against card: one item makes up to four entries and an undated
     // one makes none, so those two numbers are never meant to match. What has
     // to hold is that every item on the calendar is an item the board has, and
