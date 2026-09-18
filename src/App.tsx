@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Building2, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
+import { BarChart3, Building2, CalendarCheck, CalendarClock, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { ClientsScreen } from './components/ClientsScreen';
+import { MeetingsScreen } from './components/MeetingsScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
@@ -64,6 +65,7 @@ const RAIL: Entry[] = [
   { group: 'Clients' },
   { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
   { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
+  { key: 'meetings', label: 'Meetings', icon: CalendarClock, testId: 'bwx-screen-meetings' },
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
   { group: 'Team' },
@@ -146,6 +148,7 @@ const TITLES: Record< ScreenName, string > = {
   people: 'People',
   clients: 'Clients',
   support: 'Support',
+  meetings: 'Meetings',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -180,6 +183,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
+  meetings: { crumbs: [ 'Clients', 'Meetings' ], eyebrow: 'Standing meetings, and the next twelve weeks of them', tile: CalendarClock, hue: 'rose' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -210,7 +214,7 @@ export function App() {
   /**
    * A link can land on a screen: from Slack on the task in the hash (PR 5),
    * or from anywhere on a screen and, for availability and people, a person,
-   * or, for support, a site. Read once and cleared, so a reload is a plain
+   * or, for support and meetings, a site. Read once and cleared, so a reload is a plain
    * reload.
    */
   const [ landing ] = useState( () => {
@@ -382,6 +386,7 @@ export function App() {
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } site={ landing.site } /> }
+        { 'meetings' === screen && <MeetingsScreen key={ generation } site={ landing.site } /> }
       </main>
     </div>
   );
