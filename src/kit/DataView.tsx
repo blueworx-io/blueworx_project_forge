@@ -393,6 +393,12 @@ export function DataView< Row extends RowRecord >( {
                   onKeyDown={
                     clickable
                       ? ( event ) => {
+                          // A key pressed on a control inside the row (a button, say)
+                          // belongs to that control, not to selecting the row.
+                          if ( event.target !== event.currentTarget ) {
+                            return;
+                          }
+
                           if ( 'Enter' === event.key || ' ' === event.key ) {
                             event.preventDefault();
                             onRowClick( row );

@@ -65,9 +65,11 @@ Built the way Recurring and Subscriptions are built:
 - Data through `api()` from `src/api.ts`; live reload through `useLiveReload`.
 - The shell through `Screen` in `States.tsx`: loading, error, denied and empty
   states are the shared ones.
-- Lists on the kit's `DataView`; forms in a kit `Panel` opened from the list,
-  never inline in a row; confirmations that carry a reason through
-  `ReasonAction`; results through `useToast`.
+- Lists on the kit's `DataView`; forms in a kit `Panel` or `Modal` opened from
+  the list, never inline in a row; confirmations that carry a reason through
+  `ReasonAction`; results shown in place — the write's answer replaces the
+  list, a refusal shows in the form. (`useToast` needs a `ToastProvider` the
+  app does not mount; corrected in PR 2.)
 - Errors shown through `messageFor`; a denied request through `isDenied`.
 - Nothing styled outside the kit. A screen that needs a piece the kit lacks
   adds it to `src/kit/` with a Gallery entry, and the piece is written for both

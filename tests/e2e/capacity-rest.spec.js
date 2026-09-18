@@ -34,8 +34,8 @@ test('a person on two clients shows one combined commitment', async ({ browser, 
   // #149. Chargeable work reserves its hours the moment it is planned, and
   // the ledger will not take a site below nought — so a site with no package
   // cannot plan work at all, whatever the spec is really about.
-  await onSupport({ context }, first.site.id, 400);
-  await onSupport({ context }, second.site.id, 400);
+  await onSupport({ context, api }, first.site.id, 400);
+  await onSupport({ context, api }, second.site.id, 400);
 
 
   const person = await makePerson(api, first.client.id, 'staff', PERSON);

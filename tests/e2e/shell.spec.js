@@ -51,8 +51,7 @@ test( 'every screen opens from the rail, and the work views are the rail', async
     await expect( page.locator( '[data-state="loading"]' ) ).toHaveCount( 0, { timeout: 30_000 } );
   }
 
-  // The two screens still in WordPress admin are a link away.
-  await expect( rail.getByTestId( 'bwx-link-packages' ) ).toHaveAttribute( 'href', /wp-admin\/admin\.php\?page=blueworx-forge-packages$/ );
+  // Sync health is the one screen still in WordPress admin; it is a link away.
   await expect( rail.getByTestId( 'bwx-link-sync' ) ).toHaveAttribute( 'href', /wp-admin\/admin\.php\?page=blueworx-forge-sync$/ );
 
   // "New task" in the top bar opens the board's own add form — from any

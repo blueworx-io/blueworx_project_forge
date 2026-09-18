@@ -7,6 +7,7 @@ import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
+import { PackagesScreen } from './components/PackagesScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { RecurringScreen } from './components/RecurringScreen';
 import { ReportsScreen } from './components/ReportsScreen';
@@ -33,8 +34,8 @@ import './shell.css';
  * screen, because a request arriving, or your work coming back, matters the
  * same amount whichever screen somebody is looking at.
  *
- * Packages & hours and Sync health are still WordPress admin screens; the
- * rail links to them so nothing is further away than it was.
+ * Sync health is still a WordPress admin screen; the rail links to it so it
+ * is no further away than it was.
  *
  * Availability is the first configuration screen to move in (spec
  * 2026-09-16); the rest follow it, one pull request each.
@@ -59,13 +60,13 @@ const RAIL: Entry[] = [
   { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests' },
   { group: 'Clients' },
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
-  { href: 'admin.php?page=blueworx-forge-packages', label: 'Packages & hours', icon: Receipt, testId: 'bwx-link-packages' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
   { group: 'Team' },
   { key: 'availability', label: 'Availability', icon: CalendarCheck, testId: 'bwx-screen-availability' },
   { group: 'Insight' },
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions' },
+  { key: 'packages', label: 'Packages', icon: Receipt, testId: 'bwx-screen-packages' },
 ];
 
 /**
@@ -135,6 +136,7 @@ const TITLES: Record< ScreenName, string > = {
   recurring: 'Recurring tasks',
   subscriptions: 'Subscriptions',
   availability: 'Availability',
+  packages: 'Support packages',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -165,6 +167,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
+  packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -361,6 +364,7 @@ export function App() {
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
+        { 'packages' === screen && <PackagesScreen key={ generation } /> }
       </main>
     </div>
   );

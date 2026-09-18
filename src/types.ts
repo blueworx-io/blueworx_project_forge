@@ -142,7 +142,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -769,4 +769,44 @@ export interface AvailabilityAnswer {
     hours: number;
     days: Array< { date: string; hours: number; base_hours: number; reason: string } >;
   };
+}
+
+/* ---- Packages (PR 2 of spec 2026-09-16) ---- */
+
+export type PackageStatus = 'active' | 'retired';
+
+/** One frozen version of a package. Written once; never edited (COMM-1). */
+export interface PackageVersion {
+  id: string;
+  package_id: string;
+  version: number;
+  name: string;
+  hours: number;
+  price: number;
+  currency: string;
+  validity_months: number;
+  terms: string;
+  created_at: number;
+  created_by: number;
+}
+
+export interface SupportPackage {
+  id: string;
+  name: string;
+  status: PackageStatus;
+  position: number;
+  retired_at: number;
+  created_at: number;
+  updated_at: number;
+  created_by: number;
+  record_version: number;
+  current: PackageVersion | null;
+  versions: PackageVersion[];
+}
+
+export interface PackagesAnswer {
+  ok: true;
+  packages: SupportPackage[];
+  package?: SupportPackage;
+  changed?: boolean;
 }
