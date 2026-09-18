@@ -49,7 +49,11 @@ function hours( value: number ): string {
   return String( Number( value.toFixed( 2 ) ) );
 }
 
-export function AvailabilityScreen( { person }: { person: string } ) {
+/**
+ * `fixed` is the profile page's way in: the person is whoever is signed in,
+ * and the picker is not shown because there is nobody else to pick.
+ */
+export function AvailabilityScreen( { person, fixed = false }: { person: string; fixed?: boolean } ) {
   const [ people, setPeople ] = useState< Person[] >( [] );
   const [ personId, setPersonId ] = useState( person );
   const [ answer, setAnswer ] = useState< AvailabilityAnswer | null >( null );
@@ -103,7 +107,9 @@ export function AvailabilityScreen( { person }: { person: string } ) {
   }
 
   useEffect( () => {
-    void everybody().then( setPeople );
+    if ( ! fixed ) {
+      void everybody().then( setPeople );
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load( person );
     // The person prop is a landing, read once; picking is the select's job.
@@ -159,22 +165,24 @@ export function AvailabilityScreen( { person }: { person: string } ) {
 
   return (
     <div className="bwx-availability" data-testid="bwx-availability">
-      <div className="bwx-site-picker">
-        <label htmlFor="bwx-availability-person">Person</label>
-        <Select
-          id="bwx-availability-person"
-          data-testid="bwx-availability-person"
-          value={ personId }
-          onChange={ ( event ) => pick( event.target.value ) }
-          options={ [ { value: '', label: 'Pick a person' }, ...people.map( ( one ) => ( { value: one.id, label: one.display_name } ) ) ] }
-        />
-      </div>
+      { ! fixed && (
+        <div className="bwx-site-picker">
+          <label htmlFor="bwx-availability-person">Person</label>
+          <Select
+            id="bwx-availability-person"
+            data-testid="bwx-availability-person"
+            value={ personId }
+            onChange={ ( event ) => pick( event.target.value ) }
+            options={ [ { value: '', label: 'Pick a person' }, ...people.map( ( one ) => ( { value: one.id, label: one.display_name } ) ) ] }
+          />
+        </div>
+      ) }
 
       { 'idle' === state && (
         <EmptyState icon={ CalendarCheck } title="Pick a person" body="Their working week and time off show here, and can be changed here." />
       ) }
       { 'loading' === state && <Screen state="loading" testId="bwx-availability-state" /> }
-      { 'denied' === state && <Screen state="denied" testId="bwx-availability-state" detail="Working hours are configuration, and configuration is the administrator's." /> }
+      { 'denied' === state && <Screen state="denied" testId="bwx-availability-state" detail="Somebody else's working hours are the administrator's to set. Your own are on your profile." /> }
       { 'error' === state && <Screen state="error" testId="bwx-availability-state" detail={ notice.text } /> }
 
       { 'ready' === state && answer && (

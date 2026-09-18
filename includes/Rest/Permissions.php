@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Tenancy\Users;
 use SplObjectStorage;
 use WP_REST_Request;
 
@@ -38,6 +39,27 @@ final class Permissions {
 	 */
 	public static function manage(): bool {
 		return current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * The administrator, or the person the route is about (2026-09-18).
+	 *
+	 * For the routes about one person's own hours and time off. A staff
+	 * member sets their own from their profile; setting anybody else's is
+	 * still the administrator's. The person is read from the signed-in
+	 * account and compared with the route, never taken from the body.
+	 *
+	 * @param WP_REST_Request $request Request, with a user_id in the route.
+	 * @return bool
+	 */
+	public static function manage_or_self( WP_REST_Request $request ): bool {
+		if ( self::manage() ) {
+			return true;
+		}
+
+		$me = Users::by_wp_user( get_current_user_id() );
+
+		return null !== $me && (string) $me['id'] === (string) $request['user_id'];
 	}
 
 	/**

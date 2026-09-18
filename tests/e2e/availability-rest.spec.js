@@ -111,8 +111,10 @@ test('a week without a real date is refused by field', async () => {
   expect(body.data.fields.effective_from).toBeTruthy();
 });
 
-test('somebody who is not an administrator cannot read or write hours', async ({ browser, baseURL }) => {
-  const other = await signedIn(browser, baseURL, person.login, PASSWORD);
+test('somebody who is not an administrator cannot read or write another person’s hours', async ({ browser, baseURL }) => {
+  // Their own they may, from their profile (2026-09-18); this is somebody else's.
+  const stranger = await makePerson(api, clientId, 'staff', `stranger${STAMP}`);
+  const other = await signedIn(browser, baseURL, stranger.login, PASSWORD);
 
   const read = await other.api.request.get(`${BASE}/users/${person.id}/availability`, { headers: other.api.headers });
   expect(read.status()).toBe(403);

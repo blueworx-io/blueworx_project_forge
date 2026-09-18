@@ -41,7 +41,7 @@ final class AvailabilityController {
 	public static function register_routes( string $route_namespace ): void {
 		$scope = array(
 			'kind'   => Boundary::SCOPE_OPEN,
-			'reason' => 'A person\'s hours are a global record (AUTH-6), not a client\'s. Administrator-only configuration.',
+			'reason' => 'A person\'s hours are a global record (AUTH-6), not a client\'s. The administrator\'s configuration, and the person\'s own.',
 		);
 
 		Server::register_route(
@@ -50,7 +50,7 @@ final class AvailabilityController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'read' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'manage_or_self' ),
 				'scope'               => $scope,
 			)
 		);
@@ -61,7 +61,7 @@ final class AvailabilityController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'set_hours' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'manage_or_self' ),
 				'scope'               => $scope,
 			)
 		);
@@ -72,7 +72,7 @@ final class AvailabilityController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'add_leave' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'manage_or_self' ),
 				'scope'               => $scope,
 			)
 		);
@@ -83,7 +83,7 @@ final class AvailabilityController {
 			array(
 				'methods'             => 'DELETE',
 				'callback'            => array( self::class, 'remove_leave' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'manage_or_self' ),
 				'scope'               => $scope,
 			)
 		);
