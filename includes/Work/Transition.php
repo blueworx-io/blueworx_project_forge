@@ -13,6 +13,7 @@ use Blueworx\Forge\Capacity\Impact;
 use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Commerce\WorkLedger;
+use Blueworx\Forge\Data\Schema;
 
 /*
  * Aliased because this file already has an Events — the changelog's — and two
@@ -870,34 +871,30 @@ final class Transition {
 	 * @return bool
 	 */
 	private static function evidence_since_entry( array $item ): bool {
-		$since = self::entered_stage_at( $item );
+		global $wpdb;
 
-		foreach ( Comments::for_item( (string) $item['id'], Comments::SCOPE_STAFF ) as $entry ) {
-			if ( '' !== (string) $entry['url'] && (int) $entry['created_at'] >= $since ) {
-				return true;
-			}
-		}
+		$comments = Schema::comments_table();
+		$events   = Schema::work_events_table();
 
-		return false;
-	}
+		/*
+		 * One query, not two reads of two histories: the standup asks this of
+		 * every item on every site at once, and a query per item per history
+		 * is what blows its budget. "Since the stage was entered" is the
+		 * newest event that put the item where it is, or the beginning of
+		 * time when nothing did.
+		 */
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names cannot be placeholders; the values are.
+		$found = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT 1 FROM {$comments} WHERE item_id = %s AND url <> '' AND created_at >= COALESCE( ( SELECT MAX( occurred_at ) FROM {$events} WHERE item_id = %s AND to_stage = %s ), 0 ) LIMIT 1",
+				(string) $item['id'],
+				(string) $item['id'],
+				(string) $item['stage']
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-	/**
-	 * When the item entered the stage it is at: the newest event that put it
-	 * there, or the beginning of time when nothing did.
-	 *
-	 * @param array<string, mixed> $item The item, as read.
-	 * @return int
-	 */
-	private static function entered_stage_at( array $item ): int {
-		$entered = 0;
-
-		foreach ( Events::for_item( (string) $item['id'] ) as $event ) {
-			if ( (string) $event['to_stage'] === (string) $item['stage'] ) {
-				$entered = (int) $event['occurred_at'];
-			}
-		}
-
-		return $entered;
+		return null !== $found;
 	}
 
 	/**

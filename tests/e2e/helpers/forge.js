@@ -190,10 +190,26 @@ export async function satisfy(api, item, to, seats = {}) {
 
   if (0 < Object.keys(patch).length) {
     const current = await api.get(`/work-items/${item.id}`);
-    const edited = await api.patch(`/work-items/${item.id}`, {
+    let edited = await api.patch(`/work-items/${item.id}`, {
       ...patch,
       record_version: current.item.record_version,
     });
+
+    /*
+     * #149. Planned hours reserve support hours, and a site with no package
+     * has none to give. The hours item is met by the seats' hours since
+     * 2026-09-18, so a spec that was never about support now needs some:
+     * put the site on a package and say it again, rather than making that
+     * every spec's problem.
+     */
+    if (409 === edited.status() && (await edited.text()).includes('hours_not_available')) {
+      await onSupport(api, item.client_site_id, 200);
+      edited = await api.patch(`/work-items/${item.id}`, {
+        ...patch,
+        record_version: current.item.record_version,
+      });
+    }
+
     expect(edited.status(), `filling in ${Object.keys(patch).join(', ')}: ${await edited.text()}`).toBe(200);
   }
 
