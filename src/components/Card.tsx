@@ -94,7 +94,6 @@ export function Card( {
         </span>
       ) }
       <span className="bwx-card-row">
-        <span className="bwx-mono">{ item.id.replace( 'wrk_', '' ).slice( 0, 8 ) }</span>
         <span className="bwx-card-level">{ item.level_label }</span>
         { '' !== item.priority && <span className="bwx-card-priority">{ item.priority }</span> }
       </span>
@@ -121,6 +120,13 @@ export function Card( {
           </span>
         ) }
         { blocked && <Tag tone="danger">Blocked</Tag> }
+        { 0 < ( item.checklist?.length ?? 0 ) && (
+          <span data-testid="bwx-card-checklist">
+            <Tag tone={ item.checklist.every( ( row ) => row.done ) ? 'ok' : 'neutral' }>
+              { `${ item.checklist.filter( ( row ) => row.done ).length }/${ item.checklist.length }` }
+            </Tag>
+          </span>
+        ) }
         { hours && <Tag>{ hours }</Tag> }
       </span>
 

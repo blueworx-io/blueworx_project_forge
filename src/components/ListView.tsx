@@ -63,7 +63,6 @@ export function ListView( {
                     <span className="bwx-eyebrow">{ item.work_type_label }</span>
                   ) }
                   <span className="bwx-eyebrow">{ item.level_label }</span>
-                  <span className="bwx-mono">{ item.id.replace( 'wrk_', '' ).slice( 0, 6 ) }</span>
                 </span>
               </td>
               <td>{ item.stage_label }</td>
