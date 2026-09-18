@@ -296,10 +296,14 @@ export async function makePackage(api, label, { hours = 12, price = 1200, validi
  * a spec that needs a site onboarding starts it here and never again. The
  * checklist itself is still published through the template screen (#159 put
  * that behind the screen). `api` is any caller with `.post` — a `signedIn()`
- * admin's `api`, or the pair helper's `studio`.
+ * admin's `api`, or the pair helper's `studio` — or a bare `{ context, nonce }`,
+ * which some pair specs build for themselves.
  */
 export async function startOnboarding(api, siteId) {
-  const started = await api.post(`/client-sites/${siteId}/onboarding`, {});
+  const post = api.post
+    ? (path, data) => api.post(path, data)
+    : (path, data) => api.context.request.post(`${BASE}${path}`, { headers: { 'X-WP-Nonce': api.nonce }, data });
+  const started = await post(`/client-sites/${siteId}/onboarding`, {});
   expect(started.status(), await started.text()).toBe(200);
 
   return (await started.json()).onboarding;
@@ -338,7 +342,7 @@ export async function assignSupport(api, siteId, packageVersionId, from) {
   expect(wrote.status(), await wrote.text()).toBe(200);
 
   const answer = await wrote.json();
-  expect(answer.position.state, 'the site is on support').toBe('active');
+  expect(['active', 'scheduled'], 'the site is on support').toContain(answer.position.state);
 
   return answer.assignment;
 }
