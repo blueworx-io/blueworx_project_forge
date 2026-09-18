@@ -179,11 +179,14 @@ export function SupportScreen( { site }: { site: string } ) {
             title="Position"
             right={
               <div className="bwx-moves">
-                { ! covered && (
-                  <Button size="sm" data-testid="bwx-support-assign" disabled={ busy } onClick={ () => setPanel( 'assign' ) }>
-                    Put it on a package
-                  </Button>
-                ) }
+                { /*
+                   * In every state, as the admin page offers it: a covered
+                   * site can change package mid-term, and what that means
+                   * for the running period is the domain's decision.
+                   */ }
+                <Button size="sm" data-testid="bwx-support-assign" disabled={ busy } onClick={ () => setPanel( 'assign' ) }>
+                  { covered ? 'Change package' : 'Assign a package' }
+                </Button>
                 { covered && 'suspended' === position.state && (
                   <Button size="sm" variant="secondary" data-testid="bwx-support-resume" disabled={ busy } onClick={ () => void act( 'resume', `Put ${ answer.site.name } back on support from today?`, 'Back on support.', 'That site could not be resumed.' ) }>
                     Resume
@@ -253,7 +256,7 @@ export function SupportScreen( { site }: { site: string } ) {
             />
           </Panel>
 
-          { 'assign' === panel && <AssignForm siteId={ siteId } packages={ answer.packages } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
+          { 'assign' === panel && <AssignForm siteId={ siteId } packages={ answer.packages } changing={ Boolean( covered ) } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
           { 'topup' === panel && <TopUpForm siteId={ siteId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
           { 'adjust' === panel && <AdjustForm siteId={ siteId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
           { 'suspend' === panel && <SuspendForm siteId={ siteId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
@@ -270,7 +273,7 @@ type Saved = ( answer: SupportAnswer, said?: string ) => void;
  * change and shown before Save is possible, so what is agreed to and what
  * the ledger receives are one figure (COMM-2).
  */
-function AssignForm( { siteId, packages, onClose, onSaved }: { siteId: string; packages: SupportOffer[]; onClose: () => void; onSaved: Saved } ) {
+function AssignForm( { siteId, packages, changing, onClose, onSaved }: { siteId: string; packages: SupportOffer[]; changing: boolean; onClose: () => void; onSaved: Saved } ) {
   const [ version, setVersion ] = useState( '' );
   const [ from, setFrom ] = useState( today() );
   const [ until, setUntil ] = useState( '' );
@@ -335,7 +338,7 @@ function AssignForm( { siteId, packages, onClose, onSaved }: { siteId: string; p
 
   return (
     <Modal
-      title="Put this site on a package"
+      title={ changing ? 'Change package' : 'Assign a package' }
       width={ 560 }
       testId="bwx-support-assign-form"
       onClose={ onClose }

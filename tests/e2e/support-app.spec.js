@@ -87,7 +87,8 @@ test('assigning shows the sum before it is written, and the answer is the new po
   await expect(page.getByTestId('bwx-support-state')).toHaveAttribute('data-state', 'active');
   await expect(page.getByTestId('bwx-support-state')).toContainText('On support');
   await expect(page.getByTestId('bwx-support-balance')).toHaveAttribute('data-balance', String(HOURS));
-  await expect(page.getByTestId('bwx-support-assign')).toHaveCount(0);
+  // A covered site can still change package mid-term, as it can on the admin page.
+  await expect(page.getByTestId('bwx-support-assign')).toHaveText('Change package');
   await expect(page.getByTestId('bwx-support-suspend')).toBeVisible();
   await expect(page.getByTestId('bwx-support-cancel')).toBeVisible();
 
@@ -167,7 +168,7 @@ test('cancelling ends the period, freezes the hours, and offers a package again'
   await expect(page.getByTestId('bwx-support-state')).toHaveAttribute('data-state', 'lapsed');
   await expect(page.getByTestId('bwx-support-state')).toContainText('Lapsed');
   await expect(page.getByTestId('bwx-support-balance')).toHaveAttribute('data-balance', String(HOURS + 3));
-  await expect(page.getByTestId('bwx-support-assign')).toBeVisible();
+  await expect(page.getByTestId('bwx-support-assign')).toHaveText('Assign a package');
   await expect(page.getByTestId('bwx-support-cancel')).toHaveCount(0);
   // Assign, suspend and resume each opened a period; the last one is the
   // one cancel closed, and the table says why it ended.
