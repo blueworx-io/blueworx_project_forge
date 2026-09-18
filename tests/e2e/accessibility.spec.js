@@ -44,6 +44,7 @@ const APP_SCREENS = [
   [ 'Availability', 'bwx-screen-availability' ],
   [ 'Packages', 'bwx-screen-packages' ],
   [ 'Support', 'bwx-screen-support' ],
+  [ 'Meetings', 'bwx-screen-meetings' ],
 ];
 
 test.describe( 'the studio is usable by everyone', () => {
@@ -80,16 +81,32 @@ test.describe( 'the studio is usable by everyone', () => {
     await Forge.onSupport( admin, site.id );
     // A person with a membership, so People is checked with a card and a
     // table on it rather than empty.
-    await Forge.makePerson( admin.api, client.id, 'staff', `access${ RUN_ID.replace( '-', '' ) }` );
+    const host = await Forge.makePerson( admin.api, client.id, 'staff', `access${ RUN_ID.replace( '-', '' ) }` );
+    // A weekly series with that person hosting, so Meetings is checked with
+    // a card and twelve weeks of rows rather than two empty states.
+    const series = await admin.api.post( `/client-sites/${ site.id }/meetings/series`, {
+      title: `Access catch-up ${ RUN_ID }`,
+      frequency: 'weekly',
+      starts_on: new Date().toISOString().slice( 0, 10 ),
+      ends_on: '',
+      time_of_day: '10:00',
+      duration_mins: 60,
+      timezone: 'Europe/London',
+      host_user_id: host.id,
+      attendees: '',
+      planned_hours: 0,
+    } );
+    expect( series.status(), await series.text() ).toBe( 200 );
 
     const page = await admin.context.newPage();
 
     await page.goto( '/blueworx-forge/' );
     await expect( page.getByTestId( 'bwx-forge-ready' ) ).toBeVisible();
 
-    // Support opens on the site last chosen in this browser, or on nothing.
-    // Remembering the walk's site (the key is src/sites.ts's) means the
-    // position, the periods and the ledger are checked, not the empty state.
+    // Support and Meetings open on the site last chosen in this browser, or
+    // on nothing. Remembering the walk's site (the key is src/sites.ts's)
+    // means the position, the periods, the ledger, the series and its
+    // meetings are checked, not the empty states.
     await page.evaluate( ( id ) => window.localStorage.setItem( 'bwx-forge-site', id ), site.id );
 
     for ( const [ name, testId ] of APP_SCREENS ) {

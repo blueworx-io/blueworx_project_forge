@@ -142,7 +142,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'support';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'support' | 'meetings';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -1034,4 +1034,72 @@ export interface SupportPreview {
   currency: string;
   ends_on: string;
   prorated: boolean;
+}
+
+/* ---- Meetings (PR 6 of spec 2026-09-17) ---- */
+
+/** The four patterns a series may use, as `Meetings\Recurrence` names them. */
+export type MeetingFrequency = 'weekly' | 'fortnightly' | 'four-weekly' | 'monthly';
+
+/** What became of one meeting, as `Meetings\Occurrence` names it. */
+export type MeetingStatus = 'scheduled' | 'held' | 'cancelled' | 'no-show';
+
+/** What the ledger holds against one meeting, as `Meetings\MeetingHours` names it. */
+export type MeetingLedgerState = 'forecast' | 'reserved' | 'used' | 'released';
+
+/** One standing meeting, with the host named and its pattern in words. */
+export interface MeetingSeries {
+  id: string;
+  client_site_id: string;
+  client_id: string;
+  title: string;
+  frequency: MeetingFrequency;
+  frequency_label: string;
+  starts_on: string;
+  ends_on: string;
+  time_of_day: string;
+  duration_mins: number;
+  timezone: string;
+  host_user_id: string;
+  host_name: string;
+  attendees: string;
+  planned_hours: number;
+  hours_each: number;
+  state: 'active' | 'ended';
+  created_at: number;
+  updated_at: number;
+  created_by: number;
+  record_version: number;
+}
+
+/**
+ * One meeting inside the horizon. `slot` is the date the rule put it on and
+ * the key a move or a settle names it by; `on` is the day it is actually on.
+ * `id` is null for a forecast the reconcile has not given a row to yet.
+ */
+export interface Meeting {
+  id: string | null;
+  series_id: string;
+  series_title: string;
+  slot: string;
+  on: string;
+  time: string;
+  status: MeetingStatus;
+  status_label: string;
+  hours: number;
+  ledger_state: MeetingLedgerState;
+  excepted_from: string | null;
+  moved: boolean;
+}
+
+/** What `/client-sites/<id>/meetings` answers, and what every write there answers too. */
+export interface MeetingsAnswer {
+  ok: true;
+  site: { id: string; name: string };
+  series: MeetingSeries[];
+  meetings: Meeting[];
+  horizon: { from: string; to: string };
+  people: Array< { id: string; display_name: string } >;
+  added?: MeetingSeries;
+  meeting?: Meeting | null;
 }

@@ -2674,6 +2674,83 @@ td[ data-band='over' ] {
   color: var( --ink-700 );
 }
 
+/* ---- Meetings (PR 6 of spec 2026-09-17) ---- */
+
+.bwx-meetings {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+/* One series, one card; several abreast where there is room. */
+.bwx-meetings-cards {
+  display: grid;
+  grid-template-columns: repeat( auto-fill, minmax( 320px, 1fr ) );
+  gap: 16px;
+  align-items: start;
+}
+
+.bwx-meetings-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bwx-meetings-card-title {
+  margin: 0;
+  font-size: var( --text-body );
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The facts of a series, two columns: what is asked, what it is. */
+.bwx-meetings-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  font-size: var( --text-small );
+}
+
+.bwx-meetings-facts dt {
+  color: var( --ink-700 );
+}
+
+.bwx-meetings-facts dd {
+  margin: 0;
+}
+
+/* One table per week, stacked. */
+.bwx-meetings-weeks {
+  display: grid;
+  gap: 16px;
+}
+
+.bwx-meetings-when {
+  display: grid;
+}
+
+/* The line under the date: where a moved meeting came from. */
+.bwx-meetings-moved {
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+
+/* Two short fields side by side on the series form. */
+.bwx-meetings-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
 /* ---- Clients (PR 4 of spec 2026-09-16) ---- */
 
 .bwx-clients {
