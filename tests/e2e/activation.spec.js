@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
+import { forge, makeSite } from './helpers/forge.js';
 
 const ADMIN_USER = process.env.WP_ADMIN_USER;
 const ADMIN_PASS = process.env.WP_ADMIN_PASS;
@@ -40,20 +41,34 @@ test('activating the plugin raises no PHP error', async ({ page }) => {
 test('activation builds the plugin tables', async ({ page }) => {
   await signIn(page);
 
-  // The sites screen predates this branch and touches neither new table, so it
-  // proves only that the plugin booted, not that bwx_forge_clients and
-  // bwx_forge_client_sites exist. Writing to and reading back a client does:
-  // if either table (or a column on it) is missing, the INSERT or the SELECT
-  // that renders the list fails, and the client never appears.
-  const name = `Activation Ltd ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  // The sites screen keeps its sites in an option, not a table, so it proves
+  // only that the plugin booted, not that bwx_forge_clients and
+  // bwx_forge_client_sites exist. Writing a client with a site and reading
+  // them back does: if either table (or a column on it) is missing, the INSERT
+  // or the SELECT that draws the list fails, and the client never appears.
+  const runId = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const name = `Activation Ltd ${runId}`;
 
-  await page.goto('/wp-admin/admin.php?page=blueworx-forge-clients');
+  await page.goto('/wp-admin/admin.php?page=blueworx-forge-sites');
   // On the shared page shell the heading is the screen's own name and "Forge"
   // is the eyebrow above it, so this reads the heading for what it now says.
-  await expect(page.locator('h1.bw-pagehead__h1')).toContainText('Clients');
+  await expect(page.locator('h1.bw-pagehead__h1')).toContainText('Client sites');
 
-  await page.fill('#bwx-client-name', name);
-  await page.click('form[data-bwx-add-client] input[type="submit"]');
+  // The app page is where the nonce is localised and where the client is read
+  // back: the Clients screen lives there, not in WordPress admin.
+  await page.goto('/blueworx-forge/');
+  const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);
+  expect(nonce, 'no REST nonce was localised for the signed-in user').toBeTruthy();
 
-  await expect(page.locator(`[data-bwx-client-name]:text-is("${name}")`)).toBeVisible();
+  const api = forge(page.request, nonce);
+  await makeSite(api, 'Activation Ltd', runId);
+
+  await page.goto('/blueworx-forge/#screen=clients');
+  // Already on the app page, so that was a fragment change rather than a
+  // navigation; the app reads the hash on a fresh load, so force one.
+  await page.reload();
+  await expect(page.getByTestId('bwx-clients')).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page.getByTestId('bwx-clients-list').locator('tbody tr', { hasText: name })
+  ).toBeVisible();
 });

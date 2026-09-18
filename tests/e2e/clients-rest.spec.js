@@ -320,6 +320,63 @@ test('deactivating a client deactivates its sites', async ({ browser, baseURL })
   await context.close();
 });
 
+test('a deactivated client can be reactivated', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Reactivate Client Ltd ${RUN_ID}`);
+
+  const closed = await context.request.patch(`/wp-json/blueworx-forge/v1/clients/${client.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'inactive', record_version: client.record_version },
+  });
+  expect(closed.status()).toBe(200);
+  const closedBody = (await closed.json()).client;
+
+  const reopened = await context.request.patch(`/wp-json/blueworx-forge/v1/clients/${client.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'active', record_version: closedBody.record_version },
+  });
+  expect(reopened.status()).toBe(200);
+  expect((await reopened.json()).client.status).toBe('active');
+
+  // Back in the default listing, which shows active clients only.
+  const listed = await context.request.get('/wp-json/blueworx-forge/v1/clients', {
+    headers: { 'X-WP-Nonce': nonce },
+  });
+  const clients = (await listed.json()).clients;
+  expect(clients.some((one) => one.id === client.id)).toBe(true);
+
+  await context.close();
+});
+
+test('a deactivated site can be reactivated', async ({ browser, baseURL }) => {
+  const { context, nonce } = await signedInContext(browser, baseURL);
+  const client = await createClient(context.request, nonce, `Reactivate Site Ltd ${RUN_ID}`);
+  const site = await createSite(context.request, nonce, client.id, 'Reactivate Main');
+
+  const closed = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'inactive', record_version: site.record_version },
+  });
+  expect(closed.status()).toBe(200);
+  const closedBody = (await closed.json()).site;
+
+  const reopened = await context.request.patch(`/wp-json/blueworx-forge/v1/client-sites/${site.id}`, {
+    headers: { 'X-WP-Nonce': nonce },
+    data: { status: 'active', record_version: closedBody.record_version },
+  });
+  expect(reopened.status()).toBe(200);
+  expect((await reopened.json()).site.status).toBe('active');
+
+  // Back in the client's default listing of sites, which is also active-only.
+  const listed = await context.request.get(`/wp-json/blueworx-forge/v1/clients/${client.id}/sites`, {
+    headers: { 'X-WP-Nonce': nonce },
+  });
+  const sites = (await listed.json()).sites;
+  expect(sites.some((one) => one.id === site.id)).toBe(true);
+
+  await context.close();
+});
+
 // ---------------------------------------------------------------------------
 // PR 4: what the Clients screen in the app needs that the admin page had —
 // the contact, starting onboarding, the studio's own name, and the facts the

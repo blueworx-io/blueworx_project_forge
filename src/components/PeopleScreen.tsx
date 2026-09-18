@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import type { Client, ClientSite, GrantOption, GrantsAnswer, Membership, PersonAnswer, PersonRecord, UnlinkedAccount } from '../types';
-import { api, ApiError, isDenied, messageFor } from '../api';
+import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
@@ -279,6 +279,7 @@ function PersonCard( {
 } ) {
   const active = 'active' === person.status;
   const memberships = everyone ? person.memberships : person.memberships.filter( ( one ) => 'active' === one.status );
+  const adminUrl = forgeData()?.adminUrl ?? `${ forgeData()?.siteUrl ?? '' }/wp-admin/`;
 
   const columns: Column< Membership >[] = [
     { key: 'client', label: 'Client', wrap: true, render: ( m ) => m.client_name || 'Unknown client' },
@@ -349,7 +350,13 @@ function PersonCard( {
         <p className="bwx-hint">
           <span data-testid="bwx-people-card-email">{ person.email }</span>
           { ' · ' }
-          <span data-testid="bwx-people-card-account">{ person.account ? `Signs in as ${ person.account.login }` : 'No WordPress account — they cannot sign in.' }</span>
+          <span data-testid="bwx-people-card-account">
+            { person.account ? (
+              <a href={ `${ adminUrl }user-edit.php?user_id=${ person.wp_user_id }` }>{ `Signs in as ${ person.account.login }` }</a>
+            ) : (
+              'No WordPress account — they cannot sign in.'
+            ) }
+          </span>
         </p>
         <DataView< Membership >
           columns={ columns }

@@ -25,13 +25,6 @@ namespace Blueworx\Forge\Admin;
 final class Page {
 
 	/**
-	 * Whether the page being rendered holds its panels in a narrow column.
-	 *
-	 * @var bool
-	 */
-	private static bool $narrow = false;
-
-	/**
 	 * Whether the open panel wraps its body and footer in a form.
 	 *
 	 * @var bool
@@ -44,11 +37,8 @@ final class Page {
 	 * @param string $title   The page title.
 	 * @param string $eyebrow Small label above the title. Optional.
 	 * @param string $lede    A sentence under the title. Optional.
-	 * @param bool   $narrow  Whether to hold the panels in one narrow column.
 	 */
-	public static function open( string $title, string $eyebrow = '', string $lede = '', bool $narrow = false ): void {
-		self::$narrow = $narrow;
-
+	public static function open( string $title, string $eyebrow = '', string $lede = '' ): void {
 		echo '<div class="wrap bw-wrap"><div class="bw-admin bw-page">';
 		echo '<header class="bw-pagehead">';
 		echo '<div class="bw-pagehead__titles">';
@@ -70,25 +60,14 @@ final class Page {
 
 		// The panel column. ScreenLayout draws this as bw-panels when a screen
 		// has no sidebar, and no studio screen has one.
-		//
-		// A screen that is mostly a form asks for the narrow variant. Left full
-		// width, a labelled field runs the whole width of the monitor and the
-		// input is a foot of empty box — which is what the availability screen
-		// looked like. The body wrapper is what carries the gutter in that
-		// case, so the panels stop being a direct child of the page and stop
-		// padding themselves.
-		echo self::$narrow
-			? '<div class="bw-page__body bw-page__body--single"><div class="bw-panels">'
-			: '<div class="bw-panels">';
+		echo '<div class="bw-panels">';
 	}
 
 	/**
 	 * Closes the page.
 	 */
 	public static function close(): void {
-		echo self::$narrow ? '</div></div></div></div>' : '</div></div></div>';
-
-		self::$narrow = false;
+		echo '</div></div></div>';
 	}
 
 	/**

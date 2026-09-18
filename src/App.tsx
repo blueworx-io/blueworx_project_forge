@@ -38,11 +38,12 @@ import './shell.css';
  * screen, because a request arriving, or your work coming back, matters the
  * same amount whichever screen somebody is looking at.
  *
- * Sync health is still a WordPress admin screen; the rail links to it so it
- * is no further away than it was.
- *
- * Availability is the first configuration screen to move in (spec
- * 2026-09-16); the rest follow it, one pull request each.
+ * Every screen the studio uses is here (ARCH-7): the configuration screens —
+ * Clients, Support, Meetings, People, Availability, Packages — came in one
+ * pull request each (spec 2026-09-16), and their WordPress admin pages are
+ * gone. Sync health is the one link out: it is a WordPress admin screen
+ * because it is about WordPress itself, and the rail links to it so it is no
+ * further away than it was.
  */
 
 type Entry =

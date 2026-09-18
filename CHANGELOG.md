@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.114.0] - 2026-09-18
+
+### Changed
+
+- The six configuration screens — Clients, People, Availability, Packages, Support and Meetings — now live only in the app: Clients, Support and Meetings under Clients; People and Availability under Team; Packages under Insight. Their WordPress admin pages are gone; Sites, Connections, Onboarding templates, Sales, Sync health and Updates stay in WordPress admin.
+
 ## [2.113.0] - 2026-09-18
 
 ### Added

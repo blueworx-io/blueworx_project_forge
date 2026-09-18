@@ -10,9 +10,10 @@ import * as Forge from './helpers/forge.js';
 // is the case the obvious design, a suspended flag on one row, cannot answer.
 //
 // It also closes two things left open by #147 and #148. Assigning a package
-// grants its hours through the ledger, so the ledger has a screen at last; and
-// a part-year assignment shows its sum before it is written, so the pro-rata
-// preview has somewhere to be displayed. Both are checked here.
+// grants its hours through the ledger, so the ledger is read back with the
+// position; and a part-year assignment grants its pro-rated sum, so the
+// pro-rata preview has somewhere to be written. Both are checked here, over
+// the routes the Support screen in the app is drawn from.
 //
 // The instance is kept between runs and other specs leave sites behind, so
 // every assertion is scoped to this run's own.
@@ -21,7 +22,6 @@ const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';
 
 /** Today and a date some days from it, as the screen writes them. */
 function day(offset = 0) {
@@ -34,58 +34,53 @@ function day(offset = 0) {
 let made = 0;
 
 async function withSiteAndPackage(browser, baseURL) {
-  // A name of its own per test. Every test here adds a package to a shared
-  // instance, so one name shared between them leaves several identical options
-  // in the list and no way to say which is this test's.
+  // A package of its own per test. Every test here adds a package to a shared
+  // instance, so one name shared between them leaves several identical
+  // packages and no way to say which is this test's.
   const label = `Standard ${RUN_ID}-${++made}`;
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const { site } = await Forge.makeSite(admin.api, `Support Co ${RUN_ID}`, RUN_ID);
 
-  await Forge.makePackage(admin.api, label, { hours: 12, price: 1200 });
+  const pkg = await Forge.makePackage(admin.api, label, { hours: 12, price: 1200 });
 
-  const page = await admin.context.newPage();
-
-  return { admin, site, page, label };
+  return { admin, site, pkg };
 }
 
-/** Opens one site's support screen. */
-async function openSupport(page, siteId) {
-  await page.goto(`${SUPPORT}&site=${siteId}`);
-  await expect(page.locator('[data-bwx-support-state]')).toBeVisible();
+/** One site's support: position, periods and ledger, as one answer. */
+async function support(admin, siteId) {
+  const answer = await admin.api.get(`/client-sites/${siteId}/support`);
+  expect(answer.ok, JSON.stringify(answer)).toBe(true);
+
+  return answer;
 }
 
-/**
- * Chooses this run's own package.
- *
- * The instance is shared and earlier specs leave packages behind, so the first
- * option in the list belongs to somebody else — and a test that silently
- * assigns a ten-hour package while asserting about a twelve-hour one fails for
- * a reason that has nothing to do with what it is checking.
- */
-async function chooseOurPackage(page, label) {
-  const option = page.locator('#bwx-assign-package option', { hasText: label });
-  const value = await option.getAttribute('value');
+/** The allocation entries on a ledger — the hours a package granted. */
+function allocations(answer) {
+  return answer.ledger.filter((entry) => 'allocation' === entry.event_type);
+}
 
-  expect(value, 'this test’s package is on offer').toBeTruthy();
+/** Does one of the six things to a site's support, from a date. */
+async function act(admin, siteId, what, from) {
+  const wrote = await admin.api.post(`/client-sites/${siteId}/support/${what}`, { from });
+  expect(wrote.status(), await wrote.text()).toBe(200);
 
-  await page.locator('#bwx-assign-package').selectOption(value);
+  return wrote.json();
 }
 
 test('a site with no package says so, and says it is not lapsed', async ({ browser, baseURL }) => {
   test.slow();
 
-  const { admin, site, page } = await withSiteAndPackage(browser, baseURL);
+  const { admin, site } = await withSiteAndPackage(browser, baseURL);
 
-  await openSupport(page, site.id);
+  const answer = await support(admin, site.id);
 
   // "None" rather than "lapsed": nothing has run out because nothing has begun,
   // and reading it the other way would put this client on a renewal list for a
   // package they have never held.
-  await expect(page.locator('[data-bwx-support-state="none"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-may-use-hours="no"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-periods="0"]')).toBeVisible();
+  expect(answer.position.state).toBe('none');
+  expect(answer.position.may_use_hours).toBe(false);
+  expect(answer.periods).toHaveLength(0);
 
-  await page.close();
   await admin.context.close();
 });
 
@@ -95,28 +90,23 @@ test('assigning a package puts the site on support and its hours on the ledger',
 }) => {
   test.slow();
 
-  const { admin, site, page, label } = await withSiteAndPackage(browser, baseURL);
+  const { admin, site, pkg } = await withSiteAndPackage(browser, baseURL);
 
-  await openSupport(page, site.id);
-  await chooseOurPackage(page, label);
-  await page.locator('#bwx-assign-from').fill(day(0));
-  await page.locator('#bwx-assign').click();
+  await Forge.assignSupport(admin.api, site.id, pkg.current.id, day(0));
 
-  await expect(page.locator('[data-bwx-result="assigned"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-support-state="active"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-may-use-hours="yes"]')).toBeVisible();
+  const answer = await support(admin, site.id);
+  expect(answer.position.state).toBe('active');
+  expect(answer.position.may_use_hours).toBe(true);
 
   /*
    * The hours arrived through the ledger, which is the only way hours ever
    * arrive. A balance that moved by some other route would be a second path by
    * which a client's entitlement can change, and there is not one.
    */
-  await expect(page.locator('[data-bwx-balance="12"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-entry="allocation"]')).toHaveCount(1);
-  await expect(page.locator('[data-bwx-entry="allocation"]')).toHaveAttribute(
-    'data-bwx-entry-hours', '12');
+  expect(Number(answer.position.balance)).toBe(12);
+  expect(allocations(answer)).toHaveLength(1);
+  expect(Number(allocations(answer)[0].hours)).toBe(12);
 
-  await page.close();
   await admin.context.close();
 });
 
@@ -126,32 +116,22 @@ test('suspending leaves the hours alone, and resuming can be told apart from it 
 }) => {
   test.slow();
 
-  const { admin, site, page, label } = await withSiteAndPackage(browser, baseURL);
+  const { admin, site, pkg } = await withSiteAndPackage(browser, baseURL);
 
-  await openSupport(page, site.id);
-  await chooseOurPackage(page, label);
-  await page.locator('#bwx-assign-from').fill(day(-30));
-  await page.locator('#bwx-assign').click();
-  await expect(page.locator('[data-bwx-result="assigned"]')).toBeVisible();
+  await Forge.assignSupport(admin.api, site.id, pkg.current.id, day(-30));
 
   // Stopped a fortnight ago.
-  await page.locator('input[name="from"]').first().fill(day(-14));
-  await page.locator('#bwx-suspend').click();
-
-  await expect(page.locator('[data-bwx-result="suspended"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-support-state="suspended"]')).toBeVisible();
+  const suspended = await act(admin, site.id, 'suspend', day(-14));
+  expect(suspended.position.state).toBe('suspended');
 
   // COMM-4: the balance is frozen, not voided. Hours a client paid for are
   // theirs whatever their package is doing.
-  await expect(page.locator('[data-bwx-balance="12"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-entry="allocation"]')).toHaveCount(1);
+  expect(Number(suspended.position.balance)).toBe(12);
+  expect(allocations(suspended)).toHaveLength(1);
 
   // And back on, a week ago.
-  await page.locator('input[name="from"]').first().fill(day(-7));
-  await page.locator('#bwx-resume').click();
-
-  await expect(page.locator('[data-bwx-result="resumed"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-support-state="active"]')).toBeVisible();
+  const resumed = await act(admin, site.id, 'resume', day(-7));
+  expect(resumed.position.state).toBe('active');
 
   /*
    * Three periods, which is the criterion. A suspended flag on a single row
@@ -159,14 +139,14 @@ test('suspending leaves the hours alone, and resuming can be told apart from it 
    * would be gone — along with any way to answer for what it was entitled to
    * then.
    */
-  await expect(page.locator('[data-bwx-periods="3"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-period-state="suspended"]')).toHaveCount(1);
-  await expect(page.locator('[data-bwx-period-state="active"]')).toHaveCount(2);
+  const answer = await support(admin, site.id);
+  expect(answer.periods).toHaveLength(3);
+  expect(answer.periods.filter((period) => 'suspended' === period.state)).toHaveLength(1);
+  expect(answer.periods.filter((period) => 'active' === period.state)).toHaveLength(2);
 
   // Still granted once, however many times the position changed.
-  await expect(page.locator('[data-bwx-entry="allocation"]')).toHaveCount(1);
+  expect(allocations(answer)).toHaveLength(1);
 
-  await page.close();
   await admin.context.close();
 });
 
@@ -176,9 +156,7 @@ test('a part-year assignment grants the pro-rated hours, not a full year', async
 }) => {
   test.slow();
 
-  const { admin, site, page, label } = await withSiteAndPackage(browser, baseURL);
-
-  await openSupport(page, site.id);
+  const { admin, site, pkg } = await withSiteAndPackage(browser, baseURL);
 
   /*
    * A client asking to align with a shared renewal date — the one case COMM-1
@@ -188,20 +166,19 @@ test('a part-year assignment grants the pro-rated hours, not a full year', async
   const from = '2026-01-01';
   const to = '2026-07-01';
 
-  await chooseOurPackage(page, label);
-  await page.locator('#bwx-assign-from').fill(from);
-  await page.locator('#bwx-assign-until').fill(to);
-  await page.locator('#bwx-assign').click();
+  const wrote = await admin.api.post(`/client-sites/${site.id}/support`, {
+    package_version: pkg.current.id,
+    starts_on: from,
+    ends_on: to,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
 
-  await expect(page.locator('[data-bwx-result="assigned"]')).toBeVisible();
+  const answer = await support(admin, site.id);
 
-  const allocation = page.locator('[data-bwx-entry="allocation"]');
+  expect(allocations(answer)).toHaveLength(1);
+  expect(Number(allocations(answer)[0].hours)).toBe(6);
+  expect(Number(answer.position.balance)).toBe(6);
 
-  await expect(allocation).toHaveCount(1);
-  await expect(allocation).toHaveAttribute('data-bwx-entry-hours', '6');
-  await expect(page.locator('[data-bwx-balance="6"]')).toBeVisible();
-
-  await page.close();
   await admin.context.close();
 });
 
@@ -211,26 +188,18 @@ test('cancelling ends the cover and leaves the hours to be dealt with deliberate
 }) => {
   test.slow();
 
-  const { admin, site, page, label } = await withSiteAndPackage(browser, baseURL);
+  const { admin, site, pkg } = await withSiteAndPackage(browser, baseURL);
 
-  await openSupport(page, site.id);
-  await chooseOurPackage(page, label);
-  await page.locator('#bwx-assign-from').fill(day(-30));
-  await page.locator('#bwx-assign').click();
-  await expect(page.locator('[data-bwx-result="assigned"]')).toBeVisible();
+  await Forge.assignSupport(admin.api, site.id, pkg.current.id, day(-30));
 
-  await page.locator('form:has(#bwx-cancel) input[name="from"]').fill(day(-1));
-  await page.locator('#bwx-cancel').click();
-
-  await expect(page.locator('[data-bwx-result="cancelled"]')).toBeVisible();
+  const cancelled = await act(admin, site.id, 'cancel', day(-1));
 
   // Lapsed rather than gone: the record still shows what they had, and the
   // hours are still there to be written off with a reason if that is what was
   // agreed. Taking them back quietly is not something cancelling does.
-  await expect(page.locator('[data-bwx-support-state="lapsed"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-balance="12"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-periods="1"]')).toBeVisible();
+  expect(cancelled.position.state).toBe('lapsed');
+  expect(Number(cancelled.position.balance)).toBe(12);
+  expect(cancelled.periods).toHaveLength(1);
 
-  await page.close();
   await admin.context.close();
 });

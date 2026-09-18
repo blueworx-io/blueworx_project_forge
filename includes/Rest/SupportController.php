@@ -20,14 +20,13 @@ use Blueworx\Forge\Tenancy\ClientSites;
 use WP_REST_Request;
 
 /**
- * What the Support admin screen does, as routes, so the studio app can be
- * the one place it is done (PR 5 of spec 2026-09-16). The writes are the
- * ones `Admin\SupportActions` makes; the rules are `Commerce\Assignments`',
- * `Commerce\Sales`' and `Commerce\Entries`' own, and nothing is checked here
- * that they do not check themselves — a null from the domain becomes the
- * sentence the admin page shows, and that is all. Every answer is the whole
- * picture for one site, so a screen that has just written never has to read
- * again.
+ * What the Support admin page did, as routes, so the studio app is the one
+ * place it is done (PR 5 of spec 2026-09-16). The writes are the ones that
+ * page made; the rules are `Commerce\Assignments`', `Commerce\Sales`' and
+ * `Commerce\Entries`' own, and nothing is checked here that they do not
+ * check themselves — a null from the domain becomes the sentence the page
+ * showed, and that is all. Every answer is the whole picture for one site,
+ * so a screen that has just written never has to read again.
  *
  * COMM-2 is visible in the shape: the preview route and the assign route
  * call the same `ProRata::preview()`, so the figure somebody agreed to and

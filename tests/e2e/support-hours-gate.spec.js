@@ -165,16 +165,15 @@ test('a lapsed site cannot spend the hours it still has', async ({ browser, base
   // The package cancelled from today. COMM-4 freezes the balance rather than
   // voiding it, so the hours are still on the ledger and still not spendable —
   // which is the case a check that read the balance alone would get wrong.
-  const page = await admin.context.newPage();
+  //
+  // No date sent means today, and today is "the first day not covered" — so
+  // from now on the site has hours and cannot spend them.
+  const cancelled = await api.post(`/client-sites/${site.id}/support/cancel`, {});
+  expect(cancelled.status(), await cancelled.text()).toBe(200);
 
-  await page.goto(`/wp-admin/admin.php?page=blueworx-forge-support&site=${site.id}`);
-
-  // The form's date already reads today, and today is "the first day not
-  // covered" — so from now on the site has hours and cannot spend them.
-  await page.locator('#bwx-cancel').click();
-  await expect(page.locator('[data-bwx-may-use-hours="no"]')).toBeVisible();
-  await expect(page.locator('[data-bwx-balance]')).not.toHaveAttribute('data-bwx-balance', '0');
-  await page.close();
+  const position = (await cancelled.json()).position;
+  expect(position.may_use_hours).toBe(false);
+  expect(Number(position.balance)).not.toBe(0);
 
   const ready = await Forge.satisfy(api, planned, 'in-development');
 

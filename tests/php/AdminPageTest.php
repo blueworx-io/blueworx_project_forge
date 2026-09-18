@@ -148,7 +148,7 @@ final class AdminPageTest extends TestCase {
 
 	public function test_ours_matches_studio_screens_only(): void {
 		$this->assertTrue( Page::ours( 'toplevel_page_blueworx-forge-sites' ) );
-		$this->assertTrue( Page::ours( 'forge_page_blueworx-forge-clients' ) );
+		$this->assertTrue( Page::ours( 'forge_page_blueworx-forge-sync' ) );
 		$this->assertFalse( Page::ours( 'edit.php' ) );
 		$this->assertFalse( Page::ours( 'toplevel_page_some-other-plugin' ) );
 	}

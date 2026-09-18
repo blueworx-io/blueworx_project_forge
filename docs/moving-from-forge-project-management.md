@@ -7,17 +7,21 @@ stays there as the record of everything that came before.
 
 ## Set the studio up first
 
-In this order, because each step needs the one above it. All of them are under
-**Forge** in the WordPress menu.
+In this order, because each step needs the one above it. All of them are
+screens in the Forge app — **Forge → Board** in the WordPress menu opens it — and
+each link below opens the screen directly on the app page.
 
-1. **Clients** — one per client, with their timezone.
-2. **Clients → sites** — one per site you look after.
-3. **People** — everybody who works on anything, and which client they work for.
-4. **Support packages** — the packages you sell, with their hours and term.
-5. **Support** — put each site on the package it is actually on, from the date it
-   started. This is what creates their hours.
-6. **Meetings** — any standing meeting a client has, so the time it takes comes
-   out of the right person's week.
+1. **Clients** (`#screen=clients`) — one per client, with their timezone.
+2. **Clients → sites** (`#screen=clients`, pick the client) — one per site you
+   look after.
+3. **People** (`#screen=people`) — everybody who works on anything, and which
+   client they work for.
+4. **Packages** (`#screen=packages`) — the packages you sell, with their hours
+   and term.
+5. **Support** (`#screen=support`) — put each site on the package it is actually
+   on, from the date it started. This is what creates their hours.
+6. **Meetings** (`#screen=meetings`) — any standing meeting a client has, so the
+   time it takes comes out of the right person's week.
 
 Only then is there anywhere sensible to put work.
 
@@ -43,15 +47,15 @@ Say so out loud to anyone who will look for it:
   is created in Forge.
 - **Hours already used.** A client's balance starts at what their package gives
   them. If they have already spent some of this term's hours, correct the
-  balance on the Support screen and say why — the correction shows on the same
-  screen the balance does.
+  balance on the Support screen (`#screen=support`) and say why — the correction
+  shows on the same screen the balance does.
 - **Discussion and attachments.** They stay in the old plugin.
 
 ## Connect the client sites
 
-Each client site runs the client plugin, and each needs its own key: **Clients →
-the site → integration key**, then paste it into that site's Forge connection
-screen. A key belongs to one site; reusing one is how two clients end up looking
+Each client site runs the client plugin, and each needs its own key: **Clients**
+(`#screen=clients`) **→ the client → the site → Issue key**, then paste it into
+that site's Forge connection screen. A key belongs to one site; reusing one is how two clients end up looking
 at the same work.
 
 ## Turning the old plugin off

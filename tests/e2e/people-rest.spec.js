@@ -364,8 +364,9 @@ test('an edit that offboards still saves everything else it named', async ({ bro
 
 // ---------------------------------------------------------------------------
 // PR 3 of the move out of WordPress admin: everything the People screen does,
-// over REST. These mirror the admin page's handlers check for check, so the
-// screen and the page cannot disagree about what is refused.
+// over REST. The admin page and its handlers are gone, so these routes are
+// the only way in now — the screen relies on the server to refuse what these
+// tests refuse.
 //
 // Serial and sharing one signed-in caller, because the tests build on each
 // other's people: the person added from an account is the one a later link is

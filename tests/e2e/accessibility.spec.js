@@ -22,10 +22,7 @@ const RUN_ID = `${ Date.now() }-${ Math.floor( Math.random() * 1e6 ) }`;
 
 /** Every admin screen this plugin registers. */
 const ADMIN_SCREENS = [
-  [ 'Clients', 'blueworx-forge-clients' ],
   [ 'Sites', 'blueworx-forge-sites' ],
-  [ 'People', 'blueworx-forge-people' ],
-  [ 'Availability', 'blueworx-forge-availability' ],
   [ 'Onboarding template', 'blueworx-forge-onboarding-template' ],
   [ 'Sync', 'blueworx-forge-sync' ],
   [ 'Updates', 'blueworx-forge-updates' ],
