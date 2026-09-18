@@ -645,7 +645,7 @@ final class WorkItemsController {
 		}
 
 		$children = Items::children( $item['id'] );
-		$history  = Events::for_item( $item['id'] );
+		$history  = array_map( array( self::class, 'with_actor_name' ), Events::for_item( $item['id'] ) );
 		$scope    = Scope::current( (string) $item['client_id'] );
 
 		/*
@@ -1501,6 +1501,21 @@ final class WorkItemsController {
 	 * @param array<string, mixed> $item       The item it is being exercised on.
 	 * @return \WP_Error|null Null when it is allowed.
 	 */
+	/**
+	 * A history entry with the name of whoever did it, for the panel's pill.
+	 *
+	 * @param array<string, mixed> $entry One event.
+	 * @return array<string, mixed>
+	 */
+	private static function with_actor_name( array $entry ): array {
+		$actor = (int) ( $entry['actor'] ?? 0 );
+		$user  = $actor > 0 ? get_userdata( $actor ) : false;
+
+		$entry['actor_name'] = $user ? (string) $user->display_name : '';
+
+		return $entry;
+	}
+
 	private static function permit( string $capability, array $item ) {
 		return Access::refuse_unless( $capability, (string) $item['client_id'], $item );
 	}

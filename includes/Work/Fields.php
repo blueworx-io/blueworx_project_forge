@@ -144,9 +144,10 @@ final class Fields {
 	);
 
 	/**
-	 * How an item is classified commercially (COMM-5).
+	 * How an item is classified commercially (COMM-5). A free bug is one we
+	 * caused; a free general item is one nobody is charged for at all.
 	 */
-	public const COMMERCIAL_CLASSES = array( 'chargeable', 'free-bug', 'unclassified' );
+	public const COMMERCIAL_CLASSES = array( 'chargeable', 'free-bug', 'free-general', 'unclassified' );
 
 	/**
 	 * What Released means for this item (WF-6). Recorded at Completed, because
