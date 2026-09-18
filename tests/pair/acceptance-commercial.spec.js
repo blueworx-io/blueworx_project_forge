@@ -18,9 +18,6 @@ const RUN = `comm${Date.now()}`;
 const STAMP = RUN.replace(/[^a-z0-9]/gi, '');
 const GRANTED = 200;
 
-const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';
-const MEETINGS = '/wp-admin/admin.php?page=blueworx-forge-meetings';
-
 const TO_UP_NEXT = [
   'triage',
   'documentation-period',
@@ -70,11 +67,10 @@ test.describe('the commercial acceptance criteria', () => {
     test.setTimeout(420_000);
 
     const pair = await connectedPair(browser, 'Exact hours', RUN);
-    const page = await pair.studio.context.newPage();
     const label = `Exact ${RUN}`;
 
     // A package whose terms are unambiguous: forty hours, twelve months.
-    await Forge.makePackage(pair.studio, label, { hours: 40, price: 1200, validity_months: 12 });
+    const pkg = await Forge.makePackage(pair.studio, label, { hours: 40, price: 1200, validity_months: 12 });
 
     /*
      * Assigned across a leap-year boundary. The whole term is a year whichever
@@ -82,24 +78,15 @@ test.describe('the commercial acceptance criteria', () => {
      * — not a figure a day-count arrived at, and not one short because 2028 has
      * an extra day in it.
      */
-    await page.goto(`${SUPPORT}&site=${pair.site.id}`);
+    await Forge.assignSupport(pair.studio, pair.site.id, pkg.current.id, '2028-01-01');
 
-    const option = page.locator('#bwx-assign-package option', { hasText: label });
+    const ledger = await Forge.hourLedger(pair.studio, pair.site.id);
+    const granted = ledger.entries.filter(([type]) => 'allocation' === type);
 
-    await page.locator('#bwx-assign-package').selectOption(await option.getAttribute('value'));
-    await page.locator('#bwx-assign-from').fill('2028-01-01');
-    await page.locator('#bwx-assign').click();
-
-    await expect(page.locator('[data-bwx-result="assigned"]')).toBeVisible();
-    await expect(page.locator('[data-bwx-balance="40"]')).toBeVisible();
-
-    const entries = (await Forge.hourLedger(pair.studio, pair.site.id)).entries;
-    const granted = entries.filter(([type]) => 'allocation' === type);
-
+    expect(ledger.balance).toBe(40);
     expect(granted, 'granted once').toHaveLength(1);
     expect(granted[0][1], 'exactly the package hours').toBe(40);
 
-    await page.close();
     await pair.close();
   });
 
@@ -165,38 +152,46 @@ test.describe('the commercial acceptance criteria', () => {
     await Forge.onSupport(pair.studio, pair.site.id, GRANTED);
 
     const host = await Forge.makePerson(pair.studio, pair.client.id, 'staff', `ac15h${STAMP}`);
-    const page = await pair.studio.context.newPage();
-
-    await page.goto(`${MEETINGS}&site=${pair.site.id}`);
 
     // A weekly two-hour meeting, which is the ordinary shape of the thing.
-    await page.fill('#bwx-title', `Weekly catch-up ${RUN}`);
-    await page.selectOption('#bwx-frequency', 'weekly');
-    await page.fill('#bwx-starts_on', comingMonday());
-    await page.fill('#bwx-time_of_day', '10:00');
-    await page.fill('#bwx-duration_mins', '120');
-    await page.fill('#bwx-timezone', 'Europe/London');
-    await page.selectOption('#bwx-host', host.id);
-    await page.click('#bwx-add-series');
+    const added = await pair.studio.post(`/client-sites/${pair.site.id}/meetings/series`, {
+      title: `Weekly catch-up ${RUN}`,
+      frequency: 'weekly',
+      starts_on: comingMonday(),
+      ends_on: '',
+      time_of_day: '10:00',
+      duration_mins: 120,
+      timezone: 'Europe/London',
+      host_user_id: host.id,
+      attendees: '',
+      planned_hours: 0,
+    });
+    expect(added.status(), await added.text()).toBe(200);
 
-    await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
+    const { series, meetings } = await added.json();
 
     // Reserved, before anybody has met: the hours are held against meetings
     // that have not happened, which is what makes a balance mean anything.
-    await expect(page.locator('[data-bwx-ledger-state="reserved"]').first()).toBeVisible();
+    expect(meetings.length).toBeGreaterThan(2);
+    expect(meetings[0].ledger_state).toBe('reserved');
 
     const reserved = await Forge.hourLedger(pair.studio, pair.site.id);
 
     expect(reserved.balance, 'held against the meetings to come').toBeLessThan(GRANTED);
     expect(meetingHours(reserved, 'meeting-usage'), 'and nothing spent yet').toBe(0);
 
-    const dates = await page
-      .locator('[data-bwx-meeting]')
-      .evaluateAll((rows) => rows.map((row) => row.getAttribute('data-bwx-meeting')));
+    const dates = meetings.map((meeting) => meeting.slot);
+    const settle = async (slot, status) => {
+      const wrote = await pair.studio.post(
+        `/client-sites/${pair.site.id}/meetings/${series[0].id}/${slot}/settle`,
+        { status }
+      );
+      expect(wrote.status(), await wrote.text()).toBe(200);
+      expect((await wrote.json()).meeting.status).toBe(status);
+    };
 
     // Held: two hours, and only those two.
-    await page.locator(`[data-bwx-meeting="${dates[0]}"] [data-bwx-settle="held"]`).click();
-    await expect(page.locator('[data-bwx-result="held"]')).toBeVisible();
+    await settle(dates[0], 'held');
 
     const afterHeld = await Forge.hourLedger(pair.studio, pair.site.id);
 
@@ -209,18 +204,14 @@ test.describe('the commercial acceptance criteria', () => {
      * every meeting still ahead is legitimately holding its own hours and a
      * total moves for that second reason too.
      */
-    await page.locator(`[data-bwx-meeting="${dates[1]}"] [data-bwx-settle="cancelled"]`).click();
-    await expect(page.locator('[data-bwx-result="cancelled"]')).toBeVisible();
-
-    await page.locator(`[data-bwx-meeting="${dates[2]}"] [data-bwx-settle="no-show"]`).click();
-    await expect(page.locator('[data-bwx-result="no-show"]')).toBeVisible();
+    await settle(dates[1], 'cancelled');
+    await settle(dates[2], 'no-show');
 
     const afterMissed = await Forge.hourLedger(pair.studio, pair.site.id);
 
     expect(afterMissed.balance - afterHeld.balance, 'given back, both of them').toBeCloseTo(4, 2);
     expect(meetingHours(afterMissed, 'meeting-usage'), 'and neither one charged').toBe(2);
 
-    await page.close();
     await pair.close();
   });
 

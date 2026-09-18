@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
-import { forge, startOnboarding } from './helpers/forge.js';
+import { forge, makeSite, startOnboarding } from './helpers/forge.js';
 
 // #165. Every client's launch readiness in one view.
 //
@@ -18,7 +18,6 @@ import { forge, startOnboarding } from './helpers/forge.js';
 // carries a run id, and every assertion is scoped to this run's own site.
 
 const TEMPLATE = '/wp-admin/admin.php?page=blueworx-forge-onboarding-template';
-const CLIENTS = '/wp-admin/admin.php?page=blueworx-forge-clients';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
@@ -57,33 +56,13 @@ async function callerFor(page) {
   return forge(page.request, nonce);
 }
 
-/** Adds a client with one site, gives the site the checklist, returns its id. */
-async function onboardingSite(page, api) {
-  const clientName = `Board client ${RUN_ID}`;
-  const siteName = `Board site ${RUN_ID}`;
+/** Adds a client with one site over REST, gives the site the checklist, returns its id. */
+async function onboardingSite(api) {
+  const { site } = await makeSite(api, 'Board', RUN_ID);
 
-  await page.goto(CLIENTS);
-  await page.fill('#bwx-client-name', clientName);
-  await page.locator('form[data-bwx-add-client] input[type="submit"]').click();
-  await expect(page.locator('[data-bwx-notice="added"]')).toBeVisible();
+  await startOnboarding(api, site.id);
 
-  const client = page
-    .locator(`li[data-bwx-client]:has([data-bwx-client-name]:text-is("${clientName}"))`)
-    .first();
-
-  await client.locator('form[data-bwx-add-site] input[name="name"]').fill(siteName);
-  await client.locator('form[data-bwx-add-site] input[type="submit"]').click();
-  await expect(page.locator('[data-bwx-notice="added"]')).toBeVisible();
-
-  const site = page
-    .locator(`li[data-bwx-site]:has([data-bwx-site-name]:text-is("${siteName}"))`)
-    .first();
-
-  const siteId = await site.getAttribute('data-bwx-site');
-
-  await startOnboarding(api, siteId);
-
-  return siteId;
+  return site.id;
 }
 
 /** Opens the board and waits for it to arrive. */
@@ -126,7 +105,7 @@ test('the board reconciles to the same steps the client sees', async ({ page }) 
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page, api);
+  const siteId = await onboardingSite(api);
 
   await openBoard(page);
 
@@ -158,7 +137,7 @@ test('a brand new checklist reads as nothing done rather than as finished', asyn
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page, api);
+  const siteId = await onboardingSite(api);
 
   await openBoard(page);
 
@@ -179,7 +158,7 @@ test('a filter narrows what is listed and never what is counted', async ({ page 
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page, api);
+  const siteId = await onboardingSite(api);
 
   await openBoard(page);
 
@@ -210,7 +189,7 @@ test('a row opens to the steps behind its figures', async ({ page }) => {
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page, api);
+  const siteId = await onboardingSite(api);
 
   await openBoard(page);
 
@@ -253,7 +232,7 @@ test('a step waiting on us is approved from the board, and the figures move', as
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const siteId = await onboardingSite(page, api);
+  const siteId = await onboardingSite(api);
 
   await openBoard(page);
 

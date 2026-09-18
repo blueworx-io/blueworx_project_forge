@@ -11,17 +11,19 @@ import * as Forge from './helpers/forge.js';
 // record is what the studio and the client are both reading when they disagree
 // about a bill.
 //
+// Selling and adjusting go over the routes the Support screen in the app is
+// drawn from; the Sales list is still a WordPress admin screen and is walked.
+//
 // The instance is kept between runs, so every name carries a run id.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-const SUPPORT = '/wp-admin/admin.php?page=blueworx-forge-support';
 const SALES = '/wp-admin/admin.php?page=blueworx-forge-sales';
 const GRANTED = 40;
 
-/** A site on a forty-hour package, with its support screen open. */
+/** A site on a forty-hour package, with a page to walk the admin on. */
 async function withSite(browser, baseURL, { hours = GRANTED } = {}) {
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const { site } = await Forge.makeSite(admin.api, `Sales Co ${RUN_ID}`, RUN_ID);
@@ -32,9 +34,20 @@ async function withSite(browser, baseURL, { hours = GRANTED } = {}) {
 
   const page = await admin.context.newPage();
 
-  await page.goto(`${SUPPORT}&site=${site.id}`);
-
   return { admin, site, page };
+}
+
+/** Sells hours to a site. */
+async function topUp(admin, siteId, hours, reason = '') {
+  const wrote = await admin.api.post(`/client-sites/${siteId}/support/top-up`, { hours, reason });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  return wrote.json();
+}
+
+/** Corrects a site's balance by hand, and returns the response unread. */
+function adjust(admin, siteId, hours, reason) {
+  return admin.api.post(`/client-sites/${siteId}/support/adjust`, { hours, reason });
 }
 
 test('hours can be sold, and they land on the ledger with an expiry', async ({
@@ -45,11 +58,8 @@ test('hours can be sold, and they land on the ledger with an expiry', async ({
 
   const { admin, site, page } = await withSite(browser, baseURL);
 
-  await page.fill('#bwx-top-up-hours', '10');
-  await page.fill('#bwx-top-up-note', `Extra work agreed ${RUN_ID}`);
-  await page.click('#bwx-top-up');
-
-  await expect(page.locator('[data-bwx-result="topped-up"]')).toBeVisible();
+  const answer = await topUp(admin, site.id, 10, `Extra work agreed ${RUN_ID}`);
+  expect(answer.entry.event_type).toBe('top-up');
 
   const ledger = await Forge.hourLedger(admin, site.id);
 
@@ -71,16 +81,9 @@ test('an adjustment without a reason is refused', async ({ browser, baseURL }) =
    */
   const { admin, site, page } = await withSite(browser, baseURL);
 
-  // The browser will not submit the form with the reason empty, so the check
-  // has to go through the route the way anything else would.
-  await page.evaluate(() => {
-    document.querySelector('#bwx-adjust-reason').removeAttribute('required');
-  });
-
-  await page.fill('#bwx-adjust-hours', '-5');
-  await page.click('#bwx-adjust');
-
-  await expect(page.locator('[data-bwx-result="no-reason"]')).toBeVisible();
+  const refused = await adjust(admin, site.id, -5, '');
+  expect(refused.status()).toBe(400);
+  expect((await refused.json()).code).toBe('bwx_forge_reason_required');
 
   const ledger = await Forge.hourLedger(admin, site.id);
 
@@ -100,20 +103,18 @@ test('an adjustment with a reason is made, and the reason is on the record', asy
   const { admin, site, page } = await withSite(browser, baseURL);
   const because = `Goodwill after the outage ${RUN_ID}`;
 
-  await page.fill('#bwx-adjust-hours', '-5');
-  await page.fill('#bwx-adjust-reason', because);
-  await page.click('#bwx-adjust');
-
-  await expect(page.locator('[data-bwx-result="adjusted"]')).toBeVisible();
+  const made = await adjust(admin, site.id, -5, because);
+  expect(made.status(), await made.text()).toBe(200);
 
   const ledger = await Forge.hourLedger(admin, site.id);
 
   expect(ledger.entries.filter(([type]) => 'adjustment' === type)).toHaveLength(1);
   expect(ledger.balance).toBe(GRANTED - 5);
 
-  // And the reason is on the screen the client's balance is queried from.
-  await page.goto(`${SUPPORT}&site=${site.id}`);
-  await expect(page.locator('[data-bwx-entry="adjustment"]')).toContainText(because);
+  // And the reason is on the record the client's balance is queried from.
+  const support = await admin.api.get(`/client-sites/${site.id}/support`);
+  const entry = support.ledger.find((one) => 'adjustment' === one.event_type);
+  expect(entry.reason).toBe(because);
 
   await page.close();
   await admin.context.close();
@@ -127,11 +128,9 @@ test('an adjustment can give hours back as well as take them away', async ({
 
   const { admin, site, page } = await withSite(browser, baseURL);
 
-  await page.fill('#bwx-adjust-hours', '3');
-  await page.fill('#bwx-adjust-reason', `Charged in error ${RUN_ID}`);
-  await page.click('#bwx-adjust');
+  const made = await adjust(admin, site.id, 3, `Charged in error ${RUN_ID}`);
+  expect(made.status(), await made.text()).toBe(200);
 
-  await expect(page.locator('[data-bwx-result="adjusted"]')).toBeVisible();
   expect((await Forge.hourLedger(admin, site.id)).balance).toBe(GRANTED + 3);
 
   await page.close();
@@ -159,6 +158,12 @@ test('the sales list shows who needs a conversation, and why', async ({ browser,
    */
   await expect(row.locator('[data-bwx-reason="low-hours"]')).toHaveCount(0);
 
+  // The row opens the site's Support screen in the app.
+  await expect(row.locator('a', { hasText: 'Open' })).toHaveAttribute(
+    'href',
+    new RegExp(`#screen=support&site=${site.id}$`)
+  );
+
   await page.close();
   await admin.context.close();
 });
@@ -172,10 +177,8 @@ test('a site running low is on the list, and drops off when it is topped up', as
   const { admin, site, page } = await withSite(browser, baseURL);
 
   // Thirty-five of forty spent leaves five, which is under a fifth.
-  await page.fill('#bwx-adjust-hours', '-35');
-  await page.fill('#bwx-adjust-reason', `Work done ${RUN_ID}`);
-  await page.click('#bwx-adjust');
-  await expect(page.locator('[data-bwx-result="adjusted"]')).toBeVisible();
+  const made = await adjust(admin, site.id, -35, `Work done ${RUN_ID}`);
+  expect(made.status(), await made.text()).toBe(200);
 
   await page.goto(SALES);
   await expect(
@@ -183,10 +186,7 @@ test('a site running low is on the list, and drops off when it is topped up', as
   ).toBeVisible();
 
   // Sell them some more, and the row goes.
-  await page.goto(`${SUPPORT}&site=${site.id}`);
-  await page.fill('#bwx-top-up-hours', '20');
-  await page.click('#bwx-top-up');
-  await expect(page.locator('[data-bwx-result="topped-up"]')).toBeVisible();
+  await topUp(admin, site.id, 20);
 
   await page.goto(SALES);
   await expect(page.locator(`[data-bwx-site="${site.id}"]`)).toHaveCount(0);

@@ -3,9 +3,12 @@ import { signedIn, makeSite, makeItem } from './helpers/forge.js';
 
 // #292. A person is somebody who can sign in.
 //
-// Walked as an administrator walks it, because the whole point of the change is
-// that the two screens agree: what happens on the People screen is visible on
-// the WordPress Users screen, and the other way round.
+// What is proved here is that the two sides agree: what Forge does to a person
+// is visible on the WordPress Users screen, and what WordPress does to the
+// account comes back to the person. Forge's side is reached over REST — the
+// routes the People screen in the app is drawn from — and WordPress's side is
+// walked on its own admin screens, because a deletion that skips WordPress's
+// nonce is not the one an administrator performs.
 //
 // Every name and address carries this run with it. The instance is kept between
 // runs and nothing is deleted, so a hardcoded address passes once and fails for
@@ -14,19 +17,13 @@ import { signedIn, makeSite, makeItem } from './helpers/forge.js';
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
-const PEOPLE = '/wp-admin/admin.php?page=blueworx-forge-people';
-const PEOPLE_ALL = `${PEOPLE}&status=all`;
+const BASE = '/wp-json/blueworx-forge/v1';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
 /** A fresh login name, unique to this run. */
 function loginName(stem) {
   return `${stem}${Date.now()}${Math.floor(Math.random() * 1000)}`;
-}
-
-/** The card for one person, found by the name on it. */
-function cardFor(page, name) {
-  return page.locator(`[data-bwx-person]:has([data-bwx-person-name]:text-is("${name}"))`);
 }
 
 /** A WordPress account nobody in Forge holds yet. */
@@ -59,32 +56,50 @@ async function readAccount(request, nonce, id) {
 }
 
 /** Adds somebody who has no WordPress account yet, so Forge makes them one. */
-async function addNewPerson(page, name, email) {
-  await page.goto(PEOPLE);
-  await page.fill('#bwx-person-name', name);
-  await page.fill('#bwx-person-email', email);
-  await page.click('form[data-bwx-add-person] input[type="submit"]');
-  await expect(cardFor(page, name)).toBeVisible();
+async function addNewPerson(api, name, email) {
+  const added = await api.post('/users', { display_name: name, email, make_account: true });
+  expect(added.status(), await added.text()).toBe(200);
+
+  return (await added.json()).user;
+}
+
+/** One person, read back as Forge has them. */
+async function readPerson(api, id) {
+  const answer = await api.get(`/users/${id}`);
+  expect(answer.ok, JSON.stringify(answer)).toBe(true);
+
+  return answer.user;
+}
+
+/** The person as the list shows them — active only, or everybody. */
+async function listed(api, id, everyone = false) {
+  const answer = await api.get(everyone ? '/users?status=all' : '/users');
+
+  return answer.users.find((one) => one.id === id) ?? null;
+}
+
+/** The card for one person on the app's People screen. */
+function cardFor(page, id) {
+  return page.locator(`[data-testid="bwx-people-card"][data-person="${id}"]`);
 }
 
 test('adding somebody new gives them the WordPress account they sign in with', async ({
   browser,
   baseURL,
 }) => {
-  const { context, nonce } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  const page = await context.newPage();
+  const { context, nonce, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 
   const name = `Nadia Okonjo ${RUN_ID}`;
   const email = `nadia.${RUN_ID}@example.test`;
 
-  await addNewPerson(page, name, email);
+  const person = await addNewPerson(api, name, email);
 
-  // The screen says who they are on WordPress, so an administrator can see the
-  // account exists without leaving the page.
-  const account = cardFor(page, name).locator('[data-bwx-person-account]');
-  await expect(account).toBeVisible();
+  // The answer says who they are on WordPress, so the screen can show the
+  // account exists without a second read.
+  expect(person.account).toBeTruthy();
+  expect(person.account.login).toBeTruthy();
 
-  const wpUserId = await cardFor(page, name).getAttribute('data-bwx-wp-user');
+  const wpUserId = person.wp_user_id;
   expect(Number(wpUserId)).toBeGreaterThan(0);
 
   const created = await readAccount(context.request, nonce, wpUserId);
@@ -98,29 +113,28 @@ test('somebody who already has a WordPress account is added by picking them', as
   browser,
   baseURL,
 }) => {
-  const { context, nonce } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  const page = await context.newPage();
+  const { context, nonce, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 
   const login = loginName('picked');
   const created = await makeAccount(context.request, nonce, login);
 
-  await page.goto(PEOPLE);
+  // Offered, because nobody in Forge holds the account yet.
+  const before = await api.get('/accounts');
+  expect(before.accounts.map((one) => one.id)).toContain(created.id);
 
-  const form = page.locator('form[data-bwx-add-person-from-wp]');
-  await form.locator('select[name="wp_user_id"]').selectOption(String(created.id));
-  await form.locator('input[type="submit"]').click();
+  const added = await api.post('/users/from-account', { wp_user_id: created.id });
+  expect(added.status(), await added.text()).toBe(200);
 
-  const card = cardFor(page, `Existing ${login}`);
-  await expect(card).toBeVisible();
-  await expect(card.locator('[data-bwx-person-email]')).toHaveText(`${login}@example.test`);
-  await expect(card).toHaveAttribute('data-bwx-wp-user', String(created.id));
+  const person = (await added.json()).user;
+  expect(person.display_name).toBe(`Existing ${login}`);
+  expect(person.email).toBe(`${login}@example.test`);
+  expect(person.wp_user_id).toBe(created.id);
 
   // And they are gone from the list of accounts to pick, because they are
   // somebody now. Two people on one account would make whoever signed in
   // resolve to whichever row was found first.
-  await expect(
-    form.locator(`select[name="wp_user_id"] option[value="${created.id}"]`)
-  ).toHaveCount(0);
+  const after = await api.get('/accounts');
+  expect(after.accounts.map((one) => one.id)).not.toContain(created.id);
 
   await context.close();
 });
@@ -129,21 +143,21 @@ test('editing a person in Forge writes the change to their WordPress account', a
   browser,
   baseURL,
 }) => {
-  const { context, nonce } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  const page = await context.newPage();
+  const { context, nonce, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 
   const name = `Priya Raman ${RUN_ID}`;
-  await addNewPerson(page, name, `priya.${RUN_ID}@example.test`);
+  const person = await addNewPerson(api, name, `priya.${RUN_ID}@example.test`);
 
-  const card = cardFor(page, name);
-  const wpUserId = await card.getAttribute('data-bwx-wp-user');
+  const wpUserId = person.wp_user_id;
   const moved = `priya.moved.${RUN_ID}@example.test`;
 
-  await card.locator('[data-bwx-edit-person] summary').click();
-  await card.locator('[data-bwx-edit-person] input[name="email"]').fill(moved);
-  await card.locator('[data-bwx-edit-person] input[type="submit"]').click();
+  const edited = await api.patch(`/users/${person.id}`, {
+    email: moved,
+    record_version: person.record_version,
+  });
+  expect(edited.status(), await edited.text()).toBe(200);
 
-  await expect(cardFor(page, name).locator('[data-bwx-person-email]')).toHaveText(moved);
+  expect((await readPerson(api, person.id)).email).toBe(moved);
 
   const account = await readAccount(context.request, nonce, wpUserId);
   expect(account.email).toBe(moved);
@@ -155,21 +169,23 @@ test('editing the WordPress account writes the change back to the person', async
   browser,
   baseURL,
 }) => {
-  const { context } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const page = await context.newPage();
 
   const name = `Tomas Lindqvist ${RUN_ID}`;
-  await addNewPerson(page, name, `tomas.${RUN_ID}@example.test`);
+  const person = await addNewPerson(api, name, `tomas.${RUN_ID}@example.test`);
 
-  const wpUserId = await cardFor(page, name).getAttribute('data-bwx-wp-user');
+  const wpUserId = person.wp_user_id;
   const moved = `tomas.moved.${RUN_ID}@example.test`;
 
   await page.goto(`/wp-admin/user-edit.php?user_id=${wpUserId}`);
   await page.fill('#email', moved);
   await page.click('#submit');
 
-  await page.goto(PEOPLE);
-  await expect(cardFor(page, name).locator('[data-bwx-person-email]')).toHaveText(moved);
+  // Read back where an administrator would look: the People screen in the app.
+  await page.goto('/blueworx-forge/#screen=people');
+  await expect(page.getByTestId('bwx-people')).toBeVisible({ timeout: 30_000 });
+  await expect(cardFor(page, person.id).getByTestId('bwx-people-card-email')).toHaveText(moved);
 
   await context.close();
 });
@@ -178,14 +194,14 @@ test('deleting the WordPress user offboards the person and ends their access', a
   browser,
   baseURL,
 }) => {
-  const { context } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const page = await context.newPage();
 
   const name = `Grace Adeyemi ${RUN_ID}`;
   const email = `grace.${RUN_ID}@example.test`;
-  await addNewPerson(page, name, email);
+  const person = await addNewPerson(api, name, email);
 
-  const wpUserId = await cardFor(page, name).getAttribute('data-bwx-wp-user');
+  const wpUserId = person.wp_user_id;
 
   // Followed from the Users screen rather than built by hand: the link carries
   // WordPress's own nonce, and a deletion that skips it is not the one an
@@ -202,17 +218,15 @@ test('deleting the WordPress user offboards the person and ends their access', a
 
   // Gone from the active view entirely, and offboarded in the one that shows
   // everybody. Their history stays; their access does not.
-  await page.goto(PEOPLE);
-  await expect(cardFor(page, name)).toHaveCount(0);
+  expect(await listed(api, person.id)).toBeNull();
 
-  await page.goto(PEOPLE_ALL);
-  const card = cardFor(page, name);
-  await expect(card).toBeVisible();
-  await expect(card.locator('[data-bwx-status]')).toHaveText('Offboarded');
+  const card = await listed(api, person.id, true);
+  expect(card).toBeTruthy();
+  expect(card.status).toBe('inactive');
 
   // And the link is dropped, so an id WordPress hands out again later cannot
   // pick up somebody else's identity.
-  await expect(card).toHaveAttribute('data-bwx-wp-user', '0');
+  expect(card.wp_user_id).toBe(0);
 
   await context.close();
 });
@@ -222,7 +236,6 @@ test('somebody offboarded before they had an account can be brought back', async
   baseURL,
 }) => {
   const { context, nonce, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  const page = await context.newPage();
 
   // Added the way people were before #292: a record with no account behind it.
   // Then the address gets an account anyway, as it would when they sign up on
@@ -233,21 +246,22 @@ test('somebody offboarded before they had an account can be brought back', async
 
   const created = await api.post('/users', { display_name: name, email });
   expect(created.status(), await created.text()).toBe(200);
+  const person = (await created.json()).user;
 
   await makeAccount(context.request, nonce, login);
 
-  await page.goto(PEOPLE);
-  page.once('dialog', (dialog) => dialog.accept());
-  await cardFor(page, name).locator('[data-bwx-offboard]').click();
+  const gone = await api.post(`/users/${person.id}/offboard`, { record_version: person.record_version });
+  expect(gone.status(), await gone.text()).toBe(200);
+  const offboarded = (await gone.json()).user;
 
-  await page.goto(PEOPLE_ALL);
-  const card = cardFor(page, name);
-  await card.locator('[data-bwx-edit-person] summary').click();
-  await card.locator('[data-bwx-edit-person] select[name="status"]').selectOption('active');
-  await card.locator('[data-bwx-edit-person] input[type="submit"]').click();
+  const back = await api.patch(`/users/${person.id}`, {
+    status: 'active',
+    record_version: offboarded.record_version,
+  });
+  expect(back.status(), await back.text()).toBe(200);
+  expect((await back.json()).user.status).toBe('active');
 
-  await expect(page.locator('[data-bwx-notice="added"]')).toBeVisible();
-  await expect(cardFor(page, name).locator('[data-bwx-status]')).toHaveText('Active');
+  expect((await readPerson(api, person.id)).status).toBe('active');
 
   await context.close();
 });
@@ -256,34 +270,32 @@ test('deleting an offboarded person removes them from Forge and keeps their Word
   browser,
   baseURL,
 }) => {
-  const { context, nonce } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  const page = await context.newPage();
+  const { context, nonce, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 
   const name = `Gone Entirely ${RUN_ID}`;
-  await addNewPerson(page, name, `gone.${RUN_ID}@example.test`);
+  const person = await addNewPerson(api, name, `gone.${RUN_ID}@example.test`);
 
-  const wpUserId = await cardFor(page, name).getAttribute('data-bwx-wp-user');
+  const wpUserId = person.wp_user_id;
 
   // Nobody active can be deleted: offboarding is the step that ends access,
   // and deletion is only offered once that has happened.
-  await expect(cardFor(page, name).locator('[data-bwx-delete-person]')).toHaveCount(0);
+  const early = await api.request.delete(`${BASE}/users/${person.id}`, { headers: api.headers });
+  expect(early.status()).toBe(400);
+  expect((await early.json()).code).toBe('bwx_forge_person_active');
 
-  page.once('dialog', (dialog) => dialog.accept());
-  await cardFor(page, name).locator('[data-bwx-offboard]').click();
+  const gone = await api.post(`/users/${person.id}/offboard`, { record_version: person.record_version });
+  expect(gone.status(), await gone.text()).toBe(200);
 
-  await page.goto(PEOPLE_ALL);
-  page.once('dialog', (dialog) => dialog.accept());
-  await cardFor(page, name).locator('[data-bwx-delete-person]').click();
+  const removed = await api.request.delete(`${BASE}/users/${person.id}`, { headers: api.headers });
+  expect(removed.status(), await removed.text()).toBe(200);
+  expect(await removed.json()).toEqual({ ok: true, deleted: person.id });
 
-  await expect(page.locator('[data-bwx-notice="deleted"]')).toBeVisible();
-
-  await page.goto(PEOPLE_ALL);
-  await expect(cardFor(page, name)).toHaveCount(0);
+  expect(await listed(api, person.id, true)).toBeNull();
 
   // Forge let go of the record. WordPress did not: the account is theirs, and
   // everything they wrote is attributed to it.
   const account = await readAccount(context.request, nonce, wpUserId);
-  expect(String(account.id)).toBe(wpUserId);
+  expect(account.id).toBe(wpUserId);
 
   await context.close();
 });
@@ -293,11 +305,9 @@ test('somebody with work attributed to them cannot be deleted, only offboarded',
   baseURL,
 }) => {
   const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  const page = await context.newPage();
 
   const name = `Kept On Record ${RUN_ID}`;
-  await addNewPerson(page, name, `kept.${RUN_ID}@example.test`);
-  const personId = await cardFor(page, name).getAttribute('data-bwx-person');
+  const person = await addNewPerson(api, name, `kept.${RUN_ID}@example.test`);
 
   // Work with their name on it. Once that exists, removing the row would leave
   // the work pointing at nobody (NOTIF-5).
@@ -307,19 +317,18 @@ test('somebody with work attributed to them cannot be deleted, only offboarded',
   const { item } = await made.json();
 
   const assigned = await api.patch(`/work-items/${item.id}`, {
-    primary_user_id: personId,
+    primary_user_id: person.id,
     record_version: item.record_version,
   });
   expect(assigned.status(), await assigned.text()).toBe(200);
 
-  await page.goto(PEOPLE);
-  page.once('dialog', (dialog) => dialog.accept());
-  await cardFor(page, name).locator('[data-bwx-offboard]').click();
+  const gone = await api.post(`/users/${person.id}/offboard`, { record_version: person.record_version });
+  expect(gone.status(), await gone.text()).toBe(200);
+  expect((await gone.json()).user.status).toBe('inactive');
 
-  await page.goto(PEOPLE_ALL);
-  const card = cardFor(page, name);
-  await expect(card.locator('[data-bwx-status]')).toHaveText('Offboarded');
-  await expect(card.locator('[data-bwx-delete-person]')).toHaveCount(0);
+  const refused = await api.request.delete(`${BASE}/users/${person.id}`, { headers: api.headers });
+  expect(refused.status()).toBe(400);
+  expect((await refused.json()).code).toBe('bwx_forge_person_has_history');
 
   await context.close();
 });
