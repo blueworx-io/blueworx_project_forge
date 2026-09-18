@@ -94,6 +94,7 @@ final class Server {
 		AvailabilityController::register_routes( self::NAMESPACE );
 		PackagesController::register_routes( self::NAMESPACE );
 		SupportController::register_routes( self::NAMESPACE );
+		MeetingsController::register_routes( self::NAMESPACE );
 		SubscriptionsController::register_routes( self::NAMESPACE );
 		SlackController::register_routes( self::NAMESPACE );
 		ReportsController::register_routes( self::NAMESPACE );
