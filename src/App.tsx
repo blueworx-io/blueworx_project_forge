@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Building2, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
+import { BarChart3, Building2, CalendarCheck, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
@@ -16,6 +16,7 @@ import { ReportsScreen } from './components/ReportsScreen';
 import { Signals } from './components/Signals';
 import { StandupScreen } from './components/StandupScreen';
 import { SubscriptionsScreen } from './components/SubscriptionsScreen';
+import { SupportScreen } from './components/SupportScreen';
 import { Screen } from './components/States';
 import { WorkScreen } from './components/WorkScreen';
 import { Avatar, Button, PageHeader } from './kit';
@@ -62,6 +63,7 @@ const RAIL: Entry[] = [
   { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests' },
   { group: 'Clients' },
   { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
+  { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
   { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
   { group: 'Team' },
@@ -143,6 +145,7 @@ const TITLES: Record< ScreenName, string > = {
   packages: 'Support packages',
   people: 'People',
   clients: 'Clients',
+  support: 'Support',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -176,6 +179,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
+  support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -205,20 +209,22 @@ export function App() {
   const data = forgeData();
   /**
    * A link can land on a screen: from Slack on the task in the hash (PR 5),
-   * or from anywhere on a screen and, for availability, a person. Read once
-   * and cleared, so a reload is a plain reload.
+   * or from anywhere on a screen and, for availability and people, a person,
+   * or, for support, a site. Read once and cleared, so a reload is a plain
+   * reload.
    */
   const [ landing ] = useState( () => {
     const hash = window.location.hash;
     const item = /(?:^|[#&])item=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
     const screen = /(?:^|[#&])screen=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
     const person = /(?:^|[#&])person=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    const site = /(?:^|[#&])site=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
 
     if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
-    return { item, screen: Object.hasOwn( TITLES, screen ) ? ( screen as ScreenName ) : null, person };
+    return { item, screen: Object.hasOwn( TITLES, screen ) ? ( screen as ScreenName ) : null, person, site };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
@@ -375,6 +381,7 @@ export function App() {
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
+        { 'support' === screen && <SupportScreen key={ generation } site={ landing.site } /> }
       </main>
     </div>
   );

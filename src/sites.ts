@@ -56,6 +56,24 @@ export function recallSite( sites: SiteOption[] ): string {
   return sites.find( ( one ) => one.studio )?.id ?? sites[ 0 ]?.id ?? '';
 }
 
+/**
+ * The last site chosen, and only that: the id if it is still offered,
+ * otherwise nothing. For a screen that is about one site and should open on
+ * nothing rather than guess — the board's "studio first, else whatever is
+ * first" is right for work and wrong for a site's commercial record.
+ */
+export function rememberedSite( sites: SiteOption[] ): string {
+  let remembered = '';
+
+  try {
+    remembered = window.localStorage.getItem( REMEMBERED ) ?? '';
+  } catch {
+    // Storage can be missing or refused; nothing remembered is fine.
+  }
+
+  return sites.some( ( one ) => one.id === remembered ) ? remembered : '';
+}
+
 /** Remembers a choice for next time. */
 export function rememberSite( id: string ): void {
   try {
