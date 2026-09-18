@@ -28,8 +28,8 @@ use WP_REST_Response;
  * above it.
  *
  * Every route here stays on Permissions::manage(). That is not a leftover: a
- * client site is configuration, and ARCH-7 puts configuration in WordPress
- * admin rather than in the app. Since #92 they are scoped as well as gated, so
+ * client site is administrator-only configuration (ARCH-7). Since #92 they
+ * are scoped as well as gated, so
  * the listing offers only the sites the person reaches and a named site outside
  * their reach answers as absent.
  */

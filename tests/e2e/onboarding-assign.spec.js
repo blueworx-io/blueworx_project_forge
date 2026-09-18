@@ -63,7 +63,7 @@ test('a site is given the checklist once, and it is theirs from then on', async 
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const { site } = await makeSite(api, `Onboarding ${RUN_ID}a`, RUN_ID);
+  const { site } = await makeSite(api, 'Onboarding a', RUN_ID);
 
   expect(site.id, 'the site was created').toBeTruthy();
 
@@ -95,7 +95,7 @@ test('a brand new checklist is nought per cent done and not ready to launch', as
   const api = await callerFor(page);
   await publishAChecklist(page);
 
-  const { site } = await makeSite(api, `Onboarding ${RUN_ID}b`, RUN_ID);
+  const { site } = await makeSite(api, 'Onboarding b', RUN_ID);
 
   await startOnboarding(api, site.id);
 

@@ -102,7 +102,7 @@ never to change course.
 
 **Options considered:** Everything in React, which spends designed-interface effort on screens used a few times a year and blocks operational work on the design being ready; everything as plain admin pages, which leaves the screens people live in all day looking like WordPress; no rule at all, which was the position that had the clients and people screens built twice — once as an operational tool and again in the studio views milestone.
 
-**Decision:** Every screen the studio uses — to do the work or to configure it — is the React application. WordPress admin holds only what needs WordPress itself: the app page, site connection, updates and sync health. Approved by Luke on 16 September 2026, reversing the decision of 20 August 2026: the app is where staff spend their day, the kit and shell exist, and a rail that sent people out to WordPress admin for half of a client's setup was two interfaces for one job.
+**Decision:** Every screen the studio uses — to do the work or to configure it — is the React application. WordPress admin holds only what needs WordPress itself: the app page, site connection, updates and sync health. Onboarding templates and Sales stay as admin pages for now; they are outside spec 2026-09-16 and can move later. Approved by Luke on 16 September 2026, reversing the decision of 20 August 2026: the app is where staff spend their day, the kit and shell exist, and a rail that sent people out to WordPress admin for half of a client's setup was two interfaces for one job.
 
 **Consequence if reversed:** Configuration screens are built a second time as WordPress admin pages, and the rail sends people out of the app to do half of a client's setup.
 
