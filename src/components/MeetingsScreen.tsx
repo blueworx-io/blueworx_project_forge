@@ -235,9 +235,15 @@ export function MeetingsScreen( { site }: { site: string } ) {
       width: 150,
       render: ( m ) => (
         <span className="bwx-moves">
-          <Button size="sm" variant="ghost" data-testid="bwx-meetings-move" aria-label={ `Move the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'move', meeting: { ...m, id: m.stored } } ) }>
-            Move
-          </Button>
+          { /*
+             * A settled meeting stays where it happened (or did not), as on
+             * the admin page: only a scheduled one can move.
+             */ }
+          { 'scheduled' === m.status && (
+            <Button size="sm" variant="ghost" data-testid="bwx-meetings-move" aria-label={ `Move the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'move', meeting: { ...m, id: m.stored } } ) }>
+              Move
+            </Button>
+          ) }
           <Button size="sm" variant="ghost" data-testid="bwx-meetings-settle" aria-label={ `Settle the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'settle', meeting: { ...m, id: m.stored } } ) }>
             Settle
           </Button>

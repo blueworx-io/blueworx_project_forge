@@ -150,6 +150,12 @@ test('moving the first meeting a day later moves only that one, and says where i
   await expect(moved).toContainText(`(moved from ${first})`);
   await expect(rowFor(page, daysOn(first, 7))).toContainText(`${daysOn(first, 7)} 10:00`);
   await expect(rowFor(page, daysOn(first, 7))).not.toContainText('moved from');
+
+  // Written, not just drawn: a fresh load of the site shows the same.
+  await page.goto(`/blueworx-forge/#screen=meetings&site=${site.id}`);
+  await page.reload();
+  await expect(rowFor(page, first)).toContainText(`${daysOn(first, 1)} 10:00`, { timeout: 30_000 });
+  await expect(rowFor(page, first)).toContainText(`(moved from ${first})`);
 });
 
 test('marking the moved meeting held spends its hours', async ({ page }) => {
@@ -167,6 +173,9 @@ test('marking the moved meeting held spends its hours', async ({ page }) => {
   await expect(page.getByTestId('bwx-meetings-notice')).toContainText('Marked held');
   await expect(rowFor(page, first)).toContainText('Held');
   await expect(rowFor(page, first)).toContainText('Spent');
+  // A settled meeting stays where it happened, as on the admin page.
+  await expect(rowFor(page, first).getByTestId('bwx-meetings-move')).toHaveCount(0);
+  await expect(rowFor(page, daysOn(first, 7)).getByTestId('bwx-meetings-move')).toBeVisible();
 });
 
 test('ending the series marks it ended, and the end button goes', async ({ page }) => {
