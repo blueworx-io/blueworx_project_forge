@@ -47,17 +47,20 @@ interface Draft {
   title: string;
   description: string;
   work_type: string;
-  every: 'day' | 'week' | 'month';
+  every: 'day' | 'weekday' | 'week' | 'month';
   days: number[];
   day: number;
   starts_on: string;
   ends_on: string;
-  primary_user_id: string;
-  reviewer_id: string;
-  deliverer_id: string;
-  hours_primary: string;
-  hours_review: string;
-  hours_delivery: string;
+  assignees: string[];
+  hours_each: string;
+}
+
+/** Monday to Friday, as the weekly rule holds them: what "Every weekday" means. */
+const WEEKDAY_DAYS = [ 1, 2, 3, 4, 5 ];
+
+function isWeekdays( days: number[] ): boolean {
+  return JSON.stringify( [ ...days ].sort() ) === JSON.stringify( WEEKDAY_DAYS );
 }
 
 function blank(): Draft {
@@ -72,12 +75,8 @@ function blank(): Draft {
     // timezone, which is the one the schedule runs on.
     starts_on: '',
     ends_on: '',
-    primary_user_id: '',
-    reviewer_id: '',
-    deliverer_id: '',
-    hours_primary: '',
-    hours_review: '',
-    hours_delivery: '',
+    assignees: [],
+    hours_each: '',
   };
 }
 
@@ -88,23 +87,23 @@ function fromSource( source: RecurringSource ): Draft {
     title: source.title,
     description: source.description,
     work_type: source.work_type,
-    every: rule.every,
+    every: 'week' === rule.every && isWeekdays( rule.days ) ? 'weekday' : rule.every,
     days: 'week' === rule.every ? rule.days : [ 1 ],
     day: 'month' === rule.every ? rule.day : 1,
     starts_on: source.starts_on,
     ends_on: source.ends_on,
-    primary_user_id: source.primary_user_id,
-    reviewer_id: source.reviewer_id,
-    deliverer_id: source.deliverer_id,
-    hours_primary: source.hours_primary ? String( source.hours_primary ) : '',
-    hours_review: source.hours_review ? String( source.hours_review ) : '',
-    hours_delivery: source.hours_delivery ? String( source.hours_delivery ) : '',
+    assignees: source.assignees ?? [],
+    hours_each: source.hours_each ? String( source.hours_each ) : '',
   };
 }
 
 function toRule( draft: Draft ): RecurringRule {
   if ( 'day' === draft.every ) {
     return { every: 'day' };
+  }
+
+  if ( 'weekday' === draft.every ) {
+    return { every: 'week', days: WEEKDAY_DAYS };
   }
 
   if ( 'week' === draft.every ) {
@@ -182,16 +181,23 @@ export function RecurringScreen() {
       label: 'Who',
       width: 220,
       wrap: true,
-      render: ( r ) => [ r.primary_user_id, r.reviewer_id, r.deliverer_id ].filter( Boolean ).map( name ).join( ', ' ) || '—',
+      render: ( r ) =>
+        [ ...( r.assignees ?? [] ), r.primary_user_id, r.reviewer_id, r.deliverer_id ].filter( Boolean ).map( name ).join( ', ' ) || '—',
     },
     {
       key: 'hours',
       label: 'Hours',
       mono: true,
       align: 'right',
-      width: 80,
-      sortBy: ( r ) => r.hours_primary + r.hours_review + r.hours_delivery,
+      width: 100,
+      sortBy: ( r ) => r.hours_each * ( r.assignees?.length ?? 0 ) + r.hours_primary + r.hours_review + r.hours_delivery,
       render: ( r ) => {
+        const people = r.assignees?.length ?? 0;
+
+        if ( r.hours_each && people ) {
+          return 1 === people ? `${ r.hours_each.toFixed( 1 ) }h` : `${ r.hours_each.toFixed( 1 ) }h × ${ people }`;
+        }
+
         const total = r.hours_primary + r.hours_review + r.hours_delivery;
 
         return total ? `${ total.toFixed( 1 ) }h` : '—';
@@ -337,12 +343,8 @@ function SourceForm( {
       rule: toRule( draft ),
       starts_on: draft.starts_on,
       ends_on: draft.ends_on,
-      primary_user_id: draft.primary_user_id,
-      reviewer_id: draft.reviewer_id,
-      deliverer_id: draft.deliverer_id,
-      hours_primary: draft.hours_primary,
-      hours_review: draft.hours_review,
-      hours_delivery: draft.hours_delivery,
+      assignees: draft.assignees,
+      hours_each: draft.hours_each,
     };
 
     try {
@@ -361,29 +363,6 @@ function SourceForm( {
       setBusy( false );
     }
   }
-
-  const seat = ( key: 'primary_user_id' | 'reviewer_id' | 'deliverer_id', hours: 'hours_primary' | 'hours_review' | 'hours_delivery', label: string ) => (
-    <div className="bwx-field bwx-recurring-seat">
-      <label htmlFor={ `bwx-recurring-${ key }` }>{ label }</label>
-      <span className="bwx-recurring-seat-row">
-        <select id={ `bwx-recurring-${ key }` } className="bwx-select" data-testid={ `bwx-recurring-${ key }` } value={ draft[ key ] } onChange={ ( event ) => set( key, event.target.value ) }>
-          <option value="">Nobody yet</option>
-          { people.map( ( person ) => (
-            <option key={ person.id } value={ person.id }>
-              { person.display_name }
-            </option>
-          ) ) }
-        </select>
-        <HoursSelect
-          className="bwx-select bwx-recurring-hours"
-          testId={ `bwx-recurring-${ hours }` }
-          label={ `${ label } hours` }
-          value={ draft[ hours ] }
-          onChange={ ( value ) => set( hours, value ) }
-        />
-      </span>
-    </div>
-  );
 
   return (
     <div className="bwx-panel-scrim" onClick={ ( event ) => event.target === event.currentTarget && onClose() }>
@@ -433,6 +412,7 @@ function SourceForm( {
           <label htmlFor="bwx-recurring-every">Repeats</label>
           <select id="bwx-recurring-every" className="bwx-select" data-testid="bwx-recurring-every" value={ draft.every } onChange={ ( event ) => set( 'every', event.target.value as Draft[ 'every' ] ) }>
             <option value="day">Every day</option>
+            <option value="weekday">Every weekday</option>
             <option value="week">Every week</option>
             <option value="month">Every month</option>
           </select>
@@ -476,9 +456,40 @@ function SourceForm( {
           </span>
         </div>
 
-        { seat( 'primary_user_id', 'hours_primary', 'Does it' ) }
-        { seat( 'reviewer_id', 'hours_review', 'Checks it' ) }
-        { seat( 'deliverer_id', 'hours_delivery', 'Ships it' ) }
+        { /*
+            Who does it (2026-09-18): one or more people, each ticking their
+            own copy of the day's task, and the hours each of them spends —
+            no reviewer, no deliverer. A chore is done when everyone did it.
+         */ }
+        <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-recurring-assignees">
+          <legend>Who does it</legend>
+          { people.map( ( person ) => (
+            <label key={ person.id } className="bwx-recurring-person">
+              <input
+                type="checkbox"
+                data-testid={ `bwx-recurring-assignee-${ person.id }` }
+                checked={ draft.assignees.includes( person.id ) }
+                onChange={ ( event ) =>
+                  set( 'assignees', event.target.checked ? [ ...draft.assignees, person.id ] : draft.assignees.filter( ( one ) => one !== person.id ) )
+                }
+              />
+              { person.display_name }
+            </label>
+          ) ) }
+          { 0 === people.length && <span className="bwx-hint">Nobody on People yet.</span> }
+        </fieldset>
+
+        <div className="bwx-field">
+          <label htmlFor="bwx-recurring-hours_each">Hours each</label>
+          <HoursSelect
+            id="bwx-recurring-hours_each"
+            className="bwx-select bwx-recurring-hours"
+            testId="bwx-recurring-hours_each"
+            value={ draft.hours_each }
+            onChange={ ( value ) => set( 'hours_each', value ) }
+          />
+          <span className="bwx-hint">Counted against each person&apos;s capacity on the day.</span>
+        </div>
 
         <div className="bwx-moves">
           <button type="button" className="bwx-button" data-testid="bwx-recurring-save" disabled={ busy || '' === draft.title.trim() } onClick={ () => void save() }>

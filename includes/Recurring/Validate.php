@@ -89,6 +89,49 @@ final class Validate {
 			$values[ $seat ] = $id;
 		}
 
+		/*
+		 * Who does it (2026-09-18): one or more people, each real, and the
+		 * hours each of them spends. A schedule is for somebody; one for
+		 * nobody would make tasks nobody sees.
+		 */
+		if ( ! $partial || array_key_exists( 'assignees', $input ) ) {
+			$assignees = array();
+			$bad       = false;
+
+			foreach ( (array) ( $input['assignees'] ?? array() ) as $id ) {
+				$id = trim( (string) $id );
+
+				if ( '' === $id ) {
+					continue;
+				}
+
+				if ( 1 !== preg_match( '/^usr_[A-Za-z0-9]+$/', $id ) ) {
+					$bad = true;
+					break;
+				}
+
+				$assignees[ $id ] = $id;
+			}
+
+			if ( $bad ) {
+				$errors['assignees'] = 'That is not a person.';
+			} elseif ( array() === $assignees && ! $partial && '' === trim( (string) ( $input['primary_user_id'] ?? '' ) ) ) {
+				$errors['assignees'] = 'Choose at least one person.';
+			} else {
+				$values['assignees'] = array_values( $assignees );
+			}
+		}
+
+		if ( array_key_exists( 'hours_each', $input ) ) {
+			$figure = '' === trim( (string) $input['hours_each'] ) ? 0.0 : (float) $input['hours_each'];
+
+			if ( $figure < 0 || ( ! is_numeric( $input['hours_each'] ) && '' !== trim( (string) $input['hours_each'] ) ) ) {
+				$errors['hours_each'] = 'Hours are a number, zero or more.';
+			} else {
+				$values['hours_each'] = (string) round( $figure, 2 );
+			}
+		}
+
 		foreach ( array( 'hours_primary', 'hours_review', 'hours_delivery' ) as $hours ) {
 			if ( ! array_key_exists( $hours, $input ) ) {
 				continue;

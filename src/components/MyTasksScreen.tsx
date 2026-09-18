@@ -20,10 +20,10 @@ import { Screen } from './States';
  */
 
 type Site = ClientSite & { client_name: string };
-type Role = 'primary' | 'reviewer' | 'deliverer';
+type Role = 'primary' | 'reviewer' | 'deliverer' | 'assignee';
 
-const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', reviewer: 'Checker', deliverer: 'Builder' };
-const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' > = { primary: 'brand', reviewer: 'info', deliverer: 'neutral' };
+const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
+const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
 const FINISHED = [ 'completed', 'released' ];
 const DAY = 86400000;
 
@@ -107,6 +107,12 @@ export function MyTasksScreen() {
               found.push( { id: `${ item.id }:${ seat }`, item, role: seat, site, hours, due: daysUntil( item.planned_due || item.derived_due || '' ) } );
             }
           }
+
+          // A recurring chore names its people rather than seats (2026-09-18):
+          // one row for you, with your own tick on it.
+          if ( ( item.assignees ?? [] ).includes( person.id ) ) {
+            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due: daysUntil( item.planned_due || item.derived_due || '' ) } );
+          }
         }
       }
       setMine( found );
@@ -124,6 +130,16 @@ export function MyTasksScreen() {
   }, [] );
 
   useLiveReload( load );
+
+  /** Your tick on a chore, on or off; the list is read again so a finished chore leaves it. */
+  async function tick( item: WorkItem, done: boolean ) {
+    try {
+      await api( `/work-items/${ item.id }/tick`, { method: 'POST', body: { done } } );
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be ticked.' ) );
+    }
+  }
 
   const counts = useMemo( () => {
     const c: Record< View, number > = { today: 0, week: 0, later: 0, all: mine.length };
@@ -162,6 +178,18 @@ export function MyTasksScreen() {
             { r.item.title }
           </button>
           { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
+          { 'assignee' === r.role && (
+            <label className="bwx-mytasks-tick">
+              <input
+                type="checkbox"
+                data-testid="bwx-mytasks-tick"
+                aria-label={ `Done: ${ r.item.title }` }
+                checked={ undefined !== ( r.item.ticks ?? {} )[ me?.id ?? '' ] }
+                onChange={ ( event ) => void tick( r.item, event.target.checked ) }
+              />
+              <span className="bwx-mono">{ `${ Object.keys( r.item.ticks ?? {} ).length } of ${ r.item.assignees.length }` }</span>
+            </label>
+          ) }
         </span>
       ),
     },

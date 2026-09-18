@@ -3080,6 +3080,78 @@ td[ data-band='over' ] {
   align-items: start;
 }
 
+/* Recurring: who does it, and a chore's ticks. */
+.bwx-recurring-people {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bwx-recurring-people .bwx-recurring-person {
+  width: auto;
+}
+.bwx-recurring-people legend {
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
+  color: var( --ink-700 );
+  margin-bottom: 6px;
+  width: 100%;
+}
+.bwx-recurring-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var( --color-chalk );
+  border-radius: 999px;
+  font-size: var( --text-small );
+  cursor: pointer;
+}
+.bwx-recurring-person:has( input:checked ) {
+  border-color: var( --brand-600 );
+  background: var( --brand-050, #eef2ff );
+}
+.bwx-recurring-person input,
+.bwx-chore-tick input,
+.bwx-mytasks-tick input {
+  margin: 0;
+  accent-color: var( --brand-600 );
+}
+.bwx-chore-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bwx-chore-people li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: var( --text-small );
+  padding: 6px 0;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-chore-people li[ data-done='true' ] > span:first-child {
+  color: var( --ink-500 );
+}
+.bwx-chore-tick,
+.bwx-mytasks-tick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var( --text-small );
+  cursor: pointer;
+}
+.bwx-mytasks-tick {
+  margin-left: 8px;
+}
+
 /* The profile page: a person's facts in a row, and the Slack preferences. */
 .bwx-profile {
   display: flex;

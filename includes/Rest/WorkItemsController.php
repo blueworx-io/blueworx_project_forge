@@ -244,6 +244,21 @@ final class WorkItemsController {
 			)
 		);
 
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/tick',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'tick' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
 		/*
 		 * One route per way work moves, rather than one route with a mode
 		 * parameter. Each of these has different requirements — a reason, a
@@ -1355,6 +1370,74 @@ final class WorkItemsController {
 				Events::for_item( (string) $ready['item']['id'] ),
 				$ready['version'],
 				get_current_user_id()
+			)
+		);
+	}
+
+	/**
+	 * One assignee's tick on a recurring task (2026-09-18).
+	 *
+	 * A person ticks their own; an administrator may tick for anyone by
+	 * naming them. When everyone assigned has ticked, the task is placed at
+	 * Completed — a chore has no review and no delivery, and "everyone did
+	 * it" is the whole of what done means for it.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function tick( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::VIEW_WORK, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		if ( array() === (array) $item['assignees'] ) {
+			return Errors::rest( 'not_a_chore', __( 'Only a recurring task with people assigned is ticked off.', 'blueworx-forge' ), 409 );
+		}
+
+		if ( Outcomes::is_closed( $item ) ) {
+			return Errors::rest( 'already_closed', __( 'That task has already ended.', 'blueworx-forge' ), 409 );
+		}
+
+		$body = (array) $request->get_json_params();
+		$me   = Users::by_wp_user( get_current_user_id() );
+		$who  = (string) ( $body['user_id'] ?? '' );
+
+		if ( '' === $who || ! Permissions::manage() ) {
+			$who = null === $me ? '' : (string) $me['id'];
+		}
+
+		if ( ! in_array( $who, (array) $item['assignees'], true ) ) {
+			return Errors::rest( 'not_assigned', __( 'Only somebody assigned to this task ticks it off.', 'blueworx-forge' ), 403 );
+		}
+
+		$ticked = Items::tick( (string) $item['id'], $who, ! empty( $body['done'] ) );
+
+		if ( null === $ticked ) {
+			return Errors::rest( 'write_failed', __( 'That could not be recorded.', 'blueworx-forge' ), 500 );
+		}
+
+		$everyone = array() === array_diff( (array) $ticked['assignees'], array_keys( (array) $ticked['ticks'] ) );
+
+		if ( $everyone && Stages::COMPLETED !== (string) $ticked['stage'] ) {
+			$placed = Transition::place( $ticked, Stages::COMPLETED, get_current_user_id(), __( 'Everyone ticked it off.', 'blueworx-forge' ) );
+
+			if ( is_array( $placed ) ) {
+				$ticked = $placed;
+			}
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => $ticked,
 			)
 		);
 	}

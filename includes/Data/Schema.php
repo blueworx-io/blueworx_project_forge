@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 26;
+	public const VERSION = 27;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -674,6 +674,9 @@ final class Schema {
 	acceptance_criteria text NOT NULL,
 	references_text text NOT NULL,
 	checklist text NULL,
+	assignees text NULL,
+	ticks text NULL,
+	hours_each decimal(8,2) NOT NULL DEFAULT 0,
 	stage varchar(32) NOT NULL DEFAULT 'future-idea',
 	prior_stage varchar(32) NOT NULL DEFAULT '',
 	blocked_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1442,6 +1445,8 @@ final class Schema {
 	hours_primary decimal(8,2) NOT NULL DEFAULT 0,
 	hours_review decimal(8,2) NOT NULL DEFAULT 0,
 	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
+	assignees text NULL,
+	hours_each decimal(8,2) NOT NULL DEFAULT 0,
 	rule text NOT NULL,
 	starts_on varchar(10) NOT NULL DEFAULT '',
 	ends_on varchar(10) NOT NULL DEFAULT '',

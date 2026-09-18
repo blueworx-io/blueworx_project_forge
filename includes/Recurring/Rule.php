@@ -28,9 +28,15 @@ use DateTimeImmutable;
 final class Rule {
 
 	/**
-	 * The cadences.
+	 * The cadences. "weekday" is Monday to Friday, stored as the weekly rule
+	 * with those five days (2026-09-18).
 	 */
-	public const EVERY = array( 'day', 'week', 'month' );
+	public const EVERY = array( 'day', 'weekday', 'week', 'month' );
+
+	/**
+	 * Monday to Friday, as the weekly rule holds them.
+	 */
+	private const WEEKDAY_DAYS = array( 1, 2, 3, 4, 5 );
 
 	/**
 	 * Weekday names, by ISO number.
@@ -56,6 +62,13 @@ final class Rule {
 
 		if ( 'day' === $every ) {
 			return array( 'every' => 'day' );
+		}
+
+		if ( 'weekday' === $every ) {
+			return array(
+				'every' => 'week',
+				'days'  => self::WEEKDAY_DAYS,
+			);
 		}
 
 		if ( 'week' === $every ) {
@@ -181,6 +194,10 @@ final class Rule {
 		}
 
 		if ( 'week' === $rule['every'] ) {
+			if ( self::WEEKDAY_DAYS === array_map( 'intval', array_values( (array) $rule['days'] ) ) ) {
+				return __( 'Every weekday', 'blueworx-forge' );
+			}
+
 			$names = array();
 
 			foreach ( (array) $rule['days'] as $day ) {

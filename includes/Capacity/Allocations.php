@@ -158,6 +158,34 @@ final class Allocations {
 
 		$out = array();
 
+		/*
+		 * A recurring chore (2026-09-18): everyone assigned spends the same
+		 * hours on it, so each of them carries them. A fourth kind of
+		 * allocation beside the three seats, and counted the same way.
+		 */
+		$each = round( (float) ( $item['hours_each'] ?? 0 ), 2 );
+
+		// Commitments::live() hands over raw rows, where the list is still JSON.
+		$assignees = $item['assignees'] ?? array();
+		$assignees = is_string( $assignees ) ? (array) json_decode( $assignees, true ) : (array) $assignees;
+
+		if ( $each > 0 ) {
+			foreach ( $assignees as $who ) {
+				$out[] = array(
+					'item_id'        => (string) ( $item['id'] ?? '' ),
+					'title'          => (string) ( $item['title'] ?? '' ),
+					'client_id'      => (string) ( $item['client_id'] ?? '' ),
+					'client_site_id' => (string) ( $item['client_site_id'] ?? '' ),
+					'role'           => 'assignee',
+					'user_id'        => (string) $who,
+					'covering'       => '',
+					'hours'          => $each,
+					'from'           => $window[0],
+					'to'             => $window[1],
+				);
+			}
+		}
+
 		foreach ( self::SEATS as $role => $columns ) {
 			$hours = round( (float) ( $item[ $columns[0] ] ?? 0 ), 2 );
 			$seat  = (string) ( $item[ $columns[1] ] ?? '' );
