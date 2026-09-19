@@ -60,7 +60,7 @@ final class BoardLink {
 	 */
 	public static function register(): void {
 		add_submenu_page(
-			SitesScreen::SLUG,
+			SyncScreen::SLUG,
 			__( 'Board', 'blueworx-forge' ),
 			self::title(),
 			'manage_options',

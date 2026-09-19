@@ -1292,6 +1292,7 @@ final class Schema {
 	price int(11) unsigned NOT NULL DEFAULT 0,
 	currency varchar(3) NOT NULL DEFAULT 'GBP',
 	validity_months smallint(5) unsigned NOT NULL DEFAULT 12,
+	hours_per varchar(10) NOT NULL DEFAULT 'year',
 	terms text NOT NULL,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,

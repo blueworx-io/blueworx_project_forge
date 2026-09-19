@@ -3,7 +3,7 @@ import { Receipt } from 'lucide-react';
 import type { PackagesAnswer, PackageVersion, SupportPackage } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { Button, DataView, EmptyState, Field, Modal, Panel, Tag, TextArea, TextInput } from '../kit';
+import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextArea, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
 import type { Said } from './States';
@@ -28,6 +28,16 @@ export function hoursLabel( value: number ): string {
 /** 1200, 'GBP' → "GBP 1,200". The code rather than a symbol: it is what the record holds. */
 export function priceLabel( price: number, currency: string ): string {
   return `${ currency } ${ price.toLocaleString( 'en-GB' ) }`;
+}
+
+/** "12h/month" or "12h/year" (2026-09-19). */
+function perLabel( version: PackageVersion ): string {
+  return `${ hoursLabel( version.hours ) }/${ version.hours_per ?? 'year' }`;
+}
+
+/** What an hour costs on these terms. */
+function perHourLabel( version: PackageVersion ): string {
+  return version.price_per_hour > 0 ? `${ version.currency } ${ version.price_per_hour.toFixed( 2 ) }` : '—';
 }
 
 function dateOf( seconds: number ): string {
@@ -149,8 +159,9 @@ export function PackagesScreen() {
       width: 120,
       render: ( p ) => ( 'retired' === p.status ? <Tag tone="neutral">Retired</Tag> : <Tag tone="ok">On the shelf</Tag> ),
     },
-    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, render: ( p ) => ( p.current ? hoursLabel( p.current.hours ) : '—' ) },
+    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 110, render: ( p ) => ( p.current ? perLabel( p.current ) : '—' ) },
     { key: 'price', label: 'Price', mono: true, align: 'right', width: 120, render: ( p ) => ( p.current ? priceLabel( p.current.price, p.current.currency ) : '—' ) },
+    { key: 'per_hour', label: 'Per hour', mono: true, align: 'right', width: 110, render: ( p ) => ( p.current ? perHourLabel( p.current ) : '—' ) },
     { key: 'months', label: 'Runs for', mono: true, align: 'right', width: 100, render: ( p ) => ( p.current ? `${ p.current.validity_months } months` : '—' ) },
     { key: 'version', label: 'Version', mono: true, align: 'right', width: 80, render: ( p ) => ( p.current ? `v${ p.current.version }` : '—' ) },
   ];
@@ -158,8 +169,9 @@ export function PackagesScreen() {
   const versionColumns: Column< PackageVersion >[] = [
     { key: 'version', label: 'Version', mono: true, width: 80, render: ( v ) => `v${ v.version }` },
     { key: 'name', label: 'Name', wrap: true, render: ( v ) => v.name },
-    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, render: ( v ) => hoursLabel( v.hours ) },
+    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 110, render: ( v ) => perLabel( v ) },
     { key: 'price', label: 'Price', mono: true, align: 'right', width: 120, render: ( v ) => priceLabel( v.price, v.currency ) },
+    { key: 'per_hour', label: 'Per hour', mono: true, align: 'right', width: 110, render: ( v ) => perHourLabel( v ) },
     { key: 'months', label: 'Runs for', mono: true, align: 'right', width: 100, render: ( v ) => `${ v.validity_months } months` },
     { key: 'from', label: 'From', mono: true, width: 120, render: ( v ) => dateOf( v.created_at ) },
     { key: 'terms', label: 'Terms', wrap: true, clamp: 2, render: ( v ) => v.terms || '—' },
@@ -255,7 +267,12 @@ function PackageForm( {
   const [ price, setPrice ] = useState( from ? String( from.price ) : '' );
   const [ currency, setCurrency ] = useState( from?.currency ?? 'GBP' );
   const [ months, setMonths ] = useState( from ? String( from.validity_months ) : '12' );
+  const [ per, setPer ] = useState< 'year' | 'month' >( from?.hours_per ?? 'year' );
   const [ terms, setTerms ] = useState( from?.terms ?? '' );
+
+  // What an hour would cost, worked out as it is typed.
+  const total = 'month' === per ? ( Number( hours ) || 0 ) * ( Number( months ) || 0 ) : Number( hours ) || 0;
+  const perHour = total > 0 && Number( price ) > 0 ? ( Number( price ) / total ).toFixed( 2 ) : '';
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
@@ -263,7 +280,7 @@ function PackageForm( {
     setBusy( true );
     setNotice( '' );
 
-    const body = { name, hours: Number( hours ) || 0, price: Number( price ) || 0, currency, validity_months: Number( months ) || 0, terms };
+    const body = { name, hours: Number( hours ) || 0, price: Number( price ) || 0, currency, validity_months: Number( months ) || 0, hours_per: per, terms };
 
     try {
       if ( revising ) {
@@ -315,7 +332,18 @@ function PackageForm( {
       <Field label="Hours" required help="How many hours the package holds. More than nought.">
         { ( id ) => <TextInput id={ id } type="number" min="0" step="0.25" inputMode="decimal" data-testid="bwx-packages-form-hours" value={ hours } onChange={ ( event ) => setHours( event.target.value ) } /> }
       </Field>
-      <Field label="Price">
+      <Field label="Hours are per" help="Per year is the whole term; per month is that many hours each month of it.">
+        { ( id ) => (
+          <Select
+            id={ id }
+            data-testid="bwx-packages-form-per"
+            value={ per }
+            options={ [ { value: 'year', label: 'Year' }, { value: 'month', label: 'Month' } ] }
+            onChange={ ( event ) => setPer( event.target.value as 'year' | 'month' ) }
+          />
+        ) }
+      </Field>
+      <Field label="Price" help={ '' !== perHour ? `${ currency } ${ perHour } an hour over the term.` : undefined }>
         { ( id ) => <TextInput id={ id } type="number" min="0" step="1" inputMode="numeric" data-testid="bwx-packages-form-price" value={ price } onChange={ ( event ) => setPrice( event.target.value ) } /> }
       </Field>
       <Field label="Currency" help="A three-letter code, such as GBP.">

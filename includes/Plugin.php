@@ -55,6 +55,10 @@ final class Plugin {
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
 
+		// Sync health is the Forge menu (2026-09-19): the first entry and the
+		// one the menu opens. It has to be registered before anything hangs
+		// off it, which is why it is here and not with the other screens.
+		add_action( 'admin_menu', array( Admin\SyncScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\SitesScreen::class, 'register' ) );
 
 		// One enqueue for every studio screen, rather than one per screen that
@@ -77,7 +81,6 @@ final class Plugin {
 		Admin\UpdatesActions::boot();
 
 		add_action( 'admin_menu', array( Admin\OnboardingTemplateScreen::class, 'register' ) );
-		add_action( 'admin_menu', array( Admin\SyncScreen::class, 'register' ) );
 		add_action( 'admin_menu', array( Admin\ConnectionsScreen::class, 'register' ) );
 		Admin\ConnectionActions::boot();
 		Admin\ProfileSlack::boot();

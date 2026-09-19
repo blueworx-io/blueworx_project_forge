@@ -43,7 +43,7 @@ test('the Forge menu links out to the board, in a new tab', async ({ browser, ba
    * so putting the board first quietly turned "Forge" into a way out of the
    * admin — you opened the menu and left the site you were configuring.
    */
-  const parent = page.locator('#toplevel_page_blueworx-forge-sites > a');
+  const parent = page.locator('#toplevel_page_blueworx-forge-sync > a');
 
   await expect(parent).toHaveAttribute('href', /^admin\.php\?page=blueworx-forge-/);
   await expect(parent).not.toHaveAttribute('target', '_blank');

@@ -203,6 +203,8 @@ final class AvailabilityController {
 
 		if ( ! self::is_date( $ends_on ) ) {
 			$fields['ends_on'] = __( 'Say the last day away.', 'blueworx-forge' );
+		} elseif ( self::is_date( $starts_on ) && $ends_on < $starts_on ) {
+			$fields['ends_on'] = __( 'The last day cannot be before the first.', 'blueworx-forge' );
 		}
 
 		if ( array() !== $fields ) {

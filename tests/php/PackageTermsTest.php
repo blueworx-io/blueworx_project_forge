@@ -64,6 +64,7 @@ final class PackageTermsTest extends TestCase {
 			'price'           => 2400,
 			'currency'        => 'EUR',
 			'validity_months' => 24,
+			'hours_per'       => 'month',
 			'terms'           => 'Twenty hours a year.',
 		);
 
@@ -155,6 +156,23 @@ final class PackageTermsTest extends TestCase {
 	}
 
 	/* ------------------------------------------------------ what is refused */
+
+	/**
+	 * Per month or per year (2026-09-19): the term's total, and an hour's
+	 * price, follow from which.
+	 */
+	public function test_hours_per_month_multiply_over_the_term(): void {
+		$year  = $this->terms();
+		$month = $this->terms( array( 'hours_per' => 'month' ) );
+		$odd   = $this->terms( array( 'hours_per' => 'fortnight' ) );
+
+		$this->assertSame( 'year', $year['hours_per'] );
+		$this->assertSame( 10.0, Terms::total_hours( $year ) );
+		$this->assertSame( 120.0, Terms::price_per_hour( $year ) );
+		$this->assertSame( 120.0, Terms::total_hours( $month ) );
+		$this->assertSame( 10.0, Terms::price_per_hour( $month ) );
+		$this->assertSame( 'year', $odd['hours_per'] );
+	}
 
 	public function test_a_package_needs_a_name(): void {
 		$this->assertNotSame( '', Terms::refuse( $this->terms( array( 'name' => '   ' ) ) ) );

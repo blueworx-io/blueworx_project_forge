@@ -126,6 +126,13 @@ test('somebody who is not an administrator cannot read or write another personâ€
 });
 
 test('time off is recorded, listed, and taken out of the week', async () => {
+  // The last day cannot be before the first (2026-09-19); the same day is fine.
+  const backwardsLeave = await api.post(`/users/${person.id}/leave`, { starts_on: '2020-01-10', ends_on: '2020-01-06', kind: 'leave' });
+  expect(backwardsLeave.status()).toBe(400);
+  expect((await backwardsLeave.json()).data.fields.ends_on).toContain('before the first');
+  const oneDay = await api.post(`/users/${person.id}/leave`, { starts_on: '2020-02-03', ends_on: '2020-02-03', kind: 'leave' });
+  expect(oneDay.status(), await oneDay.text()).toBe(200);
+
   const added = await api.post(`/users/${person.id}/leave`, {
     starts_on: '2020-01-06',
     ends_on: '2020-01-10',
