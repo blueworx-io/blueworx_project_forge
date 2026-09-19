@@ -225,27 +225,13 @@ final class StandupRulesTest extends TestCase {
 	 * drops work somebody does need to look at is worse than the flood.
 	 */
 
-	public function test_an_idea_nobody_has_committed_to_is_not_stuck(): void {
-		// Nothing has been agreed for it, so everything it is missing is missing
-		// on purpose.
-		$this->assertSame(
-			array(),
-			Rules::for_item(
-				$this->item(
-					array(
-						'stage' => 'triage',
-						'unmet' => array( array( 'id' => 'scope-agreed' ) ),
-					)
-				),
-				self::TODAY
-			)
-		);
-	}
+	public function test_every_open_stage_reports_a_requirement(): void {
+		// Since 2026-09-19 work is on the standup from the day it is captured
+		// until it is released: a task waiting on its documentation is one
+		// the team talks about in the morning.
+		$open = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development' );
 
-	public function test_no_early_stage_reports_a_requirement(): void {
-		$early = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'technical-audit', 'design-process' );
-
-		foreach ( $early as $stage ) {
+		foreach ( $open as $stage ) {
 			$cards = Rules::for_item(
 				$this->item(
 					array(
@@ -256,8 +242,23 @@ final class StandupRulesTest extends TestCase {
 				self::TODAY
 			);
 
-			$this->assertNotContains( Rules::GATE_UNMET, $this->rules( $cards ), $stage );
+			$this->assertContains( Rules::GATE_UNMET, $this->rules( $cards ), $stage );
 		}
+	}
+
+	public function test_released_work_reports_nothing(): void {
+		$this->assertSame(
+			array(),
+			Rules::for_item(
+				$this->item(
+					array(
+						'stage' => 'released',
+						'unmet' => array( array( 'id' => 'scope-agreed' ) ),
+					)
+				),
+				self::TODAY
+			)
+		);
 	}
 
 	public function test_work_that_has_been_scheduled_does_report_one(): void {

@@ -315,7 +315,7 @@ final class Items {
 
 			// Every field measured in hours goes to the column as a decimal
 			// string, so the format map treats them all the same way.
-			if ( in_array( $field, array_merge( array( 'remaining_estimate' ), Fields::HOURS ), true ) ) {
+			if ( in_array( $field, Fields::HOURS, true ) ) {
 				$changes[ $column ] = (string) (float) $values[ $field ];
 				continue;
 			}
@@ -372,6 +372,46 @@ final class Items {
 	}
 
 	/**
+	 * Replaces the images on an item (2026-09-19). Written by the upload
+	 * route, never by an edit: an image is an attachment in the media
+	 * library, and the list only says which ones.
+	 *
+	 * @param string                                             $id     Item id.
+	 * @param array<int, array{id: int, url: string, name: string}> $images The list.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_images( string $id, array $images ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'images'     => (string) wp_json_encode( array_values( $images ) ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
+	 * Whether every line of the checklist is ticked. No list is a complete
+	 * one.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return bool
+	 */
+	public static function checklist_complete( array $item ): bool {
+		foreach ( (array) ( $item['checklist'] ?? array() ) as $row ) {
+			if ( empty( $row['done'] ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * A stored list of ids.
 	 *
 	 * @param string $stored JSON, or nothing.
@@ -406,6 +446,49 @@ final class Items {
 	 * @param string $stored The JSON, or nothing.
 	 * @return array<int, array{text: string, done: bool}>
 	 */
+	private static function links( string $stored ): array {
+		$decoded = '' === $stored ? array() : json_decode( $stored, true );
+		$rows    = array();
+
+		foreach ( is_array( $decoded ) ? $decoded : array() as $row ) {
+			if ( ! is_array( $row ) || '' === (string) ( $row['url'] ?? '' ) ) {
+				continue;
+			}
+
+			$rows[] = array(
+				'label' => (string) ( $row['label'] ?? '' ),
+				'url'   => (string) $row['url'],
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * The images on an item: each a media library attachment.
+	 *
+	 * @param string $stored The column.
+	 * @return array<int, array{id: int, url: string, name: string}>
+	 */
+	public static function images( string $stored ): array {
+		$decoded = '' === $stored ? array() : json_decode( $stored, true );
+		$rows    = array();
+
+		foreach ( is_array( $decoded ) ? $decoded : array() as $row ) {
+			if ( ! is_array( $row ) || 0 >= (int) ( $row['id'] ?? 0 ) ) {
+				continue;
+			}
+
+			$rows[] = array(
+				'id'   => (int) $row['id'],
+				'url'  => (string) ( $row['url'] ?? '' ),
+				'name' => (string) ( $row['name'] ?? '' ),
+			);
+		}
+
+		return $rows;
+	}
+
 	private static function checklist( string $stored ): array {
 		$decoded = '' === $stored ? array() : json_decode( $stored, true );
 		$rows    = array();
@@ -443,6 +526,11 @@ final class Items {
 			'requirements'             => '',
 			'acceptance_criteria'      => '',
 			'references_text'          => '',
+			'design_url'               => '',
+			'test_description'         => '',
+			'test_steps'               => '[]',
+			'links'                    => '[]',
+			'images'                   => '[]',
 			'checklist'                => '[]',
 			'assignees'                => '[]',
 			'ticks'                    => '{}',
@@ -504,6 +592,11 @@ final class Items {
 			'requirements'             => (string) $row['requirements'],
 			'acceptance_criteria'      => (string) $row['acceptance_criteria'],
 			'references'               => (string) $row['references_text'],
+			'design_url'               => (string) ( $row['design_url'] ?? '' ),
+			'test_description'         => (string) ( $row['test_description'] ?? '' ),
+			'test_steps'               => self::checklist( (string) ( $row['test_steps'] ?? '' ) ),
+			'links'                    => self::links( (string) ( $row['links'] ?? '' ) ),
+			'images'                   => self::images( (string) ( $row['images'] ?? '' ) ),
 			'checklist'                => self::checklist( (string) ( $row['checklist'] ?? '' ) ),
 			'stage'                    => (string) $row['stage'],
 			'stage_label'              => Stages::label( (string) $row['stage'] ),
@@ -537,7 +630,6 @@ final class Items {
 			'planned_due'              => (string) $row['planned_due'],
 			'review_target'            => (string) $row['review_target'],
 			'release_target'           => (string) $row['release_target'],
-			'remaining_estimate'       => (float) $row['remaining_estimate'],
 			'hours_primary'            => (float) ( $row['hours_primary'] ?? 0 ),
 			'hours_review'             => (float) ( $row['hours_review'] ?? 0 ),
 			'hours_delivery'           => (float) ( $row['hours_delivery'] ?? 0 ),

@@ -286,11 +286,11 @@ final class Rules {
 	 *
 	 * Two questions, and both are about the reader rather than the record.
 	 *
-	 * *Has anybody committed to this?* An idea in triage has not failed to meet
-	 * a requirement — nothing has been agreed for it yet, and every field it is
-	 * missing is missing on purpose. Only work that has been scheduled or
-	 * picked up is trying to move, and only work that is trying to move can be
-	 * stuck.
+	 * *Is it still open?* Since 2026-09-19 every stage before Released counts:
+	 * a task waiting on its documentation or its design is one the team talks
+	 * about in the morning, the same as one waiting on a review. (#251 had
+	 * narrowed this to work somebody had scheduled; the studio asked for the
+	 * earlier stages back.)
 	 *
 	 * *Has the board already said it?* Work that is blocked, with a reviewer,
 	 * waiting to go out or handed back already carries a card saying what is
@@ -302,7 +302,7 @@ final class Rules {
 	 * @return bool
 	 */
 	private static function gate_is_news( string $stage, array $cards ): bool {
-		if ( ! in_array( $stage, self::COMMITTED, true ) ) {
+		if ( in_array( $stage, self::FINISHED, true ) ) {
 			return false;
 		}
 
@@ -423,18 +423,6 @@ final class Rules {
 	 * @var array<int, string>
 	 */
 	private const FINISHED = array( 'released' );
-
-	/**
-	 * The stages at which somebody has committed to the work (#251).
-	 *
-	 * Everything earlier — an idea, a triage queue, a bug being tracked, an
-	 * audit, a documentation period, a design still being drawn — is work
-	 * nobody has promised to deliver yet, so there is nothing there for a
-	 * requirement to be standing in the way of.
-	 *
-	 * @var array<int, string>
-	 */
-	private const COMMITTED = array( 'up-next', 'in-development', 'in-review', 'completed' );
 
 	/**
 	 * Rules that already account for why an item is not moving (#251).

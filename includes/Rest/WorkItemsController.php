@@ -311,6 +311,41 @@ final class WorkItemsController {
 		);
 
 		/*
+		 * Images (2026-09-19): dropped onto the task, kept in the media
+		 * library, listed on the item. A multipart upload rather than a
+		 * field, because a field holds words.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/images',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'add_image' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/images/(?P<attachment_id>[0-9]+)',
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'remove_image' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
+		/*
 		 * #103. Adding and removing a dependency are their own routes rather
 		 * than fields on the item, because a dependency is a relationship
 		 * between two records: an edit that set a list would have to decide what
@@ -777,6 +812,117 @@ final class WorkItemsController {
 	}
 
 	/**
+	 * Adds an image to an item (2026-09-19): the file in the request goes
+	 * into the media library, and the item lists it.
+	 *
+	 * @param WP_REST_Request $request Request, with a file called `image`.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function add_image( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_DEFINITION, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$files = $request->get_file_params();
+
+		if ( empty( $files['image'] ) ) {
+			return Errors::rest( 'no_image', __( 'Choose an image to add.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( count( (array) $item['images'] ) >= Fields::LINK_ROWS ) {
+			return Errors::rest( 'too_many_images', __( 'An item holds at most ten images.', 'blueworx-forge' ), 400 );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$attachment_id = media_handle_upload(
+			'image',
+			0,
+			array(),
+			array(
+				'test_form' => false,
+				'mimes'     => array(
+					'jpg|jpeg' => 'image/jpeg',
+					'png'      => 'image/png',
+					'gif'      => 'image/gif',
+					'webp'     => 'image/webp',
+				),
+			)
+		);
+
+		if ( is_wp_error( $attachment_id ) ) {
+			return Errors::rest( 'upload_failed', $attachment_id->get_error_message(), 400 );
+		}
+
+		$images   = (array) $item['images'];
+		$images[] = array(
+			'id'   => (int) $attachment_id,
+			'url'  => (string) wp_get_attachment_url( (int) $attachment_id ),
+			'name' => (string) ( $files['image']['name'] ?? '' ),
+		);
+
+		$updated = Items::set_images( (string) $item['id'], $images );
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => null === $updated ? $item : $updated,
+			)
+		);
+	}
+
+	/**
+	 * Takes an image off an item, and out of the media library.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function remove_image( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_DEFINITION, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$gone = (int) $request['attachment_id'];
+		$kept = array();
+
+		foreach ( (array) $item['images'] as $image ) {
+			if ( (int) $image['id'] === $gone ) {
+				wp_delete_attachment( $gone, true );
+				continue;
+			}
+
+			$kept[] = $image;
+		}
+
+		$updated = Items::set_images( (string) $item['id'], $kept );
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => null === $updated ? $item : $updated,
+			)
+		);
+	}
+
+	/**
 	 * Makes one item wait on another (#103).
 	 *
 	 * @param WP_REST_Request $request Request.
@@ -950,8 +1096,16 @@ final class WorkItemsController {
 		$body        = (array) $request->get_json_params();
 		$requirement = (string) ( $body['requirement'] ?? $request->get_param( 'requirement' ) );
 
-		if ( null === Gates::requirement( $requirement ) ) {
+		$rule = Gates::requirement( $requirement );
+
+		if ( null === $rule ) {
 			return Errors::rest( 'unknown_requirement', __( 'There is no such gate requirement.', 'blueworx-forge' ), 400 );
+		}
+
+		$not_theirs = self::not_their_seat( $item, (string) ( $rule['who'] ?? Gates::ANY ) );
+
+		if ( null !== $not_theirs ) {
+			return $not_theirs;
 		}
 
 		$record = GateRecords::complete(
@@ -989,6 +1143,51 @@ final class WorkItemsController {
 				'records' => GateRecords::current_for( null === $refreshed ? $item : $refreshed ),
 			)
 		);
+	}
+
+	/**
+	 * Whether the signed-in person may answer a requirement that belongs to a
+	 * seat (2026-09-19). The approvals are the reviewer's, the done marks at
+	 * In Development the person doing the work's, the release answers the
+	 * deliverer's. An administrator may act for anyone; somebody with no
+	 * Forge person behind them is refused, because a seat is a person.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @param string               $who  Gates::PU, REV, DEL or ANY.
+	 * @return \WP_Error|null Null when they may.
+	 */
+	private static function not_their_seat( array $item, string $who ) {
+		if ( Gates::ANY === $who || Permissions::manage() ) {
+			return null;
+		}
+
+		$me      = Users::by_wp_user( get_current_user_id() );
+		$me      = null === $me ? '' : (string) $me['id'];
+		$holders = array();
+		$label   = '';
+
+		switch ( $who ) {
+			case Gates::PU:
+				$holders = array( (string) $item['primary_user_id'] );
+				$label   = __( 'That is for the person doing the work.', 'blueworx-forge' );
+				break;
+			case Gates::REV:
+				$holders = array( (string) $item['reviewer_id'], (string) $item['reviewer_substitute_id'] );
+				$label   = __( 'That is for the reviewer.', 'blueworx-forge' );
+				break;
+			case Gates::DEL:
+				$holders = array( (string) $item['deliverer_id'], (string) $item['deliverer_substitute_id'] );
+				$label   = __( 'That is for the person delivering it.', 'blueworx-forge' );
+				break;
+			default:
+				return null;
+		}
+
+		if ( '' !== $me && in_array( $me, $holders, true ) ) {
+			return null;
+		}
+
+		return Errors::rest( 'not_your_seat', $label, 403 );
 	}
 
 	/**
@@ -1122,6 +1321,17 @@ final class WorkItemsController {
 
 		if ( null !== $refused ) {
 			return $refused;
+		}
+
+		$out_of_order = Validate::dates_in_order( array_merge( $item, $checked['values'] ) );
+
+		if ( array() !== $out_of_order ) {
+			return Errors::rest(
+				'invalid_work_item',
+				__( 'That change could not be saved.', 'blueworx-forge' ),
+				400,
+				array( 'fields' => $out_of_order )
+			);
 		}
 
 		if ( array_key_exists( 'parent_id', $checked['values'] ) ) {
@@ -1418,6 +1628,12 @@ final class WorkItemsController {
 			return Errors::rest( 'not_assigned', __( 'Only somebody assigned to this task ticks it off.', 'blueworx-forge' ), 403 );
 		}
 
+		// The checklist comes first (2026-09-19): a task with lines still
+		// open is not done, whoever says so.
+		if ( ! empty( $body['done'] ) && ! Items::checklist_complete( $item ) ) {
+			return Errors::rest( 'checklist_open', __( 'Tick every line of the checklist first.', 'blueworx-forge' ), 409 );
+		}
+
 		$ticked = Items::tick( (string) $item['id'], $who, ! empty( $body['done'] ) );
 
 		if ( null === $ticked ) {
@@ -1426,8 +1642,10 @@ final class WorkItemsController {
 
 		$everyone = array() === array_diff( (array) $ticked['assignees'], array_keys( (array) $ticked['ticks'] ) );
 
-		if ( $everyone && Stages::COMPLETED !== (string) $ticked['stage'] ) {
-			$placed = Transition::place( $ticked, Stages::COMPLETED, get_current_user_id(), __( 'Everyone ticked it off.', 'blueworx-forge' ) );
+		// A check-in has nothing to review or release (2026-09-19): once
+		// everyone has ticked it, it is done and out.
+		if ( $everyone && Stages::RELEASED !== (string) $ticked['stage'] ) {
+			$placed = Transition::place( $ticked, Stages::RELEASED, get_current_user_id(), __( 'Everyone ticked it off.', 'blueworx-forge' ) );
 
 			if ( is_array( $placed ) ) {
 				$ticked = $placed;

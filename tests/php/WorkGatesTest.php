@@ -46,7 +46,8 @@ final class WorkGatesTest extends TestCase {
 				'priority'            => '',
 				'planned_start'       => '',
 				'planned_due'         => '',
-				'remaining_estimate'  => 0.0,
+				'test_description'    => '',
+				'design_url'          => '',
 				'release_method'      => '',
 				'release_destination' => '',
 				'created_by'          => 7,
@@ -154,8 +155,10 @@ final class WorkGatesTest extends TestCase {
 
 		$this->assertContains( 'G-DOCUMENTATION-3', $ids );
 		$this->assertContains( 'G-DOCUMENTATION-5', $ids );
-		$this->assertContains( 'G-DOCUMENTATION-8', $ids );
 		$this->assertContains( 'G-DOCUMENTATION-9', $ids );
+		// Reference material and dependencies are optional (2026-09-19).
+		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-8' ) );
+		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-6' ) );
 		$this->assertNotContains( 'G-DOCUMENTATION-1', $ids, 'The problem statement was filled in' );
 
 		// The Scope and Requirements checks went with their boxes (2026-09-18).
@@ -182,13 +185,55 @@ final class WorkGatesTest extends TestCase {
 	 * link since the stage was entered. Nothing is recorded by hand.
 	 */
 	public function test_evidence_is_met_by_an_entry_since_the_stage_was_entered(): void {
-		$item    = $this->item( array( 'stage' => 'in-development', 'remaining_estimate' => 2.0 ) );
+		$item    = $this->item( array( 'stage' => 'in-development', 'test_description' => 'Open it.' ) );
 		$without = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array() );
 		$with    = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array(), array( 'evidence_since_entry' => true ) );
 
 		$this->assertContains( 'G-IN-DEVELOPMENT-2', array_column( $without['unmet'], 'id' ) );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-2', array_column( $with['unmet'], 'id' ) );
-		$this->assertNotContains( 'G-IN-DEVELOPMENT-3', array_column( $with['unmet'], 'id' ) );
+		$this->assertSame( array(), $with['unmet'], 'How to test is written, the checklist is empty: nothing left' );
+	}
+
+	/**
+	 * Leaving In Development (2026-09-19): how to test is a field on the task,
+	 * hours still to do is gone, and the completion checklist is the
+	 * checklist itself.
+	 */
+	public function test_in_development_asks_for_how_to_test_and_nothing_about_hours(): void {
+		$ids = array_column( Gates::requirements( 'G-IN-DEVELOPMENT' ), 'id' );
+
+		$this->assertContains( 'G-IN-DEVELOPMENT-3', $ids );
+		$this->assertSame( array( 'test_description' ), Gates::requirement( 'G-IN-DEVELOPMENT-3' )['fields'] );
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-4', $ids );
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-5', $ids );
+	}
+
+	/**
+	 * The approvals belong to the reviewer (2026-09-19).
+	 */
+	public function test_the_three_approvals_are_the_reviewers(): void {
+		foreach ( array( 'G-DOCUMENTATION-9', 'G-TECHNICAL-AUDIT-8', 'G-DESIGN-5' ) as $id ) {
+			$this->assertSame( Gates::REV, Gates::requirement( $id )['who'], $id );
+		}
+	}
+
+	/**
+	 * Captured to Triage wants the two people (2026-09-19); the write-ins at
+	 * Technical Audit, the parent question and the accessibility tick are gone.
+	 */
+	public function test_what_went_and_what_arrived(): void {
+		$idea = array_column( Gates::requirements( 'G-FUTURE-IDEA' ), 'id' );
+
+		$this->assertContains( 'G-FUTURE-IDEA-5', $idea );
+		$this->assertContains( 'G-FUTURE-IDEA-6', $idea );
+		$this->assertSame( array( 'primary_user_id' ), Gates::requirement( 'G-FUTURE-IDEA-5' )['fields'] );
+		$this->assertSame( array( 'reviewer_id' ), Gates::requirement( 'G-FUTURE-IDEA-6' )['fields'] );
+
+		foreach ( array( 'G-TRIAGE-3', 'G-TECHNICAL-AUDIT-1', 'G-TECHNICAL-AUDIT-2', 'G-TECHNICAL-AUDIT-3', 'G-TECHNICAL-AUDIT-4', 'G-TECHNICAL-AUDIT-5', 'G-TECHNICAL-AUDIT-6', 'G-DESIGN-4', 'G-UP-NEXT-7' ) as $gone ) {
+			$this->assertNull( Gates::requirement( $gone ), $gone );
+		}
+
+		$this->assertSame( array( 'design_url' ), Gates::requirement( 'G-DESIGN-1' )['fields'] );
 	}
 
 	/**
@@ -215,20 +260,6 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
-	 * A parent set on the item answers "parent chosen"; so does recording that
-	 * it sits at the top.
-	 */
-	public function test_a_parent_set_answers_the_parent_requirement(): void {
-		$none   = Gates::evaluate( 'G-TRIAGE', $this->item(), array() );
-		$parent = Gates::evaluate( 'G-TRIAGE', $this->item( array( 'parent_id' => 'wrk_9' ) ), array() );
-		$top    = Gates::evaluate( 'G-TRIAGE', $this->item(), array( 'G-TRIAGE-3' => array( 'value' => 'top-level' ) ) );
-
-		$this->assertContains( 'G-TRIAGE-3', array_column( $none['unmet'], 'id' ) );
-		$this->assertNotContains( 'G-TRIAGE-3', array_column( $parent['unmet'], 'id' ) );
-		$this->assertNotContains( 'G-TRIAGE-3', array_column( $top['unmet'], 'id' ) );
-	}
-
-	/**
 	 * Dependencies are ready when every one of them is Completed or later —
 	 * and trivially when there are none.
 	 */
@@ -251,15 +282,13 @@ final class WorkGatesTest extends TestCase {
 	public function test_picks_carry_their_options_and_boxes_their_input(): void {
 		$source = Gates::requirement( 'G-FUTURE-IDEA-3' );
 		$steps  = Gates::requirement( 'G-BUG-TRACKING-3' );
-		$range  = Gates::requirement( 'G-TECHNICAL-AUDIT-6' );
-		$deps   = Gates::requirement( 'G-UP-NEXT-7' );
+		$owner  = Gates::requirement( 'G-BLOCKED-ENTRY-2' );
 
 		$this->assertSame( 'pick', $source['control'] );
 		$this->assertSame( array( 'client-request', 'internal', 'bug-report', 'meeting' ), array_column( $source['options'], 'value' ) );
 		$this->assertSame( 'box', $steps['control'] );
 		$this->assertSame( 'text', $steps['input'] );
-		$this->assertSame( 'range', $range['input'] );
-		$this->assertSame( 'items', $deps['source'] );
+		$this->assertSame( 'people', $owner['source'] );
 	}
 
 	/**
@@ -326,10 +355,12 @@ final class WorkGatesTest extends TestCase {
 	 * does.
 	 */
 	public function test_a_recorded_completion_satisfies_a_record_requirement(): void {
-		$records = array( 'G-UP-NEXT-7' => array( 'actor' => 3 ) );
-		$result  = Gates::evaluate( 'G-UP-NEXT', $this->item(), $records );
+		$records = array( 'G-TECHNICAL-AUDIT-7' => array( 'actor' => 3 ) );
+		$result  = Gates::evaluate( 'G-TECHNICAL-AUDIT', $this->item( array( 'stage' => 'technical-audit' ) ), $records );
 
-		$this->assertNotContains( 'G-UP-NEXT-7', array_column( $result['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-TECHNICAL-AUDIT-7', array_column( $result['unmet'], 'id' ) );
+		$this->assertContains( 'G-TECHNICAL-AUDIT-8', array_column( $result['unmet'], 'id' ) );
+		$result = Gates::evaluate( 'G-UP-NEXT', $this->item(), array() );
 		$this->assertContains( 'G-UP-NEXT-4', array_column( $result['unmet'], 'id' ) );
 
 		// And a record does not satisfy a requirement backed by a field. The
@@ -398,9 +429,7 @@ final class WorkGatesTest extends TestCase {
 	public function test_the_requirements_that_need_evidence_say_so(): void {
 		$expected = array(
 			'G-BUG-TRACKING-5',
-			'G-DESIGN-1',
 			'G-IN-DEVELOPMENT-2',
-			'G-IN-DEVELOPMENT-3',
 			'G-RELEASED-3',
 		);
 

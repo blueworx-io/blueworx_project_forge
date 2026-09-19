@@ -57,7 +57,6 @@ final class CapacityGateTest extends TestCase {
 	 */
 	private function records(): array {
 		return array(
-			'G-UP-NEXT-7' => array( 'actor' => 3 ),
 		);
 	}
 

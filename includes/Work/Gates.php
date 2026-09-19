@@ -172,11 +172,14 @@ final class Gates {
 				self::field( 'G-FUTURE-IDEA-2', 'Site confirmed', 'reference', array( 'client_site_id' ), 'The task has a site.' ),
 				self::pick( 'G-FUTURE-IDEA-3', 'Source', self::SOURCES, 'Choose where this came from.' ),
 				self::system( 'G-FUTURE-IDEA-4', 'Submitted for triage', 'submission', 'Recorded by the move itself.' ),
+				// The two people are named before triage (2026-09-19), so the
+				// reviewer's approvals down the line have somebody to belong to.
+				self::field( 'G-FUTURE-IDEA-5', 'Doing the work assigned', 'reference', array( 'primary_user_id' ), 'Say who is doing the work.' ),
+				self::field( 'G-FUTURE-IDEA-6', 'Reviewing it assigned', 'reference', array( 'reviewer_id' ), 'Say who is reviewing it, somebody other than the person doing the work.' ),
 			),
 			'G-TRIAGE'          => array(
 				self::field( 'G-TRIAGE-1', 'Work type confirmed', 'enum', array( 'work_type' ), 'Confirm the work type.', self::APR ),
 				self::field( 'G-TRIAGE-2', 'Site confirmed', 'reference', array( 'client_site_id' ), 'The task has a site.', self::APR ),
-				self::pick( 'G-TRIAGE-3', 'Parent', array( 'top-level' => 'Top level' ), 'Choose the item this sits under, or Top level.', self::ANY, 'items', 'parent' ),
 				self::field( 'G-TRIAGE-4', 'Priority', 'enum', array( 'priority' ), 'Set a priority.' ),
 				self::pick( 'G-TRIAGE-6', 'Duplicate check', array( 'none' => 'No duplicate found' ), 'Say whether this duplicates another item.', self::ANY, 'items' ),
 				self::pick( 'G-TRIAGE-7', 'Triage outcome', self::TRIAGE_OUTCOMES, 'Choose the triage outcome.', self::APR ),
@@ -196,27 +199,26 @@ final class Gates {
 				self::field( 'G-DOCUMENTATION-1', 'Item description', 'text', array( 'problem' ), 'Write the item description.' ),
 				self::field( 'G-DOCUMENTATION-3', 'Not covered', 'text', array( 'non_goals' ), 'Write what this deliberately does not cover.' ),
 				self::field( 'G-DOCUMENTATION-5', 'Completed when', 'checklist', array( 'acceptance_criteria' ), 'Write when this counts as completed.' ),
-				self::pick( 'G-DOCUMENTATION-6', 'Dependencies', array( 'none' => 'None' ), 'Choose what this waits on, or None.', self::ANY, 'items', 'dependencies' ),
 				self::pick( 'G-DOCUMENTATION-7', 'Affected sites and data', self::AFFECTED, 'Choose which sites this affects.' ),
-				self::field( 'G-DOCUMENTATION-8', 'Reference material', 'reference', array( 'references' ), 'Link the reference material.' ),
-				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as somebody other than the person doing the work.', self::APR ),
+				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as the reviewer.', self::REV ),
 			),
+
+			/*
+			 * Technical Audit is the reviewer signing off the documentation
+			 * (2026-09-19). The write-in assessments it used to ask for went;
+			 * the risks and the approval stay. Dependencies are connected from
+			 * the task itself, so no stage asks about them until Completed
+			 * needs them done.
+			 */
 			'G-TECHNICAL-AUDIT' => array(
-				self::box( 'G-TECHNICAL-AUDIT-1', 'Architecture assessment', 'text', 'Fill in the architecture and how it would be implemented.' ),
-				self::pick( 'G-TECHNICAL-AUDIT-2', 'Dependencies confirmed', array( 'none' => 'None' ), 'Confirm what this waits on, or None.', self::ANY, 'items', 'dependencies' ),
-				self::box( 'G-TECHNICAL-AUDIT-3', 'Data and sync impact', 'text', 'Fill in the data and sync impact.' ),
-				self::box( 'G-TECHNICAL-AUDIT-4', 'Security and privacy impact', 'text', 'Fill in the security and privacy impact.' ),
-				self::box( 'G-TECHNICAL-AUDIT-5', 'Test approach', 'text', 'Fill in how this will be tested.' ),
-				self::box( 'G-TECHNICAL-AUDIT-6', 'Estimate range', 'range', 'Fill in a low and a high estimate, in hours.' ),
 				self::done( 'G-TECHNICAL-AUDIT-7', 'Risks', 'Mark the technical risks as listed.' ),
-				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit.', self::APR ),
+				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit, as the reviewer.', self::REV ),
 			),
 			'G-DESIGN'          => array(
-				self::evidence( 'G-DESIGN-1', 'Approved design artifact', 'Add a comment with a link to the approved design.' ),
+				self::field( 'G-DESIGN-1', 'Design link', 'reference', array( 'design_url' ), 'Add the link to the approved design.' ),
 				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),
 				self::done( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'Mark all four states as done.' ),
-				self::done( 'G-DESIGN-4', 'Accessibility considerations', 'Mark the accessibility considerations as done.' ),
-				self::approval( 'G-DESIGN-5', 'Design approval', 'Approve the design.', self::APR ),
+				self::approval( 'G-DESIGN-5', 'Design approval', 'Approve the design, as the reviewer.', self::REV ),
 			),
 			'G-UP-NEXT'         => array(
 
@@ -232,16 +234,15 @@ final class Gates {
 				self::auto( 'G-UP-NEXT-4', 'Planned hours per role', 'numeric', 'hours', 'Enter planned hours for Primary User, Reviewer and Deliverer.' ),
 				self::field( 'G-UP-NEXT-5', 'Planned start and due date', 'date', array( 'planned_start', 'planned_due' ), 'Set a planned start and a planned due date.' ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
-				self::pick( 'G-UP-NEXT-7', 'Dependencies confirmed', array( 'none' => 'None' ), 'Confirm what this waits on, or None.', self::ANY, 'items', 'dependencies' ),
 				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of the planned dates, unless the over-allocation is given a reason.' ),
 				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
 			'G-IN-DEVELOPMENT'  => array(
-				self::done( 'G-IN-DEVELOPMENT-1', 'Requirements implemented', 'Tick every line of the checklist, or mark this Done.', self::PU, 'checklist' ),
+				// The checklist is the completion checklist (2026-09-19): every
+				// line ticked, or no list at all, and nobody marks it by hand.
+				self::auto( 'G-IN-DEVELOPMENT-1', 'Checklist complete', 'checklist', 'checklist', 'Tick every line of the checklist.', self::PU ),
 				self::evidence( 'G-IN-DEVELOPMENT-2', 'Work evidence', 'Add a comment with a link to the work.', self::PU ),
-				self::evidence( 'G-IN-DEVELOPMENT-3', 'Test evidence', 'Add a comment with a link to the test evidence.', self::PU ),
-				self::field( 'G-IN-DEVELOPMENT-4', 'Remaining estimate', 'numeric', array( 'remaining_estimate' ), 'Enter the remaining estimate in hours.', self::PU ),
-				self::done( 'G-IN-DEVELOPMENT-5', 'Completion checklist', 'Mark the completion checklist as done.', self::PU ),
+				self::field( 'G-IN-DEVELOPMENT-3', 'How to test', 'text', array( 'test_description' ), 'Write how the reviewer tests it, under Review and testing.', self::PU ),
 				self::system( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'submission', 'Recorded by the move itself.' ),
 			),
 			'G-IN-REVIEW'       => array(
@@ -507,8 +508,9 @@ final class Gates {
 			return '' !== (string) $value && 'unclassified' !== (string) $value;
 		}
 
-		if ( 'remaining_estimate' === $field ) {
-			return (float) $value > 0.0;
+		// How to test is rich text: an empty paragraph is an empty field.
+		if ( 'test_description' === $field ) {
+			return '' !== Fields::plain( (string) $value );
 		}
 
 		return '' !== trim( (string) $value );
@@ -544,11 +546,9 @@ final class Gates {
 				return true;
 
 			case 'checklist':
+				// No checklist is a complete one (2026-09-19): the list is
+				// optional, and an item without one has nothing left to tick.
 				$rows = (array) ( $item['checklist'] ?? array() );
-
-				if ( array() === $rows ) {
-					return false;
-				}
 
 				foreach ( $rows as $row ) {
 					if ( empty( $row['done'] ) ) {
@@ -557,12 +557,6 @@ final class Gates {
 				}
 
 				return true;
-
-			case 'parent':
-				return '' !== trim( (string) ( $item['parent_id'] ?? '' ) );
-
-			case 'dependencies':
-				return 0 < count( (array) ( $context['dependencies'] ?? array() ) );
 
 			case 'dependencies_ready':
 				$completed = (int) array_search( Stages::COMPLETED, Stages::ALL, true );
