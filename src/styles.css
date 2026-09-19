@@ -657,6 +657,19 @@ body {
   color: var( --color-steel );
 }
 
+/* Green for something that worked, yellow for something to mind; red is the default, for something that did not. */
+.bwx-notice[ data-tone='ok' ] {
+  border-color: var( --color-success-border );
+  background: var( --color-success-bg );
+  color: var( --color-success );
+}
+
+.bwx-notice[ data-tone='warn' ] {
+  border-color: var( --color-warning-border );
+  background: var( --color-warning-bg );
+  color: var( --color-warning );
+}
+
 @media ( prefers-reduced-motion: reduce ) {
   .bwx-card {
     transition: none;
@@ -1412,25 +1425,71 @@ body {
   gap: 6px;
   white-space: nowrap;
 }
+/* The days of the week as a row of pills; the box inside each is the real control. */
 .bwx-recurring-days {
   border: 0;
   padding: 0;
   margin: 0 0 12px;
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
-  gap: 10px 14px;
+  gap: 6px;
 }
 .bwx-recurring-days legend {
+  float: left;
+  width: 100%;
   padding: 0;
-  margin-bottom: 6px;
-  font-size: var( --text-small );
+  margin-bottom: 2px;
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
   color: var( --ink-700 );
 }
 .bwx-recurring-day {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-pill );
+  background: var( --surface-card );
   font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  color: var( --ink-700 );
+  cursor: pointer;
+  user-select: none;
+}
+.bwx-recurring-day:has( input:checked ) {
+  background: var( --surface-action-soft );
+  border-color: var( --border-tint );
+  color: var( --brand-700 );
+}
+.bwx-recurring-day:has( input:focus-visible ) {
+  box-shadow: var( --focus-ring );
+}
+.bwx-recurring-day input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var( --color-ash );
+  border-radius: 4px;
+  background: var( --surface-card );
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.bwx-recurring-day input:checked {
+  background: var( --brand-600 );
+  border-color: var( --brand-600 );
+}
+.bwx-recurring-day input:checked::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid var( --color-snow );
+  border-bottom: 2px solid var( --color-snow );
+  transform: translateY( -1px ) rotate( -45deg );
 }
 .bwx-recurring-dates {
   display: flex;
@@ -1449,13 +1508,19 @@ body {
   flex: 1;
 }
 .bwx-recurring-hours {
-  width: 90px;
+  flex: 0 0 130px;
 }
 
 .bwx-hint {
   margin: 0;
   font-size: var( --text-small );
   color: var( --color-fog );
+}
+
+/* A line of context at the top of a flush panel, above the table that is its body. */
+.bwx-panel-lead {
+  padding: 12px 16px;
+  border-bottom: 1px solid var( --border-hairline );
 }
 
 /* ---- Capacity (#139) ---- */
@@ -2069,6 +2134,19 @@ td[ data-band='over' ] {
   overflow-y: auto;
 }
 
+/* Each report is a card of its own. */
+.bwx-report {
+  padding: 16px 20px 20px;
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-xl );
+  box-shadow: var( --shadow-card );
+}
+
+.bwx-reports {
+  gap: 16px;
+}
+
 .bwx-report-title {
   font-size: var( --text-ui );
   font-weight: var( --font-weight-label );
@@ -2088,7 +2166,7 @@ td[ data-band='over' ] {
   gap: 2px;
   min-inline-size: 180px;
   padding: 12px 16px;
-  background: var( --color-snow );
+  background: var( --surface-sunken );
   border: 1px solid var( --color-chalk );
   border-radius: 8px;
 }
@@ -2584,29 +2662,42 @@ td[ data-band='over' ] {
   overflow: auto;
   display: grid;
   gap: 16px;
+  align-content: start;
 }
 
-.bwx-availability-picker {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 420px;
+/* The line for a person whose hours nobody has recorded, inside the flush panel. */
+.bwx-availability-unrecorded {
+  margin: 16px;
 }
 
-.bwx-availability-picker label {
-  font-size: var( --text-small );
-  color: var( --ink-700 );
-}
-
+/* The week in force: a tile a day, with the total set apart at the end. */
 .bwx-availability-week {
   display: grid;
   grid-template-columns: repeat( 8, minmax( 0, 1fr ) );
-  gap: 8px;
-  margin: 0 0 16px;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+
+.bwx-availability-week > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-lg );
+  background: var( --surface-sunken );
+}
+
+.bwx-availability-week > div[ data-total='true' ] {
+  background: var( --tile-teal-bg );
+  border-color: var( --tile-teal-border );
 }
 
 .bwx-availability-week dt {
-  font-size: var( --text-small );
+  font-size: var( --text-caption );
+  text-transform: uppercase;
+  letter-spacing: var( --tracking-caption );
   color: var( --ink-500 );
 }
 
@@ -2614,6 +2705,7 @@ td[ data-band='over' ] {
   margin: 0;
   font-family: var( --font-mono );
   font-size: var( --text-subheading );
+  color: var( --ink-900 );
 }
 
 @media ( max-width: 640px ) {
@@ -2625,7 +2717,7 @@ td[ data-band='over' ] {
 .bwx-availability-hours-grid {
   display: grid;
   grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
-  gap: var( --space-2, 8px );
+  gap: 4px 16px;
 }
 
 /* ---- Packages (#145) ---- */
@@ -2636,6 +2728,7 @@ td[ data-band='over' ] {
   overflow: auto;
   display: grid;
   gap: 16px;
+  align-content: start;
 }
 
 .bwx-packages-order {
@@ -2686,11 +2779,11 @@ td[ data-band='over' ] {
 }
 
 /* One series, one card; several abreast where there is room. */
+/* One standing meeting per row, the full width of the panel. */
 .bwx-meetings-cards {
   display: grid;
-  grid-template-columns: repeat( auto-fill, minmax( 320px, 1fr ) );
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax( 0, 1fr );
+  gap: 12px;
 }
 
 .bwx-meetings-card-head {
@@ -2712,16 +2805,25 @@ td[ data-band='over' ] {
 }
 
 /* The facts of a series, two columns: what is asked, what it is. */
+/* The facts across the card: a label over each value, as many to a row as fit. */
 .bwx-meetings-facts {
   margin: 0;
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
   font-size: var( --text-small );
 }
 
+.bwx-meetings-facts > div {
+  display: grid;
+  gap: 2px;
+}
+
 .bwx-meetings-facts dt {
-  color: var( --ink-700 );
+  color: var( --ink-500 );
+  font-size: var( --text-caption );
+  text-transform: uppercase;
+  letter-spacing: var( --tracking-caption );
 }
 
 .bwx-meetings-facts dd {
@@ -2736,6 +2838,14 @@ td[ data-band='over' ] {
 
 .bwx-meetings-when {
   display: grid;
+}
+
+/* Move on the left, Settle on the right, in the one column. */
+.bwx-meetings-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 /* The line under the date: where a moved meeting came from. */

@@ -322,16 +322,6 @@ export function WorkScreen( {
           <button
             type="button"
             className="bwx-button"
-            data-variant={ 'list' === view ? undefined : 'quiet' }
-            data-testid="bwx-view-list"
-            aria-pressed={ 'list' === view }
-            onClick={ () => setView( 'list' ) }
-          >
-            List
-          </button>
-          <button
-            type="button"
-            className="bwx-button"
             data-variant={ 'gantt' === view ? undefined : 'quiet' }
             data-testid="bwx-view-gantt"
             aria-pressed={ 'gantt' === view }
@@ -348,6 +338,16 @@ export function WorkScreen( {
             onClick={ () => setView( 'calendar' ) }
           >
             Calendar
+          </button>
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant={ 'list' === view ? undefined : 'quiet' }
+            data-testid="bwx-view-list"
+            aria-pressed={ 'list' === view }
+            onClick={ () => setView( 'list' ) }
+          >
+            List
           </button>
         </div>
 

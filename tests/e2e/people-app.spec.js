@@ -69,7 +69,8 @@ test('the rail offers People under Team, and a person shows as a card with their
   const card = cardFor(page, person.id);
   await expect(card).toBeVisible();
   await expect(card).toContainText(`staff${STAMP}`);
-  await expect(card.getByTestId('bwx-people-card-account')).toContainText(`Signs in as ${person.login}`);
+  // Somebody who can sign in carries no "No account" mark; the card says nothing more about it.
+  await expect(card.getByTestId('bwx-people-card-account')).toHaveCount(0);
 
   const row = card.getByTestId('bwx-people-memberships').locator('tbody tr');
   await expect(row).toHaveCount(1);
@@ -92,7 +93,7 @@ test('somebody new is added from a form, and gets an account to sign in with', a
   await expect(form).toBeHidden();
   const card = cardSaying(page, name);
   await expect(card).toBeVisible();
-  await expect(card.getByTestId('bwx-people-card-account')).toContainText('Signs in as');
+  await expect(card.getByTestId('bwx-people-card-account')).toHaveCount(0);
   await expect(card.getByTestId('bwx-people-memberships')).toContainText('No client access yet');
 });
 
@@ -109,7 +110,7 @@ test('somebody who already has an account is added from it, and signs in as that
   await expect(form).toBeHidden();
   const card = cardSaying(page, account.login);
   await expect(card).toBeVisible();
-  await expect(card.getByTestId('bwx-people-card-account')).toContainText(`Signs in as ${account.login}`);
+  await expect(card.getByTestId('bwx-people-card-account')).toHaveCount(0);
 });
 
 test('a person is renamed in place, and an address somebody else holds is refused in the form', async ({ page }) => {
@@ -176,7 +177,7 @@ test('somebody with no account is given one, and signs in as it', async ({ page 
   await expect(page.getByTestId('bwx-people-count')).toBeVisible({ timeout: 30_000 });
 
   const card = cardFor(page, unlinked.id);
-  await expect(card.getByTestId('bwx-people-card-account')).toContainText('No WordPress account');
+  await expect(card.getByTestId('bwx-people-card-account')).toContainText('No account');
 
   await card.getByTestId('bwx-people-link').click();
   const form = page.getByTestId('bwx-people-link-form');
@@ -185,7 +186,7 @@ test('somebody with no account is given one, and signs in as it', async ({ page 
   await form.getByTestId('bwx-people-link-save').click();
 
   await expect(form).toBeHidden();
-  await expect(card.getByTestId('bwx-people-card-account')).toContainText(`Signs in as ${account.login}`);
+  await expect(card.getByTestId('bwx-people-card-account')).toHaveCount(0);
   // An existing account keeps its own name and address, and the card follows it.
   await expect(card).toContainText(account.login);
   await expect(card.getByTestId('bwx-people-link')).toHaveCount(0);

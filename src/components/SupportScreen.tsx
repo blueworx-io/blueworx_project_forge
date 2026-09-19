@@ -7,7 +7,8 @@ import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Stat, Tag, T
 import type { Column } from '../kit';
 import { hoursLabel, priceLabel } from './PackagesScreen';
 import { SitePicker } from './SitePicker';
-import { Screen } from './States';
+import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
+import type { Said } from './States';
 
 /**
  * A site's support (PR 5 of spec 2026-09-16), in the app: what it is on,
@@ -69,7 +70,7 @@ export function SupportScreen( { site }: { site: string } ) {
   const [ siteId, setSiteId ] = useState( site );
   const [ answer, setAnswer ] = useState< SupportAnswer | null >( null );
   const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( site ? 'loading' : 'idle' );
-  const [ notice, setNotice ] = useState( '' );
+  const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ panel, setPanel ] = useState< 'assign' | 'topup' | 'adjust' | 'suspend' | null >( null );
   const [ busy, setBusy ] = useState( false );
 
@@ -77,11 +78,11 @@ export function SupportScreen( { site }: { site: string } ) {
   function landed( fresh: SupportAnswer, said = '' ) {
     setAnswer( fresh );
     setPanel( null );
-    setNotice( said );
+    setNotice( '' === said ? NOTHING_SAID : ok( said ) );
   }
 
   async function load( id: string = siteId ) {
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     if ( '' === id ) {
       setAnswer( null );
@@ -97,7 +98,7 @@ export function SupportScreen( { site }: { site: string } ) {
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
-      setNotice( messageFor( error, 'The site\'s support could not be read.' ) );
+      setNotice( failed( messageFor( error, 'The site\'s support could not be read.' ) ) );
     }
   }
 
@@ -128,12 +129,12 @@ export function SupportScreen( { site }: { site: string } ) {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       landed( await api< SupportAnswer >( `/client-sites/${ siteId }/support/${ path }`, { method: 'POST', body: { from: today() } } ), said );
     } catch ( error ) {
-      setNotice( messageFor( error, fallback ) );
+      setNotice( failed( messageFor( error, fallback ) ) );
     } finally {
       setBusy( false );
     }
@@ -165,15 +166,11 @@ export function SupportScreen( { site }: { site: string } ) {
       { 'idle' === state && <EmptyState icon={ LifeBuoy } title="No site chosen" body="Choose a site to see what it is on." /> }
       { 'loading' === state && <Screen state="loading" testId="bwx-support-state-screen" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-support-state-screen" detail="A site's support is configuration, and configuration is the administrator's." /> }
-      { 'error' === state && <Screen state="error" testId="bwx-support-state-screen" detail={ notice } /> }
+      { 'error' === state && <Screen state="error" testId="bwx-support-state-screen" detail={ notice.text } /> }
 
       { 'ready' === state && answer && position && (
         <>
-          { '' !== notice && (
-            <p className="bwx-notice" data-testid="bwx-support-notice" role="status">
-              { notice }
-            </p>
-          ) }
+          <Notice said={ notice } testId="bwx-support-notice" />
 
           <Panel
             title="Position"
@@ -234,8 +231,10 @@ export function SupportScreen( { site }: { site: string } ) {
             </div>
           </Panel>
 
-          <Panel title="Every period">
+          <Panel title="Every period" flush>
             <DataView< SupportPeriod >
+              bare
+              fixed
               columns={ periodColumns }
               rows={ answer.periods }
               sortable={ false }
@@ -245,8 +244,10 @@ export function SupportScreen( { site }: { site: string } ) {
             />
           </Panel>
 
-          <Panel title="Every hour">
+          <Panel title="Every hour" flush>
             <DataView< LedgerEntry >
+              bare
+              fixed
               columns={ ledgerColumns }
               rows={ answer.ledger }
               sortable={ false }

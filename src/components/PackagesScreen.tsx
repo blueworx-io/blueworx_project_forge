@@ -5,7 +5,8 @@ import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Tag, TextArea, TextInput } from '../kit';
 import type { Column } from '../kit';
-import { Screen } from './States';
+import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
+import type { Said } from './States';
 
 /**
  * The support package catalogue (#145), in the app.
@@ -36,7 +37,7 @@ function dateOf( seconds: number ): string {
 export function PackagesScreen() {
   const [ packages, setPackages ] = useState< SupportPackage[] >( [] );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
-  const [ notice, setNotice ] = useState( '' );
+  const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ selectedId, setSelectedId ] = useState< string | null >( null );
   const [ panel, setPanel ] = useState< 'add' | 'revise' | null >( null );
   const [ busy, setBusy ] = useState( false );
@@ -47,7 +48,7 @@ export function PackagesScreen() {
   function landed( fresh: PackagesAnswer, said = '' ) {
     setPackages( fresh.packages );
     setPanel( null );
-    setNotice( said );
+    setNotice( '' === said ? NOTHING_SAID : ok( said ) );
 
     if ( fresh.package ) {
       setSelectedId( fresh.package.id );
@@ -65,12 +66,12 @@ export function PackagesScreen() {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       landed( await api< PackagesAnswer >( `/packages/${ target.id }`, { method: 'PATCH', body: { status: retiring ? 'retired' : 'active', record_version: target.record_version } } ) );
     } catch ( error ) {
-      setNotice( messageFor( error, 'That package could not be changed.' ) );
+      setNotice( failed( messageFor( error, 'That package could not be changed.' ) ) );
     } finally {
       setBusy( false );
     }
@@ -89,19 +90,19 @@ export function PackagesScreen() {
     [ ids[ at ], ids[ to ] ] = [ ids[ to ], ids[ at ] ];
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       landed( await api< PackagesAnswer >( '/packages/order', { method: 'PUT', body: { order: ids } } ) );
     } catch ( error ) {
-      setNotice( messageFor( error, 'The order could not be saved.' ) );
+      setNotice( failed( messageFor( error, 'The order could not be saved.' ) ) );
     } finally {
       setBusy( false );
     }
   }
 
   async function load() {
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       const fresh = await api< PackagesAnswer >( '/packages' );
@@ -110,7 +111,7 @@ export function PackagesScreen() {
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
-      setNotice( messageFor( error, 'The catalogue could not be read.' ) );
+      setNotice( failed( messageFor( error, 'The catalogue could not be read.' ) ) );
     }
   }
 
@@ -168,18 +169,15 @@ export function PackagesScreen() {
     <div className="bwx-packages" data-testid="bwx-packages">
       { 'loading' === state && <Screen state="loading" testId="bwx-packages-state" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-packages-state" detail="The catalogue is configuration, and configuration is the administrator's." /> }
-      { 'error' === state && <Screen state="error" testId="bwx-packages-state" detail={ notice } /> }
+      { 'error' === state && <Screen state="error" testId="bwx-packages-state" detail={ notice.text } /> }
 
       { 'ready' === state && (
         <>
-          { '' !== notice && (
-            <p className="bwx-notice" data-testid="bwx-packages-notice" role="status">
-              { notice }
-            </p>
-          ) }
+          <Notice said={ notice } testId="bwx-packages-notice" />
 
           <Panel
             title="The catalogue"
+            flush
             right={
               <Button size="sm" data-testid="bwx-packages-add" disabled={ busy } onClick={ () => setPanel( 'add' ) }>
                 Add a package
@@ -187,6 +185,8 @@ export function PackagesScreen() {
             }
           >
             <DataView< SupportPackage >
+              bare
+              fixed
               columns={ columns }
               rows={ packages }
               sortable={ false }
@@ -205,6 +205,7 @@ export function PackagesScreen() {
             <div data-testid="bwx-packages-selected" data-package={ selected.id }>
               <Panel
                 title={ `Every version of ${ selected.name }` }
+                flush
                 right={
                   <div className="bwx-moves">
                     <Button size="sm" data-testid="bwx-packages-revise" disabled={ busy } onClick={ () => setPanel( 'revise' ) }>
@@ -217,6 +218,8 @@ export function PackagesScreen() {
                 }
               >
                 <DataView< PackageVersion >
+                  bare
+                  fixed
                   columns={ versionColumns }
                   rows={ selected.versions }
                   sortable={ false }

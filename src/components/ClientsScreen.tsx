@@ -5,7 +5,8 @@ import { api, ApiError, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
-import { Screen } from './States';
+import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
+import type { Said } from './States';
 
 /**
  * Who we work for, and their sites (PR 4 of spec 2026-09-16), in the app.
@@ -108,7 +109,7 @@ export function ClientsScreen() {
   // The sites of every client picked so far, by client id: read once each.
   const [ sites, setSites ] = useState< Record< string, ClientSiteRecord[] > >( {} );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
-  const [ notice, setNotice ] = useState( '' );
+  const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ everyone, setEveryone ] = useState( false );
   const [ selectedId, setSelectedId ] = useState< string | null >( null );
   const [ opened, setOpened ] = useState< Opened | null >( null );
@@ -124,7 +125,7 @@ export function ClientsScreen() {
   function landed( fresh: ClientRow, said = '' ) {
     setClients( ( current ) => [ ...current.filter( ( one ) => one.id !== fresh.id ), fold( fresh, current.find( ( one ) => one.id === fresh.id ) ?? null ) ].sort( byName ) );
     setOpened( null );
-    setNotice( said );
+    setNotice( '' === said ? NOTHING_SAID : ok( said ) );
   }
 
   /** A site write answers the site alone; the row wants its connection and onboarding too, so the client's sites are read again. */
@@ -137,7 +138,7 @@ export function ClientsScreen() {
   async function sitesLanded( clientId: string, said = '' ) {
     await readSites( clientId );
     setOpened( null );
-    setNotice( said );
+    setNotice( '' === said ? NOTHING_SAID : ok( said ) );
   }
 
   /** One site's connection changed in the key panel; its row takes the new record. */
@@ -155,12 +156,12 @@ export function ClientsScreen() {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       await write();
     } catch ( error ) {
-      setNotice( messageFor( error, fallback ) );
+      setNotice( failed( messageFor( error, fallback ) ) );
     } finally {
       setBusy( false );
     }
@@ -205,7 +206,7 @@ export function ClientsScreen() {
   }
 
   async function load() {
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       const fresh = await api< { ok: true; clients: ClientRecord[] } >( '/clients?status=all' );
@@ -218,7 +219,7 @@ export function ClientsScreen() {
       }
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
-      setNotice( messageFor( error, 'The clients could not be read.' ) );
+      setNotice( failed( messageFor( error, 'The clients could not be read.' ) ) );
     }
   }
 
@@ -237,7 +238,7 @@ export function ClientsScreen() {
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    readSites( selectedId ).catch( ( error: unknown ) => setNotice( messageFor( error, 'The sites could not be read.' ) ) );
+    readSites( selectedId ).catch( ( error: unknown ) => setNotice( failed( messageFor( error, 'The sites could not be read.' ) ) ) );
   }, [ selectedId, sites ] );
 
   const columns: Column< ClientRecord >[] = [
@@ -345,33 +346,32 @@ export function ClientsScreen() {
     <div className="bwx-clients" data-testid="bwx-clients">
       { 'loading' === state && <Screen state="loading" testId="bwx-clients-state" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-clients-state" detail="Clients are configuration, and configuration is the administrator's." /> }
-      { 'error' === state && <Screen state="error" testId="bwx-clients-state" detail={ notice } /> }
+      { 'error' === state && <Screen state="error" testId="bwx-clients-state" detail={ notice.text } /> }
 
       { 'ready' === state && (
         <>
-          { '' !== notice && (
-            <p className="bwx-notice" data-testid="bwx-clients-notice" role="status">
-              { notice }
-            </p>
-          ) }
+          <Notice said={ notice } testId="bwx-clients-notice" />
 
           <Panel
             title="Who we work for"
+            flush
             right={
               <div className="bwx-moves">
-                <Button size="sm" data-testid="bwx-clients-add" disabled={ busy } onClick={ () => setOpened( { kind: 'add' } ) }>
-                  Add a client
-                </Button>
                 <Button size="sm" variant="ghost" data-testid="bwx-clients-show-all" aria-pressed={ everyone } onClick={ () => setEveryone( ( on ) => ! on ) }>
                   { everyone ? 'Show active only' : 'Show everyone, including deactivated' }
+                </Button>
+                <Button size="sm" data-testid="bwx-clients-add" disabled={ busy } onClick={ () => setOpened( { kind: 'add' } ) }>
+                  Add a client
                 </Button>
               </div>
             }
           >
             <DataView< ClientRecord >
+              bare
               columns={ columns }
               rows={ shown }
               sortable={ false }
+              fixed
               selectedId={ selectedId }
               onRowClick={ ( c ) => setSelectedId( c.id ) }
               empty={ <EmptyState icon={ Building2 } dense title="No clients yet" body="Add the first one, and their sites go under them." /> }
@@ -397,6 +397,7 @@ export function ClientsScreen() {
                     ) }
                   </>
                 }
+                flush
                 right={
                   <div className="bwx-moves">
                     <Button size="sm" variant="ghost" data-testid="bwx-clients-edit" disabled={ busy } onClick={ () => setOpened( { kind: 'edit' } ) }>
@@ -420,7 +421,7 @@ export function ClientsScreen() {
                   </div>
                 }
               >
-                <p className="bwx-hint" data-testid="bwx-clients-selected-detail">
+                <p className="bwx-hint bwx-panel-lead" data-testid="bwx-clients-selected-detail">
                   { selected.is_studio ? (
                     'Your own work goes under this client. It appears in the site picker like any other, and the board opens on it.'
                   ) : (
@@ -434,6 +435,7 @@ export function ClientsScreen() {
                   ) }
                 </p>
                 <DataView< ClientSiteRecord >
+                  bare
                   columns={ siteColumns }
                   rows={ shownSites }
                   sortable={ false }
@@ -872,7 +874,7 @@ function KeyPanel( { site, onClose, onChanged }: { site: ClientSiteRecord; onClo
 
       { issued && (
         <>
-          <p className="bwx-notice" data-testid="bwx-clients-key-once" role="status">
+          <p className="bwx-notice" data-tone="warn" data-testid="bwx-clients-key-once" role="status">
             { issued.rotated ? 'A new key was issued. ' : '' }
             Copy both now and paste them into the client site. This key cannot be shown again.
           </p>

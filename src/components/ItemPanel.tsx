@@ -13,6 +13,7 @@ import type {
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
 import { useLiveReload } from '../live';
+import { HoursSelect } from '../hours';
 import { Inline, Screen } from './States';
 
 interface Detail {
@@ -660,7 +661,7 @@ export function ItemPanel( {
         { '' !== notice && 'ready' === loadState && (
           <p
             className="bwx-notice"
-            data-tone={ 'Saved.' === notice ? 'quiet' : undefined }
+            data-tone={ 'Saved.' === notice ? 'ok' : undefined }
             data-testid="bwx-panel-notice"
             role="status"
           >
@@ -1126,7 +1127,15 @@ export function ItemPanel( {
                 { SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
                     { pick( seat.field, seat.label ) }
-                    { measure( seat.hours, 'Hours' ) }
+                    <div className="bwx-field">
+                      { naming( seat.hours, 'Hours' ) }
+                      <HoursSelect
+                        id={ `bwx-${ seat.hours }` }
+                        className="bwx-select"
+                        value={ draft[ seat.hours ] ?? '' }
+                        onChange={ ( value ) => setDraft( { ...draft, [ seat.hours ]: value } ) }
+                      />
+                    </div>
                   </div>
                 ) ) }
 

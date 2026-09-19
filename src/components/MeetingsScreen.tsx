@@ -7,7 +7,8 @@ import { Button, Card, DataView, EmptyState, Field, Modal, Panel, Select, Tag, T
 import type { Column } from '../kit';
 import { hoursLabel } from './PackagesScreen';
 import { SitePicker } from './SitePicker';
-import { Screen } from './States';
+import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
+import type { Said } from './States';
 
 /**
  * A site's meetings (PR 6 of spec 2026-09-17), in the app: the standing
@@ -131,7 +132,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
   const [ siteId, setSiteId ] = useState( site );
   const [ answer, setAnswer ] = useState< MeetingsAnswer | null >( null );
   const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( site ? 'loading' : 'idle' );
-  const [ notice, setNotice ] = useState( '' );
+  const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ opened, setOpened ] = useState< Opened >( null );
   const [ busy, setBusy ] = useState( false );
 
@@ -139,11 +140,11 @@ export function MeetingsScreen( { site }: { site: string } ) {
   function landed( fresh: MeetingsAnswer, said = '' ) {
     setAnswer( fresh );
     setOpened( null );
-    setNotice( said );
+    setNotice( '' === said ? NOTHING_SAID : ok( said ) );
   }
 
   async function load( id: string = siteId ) {
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     if ( '' === id ) {
       setAnswer( null );
@@ -159,7 +160,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
-      setNotice( messageFor( error, 'The site\'s meetings could not be read.' ) );
+      setNotice( failed( messageFor( error, 'The site\'s meetings could not be read.' ) ) );
     }
   }
 
@@ -190,7 +191,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       landed(
@@ -198,7 +199,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
         'Series ended. Past meetings are untouched and any held hours have been given back.'
       );
     } catch ( error ) {
-      setNotice( messageFor( error, 'That series could not be ended.' ) );
+      setNotice( failed( messageFor( error, 'That series could not be ended.' ) ) );
     } finally {
       setBusy( false );
     }
@@ -208,7 +209,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
     {
       key: 'when',
       label: 'When',
-      width: 200,
+      width: 170,
       render: ( m ) => (
         <span className="bwx-meetings-when" data-testid="bwx-meetings-meeting" data-slot={ m.slot } data-on={ m.on } data-status={ m.status } data-ledger={ m.ledger_state }>
           <span className="fk-mono">{ `${ m.on } ${ m.time }` }</span>
@@ -223,28 +224,33 @@ export function MeetingsScreen( { site }: { site: string } ) {
     },
     { key: 'what', label: 'What', wrap: true, render: ( m ) => m.series_title },
     { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, render: ( m ) => hoursLabel( m.hours ) },
-    { key: 'status', label: 'What happened', width: 130, render: ( m ) => m.status_label },
+    { key: 'status', label: 'What happened', width: 120, render: ( m ) => m.status_label },
     {
       key: 'ledger',
       label: 'Hours held',
-      width: 130,
+      width: 110,
       render: ( m ) => <Tag tone={ 'reserved' === m.ledger_state ? 'info' : 'used' === m.ledger_state ? 'ok' : 'neutral' }>{ LEDGER_LABELS[ m.ledger_state ] }</Tag>,
     },
     {
       key: 'actions',
-      width: 150,
+      label: 'Actions',
+      sortable: false,
+      width: 140,
       render: ( m ) => (
-        <span className="bwx-moves">
+        <span className="bwx-meetings-actions">
           { /*
              * A settled meeting stays where it happened (or did not), as on
-             * the admin page: only a scheduled one can move.
+             * the admin page: only a scheduled one can move. Move sits left
+             * and Settle right, so the two never stack.
              */ }
-          { 'scheduled' === m.status && (
-            <Button size="sm" variant="ghost" data-testid="bwx-meetings-move" aria-label={ `Move the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'move', meeting: { ...m, id: m.stored } } ) }>
+          { 'scheduled' === m.status ? (
+            <Button size="sm" variant="link" data-testid="bwx-meetings-move" aria-label={ `Move the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'move', meeting: { ...m, id: m.stored } } ) }>
               Move
             </Button>
+          ) : (
+            <span />
           ) }
-          <Button size="sm" variant="ghost" data-testid="bwx-meetings-settle" aria-label={ `Settle the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'settle', meeting: { ...m, id: m.stored } } ) }>
+          <Button size="sm" variant="link" data-testid="bwx-meetings-settle" aria-label={ `Settle the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'settle', meeting: { ...m, id: m.stored } } ) }>
             Settle
           </Button>
         </span>
@@ -261,15 +267,11 @@ export function MeetingsScreen( { site }: { site: string } ) {
       { 'idle' === state && <EmptyState icon={ CalendarClock } title="No site chosen" body="Choose a site to see its meetings." /> }
       { 'loading' === state && <Screen state="loading" testId="bwx-meetings-state-screen" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-meetings-state-screen" detail="A site's standing meetings are configuration, and configuration is the administrator's." /> }
-      { 'error' === state && <Screen state="error" testId="bwx-meetings-state-screen" detail={ notice } /> }
+      { 'error' === state && <Screen state="error" testId="bwx-meetings-state-screen" detail={ notice.text } /> }
 
       { 'ready' === state && answer && (
         <>
-          { '' !== notice && (
-            <p className="bwx-notice" data-testid="bwx-meetings-notice" role="status">
-              { notice }
-            </p>
-          ) }
+          <Notice said={ notice } testId="bwx-meetings-notice" />
 
           <Panel
             title="Standing meetings"
@@ -306,6 +308,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
                       columns={ columns }
                       rows={ week.rows }
                       sortable={ false }
+                      fixed
                       testId="bwx-meetings-week"
                     />
                   </div>
@@ -342,19 +345,27 @@ function SeriesCard( { series, busy, onEnd }: { series: MeetingSeries; busy: boo
           ) }
         </div>
         <dl className="bwx-meetings-facts">
-          <dt>How often</dt>
-          <dd>{ series.frequency_label }</dd>
-          <dt>When</dt>
-          <dd>{ `${ series.time_of_day } ${ series.timezone }, ${ series.duration_mins } min, ${ span }` }</dd>
-          <dt>Host</dt>
-          <dd>{ series.host_name || '—' }</dd>
-          <dt>Hours each</dt>
-          <dd className="fk-mono">{ hoursLabel( series.hours_each ) }</dd>
+          <div>
+            <dt>How often</dt>
+            <dd>{ series.frequency_label }</dd>
+          </div>
+          <div>
+            <dt>When</dt>
+            <dd>{ `${ series.time_of_day } ${ series.timezone }, ${ series.duration_mins } min, ${ span }` }</dd>
+          </div>
+          <div>
+            <dt>Host</dt>
+            <dd>{ series.host_name || '—' }</dd>
+          </div>
+          <div>
+            <dt>Hours each</dt>
+            <dd className="fk-mono">{ hoursLabel( series.hours_each ) }</dd>
+          </div>
           { '' !== series.attendees && (
-            <>
+            <div>
               <dt>Who else comes</dt>
               <dd>{ series.attendees }</dd>
-            </>
+            </div>
           ) }
         </dl>
       </Card>

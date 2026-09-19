@@ -185,7 +185,9 @@ test('editing the WordPress account writes the change back to the person', async
   // Read back where an administrator would look: the People screen in the app.
   await page.goto('/blueworx-forge/#screen=people');
   await expect(page.getByTestId('bwx-people')).toBeVisible({ timeout: 30_000 });
-  await expect(cardFor(page, person.id).getByTestId('bwx-people-card-email')).toHaveText(moved);
+  // The address lives on the edit form now, not on the card.
+  await cardFor(page, person.id).getByTestId('bwx-people-edit').click();
+  await expect(page.getByTestId('bwx-people-edit-email')).toHaveValue(moved);
 
   await context.close();
 });

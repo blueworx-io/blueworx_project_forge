@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.114.1] - 2026-09-18
+
+### Changed
+
+- A visual tidy-up across the app. Tables sit directly in their panel instead of a frame inside a frame; messages are green when something worked, yellow when something needs minding and red only when it failed; standing meetings take a full row each, and Move and Settle sit side by side under an Actions heading; the People cards lose the email and sign-in line, and show a "No account" mark only when someone cannot sign in; Availability's person picker sits at the top, its tables fill the width, and the working week is a row of tiles; Reports are cards; Intake sits above Delivery in the rail; the profile button is a pill like Lately and New task; List is last in the view switcher; Feature is no longer a task type; the days of a weekly recurring task are a row of pills; and the hours for a seat are picked from 10 minutes up to 3 hours.
+
 ## [2.114.0] - 2026-09-18
 
 ### Changed

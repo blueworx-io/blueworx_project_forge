@@ -7,7 +7,8 @@ import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Panel, Select, Stat, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { everybody } from './ItemPanel';
-import { Screen } from './States';
+import { failed, NOTHING_SAID, Notice, Screen } from './States';
+import type { Said } from './States';
 
 /**
  * A person's working week and time off (#136), in the app.
@@ -53,7 +54,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
   const [ personId, setPersonId ] = useState( person );
   const [ answer, setAnswer ] = useState< AvailabilityAnswer | null >( null );
   const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( person ? 'loading' : 'idle' );
-  const [ notice, setNotice ] = useState( '' );
+  const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ panel, setPanel ] = useState< 'hours' | 'leave' | null >( null );
   const [ busy, setBusy ] = useState( false );
 
@@ -69,19 +70,19 @@ export function AvailabilityScreen( { person }: { person: string } ) {
     }
 
     setBusy( true );
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     try {
       landed( await api< AvailabilityAnswer >( `/users/${ personId }/leave/${ record.id }`, { method: 'DELETE' } ) );
     } catch ( error ) {
-      setNotice( messageFor( error, 'That time off could not be removed.' ) );
+      setNotice( failed( messageFor( error, 'That time off could not be removed.' ) ) );
     } finally {
       setBusy( false );
     }
   }
 
   async function load( id: string = personId ) {
-    setNotice( '' );
+    setNotice( NOTHING_SAID );
 
     if ( '' === id ) {
       setAnswer( null );
@@ -97,7 +98,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
-      setNotice( messageFor( error, 'Availability could not be read.' ) );
+      setNotice( failed( messageFor( error, 'Availability could not be read.' ) ) );
     }
   }
 
@@ -157,7 +158,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
 
   return (
     <div className="bwx-availability" data-testid="bwx-availability">
-      <div className="bwx-availability-picker">
+      <div className="bwx-site-picker">
         <label htmlFor="bwx-availability-person">Person</label>
         <Select
           id="bwx-availability-person"
@@ -173,32 +174,32 @@ export function AvailabilityScreen( { person }: { person: string } ) {
       ) }
       { 'loading' === state && <Screen state="loading" testId="bwx-availability-state" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-availability-state" detail="Working hours are configuration, and configuration is the administrator's." /> }
-      { 'error' === state && <Screen state="error" testId="bwx-availability-state" detail={ notice } /> }
+      { 'error' === state && <Screen state="error" testId="bwx-availability-state" detail={ notice.text } /> }
 
       { 'ready' === state && answer && (
         <>
-          { '' !== notice && (
-            <p className="bwx-notice" data-testid="bwx-availability-notice" role="status">
-              { notice }
-            </p>
-          ) }
+          <Notice said={ notice } testId="bwx-availability-notice" />
 
-          <Panel title="This week">
+          <Panel title="This week" flush>
             { answer.recorded ? (
               <div data-testid="bwx-availability-recorded" data-recorded="yes">
-                <Stat
-                  label="Available hours"
-                  value={ <span data-testid="bwx-availability-week-hours">{ `${ hours( answer.week.hours ) }h` }</span> }
-                  sub={ `Across the next seven days, ${ answer.week.from } to ${ answer.week.to }.` }
-                />
+                <div className="bwx-panel-lead">
+                  <Stat
+                    label="Available hours"
+                    value={ <span data-testid="bwx-availability-week-hours">{ `${ hours( answer.week.hours ) }h` }</span> }
+                    sub={ `Across the next seven days, ${ answer.week.from } to ${ answer.week.to }.` }
+                  />
+                </div>
                 <DataView< AvailabilityAnswer[ 'week' ][ 'days' ][ number ] >
+                  bare
+                  fixed
                   columns={ dayColumns }
                   rows={ answer.week.days }
                   testId="bwx-availability-days"
                 />
               </div>
             ) : (
-              <p className="bwx-notice" data-testid="bwx-availability-recorded" data-recorded="no" role="status">
+              <p className="bwx-notice bwx-availability-unrecorded" data-tone="warn" data-testid="bwx-availability-recorded" data-recorded="no" role="status">
                 Nobody has said what this person&apos;s hours are, so nothing can be planned against them yet. That is different from having no time.
               </p>
             ) }
@@ -206,6 +207,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
 
           <Panel
             title="Working week"
+            flush
             right={
               <Button size="sm" data-testid="bwx-availability-set-hours" disabled={ busy } onClick={ () => setPanel( 'hours' ) }>
                 Set hours
@@ -220,16 +222,18 @@ export function AvailabilityScreen( { person }: { person: string } ) {
                     <dd data-testid={ `bwx-availability-day-${ key }` }>{ hours( answer.current?.[ key ] ?? 0 ) }</dd>
                   </div>
                 ) ) }
-                <div>
+                <div data-total="true">
                   <dt>Week</dt>
                   <dd>{ `${ hours( answer.current.hours_week ) }h` }</dd>
                 </div>
               </dl>
             ) : (
-              <p className="bwx-hint">No working week recorded yet.</p>
+              <p className="bwx-hint bwx-panel-lead">No working week recorded yet.</p>
             ) }
 
             <DataView< AvailabilityPattern >
+              bare
+              fixed
               title="History"
               columns={ historyColumns }
               rows={ answer.history }
@@ -242,6 +246,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
 
           <Panel
             title="Time off"
+            flush
             right={
               <Button size="sm" data-testid="bwx-availability-add-leave" disabled={ busy } onClick={ () => setPanel( 'leave' ) }>
                 Add time off
@@ -249,6 +254,8 @@ export function AvailabilityScreen( { person }: { person: string } ) {
             }
           >
             <DataView< LeaveRecord >
+              bare
+              fixed
               columns={ leaveColumns }
               rows={ answer.leave }
               sortable
