@@ -300,7 +300,7 @@ never to change course.
 
 **Options considered:** Full stopwatch time tracking, which §15.1 excludes and which produces a second set of numbers nobody maintains; no adjustment at all, which leaves rework invisible.
 
-**Decision:** No stopwatch time tracking. A remaining estimate is captured at In Development, which is what forecasting needs. In addition, **a post-review hours adjustment records extra time spent fixing or updating work after review**. The adjustment is an appended entry carrying its reason, never an edit, and it draws on the site's hour balance under COMM-3 so the client can see what the extra time was for.
+**Decision:** No stopwatch time tracking. The remaining estimate once captured at In Development went on 2026-09-19 (Luke: "drop the Hours still to do entirely"); the planned hours per seat are what forecasting uses. In addition, **a post-review hours adjustment records extra time spent fixing or updating work after review**. The adjustment is an appended entry carrying its reason, never an edit, and it draws on the site's hour balance under COMM-3 so the client can see what the extra time was for.
 
 **Consequence if reversed:** Introducing full time tracking makes allocation-based charging inconsistent with recorded effort; removing the post-review adjustment hides rework from both capacity and the ledger.
 

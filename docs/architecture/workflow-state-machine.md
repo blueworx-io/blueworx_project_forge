@@ -122,10 +122,15 @@ Legend for "Who": **PU** Primary User, **REV** Reviewer, **DEL** Deliverer,
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Problem or opportunity | Text, required | No | ANY |
-| 2 | Site or portfolio scope confirmed | Reference | No | ANY |
-| 3 | Source recorded | Enum: client request, internal, bug report, meeting | No | ANY |
-| 4 | Submitted for triage | Action record | No | ANY |
+| 1 | Item description | Text, required | No | ANY |
+| 2 | Site confirmed | Reference | No | ANY |
+| 3 | Source | Enum: client request, internal, bug report, meeting | No | ANY |
+| 4 | Submitted for triage | Action record | No | System |
+| 5 | Doing the work assigned | Reference (2026-09-19) | No | ANY |
+| 6 | Reviewing it assigned, somebody other than the person doing the work | Reference (2026-09-19) | No | ANY |
+
+Nothing here asks about a parent. The parent field stays on the item and
+nothing requires it.
 
 ### G-TRIAGE — Triage → Bug Tracking / Documentation Period
 
@@ -133,63 +138,57 @@ Legend for "Who": **PU** Primary User, **REV** Reviewer, **DEL** Deliverer,
 |---|---|---|---|---|
 | 1 | Work type confirmed | Enum | No | APR (triage) |
 | 2 | Site confirmed | Reference | No | APR |
-| 3 | Parent chosen or created | Reference, per WORK-1 | No | ANY |
 | 4 | Priority | Enum | No | ANY |
-| 5 | Scope summary | Text, required | No | ANY |
-| 6 | Duplicate check completed | Checklist record; if duplicate, link required | No | ANY |
-| 7 | Triage outcome recorded | Enum: proceed, rejected, duplicate, deferred | No | APR |
-| 8 | Commercial classification | Enum: chargeable, free bug under COMM-5 | No | APR |
+| 6 | Duplicate check | Pick: no duplicate found, or the item this duplicates | No | ANY |
+| 7 | Triage outcome | Enum: proceed, rejected, duplicate, deferred | No | APR |
+| 8 | Who pays | Enum: chargeable, free bug under COMM-5 | No | APR |
 
 ### G-BUG-TRACKING — Bug Tracking → Documentation Period
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Bug classification confirmed | Enum | No | ANY |
-| 2 | Expected versus actual result | Text, both required | No | ANY |
+| 1 | Bug classification | Enum | No | ANY |
+| 2 | Expected versus actual result | Text, required | No | ANY |
 | 3 | Reproduction steps | Text, required | No | ANY |
 | 4 | Environment and version | Text, required | No | ANY |
-| 5 | Evidence attached | Attachment or link | **Yes** | ANY |
+| 5 | Evidence attached | Comment with a link | **Yes** | ANY |
 | 6 | Impact and severity | Enum | No | ANY |
 | 7 | Initial diagnosis | Text, required | No | ANY |
-| 8 | Delivered-by-Forge determination | Boolean; sets the COMM-5 free-bug result | No | APR (triage) |
+| 8 | Delivered by Forge | Enum; sets the COMM-5 free-bug result | No | APR (triage) |
 
 ### G-DOCUMENTATION — Documentation Period → Technical Audit
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Problem statement | Text, required | No | ANY |
-| 2 | Scope | Text, required | No | ANY |
-| 3 | Non-goals | Text, required | No | ANY |
-| 4 | Requirements | Checklist records | No | ANY |
-| 5 | Acceptance criteria | Checklist records, at least one | No | ANY |
-| 6 | Dependencies | References, may be empty with a confirmation record | No | ANY |
-| 7 | Affected sites and data | References | No | ANY |
-| 8 | Reference material | Links or attachments | No | ANY |
-| 9 | Documentation approval | Approval record | No | APR (documentation) — not the item's own PU unless they hold Principal (AUTH-1, AUTH-3) |
+| 1 | Item description | Text, required | No | ANY |
+| 3 | Not covered | Text, required | No | ANY |
+| 5 | Completed when | Text, required | No | ANY |
+| 7 | Affected sites and data | Pick | No | ANY |
+| 9 | Documentation approval | Approval record | No | REV — the item's reviewer or their AUTH-4 substitute; an administrator may act for anyone |
+
+Reference material, links (up to ten) and images (stored in the media
+library) are optional fields of the task, not requirements.
 
 ### G-TECHNICAL-AUDIT — Technical Audit → Design Process
 
+The reviewer signing off the documentation. The write-in assessments
+(architecture, data and sync, security and privacy, test approach, estimate
+range) went on 2026-09-19.
+
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Architecture and implementation assessment | Text, required | No | ANY |
-| 2 | Dependencies confirmed | References | No | ANY |
-| 3 | Data and sync impact | Text, required | No | ANY |
-| 4 | Security and privacy impact | Text, required | No | ANY |
-| 5 | Test approach | Text, required | No | ANY |
-| 6 | Estimate range | Numeric low and high, hours | No | ANY |
-| 7 | Risks | Checklist records | No | ANY |
-| 8 | Technical approval | Approval record | No | APR (technical) |
+| 7 | Risks | Checklist record | No | ANY |
+| 8 | Technical approval | Approval record | No | REV |
 
 ### G-DESIGN — Design Process → Up Next
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Approved design artifact | Link or attachment | **Yes** | ANY |
-| 2 | Responsive states | Checklist records | No | ANY |
-| 3 | Empty, loading, error and permission-denied states | Checklist records, all four | No | ANY |
-| 4 | Accessibility considerations | Checklist records | No | ANY |
-| 5 | Design approval | Approval record | No | APR (design) |
-| — | **Or** an approved Not Applicable decision for non-UI work | Approval record with reason | No | APR (design) |
+| 1 | Design link | URL field on the task | No | ANY |
+| 2 | Responsive states | Checklist record | No | ANY |
+| 3 | Empty, loading, error and permission-denied states | Checklist record | No | ANY |
+| 5 | Design approval | Approval record | No | REV |
+| — | **Or** an approved Not Applicable decision for non-UI work | Approval record with reason | No | REV |
 
 ### G-UP-NEXT — Up Next → In Development
 
@@ -201,36 +200,39 @@ Legend for "Who": **PU** Primary User, **REV** Reviewer, **DEL** Deliverer,
 | 4 | Planned hours per role | Numeric ×3, seeded per CAP-2 | No | ANY |
 | 5 | Planned start and due date | Dates, mandatory here per WORK-3 | No | ANY |
 | 6 | Priority confirmed | Enum | No | ANY |
-| 7 | Dependencies confirmed | References | No | ANY |
 | 8 | **Capacity check** passed, or a reasoned over-allocation override (CAP-4) | System result plus optional override record | No | System / Primary administrator |
 | 9 | **Support-hours check** passed, or the item is a COMM-5 free bug | System result | No | System |
 
 Requirements 8 and 9 are evaluated independently and **both results are always
 reported**, so a pass on one and a failure on the other shows both.
 
+Dependencies are connected from the task's Dependencies card, not asked here.
+Every date on the item keeps its order — start ≤ due ≤ review by ≤ release by,
+among those set — whenever any of them is written.
+
 ### G-IN-DEVELOPMENT — In Development → In Review
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Requirements confirmed implemented | Checklist over G-DOCUMENTATION #4 | No | PU |
-| 2 | Work evidence | Links or attachments | **Yes** | PU |
-| 3 | Test evidence | Links or attachments | **Yes** | PU |
-| 4 | Remaining estimate | Numeric hours (CAP-3) | No | PU |
-| 5 | Completion checklist | Checklist records | No | PU |
-| 6 | Submitted to Reviewer | Action record | No | PU |
+| 1 | Checklist complete | Worked out from the task's checklist; an empty checklist counts as complete | No | PU |
+| 2 | Work evidence | Comment with a link | **Yes** | PU |
+| 3 | How to test | Text, required, under Review and testing | No | PU |
+| 6 | Submitted to Reviewer | Action record | No | System |
 
 Capacity is revalidated on entry to In Development, and hours convert from
-reservation to usage on entry (COMM-3).
+reservation to usage on entry (COMM-3). Recurring and subscription check-ins
+do not run this gate: they are born at Up Next and go to Released when everyone
+named has ticked, and a tick is refused while the checklist has unticked lines.
 
 ### G-IN-REVIEW — In Review → Completed
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Review checklist completed | Checklist records | No | REV or substitute |
-| 2 | Every acceptance criterion confirmed | Checklist over G-DOCUMENTATION #5 | No | REV |
-| 3 | All feedback resolved or returned | Feedback records, none open | No | REV |
+| 1 | Review checklist | Checklist record | No | REV or substitute |
+| 2 | Every acceptance criterion confirmed | Checklist record | No | REV |
+| 3 | All feedback resolved | Worked out from open client questions | No | REV |
 | 4 | Review approval | Approval record | No | REV — the assigned Reviewer or an AUTH-4 substitute only |
-| 5 | Post-review hours adjustment, where extra time was spent | Ledger adjustment with reason (CAP-3, COMM-3) | No | REV or PU |
+| 5 | Post-review hours adjustment (0 for none) | Number (CAP-3, COMM-3) | No | REV |
 
 A failed review returns to In Development with a reason and recorded feedback.
 The prior review attempt is preserved.
@@ -242,9 +244,9 @@ The prior review attempt is preserved.
 | 1 | Review approval preserved | System check | No | System |
 | 2 | Release method | Enum per WF-6: software, content, design, infrastructure, non-deployment | No | DEL |
 | 3 | Target environment, version or destination | Text, required | No | DEL |
-| 4 | Release window | Date and time | No | DEL |
-| 5 | Delivery checklist | Checklist records | No | DEL |
-| 6 | Dependencies confirmed ready | References | No | DEL |
+| 4 | Release window | Date | No | DEL |
+| 5 | Delivery checklist | Checklist record | No | DEL |
+| 6 | Dependencies ready | Worked out: everything this waits on has reached Completed | No | DEL |
 | 7 | Release notes | Text, required | No | DEL |
 | 8 | Every child item Completed, where the item has children (WORK-2) | System check | No | System |
 
@@ -254,17 +256,17 @@ The prior review attempt is preserved.
 |---|---|---|---|---|
 | 1 | Release date and time | Timestamp | No | DEL or substitute |
 | 2 | Environment and version, or handover destination | Text per WF-6 | No | DEL |
-| 3 | Release evidence | Links or attachments | **Yes** | DEL |
+| 3 | Release evidence | Comment with a link | **Yes** | DEL |
 | 4 | Client communication status | System result from the NOTIF-2 confirmation | No | System |
-| 5 | Post-release check result | Checklist record | No | DEL |
+| 5 | Post-release check | Checklist record | No | DEL |
 
 ### G-BLOCKED-ENTRY — any active stage → Blocked
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 1 | Blocker reason | Text, required | No | ANY |
-| 2 | Blocker owner | Reference to a user | No | ANY |
-| 3 | Dependency | Reference or text | No | ANY |
+| 1 | What is blocking it | Pick: an item, or something else | No | ANY |
+| 2 | Who owns the blocker | Pick | No | ANY |
+| 3 | What it is waiting on | Pick: an item, or something else | No | ANY |
 | 4 | Target resolution date | Date | No | ANY |
 | 5 | Next action | Text, required | No | ANY |
 | 6 | Prior stage stored | System-recorded | No | System |
@@ -276,6 +278,10 @@ The prior review attempt is preserved.
 | 1 | Resolution note | Text, required | No | ANY |
 | 2 | Return to the stored prior stage | System-enforced; no target choice | No | System |
 | 3 | Elapsed blocked time retained | System-recorded | No | System |
+
+Requirement numbers are the ids in `includes/Work/Gates.php` and stay put when
+a requirement is retired, so a gap in a table is a requirement that went, not
+one missing from the page.
 
 ## Gate-failure contract
 

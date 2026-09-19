@@ -18,6 +18,7 @@ commits and pull requests.
 - The numbers on the "Where work is sitting" report line up in a column at the right, whatever the length of the bar.
 - A recurring task ticked for all seven days reads "Every day".
 - Turning a request into work no longer asks what it sits under; new work stands alone.
+- The workflow document's gate tables match what ships again.
 - The Gantt's first week names its month, so a short schedule no longer reads as bare numbers.
 - People are listed by name everywhere — pickers, Capacity, Who does it, Who else comes — rather than newest first.
 
