@@ -44,12 +44,15 @@ final class Load {
 	 * @param string                           $host_user_id   Who hosts them.
 	 * @param string                           $client_site_id The site they belong to.
 	 * @param string                           $client_id      The client.
+	 * @param array<int, string>               $attendees      Who else comes (2026-09-19), each spending the same hours.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function allocations( array $meetings, string $host_user_id, string $client_site_id, string $client_id ): array {
-		if ( '' === $host_user_id ) {
-			// An allocation against nobody would either be dropped downstream
-			// or, worse, counted against whichever person an empty id matches.
+	public static function allocations( array $meetings, string $host_user_id, string $client_site_id, string $client_id, array $attendees = array() ): array {
+		// An allocation against nobody would either be dropped downstream
+		// or, worse, counted against whichever person an empty id matches.
+		$people = array_values( array_unique( array_filter( array_merge( array( $host_user_id ), array_map( 'strval', $attendees ) ), 'strlen' ) ) );
+
+		if ( array() === $people ) {
 			return array();
 		}
 
@@ -62,25 +65,27 @@ final class Load {
 
 			$on = (string) $meeting['on'];
 
-			$out[] = array(
-				'item_id'        => (string) ( $meeting['id'] ?? '' ),
-				'title'          => (string) ( $meeting['title'] ?? __( 'Support meeting', 'blueworx-forge' ) ),
-				'client_id'      => $client_id,
-				'client_site_id' => $client_site_id,
-				'role'           => self::ROLE,
-				'user_id'        => $host_user_id,
-				'covering'       => '',
-				'hours'          => round( (float) $meeting['planned_hours'], 2 ),
+			foreach ( $people as $who ) {
+				$out[] = array(
+					'item_id'        => (string) ( $meeting['id'] ?? '' ),
+					'title'          => (string) ( $meeting['title'] ?? __( 'Support meeting', 'blueworx-forge' ) ),
+					'client_id'      => $client_id,
+					'client_site_id' => $client_site_id,
+					'role'           => self::ROLE,
+					'user_id'        => $who,
+					'covering'       => '',
+					'hours'          => round( (float) $meeting['planned_hours'], 2 ),
 
-				/*
-				 * One day, not a span. Work spreads across its planned dates
-				 * because it is done over them; a meeting happens once, and
-				 * spreading two hours across a fortnight would hide the
-				 * afternoon it actually takes.
-				 */
-				'from'           => $on,
-				'to'             => $on,
-			);
+					/*
+					 * One day, not a span. Work spreads across its planned dates
+					 * because it is done over them; a meeting happens once, and
+					 * spreading two hours across a fortnight would hide the
+					 * afternoon it actually takes.
+					 */
+					'from'           => $on,
+					'to'             => $on,
+				);
+			}
 		}
 
 		return $out;
@@ -130,7 +135,8 @@ final class Load {
 					),
 					(string) $one['host_user_id'],
 					(string) $one['client_site_id'],
-					(string) $one['client_id']
+					(string) $one['client_id'],
+					(array) ( $one['attendee_ids'] ?? array() )
 				)
 			);
 		}

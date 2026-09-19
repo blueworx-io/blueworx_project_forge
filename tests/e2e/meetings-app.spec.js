@@ -31,6 +31,7 @@ test.describe.configure({ mode: 'serial' });
 let admin;
 let site;
 let host;
+let guest;
 let first;
 
 test.beforeAll(async ({ browser, baseURL }) => {
@@ -39,6 +40,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
   site = where.site;
   await onSupport(admin, site.id, 200);
   host = await makePerson(admin.api, where.client.id, 'staff', `host${STAMP}`);
+  guest = await makePerson(admin.api, where.client.id, 'staff', `guest${STAMP}`);
   first = nextMonday();
 });
 
@@ -97,7 +99,7 @@ test('adding a weekly series shows it as a card, with its meetings on the list b
   await form.getByTestId('bwx-meetings-series-duration').fill('120');
   await expect(form.getByTestId('bwx-meetings-series-timezone')).toHaveValue('Europe/London');
   await form.getByTestId('bwx-meetings-series-host').selectOption(host.id);
-  await form.getByTestId('bwx-meetings-series-attendees').fill('The client team');
+  await form.getByTestId(`bwx-meetings-series-attendee-${guest.id}`).check();
   await form.getByTestId('bwx-meetings-series-save').click();
 
   await expect(form).toBeHidden();
@@ -110,6 +112,7 @@ test('adding a weekly series shows it as a card, with its meetings on the list b
   await expect(card).toContainText('Every week');
   await expect(card).toContainText('10:00 Europe/London');
   await expect(card).toContainText(host.user.display_name);
+  await expect(card).toContainText(guest.user.display_name);
   await expect(card).toContainText('2h');
   await expect(card).toContainText('Running');
   await expect(card.getByTestId('bwx-meetings-series-end')).toBeVisible();

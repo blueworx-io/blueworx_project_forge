@@ -147,6 +147,8 @@ final class MeetingsController {
 				'timezone'       => sanitize_text_field( (string) ( $body['timezone'] ?? '' ) ),
 				'host_user_id'   => sanitize_text_field( (string) ( $body['host_user_id'] ?? '' ) ),
 				'attendees'      => sanitize_textarea_field( (string) ( $body['attendees'] ?? '' ) ),
+				// Who else comes, as people (2026-09-19).
+				'attendee_ids'   => array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $body['attendee_ids'] ?? array() ) ) ),
 				'planned_hours'  => (float) ( $body['planned_hours'] ?? 0 ),
 			)
 		);

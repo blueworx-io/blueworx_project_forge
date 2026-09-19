@@ -53,6 +53,7 @@ let host;
 let site;
 let series;
 let first;
+let guest;
 
 test.beforeAll(async ({ browser, baseURL }) => {
   ({ context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS));
@@ -60,6 +61,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
   site = where.site;
   await onSupport({ api }, site.id, GRANTED);
   host = await makePerson(api, where.client.id, 'staff', `mtg${STAMP}`);
+  guest = await makePerson(api, where.client.id, 'staff', `gst${STAMP}`);
   first = comingMonday();
 });
 
@@ -117,10 +119,12 @@ test('a series with no title, or a made-up frequency, is refused with the fields
 });
 
 test('adding a weekly series lists it, with the twelve weeks it implies holding their hours', async () => {
-  const wrote = await api.post(`/client-sites/${site.id}/meetings/series`, weekly(host, first));
+  // Who else comes (2026-09-19): people, each spending the meeting's hours.
+  const wrote = await api.post(`/client-sites/${site.id}/meetings/series`, weekly(host, first, { attendee_ids: [guest.id, host.id] }));
   expect(wrote.status(), await wrote.text()).toBe(200);
 
   const answer = await wrote.json();
+  expect(answer.series[0].attendee_ids).toEqual([guest.id]);
 
   expect(answer.ok).toBe(true);
   expect(answer.added.id).toMatch(/^mts_/);
@@ -157,6 +161,14 @@ test('adding a weekly series lists it, with the twelve weeks it implies holding 
   // and the site's balance shows it.
   for (const meeting of answer.meetings) {
     expect(meeting.ledger_state, `${meeting.on} is reserved`).toBe('reserved');
+  }
+
+  // Both people carry the two hours on the day; the client is charged once.
+  const capacity = await api.get(`/capacity?from=${first}&to=${first}`);
+  for (const who of [host, guest]) {
+    const row = capacity.people.find((entry) => entry.user_id === who.id);
+    expect(row, `${who.id} is on the capacity read`).toBeTruthy();
+    expect(row.total.committed).toBe(2);
   }
 
   const ledger = await hourLedger(api, site.id);

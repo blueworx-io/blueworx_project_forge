@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Recurring;
 
+use Blueworx\Forge\Work\Fields;
 use Blueworx\Forge\Work\Types;
 
 /**
@@ -50,8 +51,38 @@ final class Validate {
 			}
 		}
 
-		if ( array_key_exists( 'description', $input ) ) {
-			$values['description'] = trim( (string) $input['description'] );
+		// What to do (2026-09-19): required, and rich text like a task's own
+		// description — it becomes exactly that on every task made.
+		if ( ! $partial || array_key_exists( 'description', $input ) ) {
+			$kept = trim( wp_kses( (string) ( $input['description'] ?? '' ), Fields::ALLOWED_HTML ) );
+
+			if ( '' === Fields::plain( $kept ) ) {
+				$errors['description'] = 'Say what to do.';
+			} else {
+				$values['description'] = $kept;
+			}
+		}
+
+		// The checklist every task starts with: optional, up to ten lines.
+		if ( array_key_exists( 'checklist', $input ) ) {
+			$lines = array();
+
+			foreach ( is_array( $input['checklist'] ) ? $input['checklist'] : array() as $line ) {
+				$text = trim( (string) ( is_array( $line ) ? ( $line['text'] ?? '' ) : $line ) );
+
+				if ( '' !== $text ) {
+					$lines[] = array(
+						'text' => mb_substr( $text, 0, Fields::CHECKLIST_LINE ),
+						'done' => false,
+					);
+				}
+			}
+
+			if ( count( $lines ) > Fields::CHECKLIST_ROWS ) {
+				$errors['checklist'] = 'A checklist holds at most ' . Fields::CHECKLIST_ROWS . ' items.';
+			} else {
+				$values['checklist'] = $lines;
+			}
 		}
 
 		if ( ! $partial || array_key_exists( 'work_type', $input ) ) {
@@ -122,11 +153,15 @@ final class Validate {
 			}
 		}
 
-		if ( array_key_exists( 'hours_each', $input ) ) {
-			$figure = '' === trim( (string) $input['hours_each'] ) ? 0.0 : (float) $input['hours_each'];
+		if ( ! $partial || array_key_exists( 'hours_each', $input ) ) {
+			$figure = '' === trim( (string) ( $input['hours_each'] ?? '' ) ) ? 0.0 : (float) $input['hours_each'];
 
-			if ( $figure < 0 || ( ! is_numeric( $input['hours_each'] ) && '' !== trim( (string) $input['hours_each'] ) ) ) {
+			if ( $figure < 0 || ( ! is_numeric( $input['hours_each'] ?? '' ) && '' !== trim( (string) ( $input['hours_each'] ?? '' ) ) ) ) {
 				$errors['hours_each'] = 'Hours are a number, zero or more.';
+			} elseif ( $figure <= 0 && ! $partial && '' === trim( (string) ( $input['primary_user_id'] ?? '' ) ) ) {
+				// Since 2026-09-19 a schedule says what it costs: the hours are
+				// what the capacity read counts for the days ahead.
+				$errors['hours_each'] = 'Say the hours each person spends.';
 			} else {
 				$values['hours_each'] = (string) round( $figure, 2 );
 			}
@@ -147,17 +182,18 @@ final class Validate {
 		}
 
 		foreach ( array( 'starts_on', 'ends_on' ) as $date ) {
-			if ( ! array_key_exists( $date, $input ) ) {
+			if ( ! array_key_exists( $date, $input ) && ( $partial || 'ends_on' === $date ) ) {
 				continue;
 			}
 
-			$value = trim( (string) $input[ $date ] );
+			$value = trim( (string) ( $input[ $date ] ?? '' ) );
 
 			if ( '' === $value ) {
 				if ( 'ends_on' === $date ) {
 					$values[ $date ] = '';
 				} else {
-					$values[ $date ] = wp_date( 'Y-m-d' );
+					// A start is chosen, not assumed (2026-09-19).
+					$errors[ $date ] = 'Say the first day.';
 				}
 				continue;
 			}

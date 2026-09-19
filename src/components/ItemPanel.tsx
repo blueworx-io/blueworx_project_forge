@@ -2414,7 +2414,7 @@ function kindOf( draft: { url: string; asking: boolean } ): string {
  * or the steps that test it. Enter on a line starts the next; Backspace on an
  * empty one removes it; the count says how many of the ten are used.
  */
-function LineList( {
+export function LineList( {
   name,
   testId,
   rows,

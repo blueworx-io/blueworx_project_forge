@@ -31,6 +31,12 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
   await expect(form).toBeVisible();
 
   await page.getByTestId('bwx-recurring-title').fill(`Weekly tidy ${RUN_ID}`);
+  // Nothing saves until what to do, who, and the hours are there (2026-09-19).
+  await expect(page.getByTestId('bwx-recurring-save')).toBeDisabled();
+  await page.getByTestId('bwx-recurring-description').click();
+  await page.keyboard.type('Put things back where they live.');
+  await page.getByTestId('bwx-recurring-checklist-add').click();
+  await page.getByTestId('bwx-recurring-checklist-text').first().fill('Desks');
   await page.getByTestId('bwx-recurring-every').selectOption('week');
 
   // Only today's weekday ticked, so it is due today and the cadence text is

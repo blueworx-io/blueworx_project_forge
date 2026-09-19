@@ -15,6 +15,7 @@ final class RecurringValidateTest extends TestCase {
 	private function good(): array {
 		return array(
 			'title'           => 'Weekly backups',
+			'description'     => '<p>Run them and check the log.</p>',
 			'work_type'       => 'task',
 			'rule'            => array(
 				'every' => 'week',
@@ -35,6 +36,31 @@ final class RecurringValidateTest extends TestCase {
 		self::assertSame( array( 'every' => 'week', 'days' => array( 1 ) ), $checked['values']['rule'] );
 		self::assertSame( '1.5', $checked['values']['hours_primary'] );
 		self::assertSame( '', $checked['values']['ends_on'] );
+	}
+
+	/**
+	 * Since 2026-09-19 a schedule says what to do, when it starts and what it
+	 * costs; and it may carry the checklist every task starts with.
+	 */
+	public function test_what_to_do_the_start_and_the_hours_are_required(): void {
+		$checked = Validate::source( array_merge( $this->good(), array( 'description' => '<p></p>' ) ), false );
+		self::assertArrayHasKey( 'description', $checked['errors'] );
+
+		$checked = Validate::source( array_diff_key( $this->good(), array( 'starts_on' => 1 ) ), false );
+		self::assertArrayHasKey( 'starts_on', $checked['errors'] );
+
+		$checked = Validate::source( array_merge( $this->good(), array( 'primary_user_id' => '', 'assignees' => array( 'usr_abc123' ), 'hours_each' => '0' ) ), false );
+		self::assertArrayHasKey( 'hours_each', $checked['errors'] );
+
+		$checked = Validate::source( array_merge( $this->good(), array( 'checklist' => array( array( 'text' => 'Check the log', 'done' => true ), ' ', 'Tidy up' ) ) ), false );
+		self::assertSame( array(), $checked['errors'] );
+		self::assertSame(
+			array(
+				array( 'text' => 'Check the log', 'done' => false ),
+				array( 'text' => 'Tidy up', 'done' => false ),
+			),
+			$checked['values']['checklist']
+		);
 	}
 
 	public function test_a_title_is_required(): void {

@@ -287,7 +287,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
               ) : (
                 <div className="bwx-meetings-cards">
                   { answer.series.map( ( one ) => (
-                    <SeriesCard key={ one.id } series={ one } busy={ busy } onEnd={ () => void end( one ) } />
+                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } onEnd={ () => void end( one ) } />
                   ) ) }
                 </div>
               ) }
@@ -327,9 +327,10 @@ export function MeetingsScreen( { site }: { site: string } ) {
 }
 
 /** One standing meeting: what, how often, when, who hosts, what each costs, and whether it still runs. */
-function SeriesCard( { series, busy, onEnd }: { series: MeetingSeries; busy: boolean; onEnd: () => void } ) {
+function SeriesCard( { series, people, busy, onEnd }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; onEnd: () => void } ) {
   const running = 'active' === series.state;
   const span = '' === series.ends_on ? `from ${ series.starts_on }` : `${ series.starts_on } to ${ series.ends_on }`;
+  const others = ( series.attendee_ids ?? [] ).map( ( id ) => people.find( ( one ) => one.id === id )?.display_name ?? id );
 
   return (
     <div data-testid="bwx-meetings-series" data-series={ series.id } data-state={ series.state }>
@@ -358,13 +359,13 @@ function SeriesCard( { series, busy, onEnd }: { series: MeetingSeries; busy: boo
             <dd>{ series.host_name || '—' }</dd>
           </div>
           <div>
-            <dt>Hours each</dt>
+            <dt>Hours, each person</dt>
             <dd className="fk-mono">{ hoursLabel( series.hours_each ) }</dd>
           </div>
-          { '' !== series.attendees && (
+          { ( 0 < others.length || '' !== series.attendees ) && (
             <div>
               <dt>Who else comes</dt>
-              <dd>{ series.attendees }</dd>
+              <dd>{ [ ...others, series.attendees ].filter( ( one ) => '' !== one ).join( ', ' ) }</dd>
             </div>
           ) }
         </dl>
@@ -389,8 +390,7 @@ function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; peo
   const [ duration, setDuration ] = useState( '60' );
   const [ timezone, setTimezone ] = useState( DEFAULT_TIMEZONE );
   const [ host, setHost ] = useState( '' );
-  const [ attendees, setAttendees ] = useState( '' );
-  const [ hours, setHours ] = useState( '0' );
+  const [ attendees, setAttendees ] = useState< string[] >( [] );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
@@ -413,8 +413,11 @@ function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; peo
             duration_mins: Number( duration ) || 0,
             timezone,
             host_user_id: host,
-            attendees,
-            planned_hours: Number( hours ) || 0,
+            // Who else comes (2026-09-19): people, each carrying the
+            // meeting's hours; the length is the hours, so nothing is
+            // overridden here.
+            attendee_ids: attendees,
+            planned_hours: 0,
           },
         } ),
         'Series added. Its meetings are below.'
@@ -485,12 +488,23 @@ function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; peo
           />
         ) }
       </Field>
-      <Field label="Who else comes" help="A note, not accounts.">
-        { ( id ) => <TextInput id={ id } maxLength={ 500 } data-testid="bwx-meetings-series-attendees" value={ attendees } onChange={ ( event ) => setAttendees( event.target.value ) } /> }
-      </Field>
-      <Field label="Hours each" help={ `Nought works it out from the length: ${ hoursLabel( derived ) } for ${ Number( duration ) || 0 } minutes, rounded up to the half hour.` }>
-        { ( id ) => <TextInput id={ id } type="number" min="0" step="0.25" inputMode="decimal" data-testid="bwx-meetings-series-hours" value={ hours } onChange={ ( event ) => setHours( event.target.value ) } /> }
-      </Field>
+      <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-meetings-series-attendees">
+        <legend>Who else comes</legend>
+        { people.filter( ( one ) => one.id !== host ).map( ( person ) => (
+          <label key={ person.id } className="bwx-recurring-person">
+            <input
+              type="checkbox"
+              data-testid={ `bwx-meetings-series-attendee-${ person.id }` }
+              checked={ attendees.includes( person.id ) }
+              onChange={ ( event ) =>
+                setAttendees( event.target.checked ? [ ...attendees, person.id ] : attendees.filter( ( one ) => one !== person.id ) )
+              }
+            />
+            { person.display_name }
+          </label>
+        ) ) }
+        <span className="bwx-hint">{ `Everyone who comes spends ${ hoursLabel( derived ) } on each one; the client is charged it once.` }</span>
+      </fieldset>
     </Modal>
   );
 }
