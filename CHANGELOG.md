@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.124.0] - 2026-09-19
+
+### Added
+
+- A package says whether its hours are per year (the whole term, as before) or per month, and shows what an hour costs. Per-month hours are granted for the whole term when the package is assigned.
+
+### Changed
+
+- The WordPress menu opens on Sync health, which is now its first entry; the old Forge client-sites page is off the menu (still reachable by its address).
+- On your profile, History shows five rows a page and Time off ten.
+- A time off's last day cannot be before its first; the same day is fine.
 ## [2.123.0] - 2026-09-19
 
 ### Changed
