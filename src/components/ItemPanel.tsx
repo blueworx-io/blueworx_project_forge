@@ -2240,6 +2240,23 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
 }
 
 /**
+ * Where a before-row's "Go to" lands: the first field it names, the comment
+ * form for evidence, the hours boxes for the planned hours. Empty when there
+ * is nowhere to go — a pick answers on its row, a system check answers itself.
+ */
+function goesTo( requirement: Requirement ): string {
+  if ( requirement.evidence ) {
+    return 'comment-url';
+  }
+
+  if ( 'hours' === requirement.check ) {
+    return 'hours_primary';
+  }
+
+  return 'field' === requirement.by && 0 < requirement.fields.length ? requirement.fields[ 0 ] : '';
+}
+
+/**
  * A gate, shown before it refuses anybody.
  *
  * Every requirement is listed, met and unmet, because the useful question is
@@ -2307,13 +2324,14 @@ export function GateList( {
               { ! met && isPick && ! allowed( requirement ) && (
                 <span className="bwx-unmet-who">{ FOR_WHOM[ requirement.who ] ?? '' }</span>
               ) }
-              { ! met && onReveal && ( ( 'field' === requirement.by && 0 < requirement.fields.length ) || requirement.evidence ) && (
+              { ! met && onReveal && '' !== goesTo( requirement ) && (
                 <button
                   type="button"
                   className="bwx-button"
                   data-variant="quiet"
                   data-testid="bwx-unmet-go"
-                  onClick={ () => onReveal( requirement.evidence ? 'comment-url' : requirement.fields[ 0 ] ) }
+                  aria-label={ `Go to ${ requirement.label }` }
+                  onClick={ () => onReveal( goesTo( requirement ) ) }
                 >
                   Go to
                 </button>
