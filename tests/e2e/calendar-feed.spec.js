@@ -78,6 +78,7 @@ test('a chore, a meeting and leave are on today’s feed and the standup’s dia
   // A chore due today.
   const made = await admin.api.post('/recurring', {
     title: `Check the inbox ${RUN_ID}`,
+    description: '<p>Read it.</p>',
     rule: { every: 'day' },
     starts_on: today,
     assignees: [person.id],

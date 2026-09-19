@@ -26,12 +26,14 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
 
   const made = await admin.api.post('/recurring', {
     title: `Daily check ${RUN_ID}`,
-    description: 'Look at the thing.',
+    description: '<p>Look at the thing.</p>',
     work_type: 'task',
     rule: { every: 'day' },
     starts_on: today,
     assignees: [person.id],
     hours_each: '0.5',
+    // The checklist every task starts with (2026-09-19).
+    checklist: [{ text: 'Open it' }, { text: 'Read it' }],
   });
   expect(made.status(), await made.text()).toBe(200);
   const source = (await made.json()).source;
@@ -50,8 +52,18 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
   expect(tasks[0].stage).toBe('up-next');
   expect(tasks[0].assignees).toEqual([person.id]);
   expect(tasks[0].planned_due).toBe(today);
-  expect(tasks[0].problem).toBe('Look at the thing.');
+  expect(tasks[0].problem).toBe('<p>Look at the thing.</p>');
   expect(tasks[0].hours_each).toBe(0.5);
+  expect(tasks[0].checklist).toEqual([{ text: 'Open it', done: false }, { text: 'Read it', done: false }]);
+
+  // The days ahead count against the person before their tasks exist.
+  const ahead = new Date(`${today}T12:00:00Z`);
+  ahead.setUTCDate(ahead.getUTCDate() + 3);
+  const soon = ahead.toISOString().slice(0, 10);
+  const capacity = await admin.api.get(`/capacity?from=${soon}&to=${soon}`);
+  const row = capacity.people.find((entry) => entry.user_id === person.id);
+  expect(row, 'the person is on the capacity read').toBeTruthy();
+  expect(row.total.committed).toBe(0.5);
 
   // The listing knows what it last made, and the history says how it got there.
   const listed = await admin.api.get('/recurring');
@@ -82,10 +94,15 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
   expect(refused.status()).toBe(403);
   await staff.context.close();
 
-  // A schedule is for somebody: nobody chosen is refused by field.
+  // A schedule is for somebody, says what to do, when it starts and what it
+  // costs: each missing one is refused by field (2026-09-19).
   const nobody = await admin.api.post('/recurring', { title: `For nobody ${RUN_ID}`, rule: { every: 'weekday' } });
   expect(nobody.status()).toBe(400);
-  expect((await nobody.json()).data.fields.assignees).toContain('at least one');
+  const fields = (await nobody.json()).data.fields;
+  expect(fields.assignees).toContain('at least one');
+  expect(fields.description).toContain('what to do');
+  expect(fields.starts_on).toContain('first day');
+  expect(fields.hours_each).toContain('hours');
 
   await admin.context.close();
 });

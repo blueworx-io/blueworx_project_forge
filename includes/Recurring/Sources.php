@@ -74,6 +74,7 @@ final class Sources {
 		'hours_delivery',
 		'assignees',
 		'hours_each',
+		'checklist',
 		'rule',
 		'starts_on',
 		'ends_on',
@@ -109,6 +110,7 @@ final class Sources {
 				'hours_delivery'  => '0',
 				'assignees'       => '[]',
 				'hours_each'      => '0',
+				'checklist'       => '[]',
 				'rule'            => '{"every":"day"}',
 				'starts_on'       => wp_date( 'Y-m-d' ),
 				'ends_on'         => '',
@@ -188,6 +190,23 @@ final class Sources {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s AND kind = %s AND status <> %s ORDER BY created_at DESC", $client_site_id, $kind, self::ENDED ), ARRAY_A );
 		}
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * Every running schedule, for the days ahead (2026-09-19): what the
+	 * capacity read counts before the tasks exist.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function running(): array {
+		global $wpdb;
+
+		$table = Schema::recurring_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status = %s AND kind = %s AND hours_each > 0", self::ACTIVE, self::SCHEDULE ), ARRAY_A );
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
 	}
@@ -346,7 +365,7 @@ final class Sources {
 				continue;
 			}
 
-			$row[ $column ] = in_array( $column, array( 'rule', 'assignees' ), true ) && is_array( $values[ $column ] )
+			$row[ $column ] = in_array( $column, array( 'rule', 'assignees', 'checklist' ), true ) && is_array( $values[ $column ] )
 				? (string) wp_json_encode( $values[ $column ] )
 				: (string) $values[ $column ];
 		}
@@ -363,6 +382,17 @@ final class Sources {
 	private static function hydrate( array $row ): array {
 		$rule      = json_decode( (string) $row['rule'], true );
 		$assignees = json_decode( (string) ( $row['assignees'] ?? '' ), true );
+		$checklist = json_decode( (string) ( $row['checklist'] ?? '' ), true );
+		$lines     = array();
+
+		foreach ( is_array( $checklist ) ? $checklist : array() as $line ) {
+			if ( is_array( $line ) && '' !== (string) ( $line['text'] ?? '' ) ) {
+				$lines[] = array(
+					'text' => (string) $line['text'],
+					'done' => false,
+				);
+			}
+		}
 
 		return array(
 			'id'              => (string) $row['id'],
@@ -381,6 +411,8 @@ final class Sources {
 			// Who does it, and the hours each of them spends (2026-09-18).
 			'assignees'       => array_values( array_map( 'strval', is_array( $assignees ) ? $assignees : array() ) ),
 			'hours_each'      => (float) ( $row['hours_each'] ?? 0 ),
+			// The checklist every task it makes starts with (2026-09-19).
+			'checklist'       => $lines,
 			'rule'            => is_array( $rule ) ? $rule : array( 'every' => 'day' ),
 			'cadence'         => Rule::describe( is_array( $rule ) ? $rule : array( 'every' => 'day' ) ),
 			'starts_on'       => (string) $row['starts_on'],

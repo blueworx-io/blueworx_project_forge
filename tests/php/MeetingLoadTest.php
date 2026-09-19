@@ -66,6 +66,18 @@ final class MeetingLoadTest extends TestCase {
 		$this->assertSame( 2.0, $allocations[0]['hours'] );
 	}
 
+	/**
+	 * Who else comes carries the same hours (2026-09-19); the host is not
+	 * counted twice for being listed among them.
+	 */
+	public function test_everyone_who_comes_carries_the_meetings_hours(): void {
+		$allocations = Load::allocations( array( $this->meeting() ), self::HOST, 'cst_one', 'cli_one', array( 'usr_two', self::HOST, 'usr_three' ) );
+
+		$this->assertCount( 3, $allocations );
+		$this->assertSame( array( self::HOST, 'usr_two', 'usr_three' ), array_column( $allocations, 'user_id' ) );
+		$this->assertSame( array( 2.0, 2.0, 2.0 ), array_column( $allocations, 'hours' ) );
+	}
+
 	public function test_a_meeting_lands_on_the_day_it_happens_and_not_across_a_week(): void {
 		/*
 		 * From and to are the same day. Work spreads across its planned dates
