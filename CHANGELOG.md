@@ -13,7 +13,7 @@ commits and pull requests.
 ### Fixed
 
 - My tasks loads in one read instead of one per client site, so it opens in a moment on a studio with hundreds of sites.
-- A "before" row whose answer is a field lower down now has a "Go to" that opens the right section and lands on the field.
+- A "before" row whose answer is a field lower down, or a piece of evidence, now has a "Go to" that opens the right section and lands on the field or the comment form.
 - The count beside a checklist says how many lines are ticked, and the counts beside Links and Images only show once there is something to count.
 - The numbers on the "Where work is sitting" report line up in a column at the right, whatever the length of the bar.
 - A recurring task ticked for all seven days reads "Every day".

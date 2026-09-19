@@ -874,7 +874,9 @@ export function ItemPanel( {
   const reveal = ( field: string ) => {
     const section = ( ASSIGNMENT as readonly string[] ).includes( field )
       ? 'assign'
-      : [ 'test_description', 'test_steps' ].includes( field ) ? 'testing' : 'task';
+      : [ 'test_description', 'test_steps' ].includes( field )
+        ? 'testing'
+        : 'comment-url' === field ? 'evidence' : 'task';
 
     setFolded( { ...folded, [ section ]: false } );
     window.setTimeout( () => {
@@ -2305,13 +2307,13 @@ export function GateList( {
               { ! met && isPick && ! allowed( requirement ) && (
                 <span className="bwx-unmet-who">{ FOR_WHOM[ requirement.who ] ?? '' }</span>
               ) }
-              { ! met && 'field' === requirement.by && onReveal && 0 < requirement.fields.length && (
+              { ! met && onReveal && ( ( 'field' === requirement.by && 0 < requirement.fields.length ) || requirement.evidence ) && (
                 <button
                   type="button"
                   className="bwx-button"
                   data-variant="quiet"
                   data-testid="bwx-unmet-go"
-                  onClick={ () => onReveal( requirement.fields[ 0 ] ) }
+                  onClick={ () => onReveal( requirement.evidence ? 'comment-url' : requirement.fields[ 0 ] ) }
                 >
                   Go to
                 </button>
