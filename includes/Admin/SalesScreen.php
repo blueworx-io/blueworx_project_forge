@@ -46,7 +46,7 @@ final class SalesScreen {
 	 */
 	public static function register(): void {
 		add_submenu_page(
-			SitesScreen::SLUG,
+			SyncScreen::SLUG,
 			__( 'Sales', 'blueworx-forge' ),
 			__( 'Sales', 'blueworx-forge' ),
 			'manage_options',

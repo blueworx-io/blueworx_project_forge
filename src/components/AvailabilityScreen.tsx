@@ -247,6 +247,7 @@ export function AvailabilityScreen( { person, fixed = false }: { person: string;
               columns={ historyColumns }
               rows={ answer.history }
               sortable
+              pageSize={ 5 }
               defaultSort={ { key: 'from', dir: 'desc' } }
               empty={ <p className="bwx-hint">Nothing recorded yet.</p> }
               testId="bwx-availability-history"
@@ -268,6 +269,7 @@ export function AvailabilityScreen( { person, fixed = false }: { person: string;
               columns={ leaveColumns }
               rows={ answer.leave }
               sortable
+              pageSize={ 10 }
               defaultSort={ { key: 'starts', dir: 'desc' } }
               empty={ <EmptyState icon={ CalendarCheck } dense title="No time off recorded" body="Nothing recorded in the year either side of today." /> }
               footer={ `${ answer.leave.length } recorded · a year either side of today` }

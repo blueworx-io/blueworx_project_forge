@@ -43,7 +43,7 @@ final class OnboardingTemplateScreen {
 	 */
 	public static function register(): void {
 		add_submenu_page(
-			SitesScreen::SLUG,
+			SyncScreen::SLUG,
 			__( 'Onboarding template', 'blueworx-forge' ),
 			__( 'Onboarding template', 'blueworx-forge' ),
 			'manage_options',

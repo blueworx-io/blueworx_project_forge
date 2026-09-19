@@ -35,17 +35,18 @@ final class SitesScreen {
 	public const SLUG = 'blueworx-forge-sites';
 
 	/**
-	 * Adds the menu entry.
+	 * Registers the screen without a menu entry (2026-09-19). Keys are
+	 * issued from the app's Clients screen now, so this page is off the menu;
+	 * it stays reachable by its address for the flows that still use it.
 	 */
 	public static function register(): void {
-		add_menu_page(
-			__( 'Forge', 'blueworx-forge' ),
-			__( 'Forge', 'blueworx-forge' ),
+		add_submenu_page(
+			'',
+			__( 'Client sites', 'blueworx-forge' ),
+			__( 'Client sites', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
-			array( self::class, 'render' ),
-			MenuIcon::data_uri(),
-			58
+			array( self::class, 'render' )
 		);
 	}
 
