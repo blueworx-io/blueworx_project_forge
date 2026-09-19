@@ -157,6 +157,20 @@ final class Materialise {
 	public static function values( array $source, string $date ): array {
 		$description = trim( (string) $source['description'] );
 
+		/*
+		 * Who ticks it (2026-09-19). A schedule names its people. A
+		 * subscription check-in names one through its connection's primary
+		 * seat, and that person is its assignee, so it is ticked off the same
+		 * way and goes the same place: straight to Released.
+		 */
+		$assignees = (array) ( $source['assignees'] ?? array() );
+		$each      = (float) ( $source['hours_each'] ?? 0 );
+
+		if ( array() === $assignees && '' !== (string) $source['primary_user_id'] ) {
+			$assignees = array( (string) $source['primary_user_id'] );
+			$each      = $each > 0 ? $each : (float) $source['hours_primary'];
+		}
+
 		return array(
 			'title'            => self::title( (string) $source['title'], $date, (string) $source['kind'] ),
 			'problem'          => '' === $description ? (string) $source['title'] : $description,
@@ -174,8 +188,10 @@ final class Materialise {
 			'commercial_class' => 'unclassified',
 			'recurring_id'     => (string) $source['id'],
 			// Who does it, each ticking their own (2026-09-18).
-			'assignees'        => (array) ( $source['assignees'] ?? array() ),
-			'hours_each'       => (float) ( $source['hours_each'] ?? 0 ),
+			'assignees'        => $assignees,
+			'hours_each'       => $each,
+			// The checklist it starts with, every line open (2026-09-19).
+			'checklist'        => (string) wp_json_encode( array_values( (array) ( $source['checklist'] ?? array() ) ) ),
 		);
 	}
 

@@ -468,6 +468,8 @@ export interface RecurringSource {
   /** Who does it, each ticking their own, and the hours each spends (2026-09-18). */
   assignees: string[];
   hours_each: number;
+  /** The checklist every task it makes starts with (2026-09-19). */
+  checklist: ChecklistRow[];
   rule: RecurringRule;
   cadence: string;
   starts_on: string;
@@ -1158,6 +1160,8 @@ export interface MeetingSeries {
   host_user_id: string;
   host_name: string;
   attendees: string;
+  /** Who else comes, as people (2026-09-19). */
+  attendee_ids: string[];
   planned_hours: number;
   hours_each: number;
   state: 'active' | 'ended';

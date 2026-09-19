@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Capacity;
 
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Meetings\Load;
+use Blueworx\Forge\Recurring\Load as RecurringLoad;
 use Blueworx\Forge\Work\Stages;
 
 /**
@@ -103,7 +104,9 @@ final class Commitments {
 		 * gate at Up Next and the answer a client gets about room all count it
 		 * without any of them learning what a meeting is.
 		 */
-		return array_merge( $out, Load::across( $from, $to ) );
+		// And the days ahead of every running schedule (2026-09-19), for the
+		// same reason: a task made each morning is invisible to next week.
+		return array_merge( $out, Load::across( $from, $to ), RecurringLoad::across( $from, $to ) );
 	}
 
 	/**

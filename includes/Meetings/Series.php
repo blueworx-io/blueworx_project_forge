@@ -78,6 +78,7 @@ final class Series {
 			'timezone'       => (string) ( $values['timezone'] ?? 'UTC' ),
 			'host_user_id'   => (string) ( $values['host_user_id'] ?? '' ),
 			'attendees'      => (string) ( $values['attendees'] ?? '' ),
+			'attendee_ids'   => (string) ( $values['attendee_ids'] ?? '[]' ),
 			'planned_hours'  => (float) ( $values['planned_hours'] ?? 0 ),
 			'state'          => self::ACTIVE,
 			'created_at'     => $now,
@@ -274,6 +275,7 @@ final class Series {
 			'timezone',
 			'host_user_id',
 			'attendees',
+			'attendee_ids',
 			'planned_hours',
 			'state',
 		);
@@ -286,6 +288,8 @@ final class Series {
 	 * @return array<string, mixed>
 	 */
 	private static function hydrate( array $row ): array {
+		$attendees = json_decode( (string) ( $row['attendee_ids'] ?? '' ), true );
+
 		return array(
 			'id'              => (string) $row['id'],
 			'client_site_id'  => (string) $row['client_site_id'],
@@ -300,6 +304,8 @@ final class Series {
 			'timezone'        => (string) $row['timezone'],
 			'host_user_id'    => (string) $row['host_user_id'],
 			'attendees'       => (string) $row['attendees'],
+			// Who else comes, as people (2026-09-19).
+			'attendee_ids'    => array_values( array_map( 'strval', is_array( $attendees ) ? $attendees : array() ) ),
 			'planned_hours'   => (float) $row['planned_hours'],
 
 			// What one occurrence actually costs, worked out rather than left
