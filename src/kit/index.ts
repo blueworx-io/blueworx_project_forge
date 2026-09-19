@@ -30,5 +30,7 @@ export type { ToastTone } from './overlays';
 
 export { Meter } from './Meter';
 
+export { RichText, cleanHtml } from './RichText';
+
 export { DataView, Check, ViewPill, FilterPill, BulkButton } from './DataView';
 export type { Column, SavedView, Filter, Sort } from './DataView';

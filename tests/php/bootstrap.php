@@ -431,6 +431,19 @@ function wp_kses_post( string $text ): string {
 	return $text;
 }
 
+/**
+ * Stub. Keeps only the tags named in the allowlist; attributes are not
+ * checked. Close enough for the domain tests, which prove what is kept and
+ * what is dropped by tag.
+ *
+ * @param string               $text    Text.
+ * @param array<string, mixed> $allowed Allowed tags, as wp_kses() takes them.
+ * @return string
+ */
+function wp_kses( string $text, array $allowed ): string {
+	return strip_tags( $text, array_keys( $allowed ) );
+}
+
 $GLOBALS['bwx_forge_test_options'] = array();
 $GLOBALS['bwx_forge_test_actions'] = array();
 $GLOBALS['bwx_forge_test_now']     = 1000000;
@@ -736,8 +749,14 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
  * @param string $text Text.
  * @return string
  */
-function wp_strip_all_tags( string $text ): string {
-	return trim( (string) preg_replace( '/[\r\n\t ]+/', ' ', strip_tags( $text ) ) );
+function wp_strip_all_tags( string $text, bool $remove_breaks = false ): string {
+	$stripped = strip_tags( $text );
+
+	if ( $remove_breaks ) {
+		$stripped = (string) preg_replace( '/[\r\n\t ]+/', ' ', $stripped );
+	}
+
+	return trim( $stripped );
 }
 
 /**

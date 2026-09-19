@@ -151,7 +151,6 @@ export function MyTasksScreen() {
   ];
 
   const columns: Column< Mine >[] = [
-    { key: 'ref', label: 'Item', mono: true, width: 110, sortBy: ( r ) => r.item.id, render: ( r ) => r.item.id.replace( 'wrk_', '' ).slice( 0, 8 ) },
     {
       key: 'title',
       label: 'Task',

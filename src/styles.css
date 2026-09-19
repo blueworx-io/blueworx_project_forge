@@ -2383,6 +2383,31 @@ td[ data-band='over' ] {
   margin-top: 8px;
 }
 
+/* The checklist: a tick, a line, and a way to drop the line. */
+.bwx-checklist-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
+  color: var( --ink-700 );
+}
+.bwx-checklist-row {
+  display: grid;
+  grid-template-columns: auto minmax( 0, 1fr ) auto;
+  gap: 8px;
+  align-items: center;
+}
+.bwx-checklist-row input[ type='checkbox' ] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var( --brand-600 );
+}
+.bwx-checklist-row .bwx-input[ data-done='true' ] {
+  text-decoration: line-through;
+  color: var( --ink-500 );
+}
+
 /* History folds; each line ends in who did it. */
 .bwx-history-wrap > summary {
   cursor: pointer;

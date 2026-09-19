@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../api';
 import { siteLabel, type SiteOption } from '../sites';
+import { RichText } from '../kit';
 
 const LEVELS = [
   { id: 'project', label: 'Project' },
@@ -130,12 +131,7 @@ export function NewWork( {
 
         <div className="bwx-field">
           <label htmlFor="bwx-new-problem">Item description</label>
-          <textarea
-            id="bwx-new-problem"
-            className="bwx-textarea"
-            value={ problem }
-            onChange={ ( event ) => setProblem( event.target.value ) }
-          />
+          <RichText id="bwx-new-problem" testId="bwx-new-problem" label="Item description" value={ problem } onChange={ setProblem } />
         </div>
 
         <div className="bwx-field">

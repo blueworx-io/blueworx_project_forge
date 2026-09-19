@@ -273,7 +273,7 @@ final class Filters {
 	 * @return bool
 	 */
 	private static function mentions( array $item, string $phrase ): bool {
-		$haystack = mb_strtolower( (string) ( $item['title'] ?? '' ) . ' ' . (string) ( $item['problem'] ?? '' ) );
+		$haystack = mb_strtolower( (string) ( $item['title'] ?? '' ) . ' ' . Fields::plain( (string) ( $item['problem'] ?? '' ) ) );
 
 		return false !== mb_strpos( $haystack, mb_strtolower( $phrase ) );
 	}

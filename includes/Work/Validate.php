@@ -155,6 +155,7 @@ final class Validate {
 
 		self::seats( $input, $values, $errors );
 		self::text_fields( $input, $values );
+		self::checklist_field( $input, $values, $errors );
 		self::enum_fields( $input, $values, $errors );
 		self::planning_fields( $input, $values, $errors );
 
@@ -239,10 +240,72 @@ final class Validate {
 		);
 
 		foreach ( $fields as $field ) {
-			if ( array_key_exists( $field, $input ) ) {
-				$values[ $field ] = trim( (string) $input[ $field ] );
+			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
 			}
+
+			if ( in_array( $field, Fields::RICH, true ) ) {
+				// Formatting is kept, but only the formatting the editor
+				// offers; and an empty paragraph is an empty field.
+				$kept = trim( wp_kses( (string) $input[ $field ], Fields::ALLOWED_HTML ) );
+
+				$values[ $field ] = '' === Fields::plain( $kept ) ? '' : $kept;
+				continue;
+			}
+
+			$values[ $field ] = trim( (string) $input[ $field ] );
 		}
+	}
+
+	/**
+	 * The checklist: at most ten rows, each one line, stored as JSON.
+	 *
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
+	 */
+	private static function checklist_field( array $input, array &$values, array &$errors ): void {
+		if ( ! array_key_exists( 'checklist', $input ) ) {
+			return;
+		}
+
+		if ( ! is_array( $input['checklist'] ) ) {
+			$errors['checklist'] = 'A checklist is a list of lines.';
+			return;
+		}
+
+		$rows = array();
+
+		foreach ( $input['checklist'] as $row ) {
+			$row  = is_array( $row ) ? $row : array();
+			$text = trim( (string) ( $row['text'] ?? '' ) );
+
+			if ( '' === $text ) {
+				continue;
+			}
+
+			if ( false !== strpos( $text, "\n" ) || false !== strpos( $text, "\r" ) ) {
+				$errors['checklist'] = 'Each checklist line is one line.';
+				return;
+			}
+
+			if ( mb_strlen( $text ) > Fields::CHECKLIST_LINE ) {
+				$errors['checklist'] = 'A checklist line is at most ' . Fields::CHECKLIST_LINE . ' characters.';
+				return;
+			}
+
+			$rows[] = array(
+				'text' => $text,
+				'done' => ! empty( $row['done'] ),
+			);
+		}
+
+		if ( count( $rows ) > Fields::CHECKLIST_ROWS ) {
+			$errors['checklist'] = 'A checklist holds at most ' . Fields::CHECKLIST_ROWS . ' items.';
+			return;
+		}
+
+		$values['checklist'] = (string) wp_json_encode( $rows );
 	}
 
 	/**

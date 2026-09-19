@@ -788,6 +788,57 @@
 }
 .fk-input:focus-visible { border-color: var( --brand-600 ); }
 textarea.fk-input { resize: vertical; }
+
+/* The rich text editor: a toolbar strip over an editable area, framed as one input. */
+.fk-rich {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var( --border-hairline );
+  border-radius: var( --radius-md );
+  background: var( --surface-card );
+  box-shadow: var( --shadow-xs );
+  overflow: hidden;
+}
+.fk-rich:focus-within { border-color: var( --brand-600 ); box-shadow: var( --focus-ring ); }
+.fk-rich-tools {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var( --surface-wash );
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fk-rich-tool {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var( --radius-xs );
+  color: var( --ink-700 );
+  cursor: pointer;
+}
+.fk-rich-tool:hover { background: var( --alpha-fill ); color: var( --ink-900 ); }
+.fk-rich-tool:focus-visible { box-shadow: var( --focus-ring ); }
+.fk-rich-area {
+  padding: 10px 12px;
+  font-family: var( --font-ui );
+  font-size: var( --text-ui );
+  line-height: 1.5;
+  color: var( --ink-900 );
+  outline: none;
+  overflow-wrap: anywhere;
+}
+.fk-rich-area p { margin: 0 0 8px; }
+.fk-rich-area p:last-child { margin-bottom: 0; }
+.fk-rich-area ul,
+.fk-rich-area ol { margin: 0 0 8px; padding-left: 22px; }
+.fk-rich-area a { color: var( --brand-700 ); text-decoration: underline; }
+
+/* The same HTML, read rather than written. */
+.fk-rich-read p { margin: 0 0 8px; }
+.fk-rich-read ul,
+.fk-rich-read ol { margin: 0 0 8px; padding-left: 22px; }
 .fk-actions-end { display: flex; justify-content: flex-end; gap: var( --space-8 ); }
 
 .fk-evidence { display: flex; flex-direction: column; gap: var( --space-8 ); }

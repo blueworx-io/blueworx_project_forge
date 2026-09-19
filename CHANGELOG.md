@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.116.0] - 2026-09-18
+
+### Added
+
+- Item description and Completed when take bold, italics, underline, lists and links, from a small editor of Forge's own. Every task can carry a checklist of up to ten one-line items: tick them off, save, and the board card shows how many are done.
+
+### Changed
+
+- The short item codes are gone from the board cards, the list and My tasks; the panel still shows the code at the top.
+
 ## [2.115.0] - 2026-09-18
 
 ### Changed

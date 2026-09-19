@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
+  ChecklistRow,
   Comment,
   GateCheck,
   GateRecord,
@@ -14,6 +15,7 @@ import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../ap
 import { phaseOf } from '../phases';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
+import { RichText } from '../kit';
 import { Inline, Screen } from './States';
 
 interface Detail {
@@ -36,6 +38,9 @@ const EDITABLE = [
   { field: 'problem', label: 'Item description', lines: 3 },
   { field: 'acceptance_criteria', label: 'Completed when', lines: 3 },
 ] as const;
+
+/** How many lines a checklist holds, as the server bounds it. */
+const CHECKLIST_ROWS = 10;
 
 const OUTCOME_LABEL: Record< string, string > = {
   rejected: 'Reject',
@@ -275,6 +280,7 @@ export function ItemPanel( {
   /** Whether the refusal we are showing includes somebody having no room. */
   const overBooked = unmet.some( ( requirement ) => 0 < ( requirement.over?.length ?? 0 ) );
   const [ blocker, setBlocker ] = useState< Record< string, string > >( {} );
+  const [ checklist, setChecklist ] = useState< ChecklistRow[] >( [] );
   const [ resolution, setResolution ] = useState( '' );
   const [ ending, setEnding ] = useState( { outcome: '', reason: '', duplicate_of: '' } );
   const [ comment, setComment ] = useState( {
@@ -304,6 +310,7 @@ export function ItemPanel( {
       setDetail( loaded );
       setLoadState( 'ready' );
       setDraft( asDraft( loaded.item ) );
+      setChecklist( loaded.item.checklist ?? [] );
     } catch ( error ) {
       // Told apart deliberately: "we could not load this" and "this is not
       // yours to read" are different problems with different next steps.
@@ -416,6 +423,13 @@ export function ItemPanel( {
     }
   }
 
+  /** The checklist, only when it differs from what was read — an unchanged list is not an edit. */
+  function checklistChange(): { checklist?: ChecklistRow[] } {
+    const kept = checklist.filter( ( row ) => '' !== row.text.trim() ).map( ( row ) => ( { text: row.text.trim(), done: row.done } ) );
+
+    return JSON.stringify( kept ) === JSON.stringify( detail?.item.checklist ?? [] ) ? {} : { checklist: kept };
+  }
+
   async function save() {
     if ( ! detail ) {
       return;
@@ -427,7 +441,7 @@ export function ItemPanel( {
     try {
       await api( `/work-items/${ itemId }`, {
         method: 'PATCH',
-        body: { ...draft, record_version: detail.item.record_version },
+        body: { ...draft, ...checklistChange(), record_version: detail.item.record_version },
       } );
       await load();
       onChanged();
@@ -1040,15 +1054,79 @@ export function ItemPanel( {
                     onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
                   />
                 ) : (
-                  <textarea
+                  <RichText
                     id={ `bwx-${ field }` }
-                    className="bwx-textarea"
+                    testId={ `bwx-${ field }` }
+                    label={ name }
                     value={ draft[ field ] ?? '' }
-                    onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+                    onChange={ ( html ) => setDraft( { ...draft, [ field ]: html } ) }
                   />
                 ) }
               </div>
             ) ) }
+
+            { /*
+                The checklist: up to ten one-line items, ticked here and saved
+                with everything else. Enter on a line starts the next; the
+                count says how many of the ten are used.
+             */ }
+            <div className="bwx-field bwx-checklist" data-testid="bwx-checklist">
+              <span className="bwx-checklist-head">
+                <span>Checklist</span>
+                <span className="bwx-mono">{ `${ checklist.length } of ${ CHECKLIST_ROWS }` }</span>
+              </span>
+              { checklist.map( ( row, at ) => (
+                <div className="bwx-checklist-row" data-testid="bwx-checklist-row" key={ at }>
+                  <input
+                    type="checkbox"
+                    data-testid="bwx-checklist-done"
+                    aria-label={ `Done: ${ row.text || 'line ' + ( at + 1 ) }` }
+                    checked={ row.done }
+                    onChange={ ( event ) => setChecklist( checklist.map( ( one, i ) => ( i === at ? { ...one, done: event.target.checked } : one ) ) ) }
+                  />
+                  <input
+                    className="bwx-input"
+                    data-testid="bwx-checklist-text"
+                    aria-label={ `Checklist line ${ at + 1 }` }
+                    maxLength={ 191 }
+                    value={ row.text }
+                    data-done={ row.done ? 'true' : undefined }
+                    onChange={ ( event ) => setChecklist( checklist.map( ( one, i ) => ( i === at ? { ...one, text: event.target.value } : one ) ) ) }
+                    onKeyDown={ ( event ) => {
+                      if ( 'Enter' === event.key && checklist.length < CHECKLIST_ROWS ) {
+                        event.preventDefault();
+                        setChecklist( [ ...checklist.slice( 0, at + 1 ), { text: '', done: false }, ...checklist.slice( at + 1 ) ] );
+                      } else if ( 'Backspace' === event.key && '' === row.text && 1 < checklist.length ) {
+                        event.preventDefault();
+                        setChecklist( checklist.filter( ( _, i ) => i !== at ) );
+                      }
+                    } }
+                  />
+                  <button
+                    type="button"
+                    className="bwx-icon-button"
+                    aria-label={ `Remove line ${ at + 1 }` }
+                    data-testid="bwx-checklist-remove"
+                    onClick={ () => setChecklist( checklist.filter( ( _, i ) => i !== at ) ) }
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) ) }
+              { checklist.length < CHECKLIST_ROWS && (
+                <div className="bwx-moves">
+                  <button
+                    type="button"
+                    className="bwx-button"
+                    data-variant="quiet"
+                    data-testid="bwx-checklist-add"
+                    onClick={ () => setChecklist( [ ...checklist, { text: '', done: false } ] ) }
+                  >
+                    Add a line
+                  </button>
+                </div>
+              ) }
+            </div>
             </div>
 
             { /*
@@ -1372,6 +1450,7 @@ const FIELD_LABELS: Record< string, string > = {
   release_method: 'how it was released',
   release_destination: 'where it went',
   dependencies: 'dependencies',
+  checklist: 'checklist',
 };
 
 interface HistoryLine {

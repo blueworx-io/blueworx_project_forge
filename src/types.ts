@@ -31,6 +31,12 @@ export interface Stage {
   kind: 'linear' | 'conditional' | 'exception';
 }
 
+/** One line of a task's checklist. */
+export interface ChecklistRow {
+  text: string;
+  done: boolean;
+}
+
 export interface WorkItem {
   id: string;
   client_site_id: string;
@@ -44,6 +50,8 @@ export interface WorkItem {
   work_type_label: string;
   title: string;
   problem: string;
+  /** Up to ten one-line items, ticked off in the panel. */
+  checklist: ChecklistRow[];
   scope: string;
   requirements: string;
   acceptance_criteria: string;

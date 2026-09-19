@@ -329,6 +329,30 @@ final class Items {
 	}
 
 	/**
+	 * The checklist as the column holds it, as rows: text and whether it is done.
+	 *
+	 * @param string $stored The JSON, or nothing.
+	 * @return array<int, array{text: string, done: bool}>
+	 */
+	private static function checklist( string $stored ): array {
+		$decoded = '' === $stored ? array() : json_decode( $stored, true );
+		$rows    = array();
+
+		foreach ( is_array( $decoded ) ? $decoded : array() as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$rows[] = array(
+				'text' => (string) ( $row['text'] ?? '' ),
+				'done' => ! empty( $row['done'] ),
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
 	 * What a row holds before anybody writes to it. Spelled out rather than
 	 * left to the column defaults, so an insert names every column and
 	 * Formats::for_row() can type every one of them.
@@ -347,6 +371,7 @@ final class Items {
 			'requirements'             => '',
 			'acceptance_criteria'      => '',
 			'references_text'          => '',
+			'checklist'                => '[]',
 			'prior_stage'              => '',
 			'blocked_at'               => 0,
 			'blocked_elapsed'          => 0,
@@ -404,6 +429,7 @@ final class Items {
 			'requirements'             => (string) $row['requirements'],
 			'acceptance_criteria'      => (string) $row['acceptance_criteria'],
 			'references'               => (string) $row['references_text'],
+			'checklist'                => self::checklist( (string) ( $row['checklist'] ?? '' ) ),
 			'stage'                    => (string) $row['stage'],
 			'stage_label'              => Stages::label( (string) $row['stage'] ),
 			'prior_stage'              => (string) $row['prior_stage'],
