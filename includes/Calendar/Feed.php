@@ -17,7 +17,7 @@ use Blueworx\Forge\Meetings\Series;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
-use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Stages;
 
 /**
  * Luke, 2026-09-17: "ensure the following all show in the Calendar and Daily
@@ -105,9 +105,12 @@ final class Feed {
 		$out = array();
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$item   = Items::get( (string) $row['id'] );
-			$people = null === $item ? array() : (array) $item['assignees'];
-			$ticked = null === $item ? 0 : count( (array) $item['ticks'] );
+			// Read off the row rather than re-read per item: the standup asks
+			// this every time it is drawn, and a query per chore adds up.
+			$people = json_decode( (string) ( $row['assignees'] ?? '' ), true );
+			$people = array_values( array_map( 'strval', is_array( $people ) ? $people : array() ) );
+			$ticks  = json_decode( (string) ( $row['ticks'] ?? '' ), true );
+			$ticked = is_array( $ticks ) ? count( $ticks ) : 0;
 
 			$out[] = self::entry(
 				'recurring',
@@ -115,7 +118,7 @@ final class Feed {
 				(string) $row['planned_due'],
 				'',
 				(string) $row['title'],
-				array() === $people ? (string) ( $item['stage_label'] ?? '' ) : sprintf( '%d of %d done', $ticked, count( $people ) ),
+				array() === $people ? Stages::label( (string) $row['stage'] ) : sprintf( '%d of %d done', $ticked, count( $people ) ),
 				$people,
 				(string) $row['id']
 			);
