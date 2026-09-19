@@ -238,7 +238,7 @@ export function MyTasksScreen() {
 
   return (
     <>
-      { 'loading' === state && <Screen state="loading" detail="Reading every site for what names you." /> }
+      { 'loading' === state && <Screen state="loading" detail="Reading what names you, on every site." /> }
 
       { 'denied' === state && <Screen state="denied" testId="bwx-mytasks-state" detail="You are signed in, but not on any client whose work you may read." /> }
 
