@@ -33,13 +33,17 @@ async function withColleague(browser, baseURL, label) {
   return { admin, client, site, crew, colleague: crew.as.completed };
 }
 
-/** One piece of work, moved on by whoever is given. */
-async function movedBy(api, siteId, title) {
+/**
+ * One piece of work, moved on by whoever is given. The seats come from the
+ * crew: Triage wants two people named (2026-09-19), and a colleague cannot
+ * make accounts to fill them.
+ */
+async function movedBy(api, siteId, title, seats = {}) {
   const made = await Forge.makeItem(api, siteId, { title });
 
   expect(made.status(), await made.text()).toBe(200);
 
-  return Forge.walkTo(api, (await made.json()).item, [ 'triage' ]);
+  return Forge.walkTo(api, (await made.json()).item, [ 'triage' ], { seats });
 }
 
 /** What one person is told has happened lately. */
@@ -56,8 +60,8 @@ test('something a colleague did turns up, and your own doing does not', async ({
   const { admin, site, crew, colleague } = await withColleague(browser, baseURL, 'Signals Co');
 
   // Two identical pieces of work, moved on by two different people.
-  const theirs = await movedBy(colleague, site.id, `Their thing ${RUN_ID}`);
-  const mine = await movedBy(admin.api, site.id, `My thing ${RUN_ID}`);
+  const theirs = await movedBy(colleague, site.id, `Their thing ${RUN_ID}`, crew.seats);
+  const mine = await movedBy(admin.api, site.id, `My thing ${RUN_ID}`, crew.seats);
 
   const answer = await lately(admin.api);
 
@@ -113,7 +117,7 @@ test('somebody who cannot read the client is never told what happened on it', as
   test.slow();
 
   const { admin, site, crew, colleague } = await withColleague(browser, baseURL, 'Signals Theirs Co');
-  const theirs = await movedBy(colleague, site.id, `Not for them ${RUN_ID}`);
+  const theirs = await movedBy(colleague, site.id, `Not for them ${RUN_ID}`, crew.seats);
 
   /*
    * A real person on a real client, with a real membership — just not this one.
@@ -147,7 +151,7 @@ test('opening the list clears the count, and the rows stay', async ({ browser, b
   test.slow();
 
   const { admin, site, crew, colleague } = await withColleague(browser, baseURL, 'Signals Read Co');
-  const theirs = await movedBy(colleague, site.id, `Read me ${RUN_ID}`);
+  const theirs = await movedBy(colleague, site.id, `Read me ${RUN_ID}`, crew.seats);
 
   const page = await admin.context.newPage();
 
