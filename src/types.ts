@@ -344,6 +344,8 @@ export interface Requirement {
    */
   by: 'field' | 'record' | 'system' | 'auto';
   fields: string[];
+  /** For a system or worked-out one, which check answers it. */
+  check?: string;
   /** Whether the task meets it now; present when the whole gate is listed. */
   met?: boolean;
   /** For a recorded one, how a screen asks: a dropdown on the row, or a box on the task. */
