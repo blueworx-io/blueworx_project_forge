@@ -282,6 +282,12 @@ final class Validate {
 		if ( array_key_exists( 'delivered_by_forge', $input ) ) {
 			$values['delivered_by_forge'] = empty( $input['delivered_by_forge'] ) ? 0 : 1;
 		}
+
+		// A free bug is, by COMM-5's definition, one we delivered the cause of:
+		// choosing the class is the answer, so no screen asks twice.
+		if ( 'free-bug' === ( $values['commercial_class'] ?? '' ) ) {
+			$values['delivered_by_forge'] = 1;
+		}
 	}
 
 	/**

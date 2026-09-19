@@ -33,10 +33,8 @@ interface Detail {
 
 const EDITABLE = [
   { field: 'title', label: 'Title', lines: 1 },
-  { field: 'problem', label: 'Problem it solves', lines: 3 },
-  { field: 'scope', label: 'Scope', lines: 3 },
-  { field: 'requirements', label: 'Requirements', lines: 3 },
-  { field: 'acceptance_criteria', label: 'Done when', lines: 3 },
+  { field: 'problem', label: 'Item description', lines: 3 },
+  { field: 'acceptance_criteria', label: 'Completed when', lines: 3 },
 ] as const;
 
 const OUTCOME_LABEL: Record< string, string > = {
@@ -68,11 +66,15 @@ const SEATS = [
   { field: 'deliverer_id', hours: 'hours_delivery', label: 'Delivering it' },
 ] as const;
 
-/** How work is classified commercially (COMM-5). */
+/**
+ * Who pays (COMM-5). A site bug is one we delivered the cause of, so choosing
+ * it is the "delivered by Forge" answer and the server records that itself.
+ */
 const CLASSES = [
-  { value: 'unclassified', label: 'Nobody has decided yet' },
-  { value: 'chargeable', label: 'Chargeable' },
-  { value: 'free-bug', label: 'Free bug — we delivered the thing that broke' },
+  { value: 'unclassified', label: 'To be confirmed' },
+  { value: 'free-bug', label: 'Site bug — no charge to client' },
+  { value: 'chargeable', label: 'Client — charge to client' },
+  { value: 'free-general', label: 'No charge — general item' },
 ] as const;
 
 const PRIORITIES = [ 'low', 'normal', 'high', 'urgent' ] as const;
@@ -100,7 +102,6 @@ const DATES = [
  */
 const ASSIGNMENT = [
   'commercial_class',
-  'delivered_by_forge',
   'priority',
   'remaining_estimate',
   'release_method',
@@ -484,6 +485,7 @@ export function ItemPanel( {
   const item = detail?.item;
   const blocked = 'blocked' === item?.stage;
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
+  const lines = detail ? historyLines( detail.history, label ) : [];
 
   /*
    * The stages work passes through, in order, with Blocked left out — it is an
@@ -586,7 +588,7 @@ export function ItemPanel( {
       } }
     >
       <aside
-        className="bwx-panel"
+        className="bwx-panel bwx-panel--framed"
         role="dialog"
         aria-modal="true"
         aria-label="Work item"
@@ -612,18 +614,6 @@ export function ItemPanel( {
               ) }
             </div>
           </div>
-          { detail && forgeData()?.canManage && (
-            <button
-              type="button"
-              className="bwx-button"
-              data-variant="danger"
-              data-testid="bwx-item-delete"
-              disabled={ busy }
-              onClick={ () => void remove() }
-            >
-              Delete
-            </button>
-          ) }
           <button
             type="button"
             className="bwx-icon-button"
@@ -634,6 +624,8 @@ export function ItemPanel( {
             ✕
           </button>
         </header>
+
+        <div className="bwx-panel-body">
 
         { 'loading' === loadState && <Screen state="loading" testId="bwx-panel-state" /> }
 
@@ -766,7 +758,7 @@ export function ItemPanel( {
                     onChange={ ( event ) => setResolution( event.target.value ) }
                   />
                 </div>
-                <div className="bwx-moves">
+                <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
@@ -831,58 +823,62 @@ export function ItemPanel( {
               />
             ) ) }
 
-            { ! ended && (
-              <div className="bwx-moves">
-                { ! blocked && 0 < detail.returns.length && (
-                  <button
-                    type="button"
-                    className="bwx-button"
-                    data-testid="bwx-show-return"
-                    onClick={ () => setShowing( 'return' === showing ? '' : 'return' ) }
-                  >
-                    Send back
-                  </button>
-                ) }
-                { ! blocked && (
-                  <button
-                    type="button"
-                    className="bwx-button"
-                    data-testid="bwx-show-block"
-                    onClick={ () => setShowing( 'block' === showing ? '' : 'block' ) }
-                  >
-                    Block
-                  </button>
-                ) }
-                { 0 < detail.outcomes.length && (
-                  <button
-                    type="button"
-                    className="bwx-button"
-                    data-testid="bwx-show-end"
-                    onClick={ () => setShowing( 'end' === showing ? '' : 'end' ) }
-                  >
-                    End it
-                  </button>
-                ) }
-              </div>
-            ) }
-
-            { detail.can_archive && (
-              <div className="bwx-moves">
-                <button
-                  type="button"
-                  className="bwx-button"
-                  data-testid="bwx-archive"
-                  disabled={ busy }
-                  onClick={ () => void act( '/archive', {}, 'Archived. It stays in the reports.' ) }
-                >
-                  Archive
-                </button>
-              </div>
-            ) }
+            { ( ! ended || detail.can_archive ) && (
+              <div className="bwx-actions" data-testid="bwx-actions">
+                <p className="bwx-eyebrow">What else</p>
+                <div className="bwx-moves bwx-toggles">
+                  { ! ended && ! blocked && 0 < detail.returns.length && (
+                    <button
+                      type="button"
+                      className="bwx-button bwx-toggle"
+                      data-tone="return"
+                      data-testid="bwx-show-return"
+                      aria-pressed={ 'return' === showing }
+                      onClick={ () => setShowing( 'return' === showing ? '' : 'return' ) }
+                    >
+                      <span aria-hidden="true">←</span> Send back
+                    </button>
+                  ) }
+                  { ! ended && ! blocked && (
+                    <button
+                      type="button"
+                      className="bwx-button bwx-toggle"
+                      data-tone="block"
+                      data-testid="bwx-show-block"
+                      aria-pressed={ 'block' === showing }
+                      onClick={ () => setShowing( 'block' === showing ? '' : 'block' ) }
+                    >
+                      <span aria-hidden="true">⏸</span> Block
+                    </button>
+                  ) }
+                  { ! ended && 0 < detail.outcomes.length && (
+                    <button
+                      type="button"
+                      className="bwx-button bwx-toggle"
+                      data-tone="end"
+                      data-testid="bwx-show-end"
+                      aria-pressed={ 'end' === showing }
+                      onClick={ () => setShowing( 'end' === showing ? '' : 'end' ) }
+                    >
+                      End it <span aria-hidden="true">→</span>
+                    </button>
+                  ) }
+                  { detail.can_archive && (
+                    <button
+                      type="button"
+                      className="bwx-button"
+                      data-variant="quiet"
+                      data-testid="bwx-archive"
+                      disabled={ busy }
+                      onClick={ () => void act( '/archive', {}, 'Archived. It stays in the reports.' ) }
+                    >
+                      Archive
+                    </button>
+                  ) }
+                </div>
 
             { 'return' === showing && (
-              <div data-testid="bwx-return">
-                <p className="bwx-eyebrow">Send back</p>
+              <div className="bwx-actions-form" data-testid="bwx-return">
                 <div className="bwx-field">
                   <label htmlFor="bwx-return-to">Back to</label>
                   <select
@@ -921,7 +917,7 @@ export function ItemPanel( {
                     />
                   </div>
                 ) }
-                <div className="bwx-moves">
+                <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
@@ -936,8 +932,7 @@ export function ItemPanel( {
             ) }
 
             { 'block' === showing && (
-              <div data-testid="bwx-block">
-                <p className="bwx-eyebrow">Block</p>
+              <div className="bwx-actions-form" data-testid="bwx-block">
                 { BLOCKER_FIELDS.map( ( { field, label: name } ) => (
                   <div className="bwx-field" key={ field }>
                     <label htmlFor={ `bwx-blocker-${ field }` }>{ name }</label>
@@ -953,7 +948,7 @@ export function ItemPanel( {
                     />
                   </div>
                 ) ) }
-                <div className="bwx-moves">
+                <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
@@ -968,8 +963,7 @@ export function ItemPanel( {
             ) }
 
             { 'end' === showing && (
-              <div data-testid="bwx-end">
-                <p className="bwx-eyebrow">End it</p>
+              <div className="bwx-actions-form" data-testid="bwx-end">
                 <div className="bwx-field">
                   <label htmlFor="bwx-outcome">Outcome</label>
                   <select
@@ -1017,7 +1011,7 @@ export function ItemPanel( {
                     reports as deferred.
                   </Inline>
                 ) }
-                <div className="bwx-moves">
+                <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
@@ -1030,7 +1024,11 @@ export function ItemPanel( {
                 </div>
               </div>
             ) }
+              </div>
+            ) }
 
+            <div className="bwx-task" data-testid="bwx-task">
+            <p className="bwx-eyebrow">Task</p>
             { EDITABLE.map( ( { field, label: name, lines } ) => (
               <div className="bwx-field" key={ field }>
                 <label htmlFor={ `bwx-${ field }` }>{ name }</label>
@@ -1051,6 +1049,7 @@ export function ItemPanel( {
                 ) }
               </div>
             ) ) }
+            </div>
 
             { /*
                 Who does the work, what it costs and when it happens.
@@ -1110,19 +1109,6 @@ export function ItemPanel( {
                     </select>
                   </div>
                 </div>
-
-                { /* COMM-5: a bug is free when we delivered the thing that broke. */ }
-                <label className="bwx-tick" htmlFor="bwx-delivered_by_forge">
-                  <input
-                    id="bwx-delivered_by_forge"
-                    type="checkbox"
-                    checked={ '' !== ( draft.delivered_by_forge ?? '' ) }
-                    onChange={ ( event ) =>
-                      setDraft( { ...draft, delivered_by_forge: event.target.checked ? '1' : '' } )
-                    }
-                  />
-                  <span>We delivered the thing that broke</span>
-                </label>
 
                 { SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
@@ -1196,18 +1182,6 @@ export function ItemPanel( {
                 ) }
               </div>
             ) }
-
-            <div className="bwx-moves">
-              <button
-                type="button"
-                className="bwx-button"
-                data-testid="bwx-save"
-                disabled={ busy }
-                onClick={ () => void save() }
-              >
-                Save changes
-              </button>
-            </div>
 
             <div>
               <p className="bwx-eyebrow">
@@ -1302,7 +1276,7 @@ export function ItemPanel( {
                   </select>
                 </div>
               ) }
-              <div className="bwx-moves">
+              <div className="bwx-moves bwx-form-foot">
                 <button
                   type="button"
                   className="bwx-button"
@@ -1315,14 +1289,22 @@ export function ItemPanel( {
               </div>
             </div>
 
-            <div>
-              <p className="bwx-eyebrow">History</p>
+            <details className="bwx-history-wrap" data-testid="bwx-history-wrap">
+              <summary className="bwx-eyebrow">
+                History
+                <span className="bwx-mono"> · { lines.length }</span>
+              </summary>
               <ul className="bwx-history" data-testid="bwx-history">
-                { detail.history.map( ( event ) => (
-                  <li key={ event.id }>
-                    { describe( event, label ) }
-                    { '' !== event.reason && <span> — { event.reason }</span> }
-                    <span className="bwx-mono"> { when( event.occurred_at ) }</span>
+                { lines.map( ( line ) => (
+                  <li key={ line.id }>
+                    <span className="bwx-history-what">
+                      { line.text }
+                      { '' !== line.reason && <span> — { line.reason }</span> }
+                      <span className="bwx-mono"> { when( line.at ) }</span>
+                    </span>
+                    <span className="bwx-history-who" data-testid="bwx-history-who">
+                      { line.who }
+                    </span>
                   </li>
                 ) ) }
               </ul>
@@ -1331,12 +1313,111 @@ export function ItemPanel( {
                   Blocked for { forHowLong( item.blocked_elapsed ) } in total.
                 </p>
               ) }
-            </div>
+            </details>
           </>
         ) }
+        </div>
+
+        <footer className="bwx-panel-foot" data-testid="bwx-panel-foot">
+          { detail && forgeData()?.canManage ? (
+            <button
+              type="button"
+              className="bwx-button"
+              data-variant="danger"
+              data-testid="bwx-item-delete"
+              disabled={ busy }
+              onClick={ () => void remove() }
+            >
+              Delete
+            </button>
+          ) : (
+            <span />
+          ) }
+          { detail && item && staff && ! ended && (
+            <button
+              type="button"
+              className="bwx-button"
+              data-testid="bwx-save"
+              disabled={ busy }
+              onClick={ () => void save() }
+            >
+              Save changes
+            </button>
+          ) }
+        </footer>
       </aside>
     </div>
   );
+}
+
+/** What the panel calls a field when history says it was edited. */
+const FIELD_LABELS: Record< string, string > = {
+  title: 'title',
+  problem: 'description',
+  acceptance_criteria: 'completed when',
+  commercial_class: 'who pays',
+  delivered_by_forge: 'who pays',
+  priority: 'priority',
+  primary_user_id: 'who does it',
+  reviewer_id: 'who reviews it',
+  deliverer_id: 'who delivers it',
+  hours_primary: 'hours',
+  hours_review: 'review hours',
+  hours_delivery: 'delivery hours',
+  planned_start: 'start',
+  planned_due: 'due',
+  review_target: 'review by',
+  release_target: 'release by',
+  remaining_estimate: 'hours still to do',
+  release_method: 'how it was released',
+  release_destination: 'where it went',
+  dependencies: 'dependencies',
+};
+
+interface HistoryLine {
+  id: string;
+  text: string;
+  reason: string;
+  at: number;
+  who: string;
+}
+
+/**
+ * History as lines to read: every real event on its own, and the field edits
+ * of one save folded into one line — a save that touched five fields is one
+ * thing that happened, not five, and none of them was a move.
+ */
+function historyLines( events: WorkEvent[], label: ( id: string ) => string ): HistoryLine[] {
+  const lines: HistoryLine[] = [];
+  let open: { line: HistoryLine; fields: string[] } | null = null;
+
+  const who = ( event: WorkEvent ) => event.actor_name || 'Forge';
+  const wording = ( fields: string[] ) => {
+    const names = Array.from( new Set( fields.map( ( field ) => FIELD_LABELS[ field ] ?? field.replace( /_/g, ' ' ) ) ) );
+    const shown = names.slice( 0, 4 );
+    const more = names.length - shown.length;
+
+    return `Edited ${ shown.join( ', ' ) }${ 0 < more ? ` and ${ more } more` : '' }`;
+  };
+
+  for ( const event of events ) {
+    if ( 'edited' === event.action ) {
+      if ( open && open.line.who === who( event ) && 2 >= Math.abs( event.occurred_at - open.line.at ) ) {
+        open.fields.push( event.field );
+        open.line.text = wording( open.fields );
+        continue;
+      }
+
+      open = { line: { id: event.id, text: wording( [ event.field ] ), reason: '', at: event.occurred_at, who: who( event ) }, fields: [ event.field ] };
+      lines.push( open.line );
+      continue;
+    }
+
+    open = null;
+    lines.push( { id: event.id, text: describe( event, label ), reason: event.reason, at: event.occurred_at, who: who( event ) } );
+  }
+
+  return lines;
 }
 
 /** One line of history, in words rather than in field names. */
