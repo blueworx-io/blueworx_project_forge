@@ -196,7 +196,9 @@ test('a card goes for good only when its condition stops being true', async ({
   expect(moved.status(), await moved.text()).toBe(200);
 
   await page.getByTestId('bwx-standup-refresh').click();
-  await expect(card).toHaveCount(0);
+  // The list is worked out again on the server, which on a busy instance is
+  // slower than the default wait; the point here is what comes back, not when.
+  await expect(card).toHaveCount(0, { timeout: 30_000 });
 
   // Still gone after a full reload, which a hidden card would not be.
   await openStandup(page);
