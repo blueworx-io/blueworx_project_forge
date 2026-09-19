@@ -376,7 +376,7 @@ final class Items {
 	 * route, never by an edit: an image is an attachment in the media
 	 * library, and the list only says which ones.
 	 *
-	 * @param string                                             $id     Item id.
+	 * @param string                                                $id     Item id.
 	 * @param array<int, array{id: int, url: string, name: string}> $images The list.
 	 * @return array<string, mixed>|null The item, or null when it is gone.
 	 */
@@ -446,6 +446,12 @@ final class Items {
 	 * @param string $stored The JSON, or nothing.
 	 * @return array<int, array{text: string, done: bool}>
 	 */
+	/**
+	 * The links on an item, each a label and an address.
+	 *
+	 * @param string $stored The column.
+	 * @return array<int, array{label: string, url: string}>
+	 */
 	private static function links( string $stored ): array {
 		$decoded = '' === $stored ? array() : json_decode( $stored, true );
 		$rows    = array();
@@ -489,6 +495,12 @@ final class Items {
 		return $rows;
 	}
 
+	/**
+	 * A stored list of ticked lines.
+	 *
+	 * @param string $stored JSON, or nothing.
+	 * @return array<int, array{text: string, done: bool}>
+	 */
 	private static function checklist( string $stored ): array {
 		$decoded = '' === $stored ? array() : json_decode( $stored, true );
 		$rows    = array();

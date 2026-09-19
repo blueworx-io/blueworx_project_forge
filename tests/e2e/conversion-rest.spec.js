@@ -5,6 +5,7 @@ import {
   makePerson,
   makeSite,
   makeSubmission,
+  seatsFor,
   signedIn,
   PASSWORD,
 } from './helpers/forge.js';
@@ -139,8 +140,12 @@ test.describe('turning a request into work', () => {
     const studio = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
     const mine = await clientWithARequest(studio.api, request, 'Triaged Co');
 
+    // Triage wants the two people named (2026-09-19).
+    const seats = await seatsFor(studio.api, { client_id: mine.client.id });
     const converted = await studio.api.post(`/submissions/${mine.submission.id}/conversion`, {
       entry_stage: 'triage',
+      primary_user_id: seats.primary_user_id,
+      reviewer_id: seats.reviewer_id,
     });
 
     expect(converted.status(), await converted.text()).toBe(200);
@@ -148,6 +153,7 @@ test.describe('turning a request into work', () => {
     const item = (await converted.json()).item;
 
     expect(item.stage).toBe('triage');
+    expect(item.primary_user_id).toBe(seats.primary_user_id);
 
     // The three the conversion answered, each a record with a person and a time
     // on it rather than a stage the system waved through.

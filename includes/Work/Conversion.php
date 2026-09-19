@@ -171,14 +171,29 @@ final class Conversion {
 	 */
 	public static function read( array $input ): array {
 		return array(
-			'entry_stage'  => trim( (string) ( $input['entry_stage'] ?? Stages::FIRST ) ),
-			'item_id'      => trim( (string) ( $input['item_id'] ?? '' ) ),
-			'parent_id'    => trim( (string) ( $input['parent_id'] ?? '' ) ),
-			'parent_title' => trim( (string) ( $input['parent_title'] ?? '' ) ),
-			'parent_level' => trim( (string) ( $input['parent_level'] ?? '' ) ),
-			'title'        => trim( (string) ( $input['title'] ?? '' ) ),
-			'work_type'    => trim( (string) ( $input['work_type'] ?? '' ) ),
+			'entry_stage'     => trim( (string) ( $input['entry_stage'] ?? Stages::FIRST ) ),
+			'item_id'         => trim( (string) ( $input['item_id'] ?? '' ) ),
+			'parent_id'       => trim( (string) ( $input['parent_id'] ?? '' ) ),
+			'parent_title'    => trim( (string) ( $input['parent_title'] ?? '' ) ),
+			'parent_level'    => trim( (string) ( $input['parent_level'] ?? '' ) ),
+			'title'           => trim( (string) ( $input['title'] ?? '' ) ),
+			'work_type'       => trim( (string) ( $input['work_type'] ?? '' ) ),
+			// Entering at Triage needs the two people named (2026-09-19).
+			'primary_user_id' => self::person( (string) ( $input['primary_user_id'] ?? '' ) ),
+			'reviewer_id'     => self::person( (string) ( $input['reviewer_id'] ?? '' ) ),
 		);
+	}
+
+	/**
+	 * A person id, or nothing: anything not shaped like one is dropped.
+	 *
+	 * @param string $id Candidate.
+	 * @return string
+	 */
+	private static function person( string $id ): string {
+		$id = trim( $id );
+
+		return 1 === preg_match( '/^usr_[A-Za-z0-9]+$/', $id ) ? $id : '';
 	}
 
 	/**
@@ -276,11 +291,13 @@ final class Conversion {
 		$title = (string) $asked['title'];
 
 		return array(
-			'parent_id' => $parent_id,
-			'level'     => self::LEVEL,
-			'work_type' => self::work_type( (string) $asked['work_type'] ),
-			'title'     => '' === $title ? (string) ( $submission['title'] ?? '' ) : $title,
-			'problem'   => (string) ( $submission['description'] ?? '' ),
+			'parent_id'       => $parent_id,
+			'level'           => self::LEVEL,
+			'work_type'       => self::work_type( (string) $asked['work_type'] ),
+			'title'           => '' === $title ? (string) ( $submission['title'] ?? '' ) : $title,
+			'problem'         => (string) ( $submission['description'] ?? '' ),
+			'primary_user_id' => (string) ( $asked['primary_user_id'] ?? '' ),
+			'reviewer_id'     => (string) ( $asked['reviewer_id'] ?? '' ),
 		);
 	}
 

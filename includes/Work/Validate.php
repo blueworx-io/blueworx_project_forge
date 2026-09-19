@@ -235,8 +235,9 @@ final class Validate {
 	/**
 	 * The definition and delivery text, which have no rules beyond being text.
 	 *
-	 * @param array<string, mixed> $input  Raw input.
-	 * @param array<string, mixed> $values Cleaned values, by reference.
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
 	 */
 	private static function text_fields( array $input, array &$values, array &$errors ): void {
 		$fields = array_merge(

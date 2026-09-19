@@ -69,7 +69,7 @@ test('sections start folded and stay open once opened', async ({ browser, baseUR
   await page.getByTestId('bwx-screen-standup').click();
   await expect(page.getByTestId('bwx-standup')).toBeVisible({ timeout: 30_000 });
 
-  const card = page.locator(`[data-testid="bwx-standup-card"][data-subject="${item.id}"]`);
+  const card = page.locator(`[data-testid="bwx-standup-card"][data-subject="${item.id}"][data-rule="overdue"]`);
 
   // Folded: the section and its count are there, the card is not. Overdue
   // work is in the "work" section.

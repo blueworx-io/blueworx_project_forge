@@ -305,6 +305,10 @@ export interface ConversionRequest {
   /** The card's own title, where it should differ from what was asked. */
   title?: string;
   work_type?: string;
+
+  /** Entering at Triage names who does it and who reviews it (2026-09-19). */
+  primary_user_id?: string;
+  reviewer_id?: string;
 }
 
 /** The queue's own filter set — not the board's, which filters work items. */
