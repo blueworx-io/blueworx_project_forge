@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.117.0] - 2026-09-18
+
+### Changed
+
+- Nothing on a task's "before" list asks you to type a record any more. Each check is either worked out from the task (the site, who pays, the hours, a ticked checklist, a comment with a link since the stage began, dependencies that are done), chosen from a dropdown on its row (source, parent, duplicate check, bug type, severity, approvals, done-or-not), or filled in a box on the task that appears only when the next stage wants it (reproduction steps, estimate range, release notes, dates). Picks and boxes save with Save changes. Three checks that asked for Scope or Requirements are gone with their boxes.
+- The Block form picks the site's item that is in the way and who owns the blocker (a person, or the client) instead of taking typed names. End it → duplicate picks the surviving item from a list.
+
 ## [2.116.0] - 2026-09-18
 
 ### Added

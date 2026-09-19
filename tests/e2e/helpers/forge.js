@@ -157,20 +157,59 @@ export async function satisfy(api, item, to, seats = {}) {
     }
 
     if ('record' === requirement.by) {
+      // A pick is answered with its first choice; a box with words.
+      const first = requirement.options?.[0]?.value ?? 'Done.';
+
       await api.post(`/work-items/${item.id}/gate`, {
         requirement: requirement.id,
-        value: 'Done.',
-        evidence: requirement.evidence ? 'https://example.test/evidence' : '',
+        value: 'pick' === requirement.control ? first : 'Done.',
+        evidence: '',
       });
+      continue;
+    }
+
+    // Worked out from the task (2026-09-18): evidence is a comment with a
+    // link, hours are the three seats' hours. Anything else resolves itself.
+    if ('auto' === requirement.by && 'attachment' === requirement.type) {
+      await api.post(`/work-items/${item.id}/comments`, {
+        body: 'Evidence.',
+        url: 'https://example.test/evidence',
+        kind: 'evidence',
+        visibility: 'internal',
+      });
+    }
+
+    if ('auto' === requirement.by && 'G-UP-NEXT-4' === requirement.id) {
+      for (const field of ['hours_primary', 'hours_review', 'hours_delivery']) {
+        if (undefined === patch[field]) {
+          patch[field] = 1;
+        }
+      }
     }
   }
 
   if (0 < Object.keys(patch).length) {
     const current = await api.get(`/work-items/${item.id}`);
-    const edited = await api.patch(`/work-items/${item.id}`, {
+    let edited = await api.patch(`/work-items/${item.id}`, {
       ...patch,
       record_version: current.item.record_version,
     });
+
+    /*
+     * #149. Planned hours reserve support hours, and a site with no package
+     * has none to give. The hours item is met by the seats' hours since
+     * 2026-09-18, so a spec that was never about support now needs some:
+     * put the site on a package and say it again, rather than making that
+     * every spec's problem.
+     */
+    if (409 === edited.status() && (await edited.text()).includes('hours_not_available')) {
+      await onSupport(api, item.client_site_id, 200);
+      edited = await api.patch(`/work-items/${item.id}`, {
+        ...patch,
+        record_version: current.item.record_version,
+      });
+    }
+
     expect(edited.status(), `filling in ${Object.keys(patch).join(', ')}: ${await edited.text()}`).toBe(200);
   }
 

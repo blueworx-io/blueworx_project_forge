@@ -48,47 +48,35 @@ async function openTheItem(admin, siteId) {
 }
 
 /**
- * Ticks every requirement the next move is waiting somebody to confirm.
+ * Answers every pick the next move is waiting on, and saves.
  *
  * By what is on the screen rather than by a list of ids: the requirements
  * belong to the stage the work is leaving, and hard-coding them here would tie
  * a test about the planning fields to whichever stage it happened to start in.
+ * Since 2026-09-18 nothing is typed: each is a dropdown on its row, answered
+ * with its first choice and saved with everything else.
  */
 async function recordWhatIsAsked(page) {
-  const buttons = page.locator('[data-testid="bwx-open-record"]');
+  const picks = page.locator('[data-testid="bwx-pick"]');
 
-  for (let left = await buttons.count(); 0 < left; left -= 1) {
-    /*
-     * Held by its id rather than by "the first one still closed". Opening a
-     * requirement takes its Record button away, so a locator defined by having
-     * one stops pointing at the row the moment it is opened.
-     */
-    const id = await page
-      .locator('li[data-requirement]')
-      .filter({ has: page.locator('[data-testid="bwx-open-record"]') })
-      .first()
-      .getAttribute('data-requirement');
+  for (let at = 0, count = await picks.count(); at < count; at += 1) {
+    await picks.nth(at).selectOption({ index: 1 });
+  }
 
-    const row = page.locator(`li[data-requirement="${id}"]`);
+  if (0 < (await picks.count())) {
+    await page.locator('[data-testid="bwx-save"]').click();
+    await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
+    await expect(picks).toHaveCount(0);
+  }
 
-    await row.locator('[data-testid="bwx-open-record"]').click();
+  // Evidence is a comment with a link, worked out rather than ticked.
+  const wantsEvidence = page.locator('li[data-met="false"]', { hasText: 'Add a comment with a link' });
 
-    // The second box, where there is one, wants a link to the evidence.
-    const boxes = row.locator('.bwx-input');
-
-    for (let box = 0, boxen = await boxes.count(); box < boxen; box += 1) {
-      await boxes.nth(box).fill(0 === box ? 'Confirmed.' : 'https://example.test/evidence');
-    }
-
-    await row.locator('[data-testid="bwx-record"]').click();
-    await expect(buttons).toHaveCount(left - 1);
-
-    /*
-     * Waiting for the open row to close, not just for the recorded one to go.
-     * The panel clears which row is open once its reload finishes, and opening
-     * the next one before that lands gets it closed again underneath us.
-     */
-    await expect(page.locator('[data-testid="bwx-record"]')).toHaveCount(0);
+  if (0 < (await wantsEvidence.count())) {
+    await page.getByTestId('bwx-comment').fill('The design.');
+    await page.getByTestId('bwx-comment-url').fill('https://example.test/evidence');
+    await page.getByTestId('bwx-add-comment').click();
+    await expect(wantsEvidence).toHaveCount(0, { timeout: 30_000 });
   }
 }
 

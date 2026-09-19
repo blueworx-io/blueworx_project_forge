@@ -41,6 +41,10 @@ final class CapacityGateTest extends TestCase {
 				'planned_start'   => '2026-09-07',
 				'planned_due'     => '2026-09-11',
 				'priority'        => 'high',
+				// The hours item is met by the three seats' hours (2026-09-18).
+				'hours_primary'   => 2.0,
+				'hours_review'    => 1.0,
+				'hours_delivery'  => 0.5,
 			),
 			$overrides
 		);
@@ -53,7 +57,6 @@ final class CapacityGateTest extends TestCase {
 	 */
 	private function records(): array {
 		return array(
-			'G-UP-NEXT-4' => array( 'actor' => 3 ),
 			'G-UP-NEXT-7' => array( 'actor' => 3 ),
 		);
 	}

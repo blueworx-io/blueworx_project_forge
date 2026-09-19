@@ -86,11 +86,11 @@ function stuckCard(page, itemId) {
   );
 }
 
-/** One outstanding requirement somebody can record, off the item itself. */
+/** One outstanding requirement somebody can answer with a pick, off the item itself. */
 async function outstanding(api, item) {
   const detail = await api.get(`/work-items/${item.id}`);
   const next = Object.keys(detail.readiness)[0];
-  const found = (detail.readiness[next]?.unmet ?? []).find((one) => 'record' === one.by);
+  const found = (detail.readiness[next]?.unmet ?? []).find((one) => 'pick' === one.control);
 
   expect(found, 'the parked work has something to record').toBeTruthy();
 
@@ -139,9 +139,8 @@ test('an outstanding requirement can be recorded from the card that named it', a
 
   await expect(row).toBeVisible();
 
-  await row.getByTestId('bwx-open-record').click();
-  await row.getByRole('textbox').first().fill('Done, from the day’s list.');
-  await row.getByTestId('bwx-record').click();
+  // A pick on the card records the moment it is made: there is no Save here.
+  await row.getByTestId('bwx-pick').selectOption({ index: 1 });
 
   /*
    * Gone from the card, because the list was worked out again rather than
@@ -182,9 +181,7 @@ test('somebody who may not record one is refused here in the same words as anywh
 
   await expect(row).toBeVisible();
 
-  await row.getByTestId('bwx-open-record').click();
-  await row.getByRole('textbox').first().fill('Signing this off anyway.');
-  await row.getByTestId('bwx-record').click();
+  await row.getByTestId('bwx-pick').selectOption({ index: 1 });
 
   const fromCard = await page.getByTestId('bwx-standup-notice').textContent();
 
@@ -208,11 +205,11 @@ test('somebody who may not record one is refused here in the same words as anywh
 
   const inPanel = panel.locator(`[data-requirement="${requirement.id}"]`).first();
 
-  await inPanel.getByTestId('bwx-open-record').click();
-  await inPanel.getByRole('textbox').first().fill('Signing this off anyway.');
-  await inPanel.getByTestId('bwx-record').click();
+  // In the panel the pick waits for Save changes, and Save is what is refused.
+  await inPanel.getByTestId('bwx-pick').selectOption({ index: 1 });
+  await panel.getByTestId('bwx-save').click();
 
-  await expect(panel.getByTestId('bwx-panel-notice')).toContainText(fromCard.trim());
+  await expect(panel.getByTestId('bwx-panel-notice')).toContainText(fromCard.trim(), { timeout: 30_000 });
 
   await page.close();
   await asViewer.context.close();

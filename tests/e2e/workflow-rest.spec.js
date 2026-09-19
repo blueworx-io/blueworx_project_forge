@@ -66,82 +66,10 @@ async function makeItem(api, siteId, data) {
   return (await created.json()).item;
 }
 
-function answerFor(field) {
-  switch (field) {
-    case 'planned_start':
-      return '2026-09-01';
-    case 'planned_due':
-      return '2026-09-30';
-    case 'priority':
-      return 'normal';
-    case 'commercial_class':
-      return 'chargeable';
-    case 'release_method':
-      return 'software';
-    case 'remaining_estimate':
-      return 2;
-    default:
-      return 'Written down.';
-  }
-}
 
-/**
- * Does whatever the gate asks for, the way a person would.
- *
- * `seats` covers the fields a plausible answer cannot invent: the three seats
- * hold people, and since #112 the authority rules read them back.
- */
-async function satisfy(api, item, to, seats = {}) {
-  const detail = await api.get(`/work-items/${item.id}`);
-  const patch = { ...seats };
-
-  for (const requirement of detail.readiness[to]?.unmet ?? []) {
-    if ('field' === requirement.by) {
-      for (const field of requirement.fields) {
-        if (undefined === patch[field]) {
-          patch[field] = answerFor(field);
-        }
-      }
-      continue;
-    }
-
-    if ('record' === requirement.by) {
-      await api.post(`/work-items/${item.id}/gate`, {
-        requirement: requirement.id,
-        value: 'Done.',
-        evidence: requirement.evidence ? 'https://example.test/evidence' : '',
-      });
-    }
-  }
-
-  if (0 < Object.keys(patch).length) {
-    const current = await api.get(`/work-items/${item.id}`);
-    await api.patch(`/work-items/${item.id}`, {
-      ...patch,
-      record_version: current.item.record_version,
-    });
-  }
-
-  return (await api.get(`/work-items/${item.id}`)).item;
-}
-
-/** Walks an item up the path, satisfying each gate on the way. */
+/** The shared walker: it knows how each kind of before-item is met (2026-09-18). */
 async function walkTo(api, item, stages, seats = {}) {
-  let current = item;
-
-  for (const stage of stages) {
-    current = await satisfy(api, current, stage, 'up-next' === stage ? seats : {});
-
-    const moved = await api.post(`/work-items/${current.id}/transition`, {
-      to: stage,
-      record_version: current.record_version,
-    });
-
-    expect(moved.status(), `moving to ${stage}`).toBe(200);
-    current = (await moved.json()).item;
-  }
-
-  return current;
+  return Forge.walkTo(api, item, stages, { seats });
 }
 
 test('a refused move names every unmet requirement and moves nothing', async ({
@@ -169,9 +97,11 @@ test('a refused move names every unmet requirement and moves nothing', async ({
   expect(body.stage).toBe('future-idea');
   expect(body.attempted).toBe('triage');
 
-  // Every one of them, not the first. Four requirements, four entries.
-  expect(body.unmet.length).toBeGreaterThanOrEqual(3);
+  // Every one of them, not the first: the description and the source (the
+  // site and the submission are read off the task since 2026-09-18).
+  expect(body.unmet.length).toBeGreaterThanOrEqual(2);
   expect(body.unmet.map((each) => each.id)).toContain('G-FUTURE-IDEA-1');
+  expect(body.unmet.map((each) => each.id)).toContain('G-FUTURE-IDEA-3');
   expect(body.unmet[0].satisfied_by).toBeTruthy();
 
   const after = await api.get(`/work-items/${item.id}`);

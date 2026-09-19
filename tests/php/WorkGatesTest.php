@@ -109,7 +109,7 @@ final class WorkGatesTest extends TestCase {
 
 				$this->assertNotSame( '', $requirement['label'] );
 				$this->assertNotSame( '', $requirement['satisfied_by'] );
-				$this->assertContains( $requirement['by'], array( Gates::BY_FIELD, Gates::BY_RECORD, Gates::BY_SYSTEM ) );
+				$this->assertContains( $requirement['by'], array( Gates::BY_FIELD, Gates::BY_RECORD, Gates::BY_SYSTEM, Gates::BY_AUTO ) );
 				$this->assertStringStartsWith( $gate, (string) $requirement['id'] );
 
 				if ( Gates::BY_FIELD === $requirement['by'] ) {
@@ -144,9 +144,8 @@ final class WorkGatesTest extends TestCase {
 			array(
 				'stage'    => 'documentation-period',
 				'problem'  => 'Something is wrong.',
-				'scope'    => 'Fix it.',
-				// non_goals, requirements, acceptance_criteria and references
-				// are all empty, and six records are missing.
+				// non_goals, acceptance_criteria and references are all empty,
+				// and the records are missing.
 			)
 		);
 
@@ -154,11 +153,113 @@ final class WorkGatesTest extends TestCase {
 		$ids    = array_column( $result['unmet'], 'id' );
 
 		$this->assertContains( 'G-DOCUMENTATION-3', $ids );
-		$this->assertContains( 'G-DOCUMENTATION-4', $ids );
 		$this->assertContains( 'G-DOCUMENTATION-5', $ids );
 		$this->assertContains( 'G-DOCUMENTATION-8', $ids );
+		$this->assertContains( 'G-DOCUMENTATION-9', $ids );
 		$this->assertNotContains( 'G-DOCUMENTATION-1', $ids, 'The problem statement was filled in' );
-		$this->assertNotContains( 'G-DOCUMENTATION-2', $ids, 'The scope was filled in' );
+
+		// The Scope and Requirements checks went with their boxes (2026-09-18).
+		$this->assertNotContains( 'G-DOCUMENTATION-2', $ids );
+		$this->assertNotContains( 'G-DOCUMENTATION-4', $ids );
+		$this->assertNull( Gates::requirement( 'G-TRIAGE-5' ) );
+	}
+
+	/**
+	 * Every requirement comes back, met or not, so a screen can draw the whole
+	 * gate rather than only what is left of it.
+	 */
+	public function test_the_evaluation_lists_every_requirement_with_whether_it_is_met(): void {
+		$result = Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'priority' => 'high' ) ), array() );
+		$all    = array_column( $result['all'], null, 'id' );
+
+		$this->assertTrue( $all['G-UP-NEXT-6']['met'] );
+		$this->assertFalse( $all['G-UP-NEXT-5']['met'] );
+		$this->assertArrayNotHasKey( 'G-UP-NEXT-8', $all, 'System checks are reported as checks, not rows' );
+	}
+
+	/**
+	 * Evidence is worked out from the item's own entries: a comment with a
+	 * link since the stage was entered. Nothing is recorded by hand.
+	 */
+	public function test_evidence_is_met_by_an_entry_since_the_stage_was_entered(): void {
+		$item    = $this->item( array( 'stage' => 'in-development', 'remaining_estimate' => 2.0 ) );
+		$without = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array() );
+		$with    = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array(), array( 'evidence_since_entry' => true ) );
+
+		$this->assertContains( 'G-IN-DEVELOPMENT-2', array_column( $without['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-2', array_column( $with['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-3', array_column( $with['unmet'], 'id' ) );
+	}
+
+	/**
+	 * The hours item is met by the three seats' hours, and by nothing else.
+	 */
+	public function test_planned_hours_are_met_by_the_three_seat_hours(): void {
+		$two   = Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'hours_primary' => 2.0, 'hours_review' => 1.0 ) ), array() );
+		$three = Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'hours_primary' => 2.0, 'hours_review' => 1.0, 'hours_delivery' => 0.5 ) ), array() );
+
+		$this->assertContains( 'G-UP-NEXT-4', array_column( $two['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-UP-NEXT-4', array_column( $three['unmet'], 'id' ) );
+	}
+
+	/**
+	 * A checklist all ticked confirms the requirements implemented without a
+	 * record; a checklist with a line open does not.
+	 */
+	public function test_a_ticked_checklist_confirms_the_requirements(): void {
+		$open = $this->item( array( 'checklist' => array( array( 'text' => 'A', 'done' => true ), array( 'text' => 'B', 'done' => false ) ) ) );
+		$done = $this->item( array( 'checklist' => array( array( 'text' => 'A', 'done' => true ), array( 'text' => 'B', 'done' => true ) ) ) );
+
+		$this->assertContains( 'G-IN-DEVELOPMENT-1', array_column( Gates::evaluate( 'G-IN-DEVELOPMENT', $open, array() )['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-1', array_column( Gates::evaluate( 'G-IN-DEVELOPMENT', $done, array() )['unmet'], 'id' ) );
+	}
+
+	/**
+	 * A parent set on the item answers "parent chosen"; so does recording that
+	 * it sits at the top.
+	 */
+	public function test_a_parent_set_answers_the_parent_requirement(): void {
+		$none   = Gates::evaluate( 'G-TRIAGE', $this->item(), array() );
+		$parent = Gates::evaluate( 'G-TRIAGE', $this->item( array( 'parent_id' => 'wrk_9' ) ), array() );
+		$top    = Gates::evaluate( 'G-TRIAGE', $this->item(), array( 'G-TRIAGE-3' => array( 'value' => 'top-level' ) ) );
+
+		$this->assertContains( 'G-TRIAGE-3', array_column( $none['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-TRIAGE-3', array_column( $parent['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-TRIAGE-3', array_column( $top['unmet'], 'id' ) );
+	}
+
+	/**
+	 * Dependencies are ready when every one of them is Completed or later —
+	 * and trivially when there are none.
+	 */
+	public function test_dependencies_are_ready_when_all_are_completed(): void {
+		$item = $this->item( array( 'stage' => 'completed' ) );
+
+		$open  = Gates::evaluate( 'G-COMPLETED', $item, array(), array( 'dependencies' => array( 'in-review', 'released' ) ) );
+		$done  = Gates::evaluate( 'G-COMPLETED', $item, array(), array( 'dependencies' => array( 'completed', 'released' ) ) );
+		$alone = Gates::evaluate( 'G-COMPLETED', $item, array(), array( 'dependencies' => array() ) );
+
+		$this->assertContains( 'G-COMPLETED-6', array_column( $open['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-COMPLETED-6', array_column( $done['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-COMPLETED-6', array_column( $alone['unmet'], 'id' ) );
+	}
+
+	/**
+	 * A pick says what it offers, and a stage box says what kind of box it is,
+	 * so a screen never has to guess from the type.
+	 */
+	public function test_picks_carry_their_options_and_boxes_their_input(): void {
+		$source = Gates::requirement( 'G-FUTURE-IDEA-3' );
+		$steps  = Gates::requirement( 'G-BUG-TRACKING-3' );
+		$range  = Gates::requirement( 'G-TECHNICAL-AUDIT-6' );
+		$deps   = Gates::requirement( 'G-UP-NEXT-7' );
+
+		$this->assertSame( 'pick', $source['control'] );
+		$this->assertSame( array( 'client-request', 'internal', 'bug-report', 'meeting' ), array_column( $source['options'], 'value' ) );
+		$this->assertSame( 'box', $steps['control'] );
+		$this->assertSame( 'text', $steps['input'] );
+		$this->assertSame( 'range', $range['input'] );
+		$this->assertSame( 'items', $deps['source'] );
 	}
 
 	/**

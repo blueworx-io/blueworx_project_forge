@@ -42,6 +42,64 @@ final class Gates {
 	public const BY_SYSTEM = 'system';
 
 	/**
+	 * Worked out from what the task already holds (2026-09-18). Nothing is
+	 * recorded: the row shows a tick when the task meets it and what would
+	 * meet it when not. The resolver runs against the item and a context the
+	 * transition service supplies, so this class stays free of the database.
+	 */
+	public const BY_AUTO = 'auto';
+
+	/**
+	 * Where an item came from (G-FUTURE-IDEA-3).
+	 */
+	public const SOURCES = array(
+		'client-request' => 'Client request',
+		'internal'       => 'Internal',
+		'bug-report'     => 'Bug report',
+		'meeting'        => 'Meeting',
+	);
+
+	/**
+	 * How triage ended (G-TRIAGE-7). Everything but Proceed hands over to
+	 * End it, which records the outcome itself.
+	 */
+	public const TRIAGE_OUTCOMES = array(
+		'proceed'   => 'Proceed',
+		'rejected'  => 'Rejected',
+		'duplicate' => 'Duplicate',
+		'deferred'  => 'Deferred',
+	);
+
+	/**
+	 * What kind of bug it is (G-BUG-TRACKING-1).
+	 */
+	public const BUG_CLASSES = array(
+		'broken-feature' => 'Broken feature',
+		'regression'     => 'Regression',
+		'content-data'   => 'Content or data',
+		'performance'    => 'Performance',
+		'security'       => 'Security',
+	);
+
+	/**
+	 * How bad it is (G-BUG-TRACKING-6).
+	 */
+	public const SEVERITIES = array(
+		'low'      => 'Low',
+		'medium'   => 'Medium',
+		'high'     => 'High',
+		'critical' => 'Critical',
+	);
+
+	/**
+	 * How far it reaches (G-DOCUMENTATION-7).
+	 */
+	public const AFFECTED = array(
+		'this-site'     => 'This site only',
+		'several-sites' => 'More than one site',
+	);
+
+	/**
 	 * Who may mark a requirement complete. The legend from the specification.
 	 */
 	public const ANY    = 'ANY';
@@ -75,6 +133,17 @@ final class Gates {
 	 * - `check`        for `by: system`, which check answers it.
 	 * - `deferred`     a system check whose subject is not built yet, reported
 	 *                  as a result but never used to refuse a move.
+	 * - `control`      for `by: record`, how a screen asks: a `pick` (a
+	 *                  dropdown on the row) or a `box` (a box on the task).
+	 * - `options`      for a pick, the fixed choices, value and label.
+	 * - `source`       for a pick, what a screen appends after the fixed
+	 *                  choices: the site's other `items`, or `people`.
+	 * - `input`        for a box, what kind: text, number, date, datetime
+	 *                  or range.
+	 * - `auto`         for `by: record`, a resolver that also satisfies it
+	 *                  from the task (a parent set, a checklist all ticked)
+	 *                  without a record; for `by: auto`, the resolver itself
+	 *                  is in `check`.
 	 *
 	 * @return array<string, array<int, array<string, mixed>>>
 	 */
@@ -99,58 +168,55 @@ final class Gates {
 				self::system( 'G-CREATE-4', 'Creator and source', 'creator', 'Recorded when the item is created.' ),
 			),
 			'G-FUTURE-IDEA'     => array(
-				self::field( 'G-FUTURE-IDEA-1', 'Problem or opportunity', 'text', array( 'problem' ), 'Describe the problem or opportunity this addresses.' ),
-				self::record( 'G-FUTURE-IDEA-2', 'Site or portfolio scope confirmed', 'reference', 'Confirm which site or portfolio this is scoped to.' ),
-				self::record( 'G-FUTURE-IDEA-3', 'Source recorded', 'enum', 'Record where this came from: client request, internal, bug report or meeting.' ),
-				self::record( 'G-FUTURE-IDEA-4', 'Submitted for triage', 'action', 'Submit the item for triage.' ),
+				self::field( 'G-FUTURE-IDEA-1', 'Item description', 'text', array( 'problem' ), 'Describe the problem or opportunity this addresses.' ),
+				self::field( 'G-FUTURE-IDEA-2', 'Site confirmed', 'reference', array( 'client_site_id' ), 'The task has a site.' ),
+				self::pick( 'G-FUTURE-IDEA-3', 'Source', self::SOURCES, 'Choose where this came from.' ),
+				self::system( 'G-FUTURE-IDEA-4', 'Submitted for triage', 'submission', 'Recorded by the move itself.' ),
 			),
 			'G-TRIAGE'          => array(
 				self::field( 'G-TRIAGE-1', 'Work type confirmed', 'enum', array( 'work_type' ), 'Confirm the work type.', self::APR ),
-				self::record( 'G-TRIAGE-2', 'Site confirmed', 'reference', 'Confirm the site this work is scoped to.', self::APR ),
-				self::record( 'G-TRIAGE-3', 'Parent chosen or created', 'reference', 'Choose a parent item, create one, or record that this sits at the top.' ),
+				self::field( 'G-TRIAGE-2', 'Site confirmed', 'reference', array( 'client_site_id' ), 'The task has a site.', self::APR ),
+				self::pick( 'G-TRIAGE-3', 'Parent', array( 'top-level' => 'Top level' ), 'Choose the item this sits under, or Top level.', self::ANY, 'items', 'parent' ),
 				self::field( 'G-TRIAGE-4', 'Priority', 'enum', array( 'priority' ), 'Set a priority.' ),
-				self::field( 'G-TRIAGE-5', 'Scope summary', 'text', array( 'scope' ), 'Summarise the scope.' ),
-				self::record( 'G-TRIAGE-6', 'Duplicate check completed', 'checklist', 'Check for duplicates, and link the surviving item if there is one.' ),
-				self::record( 'G-TRIAGE-7', 'Triage outcome recorded', 'enum', 'Record the triage outcome: proceed, rejected, duplicate or deferred.', self::APR ),
-				self::classification( 'G-TRIAGE-8', 'Commercial classification', 'Classify the work as chargeable or a free bug.', self::APR ),
+				self::pick( 'G-TRIAGE-6', 'Duplicate check', array( 'none' => 'No duplicate found' ), 'Say whether this duplicates another item.', self::ANY, 'items' ),
+				self::pick( 'G-TRIAGE-7', 'Triage outcome', self::TRIAGE_OUTCOMES, 'Choose the triage outcome.', self::APR ),
+				self::classification( 'G-TRIAGE-8', 'Who pays', 'Choose who pays for this.', self::APR ),
 			),
 			'G-BUG-TRACKING'    => array(
-				self::record( 'G-BUG-TRACKING-1', 'Bug classification confirmed', 'enum', 'Confirm how the bug is classified.' ),
-				self::record( 'G-BUG-TRACKING-2', 'Expected versus actual result', 'text', 'Record what was expected and what actually happened.' ),
-				self::record( 'G-BUG-TRACKING-3', 'Reproduction steps', 'text', 'Record the steps that reproduce it.' ),
-				self::record( 'G-BUG-TRACKING-4', 'Environment and version', 'text', 'Record the environment and version it was seen on.' ),
-				self::evidence( 'G-BUG-TRACKING-5', 'Evidence attached', 'attachment', 'Attach evidence of the bug, or link to it.' ),
-				self::record( 'G-BUG-TRACKING-6', 'Impact and severity', 'enum', 'Record the impact and severity.' ),
-				self::record( 'G-BUG-TRACKING-7', 'Initial diagnosis', 'text', 'Record an initial diagnosis.' ),
-				self::record( 'G-BUG-TRACKING-8', 'Delivered-by-Forge determination', 'boolean', 'Determine whether Forge delivered the thing that broke.', self::APR ),
+				self::pick( 'G-BUG-TRACKING-1', 'Bug classification', self::BUG_CLASSES, 'Choose how the bug is classified.' ),
+				self::box( 'G-BUG-TRACKING-2', 'Expected versus actual result', 'text', 'Fill in what was expected and what actually happened.' ),
+				self::box( 'G-BUG-TRACKING-3', 'Reproduction steps', 'text', 'Fill in the steps that reproduce it.' ),
+				self::box( 'G-BUG-TRACKING-4', 'Environment and version', 'text', 'Fill in the environment and version it was seen on.' ),
+				self::evidence( 'G-BUG-TRACKING-5', 'Evidence attached', 'Add a comment with a link to the evidence.' ),
+				self::pick( 'G-BUG-TRACKING-6', 'Impact and severity', self::SEVERITIES, 'Choose the impact and severity.' ),
+				self::box( 'G-BUG-TRACKING-7', 'Initial diagnosis', 'text', 'Fill in an initial diagnosis.' ),
+				self::classification( 'G-BUG-TRACKING-8', 'Delivered by Forge', 'Choose who pays: a site bug is one Forge delivered.', self::APR ),
 			),
 			'G-DOCUMENTATION'   => array(
-				self::field( 'G-DOCUMENTATION-1', 'Problem statement', 'text', array( 'problem' ), 'Write the problem statement.' ),
-				self::field( 'G-DOCUMENTATION-2', 'Scope', 'text', array( 'scope' ), 'Write the scope.' ),
-				self::field( 'G-DOCUMENTATION-3', 'Non-goals', 'text', array( 'non_goals' ), 'Write what this deliberately does not cover.' ),
-				self::field( 'G-DOCUMENTATION-4', 'Requirements', 'checklist', array( 'requirements' ), 'List the requirements.' ),
-				self::field( 'G-DOCUMENTATION-5', 'Acceptance criteria', 'checklist', array( 'acceptance_criteria' ), 'Write at least one acceptance criterion.' ),
-				self::record( 'G-DOCUMENTATION-6', 'Dependencies', 'reference', 'Record the dependencies, or confirm there are none.' ),
-				self::record( 'G-DOCUMENTATION-7', 'Affected sites and data', 'reference', 'Record which sites and data this affects.' ),
+				self::field( 'G-DOCUMENTATION-1', 'Item description', 'text', array( 'problem' ), 'Write the item description.' ),
+				self::field( 'G-DOCUMENTATION-3', 'Not covered', 'text', array( 'non_goals' ), 'Write what this deliberately does not cover.' ),
+				self::field( 'G-DOCUMENTATION-5', 'Completed when', 'checklist', array( 'acceptance_criteria' ), 'Write when this counts as completed.' ),
+				self::pick( 'G-DOCUMENTATION-6', 'Dependencies', array( 'none' => 'None' ), 'Choose what this waits on, or None.', self::ANY, 'items', 'dependencies' ),
+				self::pick( 'G-DOCUMENTATION-7', 'Affected sites and data', self::AFFECTED, 'Choose which sites this affects.' ),
 				self::field( 'G-DOCUMENTATION-8', 'Reference material', 'reference', array( 'references' ), 'Link the reference material.' ),
-				self::record( 'G-DOCUMENTATION-9', 'Documentation approval', 'approval', 'Have the documentation approved by somebody other than the item\'s own Primary User.', self::APR ),
+				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as somebody other than the person doing the work.', self::APR ),
 			),
 			'G-TECHNICAL-AUDIT' => array(
-				self::record( 'G-TECHNICAL-AUDIT-1', 'Architecture and implementation assessment', 'text', 'Assess the architecture and how it would be implemented.' ),
-				self::record( 'G-TECHNICAL-AUDIT-2', 'Dependencies confirmed', 'reference', 'Confirm the dependencies.' ),
-				self::record( 'G-TECHNICAL-AUDIT-3', 'Data and sync impact', 'text', 'Record the data and sync impact.' ),
-				self::record( 'G-TECHNICAL-AUDIT-4', 'Security and privacy impact', 'text', 'Record the security and privacy impact.' ),
-				self::record( 'G-TECHNICAL-AUDIT-5', 'Test approach', 'text', 'Record how this will be tested.' ),
-				self::record( 'G-TECHNICAL-AUDIT-6', 'Estimate range', 'numeric', 'Record a low and high estimate in hours.' ),
-				self::record( 'G-TECHNICAL-AUDIT-7', 'Risks', 'checklist', 'List the technical risks.' ),
-				self::record( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'approval', 'Have the audit approved by the technical approver.', self::APR ),
+				self::box( 'G-TECHNICAL-AUDIT-1', 'Architecture assessment', 'text', 'Fill in the architecture and how it would be implemented.' ),
+				self::pick( 'G-TECHNICAL-AUDIT-2', 'Dependencies confirmed', array( 'none' => 'None' ), 'Confirm what this waits on, or None.', self::ANY, 'items', 'dependencies' ),
+				self::box( 'G-TECHNICAL-AUDIT-3', 'Data and sync impact', 'text', 'Fill in the data and sync impact.' ),
+				self::box( 'G-TECHNICAL-AUDIT-4', 'Security and privacy impact', 'text', 'Fill in the security and privacy impact.' ),
+				self::box( 'G-TECHNICAL-AUDIT-5', 'Test approach', 'text', 'Fill in how this will be tested.' ),
+				self::box( 'G-TECHNICAL-AUDIT-6', 'Estimate range', 'range', 'Fill in a low and a high estimate, in hours.' ),
+				self::done( 'G-TECHNICAL-AUDIT-7', 'Risks', 'Mark the technical risks as listed.' ),
+				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit.', self::APR ),
 			),
 			'G-DESIGN'          => array(
-				self::evidence( 'G-DESIGN-1', 'Approved design artifact', 'attachment', 'Attach or link the approved design.' ),
-				self::record( 'G-DESIGN-2', 'Responsive states', 'checklist', 'Record the responsive states.' ),
-				self::record( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'checklist', 'Record all four states: empty, loading, error and permission-denied.' ),
-				self::record( 'G-DESIGN-4', 'Accessibility considerations', 'checklist', 'Record the accessibility considerations.' ),
-				self::record( 'G-DESIGN-5', 'Design approval', 'approval', 'Have the design approved by the design approver.', self::APR ),
+				self::evidence( 'G-DESIGN-1', 'Approved design artifact', 'Add a comment with a link to the approved design.' ),
+				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),
+				self::done( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'Mark all four states as done.' ),
+				self::done( 'G-DESIGN-4', 'Accessibility considerations', 'Mark the accessibility considerations as done.' ),
+				self::approval( 'G-DESIGN-5', 'Design approval', 'Approve the design.', self::APR ),
 			),
 			'G-UP-NEXT'         => array(
 
@@ -163,55 +229,55 @@ final class Gates {
 				self::field( 'G-UP-NEXT-1', 'Primary User assigned', 'reference', array( 'primary_user_id' ), 'Assign the Primary User.' ),
 				self::field( 'G-UP-NEXT-2', 'Reviewer assigned', 'reference', array( 'reviewer_id' ), 'Assign a Reviewer, who must be somebody other than the Primary User unless they hold Principal.' ),
 				self::field( 'G-UP-NEXT-3', 'Deliverer assigned', 'reference', array( 'deliverer_id' ), 'Assign the Deliverer.' ),
-				self::record( 'G-UP-NEXT-4', 'Planned hours per role', 'numeric', 'Enter planned hours for Primary User, Reviewer and Deliverer.' ),
+				self::auto( 'G-UP-NEXT-4', 'Planned hours per role', 'numeric', 'hours', 'Enter planned hours for Primary User, Reviewer and Deliverer.' ),
 				self::field( 'G-UP-NEXT-5', 'Planned start and due date', 'date', array( 'planned_start', 'planned_due' ), 'Set a planned start and a planned due date.' ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
-				self::record( 'G-UP-NEXT-7', 'Dependencies confirmed', 'reference', 'Confirm the dependencies.' ),
+				self::pick( 'G-UP-NEXT-7', 'Dependencies confirmed', array( 'none' => 'None' ), 'Confirm what this waits on, or None.', self::ANY, 'items', 'dependencies' ),
 				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of the planned dates, unless the over-allocation is given a reason.' ),
 				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
 			'G-IN-DEVELOPMENT'  => array(
-				self::record( 'G-IN-DEVELOPMENT-1', 'Requirements confirmed implemented', 'checklist', 'Confirm each documented requirement is implemented.', self::PU ),
-				self::evidence( 'G-IN-DEVELOPMENT-2', 'Work evidence', 'attachment', 'Attach or link evidence of the work.', self::PU ),
-				self::evidence( 'G-IN-DEVELOPMENT-3', 'Test evidence', 'attachment', 'Attach or link evidence that it was tested.', self::PU ),
+				self::done( 'G-IN-DEVELOPMENT-1', 'Requirements implemented', 'Tick every line of the checklist, or mark this Done.', self::PU, 'checklist' ),
+				self::evidence( 'G-IN-DEVELOPMENT-2', 'Work evidence', 'Add a comment with a link to the work.', self::PU ),
+				self::evidence( 'G-IN-DEVELOPMENT-3', 'Test evidence', 'Add a comment with a link to the test evidence.', self::PU ),
 				self::field( 'G-IN-DEVELOPMENT-4', 'Remaining estimate', 'numeric', array( 'remaining_estimate' ), 'Enter the remaining estimate in hours.', self::PU ),
-				self::record( 'G-IN-DEVELOPMENT-5', 'Completion checklist', 'checklist', 'Complete the completion checklist.', self::PU ),
-				self::record( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'action', 'Submit the work to its Reviewer.', self::PU ),
+				self::done( 'G-IN-DEVELOPMENT-5', 'Completion checklist', 'Mark the completion checklist as done.', self::PU ),
+				self::system( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'submission', 'Recorded by the move itself.' ),
 			),
 			'G-IN-REVIEW'       => array(
-				self::record( 'G-IN-REVIEW-1', 'Review checklist completed', 'checklist', 'Complete the review checklist.', self::REV ),
-				self::record( 'G-IN-REVIEW-2', 'Every acceptance criterion confirmed', 'checklist', 'Confirm every acceptance criterion.', self::REV ),
-				self::record( 'G-IN-REVIEW-3', 'All feedback resolved or returned', 'checklist', 'Resolve every open piece of feedback, or return the item.', self::REV ),
-				self::record( 'G-IN-REVIEW-4', 'Review approval', 'approval', 'Approve the review as the assigned Reviewer or an authorised substitute.', self::REV ),
-				self::record( 'G-IN-REVIEW-5', 'Post-review hours adjustment', 'numeric', 'Record any post-review hours adjustment, with its reason.', self::REV ),
+				self::done( 'G-IN-REVIEW-1', 'Review checklist', 'Mark the review checklist as done.', self::REV ),
+				self::done( 'G-IN-REVIEW-2', 'Every acceptance criterion confirmed', 'Tick every line of the checklist, or mark this Done.', self::REV, 'checklist' ),
+				self::auto( 'G-IN-REVIEW-3', 'All feedback resolved', 'checklist', 'feedback', 'Answer every open question from the client, or return the item.', self::REV ),
+				self::approval( 'G-IN-REVIEW-4', 'Review approval', 'Approve the review as the assigned Reviewer or an authorised substitute.', self::REV ),
+				self::box( 'G-IN-REVIEW-5', 'Post-review hours adjustment', 'number', 'Fill in the post-review hours adjustment (0 for none).', self::REV ),
 			),
 			'G-COMPLETED'       => array(
 				self::system( 'G-COMPLETED-1', 'Review approval preserved', 'review_approval', 'The review approval from this cycle has to still be on the item.' ),
 				self::field( 'G-COMPLETED-2', 'Release method', 'enum', array( 'release_method' ), 'Choose how this is released: software, content, design, infrastructure or non-deployment.', self::DEL ),
-				self::field( 'G-COMPLETED-3', 'Target environment, version or destination', 'text', array( 'release_destination' ), 'Record where this is going.', self::DEL ),
-				self::record( 'G-COMPLETED-4', 'Release window', 'date', 'Set the release window.', self::DEL ),
-				self::record( 'G-COMPLETED-5', 'Delivery checklist', 'checklist', 'Complete the delivery checklist.', self::DEL ),
-				self::record( 'G-COMPLETED-6', 'Dependencies confirmed ready', 'reference', 'Confirm the dependencies are ready.', self::DEL ),
-				self::record( 'G-COMPLETED-7', 'Release notes', 'text', 'Write the release notes.', self::DEL ),
+				self::field( 'G-COMPLETED-3', 'Target environment, version or destination', 'text', array( 'release_destination' ), 'Fill in where this is going.', self::DEL ),
+				self::box( 'G-COMPLETED-4', 'Release window', 'date', 'Fill in the release window.', self::DEL ),
+				self::done( 'G-COMPLETED-5', 'Delivery checklist', 'Mark the delivery checklist as done.', self::DEL ),
+				self::auto( 'G-COMPLETED-6', 'Dependencies ready', 'reference', 'dependencies_ready', 'Everything this waits on has to reach Completed first.', self::DEL ),
+				self::box( 'G-COMPLETED-7', 'Release notes', 'text', 'Fill in the release notes.', self::DEL ),
 				self::system( 'G-COMPLETED-8', 'Every child item Completed', 'children_completed', 'Every item beneath this one has to reach Completed first.' ),
 			),
 			'G-RELEASED'        => array(
-				self::record( 'G-RELEASED-1', 'Release date and time', 'timestamp', 'Record when it was released.', self::DEL ),
-				self::record( 'G-RELEASED-2', 'Environment and version, or handover destination', 'text', 'Record where it went.', self::DEL ),
-				self::evidence( 'G-RELEASED-3', 'Release evidence', 'attachment', 'Attach or link evidence of the release.', self::DEL ),
+				self::box( 'G-RELEASED-1', 'Release date and time', 'datetime', 'Fill in when it was released.', self::DEL ),
+				self::box( 'G-RELEASED-2', 'Environment and version, or handover destination', 'text', 'Fill in where it went.', self::DEL ),
+				self::evidence( 'G-RELEASED-3', 'Release evidence', 'Add a comment with a link to the release.', self::DEL ),
 				self::deferred( 'G-RELEASED-4', 'Client communication status', 'client_communication', 'The NOTIF-2 confirmation arrives with the notification work; until it does this reports as passed.' ),
-				self::record( 'G-RELEASED-5', 'Post-release check result', 'checklist', 'Record the post-release check.', self::DEL ),
+				self::done( 'G-RELEASED-5', 'Post-release check', 'Mark the post-release check as done.', self::DEL ),
 			),
 			'G-BLOCKED-ENTRY'   => array(
-				self::record( 'G-BLOCKED-ENTRY-1', 'Blocker reason', 'text', 'Say what is blocking this.' ),
-				self::record( 'G-BLOCKED-ENTRY-2', 'Blocker owner', 'reference', 'Name who owns the blocker.' ),
-				self::record( 'G-BLOCKED-ENTRY-3', 'Dependency', 'reference', 'Name what this is waiting on.' ),
-				self::record( 'G-BLOCKED-ENTRY-4', 'Target resolution date', 'date', 'Set a target date for the blocker clearing.' ),
-				self::record( 'G-BLOCKED-ENTRY-5', 'Next action', 'text', 'Say what the next action is.' ),
+				self::pick( 'G-BLOCKED-ENTRY-1', 'What is blocking it', array( 'other' => 'Something else' ), 'Choose the item blocking this, or say what else is.', self::ANY, 'items' ),
+				self::pick( 'G-BLOCKED-ENTRY-2', 'Who owns the blocker', array( 'client' => 'The client' ), 'Choose who owns the blocker.', self::ANY, 'people' ),
+				self::pick( 'G-BLOCKED-ENTRY-3', 'What it is waiting on', array( 'other' => 'Something else' ), 'Choose the item this waits on, or say what else it is.', self::ANY, 'items' ),
+				self::box( 'G-BLOCKED-ENTRY-4', 'Target resolution date', 'date', 'Set a target date for the blocker clearing.' ),
+				self::box( 'G-BLOCKED-ENTRY-5', 'Next action', 'text', 'Say what the next action is.' ),
 				self::system( 'G-BLOCKED-ENTRY-6', 'Prior stage stored', 'prior_stage', 'Recorded by the move itself.' ),
 			),
 			'G-BLOCKED-EXIT'    => array(
-				self::record( 'G-BLOCKED-EXIT-1', 'Resolution note', 'text', 'Say how the blocker was resolved.' ),
+				self::box( 'G-BLOCKED-EXIT-1', 'Resolution note', 'text', 'Say how the blocker was resolved.' ),
 				self::system( 'G-BLOCKED-EXIT-2', 'Return to the stored prior stage', 'prior_stage', 'Enforced by the move: there is no target to choose.' ),
 				self::system( 'G-BLOCKED-EXIT-3', 'Elapsed blocked time retained', 'blocked_elapsed', 'Recorded by the move itself.' ),
 			),
@@ -305,11 +371,12 @@ final class Gates {
 	 *                                                    keyed by requirement id.
 	 * @param array<string, mixed>               $context Anything a system check
 	 *                                                     needs: children.
-	 * @return array{unmet: array<int, array<string, mixed>>, checks: array<int, array<string, mixed>>}
+	 * @return array{unmet: array<int, array<string, mixed>>, checks: array<int, array<string, mixed>>, all: array<int, array<string, mixed>>}
 	 */
 	public static function evaluate( string $gate, array $item, array $records, array $context = array() ): array {
 		$unmet  = array();
 		$checks = array();
+		$all    = array();
 
 		/*
 		 * G-DESIGN is the one gate with an alternative rather than a list. An
@@ -321,6 +388,7 @@ final class Gates {
 			return array(
 				'unmet'  => array(),
 				'checks' => array(),
+				'all'    => array(),
 			);
 		}
 
@@ -364,16 +432,20 @@ final class Gates {
 				continue;
 			}
 
-			if ( self::satisfied( $requirement, $item, $records ) ) {
-				continue;
-			}
+			$met   = self::satisfied( $requirement, $item, $records, $context );
+			$all[] = self::as_unmet( $requirement, $met );
 
-			$unmet[] = self::as_unmet( $requirement );
+			if ( ! $met ) {
+				$unmet[] = self::as_unmet( $requirement );
+			}
 		}
 
 		return array(
 			'unmet'  => $unmet,
 			'checks' => $checks,
+			// Every row, met or not, so a screen draws the whole gate rather
+			// than only what is left of it.
+			'all'    => $all,
 		);
 	}
 
@@ -383,11 +455,22 @@ final class Gates {
 	 * @param array<string, mixed>               $requirement Requirement.
 	 * @param array<string, mixed>               $item        The item.
 	 * @param array<string, array<string,mixed>> $records     Completion records.
+	 * @param array<string, mixed>               $context     What the auto resolvers read.
 	 * @return bool
 	 */
-	public static function satisfied( array $requirement, array $item, array $records ): bool {
+	public static function satisfied( array $requirement, array $item, array $records, array $context = array() ): bool {
 		if ( self::BY_RECORD === $requirement['by'] ) {
-			return isset( $records[ $requirement['id'] ] );
+			if ( isset( $records[ $requirement['id'] ] ) ) {
+				return true;
+			}
+
+			$also = (string) ( $requirement['auto'] ?? '' );
+
+			return '' !== $also && self::resolve( $also, $item, $context );
+		}
+
+		if ( self::BY_AUTO === $requirement['by'] ) {
+			return self::resolve( (string) $requirement['check'], $item, $context );
 		}
 
 		if ( self::BY_FIELD !== $requirement['by'] ) {
@@ -429,6 +512,74 @@ final class Gates {
 		}
 
 		return '' !== trim( (string) $value );
+	}
+
+	/**
+	 * Answers an auto requirement from the task and its context.
+	 *
+	 * @param string               $resolver Which resolver.
+	 * @param array<string, mixed> $item     The item.
+	 * @param array<string, mixed> $context  evidence_since_entry,
+	 *                                       outstanding_questions, dependencies.
+	 * @return bool
+	 */
+	private static function resolve( string $resolver, array $item, array $context ): bool {
+		switch ( $resolver ) {
+			case 'evidence':
+				// A comment with a link, added since the item entered the stage
+				// it is at. Worked out by the transition service from the
+				// item's own entries.
+				return ! empty( $context['evidence_since_entry'] );
+
+			case 'feedback':
+				return 0 === (int) ( $context['outstanding_questions'] ?? 0 );
+
+			case 'hours':
+				foreach ( Fields::HOURS as $field ) {
+					if ( (float) ( $item[ $field ] ?? 0 ) <= 0.0 ) {
+						return false;
+					}
+				}
+
+				return true;
+
+			case 'checklist':
+				$rows = (array) ( $item['checklist'] ?? array() );
+
+				if ( array() === $rows ) {
+					return false;
+				}
+
+				foreach ( $rows as $row ) {
+					if ( empty( $row['done'] ) ) {
+						return false;
+					}
+				}
+
+				return true;
+
+			case 'parent':
+				return '' !== trim( (string) ( $item['parent_id'] ?? '' ) );
+
+			case 'dependencies':
+				return 0 < count( (array) ( $context['dependencies'] ?? array() ) );
+
+			case 'dependencies_ready':
+				$completed = (int) array_search( Stages::COMPLETED, Stages::ALL, true );
+
+				foreach ( (array) ( $context['dependencies'] ?? array() ) as $stage ) {
+					$at = array_search( (string) $stage, Stages::ALL, true );
+
+					if ( false === $at || (int) $at < $completed ) {
+						return false;
+					}
+				}
+
+				return true;
+
+			default:
+				return false;
+		}
 	}
 
 	/**
@@ -502,9 +653,10 @@ final class Gates {
 
 			case 'prior_stage':
 			case 'blocked_elapsed':
-				// Both are written by the move itself, inside the same
-				// transaction. There is no state in which the move happened and
-				// these did not.
+			case 'submission':
+				// All written by the move itself, inside the same transaction.
+				// There is no state in which the move happened and these did
+				// not.
 				return true;
 
 			default:
@@ -517,11 +669,13 @@ final class Gates {
 	 * A requirement in the shape the failure response and the UI render.
 	 *
 	 * @param array<string, mixed> $requirement Requirement.
+	 * @param bool                 $met         Whether the item meets it.
 	 * @return array<string, mixed>
 	 */
-	private static function as_unmet( array $requirement ): array {
+	private static function as_unmet( array $requirement, bool $met = false ): array {
 		return array(
 			'id'           => $requirement['id'],
+			'met'          => $met,
 			'label'        => $requirement['label'],
 			'satisfied_by' => $requirement['satisfied_by'],
 			'type'         => $requirement['type'],
@@ -533,6 +687,11 @@ final class Gates {
 			// differently.
 			'by'           => $requirement['by'],
 			'fields'       => $requirement['fields'],
+			'check'        => $requirement['check'],
+			'control'      => $requirement['control'],
+			'options'      => $requirement['options'],
+			'source'       => $requirement['source'],
+			'input'        => $requirement['input'],
 		);
 	}
 
@@ -558,6 +717,11 @@ final class Gates {
 			'by'           => self::BY_FIELD,
 			'fields'       => $fields,
 			'check'        => '',
+			'control'      => '',
+			'options'      => array(),
+			'source'       => '',
+			'input'        => '',
+			'auto'         => '',
 		);
 	}
 
@@ -582,21 +746,128 @@ final class Gates {
 			'by'           => self::BY_RECORD,
 			'fields'       => array(),
 			'check'        => '',
+			'control'      => '',
+			'options'      => array(),
+			'source'       => '',
+			'input'        => '',
+			'auto'         => '',
 		);
 	}
 
 	/**
-	 * A recorded requirement that will not complete without a link or file.
+	 * A requirement answered from a dropdown on its row, saved as a record.
+	 *
+	 * @param string                $id           Requirement id.
+	 * @param string                $label        How it reads.
+	 * @param array<string, string> $options      The fixed choices, value to label.
+	 * @param string                $satisfied_by What to do about it.
+	 * @param string                $who          Who may complete it.
+	 * @param string                $source       What a screen appends: 'items' or 'people'.
+	 * @param string                $auto         A resolver that also satisfies it from the task.
+	 * @return array<string, mixed>
+	 */
+	private static function pick( string $id, string $label, array $options, string $satisfied_by, string $who = self::ANY, string $source = '', string $auto = '' ): array {
+		$requirement = self::record( $id, $label, 'enum', $satisfied_by, $who );
+
+		$requirement['control'] = 'pick';
+		$requirement['source']  = $source;
+		$requirement['auto']    = $auto;
+
+		foreach ( $options as $value => $name ) {
+			$requirement['options'][] = array(
+				'value' => (string) $value,
+				'label' => (string) $name,
+			);
+		}
+
+		return $requirement;
+	}
+
+	/**
+	 * A requirement answered in a box on the task, saved as a record.
 	 *
 	 * @param string $id           Requirement id.
 	 * @param string $label        How it reads.
-	 * @param string $type         Requirement type.
+	 * @param string $input        text, number, date, datetime or range.
 	 * @param string $satisfied_by What to do about it.
 	 * @param string $who          Who may complete it.
 	 * @return array<string, mixed>
 	 */
-	private static function evidence( string $id, string $label, string $type, string $satisfied_by, string $who = self::ANY ): array {
-		$requirement             = self::record( $id, $label, $type, $satisfied_by, $who );
+	private static function box( string $id, string $label, string $input, string $satisfied_by, string $who = self::ANY ): array {
+		$requirement = self::record( $id, $label, 'range' === $input ? 'numeric' : $input, $satisfied_by, $who );
+
+		$requirement['control'] = 'box';
+		$requirement['input']   = $input;
+
+		return $requirement;
+	}
+
+	/**
+	 * A yes-or-no pick: Not yet, or Done.
+	 *
+	 * @param string $id           Requirement id.
+	 * @param string $label        How it reads.
+	 * @param string $satisfied_by What to do about it.
+	 * @param string $who          Who may complete it.
+	 * @param string $auto         A resolver that also satisfies it from the task.
+	 * @return array<string, mixed>
+	 */
+	private static function done( string $id, string $label, string $satisfied_by, string $who = self::ANY, string $auto = '' ): array {
+		$requirement         = self::pick( $id, $label, array( 'done' => 'Done' ), $satisfied_by, $who, '', $auto );
+		$requirement['type'] = 'checklist';
+
+		return $requirement;
+	}
+
+	/**
+	 * An approval: Not yet, or Approved, offered to the person the gate allows.
+	 *
+	 * @param string $id           Requirement id.
+	 * @param string $label        How it reads.
+	 * @param string $satisfied_by What to do about it.
+	 * @param string $who          Who may complete it.
+	 * @return array<string, mixed>
+	 */
+	private static function approval( string $id, string $label, string $satisfied_by, string $who ): array {
+		$requirement         = self::pick( $id, $label, array( 'approved' => 'Approved' ), $satisfied_by, $who );
+		$requirement['type'] = 'approval';
+
+		return $requirement;
+	}
+
+	/**
+	 * A requirement the task answers for itself.
+	 *
+	 * @param string $id           Requirement id.
+	 * @param string $label        How it reads.
+	 * @param string $type         Requirement type.
+	 * @param string $resolver     Which resolver answers it.
+	 * @param string $satisfied_by What would meet it.
+	 * @param string $who          Whose it is.
+	 * @return array<string, mixed>
+	 */
+	private static function auto( string $id, string $label, string $type, string $resolver, string $satisfied_by, string $who = self::ANY ): array {
+		$requirement = self::record( $id, $label, $type, $satisfied_by, $who );
+
+		$requirement['by']    = self::BY_AUTO;
+		$requirement['check'] = $resolver;
+
+		return $requirement;
+	}
+
+	/**
+	 * Evidence: a comment with a link, added since the stage was entered.
+	 * Worked out from the item's entries rather than recorded by hand, and
+	 * still marked as needing evidence so the specification's list holds.
+	 *
+	 * @param string $id           Requirement id.
+	 * @param string $label        How it reads.
+	 * @param string $satisfied_by What to do about it.
+	 * @param string $who          Whose it is.
+	 * @return array<string, mixed>
+	 */
+	private static function evidence( string $id, string $label, string $satisfied_by, string $who = self::ANY ): array {
+		$requirement             = self::auto( $id, $label, 'attachment', 'evidence', $satisfied_by, $who );
 		$requirement['evidence'] = true;
 
 		return $requirement;
@@ -636,6 +907,11 @@ final class Gates {
 			'by'           => self::BY_SYSTEM,
 			'fields'       => array(),
 			'check'        => $check,
+			'control'      => '',
+			'options'      => array(),
+			'source'       => '',
+			'input'        => '',
+			'auto'         => '',
 		);
 	}
 
