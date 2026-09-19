@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.123.0] - 2026-09-19
+
+### Changed
+
+- A recurring task needs a title, what to do (now formatted text), a type, how often, a start date, at least one person and the hours each. It can carry a checklist, which every task it makes starts with.
+- The days ahead of a recurring task count against each person's capacity before the tasks exist, the same as standing meetings.
+- Subscription check-ins are ticked off like recurring tasks and go straight to Released.
+- Meetings: "How long" is the hours for everyone attending. "Who else comes" is a list of staff to tick, and each of them carries the meeting's hours; the client is charged it once. The separate hours box has gone.
 ## [2.122.0] - 2026-09-19
 
 ### Changed
