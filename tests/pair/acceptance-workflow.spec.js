@@ -55,7 +55,10 @@ test.describe('the workflow acceptance criteria', () => {
     expect(body.ok).toBe(false);
     expect(body.stage).toBe('future-idea');
     expect(body.attempted).toBe('triage');
-    expect(body.unmet.length).toBeGreaterThanOrEqual(3);
+    // Since 2026-09-18 the site and the submission are read off the task,
+    // so what is left at Future Idea is the source pick — one, and named.
+    expect(body.unmet.length).toBeGreaterThanOrEqual(1);
+    expect(body.unmet.map((each) => each.id)).toContain('G-FUTURE-IDEA-3');
 
     // All of them, not the first. Checked against what the item itself says is
     // outstanding rather than against a list written here, because a list
