@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
+import * as Forge from './helpers/forge.js';
 
 // The board screen (#117, #118, #119, #122). These drive the real app against a
 // real WordPress: the columns come from the stage registry, a drag is a
@@ -39,7 +40,7 @@ async function seed(page, label) {
       work_type: 'feature',
     });
 
-    return { siteId: site.site.id, siteName: site.site.name, itemId: item.item.id };
+    return { siteId: site.site.id, siteName: site.site.name, itemId: item.item.id, clientId: client.client.id };
   }, { label, runId: RUN_ID });
 }
 
@@ -49,7 +50,19 @@ async function seed(page, label) {
  * (which seed() writes) and three recorded completions, so a test about
  * dragging has to do them first or it is only testing the refusal.
  */
-async function readyForTriage(page, itemId) {
+async function readyForTriage(page, itemId, clientId) {
+  // The two people Triage wants named (2026-09-19).
+  const nonce = await page.evaluate(() => window.bwxForgeData.nonce);
+  const api = Forge.forge(page.context().request, nonce);
+  const seats = await Forge.seatsFor(api, { client_id: clientId });
+  const current = (await api.get(`/work-items/${itemId}`)).item;
+  const seated = await api.patch(`/work-items/${itemId}`, {
+    primary_user_id: seats.primary_user_id,
+    reviewer_id: seats.reviewer_id,
+    record_version: current.record_version,
+  });
+  expect(seated.status(), await seated.text()).toBe(200);
+
   await page.evaluate(async (id) => {
     const nonce = window.bwxForgeData.nonce;
     const base = window.bwxForgeData.restUrl.replace(/\/$/, '');
@@ -105,8 +118,8 @@ test.describe('the board', () => {
   });
 
   test('dragging a card to the next column moves the work', async ({ page }) => {
-    const { siteId, itemId } = await seed(page, 'Drag');
-    await readyForTriage(page, itemId);
+    const { siteId, itemId, clientId } = await seed(page, 'Drag');
+    await readyForTriage(page, itemId, clientId);
     await openBoardOn(page, siteId);
 
     await page
@@ -137,21 +150,22 @@ test.describe('the board', () => {
   });
 
   test('the panel opens on a card, moves it, and shows the history', async ({ page }) => {
-    const { siteId, itemId } = await seed(page, 'Panel');
-    await readyForTriage(page, itemId);
+    const { siteId, itemId, clientId } = await seed(page, 'Panel');
+    await readyForTriage(page, itemId, clientId);
     await openBoardOn(page, siteId);
 
     await page.locator('[data-testid="bwx-card"]').click();
     await expect(page.locator('[data-testid="bwx-panel"]')).toBeVisible();
     await expect(page.locator('[data-testid="bwx-panel-stage"]')).toHaveText('Future idea');
 
-    // One entry to begin with: the item being created.
-    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(1);
+    // Two entries to begin with: the item being created, and the two people
+    // named for it (2026-09-19).
+    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(2);
 
     await page.locator('[data-testid="bwx-move"]').first().click();
 
-    await expect(page.locator('[data-testid="bwx-panel-stage"]')).not.toHaveText('Future idea');
-    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(2);
+    await expect(page.locator('[data-testid="bwx-panel-stage"]')).not.toHaveText('Future idea', { timeout: 30_000 });
+    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(3);
   });
 
   test('the panel saves an edit', async ({ page }) => {

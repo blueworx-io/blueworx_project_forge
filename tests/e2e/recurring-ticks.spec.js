@@ -94,14 +94,28 @@ test('two people share a weekday chore, tick their own, and it completes when bo
   expect(refused.status()).toBe(403);
   await asStranger.context.close();
 
-  // The second person ticks over the API, and that is everyone: Completed.
+  // A checklist with a line open holds the tick (2026-09-19).
   const asTwo = await Forge.signedIn(browser, baseURL, two.login, Forge.PASSWORD);
+  const listed = await admin.api.patch(`/work-items/${task.id}`, {
+    checklist: [{ text: 'Archive the old threads', done: false }],
+    record_version: (await admin.api.get(`/work-items/${task.id}`)).item.record_version,
+  });
+  expect(listed.status(), await listed.text()).toBe(200);
+  const held = await asTwo.api.post(`/work-items/${task.id}/tick`, { done: true });
+  expect(held.status()).toBe(409);
+  await admin.api.patch(`/work-items/${task.id}`, {
+    checklist: [{ text: 'Archive the old threads', done: true }],
+    record_version: (await admin.api.get(`/work-items/${task.id}`)).item.record_version,
+  });
+
+  // The second person ticks over the API, and that is everyone: a check-in
+  // has nothing to review or release, so it is Released.
   const ticked = await asTwo.api.post(`/work-items/${task.id}/tick`, { done: true });
   expect(ticked.status(), await ticked.text()).toBe(200);
-  expect((await ticked.json()).item.stage).toBe('completed');
+  expect((await ticked.json()).item.stage).toBe('released');
 
   const done = await admin.api.get(`/work-items/${task.id}`);
-  expect(done.history.some((event) => 'placed' === event.action && 'completed' === event.to_stage)).toBe(true);
+  expect(done.history.some((event) => 'placed' === event.action && 'released' === event.to_stage)).toBe(true);
 
   await asTwo.context.close();
   await asOne.context.close();

@@ -154,8 +154,13 @@ final class Validate {
 		}
 
 		self::seats( $input, $values, $errors );
-		self::text_fields( $input, $values );
-		self::checklist_field( $input, $values, $errors );
+		self::text_fields( $input, $values, $errors );
+
+		foreach ( Fields::LISTS as $list ) {
+			self::checklist_field( $list, $input, $values, $errors );
+		}
+
+		self::links_field( $input, $values, $errors );
 		self::enum_fields( $input, $values, $errors );
 		self::planning_fields( $input, $values, $errors );
 
@@ -230,17 +235,30 @@ final class Validate {
 	/**
 	 * The definition and delivery text, which have no rules beyond being text.
 	 *
-	 * @param array<string, mixed> $input  Raw input.
-	 * @param array<string, mixed> $values Cleaned values, by reference.
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
 	 */
-	private static function text_fields( array $input, array &$values ): void {
+	private static function text_fields( array $input, array &$values, array &$errors ): void {
 		$fields = array_merge(
-			array_diff( Fields::DEFINITION, array( 'title' ) ),
+			array_diff( Fields::DEFINITION, array( 'title', 'test_steps', 'links' ) ),
 			array( 'release_destination' )
 		);
 
 		foreach ( $fields as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
+				continue;
+			}
+
+			if ( 'design_url' === $field ) {
+				$url = trim( (string) $input[ $field ] );
+
+				if ( '' !== $url && ! self::is_url( $url ) ) {
+					$errors[ $field ] = 'The design link has to be a web address.';
+					continue;
+				}
+
+				$values[ $field ] = $url;
 				continue;
 			}
 
@@ -258,25 +276,27 @@ final class Validate {
 	}
 
 	/**
-	 * The checklist: at most ten rows, each one line, stored as JSON.
+	 * A list of ticked lines — the checklist, or the test steps: at most ten
+	 * rows, each one line, stored as JSON.
 	 *
+	 * @param string                $field  Which list.
 	 * @param array<string, mixed>  $input  Raw input.
 	 * @param array<string, mixed>  $values Cleaned values, by reference.
 	 * @param array<string, string> $errors Errors, by reference.
 	 */
-	private static function checklist_field( array $input, array &$values, array &$errors ): void {
-		if ( ! array_key_exists( 'checklist', $input ) ) {
+	private static function checklist_field( string $field, array $input, array &$values, array &$errors ): void {
+		if ( ! array_key_exists( $field, $input ) ) {
 			return;
 		}
 
-		if ( ! is_array( $input['checklist'] ) ) {
-			$errors['checklist'] = 'A checklist is a list of lines.';
+		if ( ! is_array( $input[ $field ] ) ) {
+			$errors[ $field ] = 'A checklist is a list of lines.';
 			return;
 		}
 
 		$rows = array();
 
-		foreach ( $input['checklist'] as $row ) {
+		foreach ( $input[ $field ] as $row ) {
 			$row  = is_array( $row ) ? $row : array();
 			$text = trim( (string) ( $row['text'] ?? '' ) );
 
@@ -285,12 +305,12 @@ final class Validate {
 			}
 
 			if ( false !== strpos( $text, "\n" ) || false !== strpos( $text, "\r" ) ) {
-				$errors['checklist'] = 'Each checklist line is one line.';
+				$errors[ $field ] = 'Each checklist line is one line.';
 				return;
 			}
 
 			if ( mb_strlen( $text ) > Fields::CHECKLIST_LINE ) {
-				$errors['checklist'] = 'A checklist line is at most ' . Fields::CHECKLIST_LINE . ' characters.';
+				$errors[ $field ] = 'A checklist line is at most ' . Fields::CHECKLIST_LINE . ' characters.';
 				return;
 			}
 
@@ -301,11 +321,105 @@ final class Validate {
 		}
 
 		if ( count( $rows ) > Fields::CHECKLIST_ROWS ) {
-			$errors['checklist'] = 'A checklist holds at most ' . Fields::CHECKLIST_ROWS . ' items.';
+			$errors[ $field ] = 'A checklist holds at most ' . Fields::CHECKLIST_ROWS . ' items.';
 			return;
 		}
 
-		$values['checklist'] = (string) wp_json_encode( $rows );
+		$values[ $field ] = (string) wp_json_encode( $rows );
+	}
+
+	/**
+	 * The links (2026-09-19): up to ten, each a label and a web address.
+	 *
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
+	 */
+	private static function links_field( array $input, array &$values, array &$errors ): void {
+		if ( ! array_key_exists( 'links', $input ) ) {
+			return;
+		}
+
+		if ( ! is_array( $input['links'] ) ) {
+			$errors['links'] = 'Links are a list.';
+			return;
+		}
+
+		$rows = array();
+
+		foreach ( $input['links'] as $row ) {
+			$row   = is_array( $row ) ? $row : array();
+			$url   = trim( (string) ( $row['url'] ?? '' ) );
+			$label = trim( (string) ( $row['label'] ?? '' ) );
+
+			if ( '' === $url && '' === $label ) {
+				continue;
+			}
+
+			if ( ! self::is_url( $url ) ) {
+				$errors['links'] = 'Each link needs a web address.';
+				return;
+			}
+
+			$rows[] = array(
+				'label' => mb_substr( $label, 0, Fields::CHECKLIST_LINE ),
+				'url'   => $url,
+			);
+		}
+
+		if ( count( $rows ) > Fields::LINK_ROWS ) {
+			$errors['links'] = 'An item holds at most ' . Fields::LINK_ROWS . ' links.';
+			return;
+		}
+
+		$values['links'] = (string) wp_json_encode( $rows );
+	}
+
+	/**
+	 * Whether a string is a web address.
+	 *
+	 * @param string $url Candidate.
+	 * @return bool
+	 */
+	private static function is_url( string $url ): bool {
+		return 1 === preg_match( '#^https?://[^\s]+$#i', $url );
+	}
+
+	/**
+	 * The dates, checked against each other (2026-09-19): start, due, review
+	 * by and release by may not run backwards. Checked over the item as it
+	 * would be after the edit, so a single date sent on its own is held
+	 * against the ones already there.
+	 *
+	 * @param array<string, mixed> $after The item's dates after the edit.
+	 * @return array<string, string> Field errors, empty when they are in order.
+	 */
+	public static function dates_in_order( array $after ): array {
+		$labels = array(
+			'planned_start'  => 'the start',
+			'planned_due'    => 'the due date',
+			'review_target'  => 'review by',
+			'release_target' => 'release by',
+		);
+		$last   = '';
+		$before = '';
+
+		foreach ( Fields::DATE_ORDER as $field ) {
+			$date = (string) ( $after[ $field ] ?? '' );
+
+			if ( '' === $date ) {
+				continue;
+			}
+
+			if ( '' !== $last && $date < $last ) {
+				return array( $field => ucfirst( $labels[ $field ] ) . ' cannot be before ' . $labels[ $before ] . '.' );
+			}
+
+			$last   = $date;
+			$before = $field;
+		}
+
+		return array();
 	}
 
 	/**
@@ -391,7 +505,7 @@ final class Validate {
 		 * are the only thing refused: zero is a real answer — "this seat has no
 		 * planned time" — and a cap would be a guess about how long work takes.
 		 */
-		foreach ( array_merge( array( 'remaining_estimate' ), Fields::HOURS ) as $field ) {
+		foreach ( Fields::HOURS as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
 				continue;
 			}
@@ -403,12 +517,6 @@ final class Validate {
 			} else {
 				$values[ $field ] = $hours;
 			}
-		}
-
-		if ( array_key_exists( 'planned_start', $values ) && array_key_exists( 'planned_due', $values )
-			&& '' !== $values['planned_start'] && '' !== $values['planned_due']
-			&& $values['planned_due'] < $values['planned_start'] ) {
-			$errors['planned_due'] = 'Work cannot be due before it starts.';
 		}
 	}
 

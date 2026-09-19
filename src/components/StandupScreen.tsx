@@ -58,9 +58,11 @@ export function StandupScreen() {
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
-  const load = useCallback( async () => {
+  const load = useCallback( async ( fresh = false ) => {
     try {
-      const answer = await api< StandupList >( '/standup' );
+      // Refresh asks the server (2026-09-19): a list somebody just pressed
+      // Refresh on is one they expect to be the server's, not the kept copy.
+      const answer = await api< StandupList >( '/standup', fresh ? { cache: 'fresh' } : {} );
 
       if ( answer.denied ) {
         setState( 'denied' );
@@ -162,7 +164,7 @@ export function StandupScreen() {
           data-testid="bwx-standup-refresh"
           onClick={ () => {
             setState( 'loading' );
-            void load();
+            void load( true );
           } }
         >
           Refresh

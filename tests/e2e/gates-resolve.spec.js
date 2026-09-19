@@ -42,9 +42,10 @@ async function openFromList(page, itemId) {
   await expect(page.getByTestId('bwx-save')).toBeVisible();
 }
 
-test('a new idea with a site needs only its source picked, and then moves', async () => {
+test('a new idea with a site needs its source picked and two people named, and then moves', async () => {
   const title = `Idea ${RUN_ID}`;
   const item = (await (await Forge.makeItem(admin.api, site.id, { title })).json()).item;
+  const seats = await Forge.seatsFor(admin.api, item);
   const page = await admin.context.newPage();
 
   await openOnBoard(page, title);
@@ -56,7 +57,11 @@ test('a new idea with a site needs only its source picked, and then moves', asyn
   await expect(gate.locator('li[data-requirement="G-FUTURE-IDEA-3"] [data-testid="bwx-pick"]')).toBeVisible();
   await expect(page.locator('[data-testid="bwx-move"][data-to="triage"]')).toHaveAttribute('data-ready', 'false');
 
+  // Since 2026-09-19 the two people are named here too, and the panel says so.
+  await expect(page.locator('[data-testid="bwx-needed"][data-field="primary_user_id"]')).toContainText('needed to leave');
   await gate.locator('li[data-requirement="G-FUTURE-IDEA-3"] [data-testid="bwx-pick"]').selectOption('client-request');
+  await page.selectOption('#bwx-primary_user_id', seats.primary_user_id);
+  await page.selectOption('#bwx-reviewer_id', seats.reviewer_id);
   await page.getByTestId('bwx-save').click();
   await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 

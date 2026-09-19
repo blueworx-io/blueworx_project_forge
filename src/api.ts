@@ -194,14 +194,17 @@ async function fetchJson< T >(
     throw new ApiError( 0, 'not_connected', 'This app is not connected to WordPress.' );
   }
 
+  // A file goes as a form, and the browser sets the boundary itself.
+  const form = options.body instanceof FormData;
+
   const response = await fetch( `${ data.restUrl.replace( /\/$/, '' ) }${ path }`, {
     method: options.method ?? 'GET',
     headers: {
-      'Content-Type': 'application/json',
+      ...( form ? {} : { 'Content-Type': 'application/json' } ),
       'X-WP-Nonce': data.nonce,
     },
     credentials: 'same-origin',
-    body: undefined === options.body ? undefined : JSON.stringify( options.body ),
+    body: undefined === options.body ? undefined : form ? options.body : JSON.stringify( options.body ),
   } );
 
   const payload = await response.json().catch( () => ( {} ) );

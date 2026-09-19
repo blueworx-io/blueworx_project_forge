@@ -31,6 +31,19 @@ export interface Stage {
   kind: 'linear' | 'conditional' | 'exception';
 }
 
+/** One of a task's links. */
+export interface LinkRow {
+  label: string;
+  url: string;
+}
+
+/** One of a task's images, an attachment in the media library. */
+export interface ImageRow {
+  id: number;
+  url: string;
+  name: string;
+}
+
 /** One line of a task's checklist. */
 export interface ChecklistRow {
   text: string;
@@ -63,6 +76,12 @@ export interface WorkItem {
   acceptance_criteria: string;
   non_goals: string;
   references: string;
+  /** Since 2026-09-19: the design link, how to test and its steps, the links and the images. */
+  design_url: string;
+  test_description: string;
+  test_steps: ChecklistRow[];
+  links: LinkRow[];
+  images: ImageRow[];
   stage: string;
   stage_label: string;
   prior_stage: string;
@@ -102,7 +121,6 @@ export interface WorkItem {
   hours_primary: number;
   hours_review: number;
   hours_delivery: number;
-  remaining_estimate: number;
   delivered_by_forge: boolean;
   release_method: string;
   release_destination: string;
@@ -287,6 +305,10 @@ export interface ConversionRequest {
   /** The card's own title, where it should differ from what was asked. */
   title?: string;
   work_type?: string;
+
+  /** Entering at Triage names who does it and who reviews it (2026-09-19). */
+  primary_user_id?: string;
+  reviewer_id?: string;
 }
 
 /** The queue's own filter set — not the board's, which filters work items. */

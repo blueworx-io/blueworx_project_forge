@@ -61,7 +61,6 @@ export function Card( {
   const blocked = 'blocked' === item.stage;
   const when = due( item );
   const seats = [ item.primary_user_id, item.reviewer_id, item.deliverer_id ];
-  const hours = item.remaining_estimate > 0 ? `${ item.remaining_estimate }h` : '';
 
   return (
     <button
@@ -134,7 +133,6 @@ export function Card( {
             </Tag>
           </span>
         ) }
-        { hours && <Tag>{ hours }</Tag> }
       </span>
 
       <span className="bwx-card-foot">
