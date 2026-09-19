@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 /**
@@ -104,15 +105,53 @@ export const ok = ( text: string ): Said => ( { text, tone: 'ok' } );
 export const warn = ( text: string ): Said => ( { text, tone: 'warn' } );
 export const failed = ( text: string ): Said => ( { text, tone: 'danger' } );
 
-/** The banner itself; nothing when there is nothing to say. */
-export function Notice( { said, testId }: { said: Said; testId?: string } ) {
+/** How long a banner that only confirms something stays, in milliseconds. */
+const CONFIRMATION_STAYS = 5000;
+
+/**
+ * The banner itself; nothing when there is nothing to say.
+ *
+ * Green confirms, yellow warns, red says something failed (2026-09-19). With
+ * `onClose` it carries a close button, and a green one — which asks nothing
+ * of the reader — closes itself after five seconds. Yellow and red stay until
+ * they are closed: they are telling somebody what to do next.
+ */
+export function Notice( {
+  said,
+  testId,
+  onClose,
+  children,
+}: {
+  said: Said;
+  testId?: string;
+  onClose?: () => void;
+  children?: ReactNode;
+} ) {
+  const confirms = 'ok' === said.tone && '' !== said.text && Boolean( onClose );
+
+  useEffect( () => {
+    if ( ! confirms ) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout( () => onClose?.(), CONFIRMATION_STAYS );
+
+    return () => window.clearTimeout( timer );
+    // The text is what makes it a new banner worth its own five seconds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ said.text, confirms ] );
+
   if ( '' === said.text ) {
     return null;
   }
 
   return (
-    <p className="bwx-notice" data-tone={ said.tone } data-testid={ testId } role="status">
-      { said.text }
-    </p>
+    <div className="bwx-notice" data-tone={ said.tone } data-testid={ testId } role="status">
+      <span className="bwx-notice-text">{ said.text }</span>
+      { onClose && (
+        <button type="button" className="bwx-notice-close" aria-label="Close" onClick={ onClose } />
+      ) }
+      { children && <div className="bwx-notice-body">{ children }</div> }
+    </div>
   );
 }

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { CalendarDays, Cake, Handshake, Plane, Repeat, Receipt, Sparkles } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { CalendarDate, DiaryEntry, Person } from '../types';
 import { api, ApiError, forgeData, messageFor } from '../api';
+import { Aside, Button, EmptyState, Field, Panel, Select, TextInput } from '../kit';
 import { everybody } from './ItemPanel';
 import { failed, NOTHING_SAID, Notice, ok } from './States';
 import type { Said } from './States';
@@ -74,21 +77,60 @@ export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; r
 }
 
 /** One diary entry, as a line. */
+/** The picture beside each kind of entry (2026-09-19). */
+const DIARY_ICONS: Record< string, LucideIcon > = {
+  recurring: Repeat,
+  meeting: Handshake,
+  subscription: Receipt,
+  leave: Plane,
+  'date:birthday': Cake,
+  'date:campaign': Sparkles,
+  date: CalendarDays,
+};
+
+/**
+ * A meeting's detail starts with its time; pulled out so it reads as a
+ * time rather than as the first word of a sentence.
+ */
+function timeOf( entry: DiaryEntry ): { time: string; rest: string } {
+  const match = /^(\d{1,2}:\d{2})(?:\s*·\s*)?(.*)$/.exec( entry.detail );
+
+  return match ? { time: match[ 1 ], rest: match[ 2 ] } : { time: '', rest: entry.detail };
+}
+
 export function DiaryLine( { entry, onOpen }: { entry: DiaryEntry; onOpen?: ( itemId: string ) => void } ) {
   const kind = DIARY_KINDS[ entry.kind ];
   const opens = '' !== entry.item_id && onOpen;
+  // A calendar date's detail starts with what kind of date it is: that
+  // becomes its chip, and only the note is left to say beneath.
+  const [ flavour, ...noted ] = 'date' === entry.kind ? entry.detail.split( ' · ' ) : [ '' ];
+  const Icon = DIARY_ICONS[ `${ entry.kind }:${ flavour.toLowerCase() }` ] ?? DIARY_ICONS[ entry.kind ] ?? CalendarDays;
+  const { time, rest } = 'date' === entry.kind ? { time: '', rest: noted.join( ' · ' ) } : timeOf( entry );
+  const chip = 'date' === entry.kind && '' !== flavour ? flavour : kind.label;
 
   return (
-    <li className="bwx-diary-line" data-testid="bwx-diary-entry" data-kind={ entry.kind } data-entry={ entry.id }>
-      <span className="bwx-diary-kind" data-tone={ kind.tone }>{ kind.label }</span>
-      { opens ? (
-        <button type="button" className="bwx-row-open" onClick={ () => onOpen( entry.item_id ) }>
-          { entry.title }
-        </button>
-      ) : (
-        <span className="bwx-diary-title">{ entry.title }</span>
-      ) }
-      { '' !== entry.detail && <span className="bwx-diary-detail">{ entry.detail }</span> }
+    <li className="bwx-diary-line" data-testid="bwx-diary-entry" data-kind={ entry.kind } data-entry={ entry.id } data-tone={ kind.tone }>
+      <span className="bwx-diary-icon" aria-hidden="true">
+        <Icon size={ 16 } strokeWidth={ 1.75 } />
+      </span>
+      <span className="bwx-diary-body">
+        <span className="bwx-diary-top">
+          { opens ? (
+            <button type="button" className="bwx-row-open bwx-diary-title" onClick={ () => onOpen( entry.item_id ) }>
+              { entry.title }
+            </button>
+          ) : (
+            <span className="bwx-diary-title">{ entry.title }</span>
+          ) }
+          <span className="bwx-diary-kind" data-tone={ kind.tone }>{ chip }</span>
+        </span>
+        { ( '' !== rest || '' !== time ) && (
+          <span className="bwx-diary-detail">
+            { '' !== time && <span className="bwx-diary-time fk-mono">{ time }</span> }
+            { rest }
+          </span>
+        ) }
+      </span>
     </li>
   );
 }
@@ -106,9 +148,10 @@ function today(): string {
 
 /**
  * Adding a date: what, when, and who for. Administrators only; everyone
- * else reads.
+ * else reads. A side panel (2026-09-19), like every other form that adds
+ * something.
  */
-export function AddDate( { onSaved }: { onSaved: () => void } ) {
+export function AddDate( { onSaved, onClose }: { onSaved: () => void; onClose: () => void } ) {
   const [ people, setPeople ] = useState< Person[] >( [] );
   const [ title, setTitle ] = useState( '' );
   const [ kind, setKind ] = useState< string >( 'company-day' );
@@ -146,47 +189,63 @@ export function AddDate( { onSaved }: { onSaved: () => void } ) {
   }
 
   return (
-    <div className="bwx-diary-add" data-testid="bwx-diary-add">
-      <p className="bwx-eyebrow">Add a date</p>
-      <Notice said={ notice } testId="bwx-diary-add-notice" />
-      <div className="bwx-diary-add-row">
-        <div className="bwx-field">
-          <label htmlFor="bwx-date-title">What</label>
-          <input id="bwx-date-title" className="bwx-input" data-testid="bwx-date-title" value={ title } onChange={ ( event ) => setTitle( event.target.value ) } />
+    <Aside
+      label="Add a date"
+      testId="bwx-diary-add"
+      width={ 520 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-date-save" disabled={ busy || '' === title.trim() } onClick={ () => void save() }>
+            Add date
+          </Button>
+          <Button variant="ghost" onClick={ onClose }>
+            Close
+          </Button>
         </div>
-        <div className="bwx-field">
-          <label htmlFor="bwx-date-kind">Kind</label>
-          <select id="bwx-date-kind" className="bwx-select" data-testid="bwx-date-kind" value={ kind } onChange={ ( event ) => setKind( event.target.value ) }>
-            <option value="company-day">Company day</option>
-            <option value="birthday">Birthday</option>
-            <option value="campaign">Campaign</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div className="bwx-field">
-          <label htmlFor="bwx-date-on">Day</label>
-          <input id="bwx-date-on" className="bwx-input" type="date" data-testid="bwx-date-on" value={ on } onChange={ ( event ) => setOn( event.target.value ) } />
-        </div>
-        <div className="bwx-field">
-          <label htmlFor="bwx-date-ends">Until (optional)</label>
-          <input id="bwx-date-ends" className="bwx-input" type="date" data-testid="bwx-date-ends" min={ on } value={ ends } onChange={ ( event ) => setEnds( event.target.value ) } />
-        </div>
+      }
+    >
+      <Notice said={ notice } testId="bwx-diary-add-notice" onClose={ () => setNotice( NOTHING_SAID ) } />
+      <Field label="What" required>
+        { ( id ) => <TextInput id={ id } data-testid="bwx-date-title" autoFocus maxLength={ 191 } value={ title } onChange={ ( event ) => setTitle( event.target.value ) } /> }
+      </Field>
+      <Field label="Kind">
+        { ( id ) => (
+          <Select
+            id={ id }
+            data-testid="bwx-date-kind"
+            value={ kind }
+            options={ [
+              { value: 'company-day', label: 'Company day' },
+              { value: 'birthday', label: 'Birthday' },
+              { value: 'campaign', label: 'Campaign' },
+              { value: 'other', label: 'Other' },
+            ] }
+            onChange={ ( event ) => setKind( event.target.value ) }
+          />
+        ) }
+      </Field>
+      <div className="bwx-pair">
+        <Field label="Day" required>
+          { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-date-on" value={ on } onChange={ ( event ) => setOn( event.target.value ) } /> }
+        </Field>
+        <Field label="Until" help="Leave empty for one day.">
+          { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-date-ends" min={ on } value={ ends } onChange={ ( event ) => setEnds( event.target.value ) } /> }
+        </Field>
       </div>
-      <div className="bwx-diary-add-row">
-        <div className="bwx-field">
-          <label htmlFor="bwx-date-who">Who</label>
-          <select id="bwx-date-who" className="bwx-select" data-testid="bwx-date-who" value={ everyone ? 'all' : 'some' } onChange={ ( event ) => setEveryone( 'all' === event.target.value ) }>
-            <option value="all">All staff</option>
-            <option value="some">Some people</option>
-          </select>
-        </div>
-        <div className="bwx-field">
-          <label htmlFor="bwx-date-note">Note (optional)</label>
-          <input id="bwx-date-note" className="bwx-input" data-testid="bwx-date-note" maxLength={ 191 } value={ note } onChange={ ( event ) => setNote( event.target.value ) } />
-        </div>
-      </div>
+      <Field label="Who">
+        { ( id ) => (
+          <Select
+            id={ id }
+            data-testid="bwx-date-who"
+            value={ everyone ? 'all' : 'some' }
+            options={ [ { value: 'all', label: 'All staff' }, { value: 'some', label: 'Some people' } ] }
+            onChange={ ( event ) => setEveryone( 'all' === event.target.value ) }
+          />
+        ) }
+      </Field>
       { ! everyone && (
-        <fieldset className="bwx-recurring-people" data-testid="bwx-date-people">
+        <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-date-people">
           <legend>Which people</legend>
           { people.map( ( person ) => (
             <label key={ person.id } className="bwx-recurring-person">
@@ -201,12 +260,10 @@ export function AddDate( { onSaved }: { onSaved: () => void } ) {
           ) ) }
         </fieldset>
       ) }
-      <div className="bwx-moves bwx-form-foot">
-        <button type="button" className="bwx-button" data-testid="bwx-date-save" disabled={ busy || '' === title.trim() } onClick={ () => void save() }>
-          Add date
-        </button>
-      </div>
-    </div>
+      <Field label="Note">
+        { ( id ) => <TextInput id={ id } data-testid="bwx-date-note" maxLength={ 191 } value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
+      </Field>
+    </Aside>
   );
 }
 
@@ -217,6 +274,7 @@ export function DiaryList( { entries, onOpen, onChanged }: { entries: DiaryEntry
   const canManage = forgeData()?.canManage ?? false;
   const byDay = diaryByDay( entries );
   const days = Object.keys( byDay ).sort();
+  const [ adding, setAdding ] = useState( false );
 
   async function remove( entry: DiaryEntry ) {
     if ( ! window.confirm( `Remove ${ entry.title }?` ) ) {
@@ -229,31 +287,41 @@ export function DiaryList( { entries, onOpen, onChanged }: { entries: DiaryEntry
 
   return (
     <div className="bwx-diary" data-testid="bwx-diary">
-      { canManage && <AddDate onSaved={ onChanged } /> }
+      { canManage && (
+        <div className="bwx-diary-tools">
+          <Button size="sm" data-testid="bwx-date-add" onClick={ () => setAdding( true ) }>
+            Add a date
+          </Button>
+        </div>
+      ) }
+      { adding && <AddDate onSaved={ onChanged } onClose={ () => setAdding( false ) } /> }
 
       { 0 === days.length && (
-        <p className="bwx-calendar-empty" data-testid="bwx-diary-empty">
-          Nothing on the diary for the next thirty days.
-        </p>
+        <div data-testid="bwx-diary-empty">
+          <EmptyState icon={ CalendarDays } title="Nothing on the diary" body="Nothing for the next thirty days: no chores, dates, meetings, renewals or time off." />
+        </div>
       ) }
 
       { days.map( ( day ) => (
         <section key={ day } className="bwx-diary-day" data-testid="bwx-diary-day" data-date={ day }>
-          <h3 className="bwx-diary-date">
-            { new Date( `${ day }T00:00:00Z` ).toLocaleDateString( 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' } ) }
-          </h3>
-          <ul className="bwx-diary-lines">
-            { byDay[ day ].map( ( entry ) => (
-              <li key={ entry.id } className="bwx-diary-row">
-                <DiaryLine entry={ entry } onOpen={ onOpen } />
-                { canManage && 'date' === entry.kind && (
-                  <button type="button" className="bwx-button" data-variant="quiet" data-testid="bwx-date-remove" onClick={ () => void remove( entry ) }>
-                    Remove
-                  </button>
-                ) }
-              </li>
-            ) ) }
-          </ul>
+          <Panel
+            title={ new Date( `${ day }T00:00:00Z` ).toLocaleDateString( 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' } ) }
+            right={ <span className="fk-mono">{ `${ byDay[ day ].length } ${ 1 === byDay[ day ].length ? 'thing' : 'things' }` }</span> }
+            pad={ 0 }
+          >
+            <ul className="bwx-diary-lines bwx-diary-lines--panel">
+              { byDay[ day ].map( ( entry ) => (
+                <li key={ entry.id } className="bwx-diary-row">
+                  <DiaryLine entry={ entry } onOpen={ onOpen } />
+                  { canManage && 'date' === entry.kind && (
+                    <Button variant="ghost" size="sm" data-testid="bwx-date-remove" onClick={ () => void remove( entry ) }>
+                      Remove
+                    </Button>
+                  ) }
+                </li>
+              ) ) }
+            </ul>
+          </Panel>
         </section>
       ) ) }
     </div>

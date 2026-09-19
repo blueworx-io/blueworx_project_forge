@@ -46,7 +46,7 @@ const RULE_WORD: Record< string, string > = {
   overdue: 'Overdue',
   'due-today': 'Due today',
   blocked: 'Blocked',
-  'gate-unmet': 'Waiting on a requirement',
+  'gate-unmet': 'Pending',
   'awaiting-review': 'Waiting to be reviewed',
   'awaiting-release': 'Ready, waiting to go live',
   returned: 'Sent back',
@@ -54,7 +54,7 @@ const RULE_WORD: Record< string, string > = {
   'onboarding-waiting': 'Checklist step waiting on us',
   'onboarding-overdue': 'Checklist step overdue',
   'over-committed': 'Over their hours',
-  'needs-intervention': 'Needs somebody to step in',
+  'needs-intervention': 'Needs review',
 };
 
 export function ruleWord( rule: string ): string {

@@ -4,7 +4,7 @@ import type { ChecklistRow, Person, RecurringRule, RecurringSource, Stage } from
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
-import { DataView, EmptyState, RichText, Tag } from '../kit';
+import { Aside, DataView, EmptyState, RichText, Tag } from '../kit';
 import type { Column } from '../kit';
 import { everybody, ItemPanel, LineList } from './ItemPanel';
 import { Screen } from './States';
@@ -387,21 +387,22 @@ function SourceForm( {
   }
 
   return (
-    <div className="bwx-panel-scrim" onClick={ ( event ) => event.target === event.currentTarget && onClose() }>
-      <aside
-        className="bwx-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={ source ? 'Edit recurring task' : 'Add recurring task' }
-        data-testid="bwx-recurring-form"
-        onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
-      >
-        <header className="bwx-panel-head">
-          <h2 style={ { flex: 1, margin: 0, fontSize: 'var(--text-subheading)', fontWeight: 500 } }>{ source ? 'Edit recurring task' : 'Add recurring task' }</h2>
-          <button type="button" className="bwx-icon-button" onClick={ onClose } aria-label="Close">
-            ✕
+    <Aside
+      label={ source ? 'Edit recurring task' : 'Add recurring task' }
+      testId="bwx-recurring-form"
+      width={ 560 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <button type="button" className="bwx-button" data-testid="bwx-recurring-save" disabled={ busy || ! complete( draft ) } onClick={ () => void save() }>
+            { source ? 'Save' : 'Add' }
           </button>
-        </header>
+          <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
+            Cancel
+          </button>
+        </div>
+      }
+    >
 
         { '' !== notice && (
           <p className="bwx-notice" data-testid="bwx-recurring-form-notice" role="status">
@@ -522,15 +523,6 @@ function SourceForm( {
           <span className="bwx-hint">Counted against each person&apos;s capacity on the day.</span>
         </div>
 
-        <div className="bwx-moves">
-          <button type="button" className="bwx-button" data-testid="bwx-recurring-save" disabled={ busy || ! complete( draft ) } onClick={ () => void save() }>
-            { source ? 'Save' : 'Add' }
-          </button>
-          <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
-            Cancel
-          </button>
-        </div>
-      </aside>
-    </div>
+    </Aside>
   );
 }

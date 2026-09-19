@@ -73,6 +73,7 @@ async function recordWhatIsAsked(page) {
   const wantsEvidence = page.locator('li[data-met="false"]', { hasText: 'Add a comment with a link' });
 
   if (0 < (await wantsEvidence.count())) {
+    await page.getByTestId('bwx-section-evidence').click();
     await page.getByTestId('bwx-comment').fill('The design.');
     await page.getByTestId('bwx-comment-url').fill('https://example.test/evidence');
     await page.getByTestId('bwx-add-comment').click();

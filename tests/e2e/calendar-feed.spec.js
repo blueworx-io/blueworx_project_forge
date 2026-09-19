@@ -41,6 +41,8 @@ test('dates added from the calendar list are on the month view and in the list',
   const modes = page.locator('[data-testid^="bwx-calendar-mode-"]');
   await expect(modes.last()).toHaveAttribute('data-testid', 'bwx-calendar-mode-list');
   await modes.last().click();
+  // Adding is a side panel now (2026-09-19).
+  await page.getByTestId('bwx-date-add').click();
   await expect(page.getByTestId('bwx-diary-add')).toBeVisible();
 
   await page.getByTestId('bwx-date-title').fill(`Office closed ${RUN_ID}`);
@@ -55,6 +57,7 @@ test('dates added from the calendar list are on the month view and in the list',
   await page.getByTestId(`bwx-date-person-${person.id}`).check();
   await page.getByTestId('bwx-date-save').click();
   await expect(page.getByTestId('bwx-diary-add-notice')).toHaveText('Added.');
+  await page.getByTestId('bwx-diary-add').getByRole('button', { name: 'Close' }).first().click();
 
   const day = page.locator(`[data-testid="bwx-diary-day"][data-date="${today}"]`);
   await expect(day).toContainText(`Office closed ${RUN_ID}`);

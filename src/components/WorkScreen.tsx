@@ -10,7 +10,8 @@ import { CalendarView } from './CalendarView';
 import { GanttView } from './GanttView';
 import { ListView } from './ListView';
 import { NewWork } from './NewWork';
-import { Screen } from './States';
+import { NOTHING_SAID, Notice, Screen } from './States';
+import type { Said, SaidTone } from './States';
 
 /**
  * A filter set as query parameters.
@@ -79,8 +80,12 @@ export function WorkScreen( {
   const [ items, setItems ] = useState< WorkItem[] >( [] );
   const [ openId, setOpenId ] = useState( openItem ?? '' );
   const [ adding, setAdding ] = useState( false );
-  const [ notice, setNotice ] = useState( '' );
+  const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
+
+  /** A refusal reads as a warning, a failure as a failure, a confirmation as green. */
+  const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
+  const notice = said.text;
 
   /*
    * The filter set and the view are separate pieces of state on purpose (#123).
@@ -157,6 +162,8 @@ export function WorkScreen( {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadShell();
     }
+    // Once, on mount: the shell is re-read by the header's refresh, not here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [] );
 
   async function loadItems( id: string, applied: WorkFilters = filters ) {
@@ -208,7 +215,7 @@ export function WorkScreen( {
       } );
 
       setSavedViews( [ ...savedViews, saved.view ] );
-      setNotice( `Saved “${ saved.view.name }”.` );
+      setNotice( `Saved “${ saved.view.name }”.`, 'ok' );
     } catch ( error ) {
       setNotice( messageFor( error, 'That view could not be saved.' ) );
     }
@@ -256,7 +263,7 @@ export function WorkScreen( {
       // gate into an obstacle.
       if ( error instanceof GateError ) {
         setUnmet( error.unmet );
-        setNotice( `${ item.title } is not ready for that yet.` );
+        setNotice( `${ item.title } is not ready for that yet.`, 'warn' );
         return;
       }
 
@@ -386,21 +393,28 @@ export function WorkScreen( {
         />
       ) }
 
-      { '' !== notice && (
-        <p className="bwx-notice" data-testid="bwx-notice" role="status" style={ { margin: '12px 20px 0' } }>
-          { notice }
-        </p>
-      ) }
-
-      { 0 < unmet.length && (
-        <ul className="bwx-unmet" data-testid="bwx-board-unmet" style={ { margin: '8px 20px 0' } }>
-          { unmet.map( ( requirement ) => (
-            <li key={ requirement.id } data-requirement={ requirement.id }>
-              <span className="bwx-unmet-label">{ requirement.label }</span>
-              <span className="bwx-unmet-how">{ requirement.satisfied_by }</span>
-            </li>
-          ) ) }
-        </ul>
+      { '' !== notice && 'loading' !== shell && 'denied' !== shell && 'error' !== shell && (
+        <div style={ { margin: '12px 20px 0' } }>
+          <Notice
+            said={ said }
+            testId="bwx-notice"
+            onClose={ () => {
+              setSaid( NOTHING_SAID );
+              setUnmet( [] );
+            } }
+          >
+            { 0 < unmet.length && (
+              <ul className="bwx-unmet" data-testid="bwx-board-unmet">
+                { unmet.map( ( requirement ) => (
+                  <li key={ requirement.id } data-requirement={ requirement.id }>
+                    <span className="bwx-unmet-label">{ requirement.label }</span>
+                    <span className="bwx-unmet-how">{ requirement.satisfied_by }</span>
+                  </li>
+                ) ) }
+              </ul>
+            ) }
+          </Notice>
+        </div>
       ) }
 
       { 'loading' === shell && <Screen state="loading" detail="Reading the stages and your sites." /> }

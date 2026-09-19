@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type {
   ChecklistRow,
   Comment,
@@ -17,7 +18,8 @@ import { phaseOf } from '../phases';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
 import { RichText } from '../kit';
-import { Inline, Screen } from './States';
+import { Inline, NOTHING_SAID, Notice, Screen } from './States';
+import type { Said, SaidTone } from './States';
 
 interface Detail {
   item: WorkItem;
@@ -319,8 +321,12 @@ export function ItemPanel( {
   const [ detail, setDetail ] = useState< Detail | null >( null );
   const [ loadState, setLoadState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
   const [ draft, setDraft ] = useState< Record< string, string > >( {} );
-  const [ notice, setNotice ] = useState( '' );
+  const [ banner, setSaid ] = useState< Said >( NOTHING_SAID );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
+
+  /** Red unless said otherwise: a confirmation is green, a refusal yellow. */
+  const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
+  const notice = banner.text;
   const [ checks, setChecks ] = useState< GateCheck[] >( [] );
   const [ busy, setBusy ] = useState( false );
   const [ showing, setShowing ] = useState( '' );
@@ -346,6 +352,14 @@ export function ItemPanel( {
 
   /** Whether the dependencies card is open; on when there are any. */
   const [ waiting, setWaiting ] = useState( false );
+
+  /*
+   * Every section folds (2026-09-19). Comments, the comment form and the
+   * history start folded: they are for reading back, not for doing the work.
+   */
+  const [ folded, setFolded ] = useState< Record< string, boolean > >( { comments: true, evidence: true } );
+  const fold = ( id: string ) => setFolded( { ...folded, [ id ]: ! ( folded[ id ] ?? false ) } );
+  const isFolded = ( id: string ) => folded[ id ] ?? false;
   const [ dropping, setDropping ] = useState( false );
 
   /*
@@ -497,7 +511,7 @@ export function ItemPanel( {
       onChanged();
       setShowing( '' );
       setOverrun( { to: '', reason: '' } );
-      setNotice( done );
+      setNotice( done, 'ok' );
     } catch ( error ) {
       if ( error instanceof GateError ) {
         setUnmet( error.unmet );
@@ -506,7 +520,7 @@ export function ItemPanel( {
         // Which crossing was refused, so a reason given now is given about the
         // move that was actually attempted.
         setOverrun( { to: error.attempted, reason: '' } );
-        setNotice( error.message );
+        setNotice( error.message, 'warn' );
       } else {
         setNotice( messageFor( error, 'That did not work.' ) );
       }
@@ -585,7 +599,7 @@ export function ItemPanel( {
       await saveAnswers();
       await load();
       onChanged();
-      setNotice( 'Saved.' );
+      setNotice( 'Saved.', 'ok' );
     } catch ( error ) {
       setNotice( refusal( error ) );
     } finally {
@@ -853,6 +867,20 @@ export function ItemPanel( {
     return '' !== by && blank( field ) && reached( by ) ? label( by ) : '';
   };
 
+  /** A section's head: its name, and the fold. */
+  const head = ( id: string, title: ReactNode ) => (
+    <button
+      type="button"
+      className="bwx-eyebrow bwx-section-head"
+      aria-expanded={ ! isFolded( id ) }
+      data-testid={ `bwx-section-${ id }` }
+      onClick={ () => fold( id ) }
+    >
+      <span className="bwx-section-caret" aria-hidden="true" />
+      { title }
+    </button>
+  );
+
   /** A field's label, plus the stage it is holding up. */
   const naming = ( field: string, name: string ) => (
     <label htmlFor={ `bwx-${ field }` }>
@@ -970,14 +998,15 @@ export function ItemPanel( {
         ) }
 
         { '' !== notice && 'ready' === loadState && (
-          <p
-            className="bwx-notice"
-            data-tone={ 'Saved.' === notice ? 'ok' : undefined }
-            data-testid="bwx-panel-notice"
-            role="status"
-          >
-            { notice }
-          </p>
+          <Notice
+            said={ banner }
+            testId="bwx-panel-notice"
+            onClose={ () => {
+              setSaid( NOTHING_SAID );
+              setUnmet( [] );
+              setChecks( [] );
+            } }
+          />
         ) }
 
         { 0 < unmet.length && (
@@ -1162,8 +1191,8 @@ export function ItemPanel( {
                 button appears only when it applies.
              */ }
             { ( ! ended || detail.can_archive ) && (
-              <div className="bwx-actions" data-testid="bwx-actions">
-                <p className="bwx-eyebrow">Actions</p>
+              <div className="bwx-actions" data-testid="bwx-actions" data-collapsed={ isFolded( 'actions' ) ? 'true' : 'false' }>
+                { head( 'actions', 'Actions' ) }
                 <div className="bwx-action-row">
                 <div className="bwx-moves bwx-toggles bwx-action-left">
                   { ! ended && ! blocked && 0 < detail.returns.length && (
@@ -1476,8 +1505,8 @@ export function ItemPanel( {
               </div>
             ) }
 
-            <div className="bwx-task" data-testid="bwx-task">
-            <p className="bwx-eyebrow">Task</p>
+            <div className="bwx-task" data-testid="bwx-task" data-collapsed={ isFolded( 'task' ) ? 'true' : 'false' }>
+            { head( 'task', 'Task' ) }
             { EDITABLE.map( ( { field, label: name, lines } ) => (
               <div className="bwx-field" key={ field }>
                 <label htmlFor={ `bwx-${ field }` }>{ name }</label>
@@ -1697,11 +1726,14 @@ export function ItemPanel( {
                 own so the reviewer finds it without reading the task.
              */ }
             { staff && ! chore && ( reached( 'in-development' ) || '' !== ( draft.test_description ?? '' ) ) && (
-              <div className="bwx-testing" data-testid="bwx-testing">
-                <p className="bwx-eyebrow">
-                  Review and testing
-                  { 'in-review' === item.stage && <span className="bwx-mono"> · for the reviewer</span> }
-                </p>
+              <div className="bwx-testing" data-testid="bwx-testing" data-collapsed={ isFolded( 'testing' ) ? 'true' : 'false' }>
+                { head(
+                  'testing',
+                  <>
+                    Review and testing
+                    { 'in-review' === item.stage && <span className="bwx-mono"> · for the reviewer</span> }
+                  </>
+                ) }
                 <div className="bwx-field">
                   { naming( 'test_description', 'How to test it' ) }
                   <RichText
@@ -1799,8 +1831,8 @@ export function ItemPanel( {
             ) }
 
             { staff && ! ended && (
-              <div className="bwx-assign" data-testid="bwx-assign">
-                <p className="bwx-eyebrow">Who and when</p>
+              <div className="bwx-assign" data-testid="bwx-assign" data-collapsed={ isFolded( 'assign' ) ? 'true' : 'false' }>
+                { head( 'assign', 'Who and when' ) }
 
                 <div className="bwx-pair">
                   <div className="bwx-field">
@@ -1910,11 +1942,15 @@ export function ItemPanel( {
               </div>
             ) }
 
-            <div>
-              <p className="bwx-eyebrow">
-                Comments and evidence
-                { staff && <span className="bwx-mono"> · you see internal notes</span> }
-              </p>
+            <div className="bwx-comments-card" data-testid="bwx-comments-card" data-collapsed={ isFolded( 'comments' ) ? 'true' : 'false' }>
+              { head(
+                'comments',
+                <>
+                  Comments
+                  <span className="bwx-mono"> · { detail.comments.length }</span>
+                  { staff && <span className="bwx-mono"> · you see internal notes</span> }
+                </>
+              ) }
 
               { 0 === detail.comments.length ? (
                 <Inline state="empty" testId="bwx-comments-empty">
@@ -1940,6 +1976,10 @@ export function ItemPanel( {
                   ) ) }
                 </ul>
               ) }
+            </div>
+
+            <div className="bwx-evidence-card" data-testid="bwx-comment-form" data-collapsed={ isFolded( 'evidence' ) ? 'true' : 'false' }>
+              { head( 'evidence', 'Comments and evidence' ) }
 
               <div className="bwx-field">
                 <label htmlFor="bwx-comment">Add a comment</label>

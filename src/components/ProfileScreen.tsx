@@ -144,9 +144,11 @@ export function ProfileScreen() {
           <Stat label="Email" value={ me.account.email || '—' } />
           <Stat label="Signs in as" value={ me.account.login } />
         </div>
-        <p className="bwx-hint">Your name, email and password are your WordPress account&apos;s. Edit your details opens it.</p>
       </Panel>
 
+      <AvailabilityScreen person={ me.person.id } fixed />
+
+      { /* Slack last (2026-09-19): the day's settings before the messages about it. */ }
       <Panel
         title="Slack"
         right={
@@ -199,8 +201,6 @@ export function ProfileScreen() {
           </Button>
         </div>
       </Panel>
-
-      <AvailabilityScreen person={ me.person.id } fixed />
     </div>
   );
 }

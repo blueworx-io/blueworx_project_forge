@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ConversionRequest, IntakeState, Person, Submission, WorkItem } from '../types';
 import { api, messageFor } from '../api';
+import { Aside } from '../kit';
 import { everybody } from './ItemPanel';
 
 /**
@@ -38,11 +39,6 @@ export function RequestPanel( {
   const [ response, setResponse ] = useState( submission.response );
   const [ saving, setSaving ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
-  const closer = useRef< HTMLButtonElement >( null );
-
-  useEffect( () => {
-    closer.current?.focus();
-  }, [] );
 
   const changed = state !== submission.intake_state || response !== submission.response;
 
@@ -70,41 +66,19 @@ export function RequestPanel( {
   }
 
   return (
-    <div
-      className="bwx-panel-scrim"
-      onClick={ ( event ) => {
-        if ( event.target === event.currentTarget ) {
-          onClose();
-        }
-      } }
+    <Aside
+      label={
+        <>
+          <span className="bwx-eyebrow" data-testid="bwx-request-client">
+            { submission.client_name } · { submission.intake_label }
+          </span>
+          <span className="bwx-panel-title-text">{ submission.title }</span>
+        </>
+      }
+      testId="bwx-request-panel"
+      width={ 560 }
+      onClose={ onClose }
     >
-      <aside
-        className="bwx-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Request"
-        data-testid="bwx-request-panel"
-        onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
-      >
-        <header className="bwx-panel-head">
-          <div style={ { flex: 1 } }>
-            <p className="bwx-eyebrow" data-testid="bwx-request-client">
-              { submission.client_name } · { submission.intake_label }
-            </p>
-            <h2 style={ { margin: '4px 0 0', fontSize: 'var(--text-subheading)', fontWeight: 500 } }>
-              { submission.title }
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="bwx-icon-button"
-            ref={ closer }
-            onClick={ onClose }
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </header>
 
         <section className="bwx-said" data-testid="bwx-request-said">
           <p className="bwx-eyebrow">What they asked for</p>
@@ -199,8 +173,7 @@ export function RequestPanel( {
             onClose();
           } }
         />
-      </aside>
-    </div>
+    </Aside>
   );
 }
 

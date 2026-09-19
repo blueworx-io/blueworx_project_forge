@@ -174,21 +174,34 @@ export function MyTasksScreen() {
       sortBy: ( r ) => r.item.title,
       render: ( r ) => (
         <span className="bwx-mytasks-title">
-          <button type="button" className="bwx-row-open" data-testid="bwx-mytasks-open" onClick={ () => setOpened( r.item.id ) }>
-            { r.item.title }
-          </button>
-          { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
+          <span className="bwx-mytasks-title-row">
+            <button type="button" className="bwx-row-open" data-testid="bwx-mytasks-open" onClick={ () => setOpened( r.item.id ) }>
+              { r.item.title }
+            </button>
+            { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
+          </span>
+          { /* Your tick, beneath the title (2026-09-19), with the checklist's state beside it. */ }
           { 'assignee' === r.role && (
-            <label className="bwx-mytasks-tick">
-              <input
-                type="checkbox"
-                data-testid="bwx-mytasks-tick"
-                aria-label={ `Done: ${ r.item.title }` }
-                checked={ undefined !== ( r.item.ticks ?? {} )[ me?.id ?? '' ] }
-                onChange={ ( event ) => void tick( r.item, event.target.checked ) }
-              />
-              <span className="bwx-mono">{ `${ Object.keys( r.item.ticks ?? {} ).length } of ${ r.item.assignees.length }` }</span>
-            </label>
+            <span className="bwx-mytasks-under">
+              <label className="bwx-mytasks-tick">
+                <input
+                  type="checkbox"
+                  data-testid="bwx-mytasks-tick"
+                  aria-label={ `Done: ${ r.item.title }` }
+                  checked={ undefined !== ( r.item.ticks ?? {} )[ me?.id ?? '' ] }
+                  onChange={ ( event ) => void tick( r.item, event.target.checked ) }
+                />
+                <span>Done</span>
+                <span className="bwx-mono bwx-mytasks-count">{ `${ Object.keys( r.item.ticks ?? {} ).length } of ${ r.item.assignees.length }` }</span>
+              </label>
+              { 0 < ( r.item.checklist?.length ?? 0 ) && (
+                <span className="bwx-mytasks-checklist" data-testid="bwx-mytasks-checklist">
+                  <Tag tone={ r.item.checklist.every( ( row ) => row.done ) ? 'ok' : 'neutral' }>
+                    { `Checklist ${ r.item.checklist.filter( ( row ) => row.done ).length }/${ r.item.checklist.length }` }
+                  </Tag>
+                </span>
+              ) }
+            </span>
           ) }
         </span>
       ),
@@ -204,8 +217,9 @@ export function MyTasksScreen() {
       align: 'right',
       width: 90,
       sortBy: ( r ) => r.due ?? 9999,
+      // Red more than a day late, yellow a day late, plain today, green ahead (2026-09-19).
       render: ( r ) => (
-        <span data-late={ null !== r.due && r.due < 0 ? 'true' : undefined } data-soon={ null !== r.due && r.due >= 0 && r.due <= 1 ? 'true' : undefined }>
+        <span className="bwx-mytasks-due" data-due={ null === r.due ? 'none' : r.due < -1 ? 'late' : r.due < 0 ? 'yesterday' : 0 === r.due ? 'today' : 'ahead' }>
           { dueText( r ) }
         </span>
       ),

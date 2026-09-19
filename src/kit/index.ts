@@ -25,7 +25,7 @@ export type { ButtonVariant, ButtonSize, Tone, RolePerson, TileHue, Tab } from '
 
 export { Field, TextInput, TextArea, Select, ReasonAction, Evidence } from './forms';
 
-export { Modal, ToastProvider, useToast } from './overlays';
+export { Aside, Modal, ToastProvider, useToast } from './overlays';
 export type { ToastTone } from './overlays';
 
 export { Meter } from './Meter';

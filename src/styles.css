@@ -448,9 +448,14 @@ body {
   white-space: nowrap;
 }
 .bwx-card-priority {
-  margin-left: auto;
-  font-weight: var( --weight-medium );
-  color: var( --ink-700 );
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  text-transform: capitalize;
+}
+.bwx-card:has( > .bwx-card-priority ) .bwx-card-client,
+.bwx-card:has( > .bwx-card-priority ) .bwx-card-row {
+  padding-right: 64px;
 }
 .bwx-card-parent {
   font-size: var( --text-micro );
@@ -549,6 +554,16 @@ body {
   align-items: flex-start;
   gap: 12px;
 }
+/* The close sits in the top right corner of every panel (2026-09-19). */
+.bwx-panel-head > .bwx-panel-title {
+  flex: 1;
+  min-width: 0;
+}
+.bwx-panel-head > .bwx-panel-close,
+.bwx-panel-head > .bwx-icon-button:last-child {
+  margin-left: auto;
+  flex-shrink: 0;
+}
 
 .bwx-field {
   display: flex;
@@ -643,12 +658,46 @@ body {
 }
 
 .bwx-notice {
+  position: relative;
   border: 1px solid var( --phase-exception-border );
   background: var( --phase-exception-bg );
   color: var( --color-coral );
   border-radius: 8px;
   padding: 8px 10px;
   font-size: var( --text-small );
+}
+/* A banner with a way to close it keeps the corner clear for the button. */
+.bwx-notice:has( > .bwx-notice-close ) {
+  padding-right: 36px;
+}
+.bwx-notice-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+/* Drawn rather than typed, so the banner's text stays exactly what it says. */
+.bwx-notice-close::before {
+  content: '✕';
+}
+.bwx-notice-close:hover {
+  opacity: 1;
+  background: rgba( 0, 0, 0, 0.06 );
+}
+.bwx-notice-body {
+  margin-top: 8px;
+}
+.bwx-notice-body .bwx-unmet {
+  margin: 0;
 }
 
 .bwx-notice[ data-tone='quiet' ] {
@@ -1143,8 +1192,12 @@ body {
 .bwx-calendar-goto {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-left: auto;
+}
+.bwx-calendar-goto > .bwx-eyebrow {
+  white-space: nowrap;
+  margin: 0;
 }
 
 .bwx-calendar-weekdays,
@@ -2181,42 +2234,56 @@ td[ data-band='over' ] {
   color: var( --color-fog );
 }
 
+/* The report tables are the kit's (2026-09-19), framed like every other list. */
+.bwx-report-frame {
+  border: 1px solid var( --border-hairline );
+  border-radius: 10px;
+  overflow: hidden;
+  background: var( --surface-card );
+}
 .bwx-report-table {
   inline-size: 100%;
-  border-collapse: collapse;
-  background: var( --color-snow );
-  border: 1px solid var( --color-chalk );
-  border-radius: 8px;
 }
-
-.bwx-report-table th,
-.bwx-report-table td {
-  text-align: start;
-  padding: 6px 12px;
-  border-block-end: 1px solid var( --color-chalk );
-}
-
-.bwx-report-table tr:last-child th,
-.bwx-report-table tr:last-child td {
-  border-block-end: 0;
-}
-
-/* Row headings are a stage name, not a shout. */
 .bwx-report-table tbody th {
-  font-weight: var( --font-weight );
-  color: var( --color-steel );
+  text-align: start;
+  font-weight: var( --weight-regular, 400 );
+  font-size: var( --text-small );
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  color: var( --ink-700 );
+  border-bottom: 1px solid var( --border-subtle, var( --border-hairline ) );
+}
+.bwx-report-table tbody tr:last-child th,
+.bwx-report-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.bwx-report-table thead th:first-child,
+.bwx-report-table tbody th {
+  padding-left: 16px;
 }
 
 /* The bar carries the shape and the figure beside it carries the fact, so a
-   row still reads correctly with no colour at all. */
+   row still reads correctly with no colour at all. The figure is always to
+   the right of the bar, whatever the bar's length. */
+.bwx-report-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+}
 .bwx-report-bar {
   display: inline-block;
+  flex: 0 1 auto;
   block-size: 8px;
   min-inline-size: 2px;
-  margin-inline-end: 8px;
-  vertical-align: middle;
+  max-inline-size: calc( 100% - 40px );
   background: var( --color-ring-blue );
   border-radius: 4px;
+}
+.bwx-report-bar-count {
+  flex: 0 0 auto;
+  min-inline-size: 24px;
 }
 
 /* ---- The task record on the kit (#306) ---- */
@@ -2232,6 +2299,13 @@ td[ data-band='over' ] {
 .bwx-panel-head {
   padding-bottom: 14px;
   border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-panel-title-text {
+  display: block;
+}
+.bwx-panel-title > .bwx-eyebrow {
+  display: block;
+  margin-bottom: 4px;
 }
 .bwx-panel-title {
   margin: 0;
@@ -2288,6 +2362,11 @@ td[ data-band='over' ] {
 }
 .bwx-panel-foot > :last-child {
   margin-left: auto;
+}
+/* A footer holding one row of buttons keeps them together on the right. */
+.bwx-panel-foot > .bwx-moves:only-child {
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 /* A section that opens with an eyebrow is a card: the eyebrow is its head. */
@@ -2418,22 +2497,43 @@ td[ data-band='over' ] {
   color: var( --ink-500 );
 }
 
-/* History folds; each line ends in who did it. */
-.bwx-history-wrap > summary {
+/* Every section folds (2026-09-19): the head is a button, the caret says which way. */
+.bwx-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
   cursor: pointer;
-  list-style: none;
+  font: inherit;
 }
-.bwx-history-wrap > summary::-webkit-details-marker {
-  display: none;
-}
+.bwx-section-caret::before,
 .bwx-history-wrap > summary::before {
-  content: '▸';
+  content: '▾';
   display: inline-block;
   width: 14px;
   color: var( --ink-500 );
+  font-size: 12px;
 }
-.bwx-history-wrap[ open ] > summary::before {
-  content: '▾';
+[ data-collapsed='true' ] > .bwx-section-head > .bwx-section-caret::before,
+.bwx-history-wrap:not( [ open ] ) > summary::before {
+  content: '▸';
+}
+.bwx-panel-body > [ data-collapsed='true' ] > :not( .bwx-section-head ) {
+  display: none;
+}
+.bwx-history-wrap > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bwx-history-wrap > summary::-webkit-details-marker {
+  display: none;
 }
 .bwx-history-wrap:not( [open] ) > summary {
   margin-bottom: 0;
@@ -2686,7 +2786,9 @@ td[ data-band='over' ] {
   grid-area: actions;
   margin: 0;
   padding: 0;
-  align-self: center;
+  align-self: start;
+  align-items: center;
+  gap: 12px;
 }
 @media ( max-width: 800px ) {
   .bwx-standup-card {
@@ -3084,29 +3186,71 @@ td[ data-band='over' ] {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
+/* A diary line (2026-09-19): a coloured picture, the title with its kind
+   beside it, and what else there is to say beneath. */
 .bwx-diary-line {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
   font-size: var( --text-small );
 }
+.bwx-diary-lines > .bwx-diary-line + .bwx-diary-line,
+.bwx-diary-row + .bwx-diary-row {
+  border-top: 1px solid var( --border-subtle, var( --border-hairline ) );
+}
+.bwx-diary-icon {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var( --entry-wash, var( --surface-sunken ) );
+  color: var( --entry-ink, var( --ink-700 ) );
+  border: 1px solid var( --entry-edge, transparent );
+}
+.bwx-diary-line[ data-tone='teal' ] { --entry-ink: var( --phase-pipeline-ink ); --entry-wash: var( --phase-pipeline-bg ); --entry-edge: var( --phase-pipeline-border ); }
+.bwx-diary-line[ data-tone='violet' ] { --entry-ink: var( --phase-idea-ink ); --entry-wash: var( --phase-idea-bg ); --entry-edge: var( --phase-idea-border ); }
+.bwx-diary-line[ data-tone='rose' ] { --entry-ink: var( --phase-exception-ink ); --entry-wash: var( --phase-exception-bg ); --entry-edge: var( --phase-exception-border ); }
+.bwx-diary-line[ data-tone='emerald' ] { --entry-ink: var( --phase-done-ink ); --entry-wash: var( --phase-done-bg ); --entry-edge: var( --phase-done-border ); }
+.bwx-diary-line[ data-tone='amber' ] { --entry-ink: var( --phase-gate-ink ); --entry-wash: var( --phase-gate-bg ); --entry-edge: var( --phase-gate-border ); }
+.bwx-diary-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bwx-diary-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bwx-diary-title {
+  font-weight: var( --weight-medium );
+  color: var( --ink-900 );
+}
+.bwx-diary-time {
+  margin-right: 8px;
+  color: var( --ink-700 );
+}
 .bwx-diary-kind {
-  flex: 0 0 64px;
   font-size: var( --text-micro );
   font-weight: var( --weight-medium );
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var( --ink-700 );
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var( --entry-wash, var( --surface-sunken ) );
+  color: var( --entry-ink, var( --ink-700 ) );
 }
-.bwx-diary-kind[ data-tone='teal' ] { color: var( --phase-pipeline-ink ); }
-.bwx-diary-kind[ data-tone='violet' ] { color: var( --phase-idea-ink ); }
-.bwx-diary-kind[ data-tone='rose' ] { color: var( --phase-exception-ink ); }
-.bwx-diary-kind[ data-tone='emerald' ] { color: var( --phase-done-ink ); }
-.bwx-diary-kind[ data-tone='amber' ] { color: var( --phase-gate-ink ); }
 .bwx-diary-detail {
-  color: var( --color-steel );
+  color: var( --ink-500 );
+  font-size: var( --text-micro );
 }
 .bwx-diary-row {
   display: flex;
@@ -3124,34 +3268,39 @@ td[ data-band='over' ] {
   gap: 16px;
   padding: 16px 0;
 }
-.bwx-diary-day {
-  border: 1px solid var( --border-hairline );
-  border-radius: 10px;
-  padding: 12px 16px;
-  background: var( --surface-raised, #fff );
+/* Row actions stay on one line; the table scrolls sideways sooner than they wrap. */
+.bwx-row-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
-.bwx-diary-date {
-  margin: 0 0 8px;
-  font-size: var( --text-small );
-  font-weight: var( --weight-medium );
+.bwx-diary-tools {
+  display: flex;
+  justify-content: flex-end;
 }
-.bwx-diary-add {
-  border: 1px solid var( --border-hairline );
-  border-radius: 10px;
-  padding: 12px 16px;
-  background: var( --surface-raised, #fff );
+.bwx-diary-lines--panel > .bwx-diary-row {
+  padding: 4px 16px;
 }
-.bwx-diary-add-row {
-  display: grid;
-  grid-template-columns: repeat( auto-fit, minmax( 180px, 1fr ) );
-  gap: 12px;
+.bwx-diary-lines--panel > .bwx-diary-row + .bwx-diary-row {
+  border-top: 1px solid var( --border-subtle, var( --border-hairline ) );
 }
 .bwx-standup-diary {
   margin: 20px 20px 0;
-  padding: 12px 16px;
+  padding: 12px 16px 4px;
   border: 1px solid var( --border-hairline );
   border-radius: 10px;
   background: var( --surface-raised, #fff );
+}
+.bwx-standup-diary > .bwx-eyebrow {
+  margin-bottom: 4px;
+}
+/* Two columns where there is room: a full day's diary is a long list. */
+.bwx-standup-diary .bwx-diary-lines {
+  display: grid;
+  grid-template-columns: repeat( auto-fill, minmax( 380px, 1fr ) );
+  column-gap: 32px;
+}
+.bwx-standup-diary .bwx-diary-lines > .bwx-diary-line {
+  border-top: 1px solid var( --border-subtle, var( --border-hairline ) );
 }
 .bwx-calendar-diary[ data-tone='teal' ] { --entry-ink: var( --phase-pipeline-ink ); --entry-wash: var( --phase-pipeline-bg ); --entry-edge: var( --phase-pipeline-border ); }
 .bwx-calendar-diary[ data-tone='violet' ] { --entry-ink: var( --phase-idea-ink ); --entry-wash: var( --phase-idea-bg ); --entry-edge: var( --phase-idea-border ); }
@@ -3227,15 +3376,40 @@ td[ data-band='over' ] {
   font-size: var( --text-small );
   cursor: pointer;
 }
-.bwx-mytasks-tick {
-  margin-left: 8px;
+.bwx-mytasks-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
+.bwx-mytasks-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bwx-mytasks-under {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bwx-mytasks-tick {
+  color: var( --ink-700 );
+}
+.bwx-mytasks-count {
+  color: var( --ink-500 );
+}
+.bwx-mytasks-due[ data-due='late' ] { color: var( --color-coral ); font-weight: var( --weight-medium ); }
+.bwx-mytasks-due[ data-due='yesterday' ] { color: var( --color-warning ); font-weight: var( --weight-medium ); }
+.bwx-mytasks-due[ data-due='today' ] { color: var( --ink-900 ); font-weight: var( --weight-medium ); }
+.bwx-mytasks-due[ data-due='ahead' ] { color: var( --color-success ); }
 
 /* The profile page: a person's facts in a row, and the Slack preferences. */
 .bwx-profile {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px;
 }
 .bwx-profile-facts {
   display: grid;
@@ -3429,4 +3603,102 @@ td[ data-band='over' ] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The side pane's spacing, brought into line (2026-09-19). */
+.bwx-panel-body .bwx-field > label {
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  color: var( --ink-700 );
+}
+.bwx-panel-body .bwx-field > label:has( > input[ type='checkbox' ] ) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var( --weight-regular, 400 );
+  color: var( --ink-900 );
+  font-size: var( --text-ui );
+}
+.bwx-panel-body .bwx-field > label > input[ type='checkbox' ] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var( --brand-600 );
+}
+.bwx-panel-body .bwx-field > .bwx-hint {
+  color: var( --ink-500 );
+}
+.bwx-panel-body .bwx-select {
+  max-width: none;
+  width: 100%;
+}
+.bwx-panel-body .bwx-section-head + * {
+  margin-top: 12px;
+}
+.bwx-panel-body .bwx-eyebrow + .bwx-field,
+.bwx-panel-body .bwx-eyebrow + .bwx-pair,
+.bwx-panel-body .bwx-eyebrow + .bwx-empty,
+.bwx-panel-body .bwx-eyebrow + .bwx-comments,
+.bwx-panel-body .bwx-eyebrow + .bwx-moves,
+.bwx-panel-body .bwx-eyebrow + .bwx-action-row {
+  margin-top: 12px;
+}
+.bwx-panel-body .bwx-comments + .bwx-field,
+.bwx-panel-body .bwx-empty + .bwx-field,
+.bwx-panel-body .bwx-checklist + .bwx-field,
+.bwx-panel-body .bwx-field + .bwx-checklist,
+.bwx-panel-body .bwx-checklist + .bwx-checklist,
+.bwx-panel-body .bwx-checklist + .bwx-links,
+.bwx-panel-body .bwx-seat + .bwx-field,
+.bwx-panel-body .bwx-pair + .bwx-pair {
+  margin-top: 12px;
+}
+.bwx-panel-body .bwx-checklist-head {
+  margin-bottom: 2px;
+}
+.bwx-panel-body .bwx-checklist-row + .bwx-checklist-row,
+.bwx-panel-body .bwx-link-row + .bwx-link-row {
+  margin-top: 2px;
+}
+.bwx-panel-body .bwx-comments {
+  margin: 0;
+}
+
+/* Every dropdown draws its own arrow, with room to its right (2026-09-19). */
+.bwx-app select,
+.bwx-panel select,
+.bwx-panel-scrim select,
+select.fk-input,
+select.bwx-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  background-image: url( "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23566274' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>" );
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 12px;
+}
+/* Fields side by side stay level: the stacking gap is for stacked fields only. */
+.bwx-panel-body .bwx-pair > .bwx-field + .bwx-field,
+.bwx-panel-body .bwx-seat > .bwx-field + .bwx-field {
+  margin-top: 0;
+}
+/* The dependencies card opens with a switch rather than an eyebrow, and is a card all the same. */
+.bwx-panel-body > .bwx-waiting {
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.bwx-panel-body > .bwx-waiting > .bwx-switch-row > .bwx-eyebrow {
+  margin: 0;
+}
+/* A move that is not ready yet is outlined; the ready one is filled. */
+.bwx-move[ data-ready='false' ] {
+  background: var( --surface-card );
+  color: var( --ink-700 );
+  box-shadow: var( --shadow-xs );
+}
+.bwx-move[ data-ready='false' ]:hover:not( :disabled ) {
+  background: var( --surface-sunken );
 }

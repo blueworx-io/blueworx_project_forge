@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { OnboardingSite, OnboardingStep } from '../types';
 import { api, messageFor } from '../api';
+import { Aside } from '../kit';
 import { sideWord, statusWord } from '../onboarding';
 
 /**
@@ -49,34 +50,24 @@ export function OnboardingPanel( {
   const [ failure, setFailure ] = useState( '' );
 
   return (
-    <div
-      className="bwx-panel-scrim"
-      onClick={ ( event ) => {
-        if ( event.target === event.currentTarget ) {
-          onClose();
-        }
-      } }
-    >
-      <aside
-        className="bwx-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Onboarding"
-        data-testid="bwx-onboarding-panel"
-        onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
-      >
-        <div className="bwx-panel-head">
-          <div>
-            <span className="bwx-eyebrow">{ site.site_name }</span>
-            <h2 className="bwx-wordmark">{ site.client_name }</h2>
-          </div>
-
-          <span className="bwx-header-spacer" />
-
+    <Aside
+      label={
+        <>
+          <span className="bwx-eyebrow">{ site.site_name }</span>
+          <span className="bwx-panel-title-text">{ site.client_name }</span>
+        </>
+      }
+      testId="bwx-onboarding-panel"
+      width={ 520 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
           <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
             Close
           </button>
         </div>
+      }
+    >
 
         <p className="bwx-onboarding-position" data-launch={ site.launch_ready ? 'ready' : 'not-ready' }>
           { site.approved } of { site.required } steps approved, { site.completion }% through.
@@ -176,8 +167,7 @@ export function OnboardingPanel( {
             </ul>
           ) }
         </div>
-      </aside>
-    </div>
+    </Aside>
   );
 }
 

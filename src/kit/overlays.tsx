@@ -154,3 +154,59 @@ export function ToastProvider( { children, stamp }: { children: ReactNode; stamp
 export function useToast() {
   return useContext( ToastContext );
 }
+
+/**
+ * A side panel (2026-09-19): a head that stays with the close in its top
+ * right corner, a body that scrolls, and a footer that stays for the panel's
+ * own buttons. Every side panel in the studio is one of these, so they all
+ * behave the same way.
+ */
+export function Aside( {
+  label,
+  testId,
+  onClose,
+  footer,
+  width,
+  children,
+}: {
+  label: ReactNode;
+  testId?: string;
+  onClose: () => void;
+  footer?: ReactNode;
+  width?: number;
+  children: ReactNode;
+} ) {
+  const closer = useRef< HTMLButtonElement >( null );
+
+  // Focus lands in the panel when it opens, so a keyboard user follows it.
+  useEffect( () => {
+    closer.current?.focus();
+  }, [] );
+
+  return (
+    <div className="bwx-panel-scrim" onClick={ ( event ) => event.target === event.currentTarget && onClose() }>
+      <aside
+        className="bwx-panel bwx-panel--framed"
+        role="dialog"
+        aria-modal="true"
+        aria-label={ 'string' === typeof label ? label : undefined }
+        data-testid={ testId }
+        style={ width ? { width: `min(${ width }px, 100%)` } : undefined }
+        onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
+      >
+        <header className="bwx-panel-head">
+          <h2 className="bwx-panel-title">{ label }</h2>
+          <button type="button" className="bwx-icon-button bwx-panel-close" ref={ closer } onClick={ onClose } aria-label="Close">
+            <X size={ 16 } strokeWidth={ 2 } aria-hidden="true" />
+          </button>
+        </header>
+        <div className="bwx-panel-body">{ children }</div>
+        { footer && (
+          <footer className="bwx-panel-foot" data-testid={ testId ? `${ testId }-foot` : undefined }>
+            { footer }
+          </footer>
+        ) }
+      </aside>
+    </div>
+  );
+}

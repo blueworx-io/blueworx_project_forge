@@ -263,7 +263,7 @@ export function ReportsScreen() {
               Where work is sitting
             </h2>
 
-            <table className="bwx-report-table" data-testid="bwx-report-stage-distribution">
+            <div className="fk-dataview bwx-report-frame" data-bare="true"><div className="fk-dataview-scroll"><table className="fk-table bwx-report-table" data-dense="true" data-testid="bwx-report-stage-distribution">
               <caption className="bwx-visually-hidden">
                 How much open work is in each stage right now
               </caption>
@@ -278,16 +278,18 @@ export function ReportsScreen() {
                   <tr key={ stage } data-bwx-stage={ stage }>
                     <th scope="row">{ STAGE_WORD[ stage ] ?? stage }</th>
                     <td>
-                      <span
-                        className="bwx-report-bar"
-                        style={ { inlineSize: `${ Math.round( ( count / busiest ) * 100 ) }%` } }
-                      />
-                      <span className="bwx-mono">{ count }</span>
+                      <span className="bwx-report-bar-cell">
+                        <span
+                          className="bwx-report-bar"
+                          style={ { inlineSize: `${ Math.round( ( count / busiest ) * 100 ) }%` } }
+                        />
+                        <span className="fk-mono bwx-report-bar-count">{ count }</span>
+                      </span>
                     </td>
                   </tr>
                 ) ) }
               </tbody>
-            </table>
+            </table></div></div>
           </section>
 
           <section className="bwx-report" aria-labelledby="bwx-report-time-in-stage">
@@ -295,7 +297,7 @@ export function ReportsScreen() {
               How long each stage takes
             </h2>
 
-            <table className="bwx-report-table" data-testid="bwx-report-time-in-stage">
+            <div className="fk-dataview bwx-report-frame" data-bare="true"><div className="fk-dataview-scroll"><table className="fk-table bwx-report-table" data-dense="true" data-testid="bwx-report-time-in-stage">
               <caption className="bwx-visually-hidden">
                 Median time work spent in each stage before moving on
               </caption>
@@ -317,7 +319,7 @@ export function ReportsScreen() {
                   </tr>
                 ) ) }
               </tbody>
-            </table>
+            </table></div></div>
           </section>
 
           <section className="bwx-report" aria-labelledby="bwx-report-promises">
@@ -349,7 +351,7 @@ export function ReportsScreen() {
               What shipped
             </h2>
 
-            <table className="bwx-report-table" data-testid="bwx-report-throughput">
+            <div className="fk-dataview bwx-report-frame" data-bare="true"><div className="fk-dataview-scroll"><table className="fk-table bwx-report-table" data-dense="true" data-testid="bwx-report-throughput">
               <caption className="bwx-visually-hidden">Work released each week</caption>
               <thead>
                 <tr>
@@ -365,7 +367,7 @@ export function ReportsScreen() {
                   </tr>
                 ) ) }
               </tbody>
-            </table>
+            </table></div></div>
           </section>
 
           <section className="bwx-report" aria-labelledby="bwx-report-capacity">
@@ -411,7 +413,7 @@ export function ReportsScreen() {
               Where clients&rsquo; hours went
             </h2>
 
-            <table className="bwx-report-table" data-testid="bwx-report-hours">
+            <div className="fk-dataview bwx-report-frame" data-bare="true"><div className="fk-dataview-scroll"><table className="fk-table bwx-report-table" data-dense="true" data-testid="bwx-report-hours">
               <caption className="bwx-visually-hidden">Support hours granted, spent and held</caption>
               <tbody>
                 <tr>
@@ -435,7 +437,7 @@ export function ReportsScreen() {
                   <td className="bwx-mono">{ hours( reports.hours.adjusted ) }</td>
                 </tr>
               </tbody>
-            </table>
+            </table></div></div>
           </section>
 
           <section className="bwx-report" aria-labelledby="bwx-report-onboarding">
@@ -468,7 +470,7 @@ export function ReportsScreen() {
               What clients asked for
             </h2>
 
-            <table className="bwx-report-table" data-testid="bwx-report-funnel">
+            <div className="fk-dataview bwx-report-frame" data-bare="true"><div className="fk-dataview-scroll"><table className="fk-table bwx-report-table" data-dense="true" data-testid="bwx-report-funnel">
               <caption className="bwx-visually-hidden">Requests by what became of them</caption>
               <thead>
                 <tr>
@@ -484,7 +486,7 @@ export function ReportsScreen() {
                   </tr>
                 ) ) }
               </tbody>
-            </table>
+            </table></div></div>
           </section>
 
           <section className="bwx-report" aria-labelledby="bwx-report-email">

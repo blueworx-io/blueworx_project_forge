@@ -9,6 +9,7 @@ import type {
 } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
+import { Aside } from '../kit';
 import { Screen } from './States';
 
 /**
@@ -385,36 +386,26 @@ function Drilldown( { drilldown, onClose }: { drilldown: CapacityDrilldown; onCl
   );
 
   return (
-    <div
-      className="bwx-panel-scrim"
-      onClick={ ( event ) => {
-        if ( event.target === event.currentTarget ) {
-          onClose();
-        }
-      } }
-    >
-      <aside
-        className="bwx-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Capacity"
-        data-testid="bwx-capacity-drilldown"
-        onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
-      >
-        <div className="bwx-panel-head">
-          <div>
-            <span className="bwx-eyebrow">
-              { drilldown.from } to { drilldown.to }
-            </span>
-            <h2 className="bwx-wordmark">{ drilldown.display_name }</h2>
-          </div>
-
-          <span className="bwx-header-spacer" />
-
+    <Aside
+      label={
+        <>
+          <span className="bwx-eyebrow">
+            { drilldown.from } to { drilldown.to }
+          </span>
+          <span className="bwx-panel-title-text">{ drilldown.display_name }</span>
+        </>
+      }
+      testId="bwx-capacity-drilldown"
+      width={ 520 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
           <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
             Close
           </button>
         </div>
+      }
+    >
 
         <p className="bwx-capacity-summary" data-band={ drilldown.position.band }>
           { 'unrecorded' === drilldown.position.band
@@ -452,7 +443,6 @@ function Drilldown( { drilldown, onClose }: { drilldown: CapacityDrilldown; onCl
             </ul>
           </div>
         ) }
-      </aside>
-    </div>
+    </Aside>
   );
 }
