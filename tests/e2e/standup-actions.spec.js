@@ -19,24 +19,21 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-const UP_TO_NEXT = [
+const UP_TO_DESIGN = [
   'triage',
   'documentation-period',
   'technical-audit',
   'design-process',
-  'up-next',
 ];
 
 /**
- * A piece of work parked at Up Next, which is where the day's list can say
- * something useful about it.
+ * A piece of work parked at Design Process, which is where the day's list
+ * can say something useful about it.
  *
- * Up Next is chosen rather than any earlier stage for two reasons that are the
- * same reason. It is work somebody has committed to, so an outstanding
- * requirement there is a real answer to "why has this not moved" — which is
- * exactly the test the rule itself applies (#251). And the gate it is sitting
- * behind is satisfied by recording completions rather than by filling in
- * fields, so there is something on the card for a person to actually do.
+ * Since 2026-09-19 work is on the list from the day it is captured, so any
+ * stage would do; this one is chosen because the gate it is sitting behind
+ * is satisfied by picks rather than by filling in fields, so there is
+ * something on the card for a person to actually do.
  */
 async function withSomethingOutstanding(browser, baseURL) {
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -49,7 +46,7 @@ async function withSomethingOutstanding(browser, baseURL) {
 
   expect(made.status(), await made.text()).toBe(200);
 
-  const item = await Forge.walkTo(admin.api, (await made.json()).item, UP_TO_NEXT, {
+  const item = await Forge.walkTo(admin.api, (await made.json()).item, UP_TO_DESIGN, {
     seats: crew.seats,
   });
 

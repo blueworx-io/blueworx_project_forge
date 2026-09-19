@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ConversionRequest, IntakeState, Submission, WorkItem } from '../types';
+import type { ConversionRequest, IntakeState, Person, Submission, WorkItem } from '../types';
 import { api, messageFor } from '../api';
+import { everybody } from './ItemPanel';
 
 /**
  * One request, the studio's answer to it, and the work it becomes (#131, #132).
@@ -231,6 +232,9 @@ function Conversion( {
   const [ items, setItems ] = useState< WorkItem[] >( [] );
   const [ how, setHow ] = useState< 'new' | 'link' >( 'new' );
   const [ entry, setEntry ] = useState( 'future-idea' );
+  const [ people, setPeople ] = useState< Person[] >( [] );
+  const [ doer, setDoer ] = useState( '' );
+  const [ reviewer, setReviewer ] = useState( '' );
   const [ title, setTitle ] = useState( submission.title );
   const [ workType, setWorkType ] = useState( 'task' );
   const [ parent, setParent ] = useState( '' );
@@ -241,6 +245,14 @@ function Conversion( {
   const [ notice, setNotice ] = useState( '' );
 
   const done = '' !== submission.converted_item_id;
+
+  // The people, once Triage is chosen and the seats need names in them.
+  useEffect( () => {
+    if ( 'triage' === entry && 0 === people.length ) {
+      void everybody().then( setPeople );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ entry ] );
 
   useEffect( () => {
     if ( done ) {
@@ -287,9 +299,12 @@ function Conversion( {
           ...( 'new' === parent
             ? { parent_title: parentTitle, parent_level: parentLevel }
             : { parent_id: parent } ),
+          ...( 'triage' === entry ? { primary_user_id: doer, reviewer_id: reviewer } : {} ),
         };
 
-  const ready = 'link' === how ? '' !== linkTo : '' !== title.trim() && ( 'new' !== parent || '' !== parentTitle.trim() );
+  // Triage wants the two people named (2026-09-19), and not the same one.
+  const seated = 'triage' !== entry || 'link' === how || ( '' !== doer && '' !== reviewer && doer !== reviewer );
+  const ready = seated && ( 'link' === how ? '' !== linkTo : '' !== title.trim() && ( 'new' !== parent || '' !== parentTitle.trim() ) );
 
   async function convert() {
     setWorking( true );
@@ -455,6 +470,33 @@ function Conversion( {
               from, and that it has been put forward — against the person doing it.
             </p>
           </div>
+
+          { 'triage' === entry && 'link' !== how && (
+            <div className="bwx-pair">
+              { [
+                { field: 'doer', name: 'Doing the work', value: doer, set: setDoer },
+                { field: 'reviewer', name: 'Reviewing it', value: reviewer, set: setReviewer },
+              ].map( ( seat ) => (
+                <div className="bwx-field" key={ seat.field }>
+                  <label htmlFor={ `bwx-convert-${ seat.field }` }>{ seat.name }</label>
+                  <select
+                    id={ `bwx-convert-${ seat.field }` }
+                    className="bwx-select"
+                    data-testid={ `bwx-convert-${ seat.field }` }
+                    value={ seat.value }
+                    onChange={ ( event ) => seat.set( event.target.value ) }
+                  >
+                    <option value="">Choose</option>
+                    { people.map( ( person ) => (
+                      <option key={ person.id } value={ person.id }>
+                        { person.display_name }
+                      </option>
+                    ) ) }
+                  </select>
+                </div>
+              ) ) }
+            </div>
+          ) }
         </>
       ) }
 

@@ -183,8 +183,7 @@ final class SupportHoursGateTest extends TestCase {
 			),
 			array(
 				'G-UP-NEXT-4' => array( 'actor' => 3 ),
-				'G-UP-NEXT-7' => array( 'actor' => 3 ),
-			),
+				),
 			array(
 				'capacity'      => array(
 					'over'   => $over,
@@ -262,8 +261,7 @@ final class SupportHoursGateTest extends TestCase {
 			),
 			array(
 				'G-UP-NEXT-4' => array( 'actor' => 3 ),
-				'G-UP-NEXT-7' => array( 'actor' => 3 ),
-			),
+				),
 			array(
 				'capacity'      => array(
 					'over'   => array( array( 'user_id' => 'usr_a' ) ),

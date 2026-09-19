@@ -36,6 +36,13 @@ final class Fields {
 		'requirements',
 		'acceptance_criteria',
 		'references',
+		// Since 2026-09-19: the design link, how to test and its steps, and
+		// the reference links. Images are their own column, written by the
+		// upload route rather than by an edit.
+		'design_url',
+		'test_description',
+		'test_steps',
+		'links',
 	);
 
 	/**
@@ -97,9 +104,15 @@ final class Fields {
 		'planned_due',
 		'review_target',
 		'release_target',
-		'remaining_estimate',
 		'priority',
 	);
+
+	/**
+	 * The dates, in the order they have to keep (2026-09-19): work starts,
+	 * is due, is reviewed by, is released by. Any may be empty; the set ones
+	 * may not run backwards.
+	 */
+	public const DATE_ORDER = array( 'planned_start', 'planned_due', 'review_target', 'release_target' );
 
 	/**
 	 * The commercial group. Set at Triage; COMM-5 decides free-bug from whether
@@ -130,16 +143,16 @@ final class Fields {
 		'title'               => 'future-idea',
 		'problem'             => 'future-idea',
 		'commercial_class'    => 'triage',
-		'primary_user_id'     => 'up-next',
-		'reviewer_id'         => 'up-next',
+		'primary_user_id'     => 'triage',
+		'reviewer_id'         => 'triage',
 		'deliverer_id'        => 'up-next',
 		'non_goals'           => 'documentation-period',
 		'acceptance_criteria' => 'documentation-period',
-		'references'          => 'documentation-period',
+		'design_url'          => 'design-process',
 		'planned_start'       => 'up-next',
 		'planned_due'         => 'up-next',
 		'priority'            => 'up-next',
-		'remaining_estimate'  => 'in-development',
+		'test_description'    => 'in-development',
 		'release_method'      => 'completed',
 		'release_destination' => 'completed',
 	);
@@ -148,7 +161,17 @@ final class Fields {
 	 * The two long fields that carry formatting: what an item is, and when it
 	 * is done. Stored as HTML, and only this HTML.
 	 */
-	public const RICH = array( 'problem', 'acceptance_criteria' );
+	public const RICH = array( 'problem', 'acceptance_criteria', 'test_description' );
+
+	/**
+	 * The fields that hold a list of ticked lines, stored as JSON.
+	 */
+	public const LISTS = array( 'checklist', 'test_steps' );
+
+	/**
+	 * The most links an item carries.
+	 */
+	public const LINK_ROWS = 10;
 
 	/**
 	 * The formatting a rich field may hold, in the shape wp_kses() takes.

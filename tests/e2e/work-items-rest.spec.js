@@ -79,8 +79,10 @@ function answerFor(field) {
       return 'chargeable';
     case 'release_method':
       return 'software';
-    case 'remaining_estimate':
-      return 2;
+    case 'design_url':
+      return 'https://example.test/design';
+    case 'test_description':
+      return '<p>Open it and look.</p>';
     default:
       return 'Written down.';
   }
@@ -97,6 +99,12 @@ async function satisfy(request, nonce, item, to) {
   for (const requirement of unmet) {
     if ('field' === requirement.by) {
       for (const field of requirement.fields) {
+        // A seat holds a person (2026-09-19: two of them before triage).
+        if (['primary_user_id', 'reviewer_id', 'deliverer_id'].includes(field)) {
+          patch[field] = (await Forge.seatsFor(Forge.forge(request, nonce), item))[field];
+          continue;
+        }
+
         patch[field] = answerFor(field);
       }
       continue;

@@ -3274,3 +3274,162 @@ td[ data-band='over' ] {
   padding: 0;
   overflow: visible;
 }
+
+/* The actions card (2026-09-19): other directions left, forward right. */
+.bwx-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bwx-action-row .bwx-action-left {
+  justify-content: flex-start;
+}
+.bwx-action-row .bwx-action-right {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.bwx-move[ data-ready='true' ] {
+  background: var( --brand-600 );
+  color: var( --color-snow );
+  border-color: var( --brand-600 );
+}
+.bwx-move[ data-ready='true' ]:hover:not( :disabled ) {
+  background: var( --brand-700, var( --brand-600 ) );
+}
+
+/* Links: a label, an address, and a way to drop the row. */
+.bwx-link-row {
+  display: grid;
+  grid-template-columns: minmax( 0, 2fr ) minmax( 0, 3fr ) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Images: a strip of thumbnails, and somewhere to drop the next. */
+.bwx-image-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bwx-image-list li {
+  position: relative;
+}
+.bwx-image-list img {
+  display: block;
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var( --border-hairline );
+}
+.bwx-image-list li .bwx-icon-button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  min-width: 0;
+  background: var( --surface-card );
+  border-radius: 999px;
+  box-shadow: var( --shadow-xs );
+  font-size: 11px;
+}
+.bwx-drop {
+  display: block;
+  padding: 16px;
+  border: 1px dashed var( --border-strong, var( --border-hairline ) );
+  border-radius: 10px;
+  text-align: center;
+  color: var( --ink-500 );
+  font-size: var( --text-small );
+  cursor: pointer;
+}
+.bwx-drop[ data-over='true' ] {
+  background: var( --brand-050, var( --surface-sunken ) );
+  border-color: var( --brand-600 );
+}
+.bwx-drop input {
+  display: none;
+}
+
+/* A switch on a card's head, with what it means beside it. */
+.bwx-switch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.bwx-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+/* The box covers the whole switch, unseen, so it is what gets clicked. */
+.bwx-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.bwx-switch-track {
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var( --ink-300, #c9ced6 );
+  position: relative;
+  transition: background 120ms ease;
+}
+.bwx-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var( --color-snow );
+  transition: transform 120ms ease;
+}
+.bwx-switch input:checked + .bwx-switch-track {
+  background: var( --brand-600 );
+}
+.bwx-switch input:checked + .bwx-switch-track::after {
+  transform: translateX( 14px );
+}
+.bwx-switch input:focus-visible + .bwx-switch-track {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+.bwx-waiting-body {
+  margin-top: 12px;
+}
+.bwx-waiting-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.bwx-waiting-list li {
+  display: grid;
+  grid-template-columns: auto minmax( 0, 1fr ) auto;
+  gap: 10px;
+  align-items: center;
+}
+.bwx-waiting-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
