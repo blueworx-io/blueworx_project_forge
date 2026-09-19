@@ -102,6 +102,7 @@ test('a bug reaches Documentation from four boxes, two picks, a link and who pay
 
   // Evidence is a comment with a link, worked out rather than ticked.
   await expect(gate.locator('li[data-requirement="G-BUG-TRACKING-5"]')).toHaveAttribute('data-met', 'false');
+  await page.getByTestId('bwx-section-evidence').click();
   await page.getByTestId('bwx-comment').fill('The broken page.');
   await page.getByTestId('bwx-comment-url').fill('https://example.test/broken');
   await page.getByTestId('bwx-add-comment').click();

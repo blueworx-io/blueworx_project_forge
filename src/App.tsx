@@ -361,6 +361,7 @@ export function App() {
           >
             New task
           </Button>
+          <span className="fs-topbar-divider" aria-hidden="true" />
           <Profile onOpen={ () => setScreen( 'profile' ) } />
         </div>
 

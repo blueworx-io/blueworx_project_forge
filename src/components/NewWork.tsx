@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../api';
 import { siteLabel, type SiteOption } from '../sites';
-import { RichText } from '../kit';
+import { Aside, RichText } from '../kit';
 
 const LEVELS = [
   { id: 'project', label: 'Project' },
@@ -72,26 +72,28 @@ export function NewWork( {
   }
 
   return (
-    <div
-      className="bwx-panel-scrim"
-      onClick={ ( event ) => event.target === event.currentTarget && onClose() }
-    >
-      <aside
-        className="bwx-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add work"
-        data-testid="bwx-new-work"
-        onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }
-      >
-        <header className="bwx-panel-head">
-          <h2 style={ { flex: 1, margin: 0, fontSize: 'var(--text-subheading)', fontWeight: 500 } }>
-            Add work
-          </h2>
-          <button type="button" className="bwx-icon-button" onClick={ onClose } aria-label="Close">
-            ✕
+    <Aside
+      label="Add work"
+      testId="bwx-new-work"
+      width={ 520 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <button
+            type="button"
+            className="bwx-button"
+            data-testid="bwx-create"
+            disabled={ busy || '' === title.trim() }
+            onClick={ () => void create() }
+          >
+            Add to Future Ideas
           </button>
-        </header>
+          <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
+            Cancel
+          </button>
+        </div>
+      }
+    >
 
         { '' !== notice && (
           <p className="bwx-notice" data-testid="bwx-new-notice" role="status">
@@ -166,21 +168,6 @@ export function NewWork( {
           </select>
         </div>
 
-        <div className="bwx-moves">
-          <button
-            type="button"
-            className="bwx-button"
-            data-testid="bwx-create"
-            disabled={ busy || '' === title.trim() }
-            onClick={ () => void create() }
-          >
-            Add to Future Ideas
-          </button>
-          <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
-            Cancel
-          </button>
-        </div>
-      </aside>
-    </div>
+    </Aside>
   );
 }

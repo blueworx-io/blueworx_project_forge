@@ -283,10 +283,11 @@
 
 /* ---- Page header ---- */
 
+/* Titles are 26px on every screen (2026-09-19), and the header sized to them. */
 .fk-page-header {
   background: var( --surface-card );
   border-bottom: 1px solid var( --border-hairline );
-  padding: 20px 24px 22px;
+  padding: 14px 24px 16px;
 }
 .fk-page-header[data-tabs='true'] { padding-bottom: 0; }
 .fk-crumbs {
@@ -296,7 +297,7 @@
   flex-wrap: wrap;
   font-size: var( --text-small );
   color: var( --ink-500 );
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .fk-crumbs > :last-child { color: var( --ink-700 ); }
 .fk-crumbs svg { opacity: 0.5; }
@@ -309,13 +310,13 @@
 .fk-page-header-text { flex: 1; min-width: 280px; }
 .fk-page-title {
   margin: 0;
-  font-size: var( --text-heading );
-  line-height: 1.2;
-  letter-spacing: -0.026em;
+  font-size: var( --text-heading-sm );
+  line-height: var( --leading-heading-sm );
+  letter-spacing: var( --tracking-heading-sm );
   font-weight: var( --weight-medium );
   color: var( --ink-900 );
 }
-.fk-eyebrow + .fk-page-title { margin-top: 6px; }
+.fk-eyebrow + .fk-page-title { margin-top: 4px; }
 .fk-page-description {
   margin: 10px 0 0;
   font-size: var( --text-ui );
@@ -328,6 +329,9 @@
   gap: var( --space-8 );
   flex-wrap: wrap;
   align-items: center;
+  /* Top right of the header, whatever height the title side takes. */
+  align-self: flex-start;
+  margin-left: auto;
 }
 .fk-page-meta {
   display: flex;
@@ -596,7 +600,7 @@
   border-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
-.fk-table[data-fixed='true'] { table-layout: fixed; }
+.fk-table[data-fixed='true'] { table-layout: fixed; width: 100%; }
 .fk-table th {
   text-align: left;
   padding: 10px 16px;
@@ -949,7 +953,7 @@ textarea.fk-input { resize: vertical; }
 }
 .fk-tile[data-size='sm'] { width: 28px; height: 28px; border-radius: var( --radius-sm ); }
 .fk-tile[data-size='md'] { width: 36px; height: 36px; border-radius: var( --radius-lg ); }
-.fk-tile[data-size='lg'] { width: 48px; height: 48px; border-radius: var( --radius-lg ); }
+.fk-tile[data-size='lg'] { width: 44px; height: 44px; border-radius: var( --radius-lg ); }
 .fk-tile[data-hue='blue'] { --tile-fg: var( --tile-blue-fg ); --tile-bg: var( --tile-blue-bg ); --tile-border: var( --tile-blue-border ); }
 .fk-tile[data-hue='violet'] { --tile-fg: var( --tile-violet-fg ); --tile-bg: var( --tile-violet-bg ); --tile-border: var( --tile-violet-border ); }
 .fk-tile[data-hue='emerald'] { --tile-fg: var( --tile-emerald-fg ); --tile-bg: var( --tile-emerald-bg ); --tile-border: var( --tile-emerald-border ); }

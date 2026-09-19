@@ -168,6 +168,21 @@
 }
 
 /* Who is signed in, top right: the same pill as Lately and New task, in its own colour. */
+/* The three pills in the top bar are one height (2026-09-19). */
+.fs-topbar .bwx-button {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  font-size: var( --text-small );
+}
+/* A short rule before the profile pill. */
+.fs-topbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var( --border-hairline );
+}
 .fs-profile {
   display: inline-flex;
   align-items: center;

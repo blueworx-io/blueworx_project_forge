@@ -5,7 +5,8 @@ import { useLiveReload } from '../live';
 import { SECTIONS, cardDetail, cardTitle, keyOf, ruleTone, ruleWord } from '../standup';
 import { DiaryLine } from './Diary';
 import { GateList, ItemPanel } from './ItemPanel';
-import { Screen } from './States';
+import { NOTHING_SAID, Notice, Screen } from './States';
+import type { Said, SaidTone } from './States';
 
 /**
  * The working surface for the day (#170).
@@ -52,7 +53,9 @@ type Complete = (
 export function StandupScreen() {
   const [ list, setList ] = useState< StandupList | undefined >();
   const [ hidden, setHidden ] = useState< string[] >( [] );
-  const [ notice, setNotice ] = useState( '' );
+  const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
+  const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
+  const notice = said.text;
   const [ state, setState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ opened, setOpened ] = useState( '' );
@@ -120,7 +123,7 @@ export function StandupScreen() {
       // Reloaded rather than crossed off here. Whether that was the last thing
       // holding the work up is the server's answer, not this screen's.
       await load();
-      setNotice( 'Recorded.' );
+      setNotice( 'Recorded.', 'ok' );
     } catch ( failure ) {
       setNotice( messageFor( failure, 'That could not be recorded.' ) );
     } finally {
@@ -176,15 +179,9 @@ export function StandupScreen() {
       </header>
 
       { '' !== notice && 'error' !== state && 'denied' !== state && (
-        <p
-          className="bwx-notice"
-          role="status"
-          data-tone={ 'Recorded.' === notice ? 'ok' : undefined }
-          data-testid="bwx-standup-notice"
-          style={ { margin: '12px 20px 0' } }
-        >
-          { notice }
-        </p>
+        <div style={ { margin: '12px 20px 0' } }>
+          <Notice said={ said } testId="bwx-standup-notice" onClose={ () => setSaid( NOTHING_SAID ) } />
+        </div>
       ) }
 
       { 'loading' === state && <Screen state="loading" detail="Working out what needs attention." /> }
@@ -455,18 +452,6 @@ function Card( {
         <span className="bwx-chip" data-rule={ card.rule }>
           { ruleWord( card.rule ) }
         </span>
-
-        <span className="bwx-header-spacer" />
-
-        <button
-          type="button"
-          className="bwx-standup-dismiss"
-          data-testid="bwx-standup-dismiss"
-          aria-label={ `Hide ${ cardTitle( card ) } until this page is reloaded` }
-          onClick={ onDismiss }
-        >
-          Hide
-        </button>
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
@@ -491,8 +476,18 @@ function Card( {
         />
       ) }
 
-      { isWork && (
-        <div className="bwx-standup-card-actions">
+      { /* Hide beside Open, both in the card's top right corner (2026-09-19). */ }
+      <div className="bwx-standup-card-actions">
+        <button
+          type="button"
+          className="bwx-standup-dismiss"
+          data-testid="bwx-standup-dismiss"
+          aria-label={ `Hide ${ cardTitle( card ) } until this page is reloaded` }
+          onClick={ onDismiss }
+        >
+          Hide
+        </button>
+        { isWork && (
           <button
             type="button"
             className="bwx-button"
@@ -503,8 +498,8 @@ function Card( {
           >
             Open
           </button>
-        </div>
-      ) }
+        ) }
+      </div>
     </li>
   );
 }

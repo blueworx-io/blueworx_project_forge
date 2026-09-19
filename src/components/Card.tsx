@@ -38,6 +38,14 @@ function due( item: WorkItem ): { text: string; late: boolean } {
  * usable from the keyboard. Dragging is the quick way to move a card, never the
  * only way — the panel carries the same moves as buttons.
  */
+/** Urgent reads red, high amber, normal blue, low grey. */
+const PRIORITY_TONE: Record< string, 'danger' | 'warn' | 'info' | 'neutral' > = {
+  urgent: 'danger',
+  high: 'warn',
+  normal: 'info',
+  low: 'neutral',
+};
+
 export function Card( {
   item,
   parent,
@@ -87,6 +95,12 @@ export function Card( {
       } as React.CSSProperties }
     >
       <span className="bwx-card-rail" aria-hidden="true" />
+      { /* The priority, as a coloured tag in the top right corner (2026-09-19). */ }
+      { '' !== item.priority && (
+        <span className="bwx-card-priority" data-testid="bwx-card-priority" data-priority={ item.priority }>
+          <Tag tone={ PRIORITY_TONE[ item.priority ] ?? 'neutral' }>{ item.priority }</Tag>
+        </span>
+      ) }
       { item.client_name && (
         <span className="bwx-card-client" data-testid="bwx-card-client">
           { item.client_name }
@@ -94,7 +108,6 @@ export function Card( {
       ) }
       <span className="bwx-card-row">
         <span className="bwx-card-level">{ item.level_label }</span>
-        { '' !== item.priority && <span className="bwx-card-priority">{ item.priority }</span> }
       </span>
 
       <p className="bwx-card-title">{ item.title }</p>

@@ -311,9 +311,9 @@ export function ClientsScreen() {
     {
       key: 'actions',
       label: '',
-      width: 330,
+      width: 300,
       render: ( s ) => (
-        <span className="bwx-moves">
+        <span className="bwx-moves bwx-row-actions">
           <Button size="sm" variant="ghost" data-testid="bwx-clients-site-edit" aria-label={ `Edit ${ s.name }` } disabled={ busy } onClick={ () => setOpened( { kind: 'edit-site', site: s.id } ) }>
             Edit
           </Button>
@@ -330,7 +330,7 @@ export function ClientsScreen() {
                 disabled={ busy || true === s.onboarding?.started }
                 onClick={ () => startOnboarding( s ) }
               >
-                Start onboarding
+                Onboard
               </Button>
               <Button size="sm" variant="ghost" data-testid="bwx-clients-site-deactivate" aria-label={ `Deactivate ${ s.name }` } disabled={ busy } onClick={ () => deactivateSite( s ) }>
                 Deactivate

@@ -113,7 +113,7 @@ export function Signals() {
         }
         onClick={ () => ( open ? setOpen( false ) : void show() ) }
       >
-        Lately
+        Updates
         { 0 < unread && (
           <span className="bwx-signals-count" data-testid="bwx-signals-count">
             { unread }

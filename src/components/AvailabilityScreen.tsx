@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import type { AvailabilityAnswer, AvailabilityPattern, LeaveRecord, Person } from '../types';
 import { api, ApiError, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { Button, DataView, EmptyState, Field, Panel, Select, Stat, TextInput } from '../kit';
+import { Aside, Button, DataView, EmptyState, Field, Panel, Select, Stat, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { everybody } from './ItemPanel';
 import { failed, NOTHING_SAID, Notice, Screen } from './States';
@@ -125,31 +124,31 @@ export function AvailabilityScreen( { person, fixed = false }: { person: string;
   }
 
   const historyColumns: Column< AvailabilityPattern >[] = [
-    { key: 'from', label: 'From', mono: true, width: 120, sortBy: ( p ) => p.effective_from, render: ( p ) => p.effective_from },
-    { key: 'to', label: 'Until', mono: true, width: 120, sortBy: ( p ) => p.effective_to, render: ( p ) => p.effective_to || '—' },
+    { key: 'from', label: 'From', mono: true, width: '14%', sortBy: ( p ) => p.effective_from, render: ( p ) => p.effective_from },
+    { key: 'to', label: 'Until', mono: true, width: '14%', sortBy: ( p ) => p.effective_to, render: ( p ) => p.effective_to || '—' },
     ...DAYS.map( ( [ key, label ] ): Column< AvailabilityPattern > => ( {
       key,
       label,
       mono: true,
       align: 'right',
-      width: 56,
+      width: '6%',
       render: ( p ) => hours( p[ key ] ),
     } ) ),
-    { key: 'week', label: 'Week', mono: true, align: 'right', width: 72, sortBy: ( p ) => p.hours_week, render: ( p ) => `${ hours( p.hours_week ) }h` },
+    { key: 'week', label: 'Week', mono: true, align: 'right', width: '8%', sortBy: ( p ) => p.hours_week, render: ( p ) => `${ hours( p.hours_week ) }h` },
     { key: 'note', label: 'Note', wrap: true, render: ( p ) => p.note || '—' },
   ];
 
   const dayColumns: Column< AvailabilityAnswer[ 'week' ][ 'days' ][ number ] >[] = [
-    { key: 'date', label: 'Date', mono: true, width: 120, render: ( d ) => d.date },
-    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, render: ( d ) => `${ hours( d.hours ) }h` },
-    { key: 'base_hours', label: 'Base', mono: true, align: 'right', width: 80, render: ( d ) => `${ hours( d.base_hours ) }h` },
+    { key: 'date', label: 'Date', mono: true, width: '25%', render: ( d ) => d.date },
+    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: '20%', render: ( d ) => `${ hours( d.hours ) }h` },
+    { key: 'base_hours', label: 'Base', mono: true, align: 'right', width: '20%', render: ( d ) => `${ hours( d.base_hours ) }h` },
     { key: 'reason', label: 'Why', wrap: true, render: ( d ) => d.reason || '—' },
   ];
 
   const leaveColumns: Column< LeaveRecord >[] = [
-    { key: 'starts', label: 'From', mono: true, width: 120, sortBy: ( l ) => l.starts_on, render: ( l ) => l.starts_on },
-    { key: 'ends', label: 'To', mono: true, width: 120, sortBy: ( l ) => l.ends_on, render: ( l ) => l.ends_on },
-    { key: 'kind', label: 'Kind', width: 140, render: ( l ) => kindLabel( l.kind ) },
+    { key: 'starts', label: 'From', mono: true, width: '20%', sortBy: ( l ) => l.starts_on, render: ( l ) => l.starts_on },
+    { key: 'ends', label: 'To', mono: true, width: '20%', sortBy: ( l ) => l.ends_on, render: ( l ) => l.ends_on },
+    { key: 'kind', label: 'Kind', width: '20%', render: ( l ) => kindLabel( l.kind ) },
     { key: 'note', label: 'Note', wrap: true, render: ( l ) => l.note || '—' },
     {
       key: 'actions',
@@ -209,7 +208,7 @@ export function AvailabilityScreen( { person, fixed = false }: { person: string;
               </div>
             ) : (
               <p className="bwx-notice bwx-availability-unrecorded" data-tone="warn" data-testid="bwx-availability-recorded" data-recorded="no" role="status">
-                Nobody has said what this person&apos;s hours are, so nothing can be planned against them yet. That is different from having no time.
+                Nobody has said what this person&apos;s hours are, so nothing can be planned against them yet.
               </p>
             ) }
           </Panel>
@@ -298,21 +297,6 @@ function refusal( error: unknown, fallback: string ): string {
 }
 
 /** The side panel both forms sit in, shaped as the recurring form is. */
-function Aside( { label, testId, onClose, children }: { label: string; testId: string; onClose: () => void; children: ReactNode } ) {
-  return (
-    <div className="bwx-panel-scrim" onClick={ ( event ) => event.target === event.currentTarget && onClose() }>
-      <aside className="bwx-panel" role="dialog" aria-modal="true" aria-label={ label } data-testid={ testId } onKeyDown={ ( event ) => 'Escape' === event.key && onClose() }>
-        <header className="bwx-panel-head">
-          <h2 className="bwx-panel-title">{ label }</h2>
-          <button type="button" className="bwx-icon-button" data-testid="bwx-availability-panel-close" onClick={ onClose } aria-label="Close">
-            ✕
-          </button>
-        </header>
-        { children }
-      </aside>
-    </div>
-  );
-}
 
 function today(): string {
   return new Date().toISOString().slice( 0, 10 );
@@ -359,7 +343,22 @@ function HoursForm( {
   }
 
   return (
-    <Aside label="Set working hours" testId="bwx-availability-hours-form" onClose={ onClose }>
+    <Aside
+      label="Set working hours"
+      testId="bwx-availability-hours-form"
+      width={ 520 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-availability-hours-save" disabled={ busy } onClick={ () => void save() }>
+            Save
+          </Button>
+          <Button variant="ghost" data-testid="bwx-availability-hours-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
       { '' !== notice && (
         <p className="bwx-notice" data-testid="bwx-availability-hours-notice" role="status">
           { notice }
@@ -397,14 +396,6 @@ function HoursForm( {
         { ( id ) => <TextInput id={ id } maxLength={ 191 } data-testid="bwx-availability-hours-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
       </Field>
 
-      <div className="bwx-moves">
-        <Button data-testid="bwx-availability-hours-save" disabled={ busy } onClick={ () => void save() }>
-          Save
-        </Button>
-        <Button variant="ghost" data-testid="bwx-availability-hours-cancel" onClick={ onClose }>
-          Cancel
-        </Button>
-      </div>
     </Aside>
   );
 }
@@ -437,7 +428,22 @@ function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose:
   }
 
   return (
-    <Aside label="Add time off" testId="bwx-availability-leave-form" onClose={ onClose }>
+    <Aside
+      label="Add time off"
+      testId="bwx-availability-leave-form"
+      width={ 520 }
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-availability-leave-save" disabled={ busy } onClick={ () => void save() }>
+            Add
+          </Button>
+          <Button variant="ghost" data-testid="bwx-availability-leave-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
       { '' !== notice && (
         <p className="bwx-notice" data-testid="bwx-availability-leave-notice" role="status">
           { notice }
@@ -457,14 +463,6 @@ function LeaveForm( { personId, onClose, onSaved }: { personId: string; onClose:
         { ( id ) => <TextInput id={ id } maxLength={ 191 } data-testid="bwx-availability-leave-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
       </Field>
 
-      <div className="bwx-moves">
-        <Button data-testid="bwx-availability-leave-save" disabled={ busy } onClick={ () => void save() }>
-          Add
-        </Button>
-        <Button variant="ghost" data-testid="bwx-availability-leave-cancel" onClick={ onClose }>
-          Cancel
-        </Button>
-      </div>
     </Aside>
   );
 }
