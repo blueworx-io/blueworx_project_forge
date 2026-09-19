@@ -210,9 +210,6 @@ function Conversion( {
   const [ reviewer, setReviewer ] = useState( '' );
   const [ title, setTitle ] = useState( submission.title );
   const [ workType, setWorkType ] = useState( 'task' );
-  const [ parent, setParent ] = useState( '' );
-  const [ parentTitle, setParentTitle ] = useState( '' );
-  const [ parentLevel, setParentLevel ] = useState( 'feature' );
   const [ linkTo, setLinkTo ] = useState( '' );
   const [ working, setWorking ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
@@ -242,8 +239,8 @@ function Conversion( {
       } catch {
         /*
          * A candidate list that failed to load is not a reason to refuse the
-         * conversion. Making work under no parent is ordinary, and the two
-         * fields that need this list say so themselves when it is empty.
+         * conversion. Making new work is ordinary, and the field that needs
+         * this list says so itself when it is empty.
          */
         setItems( [] );
       }
@@ -261,7 +258,8 @@ function Conversion( {
     );
   }
 
-  const parents = items.filter( ( one ) => 'sub-feature' !== one.level );
+  // New work stands alone (2026-09-19): nobody is asked for a parent here.
+  // The route still takes one, for whatever else calls it.
   const asked: ConversionRequest =
     'link' === how
       ? { entry_stage: entry, item_id: linkTo }
@@ -269,15 +267,12 @@ function Conversion( {
           entry_stage: entry,
           title,
           work_type: workType,
-          ...( 'new' === parent
-            ? { parent_title: parentTitle, parent_level: parentLevel }
-            : { parent_id: parent } ),
           ...( 'triage' === entry ? { primary_user_id: doer, reviewer_id: reviewer } : {} ),
         };
 
   // Triage wants the two people named (2026-09-19), and not the same one.
   const seated = 'triage' !== entry || 'link' === how || ( '' !== doer && '' !== reviewer && doer !== reviewer );
-  const ready = seated && ( 'link' === how ? '' !== linkTo : '' !== title.trim() && ( 'new' !== parent || '' !== parentTitle.trim() ) );
+  const ready = seated && ( 'link' === how ? '' !== linkTo : '' !== title.trim() );
 
   async function convert() {
     setWorking( true );
@@ -293,9 +288,9 @@ function Conversion( {
     } catch ( error ) {
       /*
        * The server's own sentence. Every refusal this route makes has one
-       * written for a person — "a parent has to be a higher level than the
-       * work beneath it" — and the panel stays open with the form as it was so
-       * whoever read it can act on it.
+       * written for a person — "the same person cannot do and review it" —
+       * and the panel stays open with the form as it was so whoever read it
+       * can act on it.
        */
       setNotice( messageFor( error, 'That could not be turned into work.' ) );
       setWorking( false );
@@ -376,55 +371,6 @@ function Conversion( {
               <option value="feedback">Feedback</option>
             </select>
           </div>
-
-          <div className="bwx-field">
-            <label htmlFor="bwx-convert-parent">Sits under</label>
-            <select
-              id="bwx-convert-parent"
-              className="bwx-select"
-              data-testid="bwx-convert-parent"
-              value={ parent }
-              onChange={ ( event ) => setParent( event.target.value ) }
-            >
-              <option value="">Nothing — it stands alone</option>
-              { parents.map( ( one ) => (
-                <option key={ one.id } value={ one.id }>
-                  { one.title } ({ one.level_label })
-                </option>
-              ) ) }
-              <option value="new">A new parent…</option>
-            </select>
-          </div>
-
-          { 'new' === parent && (
-            <>
-              <div className="bwx-field">
-                <label htmlFor="bwx-convert-parent-title">New parent&rsquo;s title</label>
-                <input
-                  id="bwx-convert-parent-title"
-                  className="bwx-input"
-                  data-testid="bwx-convert-parent-title"
-                  value={ parentTitle }
-                  onChange={ ( event ) => setParentTitle( event.target.value ) }
-                />
-              </div>
-
-              <div className="bwx-field">
-                <label htmlFor="bwx-convert-parent-level">New parent&rsquo;s level</label>
-                <select
-                  id="bwx-convert-parent-level"
-                  className="bwx-select"
-                  data-testid="bwx-convert-parent-level"
-                  value={ parentLevel }
-                  onChange={ ( event ) => setParentLevel( event.target.value ) }
-                >
-                  <option value="project">Project</option>
-                  <option value="milestone">Milestone</option>
-                  <option value="feature">Feature</option>
-                </select>
-              </div>
-            </>
-          ) }
 
           <div className="bwx-field">
             <label htmlFor="bwx-convert-entry">Enters at</label>

@@ -17,6 +17,7 @@ commits and pull requests.
 - The count beside a checklist says how many lines are ticked, and the counts beside Links and Images only show once there is something to count.
 - The numbers on the "Where work is sitting" report line up in a column at the right, whatever the length of the bar.
 - A recurring task ticked for all seven days reads "Every day".
+- Turning a request into work no longer asks what it sits under; new work stands alone.
 
 ## [2.125.0] - 2026-09-19
 
