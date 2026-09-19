@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 30;
+	public const VERSION = 31;
 
 	/**
 	 * Option holding the version a site has actually built.
