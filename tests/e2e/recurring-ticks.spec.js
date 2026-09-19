@@ -26,6 +26,7 @@ test('two people share a weekday chore, tick their own, and it completes when bo
   // Every weekday, and every day on a weekend, so the task is due today whatever today is.
   const made = await admin.api.post('/recurring', {
     title: `Clear the inbox ${RUN_ID}`,
+    description: '<p>Inbox zero.</p>',
     rule: { every: 0 === weekday || 6 === weekday ? 'day' : 'weekday' },
     starts_on: today,
     assignees: [one.id, two.id],

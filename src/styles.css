@@ -1507,9 +1507,6 @@ body {
 .bwx-recurring-seat-row .bwx-select {
   flex: 1;
 }
-.bwx-recurring-hours {
-  flex: 0 0 130px;
-}
 
 .bwx-hint {
   margin: 0;

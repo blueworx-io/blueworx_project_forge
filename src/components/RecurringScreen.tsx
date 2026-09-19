@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Repeat } from 'lucide-react';
-import type { Person, RecurringRule, RecurringSource, Stage } from '../types';
+import type { ChecklistRow, Person, RecurringRule, RecurringSource, Stage } from '../types';
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
-import { DataView, EmptyState, Tag } from '../kit';
+import { DataView, EmptyState, RichText, Tag } from '../kit';
 import type { Column } from '../kit';
-import { everybody, ItemPanel } from './ItemPanel';
+import { everybody, ItemPanel, LineList } from './ItemPanel';
 import { Screen } from './States';
 
 /**
@@ -54,6 +54,14 @@ interface Draft {
   ends_on: string;
   assignees: string[];
   hours_each: string;
+  checklist: ChecklistRow[];
+}
+
+/** Today, as the date box wants it. */
+function today(): string {
+  const now = new Date();
+
+  return `${ now.getFullYear() }-${ String( now.getMonth() + 1 ).padStart( 2, '0' ) }-${ String( now.getDate() ).padStart( 2, '0' ) }`;
 }
 
 /** Monday to Friday, as the weekly rule holds them: what "Every weekday" means. */
@@ -71,12 +79,12 @@ function blank(): Draft {
     every: 'week',
     days: [ new Date().getDay() || 7 ],
     day: new Date().getDate(),
-    // Left blank, the server starts it today — its today, in the site's
-    // timezone, which is the one the schedule runs on.
-    starts_on: '',
+    // A start is chosen, not assumed (2026-09-19): today to begin with.
+    starts_on: today(),
     ends_on: '',
     assignees: [],
     hours_each: '',
+    checklist: [],
   };
 }
 
@@ -94,7 +102,20 @@ function fromSource( source: RecurringSource ): Draft {
     ends_on: source.ends_on,
     assignees: source.assignees ?? [],
     hours_each: source.hours_each ? String( source.hours_each ) : '',
+    checklist: source.checklist ?? [],
   };
+}
+
+/** Whether every required part of a schedule is there (2026-09-19). */
+function complete( draft: Draft ): boolean {
+  return (
+    '' !== draft.title.trim() &&
+    '' !== draft.description.replace( /<[^>]+>/g, '' ).trim() &&
+    '' !== draft.starts_on &&
+    0 < draft.assignees.length &&
+    0 < Number( draft.hours_each || 0 ) &&
+    ( 'week' !== draft.every || 0 < draft.days.length )
+  );
 }
 
 function toRule( draft: Draft ): RecurringRule {
@@ -345,6 +366,7 @@ function SourceForm( {
       ends_on: draft.ends_on,
       assignees: draft.assignees,
       hours_each: draft.hours_each,
+      checklist: draft.checklist.filter( ( row ) => '' !== row.text.trim() ),
     };
 
     try {
@@ -394,8 +416,17 @@ function SourceForm( {
 
         <div className="bwx-field">
           <label htmlFor="bwx-recurring-description">What to do</label>
-          <textarea id="bwx-recurring-description" className="bwx-textarea" value={ draft.description } onChange={ ( event ) => set( 'description', event.target.value ) } />
+          <RichText
+            id="bwx-recurring-description"
+            testId="bwx-recurring-description"
+            label="What to do"
+            value={ draft.description }
+            onChange={ ( html ) => set( 'description', html ) }
+          />
         </div>
+
+        { /* The checklist every task starts with (2026-09-19). Optional. */ }
+        <LineList name="Checklist" testId="bwx-recurring-checklist" rows={ draft.checklist } onChange={ ( rows ) => set( 'checklist', rows ) } />
 
         <div className="bwx-field">
           <label htmlFor="bwx-recurring-type">Type</label>
@@ -447,8 +478,8 @@ function SourceForm( {
 
         <div className="bwx-field bwx-recurring-dates">
           <span>
-            <label htmlFor="bwx-recurring-starts">Starts (blank for today)</label>
-            <input id="bwx-recurring-starts" className="bwx-input" type="date" value={ draft.starts_on } onChange={ ( event ) => set( 'starts_on', event.target.value ) } />
+            <label htmlFor="bwx-recurring-starts">Starts</label>
+            <input id="bwx-recurring-starts" className="bwx-input" type="date" data-testid="bwx-recurring-starts" value={ draft.starts_on } onChange={ ( event ) => set( 'starts_on', event.target.value ) } />
           </span>
           <span>
             <label htmlFor="bwx-recurring-ends">Ends (optional)</label>
@@ -483,7 +514,7 @@ function SourceForm( {
           <label htmlFor="bwx-recurring-hours_each">Hours each</label>
           <HoursSelect
             id="bwx-recurring-hours_each"
-            className="bwx-select bwx-recurring-hours"
+            className="bwx-select"
             testId="bwx-recurring-hours_each"
             value={ draft.hours_each }
             onChange={ ( value ) => set( 'hours_each', value ) }
@@ -492,7 +523,7 @@ function SourceForm( {
         </div>
 
         <div className="bwx-moves">
-          <button type="button" className="bwx-button" data-testid="bwx-recurring-save" disabled={ busy || '' === draft.title.trim() } onClick={ () => void save() }>
+          <button type="button" className="bwx-button" data-testid="bwx-recurring-save" disabled={ busy || ! complete( draft ) } onClick={ () => void save() }>
             { source ? 'Save' : 'Add' }
           </button>
           <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>

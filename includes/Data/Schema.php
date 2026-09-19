@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 29;
+	public const VERSION = 30;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1353,6 +1353,7 @@ final class Schema {
 	timezone varchar(64) NOT NULL DEFAULT 'UTC',
 	host_user_id varchar(32) NOT NULL DEFAULT '',
 	attendees text NOT NULL,
+	attendee_ids text NULL,
 	planned_hours decimal(8,2) NOT NULL DEFAULT 0,
 	state varchar(20) NOT NULL DEFAULT 'active',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1465,6 +1466,7 @@ final class Schema {
 	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
 	assignees text NULL,
 	hours_each decimal(8,2) NOT NULL DEFAULT 0,
+	checklist text NULL,
 	rule text NOT NULL,
 	starts_on varchar(10) NOT NULL DEFAULT '',
 	ends_on varchar(10) NOT NULL DEFAULT '',

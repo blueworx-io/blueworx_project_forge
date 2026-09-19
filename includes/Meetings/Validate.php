@@ -154,6 +154,27 @@ final class Validate {
 
 		$values['attendees'] = mb_substr( trim( (string) ( $input['attendees'] ?? '' ) ), 0, self::MAX_ATTENDEES );
 
+		// Who else comes (2026-09-19): our people, each carrying the meeting's
+		// hours. The host is already there, so is not listed twice.
+		$attendees = array();
+
+		foreach ( (array) ( $input['attendee_ids'] ?? array() ) as $id ) {
+			$id = trim( (string) $id );
+
+			if ( '' === $id || $id === $host ) {
+				continue;
+			}
+
+			if ( 1 !== preg_match( '/^usr_[A-Za-z0-9]+$/', $id ) ) {
+				$errors['attendee_ids'] = 'That is not a person.';
+				break;
+			}
+
+			$attendees[ $id ] = $id;
+		}
+
+		$values['attendee_ids'] = (string) wp_json_encode( array_values( $attendees ) );
+
 		return array(
 			'values' => $values,
 			'errors' => $errors,
