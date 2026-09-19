@@ -81,7 +81,7 @@ final class BoardLink {
 	 */
 	private static function title(): string {
 		return sprintf(
-			'<span class="%1$s">%2$s <span class="dashicons dashicons-external" aria-hidden="true" style="font-size:14px;width:14px;height:14px;vertical-align:-2px;"></span><span class="screen-reader-text"> %3$s</span></span>',
+			'<span class="%1$s">%2$s <span aria-hidden="true">&#8599;</span><span class="screen-reader-text"> %3$s</span></span>',
 			esc_attr( self::MARKER ),
 			esc_html__( 'Board', 'blueworx-forge' ),
 			esc_html__( '(opens in a new tab)', 'blueworx-forge' )

@@ -33,7 +33,7 @@ test('the Forge menu links out to the board, in a new tab', async ({ browser, ba
   // And it says so before it is clicked, for people reading and for people
   // listening.
   await expect(link).toHaveAttribute('target', '_blank');
-  await expect(link.locator('.dashicons-external')).toHaveCount(1);
+  await expect(link).toContainText('↗');
   await expect(link).toContainText('opens in a new tab');
 
   /*
