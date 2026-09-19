@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.122.0] - 2026-09-19
+
+### Changed
+
+- The task panel: the "before" checklist comes first, then one Actions card with Send back, Block, End it and the move forward, each shown only when it applies.
+- Somebody doing the work and somebody reviewing it have to be named before an item leaves Captured. The parent question at triage has gone.
+- Documentation approval, technical approval and design approval are the reviewer's to give; the panel says so and the server refuses anyone else. An administrator can act for anyone, which also fixes In Development being impossible to pass.
+- Technical Audit is the reviewer signing off the documentation: its write-in assessments (architecture, data and sync, security and privacy, test approach, estimate range) have gone. Accessibility considerations has gone from the design stage.
+- Dates keep their order: start, due, review by, release by. Any can be in the past.
+- An item's checklist has to be finished before it leaves In Development. "Hours still to do" has gone.
+- Work with something outstanding stays on the daily standup from the day it is captured until it is released.
+- Recurring tasks and subscription check-ins go straight to Released once everyone has ticked them, and cannot be ticked while their checklist has lines open.
+
+### Added
+
+- Review and testing on the task: how to test it (required before In Review) and optional test steps, shown to the reviewer.
+- A design link on the task, required to leave Design Process, instead of a comment.
+- Links (up to ten) and images (dropped or chosen, kept in the media library) on the task from the documentation period on. Reference material is now optional.
+- A Dependencies card with a switch, off by default: on, it connects the item to the work it waits on.
+
 ## [2.121.0] - 2026-09-18
 
 ### Added

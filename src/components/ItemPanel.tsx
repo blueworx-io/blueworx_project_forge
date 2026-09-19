@@ -4,6 +4,7 @@ import type {
   Comment,
   GateCheck,
   GateRecord,
+  LinkRow,
   Person,
   Readiness,
   Requirement,
@@ -31,6 +32,18 @@ interface Detail {
   records: Record< string, GateRecord >;
   comments: Comment[];
   scope: string;
+  dependencies: {
+    upstream: DependencyRow[];
+    downstream: DependencyRow[];
+  };
+}
+
+/** One item this one waits on, or one waiting on it. */
+interface DependencyRow {
+  dependency_id: string;
+  id: string;
+  title: string;
+  stage: string;
 }
 
 const EDITABLE = [
@@ -43,20 +56,18 @@ const EDITABLE = [
 const CHECKLIST_ROWS = 10;
 
 /**
- * The two definition boxes that had no box at all until 2026-09-18. Shown
- * once the item has reached the stage that wants them, or when they hold
- * something.
+ * The definition boxes, shown once the item has reached the stage that
+ * wants them or when they hold something. Since 2026-09-19 reference
+ * material is optional and the design link arrives at Design Process.
  */
 const DEFINITION_BOXES = [
-  { field: 'non_goals', label: 'Not covered', needed: 'documentation-period' },
-  { field: 'references', label: 'Reference material', needed: 'documentation-period' },
+  { field: 'non_goals', label: 'Not covered', shown: 'documentation-period', lines: 3 },
+  { field: 'references', label: 'Reference material', shown: 'documentation-period', lines: 3 },
+  { field: 'design_url', label: 'Design link', shown: 'design-process', lines: 1 },
 ] as const;
 
-/** The picks whose item choice is a dependency rather than a record. */
-const DEPENDENCY_PICKS = [ 'G-DOCUMENTATION-6', 'G-TECHNICAL-AUDIT-2', 'G-UP-NEXT-7' ];
-
-/** The pick whose item choice is the parent. */
-const PARENT_PICK = 'G-TRIAGE-3';
+/** The plain text fields the draft holds beside the editable ones. */
+const TEXT_FIELDS = [ 'test_description' ] as const;
 
 /** The pick whose item choice is what End it → duplicate uses. */
 const DUPLICATE_PICK = 'G-TRIAGE-6';
@@ -147,16 +158,16 @@ const ASSIGNMENT = [
 const NEEDED_FROM: Record< string, string > = {
   commercial_class: 'triage',
   priority: 'triage',
-  primary_user_id: 'up-next',
-  reviewer_id: 'up-next',
+  primary_user_id: 'future-idea',
+  reviewer_id: 'future-idea',
   deliverer_id: 'up-next',
   planned_start: 'up-next',
   planned_due: 'up-next',
-  remaining_estimate: 'in-development',
   release_method: 'completed',
   release_destination: 'completed',
   non_goals: 'documentation-period',
-  references: 'documentation-period',
+  design_url: 'design-process',
+  test_description: 'in-development',
 };
 
 /**
@@ -213,7 +224,7 @@ export function everybody(): Promise< Person[] > {
  */
 function asDraft( item: WorkItem ): Record< string, string > {
   const draft: Record< string, string > = Object.fromEntries(
-    [ ...EDITABLE, ...DEFINITION_BOXES ].map( ( { field } ) => [ field, String( item[ field ] ?? '' ) ] )
+    [ ...EDITABLE.map( ( { field } ) => field ), ...DEFINITION_BOXES.map( ( { field } ) => field ), ...TEXT_FIELDS ].map( ( field ) => [ field, String( item[ field ] ?? '' ) ] )
   );
 
   for ( const field of ASSIGNMENT ) {
@@ -327,6 +338,16 @@ export function ItemPanel( {
   const [ blocker, setBlocker ] = useState< Record< string, string > >( {} );
   const [ checklist, setChecklist ] = useState< ChecklistRow[] >( [] );
 
+  /** Review and testing (2026-09-19): the steps beside how to test. */
+  const [ testSteps, setTestSteps ] = useState< ChecklistRow[] >( [] );
+
+  /** The links on the task, drafted with everything else. */
+  const [ links, setLinks ] = useState< LinkRow[] >( [] );
+
+  /** Whether the dependencies card is open; on when there are any. */
+  const [ waiting, setWaiting ] = useState( false );
+  const [ dropping, setDropping ] = useState( false );
+
   /*
    * The before-items answered here and saved with Save changes (2026-09-18):
    * a pick is a dropdown on its row, a box is a box on the Task card. Both
@@ -370,6 +391,9 @@ export function ItemPanel( {
       setLoadState( 'ready' );
       setDraft( asDraft( loaded.item ) );
       setChecklist( loaded.item.checklist ?? [] );
+      setTestSteps( loaded.item.test_steps ?? [] );
+      setLinks( loaded.item.links ?? [] );
+      setWaiting( 0 < ( loaded.dependencies?.upstream.length ?? 0 ) );
       setPicks( {} );
       setBoxes( {} );
 
@@ -491,34 +515,30 @@ export function ItemPanel( {
     }
   }
 
-  /** The checklist, only when it differs from what was read — an unchanged list is not an edit. */
-  function checklistChange(): { checklist?: ChecklistRow[] } {
-    const kept = checklist.filter( ( row ) => '' !== row.text.trim() ).map( ( row ) => ( { text: row.text.trim(), done: row.done } ) );
+  /** A list of lines, only when it differs from what was read — an unchanged list is not an edit. */
+  function linesChange( field: 'checklist' | 'test_steps', rows: ChecklistRow[] ): Record< string, ChecklistRow[] > {
+    const kept = rows.filter( ( row ) => '' !== row.text.trim() ).map( ( row ) => ( { text: row.text.trim(), done: row.done } ) );
 
-    return JSON.stringify( kept ) === JSON.stringify( detail?.item.checklist ?? [] ) ? {} : { checklist: kept };
+    return JSON.stringify( kept ) === JSON.stringify( detail?.item[ field ] ?? [] ) ? {} : { [ field ]: kept };
+  }
+
+  /** The links, only when they changed. */
+  function linksChange(): { links?: LinkRow[] } {
+    const kept = links.filter( ( row ) => '' !== row.url.trim() || '' !== row.label.trim() ).map( ( row ) => ( { label: row.label.trim(), url: row.url.trim() } ) );
+
+    return JSON.stringify( kept ) === JSON.stringify( detail?.item.links ?? [] ) ? {} : { links: kept };
   }
 
   /** What a pick or box already holds on the item, as recorded. */
   const recorded = ( id: string ) => detail?.records[ id ]?.value ?? '';
 
   /**
-   * The picks and boxes that changed, each as the write that stores it: a
-   * parent is the item's own field, a dependency is its own table, and
-   * everything else is a gate record with the answer as its value.
+   * The picks and boxes that changed, each as a gate record with the answer
+   * as its value.
    */
   async function saveAnswers() {
     for ( const [ id, value ] of Object.entries( picks ) ) {
       if ( '' === value || value === recorded( id ) ) {
-        continue;
-      }
-
-      if ( DEPENDENCY_PICKS.includes( id ) && value.startsWith( 'wrk_' ) ) {
-        await api( `/work-items/${ itemId }/dependencies`, { method: 'POST', body: { depends_on_id: value } } );
-        continue;
-      }
-
-      if ( PARENT_PICK === id && value.startsWith( 'wrk_' ) ) {
-        // Written with the draft, above.
         continue;
       }
 
@@ -542,11 +562,11 @@ export function ItemPanel( {
     setBusy( true );
     setNotice( '' );
 
-    const parent = picks[ PARENT_PICK ] ?? '';
     const edits = {
       ...draft,
-      ...checklistChange(),
-      ...( parent.startsWith( 'wrk_' ) ? { parent_id: parent } : {} ),
+      ...linesChange( 'checklist', checklist ),
+      ...linesChange( 'test_steps', testSteps ),
+      ...linksChange(),
     };
 
     // Only an edit is written as an edit. A save that only answered a pick
@@ -633,7 +653,8 @@ export function ItemPanel( {
     const me = forgeData()?.person?.id ?? '';
     const it = detail?.item;
 
-    if ( '' === me || ! it ) {
+    // An administrator acts for anyone (2026-09-19); the server agrees.
+    if ( '' === me || ! it || ( forgeData()?.canManage ?? false ) ) {
       return true;
     }
 
@@ -661,6 +682,79 @@ export function ItemPanel( {
       await load();
     } catch ( error ) {
       setNotice( messageFor( error, 'That could not be recorded.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  /** Connects this item to one it waits on; written at once, not drafted. */
+  async function waitOn( id: string ) {
+    if ( '' === id ) {
+      return;
+    }
+
+    setBusy( true );
+
+    try {
+      await api( `/work-items/${ itemId }/dependencies`, { method: 'POST', body: { depends_on_id: id } } );
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be connected.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  /** Disconnects one dependency, or all of them when the card is switched off. */
+  async function stopWaiting( rows: DependencyRow[] ) {
+    setBusy( true );
+
+    try {
+      for ( const row of rows ) {
+        await api( `/work-items/${ itemId }/dependencies/${ row.dependency_id }`, { method: 'DELETE' } );
+      }
+
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be disconnected.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  /** Adds dropped or chosen images, one upload each. */
+  async function addImages( files: FileList | File[] ) {
+    const chosen = Array.from( files ).filter( ( file ) => file.type.startsWith( 'image/' ) );
+
+    if ( 0 === chosen.length ) {
+      return;
+    }
+
+    setBusy( true );
+
+    try {
+      for ( const file of chosen ) {
+        const form = new FormData();
+        form.append( 'image', file, file.name );
+        await api( `/work-items/${ itemId }/images`, { method: 'POST', body: form } );
+      }
+
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That image could not be added.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  async function removeImage( id: number ) {
+    setBusy( true );
+
+    try {
+      await api( `/work-items/${ itemId }/images/${ id }`, { method: 'DELETE' } );
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That image could not be removed.' ) );
     } finally {
       setBusy( false );
     }
@@ -738,8 +832,8 @@ export function ItemPanel( {
       return '' === value || 'unclassified' === value;
     }
 
-    if ( 'remaining_estimate' === field ) {
-      return 0 >= Number( value || 0 );
+    if ( 'test_description' === field ) {
+      return '' === value.replace( /<[^>]+>/g, '' ).trim();
     }
 
     return '' === value;
@@ -791,21 +885,17 @@ export function ItemPanel( {
     </div>
   );
 
-  /** An hours box. Half hours, because that is how the work is planned. */
-  const measure = ( field: string, name: string ) => (
-    <div className="bwx-field">
-      { naming( field, name ) }
-      <input
-        id={ `bwx-${ field }` }
-        className="bwx-input"
-        type="number"
-        min="0"
-        step="0.5"
-        value={ draft[ field ] ?? '' }
-        onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
-      />
-    </div>
-  );
+  /**
+   * The earliest a date may be: the latest of the dates before it that are
+   * set. The server refuses dates out of order; this stops the picker
+   * offering them.
+   */
+  const earliestFor = ( field: string ): string | undefined => {
+    const before = DATES.slice( 0, DATES.findIndex( ( date ) => date.field === field ) );
+    const set = before.map( ( date ) => draft[ date.field ] ?? '' ).filter( ( value ) => '' !== value );
+
+    return 0 < set.length ? set.sort().at( -1 ) : undefined;
+  };
 
   return (
     <div
@@ -1017,9 +1107,9 @@ export function ItemPanel( {
              */ }
             { 0 < ( item.assignees?.length ?? 0 ) && (
               <div className="bwx-chore" data-testid="bwx-chore">
-                <p className="bwx-eyebrow">Who does it</p>
+                <p className="bwx-eyebrow">{ forgeData()?.canManage ? 'Who does it' : 'Your tick' }</p>
                 <ul className="bwx-chore-people">
-                  { item.assignees.map( ( who ) => {
+                  { item.assignees.filter( ( who ) => ( forgeData()?.canManage ?? false ) || who === ( forgeData()?.person?.id ?? '' ) ).map( ( who ) => {
                     const done = undefined !== ( item.ticks ?? {} )[ who ];
                     const me = forgeData()?.person?.id ?? '';
                     const may = ! ended && ( who === me || ( forgeData()?.canManage ?? false ) );
@@ -1050,37 +1140,6 @@ export function ItemPanel( {
               </div>
             ) }
 
-            { ! blocked && ! ended && ! chore && (
-              <div>
-                <p className="bwx-eyebrow">Move to</p>
-                <div className="bwx-moves">
-                  { detail.available.map( ( to ) => (
-                    <button
-                      key={ to }
-                      type="button"
-                      className="bwx-button"
-                      data-testid="bwx-move"
-                      data-to={ to }
-                      data-ready={ 0 === ( detail.readiness[ to ]?.unmet.length ?? 0 ) ? 'true' : 'false' }
-                      disabled={ busy }
-                      style={
-                        { borderColor: `var(--phase-${ phaseOf( to ) })` } as React.CSSProperties
-                      }
-                      onClick={ () => void act( '/transition', { to }, `Moved to ${ label( to ) }.` ) }
-                    >
-                      { label( to ) }
-                      { 0 < ( detail.readiness[ to ]?.unmet.length ?? 0 ) && (
-                        <span className="bwx-mono"> · { detail.readiness[ to ].unmet.length } to do</span>
-                      ) }
-                    </button>
-                  ) ) }
-                  { 0 === detail.available.length && (
-                    <Inline state="empty">This is the end of the road.</Inline>
-                  ) }
-                </div>
-              </div>
-            ) }
-
             { ! blocked && ! ended && ! chore && detail.available.map( ( to ) => (
               <GateList
                 key={ to }
@@ -1097,10 +1156,16 @@ export function ItemPanel( {
               />
             ) ) }
 
+            { /*
+                One place for everything that moves the work (2026-09-19):
+                forward on the right, the other directions on the left. Each
+                button appears only when it applies.
+             */ }
             { ( ! ended || detail.can_archive ) && (
               <div className="bwx-actions" data-testid="bwx-actions">
-                <p className="bwx-eyebrow">What else</p>
-                <div className="bwx-moves bwx-toggles">
+                <p className="bwx-eyebrow">Actions</p>
+                <div className="bwx-action-row">
+                <div className="bwx-moves bwx-toggles bwx-action-left">
                   { ! ended && ! blocked && 0 < detail.returns.length && (
                     <button
                       type="button"
@@ -1149,6 +1214,34 @@ export function ItemPanel( {
                       Archive
                     </button>
                   ) }
+                </div>
+                { ! blocked && ! ended && ! chore && (
+                  <div className="bwx-moves bwx-action-right">
+                    { detail.available.map( ( to ) => (
+                      <button
+                        key={ to }
+                        type="button"
+                        className="bwx-button bwx-move"
+                        data-testid="bwx-move"
+                        data-to={ to }
+                        data-ready={ 0 === ( detail.readiness[ to ]?.unmet.length ?? 0 ) ? 'true' : 'false' }
+                        disabled={ busy }
+                        style={
+                          { borderColor: `var(--phase-${ phaseOf( to ) })` } as React.CSSProperties
+                        }
+                        onClick={ () => void act( '/transition', { to }, `Moved to ${ label( to ) }.` ) }
+                      >
+                        { label( to ) } <span aria-hidden="true">→</span>
+                        { 0 < ( detail.readiness[ to ]?.unmet.length ?? 0 ) && (
+                          <span className="bwx-mono"> · { detail.readiness[ to ].unmet.length } to do</span>
+                        ) }
+                      </button>
+                    ) ) }
+                    { 0 === detail.available.length && (
+                      <Inline state="empty">This is the end of the road.</Inline>
+                    ) }
+                  </div>
+                ) }
                 </div>
 
             { 'return' === showing && (
@@ -1412,80 +1505,156 @@ export function ItemPanel( {
                 with everything else. Enter on a line starts the next; the
                 count says how many of the ten are used.
              */ }
-            <div className="bwx-field bwx-checklist" data-testid="bwx-checklist">
-              <span className="bwx-checklist-head">
-                <span>Checklist</span>
-                <span className="bwx-mono">{ `${ checklist.length } of ${ CHECKLIST_ROWS }` }</span>
-              </span>
-              { checklist.map( ( row, at ) => (
-                <div className="bwx-checklist-row" data-testid="bwx-checklist-row" key={ at }>
-                  <input
-                    type="checkbox"
-                    data-testid="bwx-checklist-done"
-                    aria-label={ `Done: ${ row.text || 'line ' + ( at + 1 ) }` }
-                    checked={ row.done }
-                    onChange={ ( event ) => setChecklist( checklist.map( ( one, i ) => ( i === at ? { ...one, done: event.target.checked } : one ) ) ) }
-                  />
-                  <input
-                    className="bwx-input"
-                    data-testid="bwx-checklist-text"
-                    aria-label={ `Checklist line ${ at + 1 }` }
-                    maxLength={ 191 }
-                    value={ row.text }
-                    data-done={ row.done ? 'true' : undefined }
-                    onChange={ ( event ) => setChecklist( checklist.map( ( one, i ) => ( i === at ? { ...one, text: event.target.value } : one ) ) ) }
-                    onKeyDown={ ( event ) => {
-                      if ( 'Enter' === event.key && checklist.length < CHECKLIST_ROWS ) {
-                        event.preventDefault();
-                        setChecklist( [ ...checklist.slice( 0, at + 1 ), { text: '', done: false }, ...checklist.slice( at + 1 ) ] );
-                      } else if ( 'Backspace' === event.key && '' === row.text && 1 < checklist.length ) {
-                        event.preventDefault();
-                        setChecklist( checklist.filter( ( _, i ) => i !== at ) );
-                      }
-                    } }
-                  />
-                  <button
-                    type="button"
-                    className="bwx-icon-button"
-                    aria-label={ `Remove line ${ at + 1 }` }
-                    data-testid="bwx-checklist-remove"
-                    onClick={ () => setChecklist( checklist.filter( ( _, i ) => i !== at ) ) }
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) ) }
-              { checklist.length < CHECKLIST_ROWS && (
-                <div className="bwx-moves">
-                  <button
-                    type="button"
-                    className="bwx-button"
-                    data-variant="quiet"
-                    data-testid="bwx-checklist-add"
-                    onClick={ () => setChecklist( [ ...checklist, { text: '', done: false } ] ) }
-                  >
-                    Add a line
-                  </button>
-                </div>
-              ) }
-            </div>
+            <LineList name="Checklist" testId="bwx-checklist" rows={ checklist } onChange={ setChecklist } />
 
             { /*
-                The two definition boxes, once the item has got as far as the
+                The definition boxes, once the item has got as far as the
                 stage that wants them or when they hold something already.
              */ }
-            { DEFINITION_BOXES.filter( ( box ) => ( ! chore && reached( box.needed ) ) || '' !== ( draft[ box.field ] ?? '' ) ).map( ( { field, label: name } ) => (
+            { DEFINITION_BOXES.filter( ( box ) => ( ! chore && reached( box.shown ) ) || '' !== ( draft[ box.field ] ?? '' ) ).map( ( { field, label: name, lines } ) => (
               <div className="bwx-field" key={ field }>
                 { naming( field, name ) }
-                <textarea
-                  id={ `bwx-${ field }` }
-                  className="bwx-textarea"
-                  data-testid={ `bwx-${ field }` }
-                  value={ draft[ field ] ?? '' }
-                  onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
-                />
+                { 1 === lines ? (
+                  <input
+                    id={ `bwx-${ field }` }
+                    className="bwx-input"
+                    data-testid={ `bwx-${ field }` }
+                    type="url"
+                    placeholder="https://"
+                    value={ draft[ field ] ?? '' }
+                    onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+                  />
+                ) : (
+                  <textarea
+                    id={ `bwx-${ field }` }
+                    className="bwx-textarea"
+                    data-testid={ `bwx-${ field }` }
+                    value={ draft[ field ] ?? '' }
+                    onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+                  />
+                ) }
               </div>
             ) ) }
+
+            { /*
+                Links and images (2026-09-19), from the documentation period
+                on. Both optional: a link is a label and an address, saved
+                with everything else; an image goes up as soon as it is
+                dropped, because a file is not a draft.
+             */ }
+            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < links.length ) && (
+              <div className="bwx-field bwx-links" data-testid="bwx-links">
+                <span className="bwx-checklist-head">
+                  <span>Links</span>
+                  <span className="bwx-mono">{ `${ links.length } of ${ CHECKLIST_ROWS }` }</span>
+                </span>
+                { links.map( ( row, at ) => (
+                  <div className="bwx-link-row" data-testid="bwx-link-row" key={ at }>
+                    <input
+                      className="bwx-input"
+                      data-testid="bwx-link-label"
+                      aria-label={ `Link ${ at + 1 } label` }
+                      placeholder="What it is"
+                      maxLength={ 191 }
+                      value={ row.label }
+                      onChange={ ( event ) => setLinks( links.map( ( one, i ) => ( i === at ? { ...one, label: event.target.value } : one ) ) ) }
+                    />
+                    <input
+                      className="bwx-input"
+                      data-testid="bwx-link-url"
+                      aria-label={ `Link ${ at + 1 } address` }
+                      type="url"
+                      placeholder="https://"
+                      value={ row.url }
+                      onChange={ ( event ) => setLinks( links.map( ( one, i ) => ( i === at ? { ...one, url: event.target.value } : one ) ) ) }
+                    />
+                    <button
+                      type="button"
+                      className="bwx-icon-button"
+                      aria-label={ `Remove link ${ at + 1 }` }
+                      onClick={ () => setLinks( links.filter( ( _, i ) => i !== at ) ) }
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) ) }
+                { links.length < CHECKLIST_ROWS && (
+                  <div className="bwx-moves">
+                    <button
+                      type="button"
+                      className="bwx-button"
+                      data-variant="quiet"
+                      data-testid="bwx-link-add"
+                      onClick={ () => setLinks( [ ...links, { label: '', url: '' } ] ) }
+                    >
+                      Add a link
+                    </button>
+                  </div>
+                ) }
+              </div>
+            ) }
+
+            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < item.images.length ) && (
+              <div className="bwx-field" data-testid="bwx-images">
+                <span className="bwx-checklist-head">
+                  <span>Images</span>
+                  <span className="bwx-mono">{ `${ item.images.length } of ${ CHECKLIST_ROWS }` }</span>
+                </span>
+                { 0 < item.images.length && (
+                  <ul className="bwx-image-list">
+                    { item.images.map( ( image ) => (
+                      <li key={ image.id } data-testid="bwx-image">
+                        <a href={ image.url } target="_blank" rel="noreferrer noopener">
+                          <img src={ image.url } alt={ image.name } />
+                        </a>
+                        <button
+                          type="button"
+                          className="bwx-icon-button"
+                          aria-label={ `Remove ${ image.name || 'image' }` }
+                          disabled={ busy }
+                          onClick={ () => void removeImage( image.id ) }
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ) ) }
+                  </ul>
+                ) }
+                { item.images.length < CHECKLIST_ROWS && (
+                  <label
+                    className="bwx-drop"
+                    data-testid="bwx-image-drop"
+                    data-over={ dropping ? 'true' : 'false' }
+                    onDragOver={ ( event ) => {
+                      event.preventDefault();
+                      setDropping( true );
+                    } }
+                    onDragLeave={ () => setDropping( false ) }
+                    onDrop={ ( event ) => {
+                      event.preventDefault();
+                      setDropping( false );
+                      void addImages( event.dataTransfer.files );
+                    } }
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      data-testid="bwx-image-input"
+                      disabled={ busy }
+                      onChange={ ( event ) => {
+                        if ( event.target.files ) {
+                          void addImages( event.target.files );
+                        }
+
+                        event.target.value = '';
+                      } }
+                    />
+                    <span>Drop images or screenshots here, or choose some.</span>
+                  </label>
+                ) }
+              </div>
+            ) }
 
             { /*
                 The stage boxes (2026-09-18): every before-item that wants
@@ -1522,6 +1691,113 @@ export function ItemPanel( {
                 Staff only. The seats are who answers for the work, and ARCH-7
                 keeps that the studio's own answer.
              */ }
+            { /*
+                Review and testing (2026-09-19): how the reviewer tests it,
+                written during development and read at review. A card of its
+                own so the reviewer finds it without reading the task.
+             */ }
+            { staff && ! chore && ( reached( 'in-development' ) || '' !== ( draft.test_description ?? '' ) ) && (
+              <div className="bwx-testing" data-testid="bwx-testing">
+                <p className="bwx-eyebrow">
+                  Review and testing
+                  { 'in-review' === item.stage && <span className="bwx-mono"> · for the reviewer</span> }
+                </p>
+                <div className="bwx-field">
+                  { naming( 'test_description', 'How to test it' ) }
+                  <RichText
+                    id="bwx-test_description"
+                    testId="bwx-test_description"
+                    label="How to test it"
+                    value={ draft.test_description ?? '' }
+                    onChange={ ( html ) => setDraft( { ...draft, test_description: html } ) }
+                  />
+                </div>
+                <LineList name="Test steps" testId="bwx-test-steps" rows={ testSteps } onChange={ setTestSteps } />
+              </div>
+            ) }
+
+            { /*
+                Dependencies (2026-09-19): a switch, off until this waits on
+                something. On, it lists what this waits on and offers the
+                site's other items; off again, it lets go of them all.
+             */ }
+            { staff && ! chore && ! ended && (
+              <div className="bwx-waiting" data-testid="bwx-dependencies">
+                <div className="bwx-switch-row">
+                  <p className="bwx-eyebrow">Dependencies</p>
+                  <label className="bwx-switch">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      data-testid="bwx-dependencies-toggle"
+                      checked={ waiting }
+                      disabled={ busy }
+                      onChange={ ( event ) => {
+                        setWaiting( event.target.checked );
+
+                        if ( ! event.target.checked && 0 < detail.dependencies.upstream.length ) {
+                          void stopWaiting( detail.dependencies.upstream );
+                        }
+                      } }
+                    />
+                    <span className="bwx-switch-track" aria-hidden="true" />
+                    <span className="bwx-switch-text">{ waiting ? 'Waits on other work' : 'Nothing to wait on' }</span>
+                  </label>
+                </div>
+                { waiting && (
+                  <div className="bwx-waiting-body">
+                    { 0 < detail.dependencies.upstream.length && (
+                      <ul className="bwx-waiting-list" data-testid="bwx-dependency-list">
+                        { detail.dependencies.upstream.map( ( row ) => (
+                          <li key={ row.dependency_id } data-testid="bwx-dependency" data-item={ row.id }>
+                            <span className="fk-chip" data-phase={ phaseOf( row.stage ) }>
+                              <span className="fk-dot" aria-hidden="true" />
+                              { label( row.stage ) }
+                            </span>
+                            <span className="bwx-waiting-title">{ row.title }</span>
+                            <button
+                              type="button"
+                              className="bwx-icon-button"
+                              aria-label={ `Stop waiting on ${ row.title }` }
+                              disabled={ busy }
+                              onClick={ () => void stopWaiting( [ row ] ) }
+                            >
+                              ✕
+                            </button>
+                          </li>
+                        ) ) }
+                      </ul>
+                    ) }
+                    <div className="bwx-field">
+                      <label htmlFor="bwx-dependency-add">Waits on</label>
+                      <select
+                        id="bwx-dependency-add"
+                        className="bwx-select"
+                        data-testid="bwx-dependency-add"
+                        value=""
+                        disabled={ busy }
+                        onChange={ ( event ) => void waitOn( event.target.value ) }
+                      >
+                        <option value="">Choose an item on this site</option>
+                        { siteItems
+                          .filter( ( one ) => ! detail.dependencies.upstream.some( ( row ) => row.id === one.id ) )
+                          .map( ( one ) => (
+                            <option key={ one.id } value={ one.id }>
+                              { one.title }
+                            </option>
+                          ) ) }
+                      </select>
+                    </div>
+                    { 0 < detail.dependencies.downstream.length && (
+                      <p className="bwx-hint">
+                        { `Waited on by ${ detail.dependencies.downstream.map( ( row ) => row.title ).join( ', ' ) }.` }
+                      </p>
+                    ) }
+                  </div>
+                ) }
+              </div>
+            ) }
+
             { staff && ! ended && (
               <div className="bwx-assign" data-testid="bwx-assign">
                 <p className="bwx-eyebrow">Who and when</p>
@@ -1586,6 +1862,7 @@ export function ItemPanel( {
                         id={ `bwx-${ date.field }` }
                         className="bwx-input"
                         type="date"
+                        min={ earliestFor( date.field ) }
                         value={ draft[ date.field ] ?? '' }
                         onChange={ ( event ) =>
                           setDraft( { ...draft, [ date.field ]: event.target.value } )
@@ -1594,9 +1871,6 @@ export function ItemPanel( {
                     </div>
                   ) ) }
                 </div>
-
-                { /* Only once there is work under way to have any left. */ }
-                { reached( 'in-development' ) && measure( 'remaining_estimate', 'Hours still to do' ) }
 
                 { /* WF-6, and only once something has actually been delivered. */ }
                 { reached( 'completed' ) && (
@@ -1821,7 +2095,10 @@ const FIELD_LABELS: Record< string, string > = {
   planned_due: 'due',
   review_target: 'review by',
   release_target: 'release by',
-  remaining_estimate: 'hours still to do',
+  design_url: 'design link',
+  test_description: 'how to test it',
+  test_steps: 'test steps',
+  links: 'links',
   release_method: 'how it was released',
   release_destination: 'where it went',
   dependencies: 'dependencies',
@@ -2130,4 +2407,81 @@ function kindOf( draft: { url: string; asking: boolean } ): string {
   }
 
   return '' === draft.url.trim() ? 'comment' : 'evidence';
+}
+
+/**
+ * A list of up to ten one-line items, each with a tick: the task's checklist,
+ * or the steps that test it. Enter on a line starts the next; Backspace on an
+ * empty one removes it; the count says how many of the ten are used.
+ */
+function LineList( {
+  name,
+  testId,
+  rows,
+  onChange,
+}: {
+  name: string;
+  testId: string;
+  rows: ChecklistRow[];
+  onChange: ( rows: ChecklistRow[] ) => void;
+} ) {
+  return (
+    <div className="bwx-field bwx-checklist" data-testid={ testId }>
+      <span className="bwx-checklist-head">
+        <span>{ name }</span>
+        <span className="bwx-mono">{ `${ rows.length } of ${ CHECKLIST_ROWS }` }</span>
+      </span>
+      { rows.map( ( row, at ) => (
+        <div className="bwx-checklist-row" data-testid={ `${ testId }-row` } key={ at }>
+          <input
+            type="checkbox"
+            data-testid={ `${ testId }-done` }
+            aria-label={ `Done: ${ row.text || 'line ' + ( at + 1 ) }` }
+            checked={ row.done }
+            onChange={ ( event ) => onChange( rows.map( ( one, i ) => ( i === at ? { ...one, done: event.target.checked } : one ) ) ) }
+          />
+          <input
+            className="bwx-input"
+            data-testid={ `${ testId }-text` }
+            aria-label={ `${ name } line ${ at + 1 }` }
+            maxLength={ 191 }
+            value={ row.text }
+            data-done={ row.done ? 'true' : undefined }
+            onChange={ ( event ) => onChange( rows.map( ( one, i ) => ( i === at ? { ...one, text: event.target.value } : one ) ) ) }
+            onKeyDown={ ( event ) => {
+              if ( 'Enter' === event.key && rows.length < CHECKLIST_ROWS ) {
+                event.preventDefault();
+                onChange( [ ...rows.slice( 0, at + 1 ), { text: '', done: false }, ...rows.slice( at + 1 ) ] );
+              } else if ( 'Backspace' === event.key && '' === row.text && 1 < rows.length ) {
+                event.preventDefault();
+                onChange( rows.filter( ( _, i ) => i !== at ) );
+              }
+            } }
+          />
+          <button
+            type="button"
+            className="bwx-icon-button"
+            aria-label={ `Remove line ${ at + 1 }` }
+            data-testid={ `${ testId }-remove` }
+            onClick={ () => onChange( rows.filter( ( _, i ) => i !== at ) ) }
+          >
+            ✕
+          </button>
+        </div>
+      ) ) }
+      { rows.length < CHECKLIST_ROWS && (
+        <div className="bwx-moves">
+          <button
+            type="button"
+            className="bwx-button"
+            data-variant="quiet"
+            data-testid={ `${ testId }-add` }
+            onClick={ () => onChange( [ ...rows, { text: '', done: false } ] ) }
+          >
+            Add a line
+          </button>
+        </div>
+      ) }
+    </div>
+  );
 }

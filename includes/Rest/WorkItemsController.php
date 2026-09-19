@@ -1245,13 +1245,14 @@ final class WorkItemsController {
 		$body['self_review_permitted'] = ! empty( Access::context( (string) $site['client_id'] )['principal'] );
 
 		$checked = Validate::item( $body, false );
+		$errors  = array_merge( $checked['errors'], Validate::dates_in_order( $checked['values'] ) );
 
-		if ( array() !== $checked['errors'] ) {
+		if ( array() !== $errors ) {
 			return Errors::rest(
 				'invalid_work_item',
 				__( 'That work could not be saved.', 'blueworx-forge' ),
 				400,
-				array( 'fields' => $checked['errors'] )
+				array( 'fields' => $errors )
 			);
 		}
 

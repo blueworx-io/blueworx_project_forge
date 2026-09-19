@@ -127,8 +127,10 @@ export function answerFor(field) {
       return 'chargeable';
     case 'release_method':
       return 'software';
-    case 'remaining_estimate':
-      return 2;
+    case 'design_url':
+      return 'https://example.test/design';
+    case 'test_description':
+      return '<p>Open it and look.</p>';
     default:
       return 'Written down.';
   }
@@ -149,9 +151,18 @@ export async function satisfy(api, item, to, seats = {}) {
   for (const requirement of detail.readiness[to]?.unmet ?? []) {
     if ('field' === requirement.by) {
       for (const field of requirement.fields) {
-        if (undefined === patch[field]) {
-          patch[field] = answerFor(field);
+        if (undefined !== patch[field]) {
+          continue;
         }
+
+        // A seat holds a person (2026-09-19: two of them before triage), and
+        // 'Written down.' is not one. A spec that named nobody gets people.
+        if (SEAT_FIELDS.includes(field)) {
+          patch[field] = (await seatsFor(api, item))[field];
+          continue;
+        }
+
+        patch[field] = answerFor(field);
       }
       continue;
     }
@@ -216,6 +227,41 @@ export async function satisfy(api, item, to, seats = {}) {
   return (await api.get(`/work-items/${item.id}`)).item;
 }
 
+const SEAT_FIELDS = ['primary_user_id', 'reviewer_id', 'deliverer_id'];
+
+/**
+ * Three people for the seats a walk needs: made once per run (a WordPress
+ * account each is the slow part) and given a membership on each client the
+ * first time work there asks for them.
+ */
+let crew = null;
+const seated = new Map();
+
+export async function seatsFor(api, item) {
+  if (null === crew) {
+    crew = Promise.all(['primary', 'reviewer', 'deliverer'].map((label) => makePerson(api, item.client_id, 'staff', `${label}-${Date.now()}`))).then(
+      ([primary, reviewer, deliverer]) => {
+        seated.set(item.client_id, Promise.resolve());
+
+        return { primary_user_id: primary.id, reviewer_id: reviewer.id, deliverer_id: deliverer.id };
+      }
+    );
+  }
+
+  const seats = await crew;
+
+  if (!seated.has(item.client_id)) {
+    seated.set(
+      item.client_id,
+      Promise.all(Object.values(seats).map((id) => api.post(`/clients/${item.client_id}/memberships`, { user_id: id, role: 'staff' })))
+    );
+  }
+
+  await seated.get(item.client_id);
+
+  return seats;
+}
+
 /**
  * Walks an item up the path, satisfying each gate on the way.
  *
@@ -227,7 +273,7 @@ export async function walkTo(api, item, stages, { seats = {}, as = {} } = {}) {
   let current = item;
 
   for (const stage of stages) {
-    current = await satisfy(api, current, stage, 'up-next' === stage ? seats : {});
+    current = await satisfy(api, current, stage, seats);
 
     const caller = as[stage] ?? api;
     const moved = await caller.post(`/work-items/${current.id}/transition`, {
