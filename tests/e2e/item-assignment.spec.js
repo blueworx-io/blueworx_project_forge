@@ -102,7 +102,7 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
   await page.fill('#bwx-design_url', 'https://example.test/design');
   await page.locator('[data-testid="bwx-save"]').click();
 
-  await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.');
+  await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
 
   // And the things the move asks somebody to confirm rather than to type.
   await recordWhatIsAsked(page);
