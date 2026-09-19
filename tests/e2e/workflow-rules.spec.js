@@ -197,6 +197,35 @@ test('links are saved with the task, an image goes up on its own, and dependenci
   await page.close();
 });
 
+test('a before-row takes you to its field, and a checklist counts what is ticked', async () => {
+  test.slow();
+
+  await fresh(`Go to ${RUN_ID}`);
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.getByTestId('bwx-card').filter({ hasText: `Go to ${RUN_ID}` }).click();
+  await expect(page.getByTestId('bwx-save')).toBeVisible();
+
+  // Fold Who and when away, then let the row unfold it and land on the seat.
+  await page.getByTestId('bwx-section-assign').click();
+  await expect(page.locator('#bwx-primary_user_id')).toBeHidden();
+  await page.locator('[data-requirement="G-FUTURE-IDEA-5"] [data-testid="bwx-unmet-go"]').click();
+  await expect(page.locator('#bwx-primary_user_id')).toBeVisible();
+  await expect(page.locator('#bwx-primary_user_id')).toBeFocused();
+
+  // No count until there is a line; then it says how many are ticked.
+  await expect(page.getByTestId('bwx-checklist-count')).toHaveCount(0);
+  await page.getByTestId('bwx-checklist-add').click();
+  await page.getByTestId('bwx-checklist-text').first().fill('One thing');
+  await expect(page.getByTestId('bwx-checklist-count')).toHaveText('0 of 1 done');
+  await page.getByTestId('bwx-checklist-done').first().check();
+  await expect(page.getByTestId('bwx-checklist-count')).toHaveText('1 of 1 done');
+
+  await page.close();
+});
+
 test('work with something outstanding is on the standup from the day it is captured', async () => {
   const item = await fresh(`Early bird ${RUN_ID}`);
   const board = await admin.api.get('/standup');

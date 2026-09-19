@@ -91,6 +91,11 @@ final class RecurringRuleTest extends TestCase {
 		self::assertSame( 'Every weekday', Rule::describe( Rule::normalise( array( 'every' => 'week', 'days' => array( 5, 4, 3, 2, 1 ) ) ) ) );
 	}
 
+	/** All seven ticked by hand is every day, not a list of the seven. */
+	public function test_all_seven_days_is_every_day(): void {
+		self::assertSame( 'Every day', Rule::describe( Rule::normalise( array( 'every' => 'week', 'days' => array( 1, 2, 3, 4, 5, 6, 7 ) ) ) ) );
+	}
+
 	public function test_nonsense_is_refused(): void {
 		self::assertNull( Rule::normalise( array( 'every' => 'year' ) ) );
 		self::assertNull( Rule::normalise( array( 'every' => 'week' ) ) );

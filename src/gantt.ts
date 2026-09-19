@@ -109,7 +109,7 @@ export function axisFor( spans: Span[], today: string ): Axis {
   const weeks: Axis[ 'weeks' ] = [];
 
   for ( let at = stamp( from ); at <= stamp( last ); at += 7 * DAY ) {
-    weeks.push( { start: iso( at ), label: labelFor( iso( at ) ) } );
+    weeks.push( { start: iso( at ), label: labelFor( iso( at ), 0 === weeks.length ) } );
   }
 
   const to = iso( stamp( from ) + weeks.length * 7 * DAY - DAY );
@@ -117,15 +117,24 @@ export function axisFor( spans: Span[], today: string ): Axis {
   return { from, to, weeks };
 }
 
-/** A week's label: the month when it changes, the day of the month otherwise. */
-function labelFor( start: string ): string {
+/**
+ * A week's label: the month when it changes, the day of the month otherwise.
+ * The first week always names its month (2026-09-20), so a short axis is
+ * never a bare run of numbers.
+ */
+function labelFor( start: string, first = false ): string {
   const at = new Date( stamp( start ) );
   const day = at.getUTCDate();
+  const month = at.toLocaleDateString( 'en-GB', { month: 'short', timeZone: 'UTC' } );
+
+  if ( first ) {
+    return `${ day } ${ month }`;
+  }
 
   // A month name only where the week actually opens one, so the axis reads as
   // a run of months rather than as the same word repeated four times.
   if ( 7 >= day ) {
-    return at.toLocaleDateString( 'en-GB', { month: 'short', timeZone: 'UTC' } );
+    return month;
   }
 
   return String( day );

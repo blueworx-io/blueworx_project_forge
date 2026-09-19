@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.125.1] - 2026-09-19
+
+### Fixed
+
+- My tasks loads in one read instead of one per client site, so it opens in a moment on a studio with hundreds of sites.
+- A "before" row whose answer is a field lower down, or a piece of evidence, now has a "Go to" that opens the right section and lands on the field or the comment form.
+- The count beside a checklist says how many lines are ticked, and the counts beside Links and Images only show once there is something to count.
+- The numbers on the "Where work is sitting" report line up in a column at the right, whatever the length of the bar.
+- A recurring task ticked for all seven days reads "Every day".
+- Turning a request into work no longer asks what it sits under; new work stands alone.
+- The workflow document's gate tables match what ships again.
+- The Gantt's first week names its month, so a short schedule no longer reads as bare numbers.
+- People are listed by name everywhere — pickers, Capacity, Who does it, Who else comes — rather than newest first.
+
 ## [2.125.0] - 2026-09-19
 
 ### Changed

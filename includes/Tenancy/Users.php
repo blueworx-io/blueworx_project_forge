@@ -155,7 +155,7 @@ final class Users {
 	}
 
 	/**
-	 * Every user, newest first.
+	 * Every user, by name.
 	 *
 	 * @param string|null $status Status to filter by, or null for all of them.
 	 * @return array<int, array<string, mixed>>
@@ -167,10 +167,10 @@ final class Users {
 
 		if ( null === $status ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-			$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC", ARRAY_A );
+			$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY display_name ASC, created_at DESC", ARRAY_A );
 		} else {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status = %s ORDER BY created_at DESC", $status ), ARRAY_A );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status = %s ORDER BY display_name ASC, created_at DESC", $status ), ARRAY_A );
 		}
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );

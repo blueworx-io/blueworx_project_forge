@@ -14,9 +14,10 @@ import { Screen } from './States';
  * three seats, split into four saved views over one table — Today, the next
  * seven days, further out, and everything — so the counts always add up.
  *
- * There is no cross-site route for this yet, so the screen reads each site's
- * work and keeps what names this person. The split is worked out here from
- * the due dates, the same way the standup does.
+ * Every site's work comes in one read (2026-09-19) — reading each site in
+ * turn took a request per site, and a studio with two hundred sites waited
+ * minutes. The screen keeps what names this person; the split is worked out
+ * here from the due dates, the same way the standup does.
  */
 
 type Site = ClientSite & { client_name: string };
@@ -87,32 +88,34 @@ export function MyTasksScreen() {
       }
       const person = me;
 
-      const [ siteList, stageList ] = await Promise.all( [
+      const [ siteList, stageList, loaded ] = await Promise.all( [
         api< { sites: Site[] } >( '/client-sites' ),
         api< { stages: Stage[] } >( '/stages' ),
+        api< { items: WorkItem[] } >( '/work-items-all' ),
       ] );
       setStages( stageList.stages );
 
+      const sites = new Map( siteList.sites.map( ( site ) => [ site.id, site ] ) );
       const found: Mine[] = [];
-      for ( const site of siteList.sites ) {
-        const loaded = await api< { items: WorkItem[] } >( `/work-items?client_site_id=${ encodeURIComponent( site.id ) }` ).catch( () => ( { items: [] } ) );
-        for ( const item of loaded.items ) {
-          const seats: Array< [ Role, string, number ] > = [
-            [ 'primary', item.primary_user_id, item.hours_primary ],
-            [ 'reviewer', item.reviewer_id, item.hours_review ],
-            [ 'deliverer', item.deliverer_id, item.hours_delivery ],
-          ];
-          for ( const [ seat, holder, hours ] of seats ) {
-            if ( holder === person.id ) {
-              found.push( { id: `${ item.id }:${ seat }`, item, role: seat, site, hours, due: daysUntil( item.planned_due || item.derived_due || '' ) } );
-            }
+      for ( const item of loaded.items ) {
+        const site = sites.get( item.client_site_id );
+        if ( ! site ) continue;
+        const due = daysUntil( item.planned_due || item.derived_due || '' );
+        const seats: Array< [ Role, string, number ] > = [
+          [ 'primary', item.primary_user_id, item.hours_primary ],
+          [ 'reviewer', item.reviewer_id, item.hours_review ],
+          [ 'deliverer', item.deliverer_id, item.hours_delivery ],
+        ];
+        for ( const [ seat, holder, hours ] of seats ) {
+          if ( holder === person.id ) {
+            found.push( { id: `${ item.id }:${ seat }`, item, role: seat, site, hours, due } );
           }
+        }
 
-          // A recurring chore names its people rather than seats (2026-09-18):
-          // one row for you, with your own tick on it.
-          if ( ( item.assignees ?? [] ).includes( person.id ) ) {
-            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due: daysUntil( item.planned_due || item.derived_due || '' ) } );
-          }
+        // A recurring chore names its people rather than seats (2026-09-18):
+        // one row for you, with your own tick on it.
+        if ( ( item.assignees ?? [] ).includes( person.id ) ) {
+          found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due } );
         }
       }
       setMine( found );
@@ -235,7 +238,7 @@ export function MyTasksScreen() {
 
   return (
     <>
-      { 'loading' === state && <Screen state="loading" detail="Reading every site for what names you." /> }
+      { 'loading' === state && <Screen state="loading" detail="Reading what names you, on every site." /> }
 
       { 'denied' === state && <Screen state="denied" testId="bwx-mytasks-state" detail="You are signed in, but not on any client whose work you may read." /> }
 
