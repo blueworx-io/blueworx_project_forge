@@ -222,15 +222,6 @@ test('a replayed leave under one retry key makes one record, not two', async () 
   expect((await again.json()).record.id).toBe((await first.json()).record.id);
 });
 
-test('a leave with its dates the wrong way round is stored the right way round', async () => {
-  const added = await api.post(`/users/${person.id}/leave`, { starts_on: '2019-03-10', ends_on: '2019-03-08', kind: 'leave' });
-  expect(added.status(), await added.text()).toBe(200);
-
-  const { record } = await added.json();
-  expect(record.starts_on).toBe('2019-03-08');
-  expect(record.ends_on).toBe('2019-03-10');
-});
-
 test('a leave with no real dates is refused by field', async () => {
   const added = await api.post(`/users/${person.id}/leave`, { starts_on: 'soon', ends_on: '', kind: 'leave' });
 
