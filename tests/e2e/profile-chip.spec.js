@@ -22,5 +22,9 @@ test('the top bar names the signed-in person and links to their profile', async 
   const chip = page.getByTestId('bwx-profile');
   await expect(chip).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('bwx-profile-name')).toHaveText(person.user.display_name);
-  await expect(chip).toHaveAttribute('href', /profile\.php$/);
+  // Since 2026-09-18 the chip opens the person's own profile screen in the app.
+  await expect(chip).toHaveAttribute('href', '#screen=profile');
+  await chip.click();
+  await expect(page.getByTestId('bwx-profile-screen')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('bwx-me-name')).toHaveText(person.user.display_name);
 });

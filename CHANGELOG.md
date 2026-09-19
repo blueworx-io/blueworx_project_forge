@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.119.0] - 2026-09-18
+
+### Added
+
+- Your profile: click your name in the top-right corner to see your details (with a link to edit them), connect Slack and choose what it tells you about, set your own working week and time off, and log out. Anyone on staff can set their own hours from here; only an administrator can set somebody else's.
+
 ## [2.118.0] - 2026-09-18
 
 ### Added

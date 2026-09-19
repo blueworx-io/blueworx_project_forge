@@ -97,6 +97,7 @@ final class Server {
 		MeetingsController::register_routes( self::NAMESPACE );
 		SubscriptionsController::register_routes( self::NAMESPACE );
 		SlackController::register_routes( self::NAMESPACE );
+		ProfileController::register_routes( self::NAMESPACE );
 		ReportsController::register_routes( self::NAMESPACE );
 		SignalsController::register_routes( self::NAMESPACE );
 	}

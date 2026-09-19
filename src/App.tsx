@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Building2, CalendarCheck, CalendarClock, CalendarDays, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
+import { BarChart3, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { ClientsScreen } from './components/ClientsScreen';
 import { MeetingsScreen } from './components/MeetingsScreen';
+import { ProfileScreen } from './components/ProfileScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
@@ -88,10 +89,10 @@ const RAIL: Entry[] = [
  * the screen, so what follows is a real read of every path it uses.
  */
 /**
- * Who is signed in, top right of every screen, by name; it opens the
- * WordPress profile, where a person's own settings live.
+ * Who is signed in, top right of every screen, by name; it opens their
+ * profile screen, where their own settings live (2026-09-18).
  */
-function Profile() {
+function Profile( { onOpen }: { onOpen: () => void } ) {
   const data = forgeData();
   const who = data?.currentUser;
 
@@ -100,7 +101,16 @@ function Profile() {
   }
 
   return (
-    <a className="fs-profile" href={ data?.profileUrl ?? '#' } data-testid="bwx-profile" title="Your profile">
+    <a
+      className="fs-profile"
+      href="#screen=profile"
+      data-testid="bwx-profile"
+      title="Your profile"
+      onClick={ ( event ) => {
+        event.preventDefault();
+        onOpen();
+      } }
+    >
       <Avatar name={ who.name } />
       <span className="fs-profile-name" data-testid="bwx-profile-name">{ who.name }</span>
     </a>
@@ -150,6 +160,7 @@ const TITLES: Record< ScreenName, string > = {
   clients: 'Clients',
   support: 'Support',
   meetings: 'Meetings',
+  profile: 'Your profile',
 };
 
 const VIEW_TITLES: Partial< Record< ViewName, string > > = {
@@ -185,6 +196,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
   meetings: { crumbs: [ 'Clients', 'Meetings' ], eyebrow: 'Standing meetings, and the next twelve weeks of them', tile: CalendarClock, hue: 'rose' },
+  profile: { crumbs: [ 'You', 'Profile' ], eyebrow: 'Your Slack, working week and time off', tile: CircleUser, hue: 'violet' },
 };
 
 /** How many requests are waiting on the studio — the rail's one live count. */
@@ -349,7 +361,7 @@ export function App() {
           >
             New task
           </Button>
-          <Profile />
+          <Profile onOpen={ () => setScreen( 'profile' ) } />
         </div>
 
         { /*
@@ -388,6 +400,7 @@ export function App() {
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } site={ landing.site } /> }
         { 'meetings' === screen && <MeetingsScreen key={ generation } site={ landing.site } /> }
+        { 'profile' === screen && <ProfileScreen key={ generation } /> }
       </main>
     </div>
   );

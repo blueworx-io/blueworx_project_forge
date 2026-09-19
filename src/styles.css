@@ -3079,3 +3079,44 @@ td[ data-band='over' ] {
   gap: 16px;
   align-items: start;
 }
+
+/* The profile page: a person's facts in a row, and the Slack preferences. */
+.bwx-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.bwx-profile-facts {
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax( 180px, 1fr ) );
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.bwx-profile-prefs {
+  border: 0;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bwx-profile-prefs legend {
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
+  color: var( --ink-700 );
+  margin-bottom: 4px;
+}
+.bwx-profile-pref {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var( --text-small );
+}
+.bwx-profile-pref input {
+  margin: 0;
+  accent-color: var( --brand-600 );
+}
+.bwx-profile > .bwx-availability {
+  padding: 0;
+  overflow: visible;
+}
