@@ -1489,19 +1489,6 @@ final class WorkItemsController {
 	}
 
 	/**
-	 * Asks the permission layer, and refuses in the shape every route answers
-	 * with.
-	 *
-	 * Every workflow mutation goes through here, which is what makes the client
-	 * transition lock a lock rather than a habit (#115): there is no route that
-	 * moves work without asking, so there is no route a client role can reach
-	 * by finding the one that forgot.
-	 *
-	 * @param string               $capability What is being exercised.
-	 * @param array<string, mixed> $item       The item it is being exercised on.
-	 * @return \WP_Error|null Null when it is allowed.
-	 */
-	/**
 	 * A history entry with the name of whoever did it, for the panel's pill.
 	 *
 	 * @param array<string, mixed> $entry One event.
@@ -1516,6 +1503,19 @@ final class WorkItemsController {
 		return $entry;
 	}
 
+	/**
+	 * Asks the permission layer, and refuses in the shape every route answers
+	 * with.
+	 *
+	 * Every workflow mutation goes through here, which is what makes the client
+	 * transition lock a lock rather than a habit (#115): there is no route that
+	 * moves work without asking, so there is no route a client role can reach
+	 * by finding the one that forgot.
+	 *
+	 * @param string               $capability What is being exercised.
+	 * @param array<string, mixed> $item       The item it is being exercised on.
+	 * @return \WP_Error|null Null when it is allowed.
+	 */
 	private static function permit( string $capability, array $item ) {
 		return Access::refuse_unless( $capability, (string) $item['client_id'], $item );
 	}
