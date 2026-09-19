@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.125.0] - 2026-09-19
+
+### Changed
+
+- Banners mean what their colour says: green confirms and clears itself after five seconds, yellow warns and red says something failed, and both of those stay until closed. Every banner has a close button.
+- Screen titles are 26px everywhere, with the header trimmed to match and "Refreshed" in its top right corner. The three pills in the top bar are one height, "Lately" is now "Updates", and a short rule sits before your name.
+- Every side panel opens the same way: the close in the top right corner, a body that scrolls, and its buttons in a footer that stays put.
+- The task panel: every section folds; Comments (now their own card), Comments and evidence, and History start folded. Spacing and alignment brought into line throughout.
+- Cards carry the priority as a coloured tag in the top right corner.
+- Dropdown arrows have room to their right. "Go to" on the calendar stays on one line.
+- The standup: "Pending" and "Needs review" replace the old wording; Hide sits beside Open in each card's top right corner; Today's diary is redrawn with a picture, a chip and the details for each entry, in columns where there is room.
+- The calendar's List range is a panel a day on the site's own components, with Add a date opening as a side panel.
+- My tasks: the due column is red more than a day late, yellow a day late, plain for today and green ahead; your tick and the checklist's state sit beneath the task's title.
+- Clients: "Start onboarding" is "Onboard", and a site's actions stay on one line.
+- The report tables are the site's standard tables, and the count always sits to the right of its bar.
+- Your profile: proper spacing, Slack last, tables using the full width, and two sentences dropped.
 ## [2.124.0] - 2026-09-19
 
 ### Added

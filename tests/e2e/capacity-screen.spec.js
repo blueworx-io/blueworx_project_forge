@@ -62,7 +62,7 @@ test('every figure opens to the work behind it', async ({ page }) => {
   // explanation cannot be about two different weeks.
   await expect(panel.locator('.bwx-eyebrow')).toContainText(/\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}/);
 
-  await panel.getByRole('button', { name: 'Close' }).click();
+  await panel.getByRole('button', { name: 'Close' }).first().click();
   await expect(panel).toBeHidden();
 });
 

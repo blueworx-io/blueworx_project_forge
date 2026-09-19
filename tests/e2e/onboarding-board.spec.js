@@ -216,7 +216,7 @@ test('a row opens to the steps behind its figures', async ({ page }) => {
   // button the server refuses.
   await expect(panel.getByTestId('bwx-onboarding-approve')).toHaveCount(0);
 
-  await panel.getByRole('button', { name: 'Close' }).click();
+  await panel.getByRole('button', { name: 'Close' }).first().click();
   await expect(panel).toBeHidden();
 });
 
