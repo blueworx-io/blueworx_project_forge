@@ -90,7 +90,13 @@ final class Terms {
 	 *
 	 * @var array<int, string>
 	 */
-	public const FIELDS = array( 'name', 'hours', 'price', 'currency', 'validity_months', 'terms' );
+	public const FIELDS = array( 'name', 'hours', 'price', 'currency', 'validity_months', 'hours_per', 'terms' );
+
+	/**
+	 * What the hours are per (2026-09-19): the whole term, as every package
+	 * was before, or each month of it.
+	 */
+	public const HOURS_PER = array( 'year', 'month' );
 
 	/**
 	 * A submitted set of terms, cleaned up.
@@ -113,8 +119,39 @@ final class Terms {
 			'price'           => max( 0, (int) round( (float) ( $values['price'] ?? 0 ) ) ),
 			'currency'        => self::currency( (string) ( $values['currency'] ?? 'GBP' ) ),
 			'validity_months' => max( 1, min( self::MAX_VALIDITY_MONTHS, 0 === $months ? self::DEFAULT_VALIDITY_MONTHS : $months ) ),
+			'hours_per'       => in_array( (string) ( $values['hours_per'] ?? '' ), self::HOURS_PER, true ) ? (string) $values['hours_per'] : 'year',
 			'terms'           => mb_substr( trim( (string) ( $values['terms'] ?? '' ) ), 0, self::MAX_TERMS ),
 		);
+	}
+
+	/**
+	 * The hours a set of terms puts on a site over its whole term: the figure
+	 * itself, or that figure for each month of the term (2026-09-19).
+	 *
+	 * @param array<string, mixed> $terms Terms, or a stored version.
+	 * @return float
+	 */
+	public static function total_hours( array $terms ): float {
+		$hours = (float) ( $terms['hours'] ?? 0 );
+
+		if ( 'month' === (string) ( $terms['hours_per'] ?? 'year' ) ) {
+			$hours *= max( 1, (int) ( $terms['validity_months'] ?? self::DEFAULT_VALIDITY_MONTHS ) );
+		}
+
+		return round( $hours, 2 );
+	}
+
+	/**
+	 * What one hour costs on these terms, to two places; nought when there is
+	 * no price.
+	 *
+	 * @param array<string, mixed> $terms Terms, or a stored version.
+	 * @return float
+	 */
+	public static function price_per_hour( array $terms ): float {
+		$total = self::total_hours( $terms );
+
+		return $total > 0 ? round( (float) ( $terms['price'] ?? 0 ) / $total, 2 ) : 0.0;
 	}
 
 	/**

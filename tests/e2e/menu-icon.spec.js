@@ -8,7 +8,7 @@ test('the Forge menu icon is placed by WordPress, in line with its neighbours', 
   await signIn(page);
   await page.goto('/wp-admin/index.php');
 
-  const forge = page.locator('#toplevel_page_blueworx-forge-sites');
+  const forge = page.locator('#toplevel_page_blueworx-forge-sync');
   await expect(forge).toBeVisible();
 
   // WordPress paints an SVG icon as the entry's background; nothing of ours
@@ -23,7 +23,7 @@ test('the Forge menu icon is placed by WordPress, in line with its neighbours', 
     const icon = await li.locator('.wp-menu-image').boundingBox();
     return { w: icon.width, h: icon.height, top: icon.y - row.y, left: icon.x - row.x };
   };
-  const ours = await measure('#toplevel_page_blueworx-forge-sites');
+  const ours = await measure('#toplevel_page_blueworx-forge-sync');
   const theirs = await measure('#menu-comments');
   expect(ours).toEqual(theirs);
 });

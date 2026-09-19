@@ -181,10 +181,10 @@ final class ProRata {
 			'days'       => self::days( $from, $to ),
 			'term_days'  => $term_days,
 			'ratio'      => round( $ratio, 6 ),
-			'hours'      => self::hours( (float) ( $version['hours'] ?? 0 ), $ratio ),
+			'hours'      => self::hours( Terms::total_hours( $version ), $ratio ),
 			'price'      => self::price( (int) ( $version['price'] ?? 0 ), $ratio ),
 			'currency'   => (string) ( $version['currency'] ?? 'GBP' ),
-			'full_hours' => round( (float) ( $version['hours'] ?? 0 ), 2 ),
+			'full_hours' => Terms::total_hours( $version ),
 			'full_price' => (int) ( $version['price'] ?? 0 ),
 		);
 	}

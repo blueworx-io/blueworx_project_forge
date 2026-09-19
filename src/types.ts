@@ -1022,6 +1022,10 @@ export interface PackageVersion {
   price: number;
   currency: string;
   validity_months: number;
+  /** Per year (the whole term) or per month (2026-09-19), and what follows from it. */
+  hours_per: 'year' | 'month';
+  hours_total: number;
+  price_per_hour: number;
   terms: string;
   created_at: number;
   created_by: number;
