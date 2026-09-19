@@ -899,6 +899,8 @@ export interface AvailabilityPattern {
   id: string;
   user_id: string;
   effective_from: string;
+  /** The last day it applies, or '' for ongoing. */
+  effective_to: string;
   note: string;
   hours_sun: number;
   hours_mon: number;

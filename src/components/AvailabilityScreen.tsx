@@ -120,6 +120,7 @@ export function AvailabilityScreen( { person }: { person: string } ) {
 
   const historyColumns: Column< AvailabilityPattern >[] = [
     { key: 'from', label: 'From', mono: true, width: 120, sortBy: ( p ) => p.effective_from, render: ( p ) => p.effective_from },
+    { key: 'to', label: 'Until', mono: true, width: 120, sortBy: ( p ) => p.effective_to, render: ( p ) => p.effective_to || '—' },
     ...DAYS.map( ( [ key, label ] ): Column< AvailabilityPattern > => ( {
       key,
       label,
@@ -320,6 +321,7 @@ function HoursForm( {
   onSaved: ( answer: AvailabilityAnswer ) => void;
 } ) {
   const [ from, setFrom ] = useState( today() );
+  const [ until, setUntil ] = useState( '' );
   const [ week, setWeek ] = useState< Record< string, string > >( () =>
     Object.fromEntries( DAYS.map( ( [ key ] ) => [ key, current ? hours( current[ key ] ) : '' ] ) )
   );
@@ -331,7 +333,7 @@ function HoursForm( {
     setBusy( true );
     setNotice( '' );
 
-    const body: Record< string, unknown > = { effective_from: from, note };
+    const body: Record< string, unknown > = { effective_from: from, effective_to: until, note };
 
     for ( const [ key ] of DAYS ) {
       body[ key ] = Number( week[ key ] ) || 0;
@@ -357,6 +359,9 @@ function HoursForm( {
       <Field label="From" required help="A new week from this date. Earlier weeks keep the hours they had.">
         { ( id ) => <TextInput id={ id } type="date" autoFocus data-testid="bwx-availability-effective-from" value={ from } onChange={ ( event ) => setFrom( event.target.value ) } /> }
       </Field>
+      <Field label="Until" help="Leave empty for ongoing hours. After this day the week before takes over again.">
+        { ( id ) => <TextInput id={ id } type="date" min={ from } data-testid="bwx-availability-effective-to" value={ until } onChange={ ( event ) => setUntil( event.target.value ) } /> }
+      </Field>
 
       <div className="bwx-availability-hours-grid">
         { DAYS.map( ( [ key, label ] ) => (
@@ -366,6 +371,7 @@ function HoursForm( {
                 id={ id }
                 type="number"
                 min="0"
+                max="12"
                 step="0.25"
                 inputMode="decimal"
                 data-testid={ `bwx-availability-hours-${ key }` }

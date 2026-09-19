@@ -201,6 +201,27 @@ final class CapacityAvailabilityTest extends TestCase {
 	}
 
 	/**
+	 * A pattern may end (2026-09-18). After its last day it is not in force,
+	 * and whatever was in force before it is again — reduced hours for March
+	 * hand back to the ordinary week in April.
+	 */
+	public function test_a_pattern_with_an_end_hands_back_to_the_one_before(): void {
+		$usual = $this->pattern( '2026-01-01', 8.0 );
+		$march = $this->pattern( '2026-03-01', 4.0 );
+
+		$usual['created_at']   = 1000;
+		$march['created_at']   = 2000;
+		$march['effective_to'] = '2026-03-31';
+
+		$this->assertSame( 4.0, Patterns::pick( array( $usual, $march ), '2026-03-10' )['hours_mon'] );
+		$this->assertSame( 4.0, Patterns::pick( array( $usual, $march ), '2026-03-31' )['hours_mon'] );
+		$this->assertSame( 8.0, Patterns::pick( array( $usual, $march ), '2026-04-01' )['hours_mon'] );
+
+		// With nothing before it, an ended pattern leaves nothing in force.
+		$this->assertNull( Patterns::pick( array( $march ), '2026-04-01' ) );
+	}
+
+	/**
 	 * Before anybody has said anything, there is no pattern — not a pattern of
 	 * zero.
 	 */

@@ -129,14 +129,30 @@ final class AvailabilityController {
 			return self::invalid( array( 'effective_from' => __( 'Say the date these hours start from.', 'blueworx-forge' ) ) );
 		}
 
+		// Until a date, or ongoing (2026-09-18).
+		$effective_to = sanitize_text_field( (string) ( $body['effective_to'] ?? '' ) );
+		$fields       = array();
+
+		if ( '' !== $effective_to && ( ! self::is_date( $effective_to ) || $effective_to < $effective_from ) ) {
+			$fields['effective_to'] = __( 'The end has to be on or after the start.', 'blueworx-forge' );
+		}
+
 		$hours = array();
 
 		foreach ( Patterns::day_columns() as $column ) {
 			$hours[ $column ] = (float) ( $body[ $column ] ?? 0 );
+
+			if ( $hours[ $column ] > Patterns::MAX_DAY ) {
+				$fields[ $column ] = __( 'At most 12 hours in a day.', 'blueworx-forge' );
+			}
+		}
+
+		if ( array() !== $fields ) {
+			return self::invalid( $fields );
 		}
 
 		$note    = sanitize_text_field( (string) ( $body['note'] ?? '' ) );
-		$pattern = Patterns::record( (string) $user['id'], $effective_from, $hours, get_current_user_id(), $note );
+		$pattern = Patterns::record( (string) $user['id'], $effective_from, $hours, get_current_user_id(), $note, $effective_to );
 
 		if ( null === $pattern ) {
 			return Errors::rest( 'write_failed', __( 'Those hours could not be saved.', 'blueworx-forge' ), 500 );
