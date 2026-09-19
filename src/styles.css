@@ -2264,26 +2264,25 @@ td[ data-band='over' ] {
 }
 
 /* The bar carries the shape and the figure beside it carries the fact, so a
-   row still reads correctly with no colour at all. The figure is always to
-   the right of the bar, whatever the bar's length. */
+   row still reads correctly with no colour at all. The figure sits in a
+   column of its own at the right (2026-09-19), so every row's number lines
+   up whatever the bar's length. */
 .bwx-report-bar-cell {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax( 0, 1fr ) 48px;
   align-items: center;
-  gap: 8px;
+  column-gap: 12px;
   inline-size: 100%;
 }
 .bwx-report-bar {
-  display: inline-block;
-  flex: 0 1 auto;
+  display: block;
   block-size: 8px;
   min-inline-size: 2px;
-  max-inline-size: calc( 100% - 40px );
   background: var( --color-ring-blue );
   border-radius: 4px;
 }
 .bwx-report-bar-count {
-  flex: 0 0 auto;
-  min-inline-size: 24px;
+  text-align: right;
 }
 
 /* ---- The task record on the kit (#306) ---- */
@@ -2461,6 +2460,10 @@ td[ data-band='over' ] {
 .bwx-panel-body .bwx-unmet li > .bwx-select {
   width: auto;
   max-width: 220px;
+}
+.bwx-panel-body .bwx-unmet li > .bwx-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .bwx-unmet-who {
   font-size: var( --text-micro );

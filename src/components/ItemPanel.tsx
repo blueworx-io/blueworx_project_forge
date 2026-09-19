@@ -143,7 +143,6 @@ const DATES = [
 const ASSIGNMENT = [
   'commercial_class',
   'priority',
-  'remaining_estimate',
   'release_method',
   'release_destination',
   ...SEATS.flatMap( ( seat ) => [ seat.field, seat.hours ] ),
@@ -867,6 +866,24 @@ export function ItemPanel( {
     return '' !== by && blank( field ) && reached( by ) ? label( by ) : '';
   };
 
+  /**
+   * Takes the person to a field's control (2026-09-19): a before-row says
+   * what is missing, and this unfolds the section holding it and lands on
+   * it, so nobody has to know which card the answer lives on.
+   */
+  const reveal = ( field: string ) => {
+    const section = ( ASSIGNMENT as readonly string[] ).includes( field )
+      ? 'assign'
+      : [ 'test_description', 'test_steps' ].includes( field ) ? 'testing' : 'task';
+
+    setFolded( { ...folded, [ section ]: false } );
+    window.setTimeout( () => {
+      const target = document.getElementById( `bwx-${ field }` );
+      target?.scrollIntoView( { block: 'center', behavior: 'smooth' } );
+      ( target as HTMLElement | null )?.focus?.( { preventScroll: true } );
+    }, 50 );
+  };
+
   /** A section's head: its name, and the fold. */
   const head = ( id: string, title: ReactNode ) => (
     <button
@@ -1182,6 +1199,7 @@ export function ItemPanel( {
                 items={ siteItems }
                 people={ staffList }
                 allowed={ allowed }
+                onReveal={ reveal }
               />
             ) ) }
 
@@ -1575,7 +1593,7 @@ export function ItemPanel( {
               <div className="bwx-field bwx-links" data-testid="bwx-links">
                 <span className="bwx-checklist-head">
                   <span>Links</span>
-                  <span className="bwx-mono">{ `${ links.length } of ${ CHECKLIST_ROWS }` }</span>
+                  { 0 < links.length && <span className="bwx-mono">{ `${ links.length } of ${ CHECKLIST_ROWS }` }</span> }
                 </span>
                 { links.map( ( row, at ) => (
                   <div className="bwx-link-row" data-testid="bwx-link-row" key={ at }>
@@ -1627,7 +1645,7 @@ export function ItemPanel( {
               <div className="bwx-field" data-testid="bwx-images">
                 <span className="bwx-checklist-head">
                   <span>Images</span>
-                  <span className="bwx-mono">{ `${ item.images.length } of ${ CHECKLIST_ROWS }` }</span>
+                  { 0 < item.images.length && <span className="bwx-mono">{ `${ item.images.length } of ${ CHECKLIST_ROWS }` }</span> }
                 </span>
                 { 0 < item.images.length && (
                   <ul className="bwx-image-list">
@@ -2237,6 +2255,7 @@ export function GateList( {
   items = [],
   people = [],
   allowed = () => true,
+  onReveal,
 }: {
   heading: string;
   readiness?: Readiness;
@@ -2253,6 +2272,8 @@ export function GateList( {
   people?: Person[];
   /** Whether the signed-in person may answer a requirement that belongs to a seat. */
   allowed?: ( requirement: Requirement ) => boolean;
+  /** Where a field-answered row takes the person, when the panel can. */
+  onReveal?: ( field: string ) => void;
 } ) {
   if ( ! readiness || 0 === readiness.unmet.length ) {
     return null;
@@ -2283,6 +2304,17 @@ export function GateList( {
                */ }
               { ! met && isPick && ! allowed( requirement ) && (
                 <span className="bwx-unmet-who">{ FOR_WHOM[ requirement.who ] ?? '' }</span>
+              ) }
+              { ! met && 'field' === requirement.by && onReveal && 0 < requirement.fields.length && (
+                <button
+                  type="button"
+                  className="bwx-button"
+                  data-variant="quiet"
+                  data-testid="bwx-unmet-go"
+                  onClick={ () => onReveal( requirement.fields[ 0 ] ) }
+                >
+                  Go to
+                </button>
               ) }
               { ! met && isPick && allowed( requirement ) && (
                 <select
@@ -2452,7 +2484,7 @@ function kindOf( draft: { url: string; asking: boolean } ): string {
 /**
  * A list of up to ten one-line items, each with a tick: the task's checklist,
  * or the steps that test it. Enter on a line starts the next; Backspace on an
- * empty one removes it; the count says how many of the ten are used.
+ * empty one removes it; the count says how many lines are ticked.
  */
 export function LineList( {
   name,
@@ -2469,7 +2501,11 @@ export function LineList( {
     <div className="bwx-field bwx-checklist" data-testid={ testId }>
       <span className="bwx-checklist-head">
         <span>{ name }</span>
-        <span className="bwx-mono">{ `${ rows.length } of ${ CHECKLIST_ROWS }` }</span>
+        { 0 < rows.length && (
+          <span className="bwx-mono" data-testid={ `${ testId }-count` }>
+            { `${ rows.filter( ( row ) => row.done ).length } of ${ rows.length } done` }
+          </span>
+        ) }
       </span>
       { rows.map( ( row, at ) => (
         <div className="bwx-checklist-row" data-testid={ `${ testId }-row` } key={ at }>

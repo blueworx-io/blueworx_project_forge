@@ -194,8 +194,15 @@ final class Rule {
 		}
 
 		if ( 'week' === $rule['every'] ) {
-			if ( self::WEEKDAY_DAYS === array_map( 'intval', array_values( (array) $rule['days'] ) ) ) {
+			$days = array_map( 'intval', array_values( (array) $rule['days'] ) );
+
+			if ( self::WEEKDAY_DAYS === $days ) {
 				return __( 'Every weekday', 'blueworx-forge' );
+			}
+
+			// All seven is every day, however it was put in.
+			if ( 7 === count( $days ) ) {
+				return __( 'Every day', 'blueworx-forge' );
 			}
 
 			$names = array();
