@@ -52,6 +52,10 @@ export interface WorkItem {
   problem: string;
   /** Up to ten one-line items, ticked off in the panel. */
   checklist: ChecklistRow[];
+  /** A recurring chore's people, who has ticked it (person id to unix time), and the hours each spends. */
+  assignees: string[];
+  ticks: Record< string, number >;
+  hours_each: number;
   scope: string;
   requirements: string;
   acceptance_criteria: string;
@@ -437,6 +441,9 @@ export interface RecurringSource {
   hours_primary: number;
   hours_review: number;
   hours_delivery: number;
+  /** Who does it, each ticking their own, and the hours each spends (2026-09-18). */
+  assignees: string[];
+  hours_each: number;
   rule: RecurringRule;
   cadence: string;
   starts_on: string;

@@ -173,6 +173,9 @@ final class Materialise {
 			'planned_due'      => $date,
 			'commercial_class' => 'unclassified',
 			'recurring_id'     => (string) $source['id'],
+			// Who does it, each ticking their own (2026-09-18).
+			'assignees'        => (array) ( $source['assignees'] ?? array() ),
+			'hours_each'       => (float) ( $source['hours_each'] ?? 0 ),
 		);
 	}
 

@@ -120,6 +120,13 @@ export function Card( {
           </span>
         ) }
         { blocked && <Tag tone="danger">Blocked</Tag> }
+        { 0 < ( item.assignees?.length ?? 0 ) && (
+          <span data-testid="bwx-card-ticks">
+            <Tag tone={ Object.keys( item.ticks ?? {} ).length >= item.assignees.length ? 'ok' : 'neutral' }>
+              { `${ Object.keys( item.ticks ?? {} ).length } of ${ item.assignees.length } done` }
+            </Tag>
+          </span>
+        ) }
         { 0 < ( item.checklist?.length ?? 0 ) && (
           <span data-testid="bwx-card-checklist">
             <Tag tone={ item.checklist.every( ( row ) => row.done ) ? 'ok' : 'neutral' }>

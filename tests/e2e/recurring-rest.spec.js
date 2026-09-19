@@ -13,7 +13,7 @@ async function serverToday(api) {
   return (await api.get('/standup')).today;
 }
 
-test('a daily source makes today’s task once, in Up Next, with its seats', async ({ browser, baseURL }) => {
+test('a daily source makes today’s task once, in Up Next, for its people', async ({ browser, baseURL }) => {
   test.slow();
 
   const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -30,8 +30,8 @@ test('a daily source makes today’s task once, in Up Next, with its seats', asy
     work_type: 'task',
     rule: { every: 'day' },
     starts_on: today,
-    primary_user_id: person.id,
-    hours_primary: '0.5',
+    assignees: [person.id],
+    hours_each: '0.5',
   });
   expect(made.status(), await made.text()).toBe(200);
   const source = (await made.json()).source;
@@ -48,10 +48,10 @@ test('a daily source makes today’s task once, in Up Next, with its seats', asy
   const tasks = work.items.filter((one) => one.title.startsWith(`Daily check ${RUN_ID}`));
   expect(tasks).toHaveLength(1);
   expect(tasks[0].stage).toBe('up-next');
-  expect(tasks[0].primary_user_id).toBe(person.id);
+  expect(tasks[0].assignees).toEqual([person.id]);
   expect(tasks[0].planned_due).toBe(today);
   expect(tasks[0].problem).toBe('Look at the thing.');
-  expect(tasks[0].hours_primary).toBe(0.5);
+  expect(tasks[0].hours_each).toBe(0.5);
 
   // The listing knows what it last made, and the history says how it got there.
   const listed = await admin.api.get('/recurring');
@@ -81,6 +81,11 @@ test('a daily source makes today’s task once, in Up Next, with its seats', asy
   const refused = await staff.api.post('/recurring', { title: 'No', rule: { every: 'day' } });
   expect(refused.status()).toBe(403);
   await staff.context.close();
+
+  // A schedule is for somebody: nobody chosen is refused by field.
+  const nobody = await admin.api.post('/recurring', { title: `For nobody ${RUN_ID}`, rule: { every: 'weekday' } });
+  expect(nobody.status()).toBe(400);
+  expect((await nobody.json()).data.fields.assignees).toContain('at least one');
 
   await admin.context.close();
 });

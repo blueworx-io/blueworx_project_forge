@@ -666,6 +666,21 @@ export function ItemPanel( {
     }
   }
 
+  /** One person's tick on a chore. */
+  async function tickFor( who: string, done: boolean ) {
+    setBusy( true );
+
+    try {
+      await api( `/work-items/${ itemId }/tick`, { method: 'POST', body: { user_id: who, done } } );
+      await load();
+      onChanged();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be ticked.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   async function addComment() {
     if ( '' === comment.body.trim() && '' === comment.url.trim() ) {
       return;
@@ -694,6 +709,10 @@ export function ItemPanel( {
 
   const item = detail?.item;
   const blocked = 'blocked' === item?.stage;
+
+  // A recurring chore moves by its ticks (2026-09-18): no gate to read, no
+  // stage to choose. Up Next until everyone has done it, then Completed.
+  const chore = 0 < ( item?.assignees?.length ?? 0 );
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
   const lines = detail ? historyLines( detail.history, label ) : [];
 
@@ -991,7 +1010,47 @@ export function ItemPanel( {
               </Inline>
             ) }
 
-            { ! blocked && ! ended && (
+            { /*
+                A recurring chore's people (2026-09-18): each with their own
+                tick. The signed-in person ticks their own; an administrator
+                may tick for anyone. When everyone has, the task is done.
+             */ }
+            { 0 < ( item.assignees?.length ?? 0 ) && (
+              <div className="bwx-chore" data-testid="bwx-chore">
+                <p className="bwx-eyebrow">Who does it</p>
+                <ul className="bwx-chore-people">
+                  { item.assignees.map( ( who ) => {
+                    const done = undefined !== ( item.ticks ?? {} )[ who ];
+                    const me = forgeData()?.person?.id ?? '';
+                    const may = ! ended && ( who === me || ( forgeData()?.canManage ?? false ) );
+
+                    return (
+                      <li key={ who } data-testid="bwx-chore-person" data-done={ done ? 'true' : 'false' }>
+                        <span>{ staffList.find( ( one ) => one.id === who )?.display_name ?? who }</span>
+                        { may ? (
+                          <label className="bwx-chore-tick">
+                            <input
+                              type="checkbox"
+                              data-testid="bwx-chore-tick"
+                              aria-label={ `Done by ${ staffList.find( ( one ) => one.id === who )?.display_name ?? who }` }
+                              checked={ done }
+                              disabled={ busy }
+                              onChange={ ( event ) => void tickFor( who, event.target.checked ) }
+                            />
+                            { done ? 'Done' : 'Not yet' }
+                          </label>
+                        ) : (
+                          <span className="bwx-mono">{ done ? '✓ done' : '○ not yet' }</span>
+                        ) }
+                      </li>
+                    );
+                  } ) }
+                </ul>
+                { 0 < item.hours_each && <p className="bwx-hint">{ `${ item.hours_each } hours each.` }</p> }
+              </div>
+            ) }
+
+            { ! blocked && ! ended && ! chore && (
               <div>
                 <p className="bwx-eyebrow">Move to</p>
                 <div className="bwx-moves">
@@ -1022,7 +1081,7 @@ export function ItemPanel( {
               </div>
             ) }
 
-            { ! blocked && ! ended && detail.available.map( ( to ) => (
+            { ! blocked && ! ended && ! chore && detail.available.map( ( to ) => (
               <GateList
                 key={ to }
                 heading={ `Before ${ label( to ) }` }
@@ -1415,7 +1474,7 @@ export function ItemPanel( {
                 The two definition boxes, once the item has got as far as the
                 stage that wants them or when they hold something already.
              */ }
-            { DEFINITION_BOXES.filter( ( box ) => reached( box.needed ) || '' !== ( draft[ box.field ] ?? '' ) ).map( ( { field, label: name } ) => (
+            { DEFINITION_BOXES.filter( ( box ) => ( ! chore && reached( box.needed ) ) || '' !== ( draft[ box.field ] ?? '' ) ).map( ( { field, label: name } ) => (
               <div className="bwx-field" key={ field }>
                 { naming( field, name ) }
                 <textarea
@@ -1434,7 +1493,7 @@ export function ItemPanel( {
                 for it or once it holds an answer. Saved with Save changes as
                 a gate record, so who answered and when is kept.
              */ }
-            { boxRows().map( ( row ) => (
+            { ! chore && boxRows().map( ( row ) => (
               <StageBox
                 key={ row.id }
                 row={ row }
@@ -1504,7 +1563,7 @@ export function ItemPanel( {
                   </div>
                 </div>
 
-                { SEATS.map( ( seat ) => (
+                { 0 === ( item.assignees?.length ?? 0 ) && SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
                     { pick( seat.field, seat.label ) }
                     <div className="bwx-field">

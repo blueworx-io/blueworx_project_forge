@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.120.0] - 2026-09-18
+
+### Changed
+
+- Recurring tasks are for one or more people, with the hours each of them spends — no reviewer or deliverer. Each day's task is one card on the board ("1 of 3 done"); each person ticks their own from My tasks or the task itself, and when everyone has, it is Completed. Each person's hours count against their capacity. Repeats offers Every weekday.
+
 ## [2.119.0] - 2026-09-18
 
 ### Added

@@ -42,8 +42,8 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
     }
   }
 
-  await page.getByTestId('bwx-recurring-primary_user_id').selectOption(person.id);
-  await page.getByTestId('bwx-recurring-hours_primary').selectOption('1');
+  await page.getByTestId(`bwx-recurring-assignee-${person.id}`).check();
+  await page.getByTestId('bwx-recurring-hours_each').selectOption('1');
   await page.getByTestId('bwx-recurring-save').click();
   await expect(form).toBeHidden();
 

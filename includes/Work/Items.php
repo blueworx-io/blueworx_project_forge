@@ -55,8 +55,11 @@ final class Items {
 			array(
 				'id'             => Ids::create( self::PREFIX ),
 				// Only the recurring engine names one, at creation and never
-				// afterwards: which arrangement this task came from.
+				// afterwards: which arrangement this task came from, who does
+				// it, and the hours each of them spends.
 				'recurring_id'   => (string) ( $values['recurring_id'] ?? '' ),
+				'assignees'      => (string) wp_json_encode( array_values( array_map( 'strval', (array) ( $values['assignees'] ?? array() ) ) ) ),
+				'hours_each'     => (string) (float) ( $values['hours_each'] ?? 0 ),
 				'client_site_id' => $client_site_id,
 				'client_id'      => $client_id,
 				'stage'          => Stages::FIRST,
@@ -329,6 +332,75 @@ final class Items {
 	}
 
 	/**
+	 * Records one assignee's tick on a recurring task, or takes it back.
+	 *
+	 * Not versioned: a tick is one person's own answer and cannot collide
+	 * with anybody else's, and asking two people who tick within a second to
+	 * retry would be asking them to fight over a checkbox.
+	 *
+	 * @param string $id      Item id.
+	 * @param string $user_id Who ticked.
+	 * @param bool   $done    Ticked, or not.
+	 * @return array<string, mixed>|null The item as it now stands.
+	 */
+	public static function tick( string $id, string $user_id, bool $done ): ?array {
+		global $wpdb;
+
+		$item = self::get( $id );
+
+		if ( null === $item ) {
+			return null;
+		}
+
+		$ticks = (array) $item['ticks'];
+
+		if ( $done ) {
+			$ticks[ $user_id ] = bwx_forge_now();
+		} else {
+			unset( $ticks[ $user_id ] );
+		}
+
+		$changes = array(
+			'ticks'      => (string) wp_json_encode( (object) $ticks ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
+	 * A stored list of ids.
+	 *
+	 * @param string $stored JSON, or nothing.
+	 * @return array<int, string>
+	 */
+	private static function ids( string $stored ): array {
+		$decoded = '' === $stored ? array() : json_decode( $stored, true );
+
+		return array_values( array_map( 'strval', is_array( $decoded ) ? $decoded : array() ) );
+	}
+
+	/**
+	 * Who has ticked a recurring task, and when.
+	 *
+	 * @param string $stored JSON, or nothing.
+	 * @return array<string, int>
+	 */
+	private static function ticks( string $stored ): array {
+		$decoded = '' === $stored ? array() : json_decode( $stored, true );
+		$out     = array();
+
+		foreach ( is_array( $decoded ) ? $decoded : array() as $user_id => $at ) {
+			$out[ (string) $user_id ] = (int) $at;
+		}
+
+		return $out;
+	}
+
+	/**
 	 * The checklist as the column holds it, as rows: text and whether it is done.
 	 *
 	 * @param string $stored The JSON, or nothing.
@@ -372,6 +444,9 @@ final class Items {
 			'acceptance_criteria'      => '',
 			'references_text'          => '',
 			'checklist'                => '[]',
+			'assignees'                => '[]',
+			'ticks'                    => '{}',
+			'hours_each'               => '0',
 			'prior_stage'              => '',
 			'blocked_at'               => 0,
 			'blocked_elapsed'          => 0,
@@ -440,6 +515,9 @@ final class Items {
 			'duplicate_of'             => (string) $row['duplicate_of'],
 			'archived'                 => (bool) $row['archived'],
 			'recurring_id'             => (string) ( $row['recurring_id'] ?? '' ),
+			'assignees'                => self::ids( (string) ( $row['assignees'] ?? '' ) ),
+			'ticks'                    => self::ticks( (string) ( $row['ticks'] ?? '' ) ),
+			'hours_each'               => (float) ( $row['hours_each'] ?? 0 ),
 			'review_attempt'           => (int) $row['review_attempt'],
 			'primary_user_id'          => (string) $row['primary_user_id'],
 			'reviewer_id'              => (string) $row['reviewer_id'],
@@ -494,10 +572,11 @@ final class Items {
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-				"SELECT * FROM {$table} WHERE ( primary_user_id = %s OR reviewer_id = %s OR deliverer_id = %s ) AND archived = 0 AND terminal_outcome = '' AND stage <> %s ORDER BY planned_due ASC, created_at ASC",
+				"SELECT * FROM {$table} WHERE ( primary_user_id = %s OR reviewer_id = %s OR deliverer_id = %s OR assignees LIKE %s ) AND archived = 0 AND terminal_outcome = '' AND stage <> %s ORDER BY planned_due ASC, created_at ASC",
 				$user_id,
 				$user_id,
 				$user_id,
+				'%' . $wpdb->esc_like( '"' . $user_id . '"' ) . '%',
 				Stages::RELEASED
 			),
 			ARRAY_A

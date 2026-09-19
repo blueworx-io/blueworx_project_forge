@@ -77,6 +77,20 @@ final class RecurringRuleTest extends TestCase {
 		self::assertSame( array( '2026-09-15', '2026-09-16' ), Rule::due_between( $rule, '2026-09-15', '2026-09-20', '2026-09-16' ) );
 	}
 
+	/**
+	 * "Every weekday" is Monday to Friday (Luke, 2026-09-17), said in two words.
+	 */
+	public function test_every_weekday_is_monday_to_friday(): void {
+		$rule = Rule::normalise( array( 'every' => 'weekday' ) );
+
+		self::assertSame( array( 1, 2, 3, 4, 5 ), $rule['days'] );
+		self::assertSame( 'Every weekday', Rule::describe( $rule ) );
+		// A Saturday asks for the Monday after it.
+		self::assertSame( '2026-09-21', Rule::next_on_or_after( $rule, '2026-09-19' ) );
+		// And the five ticked by hand read the same way.
+		self::assertSame( 'Every weekday', Rule::describe( Rule::normalise( array( 'every' => 'week', 'days' => array( 5, 4, 3, 2, 1 ) ) ) ) );
+	}
+
 	public function test_nonsense_is_refused(): void {
 		self::assertNull( Rule::normalise( array( 'every' => 'year' ) ) );
 		self::assertNull( Rule::normalise( array( 'every' => 'week' ) ) );

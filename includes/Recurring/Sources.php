@@ -72,6 +72,8 @@ final class Sources {
 		'hours_primary',
 		'hours_review',
 		'hours_delivery',
+		'assignees',
+		'hours_each',
 		'rule',
 		'starts_on',
 		'ends_on',
@@ -105,6 +107,8 @@ final class Sources {
 				'hours_primary'   => '0',
 				'hours_review'    => '0',
 				'hours_delivery'  => '0',
+				'assignees'       => '[]',
+				'hours_each'      => '0',
 				'rule'            => '{"every":"day"}',
 				'starts_on'       => wp_date( 'Y-m-d' ),
 				'ends_on'         => '',
@@ -342,7 +346,7 @@ final class Sources {
 				continue;
 			}
 
-			$row[ $column ] = 'rule' === $column && is_array( $values[ $column ] )
+			$row[ $column ] = in_array( $column, array( 'rule', 'assignees' ), true ) && is_array( $values[ $column ] )
 				? (string) wp_json_encode( $values[ $column ] )
 				: (string) $values[ $column ];
 		}
@@ -357,7 +361,8 @@ final class Sources {
 	 * @return array<string, mixed>
 	 */
 	private static function hydrate( array $row ): array {
-		$rule = json_decode( (string) $row['rule'], true );
+		$rule      = json_decode( (string) $row['rule'], true );
+		$assignees = json_decode( (string) ( $row['assignees'] ?? '' ), true );
 
 		return array(
 			'id'              => (string) $row['id'],
@@ -373,6 +378,9 @@ final class Sources {
 			'hours_primary'   => (float) $row['hours_primary'],
 			'hours_review'    => (float) $row['hours_review'],
 			'hours_delivery'  => (float) $row['hours_delivery'],
+			// Who does it, and the hours each of them spends (2026-09-18).
+			'assignees'       => array_values( array_map( 'strval', is_array( $assignees ) ? $assignees : array() ) ),
+			'hours_each'      => (float) ( $row['hours_each'] ?? 0 ),
 			'rule'            => is_array( $rule ) ? $rule : array( 'every' => 'day' ),
 			'cadence'         => Rule::describe( is_array( $rule ) ? $rule : array( 'every' => 'day' ) ),
 			'starts_on'       => (string) $row['starts_on'],
