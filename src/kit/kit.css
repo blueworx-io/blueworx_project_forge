@@ -421,6 +421,27 @@
 .fk-dataview-toolbar { margin-left: auto; display: flex; align-items: center; gap: var( --space-8 ); }
 .fk-dataview-scroll { overflow-x: auto; }
 .fk-dataview-scroll[data-capped='true'] { overflow-y: auto; }
+.fk-pager {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.fk-pager-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var( --border-hairline );
+  border-radius: 8px;
+  background: var( --surface-card );
+  color: var( --ink-700 );
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.fk-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .fk-dataview-footer {
   display: flex;
   align-items: center;

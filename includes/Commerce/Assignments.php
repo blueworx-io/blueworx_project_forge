@@ -105,7 +105,7 @@ final class Assignments {
 			 * year, and working it out again at read time would be a second
 			 * calculation — which is exactly what #147 exists to prevent.
 			 */
-			'hours_granted'      => round( (float) ( $values['hours_granted'] ?? $version['hours'] ), 2 ),
+			'hours_granted'      => round( (float) ( $values['hours_granted'] ?? Terms::total_hours( $version ) ), 2 ),
 			'price_charged'      => (int) ( $values['price_charged'] ?? $version['price'] ),
 			'currency'           => (string) $version['currency'],
 			'prorated'           => $prorated ? 1 : 0,

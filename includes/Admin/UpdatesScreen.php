@@ -32,7 +32,7 @@ final class UpdatesScreen {
 	 */
 	public static function register(): void {
 		add_submenu_page(
-			SitesScreen::SLUG,
+			SyncScreen::SLUG,
 			__( 'Updates', 'blueworx-forge' ),
 			__( 'Updates', 'blueworx-forge' ),
 			'manage_options',

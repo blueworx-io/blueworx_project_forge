@@ -218,6 +218,7 @@ export function DataView< Row extends RowRecord >( {
   onSelectionChange,
   bulkNoun = 'item',
   bulkActions,
+  pageSize,
   testId,
 }: {
   columns: Column< Row >[];
@@ -251,9 +252,12 @@ export function DataView< Row extends RowRecord >( {
   onSelectionChange?: ( ids: Array< string | number > ) => void;
   bulkNoun?: string;
   bulkActions?: ReactNode;
+  /** Rows per page; unset shows every row. The pager sits in the footer. */
+  pageSize?: number;
   testId?: string;
 } ) {
   const [ sort, setSort ] = useState< Sort | null >( defaultSort ?? null );
+  const [ page, setPage ] = useState( 0 );
 
   const sorted = useMemo( () => {
     if ( ! sort ) return rows;
@@ -266,6 +270,12 @@ export function DataView< Row extends RowRecord >( {
     } );
     return 'desc' === sort.dir ? out.reverse() : out;
   }, [ rows, sort, columns ] );
+
+  // Paged after sorting, so a page is a page of the order on screen. A page
+  // that no longer exists (rows removed) falls back to the last one.
+  const pages = pageSize ? Math.max( 1, Math.ceil( sorted.length / pageSize ) ) : 1;
+  const at = Math.min( page, pages - 1 );
+  const shown = pageSize ? sorted.slice( at * pageSize, ( at + 1 ) * pageSize ) : sorted;
 
   const toggleSort = ( column: Column< Row > ) => {
     if ( ! sortable || false === column.sortable || ! column.label ) return;
@@ -372,14 +382,14 @@ export function DataView< Row extends RowRecord >( {
             </tr>
           </thead>
           <tbody>
-            { 0 === sorted.length && (
+            { 0 === shown.length && (
               <tr>
                 <td className="fk-table-empty" colSpan={ columns.length + ( selectable ? 1 : 0 ) }>
                   { empty }
                 </td>
               </tr>
             ) }
-            { sorted.map( ( row, i ) => {
+            { shown.map( ( row, i ) => {
               const id = rowId( row, i );
               const selected = ( null != selectedId && row.id === selectedId ) || selection.includes( id );
               const clickable = !! onRowClick;
@@ -433,9 +443,20 @@ export function DataView< Row extends RowRecord >( {
         </table>
       </div>
 
-      { footer && (
+      { ( footer || pages > 1 ) && (
         <div className="fk-dataview-footer" data-testid="fk-dataview-footer">
           { footer }
+          { pages > 1 && (
+            <span className="fk-pager" data-testid="fk-pager">
+              <button type="button" className="fk-pager-btn" disabled={ 0 === at } aria-label="Previous page" onClick={ () => setPage( at - 1 ) }>
+                ‹
+              </button>
+              <span className="fk-mono">{ `${ at + 1 } of ${ pages }` }</span>
+              <button type="button" className="fk-pager-btn" disabled={ at >= pages - 1 } aria-label="Next page" onClick={ () => setPage( at + 1 ) }>
+                ›
+              </button>
+            </span>
+          ) }
         </div>
       ) }
 

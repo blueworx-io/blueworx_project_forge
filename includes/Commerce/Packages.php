@@ -414,6 +414,7 @@ final class Packages {
 			'price'           => (int) $terms['price'],
 			'currency'        => (string) $terms['currency'],
 			'validity_months' => (int) $terms['validity_months'],
+			'hours_per'       => (string) ( $terms['hours_per'] ?? 'year' ),
 			'terms'           => (string) $terms['terms'],
 			'created_at'      => bwx_forge_now(),
 			'created_by'      => $author,
@@ -477,6 +478,11 @@ final class Packages {
 			'price'           => (int) $row['price'],
 			'currency'        => (string) $row['currency'],
 			'validity_months' => (int) $row['validity_months'],
+			// Per year (the whole term) or per month (2026-09-19), with what
+			// that comes to over the term and what an hour costs.
+			'hours_per'       => (string) ( $row['hours_per'] ?? 'year' ),
+			'hours_total'     => Terms::total_hours( $row ),
+			'price_per_hour'  => Terms::price_per_hour( $row ),
 			'terms'           => (string) $row['terms'],
 			'created_at'      => (int) $row['created_at'],
 			'created_by'      => (int) $row['created_by'],

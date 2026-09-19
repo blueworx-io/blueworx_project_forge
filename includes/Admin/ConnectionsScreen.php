@@ -35,7 +35,7 @@ final class ConnectionsScreen {
 	 */
 	public static function register(): void {
 		add_submenu_page(
-			SitesScreen::SLUG,
+			SyncScreen::SLUG,
 			__( 'Connections', 'blueworx-forge' ),
 			__( 'Connections', 'blueworx-forge' ),
 			'manage_options',

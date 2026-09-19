@@ -40,16 +40,28 @@ final class SyncScreen {
 	public const SLUG = 'blueworx-forge-sync';
 
 	/**
-	 * Adds the menu entry, under the Forge menu.
+	 * Adds the Forge menu, with this as its first entry and what it opens
+	 * (2026-09-19). Every other studio screen hangs off this slug.
 	 */
 	public static function register(): void {
+		add_menu_page(
+			__( 'Sync health', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			'manage_options',
+			self::SLUG,
+			array( self::class, 'render' ),
+			MenuIcon::data_uri(),
+			58
+		);
+
 		add_submenu_page(
-			SitesScreen::SLUG,
+			self::SLUG,
 			__( 'Sync health', 'blueworx-forge' ),
 			__( 'Sync health', 'blueworx-forge' ),
 			'manage_options',
 			self::SLUG,
-			array( self::class, 'render' )
+			array( self::class, 'render' ),
+			0
 		);
 	}
 
