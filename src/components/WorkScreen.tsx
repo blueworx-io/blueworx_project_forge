@@ -514,7 +514,7 @@ export function WorkScreen( {
           ) }
 
           { 'calendar' === view && (
-            <CalendarView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+            <CalendarView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } onOpenId={ setOpenId } />
           ) }
 
           { /*

@@ -27,7 +27,7 @@ export interface Entry {
   date: string;
 }
 
-export type Mode = 'month' | 'week' | 'day';
+export type Mode = 'month' | 'week' | 'day' | 'list';
 
 function stamp( date: string ): number {
   return Date.parse( `${ date }T00:00:00Z` );
@@ -64,6 +64,12 @@ export function entriesFor( items: WorkItem[] ): Entry[] {
   const entries: Entry[] = [];
 
   for ( const item of items ) {
+    // A recurring chore is on the diary as a chore, with its ticks, rather
+    // than as a due date (2026-09-18).
+    if ( '' !== ( item.recurring_id ?? '' ) ) {
+      continue;
+    }
+
     const dates: Array< [ DateKind, string ] > = [
       [ 'starts', item.planned_start ],
       [ 'due', item.planned_due ],
@@ -114,6 +120,13 @@ export function daysFor( mode: Mode, anchor: string ): string[] {
     return [ anchor ];
   }
 
+  // The list is the next thirty days from the anchor.
+  if ( 'list' === mode ) {
+    const from = stamp( anchor );
+
+    return Array.from( { length: 30 }, ( _unused, index ) => iso( from + index * DAY ) );
+  }
+
   if ( 'week' === mode ) {
     const from = stamp( weekStart( anchor ) );
 
@@ -152,6 +165,10 @@ export function titleFor( mode: Mode, anchor: string ): string {
     return at.toLocaleDateString( 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' } );
   }
 
+  if ( 'list' === mode ) {
+    return `Thirty days from ${ at.toLocaleDateString( 'en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' } ) }`;
+  }
+
   const start = weekStart( anchor );
   const end = iso( stamp( start ) + 6 * DAY );
 
@@ -162,6 +179,10 @@ export function titleFor( mode: Mode, anchor: string ): string {
 export function step( mode: Mode, anchor: string, by: number ): string {
   if ( 'day' === mode ) {
     return iso( stamp( anchor ) + by * DAY );
+  }
+
+  if ( 'list' === mode ) {
+    return iso( stamp( anchor ) + by * 30 * DAY );
   }
 
   if ( 'week' === mode ) {

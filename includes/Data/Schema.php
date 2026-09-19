@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 27;
+	public const VERSION = 28;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -412,6 +412,18 @@ final class Schema {
 	}
 
 	/**
+	 * The calendar dates table's full name: company days, birthdays,
+	 * campaigns (2026-09-18).
+	 *
+	 * @return string
+	 */
+	public static function calendar_dates_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_calendar_dates';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -472,6 +484,7 @@ final class Schema {
 		$subscriptions    = self::subscriptions_table();
 		$slack_people     = self::slack_people_table();
 		$slack_events     = self::slack_events_table();
+		$calendar_dates   = self::calendar_dates_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1548,6 +1561,26 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY user_outcome (user_id, outcome),
 	KEY outcome_settled (outcome, settled_at)
+) {$collate};",
+
+			/*
+			 * The studio's own dates (2026-09-18). people is 'all' or a JSON
+			 * list of person ids; ends_on is empty for a single day.
+			 */
+			$calendar_dates   => "CREATE TABLE {$calendar_dates} (
+	id varchar(32) NOT NULL,
+	kind varchar(20) NOT NULL DEFAULT 'other',
+	title varchar(191) NOT NULL DEFAULT '',
+	on_date varchar(10) NOT NULL DEFAULT '',
+	ends_on varchar(10) NOT NULL DEFAULT '',
+	people text NULL,
+	note varchar(191) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version int(11) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY on_date (on_date)
 ) {$collate};",
 		);
 	}
