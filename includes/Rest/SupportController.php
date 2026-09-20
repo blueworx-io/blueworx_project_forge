@@ -16,7 +16,12 @@ use Blueworx\Forge\Commerce\ProRata;
 use Blueworx\Forge\Commerce\Sales;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\Terms;
+use Blueworx\Forge\Commerce\WorkHours;
+use Blueworx\Forge\Meetings\Diary;
+use Blueworx\Forge\Meetings\MeetingHours;
+use Blueworx\Forge\Meetings\Series;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Work\Items;
 use WP_REST_Request;
 
 /**
@@ -515,7 +520,10 @@ final class SupportController {
 
 	/**
 	 * One ledger entry as the screen shows it: the row, with the day it
-	 * counts from and what it was against (#158).
+	 * counts from, what it was against (#158), and what that thing is called
+	 * (2026-09-20) — "Weekly check-in on 2026-09-26", or the task's title —
+	 * because a column of "Meeting reserved" lines with nothing to tell them
+	 * apart explains no balance to anybody.
 	 *
 	 * @param array<string, mixed> $entry The entry.
 	 * @return array<string, mixed>
@@ -526,8 +534,51 @@ final class SupportController {
 			array(
 				'when'   => gmdate( 'Y-m-d', (int) $entry['occurred_at'] ),
 				'source' => (string) $entry['source_type'] . ':' . (string) $entry['source_id'],
+				'about'  => self::about( (string) $entry['source_type'], (string) $entry['source_id'] ),
 			)
 		);
+	}
+
+	/**
+	 * What a ledger line was for, in words.
+	 *
+	 * Looked up once per thing, not once per line: a year's ledger names the
+	 * same weekly meeting fifty times.
+	 *
+	 * @param string $type The source type.
+	 * @param string $id   The source id.
+	 * @return string The name, or '' where there is nothing to name.
+	 */
+	private static function about( string $type, string $id ): string {
+		static $names = array();
+
+		$key = $type . ':' . $id;
+
+		if ( isset( $names[ $key ] ) ) {
+			return $names[ $key ];
+		}
+
+		$names[ $key ] = '';
+
+		if ( MeetingHours::SOURCE === $type ) {
+			$meeting = Diary::get( $id );
+			$series  = null === $meeting ? null : Series::get( (string) $meeting['series_id'] );
+
+			if ( null !== $meeting && null !== $series ) {
+				$names[ $key ] = sprintf(
+					/* translators: 1: the meeting's title, 2: its date. */
+					__( '%1$s on %2$s', 'blueworx-forge' ),
+					(string) $series['title'],
+					(string) $meeting['on']
+				);
+			}
+		} elseif ( WorkHours::SOURCE === $type ) {
+			$item = Items::get( $id );
+
+			$names[ $key ] = null === $item ? '' : (string) $item['title'];
+		}
+
+		return $names[ $key ];
 	}
 
 	/**

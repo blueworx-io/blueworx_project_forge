@@ -173,6 +173,13 @@ test('adding a weekly series lists it, with the twelve weeks it implies holding 
 
   const ledger = await hourLedger(api, site.id);
   expect(ledger.balance).toBe(GRANTED - 2 * answer.meetings.length);
+
+  // Each line on the site's ledger says which meeting it held the hours for
+  // (2026-09-20), so a column of reservations can be told apart.
+  const support = await api.get(`/client-sites/${site.id}/support`);
+  const held = support.ledger.filter((entry) => 'meeting-reservation' === entry.event_type);
+  expect(held.length).toBe(answer.meetings.length);
+  expect(held.map((entry) => entry.about)).toContain(`${listed.title} on ${first}`);
 });
 
 test('moving the first meeting a day later moves that one, and says where it came from', async () => {

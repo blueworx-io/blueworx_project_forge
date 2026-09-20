@@ -153,7 +153,8 @@ export function SupportScreen( { site }: { site: string } ) {
     { key: 'when', label: 'When', mono: true, width: 120, render: ( e ) => e.when },
     { key: 'what', label: 'What', width: 160, render: ( e ) => ENTRY_LABELS[ e.event_type ] ?? e.event_type },
     { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 90, render: ( e ) => signedHours( e.hours ) },
-    { key: 'why', label: 'Why', wrap: true, render: ( e ) => e.reason || '—' },
+    // What it was for: the meeting or task it names, and the reason given, where there was one (2026-09-20).
+    { key: 'why', label: 'What for', wrap: true, render: ( e ) => [ e.about, e.reason ].filter( Boolean ).join( ' · ' ) || '—' },
   ];
 
   const position = answer?.position ?? null;
