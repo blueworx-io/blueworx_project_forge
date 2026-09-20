@@ -64,10 +64,9 @@ require_once BWX_FORGE_CLIENT_PATH . 'plugin-update-checker/plugin-update-checke
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 /*
- * Client sites update themselves from the public releases repository (#340),
- * under the same GitHub organisation, from the client asset rather than the
- * studio one. That repository holds only built releases, never the source, so
- * a client site needs no token — nobody at the studio can edit a client's
+ * Client sites update themselves from this repository's releases (#340), from
+ * the client asset rather than the studio one. The repository is public, so a
+ * client site needs no token — nobody at the studio can edit a client's
  * wp-config.php, and before this every client site had to be handed one.
  * Keep this URL equal to Updates::REPO, which the connection screen reports on.
  *
@@ -76,7 +75,7 @@ use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
  * deactivates it.
  */
 $bwx_forge_client_update_checker = PucFactory::buildUpdateChecker(
-	'https://github.com/blueworx-io/blueworx_project_forge_releases/',
+	'https://github.com/blueworx-io/blueworx_project_forge/',
 	BWX_FORGE_CLIENT_FILE,
 	'blueworx-forge-client'
 );

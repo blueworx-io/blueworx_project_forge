@@ -14,9 +14,9 @@ use Blueworx\Forge\Updates;
 /**
  * Whether updates can be fetched, and what the latest release is (#200, #340).
  *
- * Once this screen also took a token, because releases lived in the private
- * source repository. They are published to a public releases-only repository
- * now (#340), so there is nothing to set here — the screen only reports.
+ * Once this screen also took a token, because releases lived in a private
+ * repository. The repository is public now (#340), so there is nothing to
+ * set here — the screen only reports.
  */
 final class UpdatesScreen {
 

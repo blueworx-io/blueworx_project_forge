@@ -12,7 +12,7 @@ commits and pull requests.
 
 ### Changed
 
-- Both plugins update themselves from a public releases-only repository, so no site needs a token any more. The Updates screen on the studio and the Updates panel on a client site's Connection screen now only say whether a release can be seen and which version the site runs; the token fields, the "remove the stored token" buttons and the wp-config setting are gone, and any token a site still held is forgotten. Every release is copied to the public repository by the release workflow.
+- No site needs a token to update any more: the repository is public, so both plugins read its releases directly. The Updates screen on the studio and the Updates panel on a client site's Connection screen now only say whether a release can be seen and which version the site runs; the token fields, the "remove the stored token" buttons and the wp-config setting are gone, and any token a site still held is forgotten.
 
 ## [2.128.0] - 2026-09-20
 

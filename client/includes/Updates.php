@@ -12,12 +12,11 @@ namespace Blueworx\Forge\Client;
 /**
  * Whether this site can see its own releases (#200, #340).
  *
- * Releases are published to a public repository that holds only built
- * releases — never the source — so no site needs a token to see them (#340).
- * Before that, the private source repository was the update source, every
- * client site had to be handed a read-only token, and a site without one was
- * told by GitHub that there was nothing to see: WordPress reported the plugin
- * as up to date and a site could sit months behind without anybody noticing.
+ * The repository is public, so no site needs a token to see its releases
+ * (#340). Before that, the repository was private, every client site had to
+ * be handed a read-only token, and a site without one was told by GitHub
+ * that there was nothing to see: WordPress reported the plugin as up to date
+ * and a site could sit months behind without anybody noticing.
  *
  * What this class keeps from then is the honesty: the connection screen asks
  * the release repository and says plainly whether updates can be fetched from
@@ -26,13 +25,13 @@ namespace Blueworx\Forge\Client;
 final class Updates {
 
 	/**
-	 * The public repository releases are published to.
+	 * The repository releases are published to.
 	 *
-	 * Keep equal to the update checker's URL in blueworx-forge-client.php and
-	 * to the release workflow's `releases_repo`, or the connection screen
-	 * reports on a different place from the one WordPress updates from.
+	 * Keep equal to the update checker's URL in blueworx-forge-client.php, or
+	 * the connection screen reports on a different place from the one
+	 * WordPress updates from.
 	 */
-	public const REPO = 'blueworx-io/blueworx_project_forge_releases';
+	public const REPO = 'blueworx-io/blueworx_project_forge';
 
 	/**
 	 * Transient the last answer from GitHub is remembered under.

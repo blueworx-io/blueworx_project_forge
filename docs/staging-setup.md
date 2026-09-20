@@ -18,7 +18,7 @@ thing this exists to test.
 
 ## 1. Install the plugins
 
-Both plugins are attached to every [release](https://github.com/blueworx-io/blueworx_project_forge_releases/releases).
+Both plugins are attached to every [release](https://github.com/blueworx-io/blueworx_project_forge/releases).
 Download the two zips from the newest one, then on each site go to
 **Plugins → Add New → Upload Plugin**:
 
@@ -32,8 +32,7 @@ the sites update themselves.
 
 ## 2. Check the sites can see updates
 
-Releases are published to a public repository that holds only the built
-plugins, so nothing needs setting on either site. On the studio, **Forge →
+The repository is public, so nothing needs setting on either site. On the studio, **Forge →
 Updates** says whether the latest release can be seen from there; on the client
 site the same line is on **Forge → Connection**. If either says no release was
 found, the site is running a build that looks in the wrong place — install the

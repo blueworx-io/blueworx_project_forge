@@ -55,12 +55,9 @@ require_once BWX_FORGE_PATH . 'plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 /*
- * Sites update themselves from the public releases repository (#340): a
- * repository under the same GitHub organisation that holds only built
- * releases, never the source, so a site needs no token to see them. The
- * source repository stays private, and the release workflow copies every
- * release across. Keep this URL equal to Updates::REPO, which the Updates
- * screen reports on.
+ * Sites update themselves from this repository's releases (#340). The
+ * repository is public, so a site needs no token to see them. Keep this URL
+ * equal to Updates::REPO, which the Updates screen reports on.
  *
  * The third argument must equal the plugin's folder name, the release
  * workflow's plugin_slug, and the site's installed directory name; if they
@@ -68,7 +65,7 @@ use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
  * copy and deactivates it.
  */
 $bwx_forge_update_checker = PucFactory::buildUpdateChecker(
-	'https://github.com/blueworx-io/blueworx_project_forge_releases/',
+	'https://github.com/blueworx-io/blueworx_project_forge/',
 	BWX_FORGE_FILE,
 	'blueworx-forge'
 );
