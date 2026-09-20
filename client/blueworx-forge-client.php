@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Client Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: The client-side workspace for Blueworx Forge.
- * Version:     2.128.0
+ * Version:     2.129.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_CLIENT_VERSION', '2.128.0' );
+define( 'BWX_FORGE_CLIENT_VERSION', '2.129.0' );
 define( 'BWX_FORGE_CLIENT_SLUG', 'blueworx-forge-client' );
 define( 'BWX_FORGE_CLIENT_FILE', __FILE__ );
 define( 'BWX_FORGE_CLIENT_PATH', plugin_dir_path( __FILE__ ) );
@@ -57,34 +57,29 @@ require_once BWX_FORGE_CLIENT_PATH . 'assets/blueworx-admin-design.php';
 require_once BWX_FORGE_CLIENT_PATH . 'includes/functions.php';
 require_once BWX_FORGE_CLIENT_PATH . 'includes/autoload.php';
 
-// Registered before the update checker below, which asks Updates for the token
-// this site should authenticate with.
 bwx_forge_client_register_autoloader( BWX_FORGE_CLIENT_PATH . 'includes' );
 
 require_once BWX_FORGE_CLIENT_PATH . 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
-// Client sites update themselves from this repo's GitHub Releases, from the
-// client asset rather than the studio one. The third argument must equal the
-// plugin's folder name on the site, or WordPress installs the update alongside
-// the original as a second copy and deactivates it.
+/*
+ * Client sites update themselves from the public releases repository (#340),
+ * under the same GitHub organisation, from the client asset rather than the
+ * studio one. That repository holds only built releases, never the source, so
+ * a client site needs no token — nobody at the studio can edit a client's
+ * wp-config.php, and before this every client site had to be handed one.
+ * Keep this URL equal to Updates::REPO, which the connection screen reports on.
+ *
+ * The third argument must equal the plugin's folder name on the site, or
+ * WordPress installs the update alongside the original as a second copy and
+ * deactivates it.
+ */
 $bwx_forge_client_update_checker = PucFactory::buildUpdateChecker(
-	'https://github.com/blueworx-io/blueworx_project_forge/',
+	'https://github.com/blueworx-io/blueworx_project_forge_releases/',
 	BWX_FORGE_CLIENT_FILE,
 	'blueworx-forge-client'
 );
-
-/*
- * The repo is private, so a site needs a token to see releases at all. It can
- * be set on this site's Forge connection screen, or fixed in wp-config.php,
- * which wins — a secret in a file does not travel in a database export.
- */
-$bwx_forge_client_update_token = \Blueworx\Forge\Client\Updates::token();
-
-if ( '' !== $bwx_forge_client_update_token ) {
-	$bwx_forge_client_update_checker->setAuthentication( $bwx_forge_client_update_token );
-}
 
 /*
  * The client zip, by name. Every Release carries both plugins, and an

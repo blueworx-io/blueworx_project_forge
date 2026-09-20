@@ -83,3 +83,59 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: gh release upload "$TAG" "$RUNNER_TEMP/artifacts/blueworx-forge-client-${TAG#v}.zip" --clobber
+
+  # The same Release again, on the public releases-only repository (#340).
+  #
+  # This repository is private, so a site could only see its releases with a
+  # token entered on it — unworkable across hundreds of client sites. Both
+  # plugins' update checkers point at the public repository instead, which
+  # holds nothing but these releases and their two zips: never the source.
+  # Sites update themselves with nothing entered on them.
+  #
+  # Needs one secret, FORGE_RELEASES_TOKEN: a fine-grained token with
+  # "Contents: read and write" on the public repository only. Without it this
+  # job fails and says so, while the Release above still stands here.
+  mirror:
+    needs: release-client
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+      SOURCE: ${{ github.repository }}
+      # Keep equal to Updates::REPO in both plugins and to the update checker
+      # URLs in blueworx-forge.php and client/blueworx-forge-client.php.
+      TARGET: blueworx-io/blueworx_project_forge_releases
+    steps:
+      - name: The secret is set
+        env:
+          MIRROR_TOKEN: ${{ secrets.FORGE_RELEASES_TOKEN }}
+        run: |
+          if [ -z "$MIRROR_TOKEN" ]; then
+            echo "::error title=No FORGE_RELEASES_TOKEN::Add a fine-grained token with Contents: read and write on $TARGET as the FORGE_RELEASES_TOKEN secret. Sites update from $TARGET, and this release is not there yet."
+            exit 1
+          fi
+
+      - name: Fetch the two zips and the notes from this Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mirror"
+          gh release download "$TAG" --repo "$SOURCE" --dir "$RUNNER_TEMP/mirror" --pattern 'blueworx-forge-*.zip'
+          gh release view "$TAG" --repo "$SOURCE" --json body --jq .body > "$RUNNER_TEMP/notes.md"
+          ls -1 "$RUNNER_TEMP/mirror"
+          # Both plugins, or nothing: a public release missing one zip would
+          # offer half the sites an update that is not there.
+          test -f "$RUNNER_TEMP/mirror/blueworx-forge-${TAG#v}.zip"
+          test -f "$RUNNER_TEMP/mirror/blueworx-forge-client-${TAG#v}.zip"
+
+      - name: Publish them on the public repository
+        env:
+          GH_TOKEN: ${{ secrets.FORGE_RELEASES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$TARGET" >/dev/null 2>&1; then
+            # A re-run: replace the assets rather than fail on the existing Release.
+            gh release upload "$TAG" "$RUNNER_TEMP"/mirror/*.zip --repo "$TARGET" --clobber
+          else
+            gh release create "$TAG" "$RUNNER_TEMP"/mirror/*.zip --repo "$TARGET" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
