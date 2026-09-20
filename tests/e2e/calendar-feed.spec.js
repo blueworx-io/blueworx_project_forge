@@ -66,6 +66,11 @@ test('dates added from the calendar list are on the month view and in the list',
   // And on the month view, as dates.
   await page.getByTestId('bwx-calendar-mode-month').click();
   const cell = page.locator(`[data-testid="bwx-calendar-day"][data-date="${today}"]`);
+  // A busy day shows its first few and "+N more" (2026-09-20); open it up.
+  await expect(cell).toBeVisible();
+  if (0 < (await cell.getByTestId('bwx-calendar-more').count())) {
+    await cell.getByTestId('bwx-calendar-more').click();
+  }
   await expect(cell.locator('[data-testid="bwx-calendar-diary"][data-kind="date"]', { hasText: RUN_ID })).toHaveCount(2);
 
   // Stored for the people asked for.
@@ -73,6 +78,42 @@ test('dates added from the calendar list are on the month view and in the list',
   const birthday = listed.dates.find((one) => one.title === `Birthday ${RUN_ID}`);
   expect(birthday.people).toEqual([person.id]);
   expect(listed.dates.find((one) => one.title === `Office closed ${RUN_ID}`).people).toBe('all');
+
+  await page.close();
+});
+
+test('a busy day shows its first few and opens the rest', async () => {
+  // Four dates on one day, ten days out, where nothing else is: the month
+  // view shows three and "+1 more" until asked.
+  const on = new Date(`${today}T12:00:00Z`);
+  on.setUTCDate(on.getUTCDate() + 10);
+  const busy = on.toISOString().slice(0, 10);
+
+  for (const n of [1, 2, 3, 4]) {
+    const made = await admin.api.post('/calendar-dates', { title: `Busy ${n} ${RUN_ID}`, kind: 'campaign', on_date: busy, people: 'all' });
+    expect(made.status(), await made.text()).toBe(200);
+  }
+
+  const page = await admin.context.newPage();
+  await page.goto(`/blueworx-forge/#site=${site.id}`);
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.getByTestId('bwx-view-calendar').click();
+  await page.getByTestId('bwx-calendar-mode-month').click();
+  await page.getByTestId('bwx-calendar-goto').fill(busy);
+
+  const cell = page.locator(`[data-testid="bwx-calendar-day"][data-date="${busy}"]`);
+  await expect(cell).toBeVisible();
+  const mine = cell.locator('[data-testid="bwx-calendar-diary"]', { hasText: RUN_ID });
+  await expect(cell.getByTestId('bwx-calendar-more')).toContainText('more');
+  await expect(cell.locator('[data-testid="bwx-calendar-diary"], [data-testid="bwx-calendar-entry"]')).toHaveCount(3);
+
+  await cell.getByTestId('bwx-calendar-more').click();
+  await expect(mine).toHaveCount(4);
+  await expect(cell.getByTestId('bwx-calendar-less')).toBeVisible();
+
+  await cell.getByTestId('bwx-calendar-less').click();
+  await expect(cell.getByTestId('bwx-calendar-more')).toBeVisible();
 
   await page.close();
 });

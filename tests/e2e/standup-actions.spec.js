@@ -134,6 +134,9 @@ test('an outstanding requirement can be recorded from the card that named it', a
   const card = stuckCard(page, item.id);
   const row = card.locator(`[data-requirement="${requirement.id}"]`);
 
+  // Folded until asked (2026-09-20): the count is on the card, the list behind Show.
+  await expect(row).toHaveCount(0);
+  await card.getByTestId('bwx-standup-show').click();
   await expect(row).toBeVisible();
 
   // A pick on the card records the moment it is made: there is no Save here.
@@ -149,6 +152,10 @@ test('an outstanding requirement can be recorded from the card that named it', a
   // And still gone after a full reload, which a screen that only redrew itself
   // would not manage.
   await openStandup(page);
+  // The card may have nothing left to show, or may be gone altogether.
+  if (0 < (await card.getByTestId('bwx-standup-show').count())) {
+    await card.getByTestId('bwx-standup-show').click();
+  }
   await expect(card.locator(`[data-requirement="${requirement.id}"]`)).toHaveCount(0);
 
   await page.close();
@@ -176,6 +183,7 @@ test('somebody who may not record one is refused here in the same words as anywh
   const card = stuckCard(page, item.id);
   const row = card.locator(`[data-requirement="${requirement.id}"]`);
 
+  await card.getByTestId('bwx-standup-show').click();
   await expect(row).toBeVisible();
 
   await row.getByTestId('bwx-pick').selectOption({ index: 1 });
@@ -187,6 +195,7 @@ test('somebody who may not record one is refused here in the same words as anywh
   // Nothing was recorded. The refusal is not a message over a change that
   // happened anyway.
   await openStandup(page);
+  await stuckCard(page, item.id).getByTestId('bwx-standup-show').click();
   await expect(stuckCard(page, item.id).locator(`[data-requirement="${requirement.id}"]`)).toBeVisible();
 
   /*

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.126.0] - 2026-09-20
+
+### Changed
+
+- Standup cards keep their outstanding list folded behind "3 things outstanding · Show", so the page is a list of work rather than every requirement on every item.
+- A busy calendar day shows its first three entries and "+N more"; opening it shows them all, with "Show less" to fold it back.
+
+### Fixed
+
+- Recurring tasks no longer appear on the standup as "Pending" with seats and dates to fill; they move by their ticks, not by a gate.
+
 ## [2.125.2] - 2026-09-20
 
 ### Fixed

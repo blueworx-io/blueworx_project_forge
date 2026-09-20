@@ -200,6 +200,21 @@ final class StandupRulesTest extends TestCase {
 		$this->assertCount( 1, $cards[0]['detail']['unmet'] );
 	}
 
+	/** A chore is ticked, not gated: its unfilled seats are nobody's problem. */
+	public function test_a_chore_is_not_held_up_by_a_gate(): void {
+		$cards = Rules::for_item(
+			$this->item(
+				array(
+					'assignees' => array( 'usr_a', 'usr_b' ),
+					'unmet'     => array( array( 'id' => 'G-UP-NEXT-1' ) ),
+				)
+			),
+			self::TODAY
+		);
+
+		$this->assertNotContains( Rules::GATE_UNMET, $this->rules( $cards ) );
+	}
+
 	public function test_a_gate_on_finished_work_is_not_a_problem(): void {
 		$this->assertSame(
 			array(),

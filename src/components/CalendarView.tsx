@@ -144,8 +144,12 @@ export function CalendarView( {
         { days.map( ( date ) => {
           const held = entries[ date ] ?? [];
           const onDiary = diaryDays[ date ] ?? [];
-          const capped = 'month' === mode && date !== expanded;
-          const shown = capped ? held.slice( 0, CELL_LIMIT ) : held;
+          // The diary and the work share one cap (Luke, 2026-09-20): a day
+          // shows its first few of either, and "+N more" opens the rest.
+          const total = onDiary.length + held.length;
+          const capped = 'month' === mode && date !== expanded && CELL_LIMIT < total;
+          const diaryShown = capped ? onDiary.slice( 0, CELL_LIMIT ) : onDiary;
+          const shown = capped ? held.slice( 0, Math.max( 0, CELL_LIMIT - onDiary.length ) ) : held;
 
           return (
             <div
@@ -167,7 +171,7 @@ export function CalendarView( {
               </span>
 
               <ul className="bwx-calendar-entries">
-                { onDiary.map( ( entry: DiaryEntry ) => (
+                { diaryShown.map( ( entry: DiaryEntry ) => (
                   <li key={ entry.id }>
                     <button
                       type="button"
@@ -209,14 +213,26 @@ export function CalendarView( {
 
               { /* Said rather than silently dropped: a day that quietly shows
                    three of seven is a calendar that lies about a busy day. */ }
-              { capped && CELL_LIMIT < held.length && (
+              { capped && (
                 <button
                   type="button"
                   className="bwx-calendar-more"
                   data-testid="bwx-calendar-more"
+                  aria-expanded={ false }
                   onClick={ () => setExpanded( date ) }
                 >
-                  { held.length - CELL_LIMIT } more
+                  +{ total - CELL_LIMIT } more
+                </button>
+              ) }
+              { 'month' === mode && date === expanded && CELL_LIMIT < total && (
+                <button
+                  type="button"
+                  className="bwx-calendar-more"
+                  data-testid="bwx-calendar-less"
+                  aria-expanded={ true }
+                  onClick={ () => setExpanded( '' ) }
+                >
+                  Show less
                 </button>
               ) }
             </div>

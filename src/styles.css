@@ -2778,6 +2778,19 @@ td[ data-band='over' ] {
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+.bwx-standup-show {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var( --color-ring-blue );
+  cursor: pointer;
+}
+.bwx-standup-show:hover,
+.bwx-standup-show:focus-visible {
+  text-decoration: underline;
+}
 .bwx-standup-card [ data-testid='bwx-gate' ] {
   grid-area: gate;
   margin-top: 8px;
