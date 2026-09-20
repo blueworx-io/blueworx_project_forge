@@ -56,6 +56,8 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\WriteController::class, 'register_routes' ) );
 		add_action( 'admin_menu', array( Admin\Screen::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Admin\Screen::class, 'enqueue' ) );
+		// A token from before releases went public (#340) is dropped on sight.
+		add_action( 'admin_init', array( Updates::class, 'retire_stored_token' ) );
 
 		// The workspace page on the client's own site (#297).
 		Frontend::instance()->boot();

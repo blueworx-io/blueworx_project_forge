@@ -83,3 +83,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: gh release upload "$TAG" "$RUNNER_TEMP/artifacts/blueworx-forge-client-${TAG#v}.zip" --clobber
+

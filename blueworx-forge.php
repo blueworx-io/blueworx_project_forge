@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Parent Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     2.128.0
+ * Version:     2.129.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_VERSION', '2.128.0' );
+define( 'BWX_FORGE_VERSION', '2.129.0' );
 define( 'BWX_FORGE_SLUG', 'blueworx-forge' );
 define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );
@@ -54,29 +54,21 @@ require_once BWX_FORGE_PATH . 'plugin-update-checker/plugin-update-checker.php';
 
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
-// Sites update themselves from this repo's GitHub Releases. The third argument
-// must equal the plugin's folder name, the release workflow's plugin_slug, and
-// the site's installed directory name; if they disagree, WordPress installs the
-// update alongside the original as a second copy and deactivates it.
+/*
+ * Sites update themselves from this repository's releases (#340). The
+ * repository is public, so a site needs no token to see them. Keep this URL
+ * equal to Updates::REPO, which the Updates screen reports on.
+ *
+ * The third argument must equal the plugin's folder name, the release
+ * workflow's plugin_slug, and the site's installed directory name; if they
+ * disagree, WordPress installs the update alongside the original as a second
+ * copy and deactivates it.
+ */
 $bwx_forge_update_checker = PucFactory::buildUpdateChecker(
 	'https://github.com/blueworx-io/blueworx_project_forge/',
 	BWX_FORGE_FILE,
 	'blueworx-forge'
 );
-
-/*
- * The repo is private, so a site needs a token to see releases at all. It can
- * be set on the Forge → Updates screen, or fixed in wp-config.php, which wins
- * and is the better home on a real site because a secret in a file does not
- * travel in a database export:
- *
- *     define( 'BLUEWORX_PLUGIN_UPDATE_TOKEN', 'github_pat_...' );
- */
-$bwx_forge_update_token = \Blueworx\Forge\Updates::token();
-
-if ( '' !== $bwx_forge_update_token ) {
-	$bwx_forge_update_checker->setAuthentication( $bwx_forge_update_token );
-}
 
 /*
  * Install the zip attached to the Release, not GitHub's auto-generated source

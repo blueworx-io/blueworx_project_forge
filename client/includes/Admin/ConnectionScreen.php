@@ -31,11 +31,11 @@ use Blueworx\Forge\Client\Workspace;
  * alone rather than quietly overridden.
  *
  * This screen is drawn by hand rather than through the shared page editor
- * library: the library has no masked field kind (the key and the update
- * token would render as plain text) and its screen callback leaves nowhere
- * for the disconnect and forget-token actions to live. Both are gaps in the
- * library, not something this screen can work around — so this is the
- * documented fallback, design system markup over the same save handling.
+ * library: the library has no masked field kind (the key would render as
+ * plain text) and its screen callback leaves nowhere for the disconnect
+ * action to live. Both are gaps in the library, not something this screen
+ * can work around — so this is the documented fallback, design system markup
+ * over the same save handling.
  */
 final class ConnectionScreen {
 
@@ -132,16 +132,9 @@ final class ConnectionScreen {
 		$result = isset( $_GET['bwx-result'] ) ? sanitize_key( wp_unslash( $_GET['bwx-result'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reporting the outcome of an action that carried its own nonce.
 
 		$messages = array(
-			'connected'       => array( 'success', __( 'Saved. The connection is checked below.', 'blueworx-forge' ) ),
-			'disconnected'    => array( 'success', __( 'This site no longer holds any credentials for the studio.', 'blueworx-forge' ) ),
-			'incomplete'      => array( 'danger', __( 'The studio address, the site id and the key are all needed.', 'blueworx-forge' ) ),
-
-			// The update token (#200). Its own codes rather than reusing the
-			// three above, so the screen never reports a saved token as a saved
-			// connection — they are different credentials for different places.
-			'token_saved'     => array( 'success', __( 'Saved. Whether updates can be fetched is reported below.', 'blueworx-forge' ) ),
-			'token_forgotten' => array( 'success', __( 'This site no longer holds an update token.', 'blueworx-forge' ) ),
-			'token_empty'     => array( 'danger', __( 'No update token was entered.', 'blueworx-forge' ) ),
+			'connected'    => array( 'success', __( 'Saved. The connection is checked below.', 'blueworx-forge' ) ),
+			'disconnected' => array( 'success', __( 'This site no longer holds any credentials for the studio.', 'blueworx-forge' ) ),
+			'incomplete'   => array( 'danger', __( 'The studio address, the site id and the key are all needed.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $messages[ $result ] ) ) {
@@ -256,22 +249,21 @@ final class ConnectionScreen {
 	}
 
 	/**
-	 * The update token, and whether it works (#200).
+	 * Whether this site can fetch its own updates (#200, #340).
 	 *
-	 * On this screen rather than one of its own because it is the same kind of
-	 * thing as everything else here: a credential this site was given, settable
-	 * in the browser or fixed in wp-config.php. It points somewhere different —
-	 * at the repository releases come from, not at the studio — so it says so,
-	 * and it reports its own state separately.
+	 * On this screen rather than one of its own because it is about the same
+	 * thing as everything else here: where this site is joined to. Releases
+	 * come from a public repository now, so there is nothing to set — the
+	 * panel only reports.
 	 */
 	private static function updates(): void {
 		printf(
 			'<p class="bw-card__note">%s</p>',
-			esc_html__( 'This plugin updates itself from a private repository, so the site needs a read-only token to see releases at all. Without one it will never offer an update.', 'blueworx-forge' )
+			esc_html__( 'This plugin updates itself from its public releases, the same way as any other plugin. Nothing needs setting up on this site.', 'blueworx-forge' )
 		);
 
 		$status = Updates::status();
-		$tone   = 'ok' === $status['state'] ? 'success' : ( 'none' === $status['state'] ? 'warning' : 'danger' );
+		$tone   = 'ok' === $status['state'] ? 'success' : ( 'limited' === $status['state'] ? 'warning' : 'danger' );
 		$text   = esc_html( $status['message'] );
 
 		if ( '' !== $status['release'] ) {
@@ -284,53 +276,28 @@ final class ConnectionScreen {
 
 		self::notice( $tone, $text, array( 'data-bwx-updates' => (string) $status['state'] ), true );
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" data-bwx-update-token="1">';
-		wp_nonce_field( 'bwx_forge_client_save_update_token' );
-		echo '<input type="hidden" name="action" value="bwx_forge_client_save_update_token">';
-
-		// Never the token itself, for the same reason the key above is never
-		// rendered: a field that prints a credential puts it in the page source
-		// of every visit to this screen.
-		$hint = '' === Updates::stored_token()
-			? __( 'A GitHub token with read-only access to the plugin repository.', 'blueworx-forge' )
-			: __( 'A token is stored. Type a new one to replace it; leave blank to keep it.', 'blueworx-forge' );
-
-		self::field(
-			'bwx-update-token',
-			'update_token',
-			__( 'Update token', 'blueworx-forge' ),
-			'',
-			'password',
-			Updates::is_fixed(),
-			$hint
+		printf(
+			'<p class="bw-card__note" data-bwx-installed="%1$s">%2$s</p>',
+			esc_attr( BWX_FORGE_CLIENT_VERSION ),
+			sprintf(
+				/* translators: %s: the installed version, such as 2.126.0. */
+				esc_html__( 'This site runs Forge %s. WordPress checks for a newer release twice a day and offers it under Plugins.', 'blueworx-forge' ),
+				'<strong>' . esc_html( BWX_FORGE_CLIENT_VERSION ) . '</strong>'
+			)
 		);
-
-		if ( ! Updates::is_fixed() ) {
-			echo '<div class="bwx-formactions">';
-			printf(
-				'<input type="submit" name="submit" class="bw-btn bw-btn--primary" value="%s">',
-				esc_attr__( 'Save', 'blueworx-forge' )
-			);
-			echo '</div>';
-		}
-
-		echo '</form>';
 	}
 
 	/**
-	 * The panel that groups both destructive actions, apart from the ordinary
-	 * save actions above.
+	 * The panel that holds the one destructive action, apart from the ordinary
+	 * save action above.
 	 *
-	 * Neither button is a save — one drops a credential, the other drops the
-	 * connection outright — so neither shares a panel with a form that saves.
-	 * A destructive control sitting next to a save control is how somebody
-	 * disconnects a live client site by accident.
+	 * Disconnecting is not a save — it drops the connection outright — so it
+	 * does not share a panel with a form that saves. A destructive control
+	 * sitting next to a save control is how somebody disconnects a live client
+	 * site by accident.
 	 */
 	private static function destructive_actions(): void {
-		$show_forget     = '' !== Updates::stored_token();
-		$show_disconnect = Connection::is_configured();
-
-		if ( ! $show_forget && ! $show_disconnect ) {
+		if ( ! Connection::is_configured() ) {
 			return;
 		}
 
@@ -338,45 +305,17 @@ final class ConnectionScreen {
 
 		printf(
 			'<p class="bw-fieldnote"><i class="bw-icon" data-lucide="triangle-alert"></i>%s</p>',
-			esc_html__( 'Neither of these can be undone from here.', 'blueworx-forge' )
+			esc_html__( 'This cannot be undone from here.', 'blueworx-forge' )
 		);
 
-		if ( $show_forget ) {
-			echo '<div class="bw-formrow">';
-			printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Update token', 'blueworx-forge' ) );
-			echo '<div class="bw-formrow__control">';
-			printf( '<p class="bw-formrow__help">%s</p>', esc_html__( 'This site stops checking for updates until a new token is saved above.', 'blueworx-forge' ) );
-			self::forget_token_button();
-			echo '</div></div>';
-		}
-
-		if ( $show_disconnect ) {
-			echo '<div class="bw-formrow">';
-			printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Disconnect', 'blueworx-forge' ) );
-			echo '<div class="bw-formrow__control">';
-			printf( '<p class="bw-formrow__help">%s</p>', esc_html__( 'This site forgets its credentials. It does not tell the studio, which can cut this site off itself at any time.', 'blueworx-forge' ) );
-			self::disconnect_button();
-			echo '</div></div>';
-		}
+		echo '<div class="bw-formrow">';
+		printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Disconnect', 'blueworx-forge' ) );
+		echo '<div class="bw-formrow__control">';
+		printf( '<p class="bw-formrow__help">%s</p>', esc_html__( 'This site forgets its credentials. It does not tell the studio, which can cut this site off itself at any time.', 'blueworx-forge' ) );
+		self::disconnect_button();
+		echo '</div></div>';
 
 		Page::panel_close();
-	}
-
-	/**
-	 * The button that forgets the stored update token.
-	 */
-	private static function forget_token_button(): void {
-		if ( '' === Updates::stored_token() ) {
-			return;
-		}
-
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-		wp_nonce_field( 'bwx_forge_client_forget_update_token' );
-		echo '<input type="hidden" name="action" value="bwx_forge_client_forget_update_token">';
-		echo '<button type="submit" class="bw-btn bw-btn--danger" data-bwx-action="bwx_forge_client_forget_update_token">';
-		echo esc_html__( 'Remove the stored token', 'blueworx-forge' );
-		echo '</button>';
-		echo '</form>';
 	}
 
 	/**
@@ -402,7 +341,7 @@ final class ConnectionScreen {
 			// A secret is never printed back, even when wp-config.php is where it
 			// came from — saying it is set is the whole of what this row needs
 			// to say. The others are addresses and ids, which are worth showing.
-			$secret = in_array( $name, array( 'key', 'update_token' ), true );
+			$secret = in_array( $name, array( 'key' ), true );
 
 			printf(
 				'<code class="bw-input--mono" data-bwx-fixed="%1$s">%2$s</code>',

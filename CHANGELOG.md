@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.129.0] - 2026-09-20
+
+### Changed
+
+- No site needs a token to update any more: the repository is public, so both plugins read its releases directly. The Updates screen on the studio and the Updates panel on a client site's Connection screen now only say whether a release can be seen and which version the site runs; the token fields, the "remove the stored token" buttons and the wp-config setting are gone, and any token a site still held is forgotten.
+
 ## [2.128.0] - 2026-09-20
 
 ### Changed

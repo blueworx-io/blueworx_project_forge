@@ -11,8 +11,6 @@ Roughly twenty minutes.
 
 - Two WordPress sites, 6.5 or later, on PHP 8.2 or later, both on HTTPS.
 - Administrator access to both.
-- The ability to add a line to `wp-config.php` on both.
-- A GitHub personal access token that can read this repository.
 
 The two sites must be separate installs. A subsite of a multisite, or two
 subdirectories of one install, will appear to work and will not be testing the
@@ -32,18 +30,13 @@ Download the two zips from the newest one, then on each site go to
 Activate each one. Uploading a zip is only for this first install — after that
 the sites update themselves.
 
-## 2. Let the sites see updates
+## 2. Check the sites can see updates
 
-This is a private repository, so a site cannot see its own releases without a
-token. Add this to `wp-config.php` on **both** sites, above the line that says
-`That's all, stop editing`:
-
-```php
-define( 'BLUEWORX_PLUGIN_UPDATE_TOKEN', 'github_pat_...' );
-```
-
-Without it the plugins install and run perfectly well and simply never offer an
-update, which is a quiet enough failure to go unnoticed for months.
+The repository is public, so nothing needs setting on either site. On the studio, **Forge →
+Updates** says whether the latest release can be seen from there; on the client
+site the same line is on **Forge → Connection**. If either says no release was
+found, the site is running a build that looks in the wrong place — install the
+newest zip by hand once and it corrects itself.
 
 ## 3. Register the client site, on the studio
 
