@@ -450,7 +450,7 @@ final class MeetingsController {
 					'id'           => (string) $person['id'],
 					'display_name' => (string) $person['display_name'],
 				),
-				Users::all()
+				Users::ours()
 			),
 		);
 	}

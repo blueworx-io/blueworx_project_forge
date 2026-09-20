@@ -112,6 +112,33 @@ test('one person holds two different roles on two clients', async ({ browser, ba
   await context.close();
 });
 
+test('the pickers offer our people, not a client’s, and any staff member may read them', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await signedIn(browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin');
+  const { client } = await makeSite(admin.api, 'Pickers Co', RUN_ID);
+  const staff = await makePerson(admin.api, client.id, 'staff', 'ours');
+  const theirs = await makePerson(admin.api, client.id, 'client_admin', 'theirs');
+  const unplaced = await addPerson(admin.context.request, admin.nonce, 'Nobody Yet');
+
+  // Ours, and the person not yet given access; never the client's administrator.
+  const people = await admin.api.get('/people');
+  const ids = people.people.map((one) => one.id);
+  expect(ids).toContain(staff.id);
+  expect(ids).toContain(unplaced.id);
+  expect(ids).not.toContain(theirs.id);
+  expect(Object.keys(people.people[0]).sort()).toEqual(['display_name', 'id', 'status']);
+
+  // Readable by a staff member, who could not read /users and so had empty pickers.
+  const asStaff = await signedIn(browser, baseURL, staff.login, PASSWORD);
+  const theirView = await asStaff.api.get('/people');
+  expect(theirView.people.map((one) => one.id)).toContain(staff.id);
+  expect((await asStaff.api.request.get('/wp-json/blueworx-forge/v1/users', { headers: asStaff.api.headers })).status()).toBe(403);
+
+  await asStaff.context.close();
+  await admin.context.close();
+});
+
 test('a second person cannot be created at the same address', async ({ browser, baseURL }) => {
   const { context, nonce } = await signedInContext(browser, baseURL);
   const person = await addPerson(context.request, nonce, 'Twice Over');
