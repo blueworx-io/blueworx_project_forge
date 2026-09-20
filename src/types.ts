@@ -1108,6 +1108,8 @@ export interface LedgerEntry {
   created_by: number;
   when: string;
   source: string;
+  /** The meeting or task the line was for, by name; '' where there is nothing to name. */
+  about: string;
 }
 
 /** A package on offer, as the assign form lists it: the catalogue entry and its version in force. */
