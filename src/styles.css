@@ -3334,14 +3334,13 @@ td[ data-band='over' ] {
   align-content: start;
 }
 
-/* One person, one card; two abreast where there is room, because a card
-   carries a table and a table squeezed into thirds cannot say who reaches
-   what. */
+/* One person, one card, one per row at full width: a card carries a table
+   of every client they reach, and it reads as one list rather than columns
+   of uneven cards (2026-09-20). */
 .bwx-people-cards {
-  display: grid;
-  grid-template-columns: repeat( auto-fill, minmax( 640px, 1fr ) );
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  align-items: start;
 }
 
 /* The diary: one line per thing on the day, and the calendar's list. */
