@@ -177,6 +177,42 @@ final class Users {
 	}
 
 	/**
+	 * Our own people: everyone active who is not one of a client's people.
+	 *
+	 * The seats, the chores and the meetings offer these (2026-09-20). Before
+	 * this every picker listed everybody, and a client's administrator could
+	 * be put down as the person doing the work. Somebody is a client's person
+	 * when every membership they hold is on the client's side; a person with
+	 * a staff or administrator membership anywhere is ours, and so is one
+	 * added on the People screen who has not been given access yet.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function ours(): array {
+		$client_side = array();
+		$our_side    = array();
+
+		foreach ( Memberships::by_client( 'active' ) as $held ) {
+			foreach ( $held as $membership ) {
+				$user_id = (string) $membership['user_id'];
+
+				if ( Roles::is_client_side( (string) $membership['role'] ) ) {
+					$client_side[ $user_id ] = true;
+				} else {
+					$our_side[ $user_id ] = true;
+				}
+			}
+		}
+
+		return array_values(
+			array_filter(
+				self::all( 'active' ),
+				static fn( array $person ): bool => ! isset( $client_side[ (string) $person['id'] ] ) || isset( $our_side[ (string) $person['id'] ] )
+			)
+		);
+	}
+
+	/**
 	 * Applies an edit, refusing one made against a version that has moved.
 	 *
 	 * @param string               $id           User id.

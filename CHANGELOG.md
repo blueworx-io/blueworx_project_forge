@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.127.0] - 2026-09-20
+
+### Fixed
+
+- The people pickers — who is doing, reviewing and delivering work, who does a recurring task, who comes to a meeting, who a date is about — offer our own people only, never a client's administrator or viewer. Somebody added on People but not yet given access still appears.
+- Staff members see names in those pickers and on the board's cards; before, only an administrator did.
+
 ## [2.126.2] - 2026-09-20
 
 ### Fixed

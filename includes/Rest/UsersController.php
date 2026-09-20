@@ -87,6 +87,24 @@ final class UsersController {
 			)
 		);
 
+		/*
+		 * Our people, by name, for anyone signed in (2026-09-20). The pickers
+		 * — the seats, who does a chore, who comes to a meeting — need names
+		 * to offer, and /users above is the administrator's: a staff member
+		 * opening a task was getting an empty list and cards full of "?".
+		 * Names only; nothing here that /users keeps to administrators.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/people',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'people' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => self::OPEN,
+			)
+		);
+
 		Server::register_route(
 			$route_namespace,
 			'/users',
@@ -225,6 +243,27 @@ final class UsersController {
 			array(
 				'ok'    => true,
 				'users' => $users,
+			)
+		);
+	}
+
+	/**
+	 * Our own people, by name, for the pickers.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function people(): WP_REST_Response {
+		return rest_ensure_response(
+			array(
+				'ok'     => true,
+				'people' => array_map(
+					static fn( array $person ): array => array(
+						'id'           => (string) $person['id'],
+						'display_name' => (string) $person['display_name'],
+						'status'       => (string) $person['status'],
+					),
+					Users::ours()
+				),
 			)
 		);
 	}

@@ -202,10 +202,17 @@ function requirements(): Promise< Record< string, Requirement > > {
   return rulebook;
 }
 
+/**
+ * Our people, once, for every picker (2026-09-20): the seats, who does a
+ * chore, who a date is about. Read from /people, which any staff member may
+ * read and which leaves out a client's own people — /users is the
+ * administrator's and lists everyone, and a staff member opening a task was
+ * getting an empty list from it.
+ */
 export function everybody(): Promise< Person[] > {
   if ( null === roster ) {
-    roster = api< { users: Person[] } >( '/users?status=active' )
-      .then( ( answer ) => answer.users )
+    roster = api< { people: Person[] } >( '/people' )
+      .then( ( answer ) => answer.people )
       .catch( () => {
         roster = null;
 
