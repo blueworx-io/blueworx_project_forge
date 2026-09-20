@@ -914,106 +914,240 @@ body {
    --------------------------------------------------------------------------- */
 
 .bwx-gantt {
-  --gantt-gutter: 220px;
+  --gantt-gutter: 260px;
   --gantt-track: calc( 100% - var( --gantt-gutter ) );
 
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
   padding: 20px;
   gap: 16px;
 }
 
+/* The count on the left, the legend on the right (2026-09-20). */
+.bwx-gantt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.bwx-gantt-count {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+.bwx-gantt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var( --text-micro );
+  color: var( --ink-700 );
+}
+.bwx-gantt-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bwx-gantt-swatch {
+  width: 14px;
+  height: 8px;
+  border-radius: 3px;
+  background: var( --bar-wash, var( --surface-sunken ) );
+  border: 1px solid var( --bar-edge, var( --border-hairline ) );
+}
+
+/* The chart is a card: the axis pinned to its top, the rows beneath. It is
+   as tall as its rows, up to most of the window, and scrolls past that. */
 .bwx-gantt-chart {
-  flex: 1;
-  min-height: 0;
+  max-height: calc( 100vh - 320px );
   overflow: auto;
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: 12px;
 }
 
 .bwx-gantt-axis {
   display: flex;
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: var( --color-snow );
-  padding-bottom: 6px;
+  z-index: 2;
+  background: var( --surface-card );
+  border-bottom: 1px solid var( --border-hairline );
 }
 
 .bwx-gantt-axis-gutter {
   flex: 0 0 var( --gantt-gutter );
+  border-right: 1px solid var( --border-hairline );
+}
+
+.bwx-gantt-axis-scale {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* A band of months over the weeks, so the weeks can be bare numbers. */
+.bwx-gantt-months {
+  display: flex;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-gantt-month {
+  min-width: 0;
+  padding: 6px 8px 4px;
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var( --ink-700 );
+  border-left: 1px solid var( --border-hairline );
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bwx-gantt-month:first-child {
+  border-left: 0;
 }
 
 .bwx-gantt-axis-weeks {
-  flex: 1;
   display: flex;
 }
-
 .bwx-gantt-week {
   flex: 1;
-  font-size: var( --text-caption );
-  letter-spacing: var( --tracking-caption );
-  text-transform: uppercase;
-  font-weight: var( --font-weight-label );
-  color: var( --color-steel );
-  border-left: 1px solid var( --color-chalk );
-  padding-left: 4px;
+  min-width: 0;
+  padding: 4px 0 6px 8px;
+  font-family: var( --font-mono );
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  border-left: 1px solid var( --border-hairline );
   white-space: nowrap;
   overflow: hidden;
+}
+.bwx-gantt-week:first-child {
+  border-left: 0;
+}
+
+/* Today, named at the top and drawn down the chart. Behind the bars rather
+   than over them, so it never hides the work it is there to put in context. */
+.bwx-gantt-today-tag {
+  position: absolute;
+  bottom: 2px;
+  transform: translateX( -50% );
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var( --at-risk-accent );
+  color: var( --color-snow );
+  font-size: 10px;
+  font-weight: var( --weight-medium );
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.bwx-gantt-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var( --at-risk-accent );
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .bwx-gantt-rows {
   position: relative;
 }
 
-/* Where today is. Behind the bars rather than over them, so it never hides the
-   work it is there to put in context. */
-.bwx-gantt-today {
+/* One hairline per week behind every row, so a bar can be read against the
+   axis without a ruler. */
+.bwx-gantt-grid {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: var( --at-risk-accent );
-  opacity: 0.5;
+  left: var( --gantt-gutter );
+  right: 0;
   pointer-events: none;
+  background-image: linear-gradient( to right, var( --border-hairline ) 1px, transparent 1px );
+  background-size: calc( 100% / var( --gantt-weeks, 1 ) ) 100%;
+  background-position: -1px 0;
 }
 
 .bwx-gantt-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0;
-  min-height: 30px;
+  min-height: 40px;
+  border-top: 1px solid var( --border-subtle, var( --border-hairline ) );
+}
+.bwx-gantt-row:first-of-type {
+  border-top: 0;
+}
+.bwx-gantt-row:hover {
+  background: color-mix( in srgb, var( --surface-sunken ) 55%, transparent );
 }
 
 .bwx-gantt-row[ data-dimmed='true' ] {
   opacity: 0.28;
 }
 
+/* The label: a dot in the phase colour, the title, and what kind of thing it is. */
 .bwx-gantt-label {
+  position: relative;
+  z-index: 1;
   flex: 0 0 var( --gantt-gutter );
-  padding-right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+  height: 40px;
+  background: var( --surface-card );
+  border-right: 1px solid var( --border-hairline );
   font-size: var( --text-small );
+}
+.bwx-gantt-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var( --bar-fill, var( --ink-300 ) );
+}
+.bwx-gantt-dot[data-phase='idea'] { --bar-fill: var( --phase-idea ); }
+.bwx-gantt-dot[data-phase='gate'] { --bar-fill: var( --phase-gate ); }
+.bwx-gantt-dot[data-phase='pipeline'] { --bar-fill: var( --phase-pipeline ); }
+.bwx-gantt-dot[data-phase='done'] { --bar-fill: var( --phase-done ); }
+.bwx-gantt-dot[data-phase='exception'] { --bar-fill: var( --phase-exception ); }
+.bwx-gantt-title {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var( --ink-900 );
 }
 
 /* Work that is waiting on other work. A mark rather than an arrow: the arrows
    are what turn a chart of any size into a thicket. */
-.bwx-gantt-row[ data-waiting='true' ] .bwx-gantt-label::before {
+.bwx-gantt-row[ data-waiting='true' ] .bwx-gantt-title::before {
   content: '↳ ';
   color: var( --color-steel );
 }
 
-.bwx-gantt-row[ data-chain='upstream' ] .bwx-gantt-label,
-.bwx-gantt-row[ data-chain='downstream' ] .bwx-gantt-label {
-  font-weight: var( --font-weight-label );
+.bwx-gantt-row[ data-chain='upstream' ] .bwx-gantt-title,
+.bwx-gantt-row[ data-chain='downstream' ] .bwx-gantt-title,
+.bwx-gantt-row[ data-chain='selected' ] .bwx-gantt-title {
+  font-weight: var( --weight-medium );
 }
 
 .bwx-gantt-track {
   position: relative;
   flex: 1;
-  height: 22px;
+  height: 40px;
 }
 
 /* A bar is the stage's wash with its edge, and the ink for the label — the
@@ -1021,9 +1155,9 @@ body {
    the edge colour, so how far along reads as a deeper shade of the same. */
 .bwx-gantt-bar {
   position: absolute;
-  top: 3px;
-  height: 18px;
-  min-width: 3px;
+  top: 9px;
+  height: 22px;
+  min-width: 4px;
   border: 1px solid var( --bar-edge, var( --border-hairline ) );
   border-radius: 6px;
   padding: 0;
@@ -1031,12 +1165,25 @@ body {
   background: var( --bar-wash, var( --surface-sunken ) );
   overflow: hidden;
   text-align: left;
+  box-shadow: 0 1px 1px rgba( 15, 23, 42, 0.04 );
+  transition: box-shadow 120ms ease, transform 120ms ease;
 }
-.bwx-gantt-bar[data-phase='idea'] { --bar-ink: var( --phase-idea-ink ); --bar-wash: var( --phase-idea-bg ); --bar-edge: var( --phase-idea-border ); --bar-fill: var( --phase-idea ); }
-.bwx-gantt-bar[data-phase='gate'] { --bar-ink: var( --phase-gate-ink ); --bar-wash: var( --phase-gate-bg ); --bar-edge: var( --phase-gate-border ); --bar-fill: var( --phase-gate ); }
-.bwx-gantt-bar[data-phase='pipeline'] { --bar-ink: var( --phase-pipeline-ink ); --bar-wash: var( --phase-pipeline-bg ); --bar-edge: var( --phase-pipeline-border ); --bar-fill: var( --phase-pipeline ); }
-.bwx-gantt-bar[data-phase='done'] { --bar-ink: var( --phase-done-ink ); --bar-wash: var( --phase-done-bg ); --bar-edge: var( --phase-done-border ); --bar-fill: var( --phase-done ); }
-.bwx-gantt-bar[data-phase='exception'] { --bar-ink: var( --phase-exception-ink ); --bar-wash: var( --blocked-hatch ); --bar-edge: var( --phase-exception-border ); --bar-fill: var( --phase-exception ); }
+.bwx-gantt-bar:hover {
+  box-shadow: 0 2px 6px rgba( 15, 23, 42, 0.12 );
+}
+.bwx-gantt-bar[ aria-pressed='true' ] {
+  box-shadow: 0 0 0 2px var( --color-snow ), 0 0 0 4px var( --bar-fill, var( --brand-600 ) );
+}
+.bwx-gantt-bar[data-phase='idea'],
+.bwx-gantt-legend li[data-phase='idea'] { --bar-ink: var( --phase-idea-ink ); --bar-wash: var( --phase-idea-bg ); --bar-edge: var( --phase-idea-border ); --bar-fill: var( --phase-idea ); }
+.bwx-gantt-bar[data-phase='gate'],
+.bwx-gantt-legend li[data-phase='gate'] { --bar-ink: var( --phase-gate-ink ); --bar-wash: var( --phase-gate-bg ); --bar-edge: var( --phase-gate-border ); --bar-fill: var( --phase-gate ); }
+.bwx-gantt-bar[data-phase='pipeline'],
+.bwx-gantt-legend li[data-phase='pipeline'] { --bar-ink: var( --phase-pipeline-ink ); --bar-wash: var( --phase-pipeline-bg ); --bar-edge: var( --phase-pipeline-border ); --bar-fill: var( --phase-pipeline ); }
+.bwx-gantt-bar[data-phase='done'],
+.bwx-gantt-legend li[data-phase='done'] { --bar-ink: var( --phase-done-ink ); --bar-wash: var( --phase-done-bg ); --bar-edge: var( --phase-done-border ); --bar-fill: var( --phase-done ); }
+.bwx-gantt-bar[data-phase='exception'],
+.bwx-gantt-legend li[data-phase='exception'] { --bar-ink: var( --phase-exception-ink ); --bar-wash: var( --blocked-hatch ); --bar-edge: var( --phase-exception-border ); --bar-fill: var( --phase-exception ); }
 
 /* A span nobody chose. Its dates are what the work beneath it adds up to, so it
    is drawn as an outline rather than a fill — holding somebody to a date they
@@ -1044,11 +1191,12 @@ body {
 .bwx-gantt-bar[ data-derived='true' ] {
   background: transparent;
   border: 1px dashed var( --bar-fill, var( --border-strong ) );
+  box-shadow: none;
 }
 
 .bwx-gantt-bar[ data-overdue='true' ] {
-  outline: 2px solid var( --at-risk-accent );
-  outline-offset: 1px;
+  border-color: var( --at-risk-accent );
+  box-shadow: inset 0 0 0 1px var( --at-risk-accent );
 }
 
 /* A milestone is a date something has to be true by, not a stretch of work. */
@@ -1071,26 +1219,25 @@ body {
 
 /* Readable only when the bar is wide enough to hold it, which is the honest
    behaviour: a two-day bar has no room for a date range and should not grow to
-   make one fit. */
+   make one fit. The full range is on the bar's tooltip either way. */
 .bwx-gantt-bar-text {
   position: relative;
   display: block;
-  padding: 0 6px;
-  font-family: var( --font-mono );
-  font-size: 10px;
-  line-height: 16px;
+  padding: 0 8px;
+  font-size: var( --text-micro );
+  font-weight: var( --weight-medium );
+  line-height: 20px;
   color: var( --bar-ink, var( --ink-700 ) );
   white-space: nowrap;
 }
 
 .bwx-gantt-bar[ data-derived='true' ] .bwx-gantt-bar-text {
   color: var( --ink-500 );
+  font-weight: var( --weight-regular, 400 );
 }
 
 .bwx-gantt-empty {
-  color: var( --color-fog );
-  font-size: var( --text-small );
-  padding: 12px 2px;
+  padding: 24px 16px 32px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1099,8 +1246,10 @@ body {
    --------------------------------------------------------------------------- */
 
 .bwx-gantt-tray {
-  border-top: 1px solid var( --color-chalk );
-  padding-top: 12px;
+  padding: 12px 16px;
+  background: var( --surface-card );
+  border: 1px solid var( --border-hairline );
+  border-radius: 12px;
 }
 
 .bwx-gantt-tray-toggle {
@@ -1142,9 +1291,9 @@ body {
   font: inherit;
   font-size: var( --text-small );
   color: inherit;
-  background: var( --color-bone );
-  border: 1px solid var( --color-chalk );
-  border-left: 3px solid var( --bar-phase, var( --color-chalk ) );
+  background: var( --surface-sunken );
+  border: 1px solid var( --border-hairline );
+  border-left: 3px solid var( --bar-phase, var( --border-hairline ) );
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
@@ -1156,7 +1305,7 @@ body {
 }
 
 .bwx-gantt-tray-empty {
-  color: var( --color-fog );
+  color: var( --ink-500 );
   font-size: var( --text-small );
   margin: 10px 0 0;
 }
