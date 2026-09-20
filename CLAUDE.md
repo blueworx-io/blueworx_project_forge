@@ -204,6 +204,7 @@ GitHub Issues are the source of truth for all work. Follow this Issue → Implem
 
 ```bash
 npm run wp:up      # disposable WordPress on http://127.0.0.1:8892 (PHP + SQLite)
+npm run wp:seed    # optional: clients, people, work and chores to review by
 npm test           # Playwright, against that instance
 npm run wp:down
 ```
