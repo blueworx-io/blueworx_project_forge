@@ -172,10 +172,16 @@ test('a chore, a meeting and leave are on today’s feed and the standup’s dia
 });
 
 test('staff read the diary and cannot add to it', async ({ browser, baseURL }) => {
+  // Its own date rather than the first test's: a worker restarted after a
+  // failure runs beforeAll again with a new run id, and this test would then
+  // look for a date made under the old one.
+  const made = await admin.api.post('/calendar-dates', { title: `Stocktake ${RUN_ID}`, kind: 'company-day', on_date: today, people: 'all' });
+  expect(made.status(), await made.text()).toBe(200);
+
   const asPerson = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
 
   const feed = await asPerson.api.get(`/calendar?from=${today}&to=${today}`);
-  expect(feed.entries.map((entry) => entry.title), JSON.stringify(feed).slice(0, 300)).toContain(`Office closed ${RUN_ID}`);
+  expect(feed.entries.map((entry) => entry.title), JSON.stringify(feed).slice(0, 300)).toContain(`Stocktake ${RUN_ID}`);
 
   const refused = await asPerson.api.post('/calendar-dates', { title: 'Mine', kind: 'other', on_date: today });
   expect(refused.status()).toBe(403);

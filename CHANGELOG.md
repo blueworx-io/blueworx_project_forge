@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.126.1] - 2026-09-20
+
+### Fixed
+
+- `npm run wp:seed` fills a fresh local site with clients, people, packages, meetings, work at several stages, chores and diary dates, so a review site is one command away.
+- The diary spec's staff test makes its own date rather than leaning on an earlier test's.
+
 ## [2.126.0] - 2026-09-20
 
 ### Changed

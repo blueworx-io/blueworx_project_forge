@@ -1,7 +1,7 @@
 {
   "name": "blueworx-forge",
   "private": true,
-  "version": "2.126.0",
+  "version": "2.126.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
     "zip": "npm run build:zip",
     "wp:up": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs up --plugin . --slug blueworx-forge --dir .wp-test --port 8892",
     "wp:down": "node ../bluegroup_core_foundation/scripts/wp-test-env.mjs down --dir .wp-test",
+    "wp:seed": "node bin/seed-review.mjs",
     "check:artifacts": "node bin/check-artifacts.mjs",
     "build:zip:studio": "npm run build && bash bin/build-zip.sh studio",
     "build:zip:client": "npm run assets:design-system && bash bin/build-zip.sh client",
