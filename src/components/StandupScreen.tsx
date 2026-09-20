@@ -439,6 +439,10 @@ function Card( {
   const detail = cardDetail( card );
   const isWork = 'work_item' === card.subject_type;
   const unmet = Array.isArray( card.detail?.unmet ) ? ( card.detail.unmet as Requirement[] ) : [];
+  // The outstanding list starts folded (Luke, 2026-09-20): the card says how
+  // many, and Show opens them. A page of every requirement on every item was
+  // a page nobody read.
+  const [ shown, setShown ] = useState( false );
 
   return (
     <li
@@ -456,7 +460,22 @@ function Card( {
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
 
-      { '' !== detail && <span className="bwx-standup-card-detail">{ detail }</span> }
+      { '' !== detail && (
+        <span className="bwx-standup-card-detail">
+          { detail }
+          { 0 < unmet.length && (
+            <button
+              type="button"
+              className="bwx-standup-show"
+              data-testid="bwx-standup-show"
+              aria-expanded={ shown }
+              onClick={ () => setShown( ! shown ) }
+            >
+              { shown ? 'Hide' : 'Show' }
+            </button>
+          ) }
+        </span>
+      ) }
 
       { /*
          The same list the panel draws, from the same component, so a
@@ -464,7 +483,7 @@ function Card( {
          Field requirements come out as instructions rather than controls in
          there, which is what sends somebody to Open — exactly as it should.
        */ }
-      { 0 < unmet.length && (
+      { shown && 0 < unmet.length && (
         <GateList
           heading="Outstanding"
           readiness={ { unmet, checks: [] } }

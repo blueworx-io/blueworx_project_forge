@@ -273,8 +273,13 @@ final class Rules {
 		 * cards on a real board — because work that is not finished nearly
 		 * always has something it has not done yet, and a list that long is one
 		 * nobody reads. See {@see self::gate_is_news()}.
+		 *
+		 * A recurring chore moves by its people's ticks, not by a gate, so
+		 * the seats and dates it would never fill are not news (2026-09-20).
 		 */
-		if ( ! $finished && array() !== (array) ( $item['unmet'] ?? array() ) && self::gate_is_news( $stage, $cards ) ) {
+		$chore = array() !== (array) ( $item['assignees'] ?? array() );
+
+		if ( ! $finished && ! $chore && array() !== (array) ( $item['unmet'] ?? array() ) && self::gate_is_news( $stage, $cards ) ) {
 			$cards[] = self::work_card( self::GATE_UNMET, $item, array( 'unmet' => (array) $item['unmet'] ) );
 		}
 
