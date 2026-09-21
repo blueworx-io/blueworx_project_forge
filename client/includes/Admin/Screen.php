@@ -624,20 +624,22 @@ final class Screen {
 	}
 
 	/**
-	 * A price, as the client would read it.
+	 * A price, as the client would read it. The studio prices packages in
+	 * whole pounds, so the figure is shown as it is — not read as pence
+	 * (2026-09-21).
 	 *
-	 * @param int    $pence    The price in the smallest unit.
+	 * @param int    $price    The price in whole units.
 	 * @param string $currency Three-letter code.
 	 * @return string
 	 */
-	private static function money( int $pence, string $currency ): string {
+	private static function money( int $price, string $currency ): string {
 		$symbols = array(
 			'GBP' => '£',
 			'EUR' => '€',
 			'USD' => '$',
 		);
 
-		return ( $symbols[ $currency ] ?? ( $currency . ' ' ) ) . number_format( $pence / 100, 2 );
+		return ( $symbols[ $currency ] ?? ( $currency . ' ' ) ) . number_format( $price, 2 );
 	}
 
 	/**

@@ -16,9 +16,11 @@ import { useView } from '../useView';
  * the screen never looks like a checkout.
  */
 
-function money( pence: number, currency: string ): string {
+// The studio prices packages in whole pounds (an int, entered as such), so
+// the figure is shown as it is — not read as pence (2026-09-21).
+function money( price: number, currency: string ): string {
   const symbol = { GBP: '£', EUR: '€', USD: '$' }[ currency ] ?? `${ currency } `;
-  return `${ symbol }${ ( pence / 100 ).toLocaleString( 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 } ) }`;
+  return `${ symbol }${ price.toLocaleString( 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 } ) }`;
 }
 
 function runsFor( months: number ): string {
