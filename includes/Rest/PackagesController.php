@@ -302,6 +302,7 @@ final class PackagesController {
 			'currency'        => sanitize_text_field( (string) ( $body['currency'] ?? 'GBP' ) ),
 			'validity_months' => (int) ( $body['validity_months'] ?? Terms::DEFAULT_VALIDITY_MONTHS ),
 			'hours_per'       => sanitize_key( (string) ( $body['hours_per'] ?? 'year' ) ),
+			'price_per'       => sanitize_key( (string) ( $body['price_per'] ?? 'year' ) ),
 			'terms'           => sanitize_textarea_field( (string) ( $body['terms'] ?? '' ) ),
 		);
 	}

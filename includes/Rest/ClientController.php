@@ -1518,6 +1518,9 @@ final class ClientController {
 				'name'            => (string) $version['name'],
 				'hours'           => (float) $version['hours'],
 				'price'           => (int) $version['price'],
+				// Whether that price is for the term or for each month of
+				// it (2026-09-21), so the client reads it the way it is sold.
+				'price_per'       => (string) ( $version['price_per'] ?? 'year' ),
 				'currency'        => (string) $version['currency'],
 				'validity_months' => (int) $version['validity_months'],
 			);

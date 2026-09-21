@@ -92,6 +92,8 @@ export interface Package {
   name: string;
   hours: number;
   price: number;
+  /** Whether the price is the term's or each month's (2026-09-21); an older studio sends neither. */
+  price_per?: 'year' | 'month';
   currency: string;
   validity_months: number;
 }

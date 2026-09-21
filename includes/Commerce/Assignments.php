@@ -106,7 +106,7 @@ final class Assignments {
 			 * calculation — which is exactly what #147 exists to prevent.
 			 */
 			'hours_granted'      => round( (float) ( $values['hours_granted'] ?? Terms::total_hours( $version ) ), 2 ),
-			'price_charged'      => (int) ( $values['price_charged'] ?? $version['price'] ),
+			'price_charged'      => (int) ( $values['price_charged'] ?? Terms::total_price( $version ) ),
 			'currency'           => (string) $version['currency'],
 			'prorated'           => $prorated ? 1 : 0,
 			'note'               => mb_substr( trim( (string) ( $values['note'] ?? '' ) ), 0, 191 ),

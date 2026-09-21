@@ -412,8 +412,8 @@ final class SupportController {
 		}
 
 		return array(
-			'hours'    => round( (float) $version['hours'], 2 ),
-			'price'    => (int) $version['price'],
+			'hours'    => Terms::total_hours( $version ),
+			'price'    => Terms::total_price( $version ),
 			'currency' => (string) $version['currency'],
 			'ends_on'  => ProRata::term_end( $from, (int) $version['validity_months'] ),
 			'prorated' => false,
@@ -605,8 +605,10 @@ final class SupportController {
 				'name'    => (string) $package['name'],
 				'current' => array(
 					'id'              => (string) $version['id'],
-					'hours'           => (float) $version['hours'],
-					'price'           => (int) $version['price'],
+					// The whole term's figures, since the picker reads
+					// "12h for 12 months, GBP 1,200" (2026-09-21).
+					'hours'           => Terms::total_hours( $version ),
+					'price'           => Terms::total_price( $version ),
 					'currency'        => (string) $version['currency'],
 					'validity_months' => (int) $version['validity_months'],
 				),

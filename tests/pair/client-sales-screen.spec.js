@@ -37,6 +37,10 @@ test( 'a client sees their plan, their balance and the offer, and nothing to buy
   await expect( page.getByTestId( 'bwx-purchases' ) ).toContainText( 'Your package' );
   await expect( page.getByTestId( 'bwx-package' ).first() ).toBeVisible();
 
+  // The price is the studio's figure in whole pounds, not read as pence
+  // (2026-09-21): the package onSupport makes is 1000, so £1,000.00.
+  await expect( page.getByTestId( 'bwx-package' ).filter( { hasText: '£1,000.00' } ).first() ).toBeVisible();
+
   // Nothing reads as a purchase.
   const words = ( await screen.innerText() ).toLowerCase();
   for ( const forbidden of [ 'buy now', 'checkout', 'pay now', 'add to basket', 'purchase' ] ) {

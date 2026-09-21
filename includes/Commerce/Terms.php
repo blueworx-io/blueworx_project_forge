@@ -90,11 +90,14 @@ final class Terms {
 	 *
 	 * @var array<int, string>
 	 */
-	public const FIELDS = array( 'name', 'hours', 'price', 'currency', 'validity_months', 'hours_per', 'terms' );
+	public const FIELDS = array( 'name', 'hours', 'price', 'currency', 'validity_months', 'hours_per', 'price_per', 'terms' );
 
 	/**
-	 * What the hours are per (2026-09-19): the whole term, as every package
-	 * was before, or each month of it.
+	 * What the hours are per (2026-09-19), and the price (2026-09-21): the
+	 * whole term, as every package was before, or each month of it. The two
+	 * are set separately because the catalogue is 24 hours a year for GBP 100
+	 * a month — hours per year, price per month — and a rate worked out from
+	 * one month's price over a year's hours is off by twelve.
 	 */
 	public const HOURS_PER = array( 'year', 'month' );
 
@@ -120,6 +123,7 @@ final class Terms {
 			'currency'        => self::currency( (string) ( $values['currency'] ?? 'GBP' ) ),
 			'validity_months' => max( 1, min( self::MAX_VALIDITY_MONTHS, 0 === $months ? self::DEFAULT_VALIDITY_MONTHS : $months ) ),
 			'hours_per'       => in_array( (string) ( $values['hours_per'] ?? '' ), self::HOURS_PER, true ) ? (string) $values['hours_per'] : 'year',
+			'price_per'       => in_array( (string) ( $values['price_per'] ?? '' ), self::HOURS_PER, true ) ? (string) $values['price_per'] : 'year',
 			'terms'           => mb_substr( trim( (string) ( $values['terms'] ?? '' ) ), 0, self::MAX_TERMS ),
 		);
 	}
@@ -142,8 +146,30 @@ final class Terms {
 	}
 
 	/**
+	 * What a set of terms costs over its whole term: the price itself, or
+	 * that price for each month of the term (2026-09-21).
+	 *
+	 * This is the figure everything downstream wants — what an assignment
+	 * charges, what pro-rata divides, what an hour costs. The price as typed
+	 * is only for showing the package the way it is sold.
+	 *
+	 * @param array<string, mixed> $terms Terms, or a stored version.
+	 * @return int
+	 */
+	public static function total_price( array $terms ): int {
+		$price = (int) ( $terms['price'] ?? 0 );
+
+		if ( 'month' === (string) ( $terms['price_per'] ?? 'year' ) ) {
+			$price *= max( 1, (int) ( $terms['validity_months'] ?? self::DEFAULT_VALIDITY_MONTHS ) );
+		}
+
+		return $price;
+	}
+
+	/**
 	 * What one hour costs on these terms, to two places; nought when there is
-	 * no price.
+	 * no price. The whole term's price over the whole term's hours, whatever
+	 * unit either was typed in.
 	 *
 	 * @param array<string, mixed> $terms Terms, or a stored version.
 	 * @return float
@@ -151,7 +177,7 @@ final class Terms {
 	public static function price_per_hour( array $terms ): float {
 		$total = self::total_hours( $terms );
 
-		return $total > 0 ? round( (float) ( $terms['price'] ?? 0 ) / $total, 2 ) : 0.0;
+		return $total > 0 ? round( self::total_price( $terms ) / $total, 2 ) : 0.0;
 	}
 
 	/**
