@@ -578,7 +578,14 @@ final class Screen {
 				echo '<tr data-bwx-package="' . esc_attr( (string) ( $package['name'] ?? '' ) ) . '">';
 				echo '<td>' . esc_html( (string) ( $package['name'] ?? '' ) ) . '</td>';
 				echo '<td class="bw-table__num">' . esc_html( number_format( (float) ( $package['hours'] ?? 0 ), 2 ) ) . '</td>';
-				echo '<td class="bw-table__num">' . esc_html( self::money( (int) ( $package['price'] ?? 0 ), (string) ( $package['currency'] ?? 'GBP' ) ) ) . '</td>';
+				$price = self::money( (int) ( $package['price'] ?? 0 ), (string) ( $package['currency'] ?? 'GBP' ) );
+
+				if ( 'month' === (string) ( $package['price_per'] ?? 'year' ) ) {
+					/* translators: %s: a price. */
+					$price = sprintf( __( '%s a month', 'blueworx-forge' ), $price );
+				}
+
+				echo '<td class="bw-table__num">' . esc_html( $price ) . '</td>';
 				echo '<td>' . esc_html(
 					sprintf(
 						/* translators: %d: a number of months. */

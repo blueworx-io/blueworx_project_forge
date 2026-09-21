@@ -129,6 +129,20 @@ final class ProRataTest extends TestCase {
 		$this->assertSame( 1200, $preview['price'] );
 	}
 
+	public function test_a_price_per_month_is_charged_over_the_whole_term(): void {
+		// The same package priced monthly (2026-09-21): a whole term is twelve
+		// months' worth, and a part term is that share of the twelve — the
+		// same sum the yearly-priced package gives.
+		$monthly = $this->package( array( 'price' => 100, 'price_per' => 'month' ) );
+
+		$this->assertSame( 1200, ProRata::preview( $monthly, '2026-01-01', '2026-12-31' )['price'] );
+		$this->assertSame( 1200, ProRata::preview( $monthly, '2026-01-01', '2026-12-31' )['full_price'] );
+		$this->assertSame(
+			ProRata::preview( $this->package(), '2026-01-01', '2026-07-01' )['price'],
+			ProRata::preview( $monthly, '2026-01-01', '2026-07-01' )['price']
+		);
+	}
+
 	public function test_hours_land_on_a_half_hour(): void {
 		// COMM-2 rounds to the nearest half hour. A figure of 3.42 hours on an
 		// invoice is a figure somebody asks about.

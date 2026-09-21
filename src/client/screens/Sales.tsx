@@ -150,7 +150,7 @@ function Packages( { packages }: { packages: Package[] } ) {
           <strong className="fc-package-name">{ p.name }</strong>
           <span className="fc-package-hours fk-mono">{ hours( p.hours ) }</span>
           <span className="fc-muted">
-            { money( p.price, p.currency ) } · runs for { runsFor( p.validity_months ) }
+            { money( p.price, p.currency ) }{ 'month' === p.price_per ? ' a month' : '' } · runs for { runsFor( p.validity_months ) }
           </span>
         </Card>
       ) ) }

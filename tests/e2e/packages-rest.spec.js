@@ -80,6 +80,16 @@ test('adding a package writes version 1 and puts it at the end of the catalogue'
   expect(monthlyMade.current.hours_total).toBe(144);
   expect(monthlyMade.current.price_per_hour).toBe(8.33);
 
+  // A price per month (2026-09-21): Starter is 24 hours a year for 100 a
+  // month, which is 50 an hour over the term — not 4.17.
+  const starter = await api.post('/packages', { ...TERMS, name: `Starter ${RUN_ID}`, hours: 24, price: 100, price_per: 'month' });
+  expect(starter.status(), await starter.text()).toBe(200);
+  const starterMade = (await starter.json()).package;
+  expect(starterMade.current.price_per).toBe('month');
+  expect(starterMade.current.price_total).toBe(1200);
+  expect(starterMade.current.price_per_hour).toBe(50);
+  expect(made.current.price_per).toBe('year');
+
   const last = answer.packages[answer.packages.length - 1];
   expect(last.id).toBe(made.id);
 });

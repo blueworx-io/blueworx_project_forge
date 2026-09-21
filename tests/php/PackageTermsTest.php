@@ -65,6 +65,7 @@ final class PackageTermsTest extends TestCase {
 			'currency'        => 'EUR',
 			'validity_months' => 24,
 			'hours_per'       => 'month',
+			'price_per'       => 'month',
 			'terms'           => 'Twenty hours a year.',
 		);
 
@@ -172,6 +173,34 @@ final class PackageTermsTest extends TestCase {
 		$this->assertSame( 120.0, Terms::total_hours( $month ) );
 		$this->assertSame( 10.0, Terms::price_per_hour( $month ) );
 		$this->assertSame( 'year', $odd['hours_per'] );
+	}
+
+	/**
+	 * A price per month (2026-09-21): the whole term costs twelve of them, and
+	 * an hour's price follows from the whole term, not from one month of it.
+	 * Starter is 24 hours a year for GBP 100 a month, which is GBP 50 an hour
+	 * — not GBP 4.17.
+	 */
+	public function test_price_per_month_multiplies_over_the_term(): void {
+		$starter = $this->terms( array( 'hours' => 24, 'price' => 100, 'price_per' => 'month' ) );
+		$year    = $this->terms();
+		$odd     = $this->terms( array( 'price_per' => 'week' ) );
+
+		$this->assertSame( 'month', $starter['price_per'] );
+		$this->assertSame( 1200, Terms::total_price( $starter ) );
+		$this->assertSame( 50.0, Terms::price_per_hour( $starter ) );
+
+		$this->assertSame( 'year', $year['price_per'] );
+		$this->assertSame( 1200, Terms::total_price( $year ) );
+		$this->assertSame( 'year', $odd['price_per'] );
+	}
+
+	public function test_hours_and_price_both_per_month_is_the_same_rate(): void {
+		$both = $this->terms( array( 'hours' => 2, 'price' => 100, 'hours_per' => 'month', 'price_per' => 'month' ) );
+
+		$this->assertSame( 24.0, Terms::total_hours( $both ) );
+		$this->assertSame( 1200, Terms::total_price( $both ) );
+		$this->assertSame( 50.0, Terms::price_per_hour( $both ) );
 	}
 
 	public function test_a_package_needs_a_name(): void {
