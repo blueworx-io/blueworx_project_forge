@@ -17,6 +17,7 @@ commits and pull requests.
 ### Changed
 
 - The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
+- "How to test" is optional. Leaving In Development no longer asks for it.
 
 ### Removed
 

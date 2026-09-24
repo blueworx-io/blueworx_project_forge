@@ -3,7 +3,7 @@ import * as Forge from './helpers/forge.js';
 
 // The workflow rules of 2026-09-19: two people before triage, approvals that
 // are the reviewer's, dates that keep their order, a checklist that has to be
-// finished, how to test written down, a design link, links, images and a
+// finished (how to test and the design link optional since 2026-09-24), links, images and a
 // dependencies card.
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -104,7 +104,7 @@ test('the dates keep their order, whichever one is sent', async () => {
   expect((await patch(item, { planned_start: '2020-01-01' })).status()).toBe(200);
 });
 
-test('leaving In Development takes a finished checklist, how to test, and no hours still to do', async ({ browser, baseURL }) => {
+test('leaving In Development takes a finished checklist, and neither how to test, evidence nor hours still to do', async ({ browser, baseURL }) => {
   test.slow();
 
   const crew = await Forge.team(admin.api, browser, baseURL, client.id);
@@ -116,8 +116,8 @@ test('leaving In Development takes a finished checklist, how to test, and no hou
   const before = await admin.api.get(`/work-items/${developing.id}`);
   const ids = before.readiness['in-review'].unmet.map((row) => row.id);
   expect(ids).toContain('G-IN-DEVELOPMENT-1');
-  expect(ids).toContain('G-IN-DEVELOPMENT-3');
-  // No work evidence is asked for (2026-09-24).
+  // How to test and work evidence are not asked for (2026-09-24).
+  expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-3');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-2');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-4');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-5');
@@ -125,10 +125,8 @@ test('leaving In Development takes a finished checklist, how to test, and no hou
 
   await patch(developing, {
     checklist: [{ text: 'Wire it up', done: true }],
-    test_description: '<p>Open the page and press the button.</p>',
     test_steps: [{ text: 'Open the page', done: false }, { text: 'Press the button', done: false }],
   });
-  await admin.api.post(`/work-items/${developing.id}/comments`, { body: 'Done.', url: 'https://example.test/work', kind: 'evidence', visibility: 'internal' });
 
   const after = await admin.api.get(`/work-items/${developing.id}`);
   expect(after.readiness['in-review'].unmet).toEqual([]);

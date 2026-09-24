@@ -241,8 +241,7 @@ final class Gates {
 				// The checklist is the completion checklist (2026-09-19): every
 				// line ticked, or no list at all, and nobody marks it by hand.
 				self::auto( 'G-IN-DEVELOPMENT-1', 'Checklist complete', 'checklist', 'checklist', 'Tick every line of the checklist.', self::PU ),
-				// No work evidence (2026-09-24): comments are for comments.
-				self::field( 'G-IN-DEVELOPMENT-3', 'How to test', 'text', array( 'test_description' ), 'Write how the reviewer tests it, under Review and testing.', self::PU ),
+				// No work evidence, and how to test is optional (2026-09-24).
 				self::system( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'submission', 'Recorded by the move itself.' ),
 			),
 			'G-IN-REVIEW'       => array(

@@ -193,15 +193,15 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
-	 * Leaving In Development (2026-09-19): how to test is a field on the task,
+	 * Leaving In Development (2026-09-19, 2026-09-24): how to test is optional,
 	 * hours still to do is gone, and the completion checklist is the
 	 * checklist itself.
 	 */
-	public function test_in_development_asks_for_how_to_test_and_nothing_about_hours(): void {
+	public function test_in_development_asks_nothing_about_how_to_test_or_hours(): void {
 		$ids = array_column( Gates::requirements( 'G-IN-DEVELOPMENT' ), 'id' );
 
-		$this->assertContains( 'G-IN-DEVELOPMENT-3', $ids );
-		$this->assertSame( array( 'test_description' ), Gates::requirement( 'G-IN-DEVELOPMENT-3' )['fields'] );
+		// How to test is optional (2026-09-24).
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-3', $ids );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-4', $ids );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-5', $ids );
 	}
