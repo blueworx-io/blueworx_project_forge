@@ -85,11 +85,10 @@ final class Returns {
 	 * Blocked is never among them: it is not a place on the path, and leaving it
 	 * is its own move with its own gate (#109).
 	 *
-	 * @param array<string, mixed>             $item    The item, as read.
-	 * @param array<int, array<string, mixed>> $history The item's changelog.
+	 * @param array<string, mixed> $item The item, as read.
 	 * @return array<int, string>
 	 */
-	public static function targets( array $item, array $history ): array {
+	public static function targets( array $item ): array {
 		$from = (string) $item['stage'];
 
 		if ( Stages::EXCEPTION === Stages::kind( $from ) ) {
@@ -129,13 +128,12 @@ final class Returns {
 	/**
 	 * Whether this particular return is permitted.
 	 *
-	 * @param array<string, mixed>             $item    The item, as read.
-	 * @param string                           $to      Target stage.
-	 * @param array<int, array<string, mixed>> $history The item's changelog.
+	 * @param array<string, mixed> $item The item, as read.
+	 * @param string               $to   Target stage.
 	 * @return bool
 	 */
-	public static function allowed( array $item, string $to, array $history ): bool {
-		return in_array( $to, self::targets( $item, $history ), true );
+	public static function allowed( array $item, string $to ): bool {
+		return in_array( $to, self::targets( $item ), true );
 	}
 
 	/**

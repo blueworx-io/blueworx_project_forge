@@ -85,7 +85,7 @@ final class WorkReturnsTest extends TestCase {
 			)
 		);
 
-		$targets = Returns::targets( $this->item( 'technical-audit' ), $history );
+		$targets = Returns::targets( $this->item( 'technical-audit' ) );
 
 		$this->assertSame( array( 'future-idea', 'triage', 'documentation-period' ), $targets );
 	}
@@ -104,14 +104,14 @@ final class WorkReturnsTest extends TestCase {
 
 		$item = $this->item( 'in-review' );
 
-		$this->assertTrue( Returns::allowed( $item, 'future-idea', $history ) );
-		$this->assertTrue( Returns::allowed( $item, 'design-process', $history ) );
-		$this->assertTrue( Returns::allowed( $item, 'in-development', $history ) );
-		$this->assertFalse( Returns::allowed( $item, 'completed', $history ) );
-		$this->assertFalse( Returns::allowed( $item, 'bug-tracking', $history ) );
+		$this->assertTrue( Returns::allowed( $item, 'future-idea' ) );
+		$this->assertTrue( Returns::allowed( $item, 'design-process' ) );
+		$this->assertTrue( Returns::allowed( $item, 'in-development' ) );
+		$this->assertFalse( Returns::allowed( $item, 'completed' ) );
+		$this->assertFalse( Returns::allowed( $item, 'bug-tracking' ) );
 		$this->assertSame(
 			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development' ),
-			Returns::targets( $item, $history )
+			Returns::targets( $item )
 		);
 	}
 
@@ -129,7 +129,7 @@ final class WorkReturnsTest extends TestCase {
 			)
 		);
 
-		$this->assertFalse( Returns::allowed( $this->item( 'triage' ), 'documentation-period', $history ) );
+		$this->assertFalse( Returns::allowed( $this->item( 'triage' ), 'documentation-period' ) );
 	}
 
 	/**
@@ -144,8 +144,8 @@ final class WorkReturnsTest extends TestCase {
 			)
 		);
 
-		$this->assertTrue( Returns::allowed( $this->item( 'documentation-period', 'bug' ), 'bug-tracking', $history ) );
-		$this->assertFalse( Returns::allowed( $this->item( 'documentation-period', 'feature' ), 'bug-tracking', $history ) );
+		$this->assertTrue( Returns::allowed( $this->item( 'documentation-period', 'bug' ), 'bug-tracking' ) );
+		$this->assertFalse( Returns::allowed( $this->item( 'documentation-period', 'feature' ), 'bug-tracking' ) );
 	}
 
 	/**
@@ -162,7 +162,7 @@ final class WorkReturnsTest extends TestCase {
 			)
 		);
 
-		$this->assertNotContains( 'blocked', Returns::targets( $this->item( 'documentation-period' ), $history ) );
+		$this->assertNotContains( 'blocked', Returns::targets( $this->item( 'documentation-period' ) ) );
 	}
 
 	/**
@@ -176,7 +176,7 @@ final class WorkReturnsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array(), Returns::targets( $this->item( 'blocked' ), $history ) );
+		$this->assertSame( array(), Returns::targets( $this->item( 'blocked' ) ) );
 	}
 
 	/**
@@ -196,7 +196,7 @@ final class WorkReturnsTest extends TestCase {
 			'cycle'     => 2,
 		);
 
-		$this->assertSame( array( 'future-idea', 'triage', 'documentation-period' ), Returns::targets( $item, $history ) );
+		$this->assertSame( array( 'future-idea', 'triage', 'documentation-period' ), Returns::targets( $item ) );
 	}
 
 	/**

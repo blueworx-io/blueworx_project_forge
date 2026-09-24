@@ -175,7 +175,6 @@ export function MeetingsScreen( { site }: { site: string } ) {
   }
 
   useEffect( () => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load( site );
     // The site prop is a landing, read once; picking is the picker's job.
     // eslint-disable-next-line react-hooks/exhaustive-deps

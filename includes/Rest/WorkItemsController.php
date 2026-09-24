@@ -724,7 +724,7 @@ final class WorkItemsController {
 				// What each of those moves is still waiting on, so a person can
 				// see the gate before it refuses them rather than after.
 				'readiness'     => $readiness,
-				'returns'       => Returns::targets( $item, $history ),
+				'returns'       => Returns::targets( $item ),
 				'outcomes'      => Outcomes::available_for( $item ),
 				'can_archive'   => Outcomes::may_archive( $item ),
 
@@ -1578,7 +1578,6 @@ final class WorkItemsController {
 				(string) ( $body['to'] ?? '' ),
 				(string) ( $body['reason'] ?? '' ),
 				(string) ( $body['feedback'] ?? '' ),
-				Events::for_item( (string) $ready['item']['id'] ),
 				$ready['version'],
 				get_current_user_id()
 			)
@@ -1979,7 +1978,7 @@ final class WorkItemsController {
 				'ok'        => true,
 				'item'      => $moved,
 				'available' => Transitions::next_from( $moved['stage'], $moved['work_type'] ),
-				'returns'   => Returns::targets( $moved, Events::for_item( (string) $moved['id'] ) ),
+				'returns'   => Returns::targets( $moved ),
 				'outcomes'  => Outcomes::available_for( $moved ),
 			)
 		);

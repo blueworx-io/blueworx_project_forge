@@ -214,7 +214,7 @@ final class WorkflowEngineTest extends TestCase {
 			);
 
 			// Each of these is a list, possibly empty, and never an error.
-			$this->assertIsArray( Returns::targets( $item, array() ) );
+			$this->assertIsArray( Returns::targets( $item ) );
 			$this->assertIsArray( Outcomes::available_for( $item ) );
 			$this->assertIsArray( Reopen::targets( $item ) );
 			$this->assertIsBool( Override::allowed( $item, 'triage' ) );
