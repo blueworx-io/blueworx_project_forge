@@ -135,16 +135,26 @@ export function MeetingsScreen( { site }: { site: string } ) {
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ opened, setOpened ] = useState< Opened >( null );
   const [ busy, setBusy ] = useState( false );
+  const [ pastPage, setPastPage ] = useState( 1 );
 
-  /** A write's answer is the whole picture, so it is shown rather than re-read. */
+  /**
+   * A write's answer is the whole picture, so it is shown rather than re-read.
+   * It carries the first page of past meetings, so a later page is read again.
+   */
   function landed( fresh: MeetingsAnswer, said = '' ) {
     setAnswer( fresh );
     setOpened( null );
     setNotice( '' === said ? NOTHING_SAID : ok( said ) );
+
+    if ( 1 !== pastPage ) {
+      void load( siteId, pastPage, false );
+    }
   }
 
-  async function load( id: string = siteId ) {
-    setNotice( NOTHING_SAID );
+  async function load( id: string = siteId, page: number = pastPage, quiet = true ) {
+    if ( quiet ) {
+      setNotice( NOTHING_SAID );
+    }
 
     if ( '' === id ) {
       setAnswer( null );
@@ -154,7 +164,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
     }
 
     try {
-      const fresh = await api< MeetingsAnswer >( `/client-sites/${ id }/meetings` );
+      const fresh = await api< MeetingsAnswer >( `/client-sites/${ id }/meetings${ 1 === page ? '' : `?past_page=${ page }` }` );
 
       setAnswer( fresh );
       setState( 'ready' );
@@ -180,8 +190,15 @@ export function MeetingsScreen( { site }: { site: string } ) {
 
     setSiteId( id );
     setOpened( null );
+    setPastPage( 1 );
     setState( id ? 'loading' : 'idle' );
-    void load( id );
+    void load( id, 1 );
+  }
+
+  /** Another twelve weeks of past meetings. */
+  function turn( page: number ) {
+    setPastPage( page );
+    void load( siteId, page );
   }
 
   /** Ending a series, after a question: the hours its meetings hold go back. */
@@ -259,6 +276,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
   ];
 
   const weeks = answer ? byWeek( answer.meetings ) : [];
+  const past: MeetingRow[] = ( answer?.past?.meetings ?? [] ).map( ( meeting ) => ( { ...meeting, id: `${ meeting.series_id }@${ meeting.slot }`, stored: meeting.id } ) );
 
   return (
     <div className="bwx-meetings" data-testid="bwx-meetings">
@@ -313,6 +331,39 @@ export function MeetingsScreen( { site }: { site: string } ) {
                     />
                   </div>
                 ) )
+              ) }
+            </div>
+          </Panel>
+
+          { /*
+              Meetings gone by (2026-09-24), newest first, twelve weeks at a
+              time. They can still be settled, which is what this is for.
+           */ }
+          <Panel
+            title="Past meetings"
+            right={
+              <span className="bwx-moves">
+                <Button size="sm" variant="ghost" data-testid="bwx-meetings-past-newer" disabled={ busy || 1 === pastPage } onClick={ () => turn( pastPage - 1 ) }>
+                  Newer
+                </Button>
+                <Button size="sm" variant="ghost" data-testid="bwx-meetings-past-older" disabled={ busy || ! answer.past?.more } onClick={ () => turn( pastPage + 1 ) }>
+                  Older
+                </Button>
+              </span>
+            }
+          >
+            <div data-testid="bwx-meetings-past" data-page={ answer.past?.page ?? 1 } data-from={ answer.past?.from } data-to={ answer.past?.to }>
+              { 0 === past.length ? (
+                <EmptyState icon={ CalendarX2 } dense title="No past meetings" body="No meeting fell in these twelve weeks." />
+              ) : (
+                <DataView< MeetingRow >
+                  title={ answer.past ? `${ longDate( answer.past.from ) } to ${ longDate( answer.past.to ) }` : '' }
+                  columns={ columns }
+                  rows={ past }
+                  sortable={ false }
+                  fixed
+                  testId="bwx-meetings-past-table"
+                />
               ) }
             </div>
           </Panel>

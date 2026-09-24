@@ -1208,6 +1208,8 @@ export interface MeetingsAnswer {
   series: MeetingSeries[];
   meetings: Meeting[];
   horizon: { from: string; to: string };
+  /** Meetings gone by, twelve weeks to a page, newest first (2026-09-24). */
+  past: { page: number; from: string; to: string; more: boolean; meetings: Meeting[] };
   people: Array< { id: string; display_name: string } >;
   added?: MeetingSeries;
   meeting?: Meeting | null;

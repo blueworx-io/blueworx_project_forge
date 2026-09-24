@@ -106,7 +106,7 @@ final class MeetingsController {
 			return Boundary::absent( 'client_site' );
 		}
 
-		return rest_ensure_response( self::answer( $site ) );
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -147,7 +147,7 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		$response = array_merge( array( 'added' => self::series( $created ) ), self::answer( $site ) );
+		$response = array_merge( array( 'added' => self::series( $created ) ), self::answer( $site, self::past_page( $request ) ) );
 
 		self::remember( $key, $operation, $response );
 
@@ -199,7 +199,7 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::answer( $site ) );
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -241,7 +241,7 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::answer( $site ) );
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -282,7 +282,7 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::acted( $site, $series, $slot ) );
+		return rest_ensure_response( self::acted( $site, $series, $slot, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -330,10 +330,55 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::acted( $site, $series, $slot ) );
+		return rest_ensure_response( self::acted( $site, $series, $slot, self::past_page( $request ) ) );
 	}
 
 	/* ------------------------------------------------------------ private */
+
+	/**
+	 * Which page of past meetings a request is looking at: 1 is the twelve
+	 * weeks just gone.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return int
+	 */
+	private static function past_page( WP_REST_Request $request ): int {
+		return max( 1, (int) ( $request->get_param( 'past_page' ) ?? 1 ) );
+	}
+
+	/**
+	 * The meetings that have passed, twelve weeks to a page and newest first
+	 * (2026-09-24), so the ones still to settle can be found and settled.
+	 *
+	 * @param string                           $site_id The site.
+	 * @param array<int, array<string, mixed>> $all     The site's series.
+	 * @param string                           $today   YYYY-MM-DD.
+	 * @param int                              $page    1 for the twelve weeks just gone.
+	 * @return array<string, mixed>
+	 */
+	private static function past( string $site_id, array $all, string $today, int $page ): array {
+		$start = (int) strtotime( $today . ' 00:00:00 UTC' );
+		$days  = MeetingHours::HORIZON_DAYS;
+		$to    = gmdate( 'Y-m-d', $start - ( ( ( $page - 1 ) * $days + 1 ) * DAY_IN_SECONDS ) );
+		$from  = gmdate( 'Y-m-d', $start - ( $page * $days * DAY_IN_SECONDS ) );
+		$by_id = array_column( $all, null, 'id' );
+		$rows  = array();
+
+		foreach ( array_reverse( Diary::for_site( $site_id, $from, $to ) ) as $meeting ) {
+			$rows[] = self::meeting( $meeting, $by_id[ (string) $meeting['series_id'] ] ?? array() );
+		}
+
+		// Older pages exist while any series started before this one does.
+		$earliest = array_filter( array_column( $all, 'starts_on' ) );
+
+		return array(
+			'page'     => $page,
+			'from'     => $from,
+			'to'       => $to,
+			'more'     => array() !== $earliest && min( $earliest ) < $from,
+			'meetings' => $rows,
+		);
+	}
 
 	/**
 	 * A series' inputs, read from a body and checked. Adding and editing take
@@ -402,13 +447,14 @@ final class MeetingsController {
 	 * meeting that was acted on named — read back after the reconcile, so its
 	 * ledger state is the one the reconcile just wrote.
 	 *
-	 * @param array<string, mixed> $site   The site.
-	 * @param array<string, mixed> $series The series the meeting belongs to.
-	 * @param string               $slot   The slot the rule put it on.
+	 * @param array<string, mixed> $site      The site.
+	 * @param array<string, mixed> $series    The series the meeting belongs to.
+	 * @param string               $slot      The slot the rule put it on.
+	 * @param int                  $past_page Which page of past meetings.
 	 * @return array<string, mixed>
 	 */
-	private static function acted( array $site, array $series, string $slot ): array {
-		$answer = self::answer( $site );
+	private static function acted( array $site, array $series, string $slot, int $past_page ): array {
+		$answer = self::answer( $site, $past_page );
 		$stored = Diary::slot( (string) $series['id'], $slot );
 
 		$meeting = null === $stored
@@ -483,10 +529,11 @@ final class MeetingsController {
 	 * what a person can see and what the balance has committed are the same
 	 * set of meetings.
 	 *
-	 * @param array<string, mixed> $site The site.
+	 * @param array<string, mixed> $site      The site.
+	 * @param int                  $past_page Which page of past meetings.
 	 * @return array<string, mixed>
 	 */
-	private static function answer( array $site ): array {
+	private static function answer( array $site, int $past_page = 1 ): array {
 		$id    = (string) $site['id'];
 		$today = gmdate( 'Y-m-d' );
 		$to    = MeetingHours::horizon_end( $today );
@@ -513,6 +560,7 @@ final class MeetingsController {
 				'from' => $today,
 				'to'   => $to,
 			),
+			'past'     => self::past( $id, $all, $today, $past_page ),
 			'people'   => array_map(
 				static fn( array $person ): array => array(
 					'id'           => (string) $person['id'],

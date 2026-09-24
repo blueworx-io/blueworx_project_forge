@@ -232,3 +232,35 @@ test('a link with the screen and site in the hash lands on them', async ({ page 
   // Read once and cleared, so a reload is a plain reload.
   expect(new URL(page.url()).hash).toBe('');
 });
+
+test('meetings that have passed are listed below the next twelve weeks, and can be settled', async ({ page }) => {
+  // A site of its own, with a weekly series that started three weeks ago.
+  const where = await makeSite(admin.api, 'Meetings past', `${RUN_ID}-p`);
+  await onSupport(admin, where.site.id, 200);
+  const started = daysOn(new Date().toISOString().slice(0, 10), -21);
+  const wrote = await admin.api.post(`/client-sites/${where.site.id}/meetings/series`, {
+    title: `Gone by ${RUN_ID}`, frequency: 'weekly', starts_on: started, ends_on: '', time_of_day: '10:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  // The page was opened before the site existed, so arrive by link.
+  await page.goto(`/blueworx-forge/#screen=meetings&site=${where.site.id}`);
+  await page.reload();
+
+  const past = page.getByTestId('bwx-meetings-past');
+  await expect(past).toBeVisible({ timeout: 30_000 });
+  const rows = past.locator('tbody tr');
+  await expect(rows).toHaveCount(3);
+  await expect(page.getByTestId('bwx-meetings-past-older')).toBeDisabled();
+  await expect(page.getByTestId('bwx-meetings-past-newer')).toBeDisabled();
+
+  const newest = rows.first();
+  await newest.getByTestId('bwx-meetings-settle').click();
+  const form = page.getByTestId('bwx-meetings-settle-form');
+  await form.getByTestId('bwx-meetings-settle-status').selectOption('held');
+  await form.getByTestId('bwx-meetings-settle-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(rows.first()).toContainText('Held');
+});

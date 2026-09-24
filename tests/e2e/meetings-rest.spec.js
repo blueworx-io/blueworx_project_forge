@@ -306,3 +306,41 @@ test('a replayed add under one retry key makes one series, not two', async () =>
 
   expect((await api.get(`/client-sites/${replayed.id}/meetings`)).series).toHaveLength(1);
 });
+
+test('meetings that have passed are listed twelve weeks at a time, newest first, and can still be settled', async () => {
+  test.slow();
+
+  // A weekly series that started twenty weeks ago: twelve weeks of past on
+  // the first page, the rest on the second (2026-09-24).
+  const back = (await makeSite(api, 'Past meetings', `${RUN_ID}-p`)).site;
+  await onSupport({ api }, back.id, GRANTED);
+  const started = daysOn(TODAY, -140);
+  const wrote = await api.post(`/client-sites/${back.id}/meetings/series`, weekly(host, started, { title: `Past ${RUN_ID}` }));
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.past.page).toBe(1);
+  expect(answer.past.to).toBe(daysOn(TODAY, -1));
+  expect(answer.past.from).toBe(daysOn(TODAY, -HORIZON_DAYS));
+  expect(answer.past.more).toBe(true);
+  expect(answer.past.meetings.length).toBeGreaterThanOrEqual(11);
+  for (const meeting of answer.past.meetings) {
+    expect(meeting.on < TODAY).toBe(true);
+  }
+  // Newest first.
+  const days = answer.past.meetings.map((one) => one.on);
+  expect(days).toEqual([...days].sort().reverse());
+
+  const second = await api.get(`/client-sites/${back.id}/meetings?past_page=2`);
+  expect(second.past.page).toBe(2);
+  expect(second.past.more).toBe(false);
+  expect(second.past.meetings.length).toBeGreaterThanOrEqual(7);
+  expect(second.past.meetings.every((one) => one.on >= started)).toBe(true);
+
+  // A past one is settled like any other, and the answer keeps the page.
+  const last = answer.past.meetings[0];
+  const settled = await api.post(`/client-sites/${back.id}/meetings/${last.series_id}/${last.slot}/settle?past_page=1`, { status: 'held' });
+  expect(settled.status(), await settled.text()).toBe(200);
+  const after = await settled.json();
+  expect(after.past.meetings.find((one) => one.slot === last.slot).status).toBe('held');
+});

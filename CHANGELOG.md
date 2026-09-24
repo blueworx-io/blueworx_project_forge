@@ -14,6 +14,7 @@ commits and pull requests.
 
 - Time estimates: 5 minutes, 4 hours and 5 hours can now be picked.
 - Meetings: a standing meeting can be edited, not just ended. Its coming meetings follow the change.
+- Meetings: a "Past meetings" table below the next twelve weeks shows the twelve weeks just gone, with Older and Newer to page back. Past meetings can still be settled.
 
 ### Changed
 
