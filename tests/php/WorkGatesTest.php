@@ -233,7 +233,8 @@ final class WorkGatesTest extends TestCase {
 			$this->assertNull( Gates::requirement( $gone ), $gone );
 		}
 
-		$this->assertSame( array( 'design_url' ), Gates::requirement( 'G-DESIGN-1' )['fields'] );
+		// Not every item has a design, so the link is optional (2026-09-24).
+		$this->assertNull( Gates::requirement( 'G-DESIGN-1' ) );
 	}
 
 	/**

@@ -14,6 +14,10 @@ commits and pull requests.
 
 - Time estimates: 5 minutes, 4 hours and 5 hours can now be picked.
 
+### Changed
+
+- The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
+
 ## [2.129.2] - 2026-09-21
 
 ### Fixed

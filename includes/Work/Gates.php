@@ -215,7 +215,7 @@ final class Gates {
 				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit, as the reviewer.', self::REV ),
 			),
 			'G-DESIGN'          => array(
-				self::field( 'G-DESIGN-1', 'Design link', 'reference', array( 'design_url' ), 'Add the link to the approved design.' ),
+				// The design link is optional (2026-09-24): not every item has one.
 				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),
 				self::done( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'Mark all four states as done.' ),
 				self::approval( 'G-DESIGN-5', 'Design approval', 'Approve the design, as the reviewer.', self::REV ),

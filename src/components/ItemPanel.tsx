@@ -167,7 +167,6 @@ const NEEDED_FROM: Record< string, string > = {
   release_method: 'completed',
   release_destination: 'completed',
   non_goals: 'documentation-period',
-  design_url: 'design-process',
   test_description: 'in-development',
 };
 
