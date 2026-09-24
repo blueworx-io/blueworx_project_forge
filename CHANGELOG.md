@@ -13,6 +13,7 @@ commits and pull requests.
 ### Added
 
 - Time estimates: 5 minutes, 4 hours and 5 hours can now be picked.
+- Meetings: a standing meeting can be edited, not just ended. Its coming meetings follow the change.
 
 ### Changed
 

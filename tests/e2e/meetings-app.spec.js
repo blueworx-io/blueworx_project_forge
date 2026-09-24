@@ -181,6 +181,27 @@ test('marking the moved meeting held spends its hours', async ({ page }) => {
   await expect(rowFor(page, daysOn(first, 7)).getByTestId('bwx-meetings-move')).toBeVisible();
 });
 
+test('a standing meeting can be edited, not just ended', async ({ page }) => {
+  await onSite(page);
+
+  const card = page.getByTestId('bwx-meetings-series');
+  await card.getByTestId('bwx-meetings-series-edit').click();
+
+  const form = page.getByTestId('bwx-meetings-series-form');
+  await expect(form).toBeVisible();
+  // The form opens with what is there now.
+  await expect(form.getByTestId('bwx-meetings-series-title')).not.toHaveValue('');
+  await form.getByTestId('bwx-meetings-series-title').fill(`Renamed ${RUN_ID}`);
+  await form.getByTestId('bwx-meetings-series-time').fill('14:30');
+  await form.getByTestId('bwx-meetings-series-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(page.getByTestId('bwx-meetings-notice')).toContainText('Saved');
+  await expect(card).toContainText(`Renamed ${RUN_ID}`);
+  await expect(card).toContainText('14:30');
+  await expect(card).toHaveAttribute('data-state', 'active');
+});
+
 test('ending the series marks it ended, and the end button goes', async ({ page }) => {
   await onSite(page);
 

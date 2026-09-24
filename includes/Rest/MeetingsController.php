@@ -73,6 +73,7 @@ final class MeetingsController {
 		$routes = array(
 			array( 'GET', '', 'read' ),
 			array( 'POST', '/series', 'add_series' ),
+			array( 'POST', '/series/(?P<series_id>[A-Za-z0-9_\-]+)', 'edit_series' ),
 			array( 'POST', '/series/(?P<series_id>[A-Za-z0-9_\-]+)/end', 'end_series' ),
 			array( 'POST', $slot . '/move', 'move' ),
 			array( 'POST', $slot . '/settle', 'settle' ),
@@ -134,32 +135,10 @@ final class MeetingsController {
 			return $replay;
 		}
 
-		$body    = (array) $request->get_json_params();
-		$checked = Validate::series(
-			array(
-				'client_site_id' => (string) $site['id'],
-				'title'          => sanitize_text_field( (string) ( $body['title'] ?? '' ) ),
-				'frequency'      => sanitize_text_field( (string) ( $body['frequency'] ?? '' ) ),
-				'starts_on'      => sanitize_text_field( (string) ( $body['starts_on'] ?? '' ) ),
-				'ends_on'        => sanitize_text_field( (string) ( $body['ends_on'] ?? '' ) ),
-				'time_of_day'    => sanitize_text_field( (string) ( $body['time_of_day'] ?? '' ) ),
-				'duration_mins'  => (int) ( $body['duration_mins'] ?? 0 ),
-				'timezone'       => sanitize_text_field( (string) ( $body['timezone'] ?? '' ) ),
-				'host_user_id'   => sanitize_text_field( (string) ( $body['host_user_id'] ?? '' ) ),
-				'attendees'      => sanitize_textarea_field( (string) ( $body['attendees'] ?? '' ) ),
-				// Who else comes, as people (2026-09-19).
-				'attendee_ids'   => array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $body['attendee_ids'] ?? array() ) ) ),
-				'planned_hours'  => (float) ( $body['planned_hours'] ?? 0 ),
-			)
-		);
+		$checked = self::checked( (array) $request->get_json_params(), (string) $site['id'] );
 
-		if ( array() !== $checked['errors'] ) {
-			return Errors::rest(
-				'invalid_series',
-				__( 'That series could not be saved — check the highlighted fields.', 'blueworx-forge' ),
-				400,
-				array( 'fields' => $checked['errors'] )
-			);
+		if ( ! isset( $checked['values'] ) ) {
+			return $checked['error'];
 		}
 
 		$created = Series::create( $checked['values'], (string) $site['client_id'], get_current_user_id() );
@@ -173,6 +152,54 @@ final class MeetingsController {
 		self::remember( $key, $operation, $response );
 
 		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * Changes a running series (2026-09-24): the same inputs as adding one,
+	 * against the record version it was read at.
+	 *
+	 * Settled afterwards through {@see self::answer()}, so the hours its coming
+	 * meetings hold follow the new rule.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function edit_series( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$series = self::series_on_site( (string) $request['series_id'], (string) $site['id'] );
+
+		if ( null === $series ) {
+			return self::unknown_series();
+		}
+
+		$body  = (array) $request->get_json_params();
+		$sent  = isset( $body[ Versioning::PARAM ] ) ? (int) $body[ Versioning::PARAM ] : null;
+		$stale = Versioning::check( $sent, (int) $series['record_version'], self::series( $series ) );
+
+		if ( null !== $stale ) {
+			return $stale;
+		}
+
+		if ( Series::ACTIVE !== (string) $series['state'] ) {
+			return self::refused();
+		}
+
+		$checked = self::checked( $body, (string) $site['id'] );
+
+		if ( ! isset( $checked['values'] ) ) {
+			return $checked['error'];
+		}
+
+		if ( null === Series::update( (string) $series['id'], $checked['values'], (int) $sent ) ) {
+			return self::refused();
+		}
+
+		return rest_ensure_response( self::answer( $site ) );
 	}
 
 	/**
@@ -307,6 +334,47 @@ final class MeetingsController {
 	}
 
 	/* ------------------------------------------------------------ private */
+
+	/**
+	 * A series' inputs, read from a body and checked. Adding and editing take
+	 * the same eleven, less the site, which is the path.
+	 *
+	 * @param array<string, mixed> $body    The request body.
+	 * @param string               $site_id The site.
+	 * @return array{values?: array<string, mixed>, error?: \WP_Error}
+	 */
+	private static function checked( array $body, string $site_id ): array {
+		$checked = Validate::series(
+			array(
+				'client_site_id' => $site_id,
+				'title'          => sanitize_text_field( (string) ( $body['title'] ?? '' ) ),
+				'frequency'      => sanitize_text_field( (string) ( $body['frequency'] ?? '' ) ),
+				'starts_on'      => sanitize_text_field( (string) ( $body['starts_on'] ?? '' ) ),
+				'ends_on'        => sanitize_text_field( (string) ( $body['ends_on'] ?? '' ) ),
+				'time_of_day'    => sanitize_text_field( (string) ( $body['time_of_day'] ?? '' ) ),
+				'duration_mins'  => (int) ( $body['duration_mins'] ?? 0 ),
+				'timezone'       => sanitize_text_field( (string) ( $body['timezone'] ?? '' ) ),
+				'host_user_id'   => sanitize_text_field( (string) ( $body['host_user_id'] ?? '' ) ),
+				'attendees'      => sanitize_textarea_field( (string) ( $body['attendees'] ?? '' ) ),
+				// Who else comes, as people (2026-09-19).
+				'attendee_ids'   => array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $body['attendee_ids'] ?? array() ) ) ),
+				'planned_hours'  => (float) ( $body['planned_hours'] ?? 0 ),
+			)
+		);
+
+		if ( array() !== $checked['errors'] ) {
+			return array(
+				'error' => Errors::rest(
+					'invalid_series',
+					__( 'That series could not be saved — check the highlighted fields.', 'blueworx-forge' ),
+					400,
+					array( 'fields' => $checked['errors'] )
+				),
+			);
+		}
+
+		return array( 'values' => $checked['values'] );
+	}
 
 	/**
 	 * One series, if it is this site's.
