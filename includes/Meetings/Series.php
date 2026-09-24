@@ -188,6 +188,31 @@ final class Series {
 	}
 
 	/**
+	 * The series on several sites, in one read (2026-09-24), so a list across
+	 * every site in reach does not cost a query per site.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function for_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::meeting_series_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$slots}) ORDER BY starts_on ASC, id ASC", $wanted ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * Every running series that could put a meeting in a window, on any client.
 	 *
 	 * **Deliberately unscoped**, like {@see \Blueworx\Forge\Capacity\Commitments}

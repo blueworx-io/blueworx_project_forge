@@ -98,34 +98,47 @@ final class Feed {
 		$me    = Users::by_wp_user( get_current_user_id() );
 		$my_id = null === $me ? '' : (string) $me['id'];
 
-		foreach ( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ) as $site ) {
-			foreach ( Series::for_site( (string) $site['id'] ) as $series ) {
-				foreach ( Diary::for_series( $series, $from, $today ) as $meeting ) {
-					if ( Occurrence::SCHEDULED !== (string) ( $meeting['status'] ?? '' ) ) {
-						continue;
-					}
+		$sites = array_column( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ), null, 'id' );
 
-					$host      = (string) ( $series['host_user_id'] ?? '' );
-					$from_slot = (string) ( $meeting['excepted_from'] ?? '' );
+		// Every site's series, and what has happened to their meetings, in two
+		// reads rather than two per site.
+		$all    = Series::for_sites( array_keys( $sites ) );
+		$stored = Diary::stored_between( $from, $today );
 
-					$out[] = array_merge(
-						self::entry(
-							'meeting',
-							(string) $series['id'] . '@' . (string) $meeting['on'],
-							(string) $meeting['on'],
-							'',
-							(string) $series['title'],
-							trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
-							'' === $host ? array() : array( $host )
-						),
-						array(
-							'site_id'    => (string) $site['id'],
-							'series_id'  => (string) $series['id'],
-							'slot'       => '' !== $from_slot ? $from_slot : (string) $meeting['on'],
-							'can_settle' => $admin || ( '' !== $host && $host === $my_id ),
-						)
-					);
+		foreach ( $all as $series ) {
+			$site = $sites[ (string) $series['client_site_id'] ] ?? null;
+
+			if ( null === $site ) {
+				continue;
+			}
+
+			$meetings = Occurrence::merge( Series::occurrences( $series, $from, $today ), $stored[ (string) $series['id'] ] ?? array(), $from, $today );
+
+			foreach ( $meetings as $meeting ) {
+				if ( Occurrence::SCHEDULED !== (string) ( $meeting['status'] ?? '' ) ) {
+					continue;
 				}
+
+				$host      = (string) ( $series['host_user_id'] ?? '' );
+				$from_slot = (string) ( $meeting['excepted_from'] ?? '' );
+
+				$out[] = array_merge(
+					self::entry(
+						'meeting',
+						(string) $series['id'] . '@' . (string) $meeting['on'],
+						(string) $meeting['on'],
+						'',
+						(string) $series['title'],
+						trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
+						'' === $host ? array() : array( $host )
+					),
+					array(
+						'site_id'    => (string) $site['id'],
+						'series_id'  => (string) $series['id'],
+						'slot'       => '' !== $from_slot ? $from_slot : (string) $meeting['on'],
+						'can_settle' => $admin || ( '' !== $host && $host === $my_id ),
+					)
+				);
 			}
 		}
 
