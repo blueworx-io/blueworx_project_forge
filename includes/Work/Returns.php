@@ -10,8 +10,10 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 /**
- * #108. Work goes backwards along one rule and no other: **to an earlier stage
- * it has actually occupied, with a reason** (WF-3).
+ * #108. Work goes backwards along one rule and no other: **to an earlier stage,
+ * with a reason** (WF-3). Until 2026-09-24 it also had to be a stage the item
+ * had occupied this cycle; Luke dropped that, and the reasoning below is kept
+ * as the history of why it was there.
  *
  * The "actually occupied" half is what makes this a return rather than a
  * correction. Sending an item back to a stage it has never been in is not
@@ -83,11 +85,10 @@ final class Returns {
 	 * Blocked is never among them: it is not a place on the path, and leaving it
 	 * is its own move with its own gate (#109).
 	 *
-	 * @param array<string, mixed>             $item    The item, as read.
-	 * @param array<int, array<string, mixed>> $history The item's changelog.
+	 * @param array<string, mixed> $item The item, as read.
 	 * @return array<int, string>
 	 */
-	public static function targets( array $item, array $history ): array {
+	public static function targets( array $item ): array {
 		$from = (string) $item['stage'];
 
 		if ( Stages::EXCEPTION === Stages::kind( $from ) ) {
@@ -97,7 +98,12 @@ final class Returns {
 		$here    = Stages::position( $from );
 		$targets = array();
 
-		foreach ( self::occupied( $history, (int) ( $item['cycle'] ?? 1 ) ) as $stage ) {
+		/*
+		 * Any earlier stage, whether or not the item passed through it this
+		 * cycle (Luke, 2026-09-24). Work that skipped a stage, or came in part
+		 * way along, could otherwise only go back to where it started.
+		 */
+		foreach ( Stages::ALL as $stage ) {
 			if ( $stage === $from || Stages::position( $stage ) >= $here ) {
 				continue;
 			}
@@ -122,13 +128,12 @@ final class Returns {
 	/**
 	 * Whether this particular return is permitted.
 	 *
-	 * @param array<string, mixed>             $item    The item, as read.
-	 * @param string                           $to      Target stage.
-	 * @param array<int, array<string, mixed>> $history The item's changelog.
+	 * @param array<string, mixed> $item The item, as read.
+	 * @param string               $to   Target stage.
 	 * @return bool
 	 */
-	public static function allowed( array $item, string $to, array $history ): bool {
-		return in_array( $to, self::targets( $item, $history ), true );
+	public static function allowed( array $item, string $to ): bool {
+		return in_array( $to, self::targets( $item ), true );
 	}
 
 	/**

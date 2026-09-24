@@ -8,11 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.130.0] - 2026-09-24
+
+### Added
+
+- Time estimates: 5 minutes, 4 hours and 5 hours can now be picked.
+- Meetings: a standing meeting can be edited, not just ended. Its coming meetings follow the change.
+- Meetings: a "Past meetings" table below the next twelve weeks shows the twelve weeks just gone, with Older and Newer to page back. Past meetings can still be settled.
+- Daily standup: a "Meetings to settle" list shows every meeting that has happened, or happens today, and hasn't been marked held, cancelled or a no-show yet. An admin or the meeting's host can mark it held, cancelled or nobody came right there.
+
+### Changed
+
+- Recurring tasks and subscription reminders: each person gets their own copy to do and finish independently, instead of one shared task with a tick list. A "Done" button on the right finishes it. They are free, and the task no longer shows who pays, who and when, or how it was released. Tasks already made keep their old form.
+- The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
+- "How to test" is optional. Leaving In Development no longer asks for it.
+- My tasks shows a task only while it's at a stage you're responsible for: the owner's until review, the checker's in review, the builder's once completed. When it moves on, it leaves your list and appears on theirs. Each task appears once, not once per role.
+- Blocking: "Who owns the blocker" comes first and is the only thing needed. What is blocking it, what it is waiting on and the target date are optional, and "Next action" is gone.
+
+### Fixed
+
+- Send back lists every stage before the one the item is in. Before, an item that had skipped stages could only go back to Future idea.
+
+### Removed
+
+- The "Work evidence" check on leaving In Development. Comments are just for comments now.
+
 ## [2.129.2] - 2026-09-21
 
 ### Fixed
 
-- Packages: a price can now be per month as well as per year. The hourly rate, what an assignment charges, pro-rata sums and the price a client sees all use the whole term's price, so a 24-hour package at £100 a month reads £50 an hour, not £4.17. Existing packages stay per year until revised.
+- Packages: a price can now be per month as well as per year. The hourly rate, what an assignment charges, pro-rata sums and the price a client sees all use the whole term's price, so a 24-hour package at ï¿½100 a month reads ï¿½50 an hour, not ï¿½4.17. Existing packages stay per year until revised.
 - Client site: package prices show in pounds as the studio set them, not divided by a hundred â€” Â£100 no longer reads Â£1.00.
 
 ## [2.129.1] - 2026-09-20

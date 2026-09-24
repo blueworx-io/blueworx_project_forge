@@ -105,22 +105,32 @@ final class Materialise {
 					continue;
 				}
 
-				$item = Items::create(
-					(string) $source['client_site_id'],
-					(string) $source['client_id'],
-					self::values( $source, $date ),
-					0
-				);
+				// One copy per person (2026-09-24). The day is claimed once;
+				// the occurrence remembers the first copy.
+				$first = '';
 
-				if ( null === $item ) {
-					continue;
+				foreach ( self::copies( $source, $date ) as $values ) {
+					$item = Items::create(
+						(string) $source['client_site_id'],
+						(string) $source['client_id'],
+						$values,
+						0
+					);
+
+					if ( null === $item ) {
+						continue;
+					}
+
+					Transition::record_creation( $item, 0 );
+					Transition::place( $item, Stages::UP_NEXT, 0, self::why( $source, $date ) );
+
+					if ( '' === $first ) {
+						$first = (string) $item['id'];
+						Occurrences::record_item( (string) $source['id'], $date, $first );
+					}
+
+					++$made;
 				}
-
-				Transition::record_creation( $item, 0 );
-				Transition::place( $item, Stages::UP_NEXT, 0, self::why( $source, $date ) );
-				Occurrences::record_item( (string) $source['id'], $date, (string) $item['id'] );
-
-				++$made;
 			}
 		}
 
@@ -145,6 +155,29 @@ final class Materialise {
 		Sources::advance( (string) $source['id'], $next, 0 < $made );
 
 		return $made;
+	}
+
+	/**
+	 * A due day's tasks: one for each person on it, with only them assigned
+	 * (2026-09-24), so each does and ticks off their own. A source with nobody
+	 * on it still makes one. Pure, so the shape can be tested.
+	 *
+	 * @param array<string, mixed> $source The source.
+	 * @param string               $date   YYYY-MM-DD.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function copies( array $source, string $date ): array {
+		$values = self::values( $source, $date );
+		$people = (array) $values['assignees'];
+
+		if ( count( $people ) <= 1 ) {
+			return array( $values );
+		}
+
+		return array_map(
+			static fn( string $person ): array => array_merge( $values, array( 'assignees' => array( $person ) ) ),
+			array_values( array_map( 'strval', $people ) )
+		);
 	}
 
 	/**
@@ -185,7 +218,8 @@ final class Materialise {
 			'priority'         => 'normal',
 			'planned_start'    => $date,
 			'planned_due'      => $date,
-			'commercial_class' => 'unclassified',
+			// Recurring tasks are free (2026-09-24): nobody pays for them.
+			'commercial_class' => 'free-general',
 			'recurring_id'     => (string) $source['id'],
 			// Who does it, each ticking their own (2026-09-18).
 			'assignees'        => $assignees,

@@ -215,7 +215,7 @@ final class Gates {
 				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit, as the reviewer.', self::REV ),
 			),
 			'G-DESIGN'          => array(
-				self::field( 'G-DESIGN-1', 'Design link', 'reference', array( 'design_url' ), 'Add the link to the approved design.' ),
+				// The design link is optional (2026-09-24): not every item has one.
 				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),
 				self::done( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'Mark all four states as done.' ),
 				self::approval( 'G-DESIGN-5', 'Design approval', 'Approve the design, as the reviewer.', self::REV ),
@@ -241,8 +241,7 @@ final class Gates {
 				// The checklist is the completion checklist (2026-09-19): every
 				// line ticked, or no list at all, and nobody marks it by hand.
 				self::auto( 'G-IN-DEVELOPMENT-1', 'Checklist complete', 'checklist', 'checklist', 'Tick every line of the checklist.', self::PU ),
-				self::evidence( 'G-IN-DEVELOPMENT-2', 'Work evidence', 'Add a comment with a link to the work.', self::PU ),
-				self::field( 'G-IN-DEVELOPMENT-3', 'How to test', 'text', array( 'test_description' ), 'Write how the reviewer tests it, under Review and testing.', self::PU ),
+				// No work evidence, and how to test is optional (2026-09-24).
 				self::system( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'submission', 'Recorded by the move itself.' ),
 			),
 			'G-IN-REVIEW'       => array(
@@ -270,11 +269,10 @@ final class Gates {
 				self::done( 'G-RELEASED-5', 'Post-release check', 'Mark the post-release check as done.', self::DEL ),
 			),
 			'G-BLOCKED-ENTRY'   => array(
-				self::pick( 'G-BLOCKED-ENTRY-1', 'What is blocking it', array( 'other' => 'Something else' ), 'Choose the item blocking this, or say what else is.', self::ANY, 'items' ),
+				// Who owns the blocker is the one answer blocking needs
+				// (2026-09-24). What is blocking it, what it waits on and a target
+				// date are optional, and there is no next action.
 				self::pick( 'G-BLOCKED-ENTRY-2', 'Who owns the blocker', array( 'client' => 'The client' ), 'Choose who owns the blocker.', self::ANY, 'people' ),
-				self::pick( 'G-BLOCKED-ENTRY-3', 'What it is waiting on', array( 'other' => 'Something else' ), 'Choose the item this waits on, or say what else it is.', self::ANY, 'items' ),
-				self::box( 'G-BLOCKED-ENTRY-4', 'Target resolution date', 'date', 'Set a target date for the blocker clearing.' ),
-				self::box( 'G-BLOCKED-ENTRY-5', 'Next action', 'text', 'Say what the next action is.' ),
 				self::system( 'G-BLOCKED-ENTRY-6', 'Prior stage stored', 'prior_stage', 'Recorded by the move itself.' ),
 			),
 			'G-BLOCKED-EXIT'    => array(

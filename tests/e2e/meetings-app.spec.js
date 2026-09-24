@@ -181,6 +181,27 @@ test('marking the moved meeting held spends its hours', async ({ page }) => {
   await expect(rowFor(page, daysOn(first, 7)).getByTestId('bwx-meetings-move')).toBeVisible();
 });
 
+test('a standing meeting can be edited, not just ended', async ({ page }) => {
+  await onSite(page);
+
+  const card = page.getByTestId('bwx-meetings-series');
+  await card.getByTestId('bwx-meetings-series-edit').click();
+
+  const form = page.getByTestId('bwx-meetings-series-form');
+  await expect(form).toBeVisible();
+  // The form opens with what is there now.
+  await expect(form.getByTestId('bwx-meetings-series-title')).not.toHaveValue('');
+  await form.getByTestId('bwx-meetings-series-title').fill(`Renamed ${RUN_ID}`);
+  await form.getByTestId('bwx-meetings-series-time').fill('14:30');
+  await form.getByTestId('bwx-meetings-series-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(page.getByTestId('bwx-meetings-notice')).toContainText('Saved');
+  await expect(card).toContainText(`Renamed ${RUN_ID}`);
+  await expect(card).toContainText('14:30');
+  await expect(card).toHaveAttribute('data-state', 'active');
+});
+
 test('ending the series marks it ended, and the end button goes', async ({ page }) => {
   await onSite(page);
 
@@ -210,4 +231,36 @@ test('a link with the screen and site in the hash lands on them', async ({ page 
   await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(site.id);
   // Read once and cleared, so a reload is a plain reload.
   expect(new URL(page.url()).hash).toBe('');
+});
+
+test('meetings that have passed are listed below the next twelve weeks, and can be settled', async ({ page }) => {
+  // A site of its own, with a weekly series that started three weeks ago.
+  const where = await makeSite(admin.api, 'Meetings past', `${RUN_ID}-p`);
+  await onSupport(admin, where.site.id, 200);
+  const started = daysOn(new Date().toISOString().slice(0, 10), -21);
+  const wrote = await admin.api.post(`/client-sites/${where.site.id}/meetings/series`, {
+    title: `Gone by ${RUN_ID}`, frequency: 'weekly', starts_on: started, ends_on: '', time_of_day: '10:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  // The page was opened before the site existed, so arrive by link.
+  await page.goto(`/blueworx-forge/#screen=meetings&site=${where.site.id}`);
+  await page.reload();
+
+  const past = page.getByTestId('bwx-meetings-past');
+  await expect(past).toBeVisible({ timeout: 30_000 });
+  const rows = past.locator('tbody tr');
+  await expect(rows).toHaveCount(3);
+  await expect(page.getByTestId('bwx-meetings-past-older')).toBeDisabled();
+  await expect(page.getByTestId('bwx-meetings-past-newer')).toBeDisabled();
+
+  const newest = rows.first();
+  await newest.getByTestId('bwx-meetings-settle').click();
+  const form = page.getByTestId('bwx-meetings-settle-form');
+  await form.getByTestId('bwx-meetings-settle-status').selectOption('held');
+  await form.getByTestId('bwx-meetings-settle-save').click();
+
+  await expect(form).toBeHidden();
+  await expect(rows.first()).toContainText('Held');
 });

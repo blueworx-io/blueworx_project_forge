@@ -73,6 +73,7 @@ final class MeetingsController {
 		$routes = array(
 			array( 'GET', '', 'read' ),
 			array( 'POST', '/series', 'add_series' ),
+			array( 'POST', '/series/(?P<series_id>[A-Za-z0-9_\-]+)', 'edit_series' ),
 			array( 'POST', '/series/(?P<series_id>[A-Za-z0-9_\-]+)/end', 'end_series' ),
 			array( 'POST', $slot . '/move', 'move' ),
 			array( 'POST', $slot . '/settle', 'settle' ),
@@ -85,7 +86,9 @@ final class MeetingsController {
 				array(
 					'methods'             => $method,
 					'callback'            => array( self::class, $callback ),
-					'permission_callback' => array( Permissions::class, 'manage' ),
+					// Admins or the meeting's host settle it (2026-09-24);
+					// everything else here is the administrator's.
+					'permission_callback' => 'settle' === $callback ? array( self::class, 'may_settle' ) : array( Permissions::class, 'manage' ),
 					'scope'               => $scope,
 				)
 			);
@@ -105,7 +108,7 @@ final class MeetingsController {
 			return Boundary::absent( 'client_site' );
 		}
 
-		return rest_ensure_response( self::answer( $site ) );
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -134,32 +137,10 @@ final class MeetingsController {
 			return $replay;
 		}
 
-		$body    = (array) $request->get_json_params();
-		$checked = Validate::series(
-			array(
-				'client_site_id' => (string) $site['id'],
-				'title'          => sanitize_text_field( (string) ( $body['title'] ?? '' ) ),
-				'frequency'      => sanitize_text_field( (string) ( $body['frequency'] ?? '' ) ),
-				'starts_on'      => sanitize_text_field( (string) ( $body['starts_on'] ?? '' ) ),
-				'ends_on'        => sanitize_text_field( (string) ( $body['ends_on'] ?? '' ) ),
-				'time_of_day'    => sanitize_text_field( (string) ( $body['time_of_day'] ?? '' ) ),
-				'duration_mins'  => (int) ( $body['duration_mins'] ?? 0 ),
-				'timezone'       => sanitize_text_field( (string) ( $body['timezone'] ?? '' ) ),
-				'host_user_id'   => sanitize_text_field( (string) ( $body['host_user_id'] ?? '' ) ),
-				'attendees'      => sanitize_textarea_field( (string) ( $body['attendees'] ?? '' ) ),
-				// Who else comes, as people (2026-09-19).
-				'attendee_ids'   => array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $body['attendee_ids'] ?? array() ) ) ),
-				'planned_hours'  => (float) ( $body['planned_hours'] ?? 0 ),
-			)
-		);
+		$checked = self::checked( (array) $request->get_json_params(), (string) $site['id'] );
 
-		if ( array() !== $checked['errors'] ) {
-			return Errors::rest(
-				'invalid_series',
-				__( 'That series could not be saved — check the highlighted fields.', 'blueworx-forge' ),
-				400,
-				array( 'fields' => $checked['errors'] )
-			);
+		if ( ! isset( $checked['values'] ) ) {
+			return $checked['error'];
 		}
 
 		$created = Series::create( $checked['values'], (string) $site['client_id'], get_current_user_id() );
@@ -168,11 +149,59 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		$response = array_merge( array( 'added' => self::series( $created ) ), self::answer( $site ) );
+		$response = array_merge( array( 'added' => self::series( $created ) ), self::answer( $site, self::past_page( $request ) ) );
 
 		self::remember( $key, $operation, $response );
 
 		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * Changes a running series (2026-09-24): the same inputs as adding one,
+	 * against the record version it was read at.
+	 *
+	 * Settled afterwards through {@see self::answer()}, so the hours its coming
+	 * meetings hold follow the new rule.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function edit_series( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$series = self::series_on_site( (string) $request['series_id'], (string) $site['id'] );
+
+		if ( null === $series ) {
+			return self::unknown_series();
+		}
+
+		$body  = (array) $request->get_json_params();
+		$sent  = isset( $body[ Versioning::PARAM ] ) ? (int) $body[ Versioning::PARAM ] : null;
+		$stale = Versioning::check( $sent, (int) $series['record_version'], self::series( $series ) );
+
+		if ( null !== $stale ) {
+			return $stale;
+		}
+
+		if ( Series::ACTIVE !== (string) $series['state'] ) {
+			return self::refused();
+		}
+
+		$checked = self::checked( $body, (string) $site['id'] );
+
+		if ( ! isset( $checked['values'] ) ) {
+			return $checked['error'];
+		}
+
+		if ( null === Series::update( (string) $series['id'], $checked['values'], (int) $sent ) ) {
+			return self::refused();
+		}
+
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -214,7 +243,7 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::answer( $site ) );
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -255,7 +284,7 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::acted( $site, $series, $slot ) );
+		return rest_ensure_response( self::acted( $site, $series, $slot, self::past_page( $request ) ) );
 	}
 
 	/**
@@ -303,10 +332,140 @@ final class MeetingsController {
 			return self::refused();
 		}
 
-		return rest_ensure_response( self::acted( $site, $series, $slot ) );
+		// A host is answered with their meeting, not the site's whole
+		// configuration, which stays the administrator's.
+		if ( ! Permissions::manage() ) {
+			Hours::reconcile_site( (string) $site['id'], get_current_user_id() );
+
+			return rest_ensure_response(
+				array(
+					'ok'     => true,
+					'status' => $status,
+				)
+			);
+		}
+
+		return rest_ensure_response( self::acted( $site, $series, $slot, self::past_page( $request ) ) );
+	}
+
+	/**
+	 * Whether the signed-in person may settle a meeting: an administrator, or
+	 * the host of the series it belongs to (2026-09-24). The host is read from
+	 * the stored series and compared with the signed-in account, never taken
+	 * from the request body.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public static function may_settle( WP_REST_Request $request ): bool {
+		if ( Permissions::manage() ) {
+			return true;
+		}
+
+		return self::is_host( (string) $request['series_id'], (string) $request['site_id'] );
+	}
+
+	/**
+	 * Whether the signed-in person hosts a series on a site.
+	 *
+	 * @param string $series_id The series.
+	 * @param string $site_id   The site it should belong to.
+	 * @return bool
+	 */
+	public static function is_host( string $series_id, string $site_id ): bool {
+		$me     = Users::by_wp_user( get_current_user_id() );
+		$series = self::series_on_site( $series_id, $site_id );
+
+		return null !== $me && null !== $series && '' !== (string) $series['host_user_id'] && (string) $me['id'] === (string) $series['host_user_id'];
 	}
 
 	/* ------------------------------------------------------------ private */
+
+	/**
+	 * Which page of past meetings a request is looking at: 1 is the twelve
+	 * weeks just gone.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return int
+	 */
+	private static function past_page( WP_REST_Request $request ): int {
+		return max( 1, (int) ( $request->get_param( 'past_page' ) ?? 1 ) );
+	}
+
+	/**
+	 * The meetings that have passed, twelve weeks to a page and newest first
+	 * (2026-09-24), so the ones still to settle can be found and settled.
+	 *
+	 * @param string                           $site_id The site.
+	 * @param array<int, array<string, mixed>> $all     The site's series.
+	 * @param string                           $today   YYYY-MM-DD.
+	 * @param int                              $page    1 for the twelve weeks just gone.
+	 * @return array<string, mixed>
+	 */
+	private static function past( string $site_id, array $all, string $today, int $page ): array {
+		$start = (int) strtotime( $today . ' 00:00:00 UTC' );
+		$days  = MeetingHours::HORIZON_DAYS;
+		$to    = gmdate( 'Y-m-d', $start - ( ( ( $page - 1 ) * $days + 1 ) * DAY_IN_SECONDS ) );
+		$from  = gmdate( 'Y-m-d', $start - ( $page * $days * DAY_IN_SECONDS ) );
+		$by_id = array_column( $all, null, 'id' );
+		$rows  = array();
+
+		foreach ( array_reverse( Diary::for_site( $site_id, $from, $to ) ) as $meeting ) {
+			$rows[] = self::meeting( $meeting, $by_id[ (string) $meeting['series_id'] ] ?? array() );
+		}
+
+		// Older pages exist while any series started before this one does.
+		$earliest = array_filter( array_column( $all, 'starts_on' ) );
+
+		return array(
+			'page'     => $page,
+			'from'     => $from,
+			'to'       => $to,
+			'more'     => array() !== $earliest && min( $earliest ) < $from,
+			'meetings' => $rows,
+		);
+	}
+
+	/**
+	 * A series' inputs, read from a body and checked. Adding and editing take
+	 * the same eleven, less the site, which is the path.
+	 *
+	 * @param array<string, mixed> $body    The request body.
+	 * @param string               $site_id The site.
+	 * @return array{values?: array<string, mixed>, error?: \WP_Error}
+	 */
+	private static function checked( array $body, string $site_id ): array {
+		$checked = Validate::series(
+			array(
+				'client_site_id' => $site_id,
+				'title'          => sanitize_text_field( (string) ( $body['title'] ?? '' ) ),
+				'frequency'      => sanitize_text_field( (string) ( $body['frequency'] ?? '' ) ),
+				'starts_on'      => sanitize_text_field( (string) ( $body['starts_on'] ?? '' ) ),
+				'ends_on'        => sanitize_text_field( (string) ( $body['ends_on'] ?? '' ) ),
+				'time_of_day'    => sanitize_text_field( (string) ( $body['time_of_day'] ?? '' ) ),
+				'duration_mins'  => (int) ( $body['duration_mins'] ?? 0 ),
+				'timezone'       => sanitize_text_field( (string) ( $body['timezone'] ?? '' ) ),
+				'host_user_id'   => sanitize_text_field( (string) ( $body['host_user_id'] ?? '' ) ),
+				'attendees'      => sanitize_textarea_field( (string) ( $body['attendees'] ?? '' ) ),
+				// Who else comes, as people (2026-09-19).
+				'attendee_ids'   => array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $body['attendee_ids'] ?? array() ) ) ),
+				'planned_hours'  => (float) ( $body['planned_hours'] ?? 0 ),
+			)
+		);
+
+		if ( array() !== $checked['errors'] ) {
+			return array(
+				'error' => Errors::rest(
+					'invalid_series',
+					__( 'That series could not be saved — check the highlighted fields.', 'blueworx-forge' ),
+					400,
+					array( 'fields' => $checked['errors'] )
+				),
+			);
+		}
+
+		return array( 'values' => $checked['values'] );
+	}
 
 	/**
 	 * One series, if it is this site's.
@@ -334,13 +493,14 @@ final class MeetingsController {
 	 * meeting that was acted on named — read back after the reconcile, so its
 	 * ledger state is the one the reconcile just wrote.
 	 *
-	 * @param array<string, mixed> $site   The site.
-	 * @param array<string, mixed> $series The series the meeting belongs to.
-	 * @param string               $slot   The slot the rule put it on.
+	 * @param array<string, mixed> $site      The site.
+	 * @param array<string, mixed> $series    The series the meeting belongs to.
+	 * @param string               $slot      The slot the rule put it on.
+	 * @param int                  $past_page Which page of past meetings.
 	 * @return array<string, mixed>
 	 */
-	private static function acted( array $site, array $series, string $slot ): array {
-		$answer = self::answer( $site );
+	private static function acted( array $site, array $series, string $slot, int $past_page ): array {
+		$answer = self::answer( $site, $past_page );
 		$stored = Diary::slot( (string) $series['id'], $slot );
 
 		$meeting = null === $stored
@@ -415,10 +575,11 @@ final class MeetingsController {
 	 * what a person can see and what the balance has committed are the same
 	 * set of meetings.
 	 *
-	 * @param array<string, mixed> $site The site.
+	 * @param array<string, mixed> $site      The site.
+	 * @param int                  $past_page Which page of past meetings.
 	 * @return array<string, mixed>
 	 */
-	private static function answer( array $site ): array {
+	private static function answer( array $site, int $past_page = 1 ): array {
 		$id    = (string) $site['id'];
 		$today = gmdate( 'Y-m-d' );
 		$to    = MeetingHours::horizon_end( $today );
@@ -445,6 +606,7 @@ final class MeetingsController {
 				'from' => $today,
 				'to'   => $to,
 			),
+			'past'     => self::past( $id, $all, $today, $past_page ),
 			'people'   => array_map(
 				static fn( array $person ): array => array(
 					'id'           => (string) $person['id'],

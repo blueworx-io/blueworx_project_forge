@@ -70,3 +70,16 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
 
   await admin.context.close();
 });
+
+test('hours can be set to five minutes, four hours or five hours', async ({ page }) => {
+  await signIn(page, ADMIN_USER, ADMIN_PASS);
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-recurring').click();
+  await page.getByTestId('bwx-recurring-add').click();
+
+  const hours = page.getByTestId('bwx-recurring-hours_each');
+  // 5 min, 4 hours and 5 hours added on 2026-09-24.
+  for (const [value, label] of [['0.08', '5 min'], ['4', '4 hours'], ['5', '5 hours']]) {
+    await expect(hours.locator(`option[value="${value}"]`)).toHaveText(label);
+  }
+});

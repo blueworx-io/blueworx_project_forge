@@ -126,7 +126,7 @@ function byWeek( meetings: Meeting[] ): Array< { monday: string; rows: MeetingRo
   return weeks.sort( ( a, b ) => a.monday.localeCompare( b.monday ) );
 }
 
-type Opened = { kind: 'add' } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | null;
+type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | null;
 
 export function MeetingsScreen( { site }: { site: string } ) {
   const [ siteId, setSiteId ] = useState( site );
@@ -135,16 +135,26 @@ export function MeetingsScreen( { site }: { site: string } ) {
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ opened, setOpened ] = useState< Opened >( null );
   const [ busy, setBusy ] = useState( false );
+  const [ pastPage, setPastPage ] = useState( 1 );
 
-  /** A write's answer is the whole picture, so it is shown rather than re-read. */
+  /**
+   * A write's answer is the whole picture, so it is shown rather than re-read.
+   * It carries the first page of past meetings, so a later page is read again.
+   */
   function landed( fresh: MeetingsAnswer, said = '' ) {
     setAnswer( fresh );
     setOpened( null );
     setNotice( '' === said ? NOTHING_SAID : ok( said ) );
+
+    if ( 1 !== pastPage ) {
+      void load( siteId, pastPage, false );
+    }
   }
 
-  async function load( id: string = siteId ) {
-    setNotice( NOTHING_SAID );
+  async function load( id: string = siteId, page: number = pastPage, quiet = true ) {
+    if ( quiet ) {
+      setNotice( NOTHING_SAID );
+    }
 
     if ( '' === id ) {
       setAnswer( null );
@@ -154,7 +164,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
     }
 
     try {
-      const fresh = await api< MeetingsAnswer >( `/client-sites/${ id }/meetings` );
+      const fresh = await api< MeetingsAnswer >( `/client-sites/${ id }/meetings${ 1 === page ? '' : `?past_page=${ page }` }` );
 
       setAnswer( fresh );
       setState( 'ready' );
@@ -165,7 +175,6 @@ export function MeetingsScreen( { site }: { site: string } ) {
   }
 
   useEffect( () => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load( site );
     // The site prop is a landing, read once; picking is the picker's job.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,8 +189,15 @@ export function MeetingsScreen( { site }: { site: string } ) {
 
     setSiteId( id );
     setOpened( null );
+    setPastPage( 1 );
     setState( id ? 'loading' : 'idle' );
-    void load( id );
+    void load( id, 1 );
+  }
+
+  /** Another twelve weeks of past meetings. */
+  function turn( page: number ) {
+    setPastPage( page );
+    void load( siteId, page );
   }
 
   /** Ending a series, after a question: the hours its meetings hold go back. */
@@ -259,6 +275,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
   ];
 
   const weeks = answer ? byWeek( answer.meetings ) : [];
+  const past: MeetingRow[] = ( answer?.past?.meetings ?? [] ).map( ( meeting ) => ( { ...meeting, id: `${ meeting.series_id }@${ meeting.slot }`, stored: meeting.id } ) );
 
   return (
     <div className="bwx-meetings" data-testid="bwx-meetings">
@@ -287,7 +304,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
               ) : (
                 <div className="bwx-meetings-cards">
                   { answer.series.map( ( one ) => (
-                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } onEnd={ () => void end( one ) } />
+                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } onEdit={ () => setOpened( { kind: 'edit', series: one } ) } onEnd={ () => void end( one ) } />
                   ) ) }
                 </div>
               ) }
@@ -317,7 +334,41 @@ export function MeetingsScreen( { site }: { site: string } ) {
             </div>
           </Panel>
 
+          { /*
+              Meetings gone by (2026-09-24), newest first, twelve weeks at a
+              time. They can still be settled, which is what this is for.
+           */ }
+          <Panel
+            title="Past meetings"
+            right={
+              <span className="bwx-moves">
+                <Button size="sm" variant="ghost" data-testid="bwx-meetings-past-newer" disabled={ busy || 1 === pastPage } onClick={ () => turn( pastPage - 1 ) }>
+                  Newer
+                </Button>
+                <Button size="sm" variant="ghost" data-testid="bwx-meetings-past-older" disabled={ busy || ! answer.past?.more } onClick={ () => turn( pastPage + 1 ) }>
+                  Older
+                </Button>
+              </span>
+            }
+          >
+            <div data-testid="bwx-meetings-past" data-page={ answer.past?.page ?? 1 } data-from={ answer.past?.from } data-to={ answer.past?.to }>
+              { 0 === past.length ? (
+                <EmptyState icon={ CalendarX2 } dense title="No past meetings" body="No meeting fell in these twelve weeks." />
+              ) : (
+                <DataView< MeetingRow >
+                  title={ answer.past ? `${ longDate( answer.past.from ) } to ${ longDate( answer.past.to ) }` : '' }
+                  columns={ columns }
+                  rows={ past }
+                  sortable={ false }
+                  fixed
+                  testId="bwx-meetings-past-table"
+                />
+              ) }
+            </div>
+          </Panel>
+
           { opened && 'add' === opened.kind && <SeriesForm siteId={ siteId } people={ answer.people } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
+          { opened && 'edit' === opened.kind && <SeriesForm siteId={ siteId } people={ answer.people } series={ opened.series } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'move' === opened.kind && <MoveForm siteId={ siteId } meeting={ opened.meeting } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'settle' === opened.kind && <SettleForm siteId={ siteId } meeting={ opened.meeting } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
         </>
@@ -327,7 +378,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
 }
 
 /** One standing meeting: what, how often, when, who hosts, what each costs, and whether it still runs. */
-function SeriesCard( { series, people, busy, onEnd }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; onEnd: () => void } ) {
+function SeriesCard( { series, people, busy, onEdit, onEnd }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; onEdit: () => void; onEnd: () => void } ) {
   const running = 'active' === series.state;
   const span = '' === series.ends_on ? `from ${ series.starts_on }` : `${ series.starts_on } to ${ series.ends_on }`;
   const others = ( series.attendee_ids ?? [] ).map( ( id ) => people.find( ( one ) => one.id === id )?.display_name ?? id );
@@ -340,9 +391,14 @@ function SeriesCard( { series, people, busy, onEnd }: { series: MeetingSeries; p
             { series.title } { running ? <Tag tone="ok">Running</Tag> : <Tag tone="neutral">Ended</Tag> }
           </h4>
           { running && (
-            <Button size="sm" variant="ghost" data-testid="bwx-meetings-series-end" aria-label={ `End ${ series.title }` } disabled={ busy } onClick={ onEnd }>
-              End
-            </Button>
+            <span className="bwx-moves">
+              <Button size="sm" variant="ghost" data-testid="bwx-meetings-series-edit" aria-label={ `Edit ${ series.title }` } disabled={ busy } onClick={ onEdit }>
+                Edit
+              </Button>
+              <Button size="sm" variant="ghost" data-testid="bwx-meetings-series-end" aria-label={ `End ${ series.title }` } disabled={ busy } onClick={ onEnd }>
+                End
+              </Button>
+            </span>
           ) }
         </div>
         <dl className="bwx-meetings-facts">
@@ -377,20 +433,21 @@ function SeriesCard( { series, people, busy, onEnd }: { series: MeetingSeries; p
 type Saved = ( answer: MeetingsAnswer, said?: string ) => void;
 
 /**
- * Starting a series. The ten inputs `Meetings\Validate::series()` reads, less
- * the site, which is the path. Nought hours means "work it out from the
- * length" (MEET-3), and the hint says what that would be.
+ * Starting a series, or changing one (2026-09-24). The ten inputs
+ * `Meetings\Validate::series()` reads, less the site, which is the path.
+ * Nought hours means "work it out from the length" (MEET-3), and the hint
+ * says what that would be.
  */
-function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; people: MeetingsAnswer[ 'people' ]; onClose: () => void; onSaved: Saved } ) {
-  const [ title, setTitle ] = useState( '' );
-  const [ frequency, setFrequency ] = useState< MeetingFrequency >( 'weekly' );
-  const [ starts, setStarts ] = useState( today() );
-  const [ ends, setEnds ] = useState( '' );
-  const [ time, setTime ] = useState( '10:00' );
-  const [ duration, setDuration ] = useState( '60' );
-  const [ timezone, setTimezone ] = useState( DEFAULT_TIMEZONE );
-  const [ host, setHost ] = useState( '' );
-  const [ attendees, setAttendees ] = useState< string[] >( [] );
+function SeriesForm( { siteId, people, series, onClose, onSaved }: { siteId: string; people: MeetingsAnswer[ 'people' ]; series?: MeetingSeries; onClose: () => void; onSaved: Saved } ) {
+  const [ title, setTitle ] = useState( series?.title ?? '' );
+  const [ frequency, setFrequency ] = useState< MeetingFrequency >( series?.frequency ?? 'weekly' );
+  const [ starts, setStarts ] = useState( series?.starts_on ?? today() );
+  const [ ends, setEnds ] = useState( series?.ends_on ?? '' );
+  const [ time, setTime ] = useState( series?.time_of_day ?? '10:00' );
+  const [ duration, setDuration ] = useState( String( series?.duration_mins ?? 60 ) );
+  const [ timezone, setTimezone ] = useState( series?.timezone ?? DEFAULT_TIMEZONE );
+  const [ host, setHost ] = useState( series?.host_user_id ?? '' );
+  const [ attendees, setAttendees ] = useState< string[] >( series?.attendee_ids ?? [] );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
@@ -402,9 +459,10 @@ function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; peo
 
     try {
       onSaved(
-        await api< MeetingsAnswer >( `/client-sites/${ siteId }/meetings/series`, {
+        await api< MeetingsAnswer >( series ? `/client-sites/${ siteId }/meetings/series/${ series.id }` : `/client-sites/${ siteId }/meetings/series`, {
           method: 'POST',
           body: {
+            ...( series ? { record_version: series.record_version } : {} ),
             title,
             frequency,
             starts_on: starts,
@@ -417,10 +475,10 @@ function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; peo
             // meeting's hours; the length is the hours, so nothing is
             // overridden here.
             attendee_ids: attendees,
-            planned_hours: 0,
+            planned_hours: series?.planned_hours ?? 0,
           },
         } ),
-        'Series added. Its meetings are below.'
+        series ? 'Saved. Its coming meetings follow the change.' : 'Series added. Its meetings are below.'
       );
     } catch ( error ) {
       setNotice( refusal( error, 'That series could not be saved.' ) );
@@ -431,14 +489,14 @@ function SeriesForm( { siteId, people, onClose, onSaved }: { siteId: string; peo
 
   return (
     <Modal
-      title="Add a standing meeting"
+      title={ series ? 'Edit this standing meeting' : 'Add a standing meeting' }
       width={ 560 }
       testId="bwx-meetings-series-form"
       onClose={ onClose }
       footer={
         <div className="bwx-moves">
           <Button data-testid="bwx-meetings-series-save" disabled={ busy } onClick={ () => void save() }>
-            Add
+            { series ? 'Save' : 'Add' }
           </Button>
           <Button variant="ghost" data-testid="bwx-meetings-series-cancel" onClick={ onClose }>
             Cancel

@@ -13,6 +13,8 @@ use Blueworx\Forge\Capacity\Unavailability;
 use Blueworx\Forge\Commerce\SureCart\Subscriptions;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Meetings\Diary;
+use Blueworx\Forge\Meetings\MeetingHours;
+use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Meetings\Series;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
@@ -72,6 +74,80 @@ final class Feed {
 		);
 
 		return $entries;
+	}
+
+	/**
+	 * Meetings that have happened, or happen today, and nobody has said what
+	 * became of them (2026-09-24), on the sites in reach. The standup lists
+	 * them so somebody goes and settles each one. Looks back twelve weeks.
+	 *
+	 * @param array<string, mixed> $reach The caller's reach.
+	 * @param string               $today YYYY-MM-DD.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function to_settle( array $reach, string $today ): array {
+		if ( Reach::is_nothing( $reach ) || '' === $today ) {
+			return array();
+		}
+
+		$from  = gmdate( 'Y-m-d', (int) strtotime( $today . ' 00:00:00 UTC' ) - ( MeetingHours::HORIZON_DAYS * DAY_IN_SECONDS ) );
+		$names = array_column( Users::all( 'active' ), 'display_name', 'id' );
+		$out   = array();
+		// Admins or the host settle a meeting (2026-09-24).
+		$admin = current_user_can( 'manage_options' );
+		$me    = Users::by_wp_user( get_current_user_id() );
+		$my_id = null === $me ? '' : (string) $me['id'];
+
+		$sites = array_column( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ), null, 'id' );
+
+		// Every site's series, and what has happened to their meetings, in two
+		// reads rather than two per site.
+		$all    = Series::for_sites( array_keys( $sites ) );
+		$stored = Diary::stored_between( $from, $today );
+
+		foreach ( $all as $series ) {
+			$site = $sites[ (string) $series['client_site_id'] ] ?? null;
+
+			if ( null === $site ) {
+				continue;
+			}
+
+			$meetings = Occurrence::merge( Series::occurrences( $series, $from, $today ), $stored[ (string) $series['id'] ] ?? array(), $from, $today );
+
+			foreach ( $meetings as $meeting ) {
+				if ( Occurrence::SCHEDULED !== (string) ( $meeting['status'] ?? '' ) ) {
+					continue;
+				}
+
+				$host      = (string) ( $series['host_user_id'] ?? '' );
+				$from_slot = (string) ( $meeting['excepted_from'] ?? '' );
+
+				$out[] = array_merge(
+					self::entry(
+						'meeting',
+						(string) $series['id'] . '@' . (string) $meeting['on'],
+						(string) $meeting['on'],
+						'',
+						(string) $series['title'],
+						trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
+						'' === $host ? array() : array( $host )
+					),
+					array(
+						'site_id'    => (string) $site['id'],
+						'series_id'  => (string) $series['id'],
+						'slot'       => '' !== $from_slot ? $from_slot : (string) $meeting['on'],
+						'can_settle' => $admin || ( '' !== $host && $host === $my_id ),
+					)
+				);
+			}
+		}
+
+		usort(
+			$out,
+			static fn( array $a, array $b ): int => array( $a['date'], $a['title'] ) <=> array( $b['date'], $b['title'] )
+		);
+
+		return $out;
 	}
 
 	/**

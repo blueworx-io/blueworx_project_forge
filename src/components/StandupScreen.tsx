@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
-import { api, isDenied, messageFor } from '../api';
+import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { SECTIONS, cardDetail, cardTitle, keyOf, ruleTone, ruleWord } from '../standup';
 import { DiaryLine } from './Diary';
@@ -42,6 +42,13 @@ import type { Said, SaidTone } from './States';
  * words. A second, friendlier path would be a second answer to "may I", and the
  * two would disagree the first time either of them changed.
  */
+/** What a meeting on the to-settle list can be marked as. */
+const SETTLE_AS = [
+  { status: 'held', label: 'Held' },
+  { status: 'cancelled', label: 'Cancelled' },
+  { status: 'no-show', label: 'Nobody came' },
+];
+
 /** Marking one outstanding requirement done, from wherever it was named. */
 type Complete = (
   itemId: string,
@@ -101,6 +108,22 @@ export function StandupScreen() {
       .then( ( answer ) => setStages( answer.stages ?? [] ) )
       .catch( () => undefined );
   }, [] );
+
+  /** Says what became of a meeting, from its line (admins or its host, 2026-09-24). */
+  async function settle( entry: NonNullable< StandupList[ 'to_settle' ] >[ number ], status: string ) {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api( `/client-sites/${ entry.site_id }/meetings/${ entry.series_id }/${ entry.slot }/settle`, { method: 'POST', body: { status } } );
+      await load( true );
+      setNotice( 'Settled.', 'ok' );
+    } catch ( failure ) {
+      setNotice( messageFor( failure, 'That meeting could not be settled.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
 
   /**
    * Marks one outstanding requirement done, from the card that named it.
@@ -225,6 +248,51 @@ export function StandupScreen() {
           <ul className="bwx-diary-lines">
             { ( list?.diary ?? [] ).map( ( entry ) => (
               <DiaryLine key={ entry.id } entry={ entry } onOpen={ setOpened } />
+            ) ) }
+          </ul>
+        </section>
+      ) }
+
+      { /*
+          Meetings to settle (2026-09-24): ones that have happened, or happen
+          today, that nobody has marked held, cancelled or a no-show. An admin
+          or the meeting's host settles it here; an admin can also open the
+          site's meetings.
+       */ }
+      { 'ready' === state && 0 < ( list?.to_settle?.length ?? 0 ) && (
+        <section className="bwx-standup-diary" data-testid="bwx-standup-settle">
+          <p className="bwx-eyebrow">Meetings to settle</p>
+          <ul className="bwx-diary-lines">
+            { ( list?.to_settle ?? [] ).map( ( entry ) => (
+              <DiaryLine
+                key={ entry.id }
+                entry={ { ...entry, title: `${ entry.title } · ${ entry.date }` } }
+                action={
+                  <span className="bwx-moves">
+                    { entry.can_settle && SETTLE_AS.map( ( one ) => (
+                      <button key={ one.status } type="button" className="bwx-button" data-size="sm" disabled={ busy } onClick={ () => void settle( entry, one.status ) }>
+                        { one.label }
+                      </button>
+                    ) ) }
+                    { forgeData()?.canManage && (
+                      <a
+                        className="bwx-button"
+                        data-size="sm"
+                        data-variant="quiet"
+                        href={ `${ window.location.pathname }${ window.location.search }#screen=meetings&site=${ entry.site_id }` }
+                        onClick={ ( event ) => {
+                          // The app reads a link's screen once, on load.
+                          event.preventDefault();
+                          window.location.hash = `screen=meetings&site=${ entry.site_id }`;
+                          window.location.reload();
+                        } }
+                      >
+                        Open
+                      </a>
+                    ) }
+                  </span>
+                }
+              />
             ) ) }
           </ul>
         </section>

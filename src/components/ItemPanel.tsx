@@ -167,8 +167,6 @@ const NEEDED_FROM: Record< string, string > = {
   release_method: 'completed',
   release_destination: 'completed',
   non_goals: 'documentation-period',
-  design_url: 'design-process',
-  test_description: 'in-development',
 };
 
 /**
@@ -827,6 +825,11 @@ export function ItemPanel( {
   // A recurring chore moves by its ticks (2026-09-18): no gate to read, no
   // stage to choose. Up Next until everyone has done it, then Completed.
   const chore = 0 < ( item?.assignees?.length ?? 0 );
+  // Who the Done button ticks for: you, if it is yours and not done; else, for
+  // an administrator, the first person on it who has not.
+  const undone = ( item?.assignees ?? [] ).filter( ( who ) => undefined === ( item?.ticks ?? {} )[ who ] );
+  const myId = forgeData()?.person?.id ?? '';
+  const choreTicker = undone.includes( myId ) ? myId : forgeData()?.canManage ? undone[ 0 ] ?? '' : '';
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
   const lines = detail ? historyLines( detail.history, label ) : [];
 
@@ -1155,46 +1158,6 @@ export function ItemPanel( {
               </Inline>
             ) }
 
-            { /*
-                A recurring chore's people (2026-09-18): each with their own
-                tick. The signed-in person ticks their own; an administrator
-                may tick for anyone. When everyone has, the task is done.
-             */ }
-            { 0 < ( item.assignees?.length ?? 0 ) && (
-              <div className="bwx-chore" data-testid="bwx-chore">
-                <p className="bwx-eyebrow">{ forgeData()?.canManage ? 'Who does it' : 'Your tick' }</p>
-                <ul className="bwx-chore-people">
-                  { item.assignees.filter( ( who ) => ( forgeData()?.canManage ?? false ) || who === ( forgeData()?.person?.id ?? '' ) ).map( ( who ) => {
-                    const done = undefined !== ( item.ticks ?? {} )[ who ];
-                    const me = forgeData()?.person?.id ?? '';
-                    const may = ! ended && ( who === me || ( forgeData()?.canManage ?? false ) );
-
-                    return (
-                      <li key={ who } data-testid="bwx-chore-person" data-done={ done ? 'true' : 'false' }>
-                        <span>{ staffList.find( ( one ) => one.id === who )?.display_name ?? who }</span>
-                        { may ? (
-                          <label className="bwx-chore-tick">
-                            <input
-                              type="checkbox"
-                              data-testid="bwx-chore-tick"
-                              aria-label={ `Done by ${ staffList.find( ( one ) => one.id === who )?.display_name ?? who }` }
-                              checked={ done }
-                              disabled={ busy }
-                              onChange={ ( event ) => void tickFor( who, event.target.checked ) }
-                            />
-                            { done ? 'Done' : 'Not yet' }
-                          </label>
-                        ) : (
-                          <span className="bwx-mono">{ done ? '✓ done' : '○ not yet' }</span>
-                        ) }
-                      </li>
-                    );
-                  } ) }
-                </ul>
-                { 0 < item.hours_each && <p className="bwx-hint">{ `${ item.hours_each } hours each.` }</p> }
-              </div>
-            ) }
-
             { ! blocked && ! ended && ! chore && detail.available.map( ( to ) => (
               <GateList
                 key={ to }
@@ -1271,6 +1234,25 @@ export function ItemPanel( {
                     </button>
                   ) }
                 </div>
+                { /*
+                    A recurring task is done with one press (2026-09-24): each
+                    person has their own copy, so there is no list of people
+                    to tick. Yours if you are on it; an administrator may mark
+                    it done for whoever is.
+                 */ }
+                { ! blocked && ! ended && chore && '' !== choreTicker && (
+                  <div className="bwx-moves bwx-action-right">
+                    <button
+                      type="button"
+                      className="bwx-button bwx-move"
+                      data-testid="bwx-chore-done"
+                      disabled={ busy }
+                      onClick={ () => void tickFor( choreTicker, true ) }
+                    >
+                      Done <span aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                ) }
                 { ! blocked && ! ended && ! chore && (
                   <div className="bwx-moves bwx-action-right">
                     { detail.available.map( ( to ) => (
@@ -1360,14 +1342,35 @@ export function ItemPanel( {
                     The Block form picks (2026-09-18): the blocker and what it
                     waits on are one of the site's items or something else in
                     words; the owner is one of our people or the client. The
-                    server stores the label either way.
+                    server stores the label either way. The owner comes first and
+                    is the only answer needed; there is no next action
+                    (2026-09-24).
                  */ }
+                <div className="bwx-field">
+                  <label htmlFor="bwx-blocker-owner">Who owns the blocker</label>
+                  <select
+                    id="bwx-blocker-owner"
+                    className="bwx-select"
+                    data-testid="bwx-blocker-owner"
+                    required
+                    value={ blocker.owner ?? '' }
+                    onChange={ ( event ) => setBlocker( { ...blocker, owner: event.target.value } ) }
+                  >
+                    <option value="">Choose</option>
+                    <option value="client">The client</option>
+                    { staffList.map( ( person ) => (
+                      <option key={ person.id } value={ person.id }>
+                        { person.display_name }
+                      </option>
+                    ) ) }
+                  </select>
+                </div>
                 { [
                   { field: 'reason', name: 'What is blocking it' },
                   { field: 'dependency', name: 'What it is waiting on' },
                 ].map( ( { field, name } ) => (
                   <div className="bwx-field" key={ field }>
-                    <label htmlFor={ `bwx-blocker-${ field }` }>{ name }</label>
+                    <label htmlFor={ `bwx-blocker-${ field }` }>{ name } (optional)</label>
                     <select
                       id={ `bwx-blocker-${ field }` }
                       className="bwx-select"
@@ -1396,25 +1399,7 @@ export function ItemPanel( {
                   </div>
                 ) ) }
                 <div className="bwx-field">
-                  <label htmlFor="bwx-blocker-owner">Who owns the blocker</label>
-                  <select
-                    id="bwx-blocker-owner"
-                    className="bwx-select"
-                    data-testid="bwx-blocker-owner"
-                    value={ blocker.owner ?? '' }
-                    onChange={ ( event ) => setBlocker( { ...blocker, owner: event.target.value } ) }
-                  >
-                    <option value="">Choose</option>
-                    <option value="client">The client</option>
-                    { staffList.map( ( person ) => (
-                      <option key={ person.id } value={ person.id }>
-                        { person.display_name }
-                      </option>
-                    ) ) }
-                  </select>
-                </div>
-                <div className="bwx-field">
-                  <label htmlFor="bwx-blocker-target_date">Target resolution date</label>
+                  <label htmlFor="bwx-blocker-target_date">Target resolution date (optional)</label>
                   <input
                     id="bwx-blocker-target_date"
                     className="bwx-input"
@@ -1424,22 +1409,12 @@ export function ItemPanel( {
                     onChange={ ( event ) => setBlocker( { ...blocker, target_date: event.target.value } ) }
                   />
                 </div>
-                <div className="bwx-field">
-                  <label htmlFor="bwx-blocker-next_action">Next action</label>
-                  <input
-                    id="bwx-blocker-next_action"
-                    className="bwx-input"
-                    data-testid="bwx-blocker-next_action"
-                    value={ blocker.next_action ?? '' }
-                    onChange={ ( event ) => setBlocker( { ...blocker, next_action: event.target.value } ) }
-                  />
-                </div>
                 <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
                     data-testid="bwx-block"
-                    disabled={ busy }
+                    disabled={ busy || '' === ( blocker.owner ?? '' ) }
                     onClick={ () =>
                       void act(
                         '/block',
@@ -1448,7 +1423,6 @@ export function ItemPanel( {
                           owner: blocker.owner ?? '',
                           dependency: 'other' === blocker.dependency ? blocker.dependency_text ?? '' : blocker.dependency ?? '',
                           target_date: blocker.target_date ?? '',
-                          next_action: blocker.next_action ?? '',
                         },
                         'Blocked. Its place is kept.'
                       )
@@ -1857,7 +1831,12 @@ export function ItemPanel( {
               </div>
             ) }
 
-            { staff && ! ended && (
+            { /*
+                Not for a recurring task (2026-09-24): who does it, when, and
+                its hours were set when the recurring task was, it is free, and
+                nothing about it is released.
+             */ }
+            { staff && ! ended && ! chore && (
               <div className="bwx-assign" data-testid="bwx-assign" data-collapsed={ isFolded( 'assign' ) ? 'true' : 'false' }>
                 { head( 'assign', 'Who and when' ) }
 

@@ -40,7 +40,7 @@ use WP_Error;
  * There are six ways through the door and no seventh:
  *
  * - {@see move()}      forward, one step, through the exit gate (#106, #105).
- * - {@see send_back()} backwards, to a stage the item has occupied, with a
+ * - {@see send_back()} backwards, to any earlier stage, with a
  *                      mandatory reason (#108).
  * - {@see block()}     out of the path entirely, storing where it came from,
  *                      and {@see unblock()} back to exactly that stage (#109).
@@ -140,7 +140,8 @@ final class Transition {
 	}
 
 	/**
-	 * Sends an item back to a stage it has occupied (#108).
+	 * Sends an item back to an earlier stage (#108; any earlier stage since
+	 * 2026-09-24).
 	 *
 	 * The reason is not optional and there is no code path that makes it so.
 	 * The failed-review return additionally records the reviewer's feedback and
@@ -148,17 +149,16 @@ final class Transition {
 	 * earlier attempt's gate records stay on the item under their own attempt
 	 * number, and stop counting towards the next review.
 	 *
-	 * @param array<string, mixed>             $item         The item, as read.
-	 * @param string                           $to           Target stage.
-	 * @param string                           $reason       Why it is going back.
-	 * @param string                           $feedback     Review feedback, for
-	 *                                                       the review return.
-	 * @param array<int, array<string, mixed>> $history      The item's changelog.
-	 * @param int                              $sent_version Version moved against.
-	 * @param int                              $actor        Who is doing it.
+	 * @param array<string, mixed> $item         The item, as read.
+	 * @param string               $to           Target stage.
+	 * @param string               $reason       Why it is going back.
+	 * @param string               $feedback     Review feedback, for the review
+	 *                                           return.
+	 * @param int                  $sent_version Version moved against.
+	 * @param int                  $actor        Who is doing it.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public static function send_back( array $item, string $to, string $reason, string $feedback, array $history, int $sent_version, int $actor ) {
+	public static function send_back( array $item, string $to, string $reason, string $feedback, int $sent_version, int $actor ) {
 		$from   = (string) $item['stage'];
 		$reason = trim( $reason );
 
@@ -176,21 +176,16 @@ final class Transition {
 			);
 		}
 
-		if ( ! Returns::allowed( $item, $to, $history ) ) {
-			/*
-			 * Refused rather than quietly upgraded to an override. A return to
-			 * a stage the item has never been in is a correction, and WF-5 makes
-			 * that the primary administrator's decision, permanently marked on
-			 * the item — not something a return route does on its behalf.
-			 */
+		if ( ! Returns::allowed( $item, $to ) ) {
+			// A later stage, or one this work type may not hold, is not a return.
 			return new WP_Error(
 				'bwx_forge_return_not_allowed',
-				__( 'Work can only go back to a stage it has actually been in.', 'blueworx-forge' ),
+				__( 'Work can only go back to an earlier stage.', 'blueworx-forge' ),
 				array(
 					'status'    => 409,
 					'from'      => $from,
 					'attempted' => $to,
-					'available' => Returns::targets( $item, $history ),
+					'available' => Returns::targets( $item ),
 				)
 			);
 		}
@@ -272,8 +267,8 @@ final class Transition {
 			array(
 				'action' => Events::BLOCKED,
 				'gate'   => 'G-BLOCKED-ENTRY',
-				'reason' => (string) $details['reason'],
-				'detail' => (string) $details['next_action'],
+				'reason' => (string) ( $details['reason'] ?? '' ),
+				'detail' => (string) ( $details['dependency'] ?? '' ),
 			),
 			$sent_version,
 			$actor
@@ -1058,19 +1053,15 @@ final class Transition {
 	 *
 	 * Blocked is entered with its answers in the request rather than recorded
 	 * one at a time beforehand — an item is blocked at the moment somebody finds
-	 * out it is blocked, and asking them to complete five records first would
-	 * mean the board says work is progressing while everyone knows it is not.
+	 * out it is blocked. Only the owner is required (2026-09-24); the rest are
+	 * optional.
 	 *
 	 * @param array<string, mixed> $details The answers given.
 	 * @return array<int, array<string, mixed>> Unmet requirements, in gate order.
 	 */
 	private static function missing_blocker_details( array $details ): array {
 		$fields = array(
-			'G-BLOCKED-ENTRY-1' => 'reason',
 			'G-BLOCKED-ENTRY-2' => 'owner',
-			'G-BLOCKED-ENTRY-3' => 'dependency',
-			'G-BLOCKED-ENTRY-4' => 'target_date',
-			'G-BLOCKED-ENTRY-5' => 'next_action',
 		);
 
 		$unmet = array();

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { CalendarDays, Cake, Handshake, Plane, Repeat, Receipt, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CalendarDate, DiaryEntry, Person } from '../types';
@@ -98,7 +99,7 @@ function timeOf( entry: DiaryEntry ): { time: string; rest: string } {
   return match ? { time: match[ 1 ], rest: match[ 2 ] } : { time: '', rest: entry.detail };
 }
 
-export function DiaryLine( { entry, onOpen }: { entry: DiaryEntry; onOpen?: ( itemId: string ) => void } ) {
+export function DiaryLine( { entry, onOpen, action }: { entry: DiaryEntry; onOpen?: ( itemId: string ) => void; action?: ReactNode } ) {
   const kind = DIARY_KINDS[ entry.kind ];
   const opens = '' !== entry.item_id && onOpen;
   // A calendar date's detail starts with what kind of date it is: that
@@ -131,6 +132,7 @@ export function DiaryLine( { entry, onOpen }: { entry: DiaryEntry; onOpen?: ( it
           </span>
         ) }
       </span>
+      { action }
     </li>
   );
 }

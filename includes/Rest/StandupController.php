@@ -110,6 +110,10 @@ final class StandupController {
 				// Today's diary (2026-09-18): chores, dates, meetings, renewals
 				// and who is away — the same list the calendar draws.
 				'diary'     => Feed::for_reach( $reach, $today, $today ),
+
+				// Meetings that have happened and are not settled yet
+				// (2026-09-24), so somebody goes and settles them.
+				'to_settle' => Feed::to_settle( $reach, $today ),
 			)
 		);
 	}

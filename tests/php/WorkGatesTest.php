@@ -181,29 +181,27 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
-	 * Evidence is worked out from the item's own entries: a comment with a
-	 * link since the stage was entered. Nothing is recorded by hand.
+	 * Leaving In Development asks for no work evidence (2026-09-24): comments
+	 * are for comments, not proof.
 	 */
-	public function test_evidence_is_met_by_an_entry_since_the_stage_was_entered(): void {
+	public function test_in_development_asks_for_no_work_evidence(): void {
 		$item    = $this->item( array( 'stage' => 'in-development', 'test_description' => 'Open it.' ) );
 		$without = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array() );
-		$with    = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array(), array( 'evidence_since_entry' => true ) );
 
-		$this->assertContains( 'G-IN-DEVELOPMENT-2', array_column( $without['unmet'], 'id' ) );
-		$this->assertNotContains( 'G-IN-DEVELOPMENT-2', array_column( $with['unmet'], 'id' ) );
-		$this->assertSame( array(), $with['unmet'], 'How to test is written, the checklist is empty: nothing left' );
+		$this->assertNull( Gates::requirement( 'G-IN-DEVELOPMENT-2' ) );
+		$this->assertSame( array(), $without['unmet'], 'How to test is written, the checklist is empty: nothing left' );
 	}
 
 	/**
-	 * Leaving In Development (2026-09-19): how to test is a field on the task,
+	 * Leaving In Development (2026-09-19, 2026-09-24): how to test is optional,
 	 * hours still to do is gone, and the completion checklist is the
 	 * checklist itself.
 	 */
-	public function test_in_development_asks_for_how_to_test_and_nothing_about_hours(): void {
+	public function test_in_development_asks_nothing_about_how_to_test_or_hours(): void {
 		$ids = array_column( Gates::requirements( 'G-IN-DEVELOPMENT' ), 'id' );
 
-		$this->assertContains( 'G-IN-DEVELOPMENT-3', $ids );
-		$this->assertSame( array( 'test_description' ), Gates::requirement( 'G-IN-DEVELOPMENT-3' )['fields'] );
+		// How to test is optional (2026-09-24).
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-3', $ids );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-4', $ids );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-5', $ids );
 	}
@@ -233,7 +231,8 @@ final class WorkGatesTest extends TestCase {
 			$this->assertNull( Gates::requirement( $gone ), $gone );
 		}
 
-		$this->assertSame( array( 'design_url' ), Gates::requirement( 'G-DESIGN-1' )['fields'] );
+		// Not every item has a design, so the link is optional (2026-09-24).
+		$this->assertNull( Gates::requirement( 'G-DESIGN-1' ) );
 	}
 
 	/**
@@ -429,7 +428,6 @@ final class WorkGatesTest extends TestCase {
 	public function test_the_requirements_that_need_evidence_say_so(): void {
 		$expected = array(
 			'G-BUG-TRACKING-5',
-			'G-IN-DEVELOPMENT-2',
 			'G-RELEASED-3',
 		);
 
