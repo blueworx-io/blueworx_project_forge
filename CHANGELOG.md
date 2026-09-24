@@ -8,11 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.130.0] - 2026-09-24
+
+### Added
+
+- Time estimates: 5 minutes, 4 hours and 5 hours can now be picked.
+
 ## [2.129.2] - 2026-09-21
 
 ### Fixed
 
-- Packages: a price can now be per month as well as per year. The hourly rate, what an assignment charges, pro-rata sums and the price a client sees all use the whole term's price, so a 24-hour package at £100 a month reads £50 an hour, not £4.17. Existing packages stay per year until revised.
+- Packages: a price can now be per month as well as per year. The hourly rate, what an assignment charges, pro-rata sums and the price a client sees all use the whole term's price, so a 24-hour package at ï¿½100 a month reads ï¿½50 an hour, not ï¿½4.17. Existing packages stay per year until revised.
 - Client site: package prices show in pounds as the studio set them, not divided by a hundred â€” Â£100 no longer reads Â£1.00.
 
 ## [2.129.1] - 2026-09-20
