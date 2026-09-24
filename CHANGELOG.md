@@ -15,7 +15,7 @@ commits and pull requests.
 - Time estimates: 5 minutes, 4 hours and 5 hours can now be picked.
 - Meetings: a standing meeting can be edited, not just ended. Its coming meetings follow the change.
 - Meetings: a "Past meetings" table below the next twelve weeks shows the twelve weeks just gone, with Older and Newer to page back. Past meetings can still be settled.
-- Daily standup: a "Meetings to settle" list shows every meeting that has happened, or happens today, and hasn't been marked held, cancelled or a no-show yet. Each one links to that site's meetings.
+- Daily standup: a "Meetings to settle" list shows every meeting that has happened, or happens today, and hasn't been marked held, cancelled or a no-show yet. An admin or the meeting's host can mark it held, cancelled or nobody came right there.
 
 ### Changed
 

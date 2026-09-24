@@ -93,6 +93,10 @@ final class Feed {
 		$from  = gmdate( 'Y-m-d', (int) strtotime( $today . ' 00:00:00 UTC' ) - ( MeetingHours::HORIZON_DAYS * DAY_IN_SECONDS ) );
 		$names = array_column( Users::all( 'active' ), 'display_name', 'id' );
 		$out   = array();
+		// Admins or the host settle a meeting (2026-09-24).
+		$admin = current_user_can( 'manage_options' );
+		$me    = Users::by_wp_user( get_current_user_id() );
+		$my_id = null === $me ? '' : (string) $me['id'];
 
 		foreach ( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ) as $site ) {
 			foreach ( Series::for_site( (string) $site['id'] ) as $series ) {
@@ -115,9 +119,10 @@ final class Feed {
 							'' === $host ? array() : array( $host )
 						),
 						array(
-							'site_id'   => (string) $site['id'],
-							'series_id' => (string) $series['id'],
-							'slot'      => '' !== $from_slot ? $from_slot : (string) $meeting['on'],
+							'site_id'    => (string) $site['id'],
+							'series_id'  => (string) $series['id'],
+							'slot'       => '' !== $from_slot ? $from_slot : (string) $meeting['on'],
+							'can_settle' => $admin || ( '' !== $host && $host === $my_id ),
 						)
 					);
 				}

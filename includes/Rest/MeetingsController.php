@@ -86,7 +86,9 @@ final class MeetingsController {
 				array(
 					'methods'             => $method,
 					'callback'            => array( self::class, $callback ),
-					'permission_callback' => array( Permissions::class, 'manage' ),
+					// Admins or the meeting's host settle it (2026-09-24);
+					// everything else here is the administrator's.
+					'permission_callback' => 'settle' === $callback ? array( self::class, 'may_settle' ) : array( Permissions::class, 'manage' ),
 					'scope'               => $scope,
 				)
 			);
@@ -330,7 +332,51 @@ final class MeetingsController {
 			return self::refused();
 		}
 
+		// A host is answered with their meeting, not the site's whole
+		// configuration, which stays the administrator's.
+		if ( ! Permissions::manage() ) {
+			Hours::reconcile_site( (string) $site['id'], get_current_user_id() );
+
+			return rest_ensure_response(
+				array(
+					'ok'     => true,
+					'status' => $status,
+				)
+			);
+		}
+
 		return rest_ensure_response( self::acted( $site, $series, $slot, self::past_page( $request ) ) );
+	}
+
+	/**
+	 * Whether the signed-in person may settle a meeting: an administrator, or
+	 * the host of the series it belongs to (2026-09-24). The host is read from
+	 * the stored series and compared with the signed-in account, never taken
+	 * from the request body.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public static function may_settle( WP_REST_Request $request ): bool {
+		if ( Permissions::manage() ) {
+			return true;
+		}
+
+		return self::is_host( (string) $request['series_id'], (string) $request['site_id'] );
+	}
+
+	/**
+	 * Whether the signed-in person hosts a series on a site.
+	 *
+	 * @param string $series_id The series.
+	 * @param string $site_id   The site it should belong to.
+	 * @return bool
+	 */
+	public static function is_host( string $series_id, string $site_id ): bool {
+		$me     = Users::by_wp_user( get_current_user_id() );
+		$series = self::series_on_site( $series_id, $site_id );
+
+		return null !== $me && null !== $series && '' !== (string) $series['host_user_id'] && (string) $me['id'] === (string) $series['host_user_id'];
 	}
 
 	/* ------------------------------------------------------------ private */

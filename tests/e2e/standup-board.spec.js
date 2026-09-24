@@ -246,10 +246,58 @@ test('meetings that have happened and are not settled are listed, and leave once
   expect(after).toHaveLength(ours.length - 1);
 
   // The line takes you to the site's meetings to settle it.
-  await settle.locator('li', { hasText: title }).first().getByRole('link', { name: 'Settle' }).click();
+  await settle.locator('li', { hasText: title }).first().getByRole('link', { name: 'Open' }).click();
   await expect(page.getByTestId('bwx-meetings')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(site.id);
 
   await page.close();
+  await admin.context.close();
+});
+
+test('the host settles their own meeting from the standup; somebody else cannot', async ({ browser, baseURL }) => {
+  test.slow();
+
+  // Admins or hosts settle a meeting (Luke, 2026-09-24).
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { site, client } = await Forge.makeSite(admin.api, `Host Settles Co ${RUN_ID}`, `${RUN_ID}-h`);
+  await Forge.onSupport(admin, site.id, 200);
+  const stamp = RUN_ID.replace('-', '');
+  const host = await Forge.makePerson(admin.api, client.id, 'staff', `hs${stamp}`);
+  const other = await Forge.makePerson(admin.api, client.id, 'staff', `ho${stamp}`);
+  const title = `Host catch-up ${RUN_ID}`;
+  const started = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const wrote = await admin.api.post(`/client-sites/${site.id}/meetings/series`, {
+    title, frequency: 'weekly', starts_on: started, ends_on: '', time_of_day: '10:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  // Somebody who is not the host is refused, and told nothing about the site.
+  const asOther = await Forge.signedIn(browser, baseURL, other.login, Forge.PASSWORD);
+  const theirs = (await asOther.api.get('/standup')).to_settle.filter((one) => one.title === title);
+  expect(theirs.every((one) => false === one.can_settle)).toBe(true);
+  const refused = await asOther.api.post(`/client-sites/${site.id}/meetings/${theirs[0].series_id}/${theirs[0].slot}/settle`, { status: 'held' });
+  expect(refused.status()).toBe(403);
+  await asOther.context.close();
+
+  // The host sees theirs, and settles it with one press.
+  const asHost = await Forge.signedIn(browser, baseURL, host.login, Forge.PASSWORD);
+  const mine = (await asHost.api.get('/standup')).to_settle.filter((one) => one.title === title);
+  expect(mine.length).toBeGreaterThanOrEqual(1);
+  expect(mine.every((one) => true === one.can_settle)).toBe(true);
+
+  const page = await asHost.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-standup').click();
+  const line = page.getByTestId('bwx-standup-settle').locator('li', { hasText: title }).first();
+  await expect(line).toBeVisible({ timeout: 30_000 });
+  await line.getByRole('button', { name: 'Held' }).click();
+  await expect(page.getByTestId('bwx-standup-settle').locator('li', { hasText: title })).toHaveCount(mine.length - 1, { timeout: 30_000 });
+
+  const after = (await admin.api.get(`/client-sites/${site.id}/meetings`)).past.meetings.find((one) => one.slot === mine[0].slot);
+  expect(after.status).toBe('held');
+
+  await page.close();
+  await asHost.context.close();
   await admin.context.close();
 });
