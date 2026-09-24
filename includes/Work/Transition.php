@@ -272,8 +272,8 @@ final class Transition {
 			array(
 				'action' => Events::BLOCKED,
 				'gate'   => 'G-BLOCKED-ENTRY',
-				'reason' => (string) $details['reason'],
-				'detail' => (string) $details['next_action'],
+				'reason' => (string) ( $details['reason'] ?? '' ),
+				'detail' => (string) ( $details['dependency'] ?? '' ),
 			),
 			$sent_version,
 			$actor
@@ -1058,19 +1058,15 @@ final class Transition {
 	 *
 	 * Blocked is entered with its answers in the request rather than recorded
 	 * one at a time beforehand — an item is blocked at the moment somebody finds
-	 * out it is blocked, and asking them to complete five records first would
-	 * mean the board says work is progressing while everyone knows it is not.
+	 * out it is blocked. Only the owner is required (2026-09-24); the rest are
+	 * optional.
 	 *
 	 * @param array<string, mixed> $details The answers given.
 	 * @return array<int, array<string, mixed>> Unmet requirements, in gate order.
 	 */
 	private static function missing_blocker_details( array $details ): array {
 		$fields = array(
-			'G-BLOCKED-ENTRY-1' => 'reason',
 			'G-BLOCKED-ENTRY-2' => 'owner',
-			'G-BLOCKED-ENTRY-3' => 'dependency',
-			'G-BLOCKED-ENTRY-4' => 'target_date',
-			'G-BLOCKED-ENTRY-5' => 'next_action',
 		);
 
 		$unmet = array();

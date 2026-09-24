@@ -297,20 +297,18 @@ test('blocked work keeps its place and comes back to exactly it', async ({ brows
   let item = await makeItem(api, site.id, { title: `Waiting on somebody ${RUN_ID}` });
   item = await walkTo(api, item, ['triage', 'documentation-period']);
 
-  // Every one of the five answers, or it is not blocked, it is just late.
+  // Who owns the blocker is the one answer it needs (2026-09-24); the rest
+  // are optional and there is no next action.
   const half = await api.post(`/work-items/${item.id}/block`, {
     reason: 'Waiting on the client.',
     record_version: item.record_version,
   });
   expect(half.status()).toBe(409);
-  expect((await half.json()).unmet.map((each) => each.id)).toContain('G-BLOCKED-ENTRY-2');
+  const unmet = (await half.json()).unmet.map((each) => each.id);
+  expect(unmet).toEqual(['G-BLOCKED-ENTRY-2']);
 
   const blocked = await api.post(`/work-items/${item.id}/block`, {
-    reason: 'Waiting on the client.',
     owner: 'Jo',
-    dependency: 'Their sign-off on the copy.',
-    target_date: '2026-09-15',
-    next_action: 'Chase on Monday.',
     record_version: item.record_version,
   });
   expect(blocked.status()).toBe(200);

@@ -18,6 +18,7 @@ commits and pull requests.
 
 - The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
 - "How to test" is optional. Leaving In Development no longer asks for it.
+- Blocking: "Who owns the blocker" comes first and is the only thing needed. What is blocking it, what it is waiting on and the target date are optional, and "Next action" is gone.
 
 ### Removed
 

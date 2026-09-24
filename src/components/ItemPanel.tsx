@@ -1358,14 +1358,35 @@ export function ItemPanel( {
                     The Block form picks (2026-09-18): the blocker and what it
                     waits on are one of the site's items or something else in
                     words; the owner is one of our people or the client. The
-                    server stores the label either way.
+                    server stores the label either way. The owner comes first and
+                    is the only answer needed; there is no next action
+                    (2026-09-24).
                  */ }
+                <div className="bwx-field">
+                  <label htmlFor="bwx-blocker-owner">Who owns the blocker</label>
+                  <select
+                    id="bwx-blocker-owner"
+                    className="bwx-select"
+                    data-testid="bwx-blocker-owner"
+                    required
+                    value={ blocker.owner ?? '' }
+                    onChange={ ( event ) => setBlocker( { ...blocker, owner: event.target.value } ) }
+                  >
+                    <option value="">Choose</option>
+                    <option value="client">The client</option>
+                    { staffList.map( ( person ) => (
+                      <option key={ person.id } value={ person.id }>
+                        { person.display_name }
+                      </option>
+                    ) ) }
+                  </select>
+                </div>
                 { [
                   { field: 'reason', name: 'What is blocking it' },
                   { field: 'dependency', name: 'What it is waiting on' },
                 ].map( ( { field, name } ) => (
                   <div className="bwx-field" key={ field }>
-                    <label htmlFor={ `bwx-blocker-${ field }` }>{ name }</label>
+                    <label htmlFor={ `bwx-blocker-${ field }` }>{ name } (optional)</label>
                     <select
                       id={ `bwx-blocker-${ field }` }
                       className="bwx-select"
@@ -1394,25 +1415,7 @@ export function ItemPanel( {
                   </div>
                 ) ) }
                 <div className="bwx-field">
-                  <label htmlFor="bwx-blocker-owner">Who owns the blocker</label>
-                  <select
-                    id="bwx-blocker-owner"
-                    className="bwx-select"
-                    data-testid="bwx-blocker-owner"
-                    value={ blocker.owner ?? '' }
-                    onChange={ ( event ) => setBlocker( { ...blocker, owner: event.target.value } ) }
-                  >
-                    <option value="">Choose</option>
-                    <option value="client">The client</option>
-                    { staffList.map( ( person ) => (
-                      <option key={ person.id } value={ person.id }>
-                        { person.display_name }
-                      </option>
-                    ) ) }
-                  </select>
-                </div>
-                <div className="bwx-field">
-                  <label htmlFor="bwx-blocker-target_date">Target resolution date</label>
+                  <label htmlFor="bwx-blocker-target_date">Target resolution date (optional)</label>
                   <input
                     id="bwx-blocker-target_date"
                     className="bwx-input"
@@ -1422,22 +1425,12 @@ export function ItemPanel( {
                     onChange={ ( event ) => setBlocker( { ...blocker, target_date: event.target.value } ) }
                   />
                 </div>
-                <div className="bwx-field">
-                  <label htmlFor="bwx-blocker-next_action">Next action</label>
-                  <input
-                    id="bwx-blocker-next_action"
-                    className="bwx-input"
-                    data-testid="bwx-blocker-next_action"
-                    value={ blocker.next_action ?? '' }
-                    onChange={ ( event ) => setBlocker( { ...blocker, next_action: event.target.value } ) }
-                  />
-                </div>
                 <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
                     data-testid="bwx-block"
-                    disabled={ busy }
+                    disabled={ busy || '' === ( blocker.owner ?? '' ) }
                     onClick={ () =>
                       void act(
                         '/block',
@@ -1446,7 +1439,6 @@ export function ItemPanel( {
                           owner: blocker.owner ?? '',
                           dependency: 'other' === blocker.dependency ? blocker.dependency_text ?? '' : blocker.dependency ?? '',
                           target_date: blocker.target_date ?? '',
-                          next_action: blocker.next_action ?? '',
                         },
                         'Blocked. Its place is kept.'
                       )

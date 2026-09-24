@@ -175,12 +175,18 @@ test('blocking on another item stores that item as the reason', async () => {
   await openOnBoard(page, title);
   await page.getByTestId('bwx-show-block').click();
 
-  await page.getByTestId('bwx-blocker-reason').selectOption(other.id);
+  // Who owns the blocker comes first and is the one thing it needs; there is
+  // no next action (2026-09-24).
+  const form = page.locator('[data-testid="bwx-block"].bwx-actions-form');
+  await expect(form.locator('select, input').first()).toHaveAttribute('data-testid', 'bwx-blocker-owner');
+  await expect(page.getByTestId('bwx-blocker-next_action')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Block it' })).toBeDisabled();
+
   await page.getByTestId('bwx-blocker-owner').selectOption('client');
+  await page.getByTestId('bwx-blocker-reason').selectOption(other.id);
   await page.getByTestId('bwx-blocker-dependency').selectOption('other');
   await page.getByTestId('bwx-blocker-dependency-text').fill('A decision from them.');
   await page.getByTestId('bwx-blocker-target_date').fill('2026-10-01');
-  await page.getByTestId('bwx-blocker-next_action').fill('Chase on Monday.');
   await page.getByRole('button', { name: 'Block it' }).click();
 
   await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Blocked');
@@ -189,7 +195,7 @@ test('blocking on another item stores that item as the reason', async () => {
   const blocked = history.find((event) => 'blocked' === event.action);
 
   expect(blocked.reason).toBe(`Upstream ${RUN_ID}`);
-  expect(blocked.detail).toBe('Chase on Monday.');
+  expect(blocked.detail).toBe('A decision from them.');
 
   await page.close();
 });

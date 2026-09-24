@@ -1697,7 +1697,6 @@ final class WorkItemsController {
 					'owner'       => self::person_label( (string) ( $body['owner'] ?? '' ) ),
 					'dependency'  => $dependency,
 					'target_date' => (string) ( $body['target_date'] ?? '' ),
-					'next_action' => (string) ( $body['next_action'] ?? '' ),
 				),
 				$ready['version'],
 				get_current_user_id()

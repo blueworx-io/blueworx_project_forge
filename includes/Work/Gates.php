@@ -269,11 +269,10 @@ final class Gates {
 				self::done( 'G-RELEASED-5', 'Post-release check', 'Mark the post-release check as done.', self::DEL ),
 			),
 			'G-BLOCKED-ENTRY'   => array(
-				self::pick( 'G-BLOCKED-ENTRY-1', 'What is blocking it', array( 'other' => 'Something else' ), 'Choose the item blocking this, or say what else is.', self::ANY, 'items' ),
+				// Who owns the blocker is the one answer blocking needs
+				// (2026-09-24). What is blocking it, what it waits on and a target
+				// date are optional, and there is no next action.
 				self::pick( 'G-BLOCKED-ENTRY-2', 'Who owns the blocker', array( 'client' => 'The client' ), 'Choose who owns the blocker.', self::ANY, 'people' ),
-				self::pick( 'G-BLOCKED-ENTRY-3', 'What it is waiting on', array( 'other' => 'Something else' ), 'Choose the item this waits on, or say what else it is.', self::ANY, 'items' ),
-				self::box( 'G-BLOCKED-ENTRY-4', 'Target resolution date', 'date', 'Set a target date for the blocker clearing.' ),
-				self::box( 'G-BLOCKED-ENTRY-5', 'Next action', 'text', 'Say what the next action is.' ),
 				self::system( 'G-BLOCKED-ENTRY-6', 'Prior stage stored', 'prior_stage', 'Recorded by the move itself.' ),
 			),
 			'G-BLOCKED-EXIT'    => array(
