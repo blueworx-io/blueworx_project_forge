@@ -230,6 +230,40 @@ export function StandupScreen() {
         </section>
       ) }
 
+      { /*
+          Meetings to settle (2026-09-24): ones that have happened, or happen
+          today, that nobody has marked held, cancelled or a no-show. Each
+          takes you to that site's meetings to settle it.
+       */ }
+      { 'ready' === state && 0 < ( list?.to_settle?.length ?? 0 ) && (
+        <section className="bwx-standup-diary" data-testid="bwx-standup-settle">
+          <p className="bwx-eyebrow">Meetings to settle</p>
+          <ul className="bwx-diary-lines">
+            { ( list?.to_settle ?? [] ).map( ( entry ) => (
+              <DiaryLine
+                key={ entry.id }
+                entry={ { ...entry, title: `${ entry.title } · ${ entry.date }` } }
+                action={
+                  <a
+                    className="bwx-button"
+                    data-size="sm"
+                    href={ `${ window.location.pathname }${ window.location.search }#screen=meetings&site=${ entry.site_id }` }
+                    onClick={ ( event ) => {
+                      // The app reads a link's screen once, on load.
+                      event.preventDefault();
+                      window.location.hash = `screen=meetings&site=${ entry.site_id }`;
+                      window.location.reload();
+                    } }
+                  >
+                    Settle
+                  </a>
+                }
+              />
+            ) ) }
+          </ul>
+        </section>
+      ) }
+
       { 'ready' === state && 0 === cards.length && (
         <Screen
           state="empty"

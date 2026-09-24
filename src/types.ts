@@ -755,6 +755,8 @@ export interface StandupList {
   cards: StandupCard[];
   /** Today's diary: chores, dates, meetings, renewals and who is away (2026-09-18). */
   diary?: DiaryEntry[];
+  /** Meetings that have happened and are not settled yet (2026-09-24). */
+  to_settle?: Array< DiaryEntry & { site_id: string; series_id: string; slot: string } >;
 }
 
 /** One thing on the studio's diary, whatever kind it is (2026-09-18). */

@@ -207,3 +207,49 @@ test('a card goes for good only when its condition stops being true', async ({
   await page.close();
   await admin.context.close();
 });
+
+test('meetings that have happened and are not settled are listed, and leave once settled', async ({ browser, baseURL }) => {
+  test.slow();
+
+  // A weekly meeting that started a fortnight ago: two or three of them have
+  // happened and nobody has said what became of them (2026-09-24).
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { site, client } = await Forge.makeSite(admin.api, `Standup Meetings Co ${RUN_ID}`, `${RUN_ID}-m`);
+  await Forge.onSupport(admin, site.id, 200);
+  const host = await Forge.makePerson(admin.api, client.id, 'staff', `sm${RUN_ID.replace('-', '')}`);
+  const title = `Catch-up ${RUN_ID}`;
+  const started = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  const wrote = await admin.api.post(`/client-sites/${site.id}/meetings/series`, {
+    title, frequency: 'weekly', starts_on: started, ends_on: '', time_of_day: '10:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const list = await admin.api.get('/standup');
+  const ours = (list.to_settle ?? []).filter((one) => one.title === title);
+  expect(ours.length).toBeGreaterThanOrEqual(2);
+  expect(ours.every((one) => one.date <= list.today)).toBe(true);
+  expect(ours[0].site_id).toBe(site.id);
+
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-standup').click();
+  const settle = page.getByTestId('bwx-standup-settle');
+  await expect(settle).toBeVisible({ timeout: 30_000 });
+  await expect(settle.locator('li', { hasText: title })).toHaveCount(ours.length);
+
+  // Settled, it is not on the list any more.
+  const first = ours[0];
+  const done = await admin.api.post(`/client-sites/${site.id}/meetings/${first.series_id}/${first.slot}/settle`, { status: 'held' });
+  expect(done.status(), await done.text()).toBe(200);
+  const after = (await admin.api.get('/standup')).to_settle.filter((one) => one.title === title);
+  expect(after).toHaveLength(ours.length - 1);
+
+  // The line takes you to the site's meetings to settle it.
+  await settle.locator('li', { hasText: title }).first().getByRole('link', { name: 'Settle' }).click();
+  await expect(page.getByTestId('bwx-meetings')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(site.id);
+
+  await page.close();
+  await admin.context.close();
+});
