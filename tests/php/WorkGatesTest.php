@@ -181,17 +181,15 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
-	 * Evidence is worked out from the item's own entries: a comment with a
-	 * link since the stage was entered. Nothing is recorded by hand.
+	 * Leaving In Development asks for no work evidence (2026-09-24): comments
+	 * are for comments, not proof.
 	 */
-	public function test_evidence_is_met_by_an_entry_since_the_stage_was_entered(): void {
+	public function test_in_development_asks_for_no_work_evidence(): void {
 		$item    = $this->item( array( 'stage' => 'in-development', 'test_description' => 'Open it.' ) );
 		$without = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array() );
-		$with    = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array(), array( 'evidence_since_entry' => true ) );
 
-		$this->assertContains( 'G-IN-DEVELOPMENT-2', array_column( $without['unmet'], 'id' ) );
-		$this->assertNotContains( 'G-IN-DEVELOPMENT-2', array_column( $with['unmet'], 'id' ) );
-		$this->assertSame( array(), $with['unmet'], 'How to test is written, the checklist is empty: nothing left' );
+		$this->assertNull( Gates::requirement( 'G-IN-DEVELOPMENT-2' ) );
+		$this->assertSame( array(), $without['unmet'], 'How to test is written, the checklist is empty: nothing left' );
 	}
 
 	/**
@@ -430,7 +428,6 @@ final class WorkGatesTest extends TestCase {
 	public function test_the_requirements_that_need_evidence_say_so(): void {
 		$expected = array(
 			'G-BUG-TRACKING-5',
-			'G-IN-DEVELOPMENT-2',
 			'G-RELEASED-3',
 		);
 

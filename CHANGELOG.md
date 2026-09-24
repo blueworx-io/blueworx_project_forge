@@ -18,6 +18,10 @@ commits and pull requests.
 
 - The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
 
+### Removed
+
+- The "Work evidence" check on leaving In Development. Comments are just for comments now.
+
 ## [2.129.2] - 2026-09-21
 
 ### Fixed

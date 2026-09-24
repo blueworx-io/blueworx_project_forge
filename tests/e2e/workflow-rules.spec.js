@@ -112,14 +112,13 @@ test('leaving In Development takes a finished checklist, how to test, and no hou
   const path = ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development'];
   const developing = await Forge.walkTo(admin.api, item, path, { seats: crew.seats });
 
-  // The design link is a field on the item, filled by the walk.
-  expect(developing.design_url).toBe('https://example.test/design');
-
   await patch(developing, { checklist: [{ text: 'Wire it up', done: false }] });
   const before = await admin.api.get(`/work-items/${developing.id}`);
   const ids = before.readiness['in-review'].unmet.map((row) => row.id);
   expect(ids).toContain('G-IN-DEVELOPMENT-1');
   expect(ids).toContain('G-IN-DEVELOPMENT-3');
+  // No work evidence is asked for (2026-09-24).
+  expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-2');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-4');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-5');
   expect(before.item.remaining_estimate).toBeUndefined();
