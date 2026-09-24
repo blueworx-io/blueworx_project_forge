@@ -10,9 +10,10 @@ import { Screen } from './States';
 
 /*
  * My Tasks (#309): one person's day and week, from the same records as the
- * board. Every item on every site where the signed-in person holds one of the
- * three seats, split into four saved views over one table — Today, the next
- * seven days, further out, and everything — so the counts always add up.
+ * board. Every item on every site that is the signed-in person's to act on at
+ * the stage it is at (2026-09-24), once, split into four saved views over one
+ * table — Today, the next seven days, further out, and everything — so the
+ * counts always add up.
  *
  * Every site's work comes in one read (2026-09-19) — reading each site in
  * turn took a request per site, and a studio with two hundred sites waited
@@ -27,6 +28,22 @@ const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', reviewer: 'Checke
 const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
 const FINISHED = [ 'completed', 'released' ];
 const DAY = 86400000;
+
+/**
+ * Whose move it is at a stage (2026-09-24): the reviewer's in review, the
+ * deliverer's once completed, nobody's once released, and the owner's before
+ * that. Blocked work is whoever's stage it was blocked from. A task is on
+ * somebody's list only while it is theirs to act on, and only once.
+ */
+function responsible( item: WorkItem ): Role | null {
+  const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
+
+  if ( 'released' === stage ) return null;
+  if ( 'in-review' === stage ) return 'reviewer';
+  if ( 'completed' === stage ) return 'deliverer';
+
+  return 'primary';
+}
 
 interface Mine extends Record< string, unknown > {
   id: string;
@@ -101,21 +118,26 @@ export function MyTasksScreen() {
         const site = sites.get( item.client_site_id );
         if ( ! site ) continue;
         const due = daysUntil( item.planned_due || item.derived_due || '' );
-        const seats: Array< [ Role, string, number ] > = [
-          [ 'primary', item.primary_user_id, item.hours_primary ],
-          [ 'reviewer', item.reviewer_id, item.hours_review ],
-          [ 'deliverer', item.deliverer_id, item.hours_delivery ],
-        ];
-        for ( const [ seat, holder, hours ] of seats ) {
-          if ( holder === person.id ) {
-            found.push( { id: `${ item.id }:${ seat }`, item, role: seat, site, hours, due } );
-          }
-        }
 
         // A recurring chore names its people rather than seats (2026-09-18):
-        // one row for you, with your own tick on it.
-        if ( ( item.assignees ?? [] ).includes( person.id ) ) {
-          found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due } );
+        // one row for you, with your own tick on it, and nothing else.
+        if ( 0 < ( item.assignees?.length ?? 0 ) ) {
+          if ( item.assignees.includes( person.id ) ) {
+            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due } );
+          }
+          continue;
+        }
+
+        // Otherwise one row, for whoever's stage it is (2026-09-24).
+        const seat = responsible( item );
+        const seats: Record< Exclude< Role, 'assignee' >, [ string, number ] > = {
+          primary: [ item.primary_user_id, item.hours_primary ],
+          reviewer: [ item.reviewer_id, item.hours_review ],
+          deliverer: [ item.deliverer_id, item.hours_delivery ],
+        };
+
+        if ( null !== seat && 'assignee' !== seat && seats[ seat ][ 0 ] === person.id ) {
+          found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due } );
         }
       }
       setMine( found );

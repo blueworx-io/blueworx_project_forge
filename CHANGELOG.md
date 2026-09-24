@@ -21,6 +21,7 @@ commits and pull requests.
 
 - The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
 - "How to test" is optional. Leaving In Development no longer asks for it.
+- My tasks shows a task only while it's at a stage you're responsible for: the owner's until review, the checker's in review, the builder's once completed. When it moves on, it leaves your list and appears on theirs. Each task appears once, not once per role.
 - Blocking: "Who owns the blocker" comes first and is the only thing needed. What is blocking it, what it is waiting on and the target date are optional, and "Next action" is gone.
 
 ### Fixed
