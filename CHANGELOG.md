@@ -20,6 +20,10 @@ commits and pull requests.
 - "How to test" is optional. Leaving In Development no longer asks for it.
 - Blocking: "Who owns the blocker" comes first and is the only thing needed. What is blocking it, what it is waiting on and the target date are optional, and "Next action" is gone.
 
+### Fixed
+
+- Send back lists every stage before the one the item is in. Before, an item that had skipped stages could only go back to Future idea.
+
 ### Removed
 
 - The "Work evidence" check on leaving In Development. Comments are just for comments now.

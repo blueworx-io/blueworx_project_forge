@@ -12,7 +12,8 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * #108. The rule is one sentence and this file is the proof of it: backwards,
- * to a stage the item has actually occupied, with a reason.
+ * to any earlier stage the work type may hold, with a reason. Since 2026-09-24
+ * the item need not have occupied it (Luke).
  */
 final class WorkReturnsTest extends TestCase {
 
@@ -72,9 +73,9 @@ final class WorkReturnsTest extends TestCase {
 	}
 
 	/**
-	 * Only earlier stages, and only occupied ones.
+	 * Every earlier stage the work type may hold.
 	 */
-	public function test_targets_are_earlier_stages_the_item_has_been_in(): void {
+	public function test_targets_are_every_earlier_stage(): void {
 		$history = $this->history(
 			array(
 				array( '', 'future-idea' ),
@@ -90,22 +91,28 @@ final class WorkReturnsTest extends TestCase {
 	}
 
 	/**
-	 * #108's first acceptance. A stage the item has never been in is not a
-	 * return, whatever direction it is in.
+	 * An earlier stage the item skipped is still somewhere it can go back to
+	 * (2026-09-24); a later one never is.
 	 */
-	public function test_an_unoccupied_stage_is_refused(): void {
+	public function test_an_unoccupied_earlier_stage_is_allowed(): void {
 		$history = $this->history(
 			array(
 				array( '', 'future-idea' ),
-				array( 'future-idea', 'triage' ),
+				array( 'future-idea', 'in-review' ),
 			)
 		);
 
-		$item = $this->item( 'triage' );
+		$item = $this->item( 'in-review' );
 
 		$this->assertTrue( Returns::allowed( $item, 'future-idea', $history ) );
-		$this->assertFalse( Returns::allowed( $item, 'design-process', $history ) );
+		$this->assertTrue( Returns::allowed( $item, 'design-process', $history ) );
+		$this->assertTrue( Returns::allowed( $item, 'in-development', $history ) );
+		$this->assertFalse( Returns::allowed( $item, 'completed', $history ) );
 		$this->assertFalse( Returns::allowed( $item, 'bug-tracking', $history ) );
+		$this->assertSame(
+			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development' ),
+			Returns::targets( $item, $history )
+		);
 	}
 
 	/**
@@ -173,10 +180,10 @@ final class WorkReturnsTest extends TestCase {
 	}
 
 	/**
-	 * An earlier cycle's history is not this cycle's. A reopened item has been
-	 * round once already, and that does not make every stage a return target.
+	 * A reopened item, in its second cycle, can go back to any earlier stage
+	 * too: which cycle it has been through no longer matters.
 	 */
-	public function test_another_cycle_does_not_count(): void {
+	public function test_the_cycle_does_not_matter(): void {
 		$history = array_merge(
 			$this->history( array( array( 'documentation-period', 'technical-audit' ) ), 1 ),
 			$this->history( array( array( '', 'documentation-period' ) ), 2 )
@@ -189,7 +196,7 @@ final class WorkReturnsTest extends TestCase {
 			'cycle'     => 2,
 		);
 
-		$this->assertSame( array( 'documentation-period' ), Returns::targets( $item, $history ) );
+		$this->assertSame( array( 'future-idea', 'triage', 'documentation-period' ), Returns::targets( $item, $history ) );
 	}
 
 	/**

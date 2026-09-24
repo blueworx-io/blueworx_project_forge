@@ -10,8 +10,10 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 /**
- * #108. Work goes backwards along one rule and no other: **to an earlier stage
- * it has actually occupied, with a reason** (WF-3).
+ * #108. Work goes backwards along one rule and no other: **to an earlier stage,
+ * with a reason** (WF-3). Until 2026-09-24 it also had to be a stage the item
+ * had occupied this cycle; Luke dropped that, and the reasoning below is kept
+ * as the history of why it was there.
  *
  * The "actually occupied" half is what makes this a return rather than a
  * correction. Sending an item back to a stage it has never been in is not
@@ -97,7 +99,12 @@ final class Returns {
 		$here    = Stages::position( $from );
 		$targets = array();
 
-		foreach ( self::occupied( $history, (int) ( $item['cycle'] ?? 1 ) ) as $stage ) {
+		/*
+		 * Any earlier stage, whether or not the item passed through it this
+		 * cycle (Luke, 2026-09-24). Work that skipped a stage, or came in part
+		 * way along, could otherwise only go back to where it started.
+		 */
+		foreach ( Stages::ALL as $stage ) {
 			if ( $stage === $from || Stages::position( $stage ) >= $here ) {
 				continue;
 			}

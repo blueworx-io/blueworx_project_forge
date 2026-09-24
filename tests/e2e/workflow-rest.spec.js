@@ -149,10 +149,12 @@ test('a completion is refused without a signed-in person and without its evidenc
   await context.close();
 });
 
-test('work goes back only to a stage it has been in, and only with a reason', async ({
+test('work goes back to any earlier stage, and only with a reason', async ({
   browser,
   baseURL,
 }) => {
+  test.slow();
+
   const { context, nonce } = await signedInContext(browser, baseURL);
   const api = forge(context.request, nonce);
   const site = await makeSite(api, 'Return Co');
@@ -170,13 +172,26 @@ test('work goes back only to a stage it has been in, and only with a reason', as
   });
   expect(silent.status()).toBe(400);
 
-  // A stage it has never occupied is a correction, not a return.
-  const invented = await api.post(`/work-items/${item.id}/return`, {
+  // A later stage is not a return.
+  const forward = await api.post(`/work-items/${item.id}/return`, {
     to: 'design-process',
     reason: 'Because.',
     record_version: item.record_version,
   });
-  expect(invented.status()).toBe(409);
+  expect(forward.status()).toBe(409);
+
+  // An item that jumped ahead can still go back to any stage before where it
+  // is, not just where it started (2026-09-24).
+  let skipped = await makeItem(api, site.id, { title: `Jumped ahead ${RUN_ID}` });
+  skipped = await walkTo(api, skipped, ['triage']);
+  const override = await api.post(`/work-items/${skipped.id}/override`, {
+    to: 'up-next',
+    reason: 'Came in part way along.',
+    record_version: skipped.record_version,
+  });
+  expect(override.status(), await override.text()).toBe(200);
+  const jumped = await api.get(`/work-items/${skipped.id}`);
+  expect(jumped.returns).toEqual(['future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process']);
 
   const sent = await api.post(`/work-items/${item.id}/return`, {
     to: 'triage',
