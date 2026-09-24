@@ -19,6 +19,7 @@ commits and pull requests.
 
 ### Changed
 
+- Recurring tasks and subscription reminders: each person gets their own copy to do and finish independently, instead of one shared task with a tick list. A "Done" button on the right finishes it. They are free, and the task no longer shows who pays, who and when, or how it was released. Tasks already made keep their old form.
 - The design link is optional. Leaving Design no longer asks for one, since not every item has a design.
 - "How to test" is optional. Leaving In Development no longer asks for it.
 - My tasks shows a task only while it's at a stage you're responsible for: the owner's until review, the checker's in review, the builder's once completed. When it moves on, it leaves your list and appears on theirs. Each task appears once, not once per role.

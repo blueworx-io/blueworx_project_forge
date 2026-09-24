@@ -825,6 +825,11 @@ export function ItemPanel( {
   // A recurring chore moves by its ticks (2026-09-18): no gate to read, no
   // stage to choose. Up Next until everyone has done it, then Completed.
   const chore = 0 < ( item?.assignees?.length ?? 0 );
+  // Who the Done button ticks for: you, if it is yours and not done; else, for
+  // an administrator, the first person on it who has not.
+  const undone = ( item?.assignees ?? [] ).filter( ( who ) => undefined === ( item?.ticks ?? {} )[ who ] );
+  const myId = forgeData()?.person?.id ?? '';
+  const choreTicker = undone.includes( myId ) ? myId : forgeData()?.canManage ? undone[ 0 ] ?? '' : '';
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
   const lines = detail ? historyLines( detail.history, label ) : [];
 
@@ -1153,46 +1158,6 @@ export function ItemPanel( {
               </Inline>
             ) }
 
-            { /*
-                A recurring chore's people (2026-09-18): each with their own
-                tick. The signed-in person ticks their own; an administrator
-                may tick for anyone. When everyone has, the task is done.
-             */ }
-            { 0 < ( item.assignees?.length ?? 0 ) && (
-              <div className="bwx-chore" data-testid="bwx-chore">
-                <p className="bwx-eyebrow">{ forgeData()?.canManage ? 'Who does it' : 'Your tick' }</p>
-                <ul className="bwx-chore-people">
-                  { item.assignees.filter( ( who ) => ( forgeData()?.canManage ?? false ) || who === ( forgeData()?.person?.id ?? '' ) ).map( ( who ) => {
-                    const done = undefined !== ( item.ticks ?? {} )[ who ];
-                    const me = forgeData()?.person?.id ?? '';
-                    const may = ! ended && ( who === me || ( forgeData()?.canManage ?? false ) );
-
-                    return (
-                      <li key={ who } data-testid="bwx-chore-person" data-done={ done ? 'true' : 'false' }>
-                        <span>{ staffList.find( ( one ) => one.id === who )?.display_name ?? who }</span>
-                        { may ? (
-                          <label className="bwx-chore-tick">
-                            <input
-                              type="checkbox"
-                              data-testid="bwx-chore-tick"
-                              aria-label={ `Done by ${ staffList.find( ( one ) => one.id === who )?.display_name ?? who }` }
-                              checked={ done }
-                              disabled={ busy }
-                              onChange={ ( event ) => void tickFor( who, event.target.checked ) }
-                            />
-                            { done ? 'Done' : 'Not yet' }
-                          </label>
-                        ) : (
-                          <span className="bwx-mono">{ done ? '✓ done' : '○ not yet' }</span>
-                        ) }
-                      </li>
-                    );
-                  } ) }
-                </ul>
-                { 0 < item.hours_each && <p className="bwx-hint">{ `${ item.hours_each } hours each.` }</p> }
-              </div>
-            ) }
-
             { ! blocked && ! ended && ! chore && detail.available.map( ( to ) => (
               <GateList
                 key={ to }
@@ -1269,6 +1234,25 @@ export function ItemPanel( {
                     </button>
                   ) }
                 </div>
+                { /*
+                    A recurring task is done with one press (2026-09-24): each
+                    person has their own copy, so there is no list of people
+                    to tick. Yours if you are on it; an administrator may mark
+                    it done for whoever is.
+                 */ }
+                { ! blocked && ! ended && chore && '' !== choreTicker && (
+                  <div className="bwx-moves bwx-action-right">
+                    <button
+                      type="button"
+                      className="bwx-button bwx-move"
+                      data-testid="bwx-chore-done"
+                      disabled={ busy }
+                      onClick={ () => void tickFor( choreTicker, true ) }
+                    >
+                      Done <span aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                ) }
                 { ! blocked && ! ended && ! chore && (
                   <div className="bwx-moves bwx-action-right">
                     { detail.available.map( ( to ) => (
@@ -1847,7 +1831,12 @@ export function ItemPanel( {
               </div>
             ) }
 
-            { staff && ! ended && (
+            { /*
+                Not for a recurring task (2026-09-24): who does it, when, and
+                its hours were set when the recurring task was, it is free, and
+                nothing about it is released.
+             */ }
+            { staff && ! ended && ! chore && (
               <div className="bwx-assign" data-testid="bwx-assign" data-collapsed={ isFolded( 'assign' ) ? 'true' : 'false' }>
                 { head( 'assign', 'Who and when' ) }
 

@@ -65,6 +65,15 @@ test('a connected store’s renewals become reminders for the chosen person', as
   const ran = await admin.api.post('/recurring/run', {});
   expect(ran.status()).toBe(200);
 
+  // If opening the screen already claimed today, the run returns at once
+  // while that request is still making the tasks — one per person since
+  // 2026-09-24 — so wait for the reminder to exist rather than assume it.
+  await expect.poll(async () => {
+    const listing = await admin.api.get('/subscriptions');
+    const connection = listing.connections.find((one) => one.name === `Stub Store ${RUN_ID}`);
+    return listing.subscriptions.find((one) => one.connection_id === connection?.id && 'Acme Ltd' === one.customer_name)?.reminder ?? null;
+  }, { timeout: 60_000 }).not.toBeNull();
+
   await page.getByTestId('bwx-refresh-all').click();
   await expect(acme.getByTestId('bwx-subs-reminder')).toBeVisible();
 

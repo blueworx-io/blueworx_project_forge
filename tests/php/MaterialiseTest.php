@@ -51,6 +51,48 @@ final class MaterialiseTest extends TestCase {
 		self::assertSame( 'rec_1', $values['recurring_id'] );
 	}
 
+	/**
+	 * Each person gets a task of their own (2026-09-24): one copy each, with
+	 * only them on it, to do and tick off independently.
+	 */
+	public function test_each_person_gets_their_own_copy(): void {
+		$source = array_merge(
+			$this->source(),
+			array(
+				'assignees'  => array( 'usr_x', 'usr_y' ),
+				'hours_each' => 0.5,
+				'checklist'  => array( array( 'text' => 'Check the log', 'done' => false ) ),
+			)
+		);
+
+		$copies = Materialise::copies( $source, '2026-09-14' );
+
+		self::assertCount( 2, $copies );
+		self::assertSame( array( 'usr_x' ), $copies[0]['assignees'] );
+		self::assertSame( array( 'usr_y' ), $copies[1]['assignees'] );
+		self::assertSame( 0.5, $copies[1]['hours_each'] );
+		self::assertSame( $copies[0]['checklist'], $copies[1]['checklist'] );
+	}
+
+	/**
+	 * A subscription check-in names one person through its primary seat, and
+	 * gets one copy for them.
+	 */
+	public function test_a_check_in_is_one_copy_for_its_primary_seat(): void {
+		$copies = Materialise::copies( array_merge( $this->source(), array( 'kind' => Sources::SUBSCRIPTION ) ), '2026-09-14' );
+
+		self::assertCount( 1, $copies );
+		self::assertSame( array( 'usr_a' ), $copies[0]['assignees'] );
+	}
+
+	/**
+	 * Recurring tasks are free (2026-09-24): nobody pays for them, so nobody
+	 * is asked who does.
+	 */
+	public function test_recurring_tasks_are_free(): void {
+		self::assertSame( 'free-general', Materialise::values( $this->source(), '2026-09-14' )['commercial_class'] );
+	}
+
 	public function test_a_description_becomes_the_problem(): void {
 		$values = Materialise::values( array_merge( $this->source(), array( 'description' => 'Run the backup script and check the log.' ) ), '2026-09-14' );
 
