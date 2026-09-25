@@ -157,3 +157,45 @@ test('the calendar shows a reminder as a Reminder, over its days', async ({ brow
   const pairAfter = afterTick.entries.find((entry) => entry.title === pairTitle);
   expect(pairAfter.detail).toBe('1 of 2 done');
 });
+
+test('in My tasks a reminder waits by its start, then sits in Today until ticked', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindMine', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remmine');
+
+  const reminders = [
+    [`Started ${RUN_ID}`, plus(today, -2), plus(today, 20)],
+    [`In five ${RUN_ID}`, plus(today, 5), ''],
+    [`In ten ${RUN_ID}`, plus(today, 10), plus(today, 12)],
+  ];
+  for (const [title, starts, ends] of reminders) {
+    const made = await admin.api.post('/reminders', { client_site_id: site.id, title, assignees: [person.id], starts_on: starts, ends_on: ends });
+    expect(made.status(), await made.text()).toBe(200);
+  }
+
+  const me = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+  const page = await me.context.newPage();
+  await page.goto('/blueworx-forge/#screen=mytasks');
+  const table = page.getByTestId('bwx-mytasks-table');
+  await expect(table).toBeVisible({ timeout: 60_000 });
+
+  // Today (the default): the one that has started, though it is not due for weeks.
+  await expect(table.locator('tbody tr', { hasText: `Started ${RUN_ID}` })).toHaveCount(1);
+  await expect(table).not.toContainText(`In five ${RUN_ID}`);
+  await expect(table).not.toContainText(`In ten ${RUN_ID}`);
+
+  await table.getByRole('button', { name: /^Next seven days/ }).click();
+  await expect(table.locator('tbody tr', { hasText: `In five ${RUN_ID}` })).toHaveCount(1);
+
+  await table.getByRole('button', { name: /^Further out/ }).click();
+  await expect(table.locator('tbody tr', { hasText: `In ten ${RUN_ID}` })).toHaveCount(1);
+
+  await table.getByRole('button', { name: /^Everything/ }).click();
+  for (const [title] of reminders) {
+    await expect(table.locator('tbody tr', { hasText: title })).toHaveCount(1);
+  }
+  await page.close();
+});
