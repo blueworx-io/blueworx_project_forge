@@ -16,6 +16,7 @@ use Blueworx\Forge\Meetings\Diary;
 use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Meetings\Series;
+use Blueworx\Forge\Recurring\Reminders;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
@@ -25,7 +26,7 @@ use Blueworx\Forge\Work\Stages;
  * Luke, 2026-09-17: "ensure the following all show in the Calendar and Daily
  * Standup: recurring tasks, calendar dates, meetings, subscriptions, leave
  * dates." Five things kept in five places, read here into one list so the
- * calendar and the standup draw the same day.
+ * calendar and the standup draw the same day, and reminders (2026-09-25).
  *
  * Every entry is `{ id, kind, date, ends_on, title, detail, people, item_id }`.
  * The reach decides which sites' chores and meetings are seen; dates, renewals
@@ -38,6 +39,7 @@ final class Feed {
 	 */
 	public const KINDS = array(
 		'recurring'    => 'Chore',
+		'reminder'     => 'Reminder',
 		'date'         => 'Date',
 		'meeting'      => 'Meeting',
 		'subscription' => 'Renewal',
@@ -151,7 +153,7 @@ final class Feed {
 	}
 
 	/**
-	 * Recurring chores due in the window, on the sites in reach.
+	 * Recurring chores and reminders in the window, on the sites in reach.
 	 *
 	 * @param array<int, string> $site_ids Sites.
 	 * @param string             $from     YYYY-MM-DD.
@@ -171,7 +173,7 @@ final class Feed {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the site placeholders are counted above.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE recurring_id <> '' AND archived = 0 AND client_site_id IN ({$slots}) AND planned_due >= %s AND planned_due <= %s ORDER BY planned_due ASC, title ASC",
+				"SELECT * FROM {$table} WHERE recurring_id <> '' AND archived = 0 AND client_site_id IN ({$slots}) AND planned_due >= %s AND COALESCE(NULLIF(planned_start, ''), planned_due) <= %s ORDER BY planned_due ASC, title ASC",
 				array_merge( array_values( $site_ids ), array( $from, $to ) )
 			),
 			ARRAY_A
@@ -187,6 +189,23 @@ final class Feed {
 			$people = array_values( array_map( 'strval', is_array( $people ) ? $people : array() ) );
 			$ticks  = json_decode( (string) ( $row['ticks'] ?? '' ), true );
 			$ticked = is_array( $ticks ) ? count( $ticks ) : 0;
+
+			if ( Reminders::is_reminder( (string) $row['recurring_id'] ) ) {
+				$due   = (string) $row['planned_due'];
+				$start = '' === (string) $row['planned_start'] ? $due : (string) $row['planned_start'];
+
+				$out[] = self::entry(
+					'reminder',
+					(string) $row['id'],
+					$start,
+					$start === $due ? '' : $due,
+					(string) $row['title'],
+					0 < $ticked ? 'Done' : 'To do',
+					$people,
+					(string) $row['id']
+				);
+				continue;
+			}
 
 			$out[] = self::entry(
 				'recurring',

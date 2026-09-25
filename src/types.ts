@@ -762,7 +762,7 @@ export interface StandupList {
 /** One thing on the studio's diary, whatever kind it is (2026-09-18). */
 export interface DiaryEntry {
   id: string;
-  kind: 'recurring' | 'date' | 'meeting' | 'subscription' | 'leave';
+  kind: 'recurring' | 'reminder' | 'date' | 'meeting' | 'subscription' | 'leave';
   label: string;
   date: string;
   /** Last day of a span, or '' for one day. */

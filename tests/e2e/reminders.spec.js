@@ -106,3 +106,31 @@ test('only the author or an administrator changes a reminder, and only on a clie
   expect(early.status()).toBe(400);
   expect((await early.json()).data.fields.ends_on).toBe('The end date is before the start date.');
 });
+
+test('the calendar shows a reminder as a Reminder, over its days', async ({ browser, baseURL }) => {
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindCal', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remcal');
+
+  for (const [title, ends] of [[`Span ${RUN_ID}`, plus(today, 2)], [`One day ${RUN_ID}`, '']]) {
+    const made = await admin.api.post('/reminders', { client_site_id: site.id, title, assignees: [person.id], starts_on: plus(today, 1), ends_on: ends });
+    expect(made.status(), await made.text()).toBe(200);
+  }
+
+  // A window that starts inside the span still finds it.
+  const feed = await admin.api.get(`/calendar?from=${plus(today, 2)}&to=${plus(today, 5)}`);
+  const span = feed.entries.filter((entry) => entry.title === `Span ${RUN_ID}`);
+  expect(span).toHaveLength(1);
+  expect(span[0].kind).toBe('reminder');
+  expect(span[0].label).toBe('Reminder');
+  expect(span[0].date).toBe(plus(today, 1));
+  expect(span[0].ends_on).toBe(plus(today, 2));
+  expect(span[0].detail).toBe('To do');
+
+  const whole = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
+  const single = whole.entries.find((entry) => entry.title === `One day ${RUN_ID}`);
+  expect(single.kind).toBe('reminder');
+  expect(single.ends_on).toBe('');
+  expect(whole.entries.some((entry) => 'recurring' === entry.kind && entry.title.includes(RUN_ID))).toBe(false);
+});

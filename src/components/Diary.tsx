@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { CalendarDays, Cake, Handshake, Plane, Repeat, Receipt, Sparkles } from 'lucide-react';
+import { Bell, CalendarDays, Cake, Handshake, Plane, Repeat, Receipt, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CalendarDate, DiaryEntry, Person } from '../types';
 import { api, ApiError, forgeData, messageFor } from '../api';
@@ -12,13 +12,14 @@ import type { Said } from './States';
 /**
  * The studio's diary (2026-09-18): everything that is not a piece of work but
  * still has a day — a recurring chore, a company day or birthday, a meeting,
- * a subscription renewing, somebody away. One shape, drawn the same way on
- * the calendar and the standup.
+ * a subscription renewing, somebody away, a reminder. One shape, drawn the
+ * same way on the calendar and the standup.
  */
 
 /** What each kind of entry is called on a screen, and its colour. */
 export const DIARY_KINDS: Record< DiaryEntry[ 'kind' ], { label: string; tone: string } > = {
   recurring: { label: 'Chore', tone: 'teal' },
+  reminder: { label: 'Reminder', tone: 'sky' },
   date: { label: 'Date', tone: 'violet' },
   meeting: { label: 'Meeting', tone: 'rose' },
   subscription: { label: 'Renewal', tone: 'emerald' },
@@ -81,6 +82,7 @@ export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; r
 /** The picture beside each kind of entry (2026-09-19). */
 const DIARY_ICONS: Record< string, LucideIcon > = {
   recurring: Repeat,
+  reminder: Bell,
   meeting: Handshake,
   subscription: Receipt,
   leave: Plane,
