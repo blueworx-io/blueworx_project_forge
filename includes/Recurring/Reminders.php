@@ -233,10 +233,16 @@ final class Reminders {
 	 * Ticked copies are the record of what was done and are left alone.
 	 *
 	 * @param array<string, mixed> $source The reminder as it now stands.
+	 * @return bool True only if every write this attempted landed. A copy
+	 *              somebody else changed between the read and the write is
+	 *              left as it was rather than overwritten, and reported here
+	 *              so the caller can say so rather than answering as if it
+	 *              worked.
 	 */
-	public static function sync( array $source ): void {
+	public static function sync( array $source ): bool {
 		$people = array_map( 'strval', (array) $source['assignees'] );
 		$have   = array();
+		$clean  = true;
 
 		foreach ( self::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() as $item ) {
 			$person = (string) ( ( (array) $item['assignees'] )[0] ?? '' );
@@ -247,38 +253,57 @@ final class Reminders {
 			}
 
 			if ( ! in_array( $person, $people, true ) ) {
-				Items::delete( (string) $item['id'] );
+				if ( 0 === Items::delete( (string) $item['id'] ) ) {
+					$clean = false;
+				}
+
 				continue;
 			}
 
 			$values = self::values( $source, $person );
 
-			Items::update(
+			$updated = Items::update(
 				(string) $item['id'],
 				array_intersect_key( $values, array_flip( array( 'title', 'problem', 'planned_start', 'planned_due' ) ) ),
 				(int) $item['record_version']
 			);
+
+			if ( null === $updated ) {
+				$clean = false;
+			}
 		}
 
 		foreach ( array_diff( $people, $have ) as $person ) {
 			self::add( $source, $person );
 		}
+
+		return $clean;
 	}
 
 	/**
 	 * Deletes a reminder: its unticked copies go, ticked ones stay, and the
 	 * reminder itself is ended rather than removed so they keep a source.
 	 *
+	 * The source is ended whether or not every copy's delete landed —
+	 * deleting is what the person asked for, and a copy that changed
+	 * underneath them is reported rather than left blocking the reminder
+	 * itself from going away.
+	 *
 	 * @param array<string, mixed> $source The reminder.
+	 * @return bool True only if every copy that needed deleting was deleted.
 	 */
-	public static function remove( array $source ): void {
+	public static function remove( array $source ): bool {
+		$clean = true;
+
 		foreach ( self::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() as $item ) {
-			if ( array() === (array) $item['ticks'] ) {
-				Items::delete( (string) $item['id'] );
+			if ( array() === (array) $item['ticks'] && 0 === Items::delete( (string) $item['id'] ) ) {
+				$clean = false;
 			}
 		}
 
 		Sources::end( (string) $source['id'] );
+
+		return $clean;
 	}
 
 	/**

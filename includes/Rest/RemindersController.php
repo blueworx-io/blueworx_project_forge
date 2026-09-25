@@ -153,11 +153,12 @@ final class RemindersController {
 		$input   = (array) $request->get_json_params();
 		$checked = Reminders::validate( $input, true );
 
-		// An edit that moves one date is still checked against the other.
+		// An edit that moves one date is still checked against the other. A
+		// more specific error from validate() itself is kept over this one.
 		$starts = (string) ( $checked['values']['starts_on'] ?? $source['starts_on'] );
 		$ends   = (string) ( $checked['values']['ends_on'] ?? $source['ends_on'] );
 
-		if ( '' !== $ends && $ends < $starts ) {
+		if ( ! isset( $checked['errors']['ends_on'] ) && '' !== $ends && $ends < $starts ) {
 			$checked['errors']['ends_on'] = Reminders::ENDS_EARLY;
 		}
 
@@ -172,7 +173,9 @@ final class RemindersController {
 			return Errors::rest( 'stale_version', __( 'That reminder changed elsewhere first — reload and try again.', 'blueworx-forge' ), 409 );
 		}
 
-		Reminders::sync( $updated );
+		if ( ! Reminders::sync( $updated ) ) {
+			return self::mid_save();
+		}
 
 		return self::answer( $updated );
 	}
@@ -190,7 +193,9 @@ final class RemindersController {
 			return $source;
 		}
 
-		Reminders::remove( $source );
+		if ( ! Reminders::remove( $source ) ) {
+			return self::mid_save();
+		}
 
 		return rest_ensure_response( array( 'ok' => true ) );
 	}
@@ -285,5 +290,20 @@ final class RemindersController {
 	 */
 	private static function invalid( array $fields ) {
 		return Errors::rest( 'invalid_reminder', __( 'That reminder could not be saved.', 'blueworx-forge' ), 400, array( 'fields' => $fields ) );
+	}
+
+	/**
+	 * The refusal for a copy that changed between being read and being
+	 * written — a stale write on one of the reminder's tasks rather than on
+	 * the reminder itself.
+	 *
+	 * @return \WP_Error
+	 */
+	private static function mid_save() {
+		return Errors::rest(
+			'stale_version',
+			__( 'Somebody changed one of this reminder\'s tasks while it was saving — reload and try again.', 'blueworx-forge' ),
+			409
+		);
 	}
 }
