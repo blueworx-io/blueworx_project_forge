@@ -94,4 +94,11 @@ final class RemindersTest extends TestCase {
 		self::assertArrayNotHasKey( 'category', Reminders::validate( array( 'title' => 'Only the title' ), true )['values'] );
 		self::assertSame( array( 'general', 'campaign', 'marketing', 'deadline', 'other' ), array_keys( Reminders::CATEGORIES ) );
 	}
+
+	public function test_a_day_the_calendar_does_not_have_is_not_a_date(): void {
+		self::assertSame( 'That is not a date.', Reminders::validate( array_merge( $this->good(), array( 'starts_on' => '2026-02-31' ) ), false )['errors']['starts_on'] );
+		self::assertSame( 'That is not a date.', Reminders::validate( array_merge( $this->good(), array( 'ends_on' => '2026-13-01' ) ), false )['errors']['ends_on'] );
+		self::assertSame( 'That is not a date.', Reminders::validate( array( 'starts_on' => '2026-00-10' ), true )['errors']['starts_on'] );
+		self::assertArrayNotHasKey( 'starts_on', Reminders::validate( array( 'starts_on' => '2028-02-29' ), true )['errors'] );
+	}
 }

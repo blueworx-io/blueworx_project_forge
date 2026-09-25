@@ -129,7 +129,9 @@ final class Reminders {
 				continue;
 			}
 
-			if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) || false === strtotime( $value ) ) {
+			// checkdate() rather than strtotime(), which rolls 2026-02-31 over
+			// into March and calls it a date.
+			if ( 1 !== preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $value, $parts ) || ! checkdate( (int) $parts[2], (int) $parts[3], (int) $parts[1] ) ) {
 				$errors[ $date ] = 'That is not a date.';
 			} else {
 				$values[ $date ] = $value;
@@ -296,7 +298,9 @@ final class Reminders {
 		}
 
 		foreach ( array_diff( $people, $have ) as $person ) {
-			self::add( $source, $person );
+			if ( null === self::add( $source, $person ) ) {
+				$clean = false;
+			}
 		}
 
 		return $clean;
