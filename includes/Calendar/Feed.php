@@ -231,6 +231,10 @@ final class Feed {
 			);
 		}
 
+		// Every reminder's type, in one query rather than one per reminder
+		// (2026-09-25).
+		$categories = Sources::categories_for( array_keys( $reminders ) );
+
 		foreach ( $reminders as $recurring_id => $reminder ) {
 			$done  = $reminder['done'];
 			$total = $reminder['total'];
@@ -243,9 +247,8 @@ final class Feed {
 				$detail = sprintf( '%d of %d done', $done, $total );
 			}
 
-			// Its type leads the detail (2026-09-25), read once per reminder.
-			$source = Sources::get( $recurring_id );
-			$type   = Reminders::CATEGORIES[ (string) ( $source['category'] ?? '' ) ] ?? Reminders::CATEGORIES['general'];
+			// Its type leads the detail (2026-09-25).
+			$type   = Reminders::CATEGORIES[ $categories[ $recurring_id ] ?? '' ] ?? Reminders::CATEGORIES['general'];
 			$detail = $type . ' · ' . $detail;
 
 			$out[] = self::entry(

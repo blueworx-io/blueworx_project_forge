@@ -237,6 +237,37 @@ final class Sources {
 	}
 
 	/**
+	 * The category of some sources, by id — a reminder's type, read in one
+	 * query rather than one per reminder (2026-09-25).
+	 *
+	 * @param array<int, string> $ids Source ids.
+	 * @return array<string, string> Id to category.
+	 */
+	public static function categories_for( array $ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::recurring_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are counted above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, category FROM {$table} WHERE id IN ({$slots})", $ids ), ARRAY_A );
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['id'] ] = (string) ( $row['category'] ?? '' );
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Every running schedule, for the days ahead (2026-09-19): what the
 	 * capacity read counts before the tasks exist.
 	 *
