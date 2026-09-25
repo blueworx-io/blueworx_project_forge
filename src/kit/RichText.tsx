@@ -72,8 +72,11 @@ function toHtml( value: string ): string {
     return '';
   }
 
+  // A value with a tag is trusted to be our own HTML almost everywhere it
+  // comes from, but not everywhere (2026-09-25): reduced to the allowed set
+  // before it is ever handed to innerHTML, the same as a person's own edits.
   if ( value.includes( '<' ) ) {
-    return value;
+    return cleanHtml( value );
   }
 
   const escape = ( text: string ) => text.replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' );

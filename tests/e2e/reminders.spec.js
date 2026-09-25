@@ -87,6 +87,27 @@ test('a three-day reminder gives each person a copy, and edits reach only the un
   expect(left.map((item) => item.id)).toEqual([mine.id]);
 });
 
+test('a title that looks like a script does not reach a copy as live HTML', async ({ browser, baseURL }) => {
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindXss', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remindxss');
+  const title = `<img src=x onerror=alert(1)> ${RUN_ID}`;
+
+  const made = await admin.api.post('/reminders', {
+    client_site_id: site.id,
+    title,
+    assignees: [person.id],
+    starts_on: today,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+  const copyId = reminder.copies[0].item_id;
+
+  const item = (await admin.api.get(`/work-items/${copyId}`)).item;
+  expect(item.problem).not.toContain('<img');
+});
+
 test('only the author or an administrator changes a reminder, and only on a client they reach', async ({ browser, baseURL }) => {
   test.slow();
 

@@ -172,7 +172,9 @@ final class Reminders {
 
 		return array(
 			'title'            => (string) $source['title'],
-			'problem'          => '' === $description ? (string) $source['title'] : $description,
+			// The title is plain text, not trusted HTML like a real
+			// description (2026-09-25): escape it before it stands in.
+			'problem'          => '' === $description ? '<p>' . esc_html( (string) $source['title'] ) . '</p>' : $description,
 			'level'            => 'sub-feature',
 			'work_type'        => 'task',
 			'priority'         => 'normal',

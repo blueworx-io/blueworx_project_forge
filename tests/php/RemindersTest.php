@@ -57,7 +57,7 @@ final class RemindersTest extends TestCase {
 		$values = Reminders::values( $source, 'usr_abc123' );
 
 		self::assertSame( 'Renew the domain', $values['title'] );
-		self::assertSame( 'Renew the domain', $values['problem'] );
+		self::assertSame( '<p>Renew the domain</p>', $values['problem'] );
 		self::assertSame( '2026-10-01', $values['planned_start'] );
 		self::assertSame( '2026-10-05', $values['planned_due'] );
 		self::assertSame( 'free-general', $values['commercial_class'] );
@@ -79,6 +79,22 @@ final class RemindersTest extends TestCase {
 
 		self::assertSame( '2026-10-01', $values['planned_due'] );
 		self::assertSame( '<p>About the invoice.</p>', $values['problem'] );
+	}
+
+	public function test_a_title_used_as_the_problem_is_escaped_not_trusted_as_html(): void {
+		$values = Reminders::values(
+			array(
+				'id'          => 'rem_1',
+				'title'       => '<img src=x onerror=alert(1)>',
+				'description' => '',
+				'starts_on'   => '2026-10-01',
+				'ends_on'     => '',
+			),
+			'usr_abc123'
+		);
+
+		self::assertStringNotContainsString( '<img', $values['problem'] );
+		self::assertStringContainsString( '&lt;img', $values['problem'] );
 	}
 
 	public function test_reminder_copies_are_told_apart_by_their_source_id(): void {
