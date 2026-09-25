@@ -14,7 +14,8 @@
 
 - Version 2.131.0 in `package.json`, `blueworx-forge.php` (header and `BWX_FORGE_VERSION`), `client/blueworx-forge-client.php` (header and `BWX_FORGE_CLIENT_VERSION`); CHANGELOG entry dated 2026-09-25.
 - No new dependency. Icons from `lucide-react` (already installed).
-- No schema change; `Schema::VERSION` stays 32.
+- Schema: one new column (`category`, Task 6b); `Schema::VERSION` 32 → 33. No other schema change.
+- Reminder types (Task 6b): `general|campaign|marketing|deadline|other`, labelled General, Campaign, Marketing, Deadline, Other; default `general`; error "Pick a type."
 - Reminder copies: `commercial_class = 'free-general'`, `hours_each = 0`, one assignee each, title = the reminder's title with no date suffix, `planned_start = starts_on`, `planned_due = ends_on ?: starts_on`, placed at Up Next.
 - Error words, verbatim: "Choose a client.", "Choose at least one person.", "The end date is before the start date.", "A reminder needs a title."
 - Recurring tasks stay administrator-only to write; reminders are writable by any signed-in person who reaches the site, edit/delete by author (`created_by`) or administrator.
@@ -1850,6 +1851,134 @@ git commit -m "The Reminders page"
 
 ---
 
+### Task 6b: Reminder types
+
+**Files:**
+- Modify: `includes/Data/Schema.php` (column, and `VERSION` 32 → 33)
+- Modify: `includes/Recurring/Sources.php` (`WRITABLE`, `create()` default, `hydrate()`)
+- Modify: `includes/Recurring/Reminders.php` (`CATEGORIES`, validation)
+- Modify: `includes/Rest/RemindersController.php` (`shape()`)
+- Modify: `includes/Calendar/Feed.php` (detail)
+- Modify: `src/types.ts`, `src/components/RemindersScreen.tsx`
+- Read: the addendum at the end of `docs/superpowers/specs/2026-09-25-reminders-design.md`
+- Test: `tests/php/RemindersTest.php`, `tests/e2e/reminders.spec.js`
+
+**Interfaces:**
+- Produces: `Reminders::CATEGORIES` (`general => General, campaign => Campaign, marketing => Marketing, deadline => Deadline, other => Other`); `category` on sources and on the `Reminder` REST shape; calendar reminder detail `"<Type label> · To do"` or `"<Type label> · Done"`.
+
+- [ ] **Step 1: Failing unit test** — add to `tests/php/RemindersTest.php`:
+
+```php
+	public function test_the_type_defaults_to_general_and_must_be_one_of_five(): void {
+		self::assertSame( 'general', Reminders::validate( $this->good(), false )['values']['category'] );
+		self::assertSame( 'deadline', Reminders::validate( array_merge( $this->good(), array( 'category' => 'deadline' ) ), false )['values']['category'] );
+		self::assertSame( 'Pick a type.', Reminders::validate( array_merge( $this->good(), array( 'category' => 'party' ) ), false )['errors']['category'] );
+		self::assertArrayNotHasKey( 'category', Reminders::validate( array( 'title' => 'Only the title' ), true )['values'] );
+		self::assertSame( array( 'general', 'campaign', 'marketing', 'deadline', 'other' ), array_keys( Reminders::CATEGORIES ) );
+	}
+```
+
+Run `vendor/bin/phpunit --filter RemindersTest` → FAIL.
+
+- [ ] **Step 2: Schema** — in the `$recurring` CREATE statement in `includes/Data/Schema.php`, after the `kind` line, add a tab-indented `category varchar(20) NOT NULL DEFAULT '',` (it has a default, so dbDelta can add it to a table with rows). Set `public const VERSION = 33;`. If a nearby comment records what each schema version added, add a line for 33 in the same style.
+
+- [ ] **Step 3: Sources** — add `'category'` to `WRITABLE`; add `'category' => '',` to the defaults in `create()`; in `hydrate()` after `'kind'` add `'category' => (string) ( $row['category'] ?? '' ),`.
+
+- [ ] **Step 4: Reminders** — add:
+
+```php
+	/**
+	 * What kind of reminder it is (2026-09-25), and what each is called.
+	 */
+	public const CATEGORIES = array(
+		'general'   => 'General',
+		'campaign'  => 'Campaign',
+		'marketing' => 'Marketing',
+		'deadline'  => 'Deadline',
+		'other'     => 'Other',
+	);
+```
+
+In `validate()`, after the notes block:
+
+```php
+		// Its type (2026-09-25): General unless somebody picks another.
+		if ( ! $partial || array_key_exists( 'category', $input ) ) {
+			$category = trim( (string) ( $input['category'] ?? 'general' ) );
+
+			if ( ! array_key_exists( $category, self::CATEGORIES ) ) {
+				$errors['category'] = 'Pick a type.';
+			} else {
+				$values['category'] = $category;
+			}
+		}
+```
+
+Run the unit tests → PASS.
+
+- [ ] **Step 5: REST and calendar** — `RemindersController::shape()` gains `'category' => '' === (string) $source['category'] ? 'general' : (string) $source['category'],` after `'title'`.
+
+In `Feed::recurring()`, reminders need their source's type. Before the loop, read each reminder source once (not once per copy); add `use Blueworx\Forge\Recurring\Sources;`:
+
+```php
+		$types = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$source_id = (string) $row['recurring_id'];
+
+			if ( Reminders::is_reminder( $source_id ) && ! isset( $types[ $source_id ] ) ) {
+				$source = Sources::get( $source_id );
+
+				$types[ $source_id ] = Reminders::CATEGORIES[ (string) ( $source['category'] ?? '' ) ] ?? Reminders::CATEGORIES['general'];
+			}
+		}
+```
+
+The reminder entry's detail becomes `$types[ (string) $row['recurring_id'] ] . ' · ' . ( 0 < $ticked ? 'Done' : 'To do' )`.
+
+- [ ] **Step 6: e2e** — in `tests/e2e/reminders.spec.js`:
+  - Calendar test: post the span reminder with `category: 'campaign'` and change `expect(span[0].detail).toBe('To do')` to `toBe('Campaign · To do')`. The one-day reminder posts no category; assert `single.detail` is `'General · To do'`.
+  - Author test: after creation, `expect(reminder.category).toBe('general');`. A POST with `category: 'party'` answers 400 with `data.fields.category === 'Pick a type.'`.
+  - Page test: before saving, `await page.getByTestId('bwx-reminder-category').selectOption('deadline');`, and assert the row `toContainText('Deadline')`.
+
+Run them → the page test fails (there is no picker yet).
+
+- [ ] **Step 7: Page** — in `src/types.ts`, `Reminder` gains `category: 'general' | 'campaign' | 'marketing' | 'deadline' | 'other';`. In `RemindersScreen.tsx`:
+
+```tsx
+const CATEGORIES: Array< { id: Reminder[ 'category' ]; label: string } > = [
+  { id: 'general', label: 'General' },
+  { id: 'campaign', label: 'Campaign' },
+  { id: 'marketing', label: 'Marketing' },
+  { id: 'deadline', label: 'Deadline' },
+  { id: 'other', label: 'Other' },
+];
+```
+
+- `Draft` gains `category: Reminder[ 'category' ]` (`blank()` gives `'general'`; `fromReminder` gives `reminder.category`).
+- The `save()` body gains `category: draft.category`.
+- Add a column after Reminder: `{ key: 'category', label: 'Type', width: 120, sortBy: ( r ) => r.category, render: ( r ) => CATEGORIES.find( ( one ) => one.id === r.category )?.label ?? 'General' }`.
+- In the form, after the Title field:
+
+```tsx
+      <div className="bwx-field">
+        <label htmlFor="bwx-reminder-category">Type</label>
+        <select id="bwx-reminder-category" className="bwx-select" data-testid="bwx-reminder-category" value={ draft.category } onChange={ ( event ) => set( 'category', event.target.value as Reminder[ 'category' ] ) }>
+          { CATEGORIES.map( ( option ) => (
+            <option key={ option.id } value={ option.id }>
+              { option.label }
+            </option>
+          ) ) }
+        </select>
+      </div>
+```
+
+- [ ] **Step 8: Run** `vendor/bin/phpunit`, `vendor/bin/phpcs` on the touched PHP, and `npm run build`. Then `npm run wp:down; npm run wp:up` (the schema changed, and a fresh instance proves the upgrade), and `npx playwright test tests/e2e/reminders.spec.js tests/e2e/calendar-feed.spec.js --workers=1` → PASS.
+
+- [ ] **Step 9: Commit** — subject "Reminders have a type (#389)".
+
+---
+
 ### Task 7: Version, changelog, checks, PR
 
 **Files:**
@@ -1864,7 +1993,7 @@ git commit -m "The Reminders page"
 
 ### Added
 
-- Reminders: a task for a day or a few days, for one or more people on a client. Each person gets their own copy to tick off, it shows on the calendar across its days, and in My tasks it moves into Today when it starts.
+- Reminders: a task for a day or a few days, for one or more people on a client, typed as General, Campaign, Marketing, Deadline or Other. Each person gets their own copy to tick off, it shows on the calendar across its days, and in My tasks it moves into Today when it starts.
 
 ### Changed
 

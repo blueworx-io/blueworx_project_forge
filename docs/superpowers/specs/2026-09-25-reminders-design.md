@@ -82,3 +82,12 @@ days; one ticks it and it leaves their list but not the other's. A reminder
 starting in ten days is under Further out and not Today. A non-author,
 non-administrator cannot edit it. `recurring-screen.spec.js`: a recurring task
 is added for a chosen client and its task appears under that client.
+
+## Addendum, 2026-09-25: reminder types
+
+Luke: "give the option to select General, Campaign, Marketing, Deadline,
+Other." Every reminder has a type, one of those five, General by default. It
+is chosen on the form, shown in its own column on the Reminders page, and
+leads the calendar entry's detail ("Campaign · To do"). Stored in a new
+`category` column on `bwx_forge_recurring` (schema 32 → 33); other kinds
+leave it empty.
