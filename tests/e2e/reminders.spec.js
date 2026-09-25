@@ -199,3 +199,36 @@ test('in My tasks a reminder waits by its start, then sits in Today until ticked
   }
   await page.close();
 });
+
+test('anyone on the team adds a reminder from its page', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindPage', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'rempage');
+  const title = `From the page ${RUN_ID}`;
+
+  const me = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+  const page = await me.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-reminders').click();
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+
+  await page.getByTestId('bwx-reminders-add').click();
+  await page.getByTestId('bwx-reminder-title').fill(title);
+  await page.getByTestId('bwx-reminder-client').selectOption(site.id);
+  await page.getByTestId(`bwx-reminder-person-${person.id}`).check();
+  await page.getByTestId('bwx-reminder-starts').fill(plus(today, 1));
+  await page.getByTestId('bwx-reminder-ends').fill(plus(today, 3));
+  await page.getByTestId('bwx-reminder-save').click();
+
+  const row = page.getByTestId('bwx-reminders-table').locator('tbody tr', { hasText: title });
+  await expect(row).toHaveCount(1, { timeout: 30_000 });
+  await expect(row).toContainText(client.display_name);
+  await expect(row).toContainText('0 of 1 done');
+
+  // Its author may edit it.
+  await expect(row.getByTestId('bwx-reminder-edit')).toBeVisible();
+  await page.close();
+});

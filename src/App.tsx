@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
@@ -14,6 +14,7 @@ import { PackagesScreen } from './components/PackagesScreen';
 import { PeopleScreen } from './components/PeopleScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { RecurringScreen } from './components/RecurringScreen';
+import { RemindersScreen } from './components/RemindersScreen';
 import { ReportsScreen } from './components/ReportsScreen';
 import { Signals } from './components/Signals';
 import { StandupScreen } from './components/StandupScreen';
@@ -64,6 +65,7 @@ const RAIL: Entry[] = [
   { key: 'work', view: 'calendar', label: 'Calendar', icon: CalendarDays, testId: 'bwx-screen-calendar' },
   { key: 'capacity', label: 'Capacity', icon: Gauge, testId: 'bwx-screen-capacity' },
   { key: 'recurring', label: 'Recurring tasks', icon: Repeat, testId: 'bwx-screen-recurring' },
+  { key: 'reminders', label: 'Reminders', icon: Bell, testId: 'bwx-screen-reminders' },
   { group: 'Clients' },
   { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
   { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
@@ -153,6 +155,7 @@ const TITLES: Record< ScreenName, string > = {
   standup: 'Daily standup',
   reports: 'Reports',
   recurring: 'Recurring tasks',
+  reminders: 'Reminders',
   subscriptions: 'Subscriptions',
   availability: 'Availability',
   packages: 'Support packages',
@@ -189,6 +192,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   standup: { crumbs: [ 'My day', 'Daily standup' ], eyebrow: 'Today', tile: Clock, hue: 'blue' },
   reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
   recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
+  reminders: { crumbs: [ 'Delivery', 'Reminders' ], eyebrow: 'On a day, or over a few', tile: Bell, hue: 'teal' },
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
@@ -394,6 +398,7 @@ export function App() {
         { 'standup' === screen && <StandupScreen key={ generation } /> }
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
+        { 'reminders' === screen && <RemindersScreen key={ generation } /> }
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
         { 'packages' === screen && <PackagesScreen key={ generation } /> }

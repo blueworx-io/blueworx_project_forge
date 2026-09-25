@@ -178,7 +178,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'support' | 'meetings' | 'profile';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'support' | 'meetings' | 'profile';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -483,6 +483,24 @@ export interface RecurringSource {
   record_version: number;
   last?: { due_on: string; work_item_id: string } | null;
   [ key: string ]: unknown;
+}
+
+/** A task on a fixed day or period, for one or more people (2026-09-25). */
+export interface Reminder {
+  id: string;
+  client_site_id: string;
+  client_id: string;
+  title: string;
+  description: string;
+  assignees: string[];
+  starts_on: string;
+  /** '' for a one-day reminder. */
+  ends_on: string;
+  record_version: number;
+  created_by: number;
+  /** Whether the signed-in person may change it: its author, or an administrator. */
+  can_edit: boolean;
+  copies: Array< { item_id: string; person: string; done: boolean } >;
 }
 
 /** A connected SureCart store, as the Subscriptions screen sees it (PR 4). */
