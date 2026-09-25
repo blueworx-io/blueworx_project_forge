@@ -772,8 +772,6 @@ export interface StandupList {
   generated: number;
   rules: string[];
   cards: StandupCard[];
-  /** Today's diary: chores, dates, meetings, renewals and who is away (2026-09-18). */
-  diary?: DiaryEntry[];
   /** Meetings that have happened and are not settled yet (2026-09-24). */
   to_settle?: Array< DiaryEntry & { site_id: string; series_id: string; slot: string; can_settle: boolean } >;
 }

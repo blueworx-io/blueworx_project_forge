@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.132.0] - 2026-09-26
+
+### Changed
+
+- Recurring tasks no longer have a checklist: one tick marks them done.
+- Today's diary is now on My tasks and shows only your own items.
+
 ## [2.131.1] - 2026-09-26
 
 ### Fixed

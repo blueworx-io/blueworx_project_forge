@@ -5,6 +5,7 @@ import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
+import { DiaryLine, useDiary } from './Diary';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
 
@@ -28,6 +29,11 @@ const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', reviewer: 'Checke
 const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
 const FINISHED = [ 'completed', 'released' ];
 const DAY = 86400000;
+
+/** Today, in the browser's own zone — the same today the due dates below use. */
+function todayISO(): string {
+  return new Date().toISOString().slice( 0, 10 );
+}
 
 /**
  * Whose move it is at a stage (2026-09-24): the reviewer's in review, the
@@ -105,6 +111,19 @@ export function MyTasksScreen() {
   const [ role, setRole ] = useState< string | null >( null );
   const [ client, setClient ] = useState< string | null >( null );
   const [ opened, setOpened ] = useState( '' );
+
+  /*
+   * Today's diary (#386): moved here from the standup, and narrowed to what
+   * is the signed-in person's — an entry for 'all' (a company day) or one
+   * that names them. The same feed the calendar draws, read for one day
+   * rather than the standup's heavier board.
+   */
+  const day = todayISO();
+  const diary = useDiary( day, day );
+  const myDiary = useMemo(
+    () => diary.entries.filter( ( entry ) => 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ),
+    [ diary.entries, me ]
+  );
 
   async function load() {
     try {
@@ -277,6 +296,21 @@ export function MyTasksScreen() {
           title="Your account is not a person in Forge yet"
           detail="Tasks are held by the studio's people. Somebody with access to the People screen can link your WordPress account to one."
         />
+      ) }
+
+      { /*
+          Today's diary (#386): the chores, dates, meetings, renewals and
+          absences that are yours today. Shown whenever there is one.
+       */ }
+      { 'ready' === state && 0 < myDiary.length && (
+        <section className="bwx-standup-diary" data-testid="bwx-mytasks-diary">
+          <p className="bwx-eyebrow">Today&apos;s diary</p>
+          <ul className="bwx-diary-lines">
+            { myDiary.map( ( entry ) => (
+              <DiaryLine key={ entry.id } entry={ entry } onOpen={ setOpened } />
+            ) ) }
+          </ul>
+        </section>
       ) }
 
       { 'ready' === state && (
