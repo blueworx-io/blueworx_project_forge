@@ -3467,6 +3467,21 @@ td[ data-band='over' ] {
 .bwx-standup-diary .bwx-diary-lines > .bwx-diary-line {
   border-top: 1px solid var( --border-subtle, var( --border-hairline ) );
 }
+/* Meetings to settle (2026-09-26, #381): one meeting to a row, what it is on
+   the left and its buttons on the right, so the buttons never sit over a
+   title. */
+.bwx-standup-settle .bwx-diary-lines {
+  display: flex;
+  flex-direction: column;
+}
+.bwx-standup-settle .bwx-diary-line {
+  align-items: center;
+}
+.bwx-standup-settle .bwx-diary-line > .bwx-moves {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-left: auto;
+}
 .bwx-calendar-diary[ data-tone='teal' ] { --entry-ink: var( --phase-pipeline-ink ); --entry-wash: var( --phase-pipeline-bg ); --entry-edge: var( --phase-pipeline-border ); }
 .bwx-calendar-diary[ data-tone='violet' ] { --entry-ink: var( --phase-idea-ink ); --entry-wash: var( --phase-idea-bg ); --entry-edge: var( --phase-idea-border ); }
 .bwx-calendar-diary[ data-tone='rose' ] { --entry-ink: var( --phase-exception-ink ); --entry-wash: var( --phase-exception-bg ); --entry-edge: var( --phase-exception-border ); }
