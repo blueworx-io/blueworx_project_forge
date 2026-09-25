@@ -181,6 +181,10 @@ final class Feed {
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		$out = array();
+		// A reminder makes one copy per person, so its rows share a
+		// recurring_id; gathered here and turned into one entry after the
+		// loop, rather than one entry per copy (2026-09-25).
+		$reminders = array();
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			// Read off the row rather than re-read per item: the standup asks
@@ -191,19 +195,26 @@ final class Feed {
 			$ticked = is_array( $ticks ) ? count( $ticks ) : 0;
 
 			if ( Reminders::is_reminder( (string) $row['recurring_id'] ) ) {
-				$due   = (string) $row['planned_due'];
-				$start = '' === (string) $row['planned_start'] ? $due : (string) $row['planned_start'];
+				$recurring_id = (string) $row['recurring_id'];
+				$due          = (string) $row['planned_due'];
+				$start        = '' === (string) $row['planned_start'] ? $due : (string) $row['planned_start'];
 
-				$out[] = self::entry(
-					'reminder',
-					(string) $row['id'],
-					$start,
-					$start === $due ? '' : $due,
-					(string) $row['title'],
-					0 < $ticked ? 'Done' : 'To do',
-					$people,
-					(string) $row['id']
-				);
+				if ( ! isset( $reminders[ $recurring_id ] ) ) {
+					$reminders[ $recurring_id ] = array(
+						'date'    => $start,
+						'ends_on' => $start === $due ? '' : $due,
+						'title'   => (string) $row['title'],
+						'item_id' => (string) $row['id'],
+						'people'  => array(),
+						'done'    => 0,
+						'total'   => 0,
+					);
+				}
+
+				$reminders[ $recurring_id ]['people'] = array_merge( $reminders[ $recurring_id ]['people'], $people );
+				++$reminders[ $recurring_id ]['total'];
+				$reminders[ $recurring_id ]['done'] += 0 < $ticked ? 1 : 0;
+
 				continue;
 			}
 
@@ -216,6 +227,30 @@ final class Feed {
 				array() === $people ? Stages::label( (string) $row['stage'] ) : sprintf( '%d of %d done', $ticked, count( $people ) ),
 				$people,
 				(string) $row['id']
+			);
+		}
+
+		foreach ( $reminders as $recurring_id => $reminder ) {
+			$done  = $reminder['done'];
+			$total = $reminder['total'];
+
+			if ( 0 === $done ) {
+				$detail = 'To do';
+			} elseif ( $done === $total ) {
+				$detail = 'Done';
+			} else {
+				$detail = sprintf( '%d of %d done', $done, $total );
+			}
+
+			$out[] = self::entry(
+				'reminder',
+				$recurring_id,
+				$reminder['date'],
+				$reminder['ends_on'],
+				$reminder['title'],
+				$detail,
+				array_values( array_unique( $reminder['people'] ) ),
+				$reminder['item_id']
 			);
 		}
 

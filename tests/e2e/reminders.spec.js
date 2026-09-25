@@ -133,4 +133,27 @@ test('the calendar shows a reminder as a Reminder, over its days', async ({ brow
   expect(single.kind).toBe('reminder');
   expect(single.ends_on).toBe('');
   expect(whole.entries.some((entry) => 'recurring' === entry.kind && entry.title.includes(RUN_ID))).toBe(false);
+
+  // A reminder for two people is one entry, not one per copy.
+  const one = await Forge.makePerson(admin.api, client.id, 'staff', 'remcalone');
+  const two = await Forge.makePerson(admin.api, client.id, 'staff', 'remcaltwo');
+  const pairTitle = `Pair ${RUN_ID}`;
+  const pairMade = await admin.api.post('/reminders', { client_site_id: site.id, title: pairTitle, assignees: [one.id, two.id], starts_on: plus(today, 1) });
+  expect(pairMade.status(), await pairMade.text()).toBe(200);
+
+  const beforeTick = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
+  const pairEntry = beforeTick.entries.find((entry) => entry.title === pairTitle);
+  expect(pairEntry.kind).toBe('reminder');
+  expect(pairEntry.people.sort()).toEqual([one.id, two.id].sort());
+  expect(pairEntry.detail).toBe('To do');
+
+  const work = await admin.api.get(`/work-items?client_site_id=${site.id}`);
+  const mine = work.items.find((item) => item.title === pairTitle && item.assignees[0] === one.id);
+  const asOne = await Forge.signedIn(browser, baseURL, one.login, Forge.PASSWORD);
+  const ticked = await asOne.api.post(`/work-items/${mine.id}/tick`, { done: true });
+  expect(ticked.status(), await ticked.text()).toBe(200);
+
+  const afterTick = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
+  const pairAfter = afterTick.entries.find((entry) => entry.title === pairTitle);
+  expect(pairAfter.detail).toBe('1 of 2 done');
 });
