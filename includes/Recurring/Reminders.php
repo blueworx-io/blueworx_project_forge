@@ -9,7 +9,11 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Recurring;
 
+use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Work\Fields;
+use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Stages;
+use Blueworx\Forge\Work\Transition;
 
 /**
  * Luke, 2026-09-25: "recurring tasks that don't have a recurrence, they are
@@ -157,5 +161,145 @@ final class Reminders {
 			'hours_each'       => 0.0,
 			'checklist'        => '[]',
 		);
+	}
+
+	/**
+	 * Makes a new reminder's copies, one per person, once. The start day is
+	 * claimed first, so two saves racing make one set.
+	 *
+	 * @param array<string, mixed> $source The reminder.
+	 * @return int How many copies were made.
+	 */
+	public static function make( array $source ): int {
+		if ( ! Occurrences::claim( (string) $source['id'], (string) $source['starts_on'] ) ) {
+			return 0;
+		}
+
+		$made = 0;
+
+		foreach ( (array) $source['assignees'] as $person ) {
+			$item = self::add( $source, (string) $person );
+
+			if ( null === $item ) {
+				continue;
+			}
+
+			if ( 0 === $made ) {
+				Occurrences::record_item( (string) $source['id'], (string) $source['starts_on'], (string) $item['id'] );
+			}
+
+			++$made;
+		}
+
+		return $made;
+	}
+
+	/**
+	 * Each reminder's copies still on the board, keyed by reminder id.
+	 *
+	 * @param array<int, string> $ids Reminder ids.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function copies_for( array $ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::work_items_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are counted above.
+		$found = $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$table} WHERE archived = 0 AND recurring_id IN ({$slots}) ORDER BY created_at ASC", $wanted ) );
+		$out   = array_fill_keys( $wanted, array() );
+
+		foreach ( is_array( $found ) ? $found : array() as $id ) {
+			$item = Items::get( (string) $id );
+
+			if ( null !== $item ) {
+				$out[ (string) $item['recurring_id'] ][] = $item;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Brings the copies nobody has ticked in line with an edited reminder: new
+	 * words and dates, a copy for anyone added, none for anyone removed.
+	 * Ticked copies are the record of what was done and are left alone.
+	 *
+	 * @param array<string, mixed> $source The reminder as it now stands.
+	 */
+	public static function sync( array $source ): void {
+		$people = array_map( 'strval', (array) $source['assignees'] );
+		$have   = array();
+
+		foreach ( self::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() as $item ) {
+			$person = (string) ( ( (array) $item['assignees'] )[0] ?? '' );
+			$have[] = $person;
+
+			if ( array() !== (array) $item['ticks'] ) {
+				continue;
+			}
+
+			if ( ! in_array( $person, $people, true ) ) {
+				Items::delete( (string) $item['id'] );
+				continue;
+			}
+
+			$values = self::values( $source, $person );
+
+			Items::update(
+				(string) $item['id'],
+				array_intersect_key( $values, array_flip( array( 'title', 'problem', 'planned_start', 'planned_due' ) ) ),
+				(int) $item['record_version']
+			);
+		}
+
+		foreach ( array_diff( $people, $have ) as $person ) {
+			self::add( $source, $person );
+		}
+	}
+
+	/**
+	 * Deletes a reminder: its unticked copies go, ticked ones stay, and the
+	 * reminder itself is ended rather than removed so they keep a source.
+	 *
+	 * @param array<string, mixed> $source The reminder.
+	 */
+	public static function remove( array $source ): void {
+		foreach ( self::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() as $item ) {
+			if ( array() === (array) $item['ticks'] ) {
+				Items::delete( (string) $item['id'] );
+			}
+		}
+
+		Sources::end( (string) $source['id'] );
+	}
+
+	/**
+	 * One person's copy, made and placed at Up Next.
+	 *
+	 * @param array<string, mixed> $source The reminder.
+	 * @param string               $person Person id.
+	 * @return array<string, mixed>|null
+	 */
+	private static function add( array $source, string $person ): ?array {
+		$author = (int) ( $source['created_by'] ?? 0 );
+		$item   = Items::create( (string) $source['client_site_id'], (string) $source['client_id'], self::values( $source, $person ), $author );
+
+		if ( null === $item ) {
+			return null;
+		}
+
+		Transition::record_creation( $item, $author );
+		/* translators: %s: a date */
+		Transition::place( $item, Stages::UP_NEXT, $author, sprintf( __( 'Reminder for %s', 'blueworx-forge' ), (string) $source['starts_on'] ) );
+
+		return $item;
 	}
 }

@@ -271,4 +271,21 @@ final class RecurringController {
 
 		return '' === $id ? null : ClientSites::get( $id );
 	}
+
+	/**
+	 * A client site the caller reaches, or null (2026-09-25): where a
+	 * recurring task or a reminder may be put.
+	 *
+	 * @param string $site_id Site id.
+	 * @return array<string, mixed>|null
+	 */
+	public static function site_for( string $site_id ): ?array {
+		if ( '' === $site_id ) {
+			return null;
+		}
+
+		$site = ClientSites::get( $site_id );
+
+		return null !== $site && Reach::reaches_site( Boundary::current(), (string) $site['client_id'], (string) $site['id'] ) ? $site : null;
+	}
 }

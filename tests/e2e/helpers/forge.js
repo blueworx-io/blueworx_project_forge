@@ -49,6 +49,7 @@ export function forge(request, nonce) {
     post: (path, data) => request.post(`${BASE}${path}`, { headers, data }),
     patch: (path, data) => request.patch(`${BASE}${path}`, { headers, data }),
     put: (path, data) => request.put(`${BASE}${path}`, { headers, data }),
+    del: (path) => request.delete(`${BASE}${path}`, { headers }),
   };
 }
 
