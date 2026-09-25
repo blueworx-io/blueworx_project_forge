@@ -215,7 +215,8 @@ export function MyTasksScreen() {
             </button>
             { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
           </span>
-          { /* Your tick, beneath the title (2026-09-19), with the checklist's state beside it. */ }
+          { /* Your tick, beneath the title (2026-09-19). A recurring task has
+                no checklist to show beside it (#382): one tick finishes it. */ }
           { 'assignee' === r.role && (
             <span className="bwx-mytasks-under">
               <label className="bwx-mytasks-tick">
@@ -229,13 +230,6 @@ export function MyTasksScreen() {
                 <span>Done</span>
                 <span className="bwx-mono bwx-mytasks-count">{ `${ Object.keys( r.item.ticks ?? {} ).length } of ${ r.item.assignees.length }` }</span>
               </label>
-              { 0 < ( r.item.checklist?.length ?? 0 ) && (
-                <span className="bwx-mytasks-checklist" data-testid="bwx-mytasks-checklist">
-                  <Tag tone={ r.item.checklist.every( ( row ) => row.done ) ? 'ok' : 'neutral' }>
-                    { `Checklist ${ r.item.checklist.filter( ( row ) => row.done ).length }/${ r.item.checklist.length }` }
-                  </Tag>
-                </span>
-              ) }
             </span>
           ) }
         </span>

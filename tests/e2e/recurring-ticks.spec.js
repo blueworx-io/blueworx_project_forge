@@ -84,22 +84,27 @@ test('two people on a weekday chore get a copy each, and each finishes their own
   expect(forged.status()).toBe(403);
   await asOne.context.close();
 
-  // A checklist with a line open holds it (2026-09-19).
+  // A checklist line left open no longer holds the tick (#382): one tick
+  // finishes a recurring copy, checklist and all.
   const asTwo = await Forge.signedIn(browser, baseURL, two.login, Forge.PASSWORD);
   const listed = await admin.api.patch(`/work-items/${theirs.id}`, {
     checklist: [{ text: 'Archive the old threads', done: false }],
     record_version: (await admin.api.get(`/work-items/${theirs.id}`)).item.record_version,
   });
   expect(listed.status(), await listed.text()).toBe(200);
-  const held = await asTwo.api.post(`/work-items/${theirs.id}/tick`, { done: true });
-  expect(held.status()).toBe(409);
-  await admin.api.patch(`/work-items/${theirs.id}`, {
-    checklist: [{ text: 'Archive the old threads', done: true }],
-    record_version: (await admin.api.get(`/work-items/${theirs.id}`)).item.record_version,
-  });
+  const ticked = await asTwo.api.post(`/work-items/${theirs.id}/tick`, { done: true });
+  expect(ticked.status(), await ticked.text()).toBe(200);
+  expect((await ticked.json()).item.stage).toBe('released');
+  // The checklist line itself is untouched: ticking the chore does not tick it.
+  expect((await admin.api.get(`/work-items/${theirs.id}`)).item.checklist).toEqual([
+    { text: 'Archive the old threads', done: false },
+  ]);
+
+  // Undone, so the panel check below can tick it again from the screen.
+  await admin.api.post(`/work-items/${theirs.id}/tick`, { user_id: two.id, done: false });
 
   // The second person opens theirs: no list of people, no who-and-when, and
-  // a Done on the right that finishes it.
+  // a Done on the right that finishes it, checklist line still open.
   const panel = await asTwo.context.newPage();
   await panel.goto(`/blueworx-forge/#item=${theirs.id}`);
   await expect(panel.getByTestId('bwx-panel')).toBeVisible({ timeout: 30_000 });

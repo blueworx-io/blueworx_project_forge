@@ -61,7 +61,6 @@ final class MaterialiseTest extends TestCase {
 			array(
 				'assignees'  => array( 'usr_x', 'usr_y' ),
 				'hours_each' => 0.5,
-				'checklist'  => array( array( 'text' => 'Check the log', 'done' => false ) ),
 			)
 		);
 
@@ -71,7 +70,25 @@ final class MaterialiseTest extends TestCase {
 		self::assertSame( array( 'usr_x' ), $copies[0]['assignees'] );
 		self::assertSame( array( 'usr_y' ), $copies[1]['assignees'] );
 		self::assertSame( 0.5, $copies[1]['hours_each'] );
-		self::assertSame( $copies[0]['checklist'], $copies[1]['checklist'] );
+	}
+
+	/**
+	 * A recurring task carries no checklist (#382): every copy starts with
+	 * an empty one, whatever the source (even an old one still holding
+	 * checklist lines from before this changed) says.
+	 */
+	public function test_a_copy_never_carries_a_checklist(): void {
+		$source = array_merge(
+			$this->source(),
+			array(
+				'assignees' => array( 'usr_x' ),
+				'checklist' => array( array( 'text' => 'Check the log', 'done' => false ) ),
+			)
+		);
+
+		$copies = Materialise::copies( $source, '2026-09-14' );
+
+		self::assertSame( '[]', $copies[0]['checklist'] );
 	}
 
 	/**

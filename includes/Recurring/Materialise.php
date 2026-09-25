@@ -226,8 +226,9 @@ final class Materialise {
 			// Who does it, each ticking their own (2026-09-18).
 			'assignees'        => $assignees,
 			'hours_each'       => $each,
-			// The checklist it starts with, every line open (2026-09-19).
-			'checklist'        => (string) wp_json_encode( array_values( (array) ( $source['checklist'] ?? array() ) ) ),
+			// A recurring task carries no checklist (#382): one tick finishes
+			// it, so every copy starts with an empty one.
+			'checklist'        => '[]',
 		);
 	}
 

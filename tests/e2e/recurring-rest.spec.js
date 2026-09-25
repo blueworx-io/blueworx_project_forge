@@ -33,7 +33,8 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
     starts_on: today,
     assignees: [person.id],
     hours_each: '0.5',
-    // The checklist every task starts with (2026-09-19).
+    // A checklist is no longer accepted on a recurring task (#382): sent
+    // anyway, it is dropped and ignored.
     checklist: [{ text: 'Open it' }, { text: 'Read it' }],
     client_site_id: studio.id,
   });
@@ -56,7 +57,9 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
   expect(tasks[0].planned_due).toBe(today);
   expect(tasks[0].problem).toBe('<p>Look at the thing.</p>');
   expect(tasks[0].hours_each).toBe(0.5);
-  expect(tasks[0].checklist).toEqual([{ text: 'Open it', done: false }, { text: 'Read it', done: false }]);
+  // Dropped, not stored: a recurring copy carries no checklist (#382).
+  expect(tasks[0].checklist).toEqual([]);
+  expect(source.checklist).toEqual([]);
 
   // The days ahead count against the person before their tasks exist.
   const ahead = new Date(`${today}T12:00:00Z`);

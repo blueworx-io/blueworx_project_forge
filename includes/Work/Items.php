@@ -429,23 +429,6 @@ final class Items {
 	}
 
 	/**
-	 * Whether every line of the checklist is ticked. No list is a complete
-	 * one.
-	 *
-	 * @param array<string, mixed> $item The item.
-	 * @return bool
-	 */
-	public static function checklist_complete( array $item ): bool {
-		foreach ( (array) ( $item['checklist'] ?? array() ) as $row ) {
-			if ( empty( $row['done'] ) ) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
 	 * A stored list of ids.
 	 *
 	 * @param string $stored JSON, or nothing.

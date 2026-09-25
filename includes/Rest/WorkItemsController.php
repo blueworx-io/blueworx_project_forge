@@ -1628,12 +1628,8 @@ final class WorkItemsController {
 			return Errors::rest( 'not_assigned', __( 'Only somebody assigned to this task ticks it off.', 'blueworx-forge' ), 403 );
 		}
 
-		// The checklist comes first (2026-09-19): a task with lines still
-		// open is not done, whoever says so.
-		if ( ! empty( $body['done'] ) && ! Items::checklist_complete( $item ) ) {
-			return Errors::rest( 'checklist_open', __( 'Tick every line of the checklist first.', 'blueworx-forge' ), 409 );
-		}
-
+		// A recurring task carries no checklist (#382): one tick finishes
+		// that person's copy, whatever an existing copy's checklist says.
 		$ticked = Items::tick( (string) $item['id'], $who, ! empty( $body['done'] ) );
 
 		if ( null === $ticked ) {

@@ -63,28 +63,8 @@ final class Validate {
 			}
 		}
 
-		// The checklist every task starts with: optional, up to ten lines.
-		if ( array_key_exists( 'checklist', $input ) ) {
-			$lines = array();
-
-			foreach ( is_array( $input['checklist'] ) ? $input['checklist'] : array() as $line ) {
-				$text = trim( (string) ( is_array( $line ) ? ( $line['text'] ?? '' ) : $line ) );
-
-				if ( '' !== $text ) {
-					$lines[] = array(
-						'text' => mb_substr( $text, 0, Fields::CHECKLIST_LINE ),
-						'done' => false,
-					);
-				}
-			}
-
-			if ( count( $lines ) > Fields::CHECKLIST_ROWS ) {
-				$errors['checklist'] = 'A checklist holds at most ' . Fields::CHECKLIST_ROWS . ' items.';
-			} else {
-				$values['checklist'] = $lines;
-			}
-		}
-
+		// A recurring task carries no checklist (#382): a checklist sent in
+		// is dropped and ignored, whether adding or editing.
 		if ( ! $partial || array_key_exists( 'work_type', $input ) ) {
 			$type = trim( (string) ( $input['work_type'] ?? Types::TASK ) );
 
