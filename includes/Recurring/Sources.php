@@ -75,6 +75,7 @@ final class Sources {
 	private const WRITABLE = array(
 		'title',
 		'description',
+		'category',
 		'work_type',
 		'primary_user_id',
 		'reviewer_id',
@@ -113,6 +114,7 @@ final class Sources {
 			array(
 				'title'           => '',
 				'description'     => '',
+				'category'        => '',
 				'work_type'       => 'task',
 				'primary_user_id' => '',
 				'reviewer_id'     => '',
@@ -441,6 +443,7 @@ final class Sources {
 			'client_id'       => (string) $row['client_id'],
 			'title'           => (string) $row['title'],
 			'description'     => (string) $row['description'],
+			'category'        => (string) ( $row['category'] ?? '' ),
 			'work_type'       => (string) $row['work_type'],
 			'primary_user_id' => (string) $row['primary_user_id'],
 			'reviewer_id'     => (string) $row['reviewer_id'],

@@ -249,6 +249,7 @@ final class RemindersController {
 			'client_site_id' => (string) $source['client_site_id'],
 			'client_id'      => (string) $source['client_id'],
 			'title'          => (string) $source['title'],
+			'category'       => '' === (string) $source['category'] ? 'general' : (string) $source['category'],
 			'description'    => (string) $source['description'],
 			'assignees'      => (array) $source['assignees'],
 			'starts_on'      => (string) $source['starts_on'],

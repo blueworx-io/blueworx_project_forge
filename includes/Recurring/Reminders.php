@@ -35,6 +35,17 @@ final class Reminders {
 	public const ENDS_EARLY = 'The end date is before the start date.';
 
 	/**
+	 * What kind of reminder it is (2026-09-25), and what each is called.
+	 */
+	public const CATEGORIES = array(
+		'general'   => 'General',
+		'campaign'  => 'Campaign',
+		'marketing' => 'Marketing',
+		'deadline'  => 'Deadline',
+		'other'     => 'Other',
+	);
+
+	/**
 	 * Checks a reminder. The client is checked by the route, which knows the
 	 * caller's reach.
 	 *
@@ -61,6 +72,17 @@ final class Reminders {
 		// Notes are optional.
 		if ( array_key_exists( 'description', $input ) ) {
 			$values['description'] = trim( wp_kses( (string) $input['description'], Fields::ALLOWED_HTML ) );
+		}
+
+		// Its type (2026-09-25): General unless somebody picks another.
+		if ( ! $partial || array_key_exists( 'category', $input ) ) {
+			$category = trim( (string) ( $input['category'] ?? 'general' ) );
+
+			if ( ! array_key_exists( $category, self::CATEGORIES ) ) {
+				$errors['category'] = 'Pick a type.';
+			} else {
+				$values['category'] = $category;
+			}
 		}
 
 		if ( ! $partial || array_key_exists( 'assignees', $input ) ) {

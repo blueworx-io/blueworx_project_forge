@@ -86,4 +86,12 @@ final class RemindersTest extends TestCase {
 		self::assertFalse( Reminders::is_reminder( 'rec_0001abc' ) );
 		self::assertFalse( Reminders::is_reminder( '' ) );
 	}
+
+	public function test_the_type_defaults_to_general_and_must_be_one_of_five(): void {
+		self::assertSame( 'general', Reminders::validate( $this->good(), false )['values']['category'] );
+		self::assertSame( 'deadline', Reminders::validate( array_merge( $this->good(), array( 'category' => 'deadline' ) ), false )['values']['category'] );
+		self::assertSame( 'Pick a type.', Reminders::validate( array_merge( $this->good(), array( 'category' => 'party' ) ), false )['errors']['category'] );
+		self::assertArrayNotHasKey( 'category', Reminders::validate( array( 'title' => 'Only the title' ), true )['values'] );
+		self::assertSame( array( 'general', 'campaign', 'marketing', 'deadline', 'other' ), array_keys( Reminders::CATEGORIES ) );
+	}
 }

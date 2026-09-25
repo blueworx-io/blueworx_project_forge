@@ -492,6 +492,7 @@ export interface Reminder {
   client_id: string;
   title: string;
   description: string;
+  category: 'general' | 'campaign' | 'marketing' | 'deadline' | 'other';
   assignees: string[];
   starts_on: string;
   /** '' for a one-day reminder. */

@@ -17,6 +17,7 @@ use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Meetings\Series;
 use Blueworx\Forge\Recurring\Reminders;
+use Blueworx\Forge\Recurring\Sources;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
@@ -241,6 +242,11 @@ final class Feed {
 			} else {
 				$detail = sprintf( '%d of %d done', $done, $total );
 			}
+
+			// Its type leads the detail (2026-09-25), read once per reminder.
+			$source = Sources::get( $recurring_id );
+			$type   = Reminders::CATEGORIES[ (string) ( $source['category'] ?? '' ) ] ?? Reminders::CATEGORIES['general'];
+			$detail = $type . ' · ' . $detail;
 
 			$out[] = self::entry(
 				'reminder',

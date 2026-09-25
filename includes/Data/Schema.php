@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 32;
+	public const VERSION = 33;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1455,6 +1455,7 @@ final class Schema {
 			$recurring        => "CREATE TABLE {$recurring} (
 	id varchar(32) NOT NULL,
 	kind varchar(20) NOT NULL DEFAULT 'schedule',
+	category varchar(20) NOT NULL DEFAULT '',
 	client_site_id varchar(32) NOT NULL,
 	client_id varchar(32) NOT NULL,
 	title varchar(191) NOT NULL DEFAULT '',

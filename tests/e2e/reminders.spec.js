@@ -33,6 +33,17 @@ test('a three-day reminder gives each person a copy, and edits reach only the un
   const reminder = (await made.json()).reminder;
   expect(reminder.id.startsWith('rem_')).toBe(true);
   expect(reminder.copies).toHaveLength(2);
+  expect(reminder.category).toBe('general');
+
+  const badType = await admin.api.post('/reminders', {
+    client_site_id: site.id,
+    title: `Bad type ${RUN_ID}`,
+    assignees: [one.id],
+    starts_on: today,
+    category: 'party',
+  });
+  expect(badType.status()).toBe(400);
+  expect((await badType.json()).data.fields.category).toBe('Pick a type.');
 
   const work = await admin.api.get(`/work-items?client_site_id=${site.id}`);
   const tasks = work.items.filter((item) => item.title === title);
@@ -113,8 +124,12 @@ test('the calendar shows a reminder as a Reminder, over its days', async ({ brow
   const today = (await admin.api.get('/standup')).today;
   const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remcal');
 
-  for (const [title, ends] of [[`Span ${RUN_ID}`, plus(today, 2)], [`One day ${RUN_ID}`, '']]) {
-    const made = await admin.api.post('/reminders', { client_site_id: site.id, title, assignees: [person.id], starts_on: plus(today, 1), ends_on: ends });
+  for (const [title, ends, category] of [[`Span ${RUN_ID}`, plus(today, 2), 'campaign'], [`One day ${RUN_ID}`, '', undefined]]) {
+    const body = { client_site_id: site.id, title, assignees: [person.id], starts_on: plus(today, 1), ends_on: ends };
+    if (category) {
+      body.category = category;
+    }
+    const made = await admin.api.post('/reminders', body);
     expect(made.status(), await made.text()).toBe(200);
   }
 
@@ -126,12 +141,13 @@ test('the calendar shows a reminder as a Reminder, over its days', async ({ brow
   expect(span[0].label).toBe('Reminder');
   expect(span[0].date).toBe(plus(today, 1));
   expect(span[0].ends_on).toBe(plus(today, 2));
-  expect(span[0].detail).toBe('To do');
+  expect(span[0].detail).toBe('Campaign · To do');
 
   const whole = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
   const single = whole.entries.find((entry) => entry.title === `One day ${RUN_ID}`);
   expect(single.kind).toBe('reminder');
   expect(single.ends_on).toBe('');
+  expect(single.detail).toBe('General · To do');
   expect(whole.entries.some((entry) => 'recurring' === entry.kind && entry.title.includes(RUN_ID))).toBe(false);
 
   // A reminder for two people is one entry, not one per copy.
@@ -145,7 +161,7 @@ test('the calendar shows a reminder as a Reminder, over its days', async ({ brow
   const pairEntry = beforeTick.entries.find((entry) => entry.title === pairTitle);
   expect(pairEntry.kind).toBe('reminder');
   expect(pairEntry.people.sort()).toEqual([one.id, two.id].sort());
-  expect(pairEntry.detail).toBe('To do');
+  expect(pairEntry.detail).toBe('General · To do');
 
   const work = await admin.api.get(`/work-items?client_site_id=${site.id}`);
   const mine = work.items.find((item) => item.title === pairTitle && item.assignees[0] === one.id);
@@ -155,7 +171,7 @@ test('the calendar shows a reminder as a Reminder, over its days', async ({ brow
 
   const afterTick = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
   const pairAfter = afterTick.entries.find((entry) => entry.title === pairTitle);
-  expect(pairAfter.detail).toBe('1 of 2 done');
+  expect(pairAfter.detail).toBe('General · 1 of 2 done');
 });
 
 test('in My tasks a reminder waits by its start, then sits in Today until ticked', async ({ browser, baseURL }) => {
@@ -221,12 +237,14 @@ test('anyone on the team adds a reminder from its page', async ({ browser, baseU
   await page.getByTestId(`bwx-reminder-person-${person.id}`).check();
   await page.getByTestId('bwx-reminder-starts').fill(plus(today, 1));
   await page.getByTestId('bwx-reminder-ends').fill(plus(today, 3));
+  await page.getByTestId('bwx-reminder-category').selectOption('deadline');
   await page.getByTestId('bwx-reminder-save').click();
 
   const row = page.getByTestId('bwx-reminders-table').locator('tbody tr', { hasText: title });
   await expect(row).toHaveCount(1, { timeout: 30_000 });
   await expect(row).toContainText(client.display_name);
   await expect(row).toContainText('0 of 1 done');
+  await expect(row).toContainText('Deadline');
 
   // Its author may edit it.
   await expect(row.getByTestId('bwx-reminder-edit')).toBeVisible();

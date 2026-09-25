@@ -19,9 +19,18 @@ import { Screen } from './States';
 
 type Site = ClientSite & { client_name: string };
 
+const CATEGORIES: Array< { id: Reminder[ 'category' ]; label: string } > = [
+  { id: 'general', label: 'General' },
+  { id: 'campaign', label: 'Campaign' },
+  { id: 'marketing', label: 'Marketing' },
+  { id: 'deadline', label: 'Deadline' },
+  { id: 'other', label: 'Other' },
+];
+
 interface Draft {
   title: string;
   description: string;
+  category: Reminder[ 'category' ];
   client_site_id: string;
   assignees: string[];
   starts_on: string;
@@ -35,13 +44,14 @@ function today(): string {
 }
 
 function blank(): Draft {
-  return { title: '', description: '', client_site_id: '', assignees: [], starts_on: today(), ends_on: '' };
+  return { title: '', description: '', category: 'general', client_site_id: '', assignees: [], starts_on: today(), ends_on: '' };
 }
 
 function fromReminder( reminder: Reminder ): Draft {
   return {
     title: reminder.title,
     description: reminder.description,
+    category: reminder.category,
     client_site_id: reminder.client_site_id,
     assignees: reminder.assignees,
     starts_on: reminder.starts_on,
@@ -138,6 +148,7 @@ export function RemindersScreen() {
           r.title
         ),
     },
+    { key: 'category', label: 'Type', width: 120, sortBy: ( r ) => r.category, render: ( r ) => CATEGORIES.find( ( one ) => one.id === r.category )?.label ?? 'General' },
     { key: 'client', label: 'Client', width: 200, sortBy: ( r ) => client( r.client_site_id ), render: ( r ) => client( r.client_site_id ) },
     { key: 'who', label: 'Who', width: 200, wrap: true, render: ( r ) => r.assignees.map( name ).join( ', ' ) },
     { key: 'when', label: 'When', width: 150, sortBy: ( r ) => r.starts_on, render: ( r ) => when( r ) },
@@ -239,6 +250,7 @@ function ReminderForm( {
     const body = {
       title: draft.title,
       description: draft.description,
+      category: draft.category,
       assignees: draft.assignees,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on,
@@ -287,6 +299,17 @@ function ReminderForm( {
       <div className="bwx-field">
         <label htmlFor="bwx-reminder-title">Title</label>
         <input id="bwx-reminder-title" className="bwx-input" data-testid="bwx-reminder-title" autoFocus value={ draft.title } onChange={ ( event ) => set( 'title', event.target.value ) } />
+      </div>
+
+      <div className="bwx-field">
+        <label htmlFor="bwx-reminder-category">Type</label>
+        <select id="bwx-reminder-category" className="bwx-select" data-testid="bwx-reminder-category" value={ draft.category } onChange={ ( event ) => set( 'category', event.target.value as Reminder[ 'category' ] ) }>
+          { CATEGORIES.map( ( option ) => (
+            <option key={ option.id } value={ option.id }>
+              { option.label }
+            </option>
+          ) ) }
+        </select>
       </div>
 
       <div className="bwx-field">
