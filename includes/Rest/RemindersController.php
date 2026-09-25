@@ -11,16 +11,28 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Recurring\Reminders;
 use Blueworx\Forge\Recurring\Sources;
+use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
 
 /**
  * Reminders (2026-09-25): a task on a day or over a few, for one or more
  * people, on a client's site. Anyone on the team adds one on a site they
  * reach; its author or an administrator changes or deletes it.
+ *
+ * "The team" is the studio's. A reminder makes work items, so the route asks
+ * for the same create-work capability the work-item route does, and a
+ * client's own people, who reach their site, still add nothing to it.
  */
 final class RemindersController {
+
+	/**
+	 * The refusal for somebody who does not reach the reminder's site.
+	 */
+	private const OFF_CLIENT = 'Everyone on a reminder must work on its client.';
 
 	/**
 	 * Registers this controller's routes.
@@ -122,6 +134,18 @@ final class RemindersController {
 			$checked['errors']['client_site_id'] = 'Choose a client.';
 		}
 
+		if ( null !== $site ) {
+			$refused = Access::refuse_unless( Capabilities::CREATE_WORK_ITEM, (string) $site['client_id'] );
+
+			if ( null !== $refused ) {
+				return $refused;
+			}
+
+			if ( isset( $checked['values']['assignees'] ) && ! self::all_reach( $checked['values']['assignees'], $site ) ) {
+				$checked['errors']['assignees'] = self::OFF_CLIENT;
+			}
+		}
+
 		if ( array() !== $checked['errors'] || null === $site ) {
 			return self::invalid( $checked['errors'] );
 		}
@@ -160,6 +184,16 @@ final class RemindersController {
 
 		if ( ! isset( $checked['errors']['ends_on'] ) && '' !== $ends && $ends < $starts ) {
 			$checked['errors']['ends_on'] = Reminders::ENDS_EARLY;
+		}
+
+		// An edit never moves a reminder's site, so anyone named is checked
+		// against the one it is already on.
+		if ( isset( $checked['values']['assignees'] ) ) {
+			$site = ClientSites::get( (string) $source['client_site_id'] );
+
+			if ( null === $site || ! self::all_reach( $checked['values']['assignees'], $site ) ) {
+				$checked['errors']['assignees'] = self::OFF_CLIENT;
+			}
 		}
 
 		if ( array() !== $checked['errors'] ) {
@@ -217,11 +251,51 @@ final class RemindersController {
 			return Boundary::hidden( 'reminder' );
 		}
 
+		// Changing work on a site is no more a client's than adding it.
+		$refused = Access::refuse_unless( Capabilities::CREATE_WORK_ITEM, (string) $source['client_id'] );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
 		if ( ! self::may_edit( $source ) ) {
 			return Errors::rest( 'not_yours', __( 'Only whoever added this reminder, or an administrator, can change it.', 'blueworx-forge' ), 403 );
 		}
 
 		return $source;
+	}
+
+	/**
+	 * Whether everybody named reaches the site: the test the boundary puts to
+	 * whoever is asking, put to each person instead. Somebody who cannot see
+	 * the site would never see their copy, and a reminder nobody sees is the
+	 * one thing the feature exists to prevent.
+	 *
+	 * @param array<int, string>   $people Person ids.
+	 * @param array<string, mixed> $site   The site.
+	 * @return bool
+	 */
+	private static function all_reach( array $people, array $site ): bool {
+		foreach ( $people as $id ) {
+			$person = Users::get( (string) $id );
+
+			if ( null === $person || 'active' !== (string) $person['status'] ) {
+				return false;
+			}
+
+			// The studio's own administrator reaches everything, as in
+			// Boundary::for_user(), which only answers for the current user.
+			$wp_user = (int) $person['wp_user_id'];
+			$reach   = $wp_user > 0 && user_can( $wp_user, 'manage_options' )
+				? Reach::everything()
+				: Reach::for_memberships( Memberships::for_user( (string) $person['id'] ), (string) $person['grants'] );
+
+			if ( ! Reach::reaches_site( $reach, (string) $site['client_id'], (string) $site['id'] ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

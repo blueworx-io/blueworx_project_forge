@@ -13,6 +13,7 @@ use Blueworx\Forge\Recurring\Materialise;
 use Blueworx\Forge\Recurring\Occurrences;
 use Blueworx\Forge\Recurring\Sources;
 use Blueworx\Forge\Recurring\Validate;
+use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Studio;
@@ -20,8 +21,9 @@ use WP_REST_Request;
 
 /**
  * Recurring tasks sit on a client's site the administrator chooses
- * (2026-09-25); the studio's own site is one of the choices. Reading is
- * limited to the sites the caller reaches; writing is the administrator's.
+ * (2026-09-25); the studio's own site is one of the choices. Reading is the
+ * studio's own people's, limited to the sites they reach; writing is the
+ * administrator's. Reminders share the table and are none of this route's.
  */
 final class RecurringController {
 
@@ -40,7 +42,7 @@ final class RecurringController {
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
-					'reason' => 'Lists only the recurring tasks on sites the caller reaches.',
+					'reason' => 'Lists only the recurring tasks on sites the caller reaches, and only to the studio\'s own people.',
 				),
 			)
 		);
@@ -103,7 +105,10 @@ final class RecurringController {
 	public static function index() {
 		$reach = Boundary::current();
 
-		if ( Reach::is_nothing( $reach ) ) {
+		// The studio's own business: a schedule carries its people, hours and
+		// internal notes, so a client's own people, who reach their site, get
+		// the answer somebody who reaches nothing gets.
+		if ( Reach::is_nothing( $reach ) || ! Access::allows_anywhere( Capabilities::VIEW_INTERNAL_NOTES ) ) {
 			return rest_ensure_response(
 				array(
 					'ok'      => true,
@@ -183,7 +188,7 @@ final class RecurringController {
 	public static function update( WP_REST_Request $request ) {
 		$source = Sources::get( (string) $request['recurring_id'] );
 
-		if ( null === $source || Sources::ENDED === (string) $source['status'] ) {
+		if ( null === $source || Sources::ENDED === (string) $source['status'] || Sources::REMINDER === (string) $source['kind'] ) {
 			return Boundary::absent( 'recurring' );
 		}
 
@@ -238,7 +243,9 @@ final class RecurringController {
 	public static function end( WP_REST_Request $request ) {
 		$source = Sources::get( (string) $request['recurring_id'] );
 
-		if ( null === $source ) {
+		// A reminder shares the table and is changed only through /reminders,
+		// which keeps its copies in step; here it is not a recurring task.
+		if ( null === $source || Sources::REMINDER === (string) $source['kind'] ) {
 			return Boundary::absent( 'recurring' );
 		}
 

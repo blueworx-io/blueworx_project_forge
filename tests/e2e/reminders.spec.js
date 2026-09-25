@@ -250,3 +250,62 @@ test('anyone on the team adds a reminder from its page', async ({ browser, baseU
   await expect(row.getByTestId('bwx-reminder-edit')).toBeVisible();
   await page.close();
 });
+
+test('only staff add a reminder, and only for people on its client', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindWho', RUN_ID);
+  const elsewhere = await Forge.makeSite(admin.api, 'RemindWhoElse', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const staff = await Forge.makePerson(admin.api, client.id, 'staff', 'remwhostaff');
+  const outsider = await Forge.makePerson(admin.api, elsewhere.client.id, 'staff', 'remwhoout');
+  const offClient = 'Everyone on a reminder must work on its client.';
+
+  // A client's own people reach their site, and still add no work to it.
+  for (const role of ['client_viewer', 'client_admin']) {
+    const theirs = await Forge.makePerson(admin.api, client.id, role, `remwho${role.replace('_', '')}`);
+    const asThem = await Forge.signedIn(browser, baseURL, theirs.login, Forge.PASSWORD);
+    const refused = await asThem.api.post('/reminders', { client_site_id: site.id, title: `Not theirs ${RUN_ID}`, assignees: [staff.id], starts_on: today });
+    expect(refused.status(), `${role}: ${await refused.text()}`).toBe(403);
+
+    // Recurring tasks are the studio's own business, not a client's.
+    const recurring = await asThem.api.get('/recurring');
+    expect(recurring.denied, role).toBe(true);
+    expect(recurring.sources, role).toEqual([]);
+    await asThem.context.close();
+  }
+
+  // Nobody off the client, and nobody who does not exist, is put on one.
+  for (const assignees of [[staff.id, outsider.id], ['usr_nobody0000']]) {
+    const refused = await admin.api.post('/reminders', { client_site_id: site.id, title: `Off client ${RUN_ID}`, assignees, starts_on: today });
+    expect(refused.status(), await refused.text()).toBe(400);
+    expect((await refused.json()).data.fields.assignees).toBe(offClient);
+  }
+
+  const made = await admin.api.post('/reminders', { client_site_id: site.id, title: `On client ${RUN_ID}`, assignees: [staff.id], starts_on: today });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+
+  const moved = await admin.api.patch(`/reminders/${reminder.id}`, { assignees: [outsider.id], record_version: reminder.record_version });
+  expect(moved.status(), await moved.text()).toBe(400);
+  expect((await moved.json()).data.fields.assignees).toBe(offClient);
+
+  // Staff on another client cannot change or delete it.
+  const asOutsider = await Forge.signedIn(browser, baseURL, outsider.login, Forge.PASSWORD);
+  const patched = await asOutsider.api.patch(`/reminders/${reminder.id}`, { title: 'Mine now', record_version: reminder.record_version });
+  expect(patched.status()).toBe(404);
+  const deleted = await asOutsider.api.del(`/reminders/${reminder.id}`);
+  expect(deleted.status()).toBe(404);
+  await asOutsider.context.close();
+
+  // A reminder is changed through /reminders, never /recurring.
+  const viaRecurring = await admin.api.patch(`/recurring/${reminder.id}`, { title: 'Sideways', record_version: reminder.record_version });
+  expect(viaRecurring.status()).toBe(404);
+  const endedViaRecurring = await admin.api.del(`/recurring/${reminder.id}`);
+  expect(endedViaRecurring.status()).toBe(404);
+
+  const still = (await admin.api.get('/reminders')).reminders.find((one) => one.id === reminder.id);
+  expect(still.title).toBe(`On client ${RUN_ID}`);
+  expect(still.copies).toHaveLength(1);
+});
