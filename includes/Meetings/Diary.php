@@ -299,33 +299,45 @@ final class Diary {
 	 * this for every running series at once, and a query each would make the
 	 * capacity screen cost a round trip per client with a standing meeting.
 	 *
-	 * Unscoped, for the reason {@see Series::running_between()} gives.
+	 * Unscoped when no sites are named, for the reason
+	 * {@see Series::running_between()} gives. A caller that only wants some
+	 * sites names them (2026-09-26, #388), and gets only theirs: the standup
+	 * and the hours sweep read one studio's or one site's meetings, and every
+	 * client's rows were read and thrown away.
 	 *
-	 * @param string $from YYYY-MM-DD, inclusive.
-	 * @param string $to   YYYY-MM-DD, inclusive.
+	 * @param string                  $from     YYYY-MM-DD, inclusive.
+	 * @param string                  $to       YYYY-MM-DD, inclusive.
+	 * @param array<int, string>|null $site_ids Only these sites; null for every site.
 	 * @return array<string, array<int, array<string, mixed>>> Keyed by series id.
 	 */
-	public static function stored_between( string $from, string $to ): array {
+	public static function stored_between( string $from, string $to, ?array $site_ids = null ): array {
 		global $wpdb;
 
 		if ( '' === $from || '' === $to || $to < $from ) {
 			return array();
 		}
 
-		$table = Schema::meeting_occurrences_table();
+		$table  = Schema::meeting_occurrences_table();
+		$window = '( ( excepted_from >= %s AND excepted_from <= %s ) OR ( on_date >= %s AND on_date <= %s ) )';
+		$values = array( $from, $to, $from, $to );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		if ( null !== $site_ids ) {
+			$wanted = array_values( array_unique( array_filter( array_map( 'strval', $site_ids ) ) ) );
+
+			if ( array() === $wanted ) {
+				return array();
+			}
+
+			$window .= ' AND client_site_id IN (' . implode( ', ', array_fill( 0, count( $wanted ), '%s' ) ) . ')';
+			$values  = array_merge( $values, $wanted );
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
 		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE ( excepted_from >= %s AND excepted_from <= %s ) OR ( on_date >= %s AND on_date <= %s ) ORDER BY on_date ASC, id ASC",
-				$from,
-				$to,
-				$from,
-				$to
-			),
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE {$window} ORDER BY on_date ASC, id ASC", $values ),
 			ARRAY_A
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		$by_series = array();
 

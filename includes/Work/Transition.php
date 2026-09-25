@@ -769,12 +769,14 @@ final class Transition {
 	 * @param string                           $to       Where it would go.
 	 * @param array<int, array<string, mixed>> $children Its children.
 	 * @param string                           $reason   An over-allocation reason offered with the move.
+	 * @param array<string, mixed>|null        $records  Its current gate records, when the caller has
+	 *                                                   read them already (#388); null reads them.
 	 * @return array{unmet: array<int, array<string, mixed>>, checks: array<int, array<string, mixed>>}
 	 */
-	public static function readiness( array $item, string $to, array $children = array(), string $reason = '' ): array {
+	public static function readiness( array $item, string $to, array $children = array(), string $reason = '', ?array $records = null ): array {
 		$gates = array( Transitions::gate_for( (string) $item['stage'], $to ), Transitions::entry_gate_for( $to ) );
 
-		return self::evaluate( $item, $gates, $children, $reason );
+		return self::evaluate( $item, $gates, $children, $reason, $records );
 	}
 
 	/**
@@ -784,10 +786,11 @@ final class Transition {
 	 * @param array<int, string>               $gates    Gate names; blanks skipped.
 	 * @param array<int, array<string, mixed>> $children Its children.
 	 * @param string                           $reason   An over-allocation reason offered with the move.
+	 * @param array<string, mixed>|null        $records  Its current gate records, or null to read them.
 	 * @return array{unmet: array<int, array<string, mixed>>, checks: array<int, array<string, mixed>>}
 	 */
-	private static function evaluate( array $item, array $gates, array $children, string $reason = '' ): array {
-		$records = GateRecords::current_for( $item );
+	private static function evaluate( array $item, array $gates, array $children, string $reason = '', ?array $records = null ): array {
+		$records = $records ?? GateRecords::current_for( $item );
 		$unmet   = array();
 		$checks  = array();
 		$gates   = array_unique( array_filter( $gates ) );
