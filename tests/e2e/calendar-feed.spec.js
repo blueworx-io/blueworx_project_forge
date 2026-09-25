@@ -127,6 +127,7 @@ test('a chore, a meeting and leave are on today’s feed and the standup’s dia
     starts_on: today,
     assignees: [person.id],
     hours_each: '0.5',
+    client_site_id: site.id,
   });
   expect(made.status(), await made.text()).toBe(200);
   await admin.api.post('/recurring/run', {});

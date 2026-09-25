@@ -19,14 +19,9 @@ use Blueworx\Forge\Tenancy\Studio;
 use WP_REST_Request;
 
 /**
- * Recurring tasks belong to the studio's own site: they are the studio's
- * housekeeping, and the renewal reminders SureCart feeds in are the studio's
- * too. So every route here is about that one site, and a person who does not
- * reach it is told so in the same words the standup uses rather than shown a
- * screen with nothing on it.
- *
- * Reading is open to anyone who reaches the studio's site. Writing is the
- * administrator's, like every other piece of configuration.
+ * Recurring tasks sit on a client's site the administrator chooses
+ * (2026-09-25); the studio's own site is one of the choices. Reading is
+ * limited to the sites the caller reaches; writing is the administrator's.
  */
 final class RecurringController {
 
@@ -45,7 +40,7 @@ final class RecurringController {
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
-					'reason' => 'Recurring tasks are the studio\'s own, on its own site; the callback refuses anyone whose reach does not include it.',
+					'reason' => 'Lists only the recurring tasks on sites the caller reaches.',
 				),
 			)
 		);
@@ -59,7 +54,7 @@ final class RecurringController {
 				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
-					'reason' => 'Configuration, administrators only; it names the studio\'s own site and no other.',
+					'reason' => 'Configuration, administrators only; the callback refuses a site the caller does not reach.',
 				),
 			)
 		);
@@ -93,7 +88,7 @@ final class RecurringController {
 					'permission_callback' => array( Permissions::class, 'manage' ),
 					'scope'               => array(
 						'kind'   => Boundary::SCOPE_OPEN,
-						'reason' => 'Configuration, administrators only; a source always sits on the studio\'s own site.',
+						'reason' => 'Configuration, administrators only; the callback refuses a site the caller does not reach.',
 					),
 				)
 			);
@@ -101,14 +96,14 @@ final class RecurringController {
 	}
 
 	/**
-	 * Every recurring task on the studio's site, with what each last made.
+	 * Every recurring task on a site the caller reaches, with what each last made.
 	 *
 	 * @return \WP_REST_Response
 	 */
 	public static function index() {
-		$site = self::studio_site();
+		$reach = Boundary::current();
 
-		if ( null === $site || ! Reach::reaches_site( Boundary::current(), (string) $site['client_id'], (string) $site['id'] ) ) {
+		if ( Reach::is_nothing( $reach ) ) {
 			return rest_ensure_response(
 				array(
 					'ok'      => true,
@@ -122,7 +117,8 @@ final class RecurringController {
 		// is true as of now rather than as of the last time somebody looked.
 		Materialise::maybe();
 
-		$sources = Sources::for_site( (string) $site['id'] );
+		$sites   = array_column( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ), 'id' );
+		$sources = Sources::for_sites( $sites, array( Sources::SCHEDULE, Sources::SUBSCRIPTION ) );
 		$latest  = Occurrences::latest_for( array_column( $sources, 'id' ) );
 
 		foreach ( $sources as $index => $source ) {
@@ -131,13 +127,11 @@ final class RecurringController {
 
 		return rest_ensure_response(
 			array(
-				'ok'      => true,
-				'denied'  => false,
-				'site'    => array(
-					'id'   => (string) $site['id'],
-					'name' => (string) $site['name'],
-				),
-				'sources' => $sources,
+				'ok'             => true,
+				'denied'         => false,
+				// The form's first choice.
+				'studio_site_id' => Studio::site_id(),
+				'sources'        => $sources,
 			)
 		);
 	}
@@ -149,15 +143,15 @@ final class RecurringController {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function create( WP_REST_Request $request ) {
-		$site = self::studio_site();
+		$input   = (array) $request->get_json_params();
+		$site    = self::site_for( (string) ( $input['client_site_id'] ?? '' ) );
+		$checked = Validate::source( $input, false );
 
 		if ( null === $site ) {
-			return Boundary::absent( 'client_site' );
+			$checked['errors']['client_site_id'] = 'Choose a client.';
 		}
 
-		$checked = Validate::source( (array) $request->get_json_params(), false );
-
-		if ( array() !== $checked['errors'] ) {
+		if ( array() !== $checked['errors'] || null === $site ) {
 			return Errors::rest(
 				'invalid_recurring',
 				__( 'That recurring task could not be saved.', 'blueworx-forge' ),
@@ -195,6 +189,17 @@ final class RecurringController {
 
 		$input   = (array) $request->get_json_params();
 		$checked = Validate::source( $input, true );
+
+		if ( array_key_exists( 'client_site_id', $input ) ) {
+			$site = self::site_for( (string) $input['client_site_id'] );
+
+			if ( null === $site ) {
+				$checked['errors']['client_site_id'] = 'Choose a client.';
+			} else {
+				$checked['values']['client_site_id'] = (string) $site['id'];
+				$checked['values']['client_id']      = (string) $site['client_id'];
+			}
+		}
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -259,17 +264,6 @@ final class RecurringController {
 				'created' => Materialise::run( wp_date( 'Y-m-d' ) ),
 			)
 		);
-	}
-
-	/**
-	 * The studio's own site, if it has been made.
-	 *
-	 * @return array<string, mixed>|null
-	 */
-	private static function studio_site(): ?array {
-		$id = Studio::site_id();
-
-		return '' === $id ? null : ClientSites::get( $id );
 	}
 
 	/**

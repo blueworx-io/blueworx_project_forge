@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Repeat } from 'lucide-react';
-import type { ChecklistRow, Person, RecurringRule, RecurringSource, Stage } from '../types';
+import type { ChecklistRow, ClientSite, Person, RecurringRule, RecurringSource, Stage } from '../types';
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
@@ -15,9 +15,9 @@ import { Screen } from './States';
  *
  * A recurring task is an arrangement, never a task itself. The tasks are
  * ordinary work items the engine makes on each due day, in Up Next on the
- * studio's own site, and from then on they are the board's — this screen
- * only points at them. Editing an arrangement changes what is made next
- * time; it never rewrites a task already on the board.
+ * client's site it names, and from then on they are the board's — this
+ * screen only points at them. Editing an arrangement changes what is made
+ * next time; it never rewrites a task already on the board.
  */
 
 const WEEKDAYS = [
@@ -38,13 +38,14 @@ const TYPES = [
 
 interface Listing {
   denied: boolean;
-  site?: { id: string; name: string };
+  studio_site_id?: string;
   sources: RecurringSource[];
 }
 
 /** What the form holds while somebody is filling it in. */
 interface Draft {
   title: string;
+  client_site_id: string;
   description: string;
   work_type: string;
   every: 'day' | 'weekday' | 'week' | 'month';
@@ -71,9 +72,10 @@ function isWeekdays( days: number[] ): boolean {
   return JSON.stringify( [ ...days ].sort() ) === JSON.stringify( WEEKDAY_DAYS );
 }
 
-function blank(): Draft {
+function blank( studio: string ): Draft {
   return {
     title: '',
+    client_site_id: studio,
     description: '',
     work_type: 'task',
     every: 'week',
@@ -93,6 +95,7 @@ function fromSource( source: RecurringSource ): Draft {
 
   return {
     title: source.title,
+    client_site_id: source.client_site_id,
     description: source.description,
     work_type: source.work_type,
     every: 'week' === rule.every && isWeekdays( rule.days ) ? 'weekday' : rule.every,
@@ -110,6 +113,7 @@ function fromSource( source: RecurringSource ): Draft {
 function complete( draft: Draft ): boolean {
   return (
     '' !== draft.title.trim() &&
+    '' !== draft.client_site_id &&
     '' !== draft.description.replace( /<[^>]+>/g, '' ).trim() &&
     '' !== draft.starts_on &&
     0 < draft.assignees.length &&
@@ -139,6 +143,7 @@ export function RecurringScreen() {
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
   const [ notice, setNotice ] = useState( '' );
   const [ people, setPeople ] = useState< Person[] >( [] );
+  const [ sites, setSites ] = useState< Array< ClientSite & { client_name: string } > >( [] );
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ editing, setEditing ] = useState< RecurringSource | 'new' | null >( null );
   const [ opened, setOpened ] = useState( '' );
@@ -162,11 +167,17 @@ export function RecurringScreen() {
     void load();
     void everybody().then( setPeople );
     void api< { stages: Stage[] } >( '/stages' ).then( ( answer ) => setStages( answer.stages ) ).catch( () => undefined );
+    void api< { sites: Array< ClientSite & { client_name: string } > } >( '/client-sites' ).then( ( answer ) => setSites( answer.sites ) ).catch( () => undefined );
   }, [] );
 
   useLiveReload( load );
 
   const name = ( id: string ) => people.find( ( one ) => one.id === id )?.display_name ?? ( id ? '?' : '—' );
+  const siteName = ( id: string ) => {
+    const site = sites.find( ( one ) => one.id === id );
+
+    return site ? site.client_name || site.name : '—';
+  };
 
   async function act( path: string, method: string, body?: unknown ) {
     setBusy( true );
@@ -196,6 +207,7 @@ export function RecurringScreen() {
         </span>
       ),
     },
+    { key: 'client', label: 'Client', width: 180, sortBy: ( r ) => siteName( r.client_site_id ), render: ( r ) => siteName( r.client_site_id ) },
     { key: 'cadence', label: 'Repeats', width: 200, sortBy: ( r ) => r.cadence, render: ( r ) => r.cadence },
     {
       key: 'seats',
@@ -283,7 +295,7 @@ export function RecurringScreen() {
     <>
       { 'loading' === state && <Screen state="loading" testId="bwx-recurring-state" /> }
       { 'denied' === state && (
-        <Screen state="denied" testId="bwx-recurring-state" detail="Recurring tasks are the studio's own. You are signed in, but not on the studio's site." />
+        <Screen state="denied" testId="bwx-recurring-state" detail="You are signed in, but do not reach any client's site." />
       ) }
       { 'error' === state && <Screen state="error" testId="bwx-recurring-state" detail={ notice } /> }
 
@@ -295,7 +307,7 @@ export function RecurringScreen() {
             </p>
           ) }
           <DataView< RecurringSource >
-            title={ listing.site?.name ?? 'Recurring tasks' }
+            title="Recurring tasks"
             titleRight={
               canManage ? (
                 <span className="bwx-recurring-toolbar">
@@ -312,7 +324,7 @@ export function RecurringScreen() {
             rows={ listing.sources }
             sortable
             empty={ <EmptyState icon={ Repeat } dense title="Nothing repeats yet" body="Add something that happens every day, week or month, and each due day becomes a task in Up Next." /> }
-            footer={ `${ listing.sources.length } recurring · each due day becomes a task on the studio's site the first time anyone opens Forge` }
+            footer={ `${ listing.sources.length } recurring · each due day becomes a task on its client's site the first time anyone opens Forge` }
             testId="bwx-recurring-table"
           />
         </div>
@@ -322,6 +334,8 @@ export function RecurringScreen() {
         <SourceForm
           source={ 'new' === editing ? null : editing }
           people={ people }
+          sites={ sites }
+          studio={ listing?.studio_site_id ?? '' }
           onClose={ () => setEditing( null ) }
           onSaved={ () => {
             setEditing( null );
@@ -339,15 +353,19 @@ export function RecurringScreen() {
 function SourceForm( {
   source,
   people,
+  sites,
+  studio,
   onClose,
   onSaved,
 }: {
   source: RecurringSource | null;
   people: Person[];
+  sites: Array< ClientSite & { client_name: string } >;
+  studio: string;
   onClose: () => void;
   onSaved: () => void;
 } ) {
-  const [ draft, setDraft ] = useState< Draft >( () => ( source ? fromSource( source ) : blank() ) );
+  const [ draft, setDraft ] = useState< Draft >( () => ( source ? fromSource( source ) : blank( studio ) ) );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
@@ -359,6 +377,7 @@ function SourceForm( {
 
     const body = {
       title: draft.title,
+      client_site_id: draft.client_site_id,
       description: draft.description,
       work_type: draft.work_type,
       rule: toRule( draft ),
@@ -413,6 +432,18 @@ function SourceForm( {
         <div className="bwx-field">
           <label htmlFor="bwx-recurring-title">Title</label>
           <input id="bwx-recurring-title" className="bwx-input" data-testid="bwx-recurring-title" autoFocus value={ draft.title } onChange={ ( event ) => set( 'title', event.target.value ) } />
+        </div>
+
+        <div className="bwx-field">
+          <label htmlFor="bwx-recurring-client">Client</label>
+          <select id="bwx-recurring-client" className="bwx-select" data-testid="bwx-recurring-client" value={ draft.client_site_id } onChange={ ( event ) => set( 'client_site_id', event.target.value ) }>
+            <option value="">Choose a client</option>
+            { sites.map( ( site ) => (
+              <option key={ site.id } value={ site.id }>
+                { site.client_name && site.client_name !== site.name ? `${ site.client_name } · ${ site.name }` : site.name }
+              </option>
+            ) ) }
+          </select>
         </div>
 
         <div className="bwx-field">

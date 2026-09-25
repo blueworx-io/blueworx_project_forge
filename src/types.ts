@@ -455,7 +455,7 @@ export type RecurringRule =
 /** One recurring arrangement on the studio's site. */
 export interface RecurringSource {
   id: string;
-  kind: 'schedule' | 'subscription';
+  kind: 'schedule' | 'subscription' | 'reminder';
   client_site_id: string;
   client_id: string;
   title: string;
