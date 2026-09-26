@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.137.1] - 2026-09-26
+
+### Fixed
+
+- My tasks: overdue work now shows under Today, and released or ticked-off work no longer sits under Further out.
+- Daily standup: shorter tags that stay on one line — To review, Ready to ship, Unanswered, Step waiting, Step overdue, Over hours.
+
 ## [2.137.0] - 2026-09-26
 
 ### Added
