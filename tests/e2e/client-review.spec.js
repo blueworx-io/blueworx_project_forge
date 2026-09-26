@@ -219,3 +219,42 @@ test('only an admin can record for the client', async ({ browser, baseURL }) => 
 
   await staff.context.close();
 });
+
+/** A fresh page on one item's panel: a hash change alone does not reopen it. */
+async function panelFor(item, title) {
+  const page = await admin.context.newPage();
+  await page.goto(`/blueworx-forge/#item=${item.id}`);
+  await expect(page.getByTestId('bwx-panel')).toContainText(`${title} ${RUN_ID}`, { timeout: 30_000 });
+
+  return page;
+}
+
+test('the panel offers the client as reviewer from Up Next, and records their answer', async () => {
+  // Before Up Next the choice is there, greyed out, with the reason.
+  const early = await panelFor(await taskAt('Panel early', 'triage'), 'Panel early');
+  await expect(early.getByTestId('bwx-reviewer-client')).toBeDisabled();
+  await expect(early.getByTestId('bwx-reviewer-client-hint')).toHaveText('The client can be the reviewer from Up Next onwards.');
+  await early.close();
+
+  // From Up Next it can be chosen, and the review takes no hours.
+  const ready = await taskAt('Panel ready', 'up-next');
+  const readyPage = await panelFor(ready, 'Panel ready');
+  await expect(readyPage.getByTestId('bwx-reviewer-client')).toBeEnabled();
+  await readyPage.locator('#bwx-reviewer_id').selectOption('client');
+  await expect(readyPage.getByTestId('bwx-client-no-hours')).toBeVisible();
+  await readyPage.getByTestId('bwx-save').click();
+  await expect.poll(async () => (await detail(ready.id)).item.reviewer_id, { timeout: 30_000 }).toBe('client');
+  await readyPage.close();
+
+  // In review, the rows wait on the client and an admin can record for them.
+  const waiting = await inClientReview('Panel review');
+  const page = await panelFor(waiting, 'Panel review');
+  await expect(page.getByTestId('bwx-waiting-on-client').first()).toHaveText('Waiting on the client to review');
+  await expect(page.getByTestId('bwx-client-reviewing')).toBeVisible();
+  await expect(page.locator('[data-testid="bwx-move"][data-to="completed"]')).toHaveCount(0);
+
+  await page.getByTestId('bwx-client-approved').click();
+  await expect.poll(async () => (await detail(waiting.id)).item.stage, { timeout: 30_000 }).toBe('completed');
+
+  await page.close();
+});

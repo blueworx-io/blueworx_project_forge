@@ -7,8 +7,11 @@
 
 declare( strict_types = 1 );
 
+use Blueworx\Forge\Slack\Notify;
+use Blueworx\Forge\Standup\Rules;
 use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Work\ClientReviewer;
+use Blueworx\Forge\Work\Gates;
 use Blueworx\Forge\Work\RoleHours;
 use Blueworx\Forge\Work\Validate;
 use PHPUnit\Framework\TestCase;
@@ -167,6 +170,47 @@ final class ClientReviewerTest extends TestCase {
 		);
 
 		$this->assertSame( $changes, ClientReviewer::settle( $changes, array( 'reviewer_id' => 'client' ) ) );
+	}
+
+	public function test_up_next_asks_for_no_review_hours_from_the_client(): void {
+		$requirement = (array) Gates::requirement( 'G-UP-NEXT-4' );
+		$item        = array(
+			'hours_primary'  => 4.0,
+			'hours_review'   => 0.0,
+			'hours_delivery' => 1.0,
+		);
+
+		$this->assertFalse( Gates::satisfied( $requirement, $item + array( 'reviewer_id' => 'usr_abc' ), array() ) );
+		$this->assertTrue( Gates::satisfied( $requirement, $item + array( 'reviewer_id' => 'client' ), array() ) );
+	}
+
+	public function test_slack_does_not_tell_the_client_they_were_given_a_seat(): void {
+		$this->assertSame(
+			array( 'primary_user_id' => 'usr_abc' ),
+			Notify::seat_changes(
+				array(),
+				array(
+					'primary_user_id' => 'usr_abc',
+					'reviewer_id'     => 'client',
+				)
+			)
+		);
+	}
+
+	public function test_standup_says_it_waits_on_the_client(): void {
+		$cards = Rules::for_item(
+			array(
+				'id'             => 'wrk_a',
+				'title'          => 'A task',
+				'stage'          => 'in-review',
+				'reviewer_id'    => 'client',
+				'client_id'      => 'cli_a',
+				'client_site_id' => 'sit_a',
+			),
+			'2026-09-26'
+		);
+
+		$this->assertSame( 'The client', $cards[0]['detail']['waiting_on_name'] ?? '' );
 	}
 
 	// ---- Seat access (#393) -------------------------------------------

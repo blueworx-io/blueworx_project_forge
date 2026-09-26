@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Standup;
 
+use Blueworx\Forge\Work\ClientReviewer;
+
 /**
  * #169. The twelve inclusion rules, worked out from what is true now.
  *
@@ -249,7 +251,14 @@ final class Rules {
 		}
 
 		if ( 'in-review' === $stage ) {
-			$cards[] = self::work_card( self::AWAITING_REVIEW, $item, array( 'waiting_on' => (string) ( $item['reviewer_id'] ?? '' ) ) );
+			$waiting = array( 'waiting_on' => (string) ( $item['reviewer_id'] ?? '' ) );
+
+			// #391. The client is named as the client, not as a person.
+			if ( ClientReviewer::is( $item ) ) {
+				$waiting['waiting_on_name'] = __( 'The client', 'blueworx-forge' );
+			}
+
+			$cards[] = self::work_card( self::AWAITING_REVIEW, $item, $waiting );
 		}
 
 		if ( 'completed' === $stage ) {

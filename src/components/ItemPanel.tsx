@@ -80,6 +80,9 @@ const DUPLICATE_PICK = 'G-TRIAGE-6';
 /** The pick whose other answers hand over to End it. */
 const TRIAGE_OUTCOME_PICK = 'G-TRIAGE-7';
 
+/** What the reviewer seat holds when the client reviews (#391). */
+const CLIENT = 'client';
+
 /** Whose a requirement is, when it is not anybody's. */
 const FOR_WHOM: Record< string, string > = {
   PU: 'For the person doing the work',
@@ -338,6 +341,8 @@ export function ItemPanel( {
   const [ busy, setBusy ] = useState( false );
   const [ showing, setShowing ] = useState( '' );
   const [ back, setBack ] = useState( { to: '', reason: '', feedback: '' } );
+  // #391. What the client said needs changing, recorded for them.
+  const [ clientNote, setClientNote ] = useState( '' );
 
   /**
    * The move the capacity check refused, and the reason offered for going ahead
@@ -684,7 +689,9 @@ export function ItemPanel( {
    * answered at an earlier stage and is still worth reading.
    */
   function boxRows(): Requirement[] {
-    const wanted = stageRows().filter( ( row ) => 'box' === row.control && ( ! row.met || '' !== recorded( row.id ) ) );
+    // #391. The reviewer's boxes are not asked for while the client reviews.
+    const clientRow = ( row: Requirement ) => 'REV' === row.who && CLIENT === detail?.item.reviewer_id && ! row.met;
+    const wanted = stageRows().filter( ( row ) => 'box' === row.control && ( ! row.met || '' !== recorded( row.id ) ) && ! clientRow( row ) );
     const shown = new Set( wanted.map( ( row ) => row.id ) );
     const held = Object.keys( detail?.records ?? {} )
       .filter( ( id ) => ! shown.has( id ) && '' !== recorded( id ) && 'box' === rules[ id ]?.control )
@@ -701,6 +708,11 @@ export function ItemPanel( {
   function allowed( requirement: Requirement ): boolean {
     const me = forgeData()?.person?.id ?? '';
     const it = detail?.item;
+
+    // #391. The client's review rows are the client's, whoever is looking.
+    if ( 'REV' === requirement.who && CLIENT === it?.reviewer_id ) {
+      return false;
+    }
 
     // An administrator acts for anyone (2026-09-19); the server agrees.
     if ( '' === me || ! it || ( forgeData()?.canManage ?? false ) ) {
@@ -892,6 +904,8 @@ export function ItemPanel( {
   const myId = forgeData()?.person?.id ?? '';
   const choreTicker = undone.includes( myId ) ? myId : forgeData()?.canManage ? undone[ 0 ] ?? '' : '';
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
+  // #391. In review with the client: only the client, or an admin for them, decides.
+  const clientReviewing = undefined !== item && CLIENT === item.reviewer_id && 'in-review' === item.stage && ! ended;
   const lines = detail ? historyLines( detail.history, label ) : [];
 
   /*
@@ -991,7 +1005,10 @@ export function ItemPanel( {
   const pick = ( field: string, name: string ) => {
     const offered = siteStaff ?? [];
     const current = draft[ field ] ?? '';
-    const stale = '' !== current && null !== siteStaff && ! offered.some( ( person ) => person.id === current );
+    // #391. The client can review, from Up Next on.
+    const reviewing = 'reviewer_id' === field;
+    const clientTooEarly = reviewing && ! reached( 'up-next' );
+    const stale = '' !== current && CLIENT !== current && null !== siteStaff && ! offered.some( ( person ) => person.id === current );
     // The item carries the name behind each seat, so somebody deactivated
     // since is still named rather than left anonymous.
     const who = detail?.seat_names?.[ current ]
@@ -1005,9 +1022,21 @@ export function ItemPanel( {
           id={ `bwx-${ field }` }
           className="bwx-select"
           value={ current }
-          onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+          onChange={ ( event ) =>
+            setDraft( {
+              ...draft,
+              [ field ]: event.target.value,
+              // The client's review takes nobody's hours.
+              ...( reviewing && CLIENT === event.target.value ? { hours_review: '' } : {} ),
+            } )
+          }
         >
           <option value="">Nobody yet</option>
+          { reviewing && (
+            <option value={ CLIENT } disabled={ clientTooEarly } data-testid="bwx-reviewer-client">
+              The client
+            </option>
+          ) }
           { stale && (
             <option value={ current } data-testid="bwx-seat-no-access">
               { `${ who } (no access to this client)` }
@@ -1019,6 +1048,11 @@ export function ItemPanel( {
             </option>
           ) ) }
         </select>
+        { clientTooEarly && (
+          <p className="bwx-hint" data-testid="bwx-reviewer-client-hint">
+            The client can be the reviewer from Up Next onwards.
+          </p>
+        ) }
       </div>
     );
   };
@@ -1384,6 +1418,7 @@ export function ItemPanel( {
                 people={ staffList }
                 allowed={ allowed }
                 onReveal={ reveal }
+                clientReviews={ CLIENT === item.reviewer_id }
               />
             ) ) }
 
@@ -1433,6 +1468,29 @@ export function ItemPanel( {
                       End it <span aria-hidden="true">→</span>
                     </button>
                   ) }
+                  { clientReviewing && detail.can_override && (
+                    <>
+                      <button
+                        type="button"
+                        className="bwx-button"
+                        data-testid="bwx-client-approved"
+                        disabled={ busy }
+                        onClick={ () => void act( '/client-review', { decision: 'approve' }, 'Recorded: the client approved it.' ) }
+                      >
+                        Client approved (recorded for them)
+                      </button>
+                      <button
+                        type="button"
+                        className="bwx-button bwx-toggle"
+                        data-tone="return"
+                        data-testid="bwx-show-client-back"
+                        aria-pressed={ 'client-back' === showing }
+                        onClick={ () => setShowing( 'client-back' === showing ? '' : 'client-back' ) }
+                      >
+                        Client sent it back
+                      </button>
+                    </>
+                  ) }
                   { detail.can_archive && (
                     <button
                       type="button"
@@ -1467,7 +1525,10 @@ export function ItemPanel( {
                 ) }
                 { ! blocked && ! ended && ! chore && (
                   <div className="bwx-moves bwx-action-right">
-                    { detail.available.map( ( to ) => (
+                    { clientReviewing && (
+                      <Inline state="empty" testId="bwx-client-reviewing">Waiting on the client to review.</Inline>
+                    ) }
+                    { detail.available.filter( ( to ) => ! ( clientReviewing && 'completed' === to ) ).map( ( to ) => (
                       <button
                         key={ to }
                         type="button"
@@ -1493,6 +1554,34 @@ export function ItemPanel( {
                   </div>
                 ) }
                 </div>
+
+            { 'client-back' === showing && (
+              <div className="bwx-actions-form" data-testid="bwx-client-back">
+                <div className="bwx-field">
+                  <label htmlFor="bwx-client-note">What the client wants changed</label>
+                  <textarea
+                    id="bwx-client-note"
+                    className="bwx-textarea"
+                    data-testid="bwx-client-note"
+                    value={ clientNote }
+                    onChange={ ( event ) => setClientNote( event.target.value ) }
+                  />
+                </div>
+                <div className="bwx-moves bwx-form-foot">
+                  <button
+                    type="button"
+                    className="bwx-button"
+                    data-testid="bwx-client-send-back"
+                    disabled={ busy || '' === clientNote.trim() }
+                    onClick={ () =>
+                      void act( '/client-review', { decision: 'send_back', note: clientNote }, 'Recorded: the client sent it back.' )
+                    }
+                  >
+                    Send back for the client
+                  </button>
+                </div>
+              </div>
+            ) }
 
             { 'return' === showing && (
               <div className="bwx-actions-form" data-testid="bwx-return">
@@ -2096,15 +2185,24 @@ export function ItemPanel( {
                 { 0 === ( item.assignees?.length ?? 0 ) && SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
                     { pick( seat.field, seat.label ) }
-                    <div className="bwx-field">
-                      { naming( seat.hours, 'Hours' ) }
-                      <HoursSelect
-                        id={ `bwx-${ seat.hours }` }
-                        className="bwx-select"
-                        value={ draft[ seat.hours ] ?? '' }
-                        onChange={ ( value ) => setDraft( { ...draft, [ seat.hours ]: value } ) }
-                      />
-                    </div>
+                    { 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ? (
+                      <div className="bwx-field">
+                        <span className="bwx-eyebrow">Hours</span>
+                        <p className="bwx-hint" data-testid="bwx-client-no-hours">
+                          None. The client&rsquo;s review takes nobody&rsquo;s time.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bwx-field">
+                        { naming( seat.hours, 'Hours' ) }
+                        <HoursSelect
+                          id={ `bwx-${ seat.hours }` }
+                          className="bwx-select"
+                          value={ draft[ seat.hours ] ?? '' }
+                          onChange={ ( value ) => setDraft( { ...draft, [ seat.hours ]: value } ) }
+                        />
+                      </div>
+                    ) }
                   </div>
                 ) ) }
 
@@ -2384,7 +2482,8 @@ function historyLines( events: WorkEvent[], label: ( id: string ) => string ): H
   const lines: HistoryLine[] = [];
   let open: { line: HistoryLine; fields: string[] } | null = null;
 
-  const who = ( event: WorkEvent ) => event.actor_name || 'Forge';
+  // #391. The client's own decision has no studio person behind it.
+  const who = ( event: WorkEvent ) => event.actor_name || ( 'client' === event.via ? 'The client' : 'Forge' );
   const wording = ( fields: string[] ) => {
     const names = Array.from( new Set( fields.map( ( field ) => FIELD_LABELS[ field ] ?? field.replace( /_/g, ' ' ) ) ) );
     const shown = names.slice( 0, 4 );
@@ -2419,7 +2518,10 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
     case 'created':
       return `Created in ${ label( event.to_stage ) }`;
     case 'returned':
-      return `Sent back to ${ label( event.to_stage ) }`;
+      // #391. The client's note is what needs doing, so it is shown.
+      return 'client' === event.via && event.detail
+        ? `Sent back to ${ label( event.to_stage ) }: ${ event.detail }`
+        : `Sent back to ${ label( event.to_stage ) }`;
     case 'blocked':
       return `Blocked, out of ${ label( event.from_stage ) }`;
     case 'unblocked':
@@ -2484,6 +2586,7 @@ export function GateList( {
   people = [],
   allowed = () => true,
   onReveal,
+  clientReviews = false,
 }: {
   heading: string;
   readiness?: Readiness;
@@ -2502,6 +2605,8 @@ export function GateList( {
   allowed?: ( requirement: Requirement ) => boolean;
   /** Where a field-answered row takes the person, when the panel can. */
   onReveal?: ( field: string ) => void;
+  /** Whether the client is the reviewer (#391): their rows wait on them. */
+  clientReviews?: boolean;
 } ) {
   if ( ! readiness || 0 === readiness.unmet.length ) {
     return null;
@@ -2518,6 +2623,19 @@ export function GateList( {
           const met = requirement.met ?? false;
           const isPick = 'record' === requirement.by && 'pick' === requirement.control;
           const value = picks[ requirement.id ] ?? records[ requirement.id ]?.value ?? '';
+          // #391. A reviewer's row the client answers by approving.
+          const theirs = ! met && clientReviews && 'REV' === requirement.who && 'record' === requirement.by;
+
+          if ( theirs ) {
+            return (
+              <li key={ requirement.id } data-requirement={ requirement.id } data-met="false">
+                <span className="bwx-unmet-label">{ requirement.label }</span>
+                <span className="bwx-unmet-who" data-testid="bwx-waiting-on-client">
+                  Waiting on the client to review
+                </span>
+              </li>
+            );
+          }
 
           return (
             <li key={ requirement.id } data-requirement={ requirement.id } data-met={ met ? 'true' : 'false' }>

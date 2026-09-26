@@ -45,6 +45,8 @@ function responsible( item: WorkItem ): Role | null {
   const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
 
   if ( 'released' === stage ) return null;
+  // #391. While the client reviews, the owner keeps it, marked as waiting.
+  if ( 'in-review' === stage && 'client' === item.reviewer_id ) return 'primary';
   if ( 'in-review' === stage ) return 'reviewer';
   if ( 'completed' === stage ) return 'deliverer';
 
@@ -233,6 +235,11 @@ export function MyTasksScreen() {
               { r.item.title }
             </button>
             { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
+            { 'in-review' === r.item.stage && 'client' === r.item.reviewer_id && (
+              <span data-testid="bwx-mytasks-client-reviewing">
+                <Tag tone="info">Waiting on the client</Tag>
+              </span>
+            ) }
           </span>
           { /* Your tick, beneath the title (2026-09-19). A recurring task has
                 no checklist to show beside it (#382): one tick finishes it. */ }

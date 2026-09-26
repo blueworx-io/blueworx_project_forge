@@ -112,6 +112,9 @@ export function cardDetail( card: StandupCard ): string {
     }
     case 'returned':
       return said( 'reason' );
+    case 'awaiting-review':
+      // #391. "The client" when the client reviews; a person is not named here.
+      return '' === said( 'waiting_on_name' ) ? '' : `Waiting on ${ said( 'waiting_on_name' ).toLowerCase() }`;
     case 'over-committed':
       return `${ said( 'committed' ) } hours committed of ${ said( 'available' ) }`;
     case 'needs-intervention':
