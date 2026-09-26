@@ -39,7 +39,7 @@ final class MaterialiseTest extends TestCase {
 		$values = Materialise::values( $this->source(), '2026-09-14' );
 
 		self::assertSame( 'Weekly backups — 14 Sep', $values['title'] );
-		self::assertSame( 'Weekly backups', $values['problem'] );
+		self::assertSame( '<p>Weekly backups</p>', $values['problem'] );
 		self::assertSame( '2026-09-14', $values['planned_due'] );
 		self::assertSame( '2026-09-14', $values['planned_start'] );
 		self::assertSame( 'usr_a', $values['primary_user_id'] );
@@ -97,5 +97,12 @@ final class MaterialiseTest extends TestCase {
 		$values = Materialise::values( array_merge( $this->source(), array( 'description' => 'Run the backup script and check the log.' ) ), '2026-09-14' );
 
 		self::assertSame( 'Run the backup script and check the log.', $values['problem'] );
+	}
+
+	public function test_a_title_used_as_the_problem_is_escaped_not_trusted_as_html(): void {
+		$values = Materialise::values( array_merge( $this->source(), array( 'title' => '<img src=x onerror=alert(1)>' ) ), '2026-09-14' );
+
+		self::assertStringNotContainsString( '<img', $values['problem'] );
+		self::assertStringContainsString( '&lt;img', $values['problem'] );
 	}
 }

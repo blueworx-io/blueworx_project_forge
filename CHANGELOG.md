@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.131.0] - 2026-09-25
+
+### Added
+
+- Reminders: a task for a day or a few days, for one or more people on a client, typed as General, Campaign, Marketing, Deadline or Other. Each person gets their own copy to tick off, it shows on the calendar across its days, and in My tasks it moves into Today when it starts.
+
+### Changed
+
+- Recurring tasks now ask which client they are for.
+
 ## [2.130.0] - 2026-09-24
 
 ### Added

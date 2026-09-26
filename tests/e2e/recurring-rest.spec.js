@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import * as Forge from './helpers/forge.js';
 import { signedIn, makePerson, PASSWORD } from './helpers/forge.js';
 
 // Recurring tasks, through the API: a source makes one task per due day on
@@ -34,6 +35,7 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
     hours_each: '0.5',
     // The checklist every task starts with (2026-09-19).
     checklist: [{ text: 'Open it' }, { text: 'Read it' }],
+    client_site_id: studio.id,
   });
   expect(made.status(), await made.text()).toBe(200);
   const source = (await made.json()).source;
@@ -96,13 +98,45 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
 
   // A schedule is for somebody, says what to do, when it starts and what it
   // costs: each missing one is refused by field (2026-09-19).
-  const nobody = await admin.api.post('/recurring', { title: `For nobody ${RUN_ID}`, rule: { every: 'weekday' } });
+  const nobody = await admin.api.post('/recurring', { title: `For nobody ${RUN_ID}`, rule: { every: 'weekday' }, client_site_id: studio.id });
   expect(nobody.status()).toBe(400);
   const fields = (await nobody.json()).data.fields;
   expect(fields.assignees).toContain('at least one');
   expect(fields.description).toContain('what to do');
   expect(fields.starts_on).toContain('first day');
   expect(fields.hours_each).toContain('hours');
+
+  await admin.context.close();
+});
+
+test('a recurring task is set up for a chosen client, and needs one', async ({ browser, baseURL }) => {
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RecurClient', RUN_ID);
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'recurclient');
+  const today = (await admin.api.get('/standup')).today;
+  const body = {
+    title: `Client chore ${RUN_ID}`,
+    description: '<p>Check the forms.</p>',
+    rule: { every: 'day' },
+    starts_on: today,
+    assignees: [person.id],
+    hours_each: '0.5',
+  };
+
+  const none = await admin.api.post('/recurring', body);
+  expect(none.status()).toBe(400);
+  expect((await none.json()).data.fields.client_site_id).toBe('Choose a client.');
+
+  const made = await admin.api.post('/recurring', { ...body, client_site_id: site.id });
+  expect(made.status(), await made.text()).toBe(200);
+  expect((await made.json()).source.client_site_id).toBe(site.id);
+
+  await admin.api.post('/recurring/run', {});
+  const work = await admin.api.get(`/work-items?client_site_id=${site.id}`);
+  expect(work.items.some((item) => item.title.startsWith(`Client chore ${RUN_ID}`))).toBe(true);
+
+  const listed = await admin.api.get('/recurring');
+  expect(listed.sources.some((source) => source.client_site_id === site.id)).toBe(true);
 
   await admin.context.close();
 });

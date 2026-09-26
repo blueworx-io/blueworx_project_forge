@@ -93,6 +93,12 @@ test.describe( 'the calendar', () => {
     await page.selectOption( '[data-testid="bwx-site"]', world.site.id );
     await page.locator( '[data-testid="bwx-view-calendar"]' ).click();
     await expect( page.locator( '[data-testid="bwx-calendar"]' ) ).toBeVisible();
+
+    // This week, uncapped. Every fixture is dated this week, and a month cell
+    // shows only its first three entries: on a shared test site today's cell
+    // fills with other specs' reminders and meetings, which hid our entry
+    // behind "+N more".
+    await page.locator( '[data-testid="bwx-calendar-mode-week"]' ).click();
   }
 
   /** Every entry for one item, whatever day it landed on. */
@@ -162,7 +168,12 @@ test.describe( 'the calendar', () => {
 
     await page.fill( '[data-testid="bwx-search"]', 'twice over' );
 
-    await expect( entriesFor( page, world.twice.id ) ).toHaveCount( 2 );
+    // Searching reloads the work and redraws the calendar in month view, where
+    // today's crowded cell can hide an entry. Back to the week until it holds.
+    await expect( async () => {
+      await page.locator( '[data-testid="bwx-calendar-mode-week"]' ).click();
+      await expect( entriesFor( page, world.twice.id ) ).toHaveCount( 2, { timeout: 1000 } );
+    } ).toPass();
     await expect( entriesFor( page, world.full.id ) ).toHaveCount( 0 );
   } );
 

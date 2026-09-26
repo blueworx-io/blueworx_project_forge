@@ -16,6 +16,8 @@ use Blueworx\Forge\Meetings\Diary;
 use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Meetings\Series;
+use Blueworx\Forge\Recurring\Reminders;
+use Blueworx\Forge\Recurring\Sources;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
@@ -25,7 +27,7 @@ use Blueworx\Forge\Work\Stages;
  * Luke, 2026-09-17: "ensure the following all show in the Calendar and Daily
  * Standup: recurring tasks, calendar dates, meetings, subscriptions, leave
  * dates." Five things kept in five places, read here into one list so the
- * calendar and the standup draw the same day.
+ * calendar and the standup draw the same day, and reminders (2026-09-25).
  *
  * Every entry is `{ id, kind, date, ends_on, title, detail, people, item_id }`.
  * The reach decides which sites' chores and meetings are seen; dates, renewals
@@ -38,6 +40,7 @@ final class Feed {
 	 */
 	public const KINDS = array(
 		'recurring'    => 'Chore',
+		'reminder'     => 'Reminder',
 		'date'         => 'Date',
 		'meeting'      => 'Meeting',
 		'subscription' => 'Renewal',
@@ -151,7 +154,7 @@ final class Feed {
 	}
 
 	/**
-	 * Recurring chores due in the window, on the sites in reach.
+	 * Recurring chores and reminders in the window, on the sites in reach.
 	 *
 	 * @param array<int, string> $site_ids Sites.
 	 * @param string             $from     YYYY-MM-DD.
@@ -171,7 +174,7 @@ final class Feed {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the site placeholders are counted above.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE recurring_id <> '' AND archived = 0 AND client_site_id IN ({$slots}) AND planned_due >= %s AND planned_due <= %s ORDER BY planned_due ASC, title ASC",
+				"SELECT * FROM {$table} WHERE recurring_id <> '' AND archived = 0 AND client_site_id IN ({$slots}) AND planned_due >= %s AND COALESCE(NULLIF(planned_start, ''), planned_due) <= %s ORDER BY planned_due ASC, title ASC",
 				array_merge( array_values( $site_ids ), array( $from, $to ) )
 			),
 			ARRAY_A
@@ -179,6 +182,10 @@ final class Feed {
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		$out = array();
+		// A reminder makes one copy per person, so its rows share a
+		// recurring_id; gathered here and turned into one entry after the
+		// loop, rather than one entry per copy (2026-09-25).
+		$reminders = array();
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			// Read off the row rather than re-read per item: the standup asks
@@ -187,6 +194,30 @@ final class Feed {
 			$people = array_values( array_map( 'strval', is_array( $people ) ? $people : array() ) );
 			$ticks  = json_decode( (string) ( $row['ticks'] ?? '' ), true );
 			$ticked = is_array( $ticks ) ? count( $ticks ) : 0;
+
+			if ( Reminders::is_reminder( (string) $row['recurring_id'] ) ) {
+				$recurring_id = (string) $row['recurring_id'];
+				$due          = (string) $row['planned_due'];
+				$start        = '' === (string) $row['planned_start'] ? $due : (string) $row['planned_start'];
+
+				if ( ! isset( $reminders[ $recurring_id ] ) ) {
+					$reminders[ $recurring_id ] = array(
+						'date'    => $start,
+						'ends_on' => $start === $due ? '' : $due,
+						'title'   => (string) $row['title'],
+						'item_id' => (string) $row['id'],
+						'people'  => array(),
+						'done'    => 0,
+						'total'   => 0,
+					);
+				}
+
+				$reminders[ $recurring_id ]['people'] = array_merge( $reminders[ $recurring_id ]['people'], $people );
+				++$reminders[ $recurring_id ]['total'];
+				$reminders[ $recurring_id ]['done'] += 0 < $ticked ? 1 : 0;
+
+				continue;
+			}
 
 			$out[] = self::entry(
 				'recurring',
@@ -197,6 +228,38 @@ final class Feed {
 				array() === $people ? Stages::label( (string) $row['stage'] ) : sprintf( '%d of %d done', $ticked, count( $people ) ),
 				$people,
 				(string) $row['id']
+			);
+		}
+
+		// Every reminder's type, in one query rather than one per reminder
+		// (2026-09-25).
+		$categories = Sources::categories_for( array_keys( $reminders ) );
+
+		foreach ( $reminders as $recurring_id => $reminder ) {
+			$done  = $reminder['done'];
+			$total = $reminder['total'];
+
+			if ( 0 === $done ) {
+				$detail = 'To do';
+			} elseif ( $done === $total ) {
+				$detail = 'Done';
+			} else {
+				$detail = sprintf( '%d of %d done', $done, $total );
+			}
+
+			// Its type leads the detail (2026-09-25).
+			$type   = Reminders::CATEGORIES[ $categories[ $recurring_id ] ?? '' ] ?? Reminders::CATEGORIES['general'];
+			$detail = $type . ' · ' . $detail;
+
+			$out[] = self::entry(
+				'reminder',
+				$recurring_id,
+				$reminder['date'],
+				$reminder['ends_on'],
+				$reminder['title'],
+				$detail,
+				array_values( array_unique( $reminder['people'] ) ),
+				$reminder['item_id']
 			);
 		}
 

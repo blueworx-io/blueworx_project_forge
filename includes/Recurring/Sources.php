@@ -45,6 +45,16 @@ final class Sources {
 	public const SUBSCRIPTION = 'subscription';
 
 	/**
+	 * A task on a fixed day or period (2026-09-25): no rule, made once.
+	 */
+	public const REMINDER = 'reminder';
+
+	/**
+	 * Id prefix for a reminder, so its copies are known by their source id.
+	 */
+	public const REMINDER_PREFIX = 'rem';
+
+	/**
 	 * Producing tasks.
 	 */
 	public const ACTIVE = 'active';
@@ -65,6 +75,7 @@ final class Sources {
 	private const WRITABLE = array(
 		'title',
 		'description',
+		'category',
 		'work_type',
 		'primary_user_id',
 		'reviewer_id',
@@ -80,6 +91,8 @@ final class Sources {
 		'ends_on',
 		'status',
 		'source_ref',
+		'client_site_id',
+		'client_id',
 	);
 
 	/**
@@ -101,6 +114,7 @@ final class Sources {
 			array(
 				'title'           => '',
 				'description'     => '',
+				'category'        => '',
 				'work_type'       => 'task',
 				'primary_user_id' => '',
 				'reviewer_id'     => '',
@@ -120,11 +134,12 @@ final class Sources {
 			self::writable( $values )
 		);
 
-		$row['id']              = Ids::create( self::PREFIX );
-		$row['kind']            = $kind;
-		$row['client_site_id']  = $client_site_id;
-		$row['client_id']       = $client_id;
-		$row['next_due']        = Rule::next_on_or_after( (array) json_decode( (string) $row['rule'], true ), (string) $row['starts_on'] );
+		$row['id']             = Ids::create( self::REMINDER === $kind ? self::REMINDER_PREFIX : self::PREFIX );
+		$row['kind']           = $kind;
+		$row['client_site_id'] = $client_site_id;
+		$row['client_id']      = $client_id;
+		// A reminder has no next day: Reminders makes its copies when it is saved.
+		$row['next_due']        = self::REMINDER === $kind ? '' : Rule::next_on_or_after( (array) json_decode( (string) $row['rule'], true ), (string) $row['starts_on'] );
 		$row['last_created_at'] = 0;
 		$row['created_at']      = $now;
 		$row['updated_at']      = $now;
@@ -195,6 +210,64 @@ final class Sources {
 	}
 
 	/**
+	 * The sources of some kinds on some sites, newest first.
+	 *
+	 * @param array<int, string> $site_ids Sites.
+	 * @param array<int, string> $kinds    Kinds.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function for_sites( array $site_ids, array $kinds ): array {
+		global $wpdb;
+
+		$site_ids = array_values( array_unique( array_filter( array_map( 'strval', $site_ids ) ) ) );
+		$kinds    = array_values( array_unique( array_filter( array_map( 'strval', $kinds ) ) ) );
+
+		if ( array() === $site_ids || array() === $kinds ) {
+			return array();
+		}
+
+		$table = Schema::recurring_table();
+		$sites = implode( ', ', array_fill( 0, count( $site_ids ), '%s' ) );
+		$slots = implode( ', ', array_fill( 0, count( $kinds ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are counted above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$sites}) AND kind IN ({$slots}) AND status <> %s ORDER BY created_at DESC", array_merge( $site_ids, $kinds, array( self::ENDED ) ) ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * The category of some sources, by id — a reminder's type, read in one
+	 * query rather than one per reminder (2026-09-25).
+	 *
+	 * @param array<int, string> $ids Source ids.
+	 * @return array<string, string> Id to category.
+	 */
+	public static function categories_for( array $ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::recurring_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are counted above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, category FROM {$table} WHERE id IN ({$slots})", $ids ), ARRAY_A );
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['id'] ] = (string) ( $row['category'] ?? '' );
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Every running schedule, for the days ahead (2026-09-19): what the
 	 * capacity read counts before the tasks exist.
 	 *
@@ -252,7 +325,7 @@ final class Sources {
 
 		$changes = self::writable( $values );
 
-		if ( isset( $changes['rule'] ) || isset( $changes['starts_on'] ) ) {
+		if ( self::REMINDER !== (string) $current['kind'] && ( isset( $changes['rule'] ) || isset( $changes['starts_on'] ) ) ) {
 			$rule  = isset( $changes['rule'] ) ? (array) json_decode( (string) $changes['rule'], true ) : $current['rule'];
 			$from  = max( (string) ( $changes['starts_on'] ?? $current['starts_on'] ), wp_date( 'Y-m-d' ) );
 			$after = $current['next_due'];
@@ -401,6 +474,7 @@ final class Sources {
 			'client_id'       => (string) $row['client_id'],
 			'title'           => (string) $row['title'],
 			'description'     => (string) $row['description'],
+			'category'        => (string) ( $row['category'] ?? '' ),
 			'work_type'       => (string) $row['work_type'],
 			'primary_user_id' => (string) $row['primary_user_id'],
 			'reviewer_id'     => (string) $row['reviewer_id'],

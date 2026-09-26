@@ -3381,6 +3381,7 @@ td[ data-band='over' ] {
 .bwx-diary-line[ data-tone='rose' ] { --entry-ink: var( --phase-exception-ink ); --entry-wash: var( --phase-exception-bg ); --entry-edge: var( --phase-exception-border ); }
 .bwx-diary-line[ data-tone='emerald' ] { --entry-ink: var( --phase-done-ink ); --entry-wash: var( --phase-done-bg ); --entry-edge: var( --phase-done-border ); }
 .bwx-diary-line[ data-tone='amber' ] { --entry-ink: var( --phase-gate-ink ); --entry-wash: var( --phase-gate-bg ); --entry-edge: var( --phase-gate-border ); }
+.bwx-diary-line[ data-tone='sky' ] { --entry-ink: var( --state-info ); --entry-wash: var( --state-info-wash ); --entry-edge: var( --state-info-edge ); }
 .bwx-diary-body {
   flex: 1;
   min-width: 0;
@@ -3471,6 +3472,7 @@ td[ data-band='over' ] {
 .bwx-calendar-diary[ data-tone='rose' ] { --entry-ink: var( --phase-exception-ink ); --entry-wash: var( --phase-exception-bg ); --entry-edge: var( --phase-exception-border ); }
 .bwx-calendar-diary[ data-tone='emerald' ] { --entry-ink: var( --phase-done-ink ); --entry-wash: var( --phase-done-bg ); --entry-edge: var( --phase-done-border ); }
 .bwx-calendar-diary[ data-tone='amber' ] { --entry-ink: var( --phase-gate-ink ); --entry-wash: var( --phase-gate-bg ); --entry-edge: var( --phase-gate-border ); }
+.bwx-calendar-diary[ data-tone='sky' ] { --entry-ink: var( --state-info ); --entry-wash: var( --state-info-wash ); --entry-edge: var( --state-info-edge ); }
 
 /* Recurring: who does it, and a chore's ticks. */
 .bwx-recurring-people {

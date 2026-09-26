@@ -31,6 +31,7 @@ test('two people on a weekday chore get a copy each, and each finishes their own
     starts_on: today,
     assignees: [one.id, two.id],
     hours_each: '0.5',
+    client_site_id: studio.id,
   });
   expect(made.status(), await made.text()).toBe(200);
   const source = (await made.json()).source;

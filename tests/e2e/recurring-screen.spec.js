@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
+import * as Forge from './helpers/forge.js';
 import { signedIn, makePerson } from './helpers/forge.js';
 
 // The Recurring tasks screen: add one through the form, make today's now,
@@ -16,6 +17,7 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
   const sites = await admin.api.get('/client-sites');
   const studio = sites.sites.find((one) => one.studio);
   const person = await makePerson(admin.api, studio.client_id, 'staff', 'weekly');
+  const { client, site } = await Forge.makeSite(admin.api, 'RecurringUI', RUN_ID);
 
   // Today's weekday as the server sees it — its timezone, not this machine's.
   const today = (await admin.api.get('/standup')).today;
@@ -31,6 +33,7 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
   await expect(form).toBeVisible();
 
   await page.getByTestId('bwx-recurring-title').fill(`Weekly tidy ${RUN_ID}`);
+  await page.getByTestId('bwx-recurring-client').selectOption(site.id);
   // Nothing saves until what to do, who, and the hours are there (2026-09-19).
   await expect(page.getByTestId('bwx-recurring-save')).toBeDisabled();
   await page.getByTestId('bwx-recurring-description').click();
@@ -56,14 +59,15 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
   const row = page.locator('[data-testid="bwx-recurring-table"] tr', { hasText: `Weekly tidy ${RUN_ID}` });
   await expect(row).toBeVisible();
   await expect(row).toContainText('Every ');
+  await expect(row).toContainText(client.display_name);
 
   await page.getByTestId('bwx-recurring-run').click();
   await expect(row.getByTestId('bwx-recurring-last')).toBeVisible();
 
-  // On the board, in Up Next, on the studio's site.
+  // On the board, in Up Next, on the client's site it names.
   await page.getByTestId('bwx-screen-work').click();
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', studio.id);
+  await page.selectOption('[data-testid="bwx-site"]', site.id);
   const card = page.locator('[data-testid="bwx-card"]', { hasText: `Weekly tidy ${RUN_ID}` });
   await expect(card).toBeVisible();
   await expect(card).toHaveAttribute('data-stage', 'up-next');

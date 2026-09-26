@@ -53,6 +53,10 @@ interface Mine extends Record< string, unknown > {
   hours: number;
   /** Days until due; null when undated. */
   due: number | null;
+  /** A reminder's copy (2026-09-25): sorted by when it starts, not when it is due. */
+  reminder: boolean;
+  /** Days until a reminder starts; null otherwise. */
+  starts: number | null;
 }
 
 type View = 'today' | 'week' | 'later' | 'all';
@@ -69,6 +73,11 @@ function daysUntil( date: string ): number | null {
 function viewOf( one: Mine ): View {
   const finished = FINISHED.includes( one.item.stage );
   if ( finished ) return 'later';
+  // A reminder is Today from its first day until it is ticked (2026-09-25).
+  if ( one.reminder && null !== one.starts ) {
+    if ( one.starts <= 0 ) return 'today';
+    return one.starts <= 7 ? 'week' : 'later';
+  }
   if ( 'blocked' === one.item.stage ) return 'today';
   if ( null !== one.due && one.due <= 1 ) return 'today';
   if ( 'primary' === one.role && 'in-development' === one.item.stage ) return 'today';
@@ -123,7 +132,8 @@ export function MyTasksScreen() {
         // one row for you, with your own tick on it, and nothing else.
         if ( 0 < ( item.assignees?.length ?? 0 ) ) {
           if ( item.assignees.includes( person.id ) ) {
-            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due } );
+            const reminder = ( item.recurring_id ?? '' ).startsWith( 'rem_' );
+            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null } );
           }
           continue;
         }
@@ -137,7 +147,7 @@ export function MyTasksScreen() {
         };
 
         if ( null !== seat && 'assignee' !== seat && seats[ seat ][ 0 ] === person.id ) {
-          found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due } );
+          found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due, reminder: false, starts: null } );
         }
       }
       setMine( found );
