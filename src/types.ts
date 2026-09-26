@@ -809,6 +809,8 @@ export interface DiaryEntry {
   people: string[] | 'all';
   /** The work item behind a chore, for opening it. */
   item_id: string;
+  /** The client site it belongs to, or '' for no client (#402). */
+  site_id: string;
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */

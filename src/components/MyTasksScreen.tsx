@@ -7,6 +7,8 @@ import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { DiaryLine, useDiary } from './Diary';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
 
@@ -117,8 +119,9 @@ export function MyTasksScreen() {
   const [ view, setView ] = useState< View >( 'today' );
   const [ search, setSearch ] = useState( '' );
   const [ role, setRole ] = useState< string | null >( null );
-  const [ client, setClient ] = useState< string | null >( null );
   const [ opened, setOpened ] = useState( '' );
+  // The top bar's client (#402) replaces the screen's own Client filter.
+  const { siteId, label } = useClientChoice();
 
   /*
    * Today's diary (#386): moved here from the standup, and narrowed to what
@@ -203,23 +206,23 @@ export function MyTasksScreen() {
     }
   }
 
-  const counts = useMemo( () => {
-    const c: Record< View | 'done', number > = { today: 0, week: 0, later: 0, done: 0, all: mine.length };
-    for ( const one of mine ) c[ viewOf( one ) ] += 1;
-    return c;
-  }, [ mine ] );
+  // Narrowed first, so the counts on the tabs are for the picked client too.
+  const ours = useMemo( () => ( ALL_SITES === siteId ? mine : mine.filter( ( one ) => one.item.client_site_id === siteId ) ), [ mine, siteId ] );
 
-  const clients = useMemo( () => [ ...new Set( mine.map( ( one ) => one.site.client_name || one.site.name ) ) ].sort(), [ mine ] );
+  const counts = useMemo( () => {
+    const c: Record< View | 'done', number > = { today: 0, week: 0, later: 0, done: 0, all: ours.length };
+    for ( const one of ours ) c[ viewOf( one ) ] += 1;
+    return c;
+  }, [ ours ] );
 
   const rows = useMemo( () => {
     const needle = search.trim().toLowerCase();
-    return mine
+    return ours
       .filter( ( one ) => 'all' === view || viewOf( one ) === view )
       .filter( ( one ) => ! role || ROLE_LABEL[ one.role ] === role )
-      .filter( ( one ) => ! client || ( one.site.client_name || one.site.name ) === client )
       .filter( ( one ) => ! needle || `${ one.item.id } ${ one.item.title } ${ one.site.client_name }`.toLowerCase().includes( needle ) )
       .sort( ( a, b ) => ( a.due ?? 9999 ) - ( b.due ?? 9999 ) );
-  }, [ mine, view, role, client, search ] );
+  }, [ ours, view, role, search ] );
 
   const views: SavedView[] = [
     { id: 'today', label: 'Today', count: counts.today },
@@ -337,22 +340,13 @@ export function MyTasksScreen() {
             search={ search }
             onSearch={ setSearch }
             searchPlaceholder="Search your tasks"
-            filters={ [
-              { id: 'client', label: 'Client', value: client, options: [ 'All clients', ...clients ] },
-              { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Checker', 'Builder' ] },
-            ] }
-            onFilter={ ( id, value ) => {
-              const cleared = null === value || 'All clients' === value || 'Any role' === value;
-              ( 'client' === id ? setClient : setRole )( cleared ? null : value );
-            } }
-            onClearFilters={ () => {
-              setClient( null );
-              setRole( null );
-            } }
+            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Checker', 'Builder' ] } ] }
+            onFilter={ ( _id, value ) => setRole( null === value || 'Any role' === value ? null : value ) }
+            onClearFilters={ () => setRole( null ) }
             columns={ columns }
             rows={ rows }
             sortable
-            empty={ <EmptyState icon={ ListChecks } dense title={ EMPTY[ view ] } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
+            empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
             footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } + done ${ counts.done } = ${ counts.all }` }
             testId="bwx-mytasks-table"
           />

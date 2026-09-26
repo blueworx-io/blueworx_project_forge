@@ -5,6 +5,8 @@ import { useLiveReload } from '../live';
 import { BulkButton, Check, Modal, ReasonAction, ViewPill } from '../kit';
 import { RequestPanel } from './RequestPanel';
 import { Screen } from './States';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 
 /**
  * The studio's request review queue (#131).
@@ -23,7 +25,10 @@ import { Screen } from './States';
  * inferred by comparing dates.
  */
 export function QueueScreen() {
-  const [ submissions, setSubmissions ] = useState< Submission[] >( [] );
+  const [ every, setSubmissions ] = useState< Submission[] >( [] );
+  // The top bar's client (#402): only its requests, counts included.
+  const { siteId, label } = useClientChoice();
+  const submissions = ALL_SITES === siteId ? every : every.filter( ( one ) => one.client_site_id === siteId );
   const [ states, setStates ] = useState< IntakeState[] >( [] );
   const [ filters, setFilters ] = useState< QueueFilters >( {} );
   const [ openId, setOpenId ] = useState( '' );
@@ -289,7 +294,7 @@ export function QueueScreen() {
       { 'ready' === queue && 0 === submissions.length && (
         <Screen
           state="empty"
-          title="Nobody has asked for anything yet"
+          title={ ALL_SITES === siteId ? 'Nobody has asked for anything yet' : `Nothing for ${ label() } here.` }
           detail="When a client sends a request, an idea or a suggestion from their own site, it arrives here."
         />
       ) }
@@ -414,7 +419,7 @@ export function QueueScreen() {
           onClose={ () => setOpenId( '' ) }
           onAnswered={ ( answered ) => {
             setSubmissions(
-              submissions.map( ( one ) => ( one.id === answered.id ? answered : one ) )
+              every.map( ( one ) => ( one.id === answered.id ? answered : one ) )
             );
             setNotice( `Saved. ${ answered.client_name } can see this on their own site.` );
           } }

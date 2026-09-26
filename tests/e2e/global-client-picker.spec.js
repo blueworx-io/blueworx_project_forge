@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
-import { signedIn, makeItem, makePerson, makeSite, PASSWORD } from './helpers/forge.js';
+import { asClientSite, makeItem, makePerson, makeSite, makeSubmission, PASSWORD, signedIn } from './helpers/forge.js';
 
 // One Client picker in the top bar (#402): every client screen follows it,
 // and it is remembered.
@@ -142,4 +142,120 @@ test('Meetings follows the picker: one client is its meetings, All is every clie
   await expect(page.getByTestId('bwx-meetings-all')).toBeVisible({ timeout: 30_000 });
 
   await admin.context.close();
+});
+
+test.describe('screens that narrow what they load', () => {
+  test('My Tasks, Standup and the diary follow the picker; company dates stay', async ({ browser, baseURL }) => {
+    test.setTimeout(300_000);
+
+    const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+    const one = await makeSite(admin.api, 'Narrow One', RUN_ID);
+    const two = await makeSite(admin.api, 'Narrow Two', RUN_ID);
+    const person = await makePerson(admin.api, one.client.id, 'staff', `narrow${RUN_ID.replace('-', '')}`);
+    await admin.api.post(`/clients/${two.client.id}/memberships`, { user_id: person.id, role: 'staff' });
+
+    const today = (await admin.api.get('/standup')).today;
+    const late = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+
+    // Late work on each client, owned by the person: on My Tasks and on the standup.
+    for (const [where, title] of [[one, `Late here ${RUN_ID}`], [two, `Late there ${RUN_ID}`]]) {
+      const made = (await (await makeItem(admin.api, where.site.id, { title })).json()).item;
+      const edited = await admin.api.patch(`/work-items/${made.id}`, { primary_user_id: person.id, planned_due: late, record_version: made.record_version });
+      expect(edited.status(), await edited.text()).toBe(200);
+    }
+
+    // A chore today on the second client, and a company date for everyone.
+    const chore = await admin.api.post('/recurring', {
+      title: `Chore there ${RUN_ID}`, description: '<p>Do it.</p>', rule: { every: 'day' }, starts_on: today,
+      assignees: [person.id], hours_each: '0.5', client_site_id: two.site.id,
+    });
+    expect(chore.status(), await chore.text()).toBe(200);
+    await admin.api.post('/recurring/run', {});
+    const date = await admin.api.post('/calendar-dates', { title: `Company day ${RUN_ID}`, kind: 'company-day', on_date: today, people: 'all' });
+    expect(date.status(), await date.text()).toBe(200);
+
+    // The feed says which client each entry is for; a company date is for none.
+    const feed = await admin.api.get(`/calendar?from=${today}&to=${today}`);
+    expect(feed.entries.find((entry) => entry.title === `Company day ${RUN_ID}`).site_id).toBe('');
+    expect(feed.entries.find((entry) => entry.title.startsWith(`Chore there ${RUN_ID}`)).site_id).toBe(two.site.id);
+
+    const me = await signedIn(browser, baseURL, person.login, PASSWORD);
+    const page = await me.context.newPage();
+    await page.goto('/blueworx-forge/');
+    await page.getByTestId('bwx-client-choice').selectOption(one.site.id);
+
+    await page.getByTestId('bwx-screen-mytasks').click();
+    const table = page.getByTestId('bwx-mytasks-table');
+    await expect(table).toBeVisible({ timeout: 60_000 });
+    await table.getByRole('button', { name: /^Everything/ }).click();
+    await expect(table).toContainText(`Late here ${RUN_ID}`);
+    await expect(table).not.toContainText(`Late there ${RUN_ID}`);
+    const diary = page.getByTestId('bwx-mytasks-diary');
+    await expect(diary).toContainText(`Company day ${RUN_ID}`);
+    await expect(diary).not.toContainText(`Chore there ${RUN_ID}`);
+
+    await page.getByTestId('bwx-screen-standup').click();
+    const standup = page.getByTestId('bwx-standup');
+    await expect(standup).toBeVisible({ timeout: 60_000 });
+    // Sections start folded; open them to read the cards.
+    await expect(page.getByTestId('bwx-standup-section-toggle').first()).toBeVisible();
+    const folded = page.locator('[data-testid="bwx-standup-section-toggle"][aria-expanded="false"]');
+    while ((await folded.count()) > 0) {
+      await folded.first().click();
+    }
+    await expect(standup).toContainText(`Late here ${RUN_ID}`);
+    await expect(standup).not.toContainText(`Late there ${RUN_ID}`);
+
+    // All clients again: both.
+    await page.getByTestId('bwx-client-choice').selectOption('all');
+    await expect(standup).toContainText(`Late there ${RUN_ID}`);
+
+    await me.context.close();
+    await admin.context.close();
+  });
+
+  test('Recurring tasks, Reminders and Requests follow the picker, and say when a client has none', async ({ browser, baseURL, page, request }) => {
+    test.setTimeout(300_000);
+
+    const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+    const one = await makeSite(admin.api, 'Lists One', RUN_ID);
+    const two = await makeSite(admin.api, 'Lists Two', RUN_ID);
+    const empty = await makeSite(admin.api, 'Lists Empty', RUN_ID);
+    const person = await makePerson(admin.api, one.client.id, 'staff', `lists${RUN_ID.replace('-', '')}`);
+    await admin.api.post(`/clients/${two.client.id}/memberships`, { user_id: person.id, role: 'staff' });
+    const today = (await admin.api.get('/standup')).today;
+
+    for (const [where, name] of [[one, 'here'], [two, 'there']]) {
+      const chore = await admin.api.post('/recurring', {
+        title: `Repeat ${name} ${RUN_ID}`, description: '<p>Do it.</p>', rule: { every: 'day' }, starts_on: today,
+        assignees: [person.id], hours_each: '0.5', client_site_id: where.site.id,
+      });
+      expect(chore.status(), await chore.text()).toBe(200);
+      const reminder = await admin.api.post('/reminders', { client_site_id: where.site.id, title: `Remind ${name} ${RUN_ID}`, assignees: [person.id], starts_on: today });
+      expect(reminder.status(), await reminder.text()).toBe(200);
+      await makeSubmission(await asClientSite(admin.api, where.site.id, request), { title: `Asked ${name} ${RUN_ID}` });
+    }
+
+    await signIn(page, ADMIN_USER, ADMIN_PASS);
+    await page.goto('/blueworx-forge/');
+    await page.getByTestId('bwx-client-choice').selectOption(one.site.id);
+    const app = page.getByTestId('bwx-forge-ready');
+
+    for (const [screen, word] of [['bwx-screen-recurring', 'Repeat'], ['bwx-screen-reminders', 'Remind'], ['bwx-screen-requests', 'Asked']]) {
+      await page.getByTestId(screen).click();
+      await expect(app).toContainText(`${word} here ${RUN_ID}`, { timeout: 60_000 });
+      await expect(app).not.toContainText(`${word} there ${RUN_ID}`);
+    }
+
+    // A client with nothing on a screen says so, by name.
+    await page.getByTestId('bwx-client-choice').selectOption(empty.site.id);
+    await expect(app).toContainText(`Nothing for Lists Empty ${RUN_ID} here.`, { timeout: 60_000 });
+
+    // A new reminder starts on the picked client.
+    await page.getByTestId('bwx-screen-reminders').click();
+    await page.getByRole('button', { name: /Add reminder/i }).click();
+    await expect(page.getByTestId('bwx-reminder-client')).toHaveValue(empty.site.id);
+
+    await admin.context.close();
+  });
 });

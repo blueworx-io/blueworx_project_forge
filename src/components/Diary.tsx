@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Bell, CalendarDays, Cake, Handshake, Plane, Repeat, Receipt, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -6,6 +6,8 @@ import type { CalendarDate, DiaryEntry, Person } from '../types';
 import { api, ApiError, forgeData, messageFor } from '../api';
 import { Aside, Button, EmptyState, Field, Panel, Select, TextInput } from '../kit';
 import { everybody } from './ItemPanel';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 import { failed, NOTHING_SAID, Notice, ok } from './States';
 import type { Said } from './States';
 
@@ -54,9 +56,18 @@ export function diaryByDay( entries: DiaryEntry[] ): Record< string, DiaryEntry[
   return days;
 }
 
-/** Reads the diary for a window. */
+/**
+ * Reads the diary for a window, narrowed to the top bar's client (#402).
+ * Entries that belong to no client — company dates, leave, renewals —
+ * show whichever client is picked.
+ */
 export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; reload: () => void } {
-  const [ entries, setEntries ] = useState< DiaryEntry[] >( [] );
+  const [ every, setEntries ] = useState< DiaryEntry[] >( [] );
+  const { siteId } = useClientChoice();
+  const entries = useMemo(
+    () => ( ALL_SITES === siteId ? every : every.filter( ( entry ) => '' === ( entry.site_id ?? '' ) || entry.site_id === siteId ) ),
+    [ every, siteId ]
+  );
   const [ generation, setGeneration ] = useState( 0 );
 
   useEffect( () => {

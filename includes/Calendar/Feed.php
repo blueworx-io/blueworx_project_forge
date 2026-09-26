@@ -206,6 +206,7 @@ final class Feed {
 						'ends_on' => $start === $due ? '' : $due,
 						'title'   => (string) $row['title'],
 						'item_id' => (string) $row['id'],
+						'site_id' => (string) $row['client_site_id'],
 						'people'  => array(),
 						'done'    => 0,
 						'total'   => 0,
@@ -227,7 +228,8 @@ final class Feed {
 				(string) $row['title'],
 				array() === $people ? Stages::label( (string) $row['stage'] ) : sprintf( '%d of %d done', $ticked, count( $people ) ),
 				$people,
-				(string) $row['id']
+				(string) $row['id'],
+				(string) $row['client_site_id']
 			);
 		}
 
@@ -259,7 +261,8 @@ final class Feed {
 				$reminder['title'],
 				$detail,
 				array_values( array_unique( $reminder['people'] ) ),
-				$reminder['item_id']
+				$reminder['item_id'],
+				$reminder['site_id']
 			);
 		}
 
@@ -336,7 +339,9 @@ final class Feed {
 						'',
 						(string) $series['title'],
 						trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
-						'' === $host ? array() : array( $host )
+						'' === $host ? array() : array( $host ),
+						'',
+						(string) $site['id']
 					);
 				}
 			}
@@ -416,9 +421,10 @@ final class Feed {
 	 * @param string                    $detail  A few more words.
 	 * @param array<int, string>|string $people  Who it is for: ids, or 'all'.
 	 * @param string                    $item_id The work item behind it, if any.
+	 * @param string                    $site_id The client site it is for, or '' for none (#402).
 	 * @return array<string, mixed>
 	 */
-	private static function entry( string $kind, string $id, string $date, string $ends_on, string $title, string $detail, $people, string $item_id = '' ): array {
+	private static function entry( string $kind, string $id, string $date, string $ends_on, string $title, string $detail, $people, string $item_id = '', string $site_id = '' ): array {
 		return array(
 			'id'      => $kind . ':' . $id,
 			'kind'    => $kind,
@@ -429,6 +435,7 @@ final class Feed {
 			'detail'  => $detail,
 			'people'  => $people,
 			'item_id' => $item_id,
+			'site_id' => $site_id,
 		);
 	}
 }

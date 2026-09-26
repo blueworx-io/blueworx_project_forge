@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 import { Repeat } from 'lucide-react';
 import type { ClientSite, Person, RecurringRule, RecurringSource, Stage } from '../types';
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
@@ -145,6 +147,9 @@ export function RecurringScreen() {
   const [ editing, setEditing ] = useState< RecurringSource | 'new' | null >( null );
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  // The top bar's client (#402): the list narrows, and a new one starts on it.
+  const { siteId, label } = useClientChoice();
+  const shown = ( listing?.sources ?? [] ).filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
   const canManage = forgeData()?.canManage ?? false;
 
   async function load() {
@@ -318,10 +323,10 @@ export function RecurringScreen() {
               ) : undefined
             }
             columns={ columns }
-            rows={ listing.sources }
+            rows={ shown }
             sortable
-            empty={ <EmptyState icon={ Repeat } dense title="Nothing repeats yet" body="Add something that happens every day, week or month, and each due day becomes a task in Up Next." /> }
-            footer={ `${ listing.sources.length } recurring · each due day becomes a task on its client's site the first time anyone opens Forge` }
+            empty={ <EmptyState icon={ Repeat } dense title={ ALL_SITES === siteId ? 'Nothing repeats yet' : `Nothing for ${ label() } here.` } body="Add something that happens every day, week or month, and each due day becomes a task in Up Next." /> }
+            footer={ `${ shown.length } recurring · each due day becomes a task on its client's site the first time anyone opens Forge` }
             testId="bwx-recurring-table"
           />
         </div>
@@ -332,7 +337,7 @@ export function RecurringScreen() {
           source={ 'new' === editing ? null : editing }
           people={ people }
           sites={ sites }
-          studio={ listing?.studio_site_id ?? '' }
+          studio={ ALL_SITES === siteId ? listing?.studio_site_id ?? '' : siteId }
           onClose={ () => setEditing( null ) }
           onSaved={ () => {
             setEditing( null );
