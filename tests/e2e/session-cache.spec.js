@@ -20,7 +20,7 @@ test('a screen comes back from the cache, then picks up what changed', async ({ 
   await signIn(page, ADMIN_USER, ADMIN_PASS);
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
 
   const firstCard = page.locator(`[data-testid="bwx-card"][data-item="${first.id}"]`);
   await expect(firstCard).toBeVisible();

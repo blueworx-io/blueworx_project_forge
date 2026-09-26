@@ -170,7 +170,7 @@ test('links are saved with the task, an image goes up on its own, and dependenci
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-card').filter({ hasText: `Extras ${RUN_ID}` }).click();
   await expect(page.getByTestId('bwx-save')).toBeVisible();
 
@@ -201,7 +201,7 @@ test('a before-row takes you to its field, and a checklist counts what is ticked
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-card').filter({ hasText: `Go to ${RUN_ID}` }).click();
   await expect(page.getByTestId('bwx-save')).toBeVisible();
 

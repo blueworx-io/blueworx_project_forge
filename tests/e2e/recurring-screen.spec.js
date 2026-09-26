@@ -67,7 +67,7 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
   // On the board, in Up Next, on the client's site it names.
   await page.getByTestId('bwx-screen-work').click();
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   const card = page.locator('[data-testid="bwx-card"]', { hasText: `Weekly tidy ${RUN_ID}` });
   await expect(card).toBeVisible();
   await expect(card).toHaveAttribute('data-stage', 'up-next');

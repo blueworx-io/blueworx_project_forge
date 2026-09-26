@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
+import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { ClientsScreen } from './components/ClientsScreen';
@@ -32,9 +34,9 @@ import './shell.css';
  *
  * The rail owns which screen is open and, for the work screen, which view —
  * Kanban, Gantt and Calendar are three entries that open one screen, so the
- * board's own view switch and the rail can never disagree. Each screen brings
- * its own header controls, because a site picker means something on one of
- * them and nothing on the other.
+ * board's own view switch and the rail can never disagree. Which client is
+ * being looked at is the top bar's one Client picker (#402), and every
+ * client screen follows it.
  *
  * What has happened lately (#175) stays in the top bar rather than being a
  * screen, because a request arriving, or your work coming back, matters the
@@ -226,6 +228,16 @@ function useRequestsWaiting( screen: ScreenName ): number | null {
   return waiting;
 }
 
+/**
+ * Holds the screen back until the Client picker has settled (#402), so no
+ * screen ever reads one client and then another.
+ */
+function WhenChosen( { children }: { children: ReactNode } ) {
+  const { ready } = useClientChoice();
+
+  return ready ? <>{ children }</> : <Screen state="loading" detail="Reading your clients." />;
+}
+
 export function App() {
   const data = forgeData();
   /**
@@ -282,6 +294,7 @@ export function App() {
   };
 
   return (
+    <ClientChoiceProvider landing={ landing.site }>
     <div className="fs-shell" data-testid="bwx-forge-ready">
       <nav className="fs-rail" aria-label="Screens">
         <div className="fs-rail-brand">
@@ -352,6 +365,7 @@ export function App() {
           <span className="fs-title">{ title }</span>
           <span className="bwx-header-spacer" />
           <Signals />
+          <ClientPicker />
           <Button
             variant="soft"
             size="sm"
@@ -390,6 +404,7 @@ export function App() {
            screen, which reads afresh because the cache was just emptied. The
            same thing switching screens does, on demand.
          */ }
+        <WhenChosen>
         { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
         { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ landing.item } /> }
         { 'requests' === screen && <QueueScreen key={ generation } /> }
@@ -407,7 +422,9 @@ export function App() {
         { 'support' === screen && <SupportScreen key={ generation } site={ landing.site } /> }
         { 'meetings' === screen && <MeetingsScreen key={ generation } site={ landing.site } /> }
         { 'profile' === screen && <ProfileScreen key={ generation } /> }
+        </WhenChosen>
       </main>
     </div>
+    </ClientChoiceProvider>
   );
 }

@@ -30,7 +30,7 @@ test('three lines added, one ticked, saved, and counted on the card', async () =
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
 
   // No checklist, no count.
   await expect(cardFor(page).getByTestId('bwx-card-checklist')).toHaveCount(0);

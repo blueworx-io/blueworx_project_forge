@@ -34,26 +34,18 @@ export function siteLabel( site: SiteOption, sites: SiteOption[] ): string {
 }
 
 /**
- * Which site the picker should open on.
+ * Which client the top bar opens on (#402).
  *
- * The last one chosen, if it is still offered; otherwise the studio's own
- * site, because the board is for our work first; otherwise whatever is
- * first. "All clients" is remembered like any site.
+ * A site a link named, if the person reaches it; otherwise the last one
+ * chosen, if still reachable; otherwise All clients. A site that has gone,
+ * or been taken away, falls back to All rather than to a blank screen.
  */
-export function recallSite( sites: SiteOption[] ): string {
-  let remembered = '';
-
-  try {
-    remembered = window.localStorage.getItem( REMEMBERED ) ?? '';
-  } catch {
-    // Storage can be missing or refused; the default below is fine.
+export function openingSite( sites: SiteOption[], asked = '' ): string {
+  if ( '' !== asked && sites.some( ( one ) => one.id === asked ) ) {
+    return asked;
   }
 
-  if ( ALL_SITES === remembered || sites.some( ( one ) => one.id === remembered ) ) {
-    return remembered;
-  }
-
-  return sites.find( ( one ) => one.studio )?.id ?? sites[ 0 ]?.id ?? '';
+  return rememberedSite( sites, true ) || ALL_SITES;
 }
 
 /**

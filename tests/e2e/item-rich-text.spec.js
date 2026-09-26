@@ -26,7 +26,7 @@ test.afterAll(async () => {
 async function openThePanel(page) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-card').filter({ hasText: `Formatted ${RUN_ID}` }).click();
   await expect(page.getByTestId('bwx-panel')).toBeVisible();
   await expect(page.getByTestId('bwx-save')).toBeVisible();

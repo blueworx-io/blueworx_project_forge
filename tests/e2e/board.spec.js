@@ -82,7 +82,7 @@ async function readyForTriage(page, itemId, clientId) {
 async function openBoardOn(page, siteId) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', siteId);
+  await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
   await expect(page.locator('[data-testid="bwx-card"]')).toHaveCount(1);
 }
 
@@ -132,7 +132,7 @@ test.describe('the board', () => {
     // And it is a real move, not a repositioned card: it survives a reload.
     await page.reload();
     await page.waitForSelector('[data-testid="bwx-board"]');
-    await page.selectOption('[data-testid="bwx-site"]', siteId);
+    await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
     await expect(page.locator('[data-testid="bwx-card"]')).toHaveAttribute('data-stage', 'triage');
   });
 
@@ -215,11 +215,11 @@ test.describe('the board', () => {
 
     await page.goto('/blueworx-forge/');
     await page.waitForSelector('[data-testid="bwx-board"]');
-    await page.selectOption('[data-testid="bwx-site"]', siteId);
+    await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
 
     const state = page.locator('[data-testid="bwx-state"]');
     await expect(state).toHaveAttribute('data-state', 'empty');
-    await expect(state).toContainText('No work on this site yet');
+    await expect(state).toContainText(/Nothing for Empty .+ here\./);
 
     // Empty, not denied. The two are told apart deliberately.
     await expect(state).not.toHaveAttribute('data-state', 'denied');

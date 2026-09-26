@@ -27,7 +27,7 @@ test.afterAll(async () => {
 async function openOnBoard(page, title) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-card').filter({ hasText: title }).click();
   await expect(page.getByTestId('bwx-save')).toBeVisible();
 }
@@ -36,7 +36,7 @@ async function openOnBoard(page, title) {
 async function openFromList(page, itemId) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-view-list').click();
   await page.locator(`[data-testid="bwx-row"][data-item="${itemId}"] .bwx-row-open`).click();
   await expect(page.getByTestId('bwx-save')).toBeVisible();
