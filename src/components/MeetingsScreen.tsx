@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { CalendarClock, CalendarX2 } from 'lucide-react';
-import type { Meeting, MeetingFrequency, MeetingLedgerState, MeetingSeries, MeetingStatus, MeetingsAnswer } from '../types';
+import type { AllClientsMeeting, AllClientsMeetingsAnswer, Meeting, MeetingFrequency, MeetingLedgerState, MeetingSeries, MeetingStatus, MeetingsAnswer } from '../types';
 import { ApiError, api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, Card, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { hoursLabel } from './PackagesScreen';
 import { SitePicker } from './SitePicker';
+import { ALL_SITES } from '../sites';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
 import type { Said } from './States';
 
@@ -131,6 +132,7 @@ type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind
 export function MeetingsScreen( { site }: { site: string } ) {
   const [ siteId, setSiteId ] = useState( site );
   const [ answer, setAnswer ] = useState< MeetingsAnswer | null >( null );
+  const [ allAnswer, setAllAnswer ] = useState< AllClientsMeetingsAnswer | null >( null );
   const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( site ? 'loading' : 'idle' );
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ opened, setOpened ] = useState< Opened >( null );
@@ -151,6 +153,24 @@ export function MeetingsScreen( { site }: { site: string } ) {
     }
   }
 
+  /** Every client's standing meetings, flat: the "All Clients" pick (#383). */
+  async function loadAll( quiet = true ) {
+    if ( quiet ) {
+      setNotice( NOTHING_SAID );
+    }
+
+    try {
+      const fresh = await api< AllClientsMeetingsAnswer >( '/meetings' );
+
+      setAllAnswer( fresh );
+      setAnswer( null );
+      setState( 'ready' );
+    } catch ( error ) {
+      setState( isDenied( error ) ? 'denied' : 'error' );
+      setNotice( failed( messageFor( error, 'Every client\'s meetings could not be read.' ) ) );
+    }
+  }
+
   async function load( id: string = siteId, page: number = pastPage, quiet = true ) {
     if ( quiet ) {
       setNotice( NOTHING_SAID );
@@ -158,7 +178,14 @@ export function MeetingsScreen( { site }: { site: string } ) {
 
     if ( '' === id ) {
       setAnswer( null );
+      setAllAnswer( null );
       setState( 'idle' );
+
+      return;
+    }
+
+    if ( ALL_SITES === id ) {
+      await loadAll( quiet );
 
       return;
     }
@@ -167,6 +194,7 @@ export function MeetingsScreen( { site }: { site: string } ) {
       const fresh = await api< MeetingsAnswer >( `/client-sites/${ id }/meetings${ 1 === page ? '' : `?past_page=${ page }` }` );
 
       setAnswer( fresh );
+      setAllAnswer( null );
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
@@ -279,14 +307,24 @@ export function MeetingsScreen( { site }: { site: string } ) {
 
   return (
     <div className="bwx-meetings" data-testid="bwx-meetings">
-      <SitePicker value={ siteId } onChange={ pick } testId="bwx-meetings-site" />
+      <SitePicker value={ siteId } onChange={ pick } testId="bwx-meetings-site" allOption="All Clients" />
 
       { 'idle' === state && <EmptyState icon={ CalendarClock } title="No site chosen" body="Choose a site to see its meetings." /> }
       { 'loading' === state && <Screen state="loading" testId="bwx-meetings-state-screen" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-meetings-state-screen" detail="A site's standing meetings are configuration, and configuration is the administrator's." /> }
       { 'error' === state && <Screen state="error" testId="bwx-meetings-state-screen" detail={ notice.text } /> }
 
-      { 'ready' === state && answer && (
+      { /*
+           All Clients (#383): a plain flat list, no twelve-week view and no
+           week grouping. Picking a client goes back to the ordinary view
+           below, and a row here does the same — it is a shortcut to that
+           client's site, not a second place any of this is done.
+        */ }
+      { 'ready' === state && ALL_SITES === siteId && allAnswer && (
+        <AllClientsList answer={ allAnswer } onPick={ pick } />
+      ) }
+
+      { 'ready' === state && ALL_SITES !== siteId && answer && (
         <>
           <Notice said={ notice } testId="bwx-meetings-notice" />
 
@@ -374,6 +412,47 @@ export function MeetingsScreen( { site }: { site: string } ) {
         </>
       ) }
     </div>
+  );
+}
+
+/**
+ * Every client's standing meetings, flat (#383): the client and site, the
+ * title, the cadence and time the series already carries, the host, and its
+ * next meeting where the horizon caught one. A row is a shortcut to that
+ * site's ordinary view — everything a standing meeting can be done to lives
+ * there, not here.
+ */
+function AllClientsList( { answer, onPick }: { answer: AllClientsMeetingsAnswer; onPick: ( id: string ) => void } ) {
+  const columns: Column< AllClientsMeeting >[] = [
+    { key: 'client', label: 'Client', render: ( m ) => m.client_name },
+    { key: 'site', label: 'Site', render: ( m ) => m.site_name },
+    {
+      key: 'title',
+      label: 'Standing meeting',
+      wrap: true,
+      render: ( m ) => (
+        <span data-testid="bwx-meetings-all-row" data-site={ m.client_site_id } data-client={ m.client_id }>
+          { m.title }
+        </span>
+      ),
+    },
+    { key: 'when', label: 'When', render: ( m ) => `${ m.frequency_label }, ${ m.time_of_day } ${ m.timezone }` },
+    { key: 'host', label: 'Host', render: ( m ) => m.host_name || '—' },
+    { key: 'next', label: 'Next meeting', mono: true, render: ( m ) => m.next_on ?? '—' },
+  ];
+
+  return (
+    <Panel title="Standing meetings, every client">
+      <DataView< AllClientsMeeting >
+        columns={ columns }
+        rows={ answer.meetings }
+        sortable={ false }
+        fixed
+        testId="bwx-meetings-all"
+        empty="No client has a standing meeting."
+        onRowClick={ ( row ) => onPick( row.client_site_id ) }
+      />
+    </Panel>
   );
 }
 

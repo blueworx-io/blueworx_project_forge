@@ -1233,3 +1233,16 @@ export interface MeetingsAnswer {
   added?: MeetingSeries;
   meeting?: Meeting | null;
 }
+
+/** One row of `/meetings`: a standing meeting, with where it belongs and its next date, if the horizon caught one (#383). */
+export interface AllClientsMeeting extends MeetingSeries {
+  client_name: string;
+  site_name: string;
+  next_on: string | null;
+}
+
+/** What `/meetings` answers: every client's standing meetings, flat, for the picker's "All Clients". */
+export interface AllClientsMeetingsAnswer {
+  ok: true;
+  meetings: AllClientsMeeting[];
+}

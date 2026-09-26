@@ -344,3 +344,47 @@ test('meetings that have passed are listed twelve weeks at a time, newest first,
   const after = await settled.json();
   expect(after.past.meetings.find((one) => one.slot === last.slot).status).toBe('held');
 });
+
+// #383. "All Clients": a flat list across every site in reach, batched
+// (G1's Series::for_sites and Diary::stored_between), with no twelve-week
+// view and no week grouping.
+test('GET /meetings lists standing meetings across every site in reach', async () => {
+  const alpha = (await makeSite(api, 'All clients alpha', `${RUN_ID}-aca`)).site;
+  const beta = (await makeSite(api, 'All clients beta', `${RUN_ID}-acb`)).site;
+  await onSupport({ api }, alpha.id, GRANTED);
+  await onSupport({ api }, beta.id, GRANTED);
+
+  const onAlpha = await api.post(`/client-sites/${alpha.id}/meetings/series`, weekly(host, first, { title: `Alpha standing ${RUN_ID}` }));
+  expect(onAlpha.status(), await onAlpha.text()).toBe(200);
+  const onBeta = await api.post(`/client-sites/${beta.id}/meetings/series`, weekly(host, first, { title: `Beta standing ${RUN_ID}` }));
+  expect(onBeta.status(), await onBeta.text()).toBe(200);
+
+  const all = await api.get('/meetings');
+  expect(all.ok).toBe(true);
+
+  const alphaRow = all.meetings.find((one) => one.title === `Alpha standing ${RUN_ID}`);
+  const betaRow = all.meetings.find((one) => one.title === `Beta standing ${RUN_ID}`);
+  expect(alphaRow, 'alpha is listed').toBeTruthy();
+  expect(betaRow, 'beta is listed').toBeTruthy();
+
+  expect(alphaRow.client_site_id).toBe(alpha.id);
+  expect(alphaRow.site_name).toBe(alpha.name);
+  expect(alphaRow.host_name).toBe(host.user.display_name);
+  expect(alphaRow.frequency_label).toBe('Every week');
+  expect(alphaRow.next_on).toBe(first);
+
+  expect(betaRow.client_site_id).toBe(beta.id);
+  expect(betaRow.site_name).toBe(beta.name);
+});
+
+test('somebody who is not an administrator cannot read every client\'s meetings either', async ({ browser, baseURL }) => {
+  // The route is scoped the same way the site-scoped list is (manage()):
+  // an account that cannot open one site's meetings reaches nothing across
+  // every site either, which is what a caller with no reach sees.
+  const other = await signedIn(browser, baseURL, host.login, PASSWORD);
+
+  const read = await other.api.request.get(`${BASE}/meetings`, { headers: other.api.headers });
+  expect(read.status()).toBe(403);
+
+  await other.context.close();
+});

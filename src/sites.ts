@@ -61,14 +61,22 @@ export function recallSite( sites: SiteOption[] ): string {
  * otherwise nothing. For a screen that is about one site and should open on
  * nothing rather than guess — the board's "studio first, else whatever is
  * first" is right for work and wrong for a site's commercial record.
+ *
+ * `allowAll` is for a screen that offers "All Clients" as a choice of its
+ * own (Meetings, #383): remembering it is fine there, the same as
+ * remembering any one site, but only when the screen actually offers it.
  */
-export function rememberedSite( sites: SiteOption[] ): string {
+export function rememberedSite( sites: SiteOption[], allowAll = false ): string {
   let remembered = '';
 
   try {
     remembered = window.localStorage.getItem( REMEMBERED ) ?? '';
   } catch {
     // Storage can be missing or refused; nothing remembered is fine.
+  }
+
+  if ( allowAll && ALL_SITES === remembered ) {
+    return remembered;
   }
 
   return sites.some( ( one ) => one.id === remembered ) ? remembered : '';
