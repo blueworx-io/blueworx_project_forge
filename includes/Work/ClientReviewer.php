@@ -1,0 +1,106 @@
+<?php
+/**
+ * The client as a task's reviewer.
+ *
+ * @package Blueworx\Forge
+ */
+
+declare( strict_types = 1 );
+
+namespace Blueworx\Forge\Work;
+
+/**
+ * #391 (2026-09-26). Some work needs the client to sign it off, so "the
+ * client" can sit in the reviewer seat.
+ *
+ * It is stored as `reviewer_id = 'client'`. No `usr_` prefix, so it never
+ * matches a person, and no staff member can approve as the reviewer. The
+ * client approves from their own site, or an admin records it for them.
+ *
+ * Their review time counts against nobody: the review hours are held at 0,
+ * which keeps capacity and the support allowance right without either
+ * knowing about this.
+ *
+ * Pure.
+ */
+final class ClientReviewer {
+
+	/**
+	 * What the reviewer seat holds when the client reviews.
+	 */
+	public const ID = 'client';
+
+	/**
+	 * The client can be chosen from here on, and not before.
+	 */
+	public const FROM = Stages::UP_NEXT;
+
+	/**
+	 * Whether the client reviews this item.
+	 *
+	 * @param array<string, mixed> $item The item, or the values being written.
+	 * @return bool
+	 */
+	public static function is( array $item ): bool {
+		return self::ID === (string) ( $item['reviewer_id'] ?? '' );
+	}
+
+	/**
+	 * Whether the client may be chosen at this stage.
+	 *
+	 * @param string $stage The stage the item is at.
+	 * @return bool
+	 */
+	public static function may_choose( string $stage ): bool {
+		return Stages::exists( $stage )
+			&& Stages::BLOCKED !== $stage
+			&& Stages::position( $stage ) >= Stages::position( self::FROM );
+	}
+
+	/**
+	 * The stage that decides it: where the item is, or for blocked work where
+	 * it was.
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return string
+	 */
+	public static function stage_of( array $item ): string {
+		$stage = (string) ( $item['stage'] ?? '' );
+
+		return Stages::BLOCKED === $stage ? (string) ( $item['prior_stage'] ?? '' ) : $stage;
+	}
+
+	/**
+	 * The refusal for choosing the client too early.
+	 *
+	 * @return string
+	 */
+	public static function too_early(): string {
+		return __( 'The client can be the reviewer from Up Next onwards.', 'blueworx-forge' );
+	}
+
+	/**
+	 * What a write becomes when the client reviews: no review hours and no
+	 * stand-in. Only adds what would change, so an edit that changes nothing
+	 * still writes nothing.
+	 *
+	 * @param array<string, mixed> $changes What is being written.
+	 * @param array<string, mixed> $current The item as it stands.
+	 * @return array<string, mixed>
+	 */
+	public static function settle( array $changes, array $current = array() ): array {
+		if ( ! self::is( array_merge( $current, $changes ) ) ) {
+			return $changes;
+		}
+
+		if ( array_key_exists( 'hours_review', $changes ) || (float) ( $current['hours_review'] ?? 0 ) > 0 ) {
+			$changes['hours_review'] = 0.0;
+		}
+
+		if ( array_key_exists( 'reviewer_substitute_id', $changes ) || '' !== (string) ( $current['reviewer_substitute_id'] ?? '' ) ) {
+			$changes['reviewer_substitute_id'] = '';
+		}
+
+		return $changes;
+	}
+}

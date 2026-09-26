@@ -272,7 +272,10 @@ final class Items {
 		 * an estimate, against silently re-deciding somebody's review time
 		 * every time the estimate moves.
 		 */
-		$changes = RoleHours::seed( self::writable( $values ), (array) self::get( $id ) );
+		$current = (array) self::get( $id );
+
+		// #391. With the client reviewing, no review hours and no stand-in.
+		$changes = ClientReviewer::settle( RoleHours::seed( self::writable( $values ), $current ), $current );
 
 		if ( array() === $changes ) {
 			// Nothing to write. Returning the row rather than a failure: an edit

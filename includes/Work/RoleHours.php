@@ -72,6 +72,11 @@ final class RoleHours {
 				continue;
 			}
 
+			// #391. The client's review takes nobody's time.
+			if ( 'hours_review' === $column && ClientReviewer::is( array_merge( $current, $changes ) ) ) {
+				continue;
+			}
+
 			$changes[ $column ] = round( $primary * $ratio, 2 );
 		}
 

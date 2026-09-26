@@ -100,9 +100,12 @@ final class Validate {
 	 * @param array<string, mixed> $input   Raw input.
 	 * @param bool                 $partial True for an edit, which may mention
 	 *                                      only the fields it changes.
+	 * @param string               $stage   The stage the item is at, for the
+	 *                                      rules that depend on it (#391); new
+	 *                                      work starts at the first stage.
 	 * @return array{values: array<string, mixed>, errors: array<string, string>}
 	 */
-	public static function item( array $input, bool $partial ): array {
+	public static function item( array $input, bool $partial, string $stage = Stages::FIRST ): array {
 		$values = array();
 		$errors = array();
 
@@ -153,7 +156,7 @@ final class Validate {
 			$values['parent_id'] = '';
 		}
 
-		self::seats( $input, $values, $errors );
+		self::seats( $input, $values, $errors, $stage );
 		self::text_fields( $input, $values, $errors );
 
 		foreach ( Fields::LISTS as $list ) {
@@ -185,8 +188,9 @@ final class Validate {
 	 * @param array<string, mixed>  $input  Raw input.
 	 * @param array<string, mixed>  $values Cleaned values, by reference.
 	 * @param array<string, string> $errors Errors, by reference.
+	 * @param string                $stage  The stage the item is at.
 	 */
-	private static function seats( array $input, array &$values, array &$errors ): void {
+	private static function seats( array $input, array &$values, array &$errors, string $stage ): void {
 		/*
 		 * The hours live inside the accountability group so that "may this
 		 * person set the accountability fields" stays one question, which is
@@ -206,6 +210,17 @@ final class Validate {
 
 			if ( '' === $id ) {
 				$values[ $field ] = '';
+				continue;
+			}
+
+			// #391. The client can review, from Up Next on, and holds no other seat.
+			if ( 'reviewer_id' === $field && ClientReviewer::ID === $id ) {
+				if ( ClientReviewer::may_choose( $stage ) ) {
+					$values[ $field ] = $id;
+				} else {
+					$errors[ $field ] = ClientReviewer::too_early();
+				}
+
 				continue;
 			}
 

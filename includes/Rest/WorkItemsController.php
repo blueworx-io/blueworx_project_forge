@@ -24,6 +24,7 @@ use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\ClientMove;
+use Blueworx\Forge\Work\ClientReviewer;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Dependencies;
 use Blueworx\Forge\Work\Derived;
@@ -1410,7 +1411,7 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true );
+		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true, ClientReviewer::stage_of( $item ) );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -1426,6 +1427,10 @@ final class WorkItemsController {
 		if ( null !== $refused ) {
 			return $refused;
 		}
+
+		// #391. Settled here as well as on the write, so the history shows the
+		// review hours going to 0.
+		$checked['values'] = ClientReviewer::settle( $checked['values'], $item );
 
 		/*
 		 * #393. The seats this edit changes, and only those. The panel sends

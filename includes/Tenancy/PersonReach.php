@@ -124,7 +124,7 @@ final class PersonReach {
 		foreach ( self::SEATS as $field ) {
 			$id = (string) ( $values[ $field ] ?? '' );
 
-			if ( '' === $id || self::person_reaches_site( $id, $client_id, $site_id, true ) ) {
+			if ( '' === $id || self::is_client( $id ) || self::person_reaches_site( $id, $client_id, $site_id, true ) ) {
 				continue;
 			}
 
@@ -132,6 +132,17 @@ final class PersonReach {
 		}
 
 		return $errors;
+	}
+
+	/**
+	 * Whether a seat holds the client rather than a person (#391). The client
+	 * reaches their own work by definition, so it is never asked about.
+	 *
+	 * @param string $id Seat value.
+	 * @return bool
+	 */
+	private static function is_client( string $id ): bool {
+		return \Blueworx\Forge\Work\ClientReviewer::ID === $id;
 	}
 
 	/**
@@ -180,7 +191,7 @@ final class PersonReach {
 		foreach ( self::SEATS as $field ) {
 			$id = (string) ( $values[ $field ] ?? '' );
 
-			if ( '' !== $id && ! $reaches( $id ) ) {
+			if ( '' !== $id && ! self::is_client( $id ) && ! $reaches( $id ) ) {
 				$values[ $field ] = '';
 			}
 		}
