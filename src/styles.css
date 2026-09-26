@@ -5,11 +5,18 @@
    A change to a token therefore reaches both interfaces from one edit. */
 @import '../tokens/forge.css';
 
-/* The app owns the viewport; the template loads no theme styles. */
+/*
+ * The app owns the viewport; the template loads no theme styles. Neither
+ * scrolls or bounces past its end (#407) — .fs-main is the shell's own
+ * scroller, so the document itself never needs to move.
+ */
 html,
 body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {

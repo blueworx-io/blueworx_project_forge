@@ -10,10 +10,18 @@
   white-space: nowrap;
 }
 
+/*
+ * The page itself never scrolls (#407): the shell fills the viewport exactly
+ * and only .fs-main scrolls its own content, so the rail and top bar stay
+ * put — no bounce past the end, no drag on a trackpad or the desktop
+ * shortcut. html/body carry the matching overflow:hidden, scoped to this
+ * page by its own body class (styles.css).
+ */
 .fs-shell {
   display: flex;
-  align-items: flex-start;
-  min-height: 100dvh;
+  align-items: stretch;
+  height: 100dvh;
+  overflow: hidden;
   background: var( --surface-page );
 }
 
@@ -146,9 +154,13 @@
   color: var( --ink-500 );
 }
 
+/* The one scroller (#407): everything else in the shell is fixed in place. */
 .fs-main {
   flex: 1;
   min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .fs-topbar {
   position: sticky;

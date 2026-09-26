@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.139.0] - 2026-09-27
+
+### Added
+
+- Sales and Finance reminder types.
+
+### Changed
+
+- Recurring tasks no longer lists subscription renewals.
+- Finished chores leave Today's diary on My tasks.
+
+### Fixed
+
+- The page no longer drags or bounces when you scroll past the end; only the content scrolls.
+
 ## [2.138.0] - 2026-09-26
 
 ### Added
