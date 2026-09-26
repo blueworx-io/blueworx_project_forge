@@ -413,7 +413,7 @@ export function ItemPanel( {
    * client and to offer somewhere else; whether the picker is open and what
    * it holds; and who the last move took off the task.
    */
-  const [ sites, setSites ] = useState< SiteOption[] >( [] );
+  const [ sites, setSites ] = useState< SiteOption[] | null >( null );
   const [ moving, setMoving ] = useState< string | null >( null );
   const [ takenOff, setTakenOff ] = useState< string[] >( [] );
 
@@ -1034,11 +1034,15 @@ export function ItemPanel( {
       return null;
     }
 
-    const here = sites.find( ( site ) => site.id === item.client_site_id );
-    const named = here ? ( '' === here.client_name ? here.name : `${ here.client_name } · ${ here.name }` ) : 'Loading…';
+    const here = ( sites ?? [] ).find( ( site ) => site.id === item.client_site_id );
+    // Until the list arrives it says so; if it never does, or the site is
+    // not on it, a plain label rather than a wait that never ends.
+    const named = here
+      ? ( '' === here.client_name ? here.name : `${ here.client_name } · ${ here.name }` )
+      : null === sites ? 'Loading…' : item.client_name || item.site_name || 'Not available';
     const unconfirmed = 'future-idea' === item.stage && ! item.client_confirmed_at;
     const changeable = ! reached( 'in-development' ) && ! ended;
-    const elsewhere = sites.filter( ( site ) => site.id !== item.client_site_id && 'active' === site.status );
+    const elsewhere = ( sites ?? [] ).filter( ( site ) => site.id !== item.client_site_id && 'active' === site.status );
 
     const picker = null !== moving && (
       <div className="bwx-client-move">
@@ -2432,8 +2436,9 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       // #390. The reason beside it names the client.
       return 'Client confirmed';
     case 'client-moved':
-      // The reason says from which client to which.
-      return 'Moved to another client';
+      // The reason says from which client to which; the detail, who was
+      // taken off on the way.
+      return '' === ( event.detail ?? '' ) ? 'Moved to another client' : `Moved to another client. ${ event.detail }`;
     case 'over-allocated':
       // CAP-4. The reason sits beside it in the entry, so the line says what
       // was done and the reason says why.

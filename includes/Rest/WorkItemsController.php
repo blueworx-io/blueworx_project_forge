@@ -732,8 +732,8 @@ final class WorkItemsController {
 		}
 
 		$children = Items::children( $item['id'] );
-		$history  = array_map( array( self::class, 'with_actor_name' ), Events::for_item( $item['id'] ) );
 		$scope    = Scope::current( (string) $item['client_id'] );
+		$history  = array_map( array( self::class, 'with_actor_name' ), self::history_for( $item, $scope ) );
 
 		/*
 		 * Everything a screen needs to draw the item's options, worked out here
@@ -798,6 +798,33 @@ final class WorkItemsController {
 				 * was noticed — which is the whole of what this list is for.
 				 */
 				'notifications' => Notifications::for_subject( (string) $item['id'] ),
+			)
+		);
+	}
+
+	/**
+	 * An item's history, as this reader may see it.
+	 *
+	 * The client entries (#390) name a client and site in words, and a task
+	 * moved between clients carries the old one's name in them. Only our own
+	 * people read those; anybody else gets the history without them, so a
+	 * client never learns another client's name from a task that came to them.
+	 *
+	 * @param array<string, mixed> $item  The item.
+	 * @param string               $scope Scope::current() for the reader.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function history_for( array $item, string $scope ): array {
+		$history = Events::for_item( (string) $item['id'] );
+
+		if ( Comments::SCOPE_STAFF === $scope ) {
+			return $history;
+		}
+
+		return array_values(
+			array_filter(
+				$history,
+				static fn( array $entry ): bool => ! in_array( (string) $entry['action'], array( Events::CLIENT_CONFIRMED, Events::CLIENT_MOVED ), true )
 			)
 		);
 	}
@@ -1555,13 +1582,28 @@ final class WorkItemsController {
 			);
 		}
 
+		global $wpdb;
+
+		// The stamp and its history entry stand or fall together.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'START TRANSACTION' );
+
 		$confirmed = Items::confirm_client( (string) $item['id'], get_current_user_id(), $ready['version'] );
 
 		if ( null === $confirmed ) {
+			self::rollback();
+
 			return self::write_refused( (string) $item['id'], $ready['version'] );
 		}
 
-		self::record_client( $confirmed, Events::CLIENT_CONFIRMED, self::client_label( $confirmed ) );
+		if ( ! self::record_client( $confirmed, Events::CLIENT_CONFIRMED, self::client_label( $confirmed ) ) ) {
+			self::rollback();
+
+			return Errors::rest( 'write_failed', __( 'The client could not be confirmed, so nothing was changed. Try again.', 'blueworx-forge' ), 500 );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'COMMIT' );
 
 		return rest_ensure_response(
 			array(
@@ -1619,7 +1661,10 @@ final class WorkItemsController {
 			return $refused;
 		}
 
-		$refusal = ClientMove::refusal( $item, self::linked( $item ), self::requested( $item ), self::client_seen( $item ) );
+		// What the item alone rules out, and hours already used, are asked
+		// before anything is written.
+		$refusal = ClientMove::fixed( $item )
+			?? ClientMove::hours_used( WorkHours::position( Ledger::for_source( WorkHours::SOURCE, (string) $item['id'] ) )['used'] );
 
 		if ( null !== $refusal ) {
 			return Errors::rest( $refusal['code'], $refusal['message'], 409 );
@@ -1631,47 +1676,16 @@ final class WorkItemsController {
 			$seats[ $field ] = (string) $item[ $field ];
 		}
 
+		/*
+		 * Deliberate: anybody in a seat who cannot work on the new client is
+		 * taken off rather than the move being refused. Only they are taken
+		 * off, the answer names them, and so does the history entry — an
+		 * empty seat is seen and filled, where somebody left in one could
+		 * never open the work they hold.
+		 */
 		$kept   = PersonReach::drop_unreached( $seats, (string) $site['client_id'], (string) $site['id'] );
 		$before = self::client_label( $item );
 		$actor  = get_current_user_id();
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
-		$wpdb->query( 'START TRANSACTION' );
-
-		$moved = Items::move_client( (string) $item['id'], (string) $site['id'], (string) $site['client_id'], $kept, $actor, $ready['version'] );
-
-		if ( null === $moved ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
-			$wpdb->query( 'ROLLBACK' );
-
-			return self::write_refused( (string) $item['id'], $ready['version'] );
-		}
-
-		if ( ! self::move_hours( $item, $moved, $actor ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
-			$wpdb->query( 'ROLLBACK' );
-
-			return Errors::rest(
-				'hours_not_available',
-				__( 'The new client does not have enough support hours left for this task.', 'blueworx-forge' ),
-				409,
-				array( 'balance' => Ledger::balance( (string) $site['id'] ) )
-			);
-		}
-
-		self::record_client(
-			$moved,
-			Events::CLIENT_MOVED,
-			sprintf(
-				/* translators: 1: the client and site it was on, 2: the client and site it is on now. */
-				__( 'Moved from %1$s to %2$s', 'blueworx-forge' ),
-				$before,
-				self::client_label( $moved )
-			)
-		);
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
-		$wpdb->query( 'COMMIT' );
 
 		$taken_off = array();
 
@@ -1683,6 +1697,70 @@ final class WorkItemsController {
 			);
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'START TRANSACTION' );
+
+		// The links are read inside the transaction, so they are the ones the
+		// move is made against.
+		$refusal = ClientMove::refusal( $item, self::linked( $item ), self::requested( $item ), self::client_seen( $item ) );
+
+		if ( null !== $refusal ) {
+			self::rollback();
+
+			return Errors::rest( $refusal['code'], $refusal['message'], 409 );
+		}
+
+		$moved = Items::move_client( (string) $item['id'], (string) $site['id'], (string) $site['client_id'], $kept, $actor, $ready['version'] );
+
+		if ( null === $moved ) {
+			self::rollback();
+
+			return self::write_refused( (string) $item['id'], $ready['version'] );
+		}
+
+		if ( false === $moved ) {
+			self::rollback();
+
+			return self::move_failed();
+		}
+
+		if ( ! self::move_hours( $item, $moved, $actor ) ) {
+			self::rollback();
+
+			return Errors::rest(
+				'hours_not_available',
+				__( 'The new client does not have enough support hours left for this task.', 'blueworx-forge' ),
+				409,
+				array( 'balance' => Ledger::balance( (string) $site['id'] ) )
+			);
+		}
+
+		$names    = array_map( static fn( array $person ): string => '' === $person['name'] ? __( 'Somebody', 'blueworx-forge' ) : $person['name'], $taken_off );
+		$recorded = self::record_client(
+			$moved,
+			Events::CLIENT_MOVED,
+			sprintf(
+				/* translators: 1: the client and site it was on, 2: the client and site it is on now. */
+				__( 'Moved from %1$s to %2$s', 'blueworx-forge' ),
+				$before,
+				self::client_label( $moved )
+			),
+			array() === $names ? '' : sprintf(
+				/* translators: %s: the names of the people taken off the task. */
+				__( 'Taken off: %s', 'blueworx-forge' ),
+				implode( ', ', $names )
+			)
+		);
+
+		if ( ! $recorded ) {
+			self::rollback();
+
+			return self::move_failed();
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'COMMIT' );
+
 		return rest_ensure_response(
 			array(
 				'ok'        => true,
@@ -1693,12 +1771,35 @@ final class WorkItemsController {
 	}
 
 	/**
+	 * Undoes everything a move has written so far.
+	 */
+	private static function rollback(): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'ROLLBACK' );
+	}
+
+	/**
+	 * The answer when a write inside a move failed and it was all undone.
+	 *
+	 * @return \WP_Error
+	 */
+	private static function move_failed() {
+		return Errors::rest(
+			'move_failed',
+			__( 'The task could not be moved, so nothing was changed. Try again.', 'blueworx-forge' ),
+			500
+		);
+	}
+
+	/**
 	 * Moves the hours a task holds from its old client to its new one.
 	 *
 	 * Only planned hours can be held before work starts, and the ledger is
 	 * never rewritten: the old client gets a release, and the new one's
 	 * reservation is the ordinary reconciliation of the item where it now is.
-	 * Anything already spent means work started, which the move refused.
+	 * Hours already used were refused before the move began.
 	 *
 	 * @param array<string, mixed> $before The item on its old client.
 	 * @param array<string, mixed> $after  The item on its new client.
@@ -1707,10 +1808,6 @@ final class WorkItemsController {
 	 */
 	private static function move_hours( array $before, array $after, int $actor ): bool {
 		$position = WorkHours::position( Ledger::for_source( WorkHours::SOURCE, (string) $before['id'] ) );
-
-		if ( $position['used'] > 0 ) {
-			return false;
-		}
 
 		if ( $position['reserved'] > 0 ) {
 			$released = Ledger::append(
@@ -1799,9 +1896,11 @@ final class WorkItemsController {
 	 * @param array<string, mixed> $item   The item as it now stands.
 	 * @param string               $action Events::CLIENT_CONFIRMED or CLIENT_MOVED.
 	 * @param string               $reason What a person reads.
+	 * @param string               $detail Who was taken off, on a move.
+	 * @return bool Whether it was written.
 	 */
-	private static function record_client( array $item, string $action, string $reason ): void {
-		Events::append(
+	private static function record_client( array $item, string $action, string $reason, string $detail = '' ): bool {
+		return Events::append(
 			array(
 				'item_id'          => (string) $item['id'],
 				'client_site_id'   => (string) $item['client_site_id'],
@@ -1809,6 +1908,7 @@ final class WorkItemsController {
 				'field'            => 'client_site_id',
 				'new_value'        => (string) $item['client_site_id'],
 				'reason'           => $reason,
+				'detail'           => $detail,
 				'source_interface' => Capabilities::STUDIO,
 				'cycle'            => (int) $item['cycle'],
 				'attempt'          => (int) $item['review_attempt'],

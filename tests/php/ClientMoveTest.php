@@ -91,6 +91,29 @@ final class ClientMoveTest extends TestCase {
 	}
 
 	/**
+	 * A recurring task or a reminder takes its client from where it came from.
+	 */
+	public function test_recurring_work_is_moved_at_its_source(): void {
+		$refusal = ClientMove::refusal( $this->item( 'up-next', array( 'recurring_id' => 'rec_1' ) ), false );
+
+		$this->assertSame( ClientMove::RECURRING, $refusal['code'] ?? '' );
+		$this->assertSame( 'This task comes from a recurring task or reminder. Change the client there instead.', $refusal['message'] );
+		$this->assertSame( ClientMove::RECURRING, ClientMove::fixed( $this->item( 'triage', array( 'recurring_id' => 'rec_1' ) ) )['code'] ?? '' );
+		$this->assertNull( ClientMove::fixed( $this->item( 'triage' ) ) );
+	}
+
+	/**
+	 * Hours already used belong to the client they were used against.
+	 */
+	public function test_used_hours_have_their_own_refusal(): void {
+		$refusal = ClientMove::hours_used( 1.5 );
+
+		$this->assertSame( ClientMove::HOURS_USED, $refusal['code'] ?? '' );
+		$this->assertSame( "Hours have already been used on this task, so its client can't change.", $refusal['message'] );
+		$this->assertNull( ClientMove::hours_used( 0.0 ) );
+	}
+
+	/**
 	 * Who was taken off, in seat order, each once.
 	 */
 	public function test_taken_off_lists_each_cleared_person_once(): void {

@@ -377,9 +377,10 @@ final class Items {
 	 * @param array<string, string> $seats          Seat field to person id.
 	 * @param int                   $actor          WordPress user id of the mover.
 	 * @param int                   $sent_version   Version the move was made against.
-	 * @return array<string, mixed>|null Null when the version did not match.
+	 * @return array<string, mixed>|null|false Null when the version did not match,
+	 *                                         false when moving its rows failed.
 	 */
-	public static function move_client( string $id, string $client_site_id, string $client_id, array $seats, int $actor, int $sent_version ): ?array {
+	public static function move_client( string $id, string $client_site_id, string $client_id, array $seats, int $actor, int $sent_version ) {
 		global $wpdb;
 
 		$changes = array(
@@ -400,19 +401,27 @@ final class Items {
 		}
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own tables; there is no core API for them.
-		$wpdb->update( Schema::work_events_table(), array( 'client_site_id' => $client_site_id ), array( 'item_id' => $id ), array( '%s' ), array( '%s' ) );
-		$wpdb->update( Schema::gate_records_table(), array( 'client_site_id' => $client_site_id ), array( 'item_id' => $id ), array( '%s' ), array( '%s' ) );
-		$wpdb->update(
-			Schema::comments_table(),
-			array(
-				'client_site_id' => $client_site_id,
-				'client_id'      => $client_id,
+		$rekeyed = array(
+			$wpdb->update( Schema::work_events_table(), array( 'client_site_id' => $client_site_id ), array( 'item_id' => $id ), array( '%s' ), array( '%s' ) ),
+			$wpdb->update( Schema::gate_records_table(), array( 'client_site_id' => $client_site_id ), array( 'item_id' => $id ), array( '%s' ), array( '%s' ) ),
+			$wpdb->update(
+				Schema::comments_table(),
+				array(
+					'client_site_id' => $client_site_id,
+					'client_id'      => $client_id,
+				),
+				array( 'item_id' => $id ),
+				array( '%s', '%s' ),
+				array( '%s' )
 			),
-			array( 'item_id' => $id ),
-			array( '%s', '%s' ),
-			array( '%s' )
 		);
 		// phpcs:enable
+
+		// Zero rows is fine, an item with no comments has none to move; false
+		// is a failed write, and the caller rolls the whole move back.
+		if ( in_array( false, $rekeyed, true ) ) {
+			return false;
+		}
 
 		return $moved;
 	}

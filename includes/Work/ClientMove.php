@@ -51,15 +51,23 @@ final class ClientMove {
 	public const CLIENT_SEEN = 'client_has_seen_it';
 
 	/**
-	 * Why this item's client may not change, or null when it may.
+	 * Made by a recurring task or a reminder, which names the client itself.
+	 */
+	public const RECURRING = 'work_recurring';
+
+	/**
+	 * Hours have been used on it, against the client it is on.
+	 */
+	public const HOURS_USED = 'hours_used';
+
+	/**
+	 * The refusals that follow from the item alone: started, ended, or made
+	 * by a schedule. Asked before anything else is read.
 	 *
-	 * @param array<string, mixed> $item        The item, as read.
-	 * @param bool                 $linked      Whether it has a parent, children or dependencies.
-	 * @param bool                 $requested   Whether a client's request was converted into it.
-	 * @param bool                 $client_seen Whether it has comments the client can see or wrote.
+	 * @param array<string, mixed> $item The item, as read.
 	 * @return array{code: string, message: string}|null
 	 */
-	public static function refusal( array $item, bool $linked, bool $requested = false, bool $client_seen = false ): ?array {
+	public static function fixed( array $item ): ?array {
 		if ( self::started( $item ) ) {
 			return array(
 				'code'    => self::STARTED,
@@ -72,6 +80,53 @@ final class ClientMove {
 				'code'    => self::ENDED,
 				'message' => __( "This task has ended, so its client can't change.", 'blueworx-forge' ),
 			);
+		}
+
+		// The next copy would be made on the old client again, so the change
+		// belongs on the recurring task or reminder itself.
+		if ( '' !== (string) ( $item['recurring_id'] ?? '' ) ) {
+			return array(
+				'code'    => self::RECURRING,
+				'message' => __( 'This task comes from a recurring task or reminder. Change the client there instead.', 'blueworx-forge' ),
+			);
+		}
+
+		return null;
+	}
+
+	/**
+	 * The refusal for hours already used, or null when none have been.
+	 * Only work that has started uses hours, so this is a guard for a ledger
+	 * that disagrees with the stage.
+	 *
+	 * @param float $used Hours the ledger shows used against the item.
+	 * @return array{code: string, message: string}|null
+	 */
+	public static function hours_used( float $used ): ?array {
+		if ( $used <= 0.0 ) {
+			return null;
+		}
+
+		return array(
+			'code'    => self::HOURS_USED,
+			'message' => __( "Hours have already been used on this task, so its client can't change.", 'blueworx-forge' ),
+		);
+	}
+
+	/**
+	 * Why this item's client may not change, or null when it may.
+	 *
+	 * @param array<string, mixed> $item        The item, as read.
+	 * @param bool                 $linked      Whether it has a parent, children or dependencies.
+	 * @param bool                 $requested   Whether a client's request was converted into it.
+	 * @param bool                 $client_seen Whether it has comments the client can see or wrote.
+	 * @return array{code: string, message: string}|null
+	 */
+	public static function refusal( array $item, bool $linked, bool $requested = false, bool $client_seen = false ): ?array {
+		$fixed = self::fixed( $item );
+
+		if ( null !== $fixed ) {
+			return $fixed;
 		}
 
 		if ( $linked ) {

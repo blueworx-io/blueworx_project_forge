@@ -137,6 +137,7 @@ test('an up-next task moves to another client, taking its hours and leaving behi
   const detail = await admin.api.get(`/work-items/${item.id}`);
   const last = detail.history[detail.history.length - 1];
   expect(last.action).toBe('client-moved');
+  expect(last.detail).toBe(`Taken off: OnlyFrom-${RUN_ID}`);
   expect(last.reason).toContain(`Wrong Co ${RUN_ID}`);
   expect(last.reason).toContain(`Right Co ${RUN_ID}`);
 
@@ -221,4 +222,86 @@ test('the panel confirms the client, and changes it with a picker', async () => 
   expect((await current(item.id)).client_site_id).toBe(to.site.id);
 
   await page.close();
+});
+
+test("the new client's own people do not read which client the task came from", async ({ browser, baseURL }) => {
+  const item = await readyIdea('Private move');
+  const confirmed = await Forge.confirmClient(admin.api, item);
+  const moved = await moveClient(admin.api, confirmed, to.site.id);
+  expect(moved.status(), await moved.text()).toBe(200);
+
+  // Staff still read the whole story.
+  const staffView = await admin.api.get(`/work-items/${item.id}`);
+  expect(staffView.history.map((event) => event.action)).toContain('client-moved');
+
+  const theirs = await Forge.makePerson(admin.api, to.client.id, 'client_admin', `Theirs-${RUN_ID}`);
+  const signed = await Forge.signedIn(browser, baseURL, theirs.login, Forge.PASSWORD);
+  const read = await signed.api.request.get(`/wp-json/blueworx-forge/v1/work-items/${item.id}`, { headers: signed.api.headers });
+
+  expect(read.status(), await read.text()).toBe(200);
+  const body = await read.text();
+  expect(body).not.toContain(`Wrong Co ${RUN_ID}`);
+  const actions = JSON.parse(body).history.map((event) => event.action);
+  expect(actions).not.toContain('client-moved');
+  expect(actions).not.toContain('client-confirmed');
+
+  await signed.context.close();
+});
+
+test('a move the new client cannot pay for is refused, and changes nothing', async () => {
+  const broke = await Forge.makeSite(admin.api, `Broke Co ${RUN_ID}`, RUN_ID);
+  await Forge.onSupport(admin, from.site.id, 200);
+
+  const item = await readyIdea('Unaffordable', {
+    deliverer_id: both.id,
+    commercial_class: 'chargeable',
+    hours_primary: 4,
+    hours_review: 2,
+    hours_delivery: 1,
+  });
+  const jumped = await admin.api.post(`/work-items/${item.id}/override`, {
+    to: 'up-next',
+    reason: 'Came in part way along.',
+    record_version: item.record_version,
+  });
+  expect(jumped.status(), await jumped.text()).toBe(200);
+  const planned = (await jumped.json()).item;
+
+  const before = await admin.api.get(`/work-items/${item.id}`);
+  const fromLedger = await Forge.hourLedger(admin, from.site.id);
+  const brokeLedger = await admin.api.get(`/client-sites/${broke.site.id}/support`);
+
+  const refused = await moveClient(admin.api, planned, broke.site.id);
+  expect(refused.status()).toBe(409);
+  expect((await refused.json()).code).toBe('bwx_forge_hours_not_available');
+
+  const after = await admin.api.get(`/work-items/${item.id}`);
+  expect(after.item).toEqual(before.item);
+  expect(after.history).toHaveLength(before.history.length);
+  expect(await Forge.hourLedger(admin, from.site.id)).toEqual(fromLedger);
+  expect(await admin.api.get(`/client-sites/${broke.site.id}/support`)).toEqual(brokeLedger);
+});
+
+test("work the client asked for, or can see comments on, stays with them", async ({ request }) => {
+  const asked = await Forge.makeSite(admin.api, `Asking Co ${RUN_ID}`, RUN_ID);
+  const site = await Forge.asClientSite(admin.api, asked.site.id, request);
+  const submission = await Forge.makeSubmission(site, { title: `Asked for ${RUN_ID}` });
+  const converted = await admin.api.post(`/submissions/${submission.id}/conversion`, { entry_stage: 'future-idea' });
+  expect(converted.status(), await converted.text()).toBe(200);
+
+  const requested = await moveClient(admin.api, (await converted.json()).item, to.site.id);
+  expect(requested.status()).toBe(409);
+  expect((await requested.json()).code).toBe('bwx_forge_work_requested');
+
+  const seen = await readyIdea('Seen');
+  const said = await admin.api.post(`/work-items/${seen.id}/comments`, {
+    body: 'Hello from us.',
+    kind: 'comment',
+    visibility: 'client',
+  });
+  expect(said.status(), await said.text()).toBe(200);
+
+  const refused = await moveClient(admin.api, await current(seen.id), to.site.id);
+  expect(refused.status()).toBe(409);
+  expect((await refused.json()).code).toBe('bwx_forge_client_has_seen_it');
 });
