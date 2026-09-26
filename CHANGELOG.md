@@ -13,6 +13,7 @@ commits and pull requests.
 ### Fixed
 
 - My tasks: overdue work now shows under Today, and released or ticked-off work no longer sits under Further out.
+- Daily standup: shorter tags that stay on one line — To review, Ready to ship, Unanswered, Step waiting, Step overdue, Over hours.
 
 ## [2.137.0] - 2026-09-26
 

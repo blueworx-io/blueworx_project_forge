@@ -116,6 +116,10 @@ test('the day’s list shows what is late, in a section that names itself', asyn
     page.locator('[data-testid="bwx-standup-section"][data-section="work"]')
   ).toContainText('Work needing attention');
 
+  // A tag is one line of text, never two (Luke, 2026-09-26).
+  const tag = card.locator('.bwx-standup-card-head .bwx-chip');
+  await expect(tag).toHaveCSS('white-space', 'nowrap');
+
   await page.close();
   await admin.context.close();
 });
