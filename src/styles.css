@@ -1832,7 +1832,7 @@ body {
 /* The bar is the point of the screen: a row of them is the shape of somebody's
    quarter, readable before any number is. */
 .bwx-capacity-bar {
-  display: block;
+  display: flex;
   block-size: 4px;
   border-radius: 2px;
   background: var( --color-chalk );
@@ -1847,12 +1847,84 @@ body {
   transition: inline-size var( --motion-fast ) var( --ease-out );
 }
 
+/* Finished work (#384): time that was used, in a neutral slate so it reads
+   apart from every band colour the still-to-do part can take. */
+.bwx-capacity-bar-done,
+.bwx-capacity-key[ data-kind='done' ] {
+  background: var( --color-smoke );
+}
+
+.bwx-capacity-bar-done {
+  display: block;
+  block-size: 100%;
+  transition: inline-size var( --motion-fast ) var( --ease-out );
+}
+
+.bwx-capacity-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+}
+
+.bwx-capacity-key {
+  display: inline-block;
+  inline-size: 12px;
+  block-size: 4px;
+  border-radius: 2px;
+}
+
+.bwx-capacity-key[ data-kind='todo' ] {
+  background: var( --color-success );
+}
+
+.bwx-capacity-key + .bwx-capacity-key {
+  margin-inline-start: 10px;
+}
+
+.bwx-capacity-section {
+  margin: 0;
+  font-size: var( --text-small );
+  font-weight: 600;
+  color: var( --text-primary );
+}
+
+/* A task in the day panel is a button that looks like the line it replaced. */
+.bwx-capacity-task {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  inline-size: 100%;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.bwx-capacity-task:hover {
+  background: var( --color-haze );
+}
+
+.bwx-capacity-task:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 1px;
+}
+
 .bwx-capacity-figures {
   display: flex;
   align-items: baseline;
   gap: 4px;
   font-family: var( --font-mono );
   font-size: var( --text-caption );
+  white-space: nowrap;
 }
 
 .bwx-capacity-committed {

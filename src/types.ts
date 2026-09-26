@@ -183,10 +183,15 @@ export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboard
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
 
-/** Available against committed, for one person over one period. */
+/**
+ * Available against committed, for one person over one period. `committed`
+ * is what is still to do; `completed` is finished work on the same days
+ * (#384). Both count against the time, and `remaining` and the band say so.
+ */
 export interface CapacityPosition {
   available: number;
   committed: number;
+  completed: number;
   remaining: number;
   band: CapacityBand;
 }
@@ -222,11 +227,15 @@ export interface CapacityAllocation {
   item_id: string;
   title: string;
   client_id: string;
-  role: 'primary' | 'review' | 'delivery';
+  role: 'primary' | 'review' | 'delivery' | 'assignee' | 'meeting';
   covering: string;
   hours: number;
   from: string;
   to: string;
+  /** Still to do, or finished (#384). */
+  status: 'committed' | 'completed';
+  /** The hours on each day of the window asked about. */
+  by_day: Record< string, number >;
 }
 
 /** One day of somebody's availability, with the reason for any zero. */
@@ -245,6 +254,7 @@ export interface CapacityDrilldown {
   to: string;
   days: CapacityDay[];
   committed_by_day: Record< string, number >;
+  completed_by_day: Record< string, number >;
   allocations: CapacityAllocation[];
   position: CapacityPosition;
 }
