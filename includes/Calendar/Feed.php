@@ -229,7 +229,9 @@ final class Feed {
 				array() === $people ? Stages::label( (string) $row['stage'] ) : sprintf( '%d of %d done', $ticked, count( $people ) ),
 				$people,
 				(string) $row['id'],
-				(string) $row['client_site_id']
+				(string) $row['client_site_id'],
+				// Every person on it has ticked (#412); nobody on it never counts as done.
+				array() !== $people && $ticked >= count( $people )
 			);
 		}
 
@@ -262,7 +264,9 @@ final class Feed {
 				$detail,
 				array_values( array_unique( $reminder['people'] ) ),
 				$reminder['item_id'],
-				$reminder['site_id']
+				$reminder['site_id'],
+				// A reminder is ticked the same way a chore is (#412).
+				0 < $total && $done === $total
 			);
 		}
 
@@ -422,9 +426,10 @@ final class Feed {
 	 * @param array<int, string>|string $people  Who it is for: ids, or 'all'.
 	 * @param string                    $item_id The work item behind it, if any.
 	 * @param string                    $site_id The client site it is for, or '' for none (#402).
+	 * @param bool                      $done    Everyone on it has ticked (#412); always false for a kind with no ticking.
 	 * @return array<string, mixed>
 	 */
-	private static function entry( string $kind, string $id, string $date, string $ends_on, string $title, string $detail, $people, string $item_id = '', string $site_id = '' ): array {
+	private static function entry( string $kind, string $id, string $date, string $ends_on, string $title, string $detail, $people, string $item_id = '', string $site_id = '', bool $done = false ): array {
 		return array(
 			'id'      => $kind . ':' . $id,
 			'kind'    => $kind,
@@ -436,6 +441,7 @@ final class Feed {
 			'people'  => $people,
 			'item_id' => $item_id,
 			'site_id' => $site_id,
+			'done'    => $done,
 		);
 	}
 }

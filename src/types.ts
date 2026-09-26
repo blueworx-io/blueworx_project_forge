@@ -811,6 +811,8 @@ export interface DiaryEntry {
   item_id: string;
   /** The client site it belongs to, or '' for no client (#402). */
   site_id: string;
+  /** Everyone on it has ticked (#412); always false for a kind with no ticking. */
+  done: boolean;
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */

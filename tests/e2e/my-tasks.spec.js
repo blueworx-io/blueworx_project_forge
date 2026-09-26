@@ -157,6 +157,104 @@ test( 'a company date for everyone shows in every person’s diary', async ( { b
   await admin.context.close();
 } );
 
+// #412: a chore leaves Today's diary once everyone on it has ticked; partly
+// done, it stays and says how many.
+test( 'a finished chore leaves Today’s diary and stays gone, and a partly-done one stays with its count', async ( { browser, baseURL } ) => {
+  test.slow();
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { client, site } = await Forge.makeSite( admin.api, `Done Co ${ RUN }`, `${ RUN }f` );
+  const today = ( await admin.api.get( '/standup' ) ).today;
+  const solo = await Forge.makePerson( admin.api, client.id, 'staff', `solo${ RUN }` );
+  const one = await Forge.makePerson( admin.api, client.id, 'staff', `pone${ RUN }` );
+  const two = await Forge.makePerson( admin.api, client.id, 'staff', `ptwo${ RUN }` );
+
+  const soloTitle = `Solo chore ${ RUN }`;
+  const pairTitle = `Pair chore ${ RUN }`;
+
+  const madeSolo = await admin.api.post( '/recurring', {
+    title: soloTitle,
+    description: '<p>Only them.</p>',
+    rule: { every: 'day' },
+    starts_on: today,
+    assignees: [ solo.id ],
+    hours_each: '0.5',
+    client_site_id: site.id,
+  } );
+  expect( madeSolo.status(), await madeSolo.text() ).toBe( 200 );
+  await admin.api.post( '/recurring/run', {} );
+
+  // A chore's own copy carries the day in its title (Materialise's "—
+  // 14 Sep"), so match on the reminder's title, which does not.
+  const soloItem = ( await admin.api.get( `/work-items?client_site_id=${ site.id }` ) ).items.find( ( item ) => item.title.startsWith( soloTitle ) );
+  expect( soloItem, 'solo chore materialised' ).toBeTruthy();
+
+  // Solo's chore, ticked once by the only person on it, leaves their diary
+  // for good.
+  const asSolo = await Forge.signedIn( browser, baseURL, solo.login, Forge.PASSWORD );
+  const soloPage = await asSolo.context.newPage();
+  await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
+  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( soloTitle );
+
+  const ticked = await admin.api.post( `/work-items/${ soloItem.id }/tick`, { user_id: solo.id, done: true } );
+  expect( ticked.status(), await ticked.text() ).toBe( 200 );
+
+  await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
+  await soloPage.reload();
+  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( soloTitle );
+
+  // Stays gone after a further reload (the hash is cleared once read, so
+  // land on My tasks by it again rather than a bare reload).
+  await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
+  await soloPage.reload();
+  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( soloTitle );
+  await soloPage.close();
+  await asSolo.context.close();
+
+  // A reminder is a chore too (#412), and its copies share one diary entry
+  // with a count, the same as the calendar already shows. Ticked by one of
+  // two, it stays with "1 of 2"; ticked by the second, it leaves.
+  const madePair = await admin.api.post( '/reminders', {
+    client_site_id: site.id,
+    title: pairTitle,
+    assignees: [ one.id, two.id ],
+    starts_on: today,
+  } );
+  expect( madePair.status(), await madePair.text() ).toBe( 200 );
+  const pair = ( await madePair.json() ).reminder;
+  const oneCopy = pair.copies.find( ( copy ) => copy.person === one.id );
+  const twoCopy = pair.copies.find( ( copy ) => copy.person === two.id );
+
+  const asOne = await Forge.signedIn( browser, baseURL, one.login, Forge.PASSWORD );
+  const onePage = await asOne.context.newPage();
+  await onePage.goto( '/blueworx-forge/#screen=mytasks' );
+  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( pairTitle );
+
+  const oneTicked = await admin.api.post( `/work-items/${ oneCopy.item_id }/tick`, { user_id: one.id, done: true } );
+  expect( oneTicked.status(), await oneTicked.text() ).toBe( 200 );
+
+  await onePage.goto( '/blueworx-forge/#screen=mytasks' );
+  await onePage.reload();
+  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( pairTitle );
+  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( '1 of 2 done' );
+
+  const twoTicked = await admin.api.post( `/work-items/${ twoCopy.item_id }/tick`, { user_id: two.id, done: true } );
+  expect( twoTicked.status(), await twoTicked.text() ).toBe( 200 );
+
+  await onePage.goto( '/blueworx-forge/#screen=mytasks' );
+  await onePage.reload();
+  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( pairTitle );
+  await onePage.close();
+  await asOne.context.close();
+
+  await admin.context.close();
+} );
+
 test( 'overdue work is under Today, and released work is under none of the dated views', async ( { browser, baseURL } ) => {
   test.setTimeout( 180_000 );
 
