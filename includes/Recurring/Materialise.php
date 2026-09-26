@@ -101,13 +101,8 @@ final class Materialise {
 		$dates = Rule::due_between( $rule, (string) $source['next_due'], $today, (string) $source['ends_on'] );
 
 		if ( Sources::ACTIVE === (string) $source['status'] && array() !== $dates ) {
-			/*
-			 * #393. Nobody is at the screen when this runs, so a seat whose
-			 * person has since lost access to the client is left empty rather
-			 * than refused: the task is still made, and an empty seat is
-			 * visible and gets filled.
-			 */
-			$source = PersonReach::drop_unreached( $source, (string) $source['client_id'], (string) $source['client_site_id'] );
+			// #393. Nobody without access is put in a seat overnight.
+			$source = self::seated( $source );
 
 			foreach ( $dates as $date ) {
 				if ( ! Occurrences::claim( (string) $source['id'], $date ) ) {
@@ -164,6 +159,21 @@ final class Materialise {
 		Sources::advance( (string) $source['id'], $next, 0 < $made );
 
 		return $made;
+	}
+
+	/**
+	 * The source with every seat emptied whose person cannot do work on its
+	 * site (#393). Nobody is at the screen when this runs, so the seat is left
+	 * empty rather than the day refused: the task is still made, and an empty
+	 * seat is visible and gets filled.
+	 *
+	 * @param array<string, mixed> $source  The source.
+	 * @param callable|null        $reaches Whether a person id reaches the
+	 *                                      site; the real check when null.
+	 * @return array<string, mixed>
+	 */
+	public static function seated( array $source, ?callable $reaches = null ): array {
+		return PersonReach::drop_unreached( $source, (string) ( $source['client_id'] ?? '' ), (string) ( $source['client_site_id'] ?? '' ), $reaches );
 	}
 
 	/**

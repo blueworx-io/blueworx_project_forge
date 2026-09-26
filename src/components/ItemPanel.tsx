@@ -34,6 +34,8 @@ interface Detail {
   records: Record< string, GateRecord >;
   comments: Comment[];
   scope: string;
+  /** The name behind each filled seat, for our own people (#393). */
+  seat_names?: Record< string, string >;
   dependencies: {
     upstream: DependencyRow[];
     downstream: DependencyRow[];
@@ -944,7 +946,11 @@ export function ItemPanel( {
     const offered = siteStaff ?? [];
     const current = draft[ field ] ?? '';
     const stale = '' !== current && null !== siteStaff && ! offered.some( ( person ) => person.id === current );
-    const who = staffList.find( ( person ) => person.id === current )?.display_name ?? 'Somebody';
+    // The item carries the name behind each seat, so somebody deactivated
+    // since is still named rather than left anonymous.
+    const who = detail?.seat_names?.[ current ]
+      ?? staffList.find( ( person ) => person.id === current )?.display_name
+      ?? 'Somebody';
 
     return (
       <div className="bwx-field">

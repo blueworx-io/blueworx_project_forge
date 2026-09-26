@@ -135,6 +135,31 @@ final class PersonReach {
 	}
 
 	/**
+	 * Only the seats an edit changes. Pure.
+	 *
+	 * An edit that resends a seat as it already stands is not putting anybody
+	 * anywhere, so it is not asked about: somebody who has since lost access
+	 * is flagged in the picker, and does not block a save of something else.
+	 *
+	 * @param array<string, mixed> $values Validated values from the edit.
+	 * @param array<string, mixed> $item   The item as stored.
+	 * @return array<string, mixed> The seats in $values whose value differs.
+	 */
+	public static function changed_seats( array $values, array $item ): array {
+		$changed = array();
+
+		foreach ( self::SEATS as $field ) {
+			$stored = (string) ( $item[ $field ] ?? '' );
+
+			if ( array_key_exists( $field, $values ) && $stored !== (string) $values[ $field ] ) {
+				$changed[ $field ] = $values[ $field ];
+			}
+		}
+
+		return $changed;
+	}
+
+	/**
 	 * The same values with every seat that does not reach the site emptied.
 	 *
 	 * For the paths nobody is standing at when they run, such as a recurring
@@ -144,11 +169,20 @@ final class PersonReach {
 	 * @param array<string, mixed> $values    Values naming seats.
 	 * @param string               $client_id The client.
 	 * @param string               $site_id   The site.
+	 * @param callable|null        $reaches   Whether a person id reaches the
+	 *                                        site as staff; the real check when
+	 *                                        null, a stand-in in a unit test.
 	 * @return array<string, mixed>
 	 */
-	public static function drop_unreached( array $values, string $client_id, string $site_id ): array {
-		foreach ( array_keys( self::seat_refusals( $values, $client_id, $site_id ) ) as $field ) {
-			$values[ $field ] = '';
+	public static function drop_unreached( array $values, string $client_id, string $site_id, ?callable $reaches = null ): array {
+		$reaches = $reaches ?? static fn( string $id ): bool => self::person_reaches_site( $id, $client_id, $site_id, true );
+
+		foreach ( self::SEATS as $field ) {
+			$id = (string) ( $values[ $field ] ?? '' );
+
+			if ( '' !== $id && ! $reaches( $id ) ) {
+				$values[ $field ] = '';
+			}
 		}
 
 		return $values;
@@ -164,9 +198,10 @@ final class PersonReach {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function staff_on_site( string $client_id, string $site_id ): array {
-		$held = array();
+		$by_client = Memberships::by_client( 'active' );
+		$held      = array();
 
-		foreach ( Memberships::by_client( 'active' ) as $rows ) {
+		foreach ( $by_client as $rows ) {
 			foreach ( $rows as $membership ) {
 				$held[ (string) $membership['user_id'] ][] = $membership;
 			}
@@ -174,7 +209,7 @@ final class PersonReach {
 
 		return array_values(
 			array_filter(
-				Users::ours(),
+				Users::ours( $by_client ),
 				static fn( array $person ): bool => self::reaches(
 					$person,
 					$held[ (string) $person['id'] ] ?? array(),
@@ -196,6 +231,10 @@ final class PersonReach {
 	public static function message( ?array $person ): string {
 		$name = trim( (string) ( $person['display_name'] ?? '' ) );
 
-		return sprintf( "%s doesn't have access to this client.", '' === $name ? 'That person' : $name );
+		return sprintf(
+			/* translators: %s: the name of the person put in a seat. */
+			__( '%s doesn\'t have access to this client.', 'blueworx-forge' ),
+			'' === $name ? __( 'That person', 'blueworx-forge' ) : $name
+		);
 	}
 }

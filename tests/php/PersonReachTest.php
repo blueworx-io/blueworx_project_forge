@@ -88,4 +88,32 @@ final class PersonReachTest extends TestCase {
 		$this->assertSame( "Ann doesn't have access to this client.", PersonReach::message( $this->person() ) );
 		$this->assertSame( "That person doesn't have access to this client.", PersonReach::message( null ) );
 	}
+
+	public function test_only_seats_the_edit_changes_are_asked_about(): void {
+		$item = array(
+			'primary_user_id'        => 'usr_old',
+			'reviewer_id'            => 'usr_r',
+			'deliverer_id'           => '',
+			'reviewer_substitute_id' => 'usr_s',
+		);
+
+		$changed = PersonReach::changed_seats(
+			array(
+				'title'                  => 'Renamed',
+				'primary_user_id'        => 'usr_old',
+				'reviewer_id'            => 'usr_new',
+				'deliverer_id'           => '',
+				'reviewer_substitute_id' => 'usr_s2',
+			),
+			$item
+		);
+
+		$this->assertSame(
+			array(
+				'reviewer_id'            => 'usr_new',
+				'reviewer_substitute_id' => 'usr_s2',
+			),
+			$changed
+		);
+	}
 }

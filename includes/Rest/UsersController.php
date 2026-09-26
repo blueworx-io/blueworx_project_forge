@@ -263,6 +263,10 @@ final class UsersController {
 	 * pickers offer these, and the save refuses anybody else. The site has to
 	 * be one the caller reaches, or who works on it is not theirs to learn.
 	 *
+	 * Open to a client's own administrator on purpose: all it tells them is
+	 * which of our staff work on their own sites, which they already see on
+	 * their work.
+	 *
 	 * @param WP_REST_Request|null $request Request.
 	 * @return WP_REST_Response|\WP_Error
 	 */

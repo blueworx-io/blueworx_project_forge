@@ -99,9 +99,9 @@ test.describe('seats go only to people who reach the client', () => {
     await admin.context.close();
   });
 
-  test('a seat whose person has lost access blocks only saves that send it', async ({ browser, baseURL }) => {
+  test('a seat whose person has lost access blocks only a save that changes it', async ({ browser, baseURL }) => {
     const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-    const { mine, insider } = await twoClients(admin.api);
+    const { mine, insider, outsider } = await twoClients(admin.api);
 
     const made = await Forge.makeItem(admin.api, mine.site.id, {
       title: `Stale ${RUN_ID}`,
@@ -120,20 +120,33 @@ test.describe('seats go only to people who reach the client', () => {
     });
     expect(ended.status(), await ended.text()).toBe(200);
 
-    const unrelated = await admin.api.patch(`/work-items/${item.id}`, {
+    // The panel sends the whole record on every save: the stale seat comes
+    // back unchanged with a new title, and the save goes through.
+    const whole = await admin.api.patch(`/work-items/${item.id}`, {
       title: `Stale renamed ${RUN_ID}`,
+      problem: item.problem,
+      primary_user_id: item.primary_user_id,
+      reviewer_id: item.reviewer_id,
+      deliverer_id: item.deliverer_id,
+      reviewer_substitute_id: item.reviewer_substitute_id,
+      deliverer_substitute_id: item.deliverer_substitute_id,
       record_version: item.record_version,
     });
-    expect(unrelated.status(), await unrelated.text()).toBe(200);
-    item = (await unrelated.json()).item;
+    expect(whole.status(), await whole.text()).toBe(200);
+    item = (await whole.json()).item;
+    expect(item.title).toBe(`Stale renamed ${RUN_ID}`);
+    expect(item.primary_user_id).toBe(insider.id);
 
-    const resent = await admin.api.patch(`/work-items/${item.id}`, {
-      title: `Stale again ${RUN_ID}`,
+    // Changing a seat to somebody without access is still refused.
+    const changed = await admin.api.patch(`/work-items/${item.id}`, {
       primary_user_id: insider.id,
+      reviewer_id: outsider.id,
       record_version: item.record_version,
     });
-    expect(resent.status(), await resent.text()).toBe(400);
-    expect((await resent.json()).data.fields.primary_user_id).toBe(`Insider-${RUN_ID} doesn't have access to this client.`);
+    expect(changed.status(), await changed.text()).toBe(400);
+    const fields = (await changed.json()).data.fields;
+    expect(fields.reviewer_id).toBe(`Outsider-${RUN_ID} doesn't have access to this client.`);
+    expect(fields.primary_user_id).toBeUndefined();
 
     await admin.context.close();
   });
@@ -157,15 +170,16 @@ test.describe('seats go only to people who reach the client', () => {
     const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
     const { mine, insider, outsider } = await twoClients(admin.api);
 
-    // Somebody on the work who then leaves the client is still shown, flagged.
+    // Somebody on the work who is then deactivated is still shown by name,
+    // flagged: they are on no list of our people any more.
     const leaver = await Forge.makePerson(admin.api, mine.client.id, 'staff', `Leaver-${RUN_ID}`);
     const made = await Forge.makeItem(admin.api, mine.site.id, { title: `Picker ${RUN_ID}`, deliverer_id: leaver.id });
     expect(made.status(), await made.text()).toBe(200);
 
-    const held = (await admin.api.get(`/clients/${mine.client.id}/memberships`)).memberships.find(
-      (membership) => membership.user_id === leaver.id
-    );
-    const ended = await admin.api.patch(`/memberships/${held.id}`, { status: 'inactive', record_version: held.record_version });
+    const ended = await admin.api.patch(`/users/${leaver.id}`, {
+      status: 'inactive',
+      record_version: leaver.user.record_version,
+    });
     expect(ended.status(), await ended.text()).toBe(200);
 
     const page = await admin.context.newPage();
