@@ -40,6 +40,7 @@ final class ClientBoardViewTest extends TestCase {
 		'review_target',
 		'release_target',
 		'people',
+		'awaiting_review',
 	);
 
 	/**
@@ -204,6 +205,35 @@ final class ClientBoardViewTest extends TestCase {
 	/**
 	 * A list of rows projects to a list of items, in the order given.
 	 */
+	/**
+	 * #391. Whether the client is being asked to review it, and nothing else
+	 * about the review.
+	 */
+	public function test_it_says_when_the_client_is_asked_to_review(): void {
+		$waiting = ClientView::item(
+			$this->row(
+				array(
+					'stage'       => 'in-review',
+					'reviewer_id' => 'client',
+				)
+			),
+			$this->lookup()
+		);
+
+		$this->assertTrue( $waiting['awaiting_review'] );
+		$this->assertSame( array(), $waiting['people']['reviewer'] );
+
+		$theirs = array(
+			array( 'stage' => 'in-review', 'reviewer_id' => 'usr_ana' ),
+			array( 'stage' => 'in-development', 'reviewer_id' => 'client' ),
+			array( 'stage' => 'completed', 'reviewer_id' => 'client' ),
+		);
+
+		foreach ( $theirs as $also ) {
+			$this->assertFalse( ClientView::item( $this->row( $also ), $this->lookup() )['awaiting_review'] );
+		}
+	}
+
 	public function test_a_list_of_rows_projects_in_order(): void {
 		$items = ClientView::items(
 			array(

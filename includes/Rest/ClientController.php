@@ -34,6 +34,7 @@ use Blueworx\Forge\Work\Contributions;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
+use Blueworx\Forge\Work\Transition;
 use Blueworx\Forge\Work\Validate as WorkValidate;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
@@ -249,6 +250,26 @@ final class ClientController {
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_OPEN,
 					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and the callback refuses any item that is not on it (ARCH-6).',
+				),
+			)
+		);
+
+		/*
+		 * #391, 2026-09-26. The one exception to the client transition lock:
+		 * the client approves, or sends back, work in review whose reviewer is
+		 * the client. Nothing else. Written into the permission matrix as
+		 * D-14a and named in ClientContributionRouteTest.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/client/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/review',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'review' ),
+				'permission_callback' => array( Permissions::class, 'client_site' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'Authenticated by the client site\'s own key, not by a person: the signature names which site is calling, and the callback refuses any item that is not on it or not waiting on the client\'s review (ARCH-6).',
 				),
 			)
 		);
@@ -474,10 +495,11 @@ final class ClientController {
 	 *
 	 * @param string          $capability What is being exercised.
 	 * @param WP_REST_Request $request    Request.
-	 * @param string          $step_id    The step, for the refusal log.
+	 * @param string          $record_id  The step or item, for the refusal log.
+	 * @param string          $key        What the id is: step_id or item_id.
 	 * @return \WP_Error|null Null when it is allowed.
 	 */
-	private static function refuse_client_unless( string $capability, WP_REST_Request $request, string $step_id ) {
+	private static function refuse_client_unless( string $capability, WP_REST_Request $request, string $record_id, string $key = 'step_id' ) {
 		$decision = Capabilities::decide(
 			$capability,
 			array(
@@ -496,7 +518,7 @@ final class ClientController {
 			(string) $decision['code'],
 			array(
 				'capability' => $capability,
-				'step_id'    => $step_id,
+				$key         => $record_id,
 			)
 		);
 
@@ -1136,6 +1158,71 @@ final class ClientController {
 				// item was at before, and a client screen showing it after a
 				// contribution is showing the guarantee rather than a value.
 				'stage'   => (string) $item['stage'],
+			)
+		);
+	}
+
+	/**
+	 * The client's review decision on their own work (#391): approve, or send
+	 * back with a note.
+	 *
+	 * Only for an item in review with the client as its reviewer. The item is
+	 * re-read here, so a second decision, or one made from a stale screen, is
+	 * refused as already decided. Whoever on the client's side may answer the
+	 * studio's questions may decide.
+	 *
+	 * @param WP_REST_Request $request Request: decision, note, author_name.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function review( WP_REST_Request $request ) {
+		$item = self::their_item( $request );
+
+		if ( ! is_array( $item ) ) {
+			return $item;
+		}
+
+		$refused = self::refuse_client_unless( Capabilities::ANSWER_INFORMATION, $request, (string) $item['id'], 'item_id' );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$body  = (array) $request->get_json_params();
+		$moved = Transition::client_review(
+			$item,
+			(string) ( $body['decision'] ?? '' ),
+			(string) ( $body['note'] ?? '' ),
+			sanitize_text_field( (string) ( $body['author_name'] ?? '' ) ),
+			0
+		);
+
+		if ( is_wp_error( $moved ) ) {
+			$code   = (string) $moved->get_error_code();
+			$status = (int) ( ( (array) $moved->get_error_data() )['status'] ?? 400 );
+			$gate   = Transition::GATE_FAILURE === $code;
+
+			if ( 409 === $status ) {
+				self::log_refusal(
+					(string) $request->get_header( Signature::HEADER_SITE ),
+					$gate ? 'client_review_questions_open' : 'client_review_not_open',
+					array( 'item_id' => (string) $item['id'] )
+				);
+			}
+
+			// The words only: what the item holds stays with the studio.
+			return new \WP_Error(
+				$code,
+				$gate
+					? __( 'There are questions from the studio waiting for your answer. Answer them first.', 'blueworx-forge' )
+					: $moved->get_error_message(),
+				array( 'status' => $status )
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => ClientView::item( $moved, array( Users::class, 'get' ) ),
 			)
 		);
 	}

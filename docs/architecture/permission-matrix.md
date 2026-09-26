@@ -127,7 +127,9 @@ Reviewer or an AUTH-4 substitute only; release confirmation is the assigned
 Deliverer or substitute only — a Primary administrator holds these only when
 assigned, or through the WF-5 override, which is marked on the item. A Principal
 may hold all three roles on one item and still performs each action separately
-(AUTH-3). The override cannot bypass the client lock (WF-5).
+(AUTH-3). The override cannot bypass the client lock (WF-5). One exception,
+dated 2026-09-26: when the client is the reviewer, the client approves or sends
+back from their own site (D-14a below).
 
 ### Approve
 
@@ -249,6 +251,18 @@ rather than being quietly absent from a count.
 | D-17 | Write a workflow-stage field directly, bypassing the transition service | b, c, e |
 | D-18 | Complete or mark a gate requirement | a, b, d |
 | D-19 | Invoke the WF-5 override | a, b, d |
+
+**D-14a — decision, 2026-09-26 (#391): the client as reviewer.** Some work needs
+the client to sign it off, so "the client" can be chosen as a task's reviewer,
+from Up Next on. One narrow exception to D-14 follows, and only this one: **a
+client may approve, or send back with a note, an item in In Review whose
+reviewer is the client.** It goes through one signed route,
+`POST /client/work-items/{id}/review`, which re-reads the item and refuses
+anything else with a 409. Approving still needs the rest of the review gate
+(open client questions answered). Every other workflow refusal above stays,
+including D-14 for any item the client does not review. An admin can also record
+the client's answer for them; the history says so. The route is named as the
+single allowance in `ClientContributionRouteTest`.
 
 ### Data integrity
 

@@ -258,3 +258,43 @@ test('the panel offers the client as reviewer from Up Next, and records their an
 
   await page.close();
 });
+
+test('the client site decides over its signed route, and only while it waits on them', async ({ request }) => {
+  const site = await Forge.asClientSite(admin.api, made.site.id, request);
+
+  // Not waiting on the client: refused, and nothing moves.
+  const other = await taskAt('Not theirs', 'in-review');
+  const refused = await site.post(`/client/work-items/${other.id}/review`, { decision: 'approve', author_name: 'Jo' });
+  expect(refused.status()).toBe(409);
+  expect((await detail(other.id)).item.stage).toBe('in-review');
+
+  // The board says which are waiting on them.
+  const waiting = await inClientReview('Signed approve');
+  const board = await (await site.get('/client/board')).json();
+  const mine = board.items.find((one) => one.id === waiting.id);
+  expect(mine.awaiting_review).toBe(true);
+
+  const approved = await site.post(`/client/work-items/${waiting.id}/review`, { decision: 'approve', author_name: 'Jo Client' });
+  expect(approved.status(), await approved.text()).toBe(200);
+  expect((await approved.json()).item.awaiting_review).toBe(false);
+
+  const now = await detail(waiting.id);
+  expect(now.item.stage).toBe('completed');
+  expect(now.history.find((one) => 'moved' === one.action && 'completed' === one.to_stage).reason).toBe('Approved by the client (Jo Client)');
+
+  // A second click is already decided.
+  const again = await site.post(`/client/work-items/${waiting.id}/review`, { decision: 'approve', author_name: 'Jo Client' });
+  expect(again.status()).toBe(409);
+  expect((await again.json()).message).toBe('Already decided.');
+
+  // Sending back needs a note, and starts a new review.
+  const back = await inClientReview('Signed send back');
+  const bare = await site.post(`/client/work-items/${back.id}/review`, { decision: 'send_back', author_name: 'Jo' });
+  expect(bare.status()).toBe(400);
+
+  const sent = await site.post(`/client/work-items/${back.id}/review`, { decision: 'send_back', note: 'Wrong photo.', author_name: 'Jo' });
+  expect(sent.status(), await sent.text()).toBe(200);
+  const returned = (await detail(back.id)).item;
+  expect(returned.stage).toBe('in-development');
+  expect(returned.review_attempt).toBe(back.review_attempt + 1);
+});
