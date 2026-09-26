@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Repeat } from 'lucide-react';
-import type { ChecklistRow, ClientSite, Person, RecurringRule, RecurringSource, Stage } from '../types';
+import type { ClientSite, Person, RecurringRule, RecurringSource, Stage } from '../types';
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
 import { Aside, DataView, EmptyState, RichText, Tag } from '../kit';
 import type { Column } from '../kit';
-import { everybody, ItemPanel, LineList } from './ItemPanel';
+import { everybody, ItemPanel } from './ItemPanel';
 import { Screen } from './States';
 
 /**
@@ -55,7 +55,6 @@ interface Draft {
   ends_on: string;
   assignees: string[];
   hours_each: string;
-  checklist: ChecklistRow[];
 }
 
 /** Today, as the date box wants it. */
@@ -86,7 +85,6 @@ function blank( studio: string ): Draft {
     ends_on: '',
     assignees: [],
     hours_each: '',
-    checklist: [],
   };
 }
 
@@ -105,7 +103,6 @@ function fromSource( source: RecurringSource ): Draft {
     ends_on: source.ends_on,
     assignees: source.assignees ?? [],
     hours_each: source.hours_each ? String( source.hours_each ) : '',
-    checklist: source.checklist ?? [],
   };
 }
 
@@ -385,7 +382,6 @@ function SourceForm( {
       ends_on: draft.ends_on,
       assignees: draft.assignees,
       hours_each: draft.hours_each,
-      checklist: draft.checklist.filter( ( row ) => '' !== row.text.trim() ),
     };
 
     try {
@@ -456,9 +452,6 @@ function SourceForm( {
             onChange={ ( html ) => set( 'description', html ) }
           />
         </div>
-
-        { /* The checklist every task starts with (2026-09-19). Optional. */ }
-        <LineList name="Checklist" testId="bwx-recurring-checklist" rows={ draft.checklist } onChange={ ( rows ) => set( 'checklist', rows ) } />
 
         <div className="bwx-field">
           <label htmlFor="bwx-recurring-type">Type</label>

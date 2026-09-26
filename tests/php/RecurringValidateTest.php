@@ -40,7 +40,8 @@ final class RecurringValidateTest extends TestCase {
 
 	/**
 	 * Since 2026-09-19 a schedule says what to do, when it starts and what it
-	 * costs; and it may carry the checklist every task starts with.
+	 * costs. Since #382 a checklist is not one of the things it may say: sent
+	 * in, it is dropped and ignored rather than kept or refused.
 	 */
 	public function test_what_to_do_the_start_and_the_hours_are_required(): void {
 		$checked = Validate::source( array_merge( $this->good(), array( 'description' => '<p></p>' ) ), false );
@@ -54,13 +55,7 @@ final class RecurringValidateTest extends TestCase {
 
 		$checked = Validate::source( array_merge( $this->good(), array( 'checklist' => array( array( 'text' => 'Check the log', 'done' => true ), ' ', 'Tidy up' ) ) ), false );
 		self::assertSame( array(), $checked['errors'] );
-		self::assertSame(
-			array(
-				array( 'text' => 'Check the log', 'done' => false ),
-				array( 'text' => 'Tidy up', 'done' => false ),
-			),
-			$checked['values']['checklist']
-		);
+		self::assertArrayNotHasKey( 'checklist', $checked['values'] );
 	}
 
 	public function test_a_title_is_required(): void {

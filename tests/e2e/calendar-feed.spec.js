@@ -118,7 +118,7 @@ test('a busy day shows its first few and opens the rest', async () => {
   await page.close();
 });
 
-test('a chore, a meeting and leave are on today’s feed and the standup’s diary', async () => {
+test('a chore, a meeting and leave are on today’s feed', async () => {
   // A chore due today.
   const made = await admin.api.post('/recurring', {
     title: `Check the inbox ${RUN_ID}`,
@@ -159,17 +159,16 @@ test('a chore, a meeting and leave are on today’s feed and the standup’s dia
   expect(titles).toContain('leave:diarist');
   expect(feed.entries.find((entry) => 'recurring' === entry.kind && entry.title.startsWith(`Check the inbox ${RUN_ID}`)).detail).toBe('0 of 1 done');
 
-  // The standup reads the same list.
+  // The diary moved to My tasks (#386): the standup no longer carries or
+  // shows one.
   const standup = await admin.api.get('/standup');
-  expect(standup.diary.map((entry) => entry.id).sort()).toEqual(feed.entries.map((entry) => entry.id).sort());
+  expect(standup.diary).toBeUndefined();
 
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/#screen=standup');
-  await expect(page.getByTestId('bwx-standup-diary')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('bwx-standup-diary')).toContainText(`Weekly call ${RUN_ID}`);
-  await expect(page.getByTestId('bwx-standup-diary')).toContainText('diarist');
+  await expect(page.getByTestId('bwx-standup-header')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('bwx-standup-diary')).toHaveCount(0);
   await page.close();
-
 });
 
 test('staff read the diary and cannot add to it', async ({ browser, baseURL }) => {

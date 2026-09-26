@@ -38,8 +38,8 @@ test('a weekly task added on screen becomes today’s card in Up Next', async ({
   await expect(page.getByTestId('bwx-recurring-save')).toBeDisabled();
   await page.getByTestId('bwx-recurring-description').click();
   await page.keyboard.type('Put things back where they live.');
-  await page.getByTestId('bwx-recurring-checklist-add').click();
-  await page.getByTestId('bwx-recurring-checklist-text').first().fill('Desks');
+  // No checklist on a recurring task (#382): one tick finishes it.
+  await expect(page.getByTestId('bwx-recurring-checklist-add')).toHaveCount(0);
   await page.getByTestId('bwx-recurring-every').selectOption('week');
 
   // Only today's weekday ticked, so it is due today and the cadence text is

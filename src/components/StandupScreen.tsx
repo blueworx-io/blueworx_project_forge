@@ -247,22 +247,6 @@ export function StandupScreen() {
       ) }
 
       { /*
-          Today's diary (2026-09-18): the chores, dates, meetings, renewals
-          and absences of the day, read before the cards. Shown whenever
-          there is one, whether or not anything needs attention.
-       */ }
-      { 'ready' === state && 0 < ( list?.diary?.length ?? 0 ) && (
-        <section className="bwx-standup-diary" data-testid="bwx-standup-diary">
-          <p className="bwx-eyebrow">Today&apos;s diary</p>
-          <ul className="bwx-diary-lines">
-            { ( list?.diary ?? [] ).map( ( entry ) => (
-              <DiaryLine key={ entry.id } entry={ entry } onOpen={ setOpened } />
-            ) ) }
-          </ul>
-        </section>
-      ) }
-
-      { /*
           Meetings to settle (2026-09-24): ones that have happened, or happen
           today, that nobody has marked held, cancelled or a no-show. An admin
           or the meeting's host settles it here; an admin can also open the

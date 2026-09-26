@@ -85,7 +85,6 @@ final class Sources {
 		'hours_delivery',
 		'assignees',
 		'hours_each',
-		'checklist',
 		'rule',
 		'starts_on',
 		'ends_on',
@@ -438,7 +437,7 @@ final class Sources {
 				continue;
 			}
 
-			$row[ $column ] = in_array( $column, array( 'rule', 'assignees', 'checklist' ), true ) && is_array( $values[ $column ] )
+			$row[ $column ] = in_array( $column, array( 'rule', 'assignees' ), true ) && is_array( $values[ $column ] )
 				? (string) wp_json_encode( $values[ $column ] )
 				: (string) $values[ $column ];
 		}
