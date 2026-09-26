@@ -144,6 +144,10 @@ test('reaching the same point twice still tells the client once', async ({ brows
 });
 
 test('the stages nobody hears about raise nothing', async ({ browser, baseURL }) => {
+  // Two gates' worth of requirements, and the client confirmed on the way
+  // (#390), one request each against a single-threaded PHP server.
+  test.slow();
+
   const { admin, item } = await world(browser, baseURL, 'Quiet Co');
 
   const current = await Forge.walkTo(admin.api, item, ['triage', 'documentation-period']);

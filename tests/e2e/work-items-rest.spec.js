@@ -99,6 +99,12 @@ async function satisfy(request, nonce, item, to) {
   for (const requirement of unmet) {
     if ('field' === requirement.by) {
       for (const field of requirement.fields) {
+        // The client is confirmed on purpose, not typed in (#390).
+        if ('client_confirmed_at' === field) {
+          await Forge.confirmClient(Forge.forge(request, nonce), item);
+          continue;
+        }
+
         // A seat holds a person (2026-09-19: two of them before triage).
         if (['primary_user_id', 'reviewer_id', 'deliverer_id'].includes(field)) {
           patch[field] = (await Forge.seatsFor(Forge.forge(request, nonce), item))[field];

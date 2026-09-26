@@ -104,6 +104,13 @@ export interface WorkItem {
   review_target?: string;
   release_target?: string;
   commercial_class: string;
+
+  /*
+   * When somebody confirmed the task is on the right client, and who (#390).
+   * 0 until then; a new idea waits at Future Idea for it.
+   */
+  client_confirmed_at?: number;
+  client_confirmed_by?: number;
   record_version: number;
   updated_at: number;
 

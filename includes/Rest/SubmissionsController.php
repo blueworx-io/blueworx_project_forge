@@ -439,7 +439,7 @@ final class SubmissionsController {
 		$parent_id = (string) $asked['parent_id'];
 
 		if ( Conversion::creates_parent( $asked ) ) {
-			$parent = Items::create( $site, $client, Conversion::parent_values( $asked ), $actor );
+			$parent = Items::create( $site, $client, Conversion::parent_values( $asked ), $actor, true );
 
 			if ( null === $parent ) {
 				return null;
@@ -450,7 +450,7 @@ final class SubmissionsController {
 			$parent_id = (string) $parent['id'];
 		}
 
-		$item = Items::create( $site, $client, Conversion::values( $submission, $asked, $parent_id ), $actor );
+		$item = Items::create( $site, $client, Conversion::values( $submission, $asked, $parent_id ), $actor, true );
 
 		if ( null === $item ) {
 			return null;

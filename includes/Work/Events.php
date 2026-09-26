@@ -161,6 +161,8 @@ final class Events {
 		self::DEPENDENCY_REMOVED,
 		self::NOTIFIED,
 		self::PLACED,
+		self::CLIENT_CONFIRMED,
+		self::CLIENT_MOVED,
 	);
 
 	/**
@@ -170,6 +172,17 @@ final class Events {
 	 * went round the workflow — there was never a path to go round.
 	 */
 	public const PLACED = 'placed';
+
+	/**
+	 * Somebody confirmed the task is on the right client (#390).
+	 */
+	public const CLIENT_CONFIRMED = 'client-confirmed';
+
+	/**
+	 * The task was moved to another client (#390). The reason says from
+	 * which to which, in names, because the ids mean nothing to a reader.
+	 */
+	public const CLIENT_MOVED = 'client-moved';
 
 	/**
 	 * Done by somebody standing in for the person the item names (AUTH-4).

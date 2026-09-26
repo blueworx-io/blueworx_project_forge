@@ -9,7 +9,9 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Commerce\Entries;
 use Blueworx\Forge\Commerce\Ledger;
+use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Recurring\Materialise;
@@ -21,6 +23,7 @@ use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Changelog;
+use Blueworx\Forge\Work\ClientMove;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Dependencies;
 use Blueworx\Forge\Work\Derived;
@@ -33,6 +36,7 @@ use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Outcomes;
 use Blueworx\Forge\Work\Returns;
 use Blueworx\Forge\Work\Stages;
+use Blueworx\Forge\Work\Submissions;
 use Blueworx\Forge\Work\Transition;
 use Blueworx\Forge\Work\Transitions;
 use Blueworx\Forge\Work\Validate;
@@ -259,6 +263,37 @@ final class WorkItemsController {
 				),
 			)
 		);
+
+		/*
+		 * #390. Confirming a task's client, and moving it to another. Their
+		 * own routes rather than fields on PATCH: the site is fixed for an
+		 * ordinary edit, and a move has checks an edit never makes.
+		 */
+		foreach ( array(
+			'confirm-client' => 'confirm_client',
+			'move-client'    => 'move_client',
+		) as $path => $callback ) {
+			Server::register_route(
+				$route_namespace,
+				'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/' . $path,
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( self::class, $callback ),
+					'permission_callback' => array( Permissions::class, 'signed_in' ),
+					'scope'               => array(
+						'kind'   => Boundary::SCOPE_ITEM,
+						'param'  => 'item_id',
+						'record' => 'work_item',
+					),
+					'args'                => array(
+						Versioning::PARAM => array(
+							'type'     => 'integer',
+							'required' => false,
+						),
+					),
+				)
+			);
+		}
 
 		/*
 		 * One route per way work moves, rather than one route with a mode
@@ -1491,6 +1526,314 @@ final class WorkItemsController {
 			'source_interface' => Capabilities::STUDIO,
 			'reason'           => (string) ( $body['reason'] ?? '' ),
 		);
+	}
+
+	/**
+	 * Confirms the task is on the right client (#390): what G-FUTURE-IDEA-7
+	 * waits for. A deliberate step, because picking a client in the add-work
+	 * form is not a check that it was the right one.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function confirm_client( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::EDIT_PLANNING );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$item = $ready['item'];
+
+		// Confirming twice says nothing new, and records nothing new.
+		if ( (int) $item['client_confirmed_at'] > 0 ) {
+			return rest_ensure_response(
+				array(
+					'ok'   => true,
+					'item' => $item,
+				)
+			);
+		}
+
+		$confirmed = Items::confirm_client( (string) $item['id'], get_current_user_id(), $ready['version'] );
+
+		if ( null === $confirmed ) {
+			return self::write_refused( (string) $item['id'], $ready['version'] );
+		}
+
+		self::record_client( $confirmed, Events::CLIENT_CONFIRMED, self::client_label( $confirmed ) );
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => $confirmed,
+			)
+		);
+	}
+
+	/**
+	 * Moves a task to another client's site (#390).
+	 *
+	 * Refused once work has started, since its hours are counted against the
+	 * client from In Development; and for work linked to other work, or that
+	 * the client is already part of, for the reasons Work\ClientMove gives.
+	 * The caller has to be able to edit the task where it is and to add work
+	 * where it is going. A site they do not reach gets the same answer as one
+	 * that does not exist.
+	 *
+	 * Anybody in a seat who cannot work on the new client is taken off, and
+	 * the answer names them. Planned hours held on the old client are released
+	 * there and held on the new one, in the same transaction as the move.
+	 *
+	 * @param WP_REST_Request $request Request, with client_site_id.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function move_client( WP_REST_Request $request ) {
+		global $wpdb;
+
+		$ready = self::ready( $request, Capabilities::EDIT_PLANNING );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$item = $ready['item'];
+		$body = (array) $request->get_json_params();
+		$site = ClientSites::get( (string) ( $body['client_site_id'] ?? $request->get_param( 'client_site_id' ) ) );
+
+		if ( null === $site || ! Reach::reaches_site( Boundary::current(), (string) $site['client_id'], (string) $site['id'] ) ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		if ( (string) $site['id'] === (string) $item['client_site_id'] ) {
+			return Errors::rest( 'same_client_site', __( 'The task is already on that client.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( 'active' !== (string) $site['status'] ) {
+			return Errors::rest( 'inactive_client_site', __( 'That site is closed; reactivate it before adding work.', 'blueworx-forge' ), 409 );
+		}
+
+		$refused = Access::refuse_unless( Capabilities::CREATE_WORK_ITEM, (string) $site['client_id'] );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$refusal = ClientMove::refusal( $item, self::linked( $item ), self::requested( $item ), self::client_seen( $item ) );
+
+		if ( null !== $refusal ) {
+			return Errors::rest( $refusal['code'], $refusal['message'], 409 );
+		}
+
+		$seats = array();
+
+		foreach ( PersonReach::SEATS as $field ) {
+			$seats[ $field ] = (string) $item[ $field ];
+		}
+
+		$kept   = PersonReach::drop_unreached( $seats, (string) $site['client_id'], (string) $site['id'] );
+		$before = self::client_label( $item );
+		$actor  = get_current_user_id();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'START TRANSACTION' );
+
+		$moved = Items::move_client( (string) $item['id'], (string) $site['id'], (string) $site['client_id'], $kept, $actor, $ready['version'] );
+
+		if ( null === $moved ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+			$wpdb->query( 'ROLLBACK' );
+
+			return self::write_refused( (string) $item['id'], $ready['version'] );
+		}
+
+		if ( ! self::move_hours( $item, $moved, $actor ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+			$wpdb->query( 'ROLLBACK' );
+
+			return Errors::rest(
+				'hours_not_available',
+				__( 'The new client does not have enough support hours left for this task.', 'blueworx-forge' ),
+				409,
+				array( 'balance' => Ledger::balance( (string) $site['id'] ) )
+			);
+		}
+
+		self::record_client(
+			$moved,
+			Events::CLIENT_MOVED,
+			sprintf(
+				/* translators: 1: the client and site it was on, 2: the client and site it is on now. */
+				__( 'Moved from %1$s to %2$s', 'blueworx-forge' ),
+				$before,
+				self::client_label( $moved )
+			)
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
+		$wpdb->query( 'COMMIT' );
+
+		$taken_off = array();
+
+		foreach ( ClientMove::taken_off( $seats, $kept ) as $person_id ) {
+			$person      = Users::get( $person_id );
+			$taken_off[] = array(
+				'id'   => $person_id,
+				'name' => null === $person ? '' : (string) $person['display_name'],
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'item'      => $moved,
+				'taken_off' => $taken_off,
+			)
+		);
+	}
+
+	/**
+	 * Moves the hours a task holds from its old client to its new one.
+	 *
+	 * Only planned hours can be held before work starts, and the ledger is
+	 * never rewritten: the old client gets a release, and the new one's
+	 * reservation is the ordinary reconciliation of the item where it now is.
+	 * Anything already spent means work started, which the move refused.
+	 *
+	 * @param array<string, mixed> $before The item on its old client.
+	 * @param array<string, mixed> $after  The item on its new client.
+	 * @param int                  $actor  Who moved it.
+	 * @return bool False when an entry was refused, and the move must not stand.
+	 */
+	private static function move_hours( array $before, array $after, int $actor ): bool {
+		$position = WorkHours::position( Ledger::for_source( WorkHours::SOURCE, (string) $before['id'] ) );
+
+		if ( $position['used'] > 0 ) {
+			return false;
+		}
+
+		if ( $position['reserved'] > 0 ) {
+			$released = Ledger::append(
+				array(
+					'client_site_id' => (string) $before['client_site_id'],
+					'event_type'     => Entries::WORK_RELEASE,
+					'hours'          => $position['reserved'],
+					'source_type'    => WorkHours::SOURCE,
+					'source_id'      => (string) $before['id'],
+					'actor'          => $actor,
+					'reason'         => __( 'Moved to another client.', 'blueworx-forge' ),
+				)
+			);
+
+			if ( null === $released ) {
+				return false;
+			}
+		}
+
+		return WorkLedger::reconcile( $after, $actor );
+	}
+
+	/**
+	 * Whether a task has a parent, children or dependencies either way.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return bool
+	 */
+	private static function linked( array $item ): bool {
+		$id = (string) $item['id'];
+
+		return '' !== (string) $item['parent_id']
+			|| array() !== Items::children( $id )
+			|| array() !== Dependencies::for_item( $id )
+			|| array() !== Dependencies::waiting_on( $id );
+	}
+
+	/**
+	 * Whether a client's request was turned into this task.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return bool
+	 */
+	private static function requested( array $item ): bool {
+		foreach ( Submissions::for_site( (string) $item['client_site_id'] ) as $submission ) {
+			if ( (string) ( $submission['converted_item_id'] ?? '' ) === (string) $item['id'] ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether the task has comments the client can see, or wrote.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return bool
+	 */
+	private static function client_seen( array $item ): bool {
+		foreach ( Comments::for_item( (string) $item['id'], Comments::SCOPE_STAFF ) as $comment ) {
+			if ( Comments::CLIENT === (string) $comment['visibility'] || '' !== (string) ( $comment['author_site'] ?? '' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * "Client · site", for a person reading the history.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return string
+	 */
+	private static function client_label( array $item ): string {
+		$client = Clients::get( (string) $item['client_id'] );
+		$site   = ClientSites::get( (string) $item['client_site_id'] );
+
+		return trim( ( null === $client ? '' : (string) $client['display_name'] ) . ' · ' . ( null === $site ? '' : (string) $site['name'] ), ' ·' );
+	}
+
+	/**
+	 * Writes the history entry for a client confirmed or moved.
+	 *
+	 * @param array<string, mixed> $item   The item as it now stands.
+	 * @param string               $action Events::CLIENT_CONFIRMED or CLIENT_MOVED.
+	 * @param string               $reason What a person reads.
+	 */
+	private static function record_client( array $item, string $action, string $reason ): void {
+		Events::append(
+			array(
+				'item_id'          => (string) $item['id'],
+				'client_site_id'   => (string) $item['client_site_id'],
+				'action'           => $action,
+				'field'            => 'client_site_id',
+				'new_value'        => (string) $item['client_site_id'],
+				'reason'           => $reason,
+				'source_interface' => Capabilities::STUDIO,
+				'cycle'            => (int) $item['cycle'],
+				'attempt'          => (int) $item['review_attempt'],
+				'actor'            => get_current_user_id(),
+			)
+		);
+	}
+
+	/**
+	 * The answer to a versioned write that changed nothing: the version moved
+	 * on under it, or the write failed.
+	 *
+	 * @param string $id   Item id.
+	 * @param int    $sent Version the write was made against.
+	 * @return \WP_Error|WP_REST_Response
+	 */
+	private static function write_refused( string $id, int $sent ) {
+		$current  = Items::get( $id );
+		$mismatch = Versioning::check( $sent, null === $current ? 0 : $current['record_version'], null === $current ? array() : $current );
+
+		if ( null !== $mismatch ) {
+			return $mismatch;
+		}
+
+		return Errors::rest( 'write_failed', __( 'That change could not be saved.', 'blueworx-forge' ), 500 );
 	}
 
 	/**

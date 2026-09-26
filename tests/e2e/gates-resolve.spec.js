@@ -57,6 +57,10 @@ test('a new idea with a site needs its source picked and two people named, and t
   await expect(gate.locator('li[data-requirement="G-FUTURE-IDEA-3"] [data-testid="bwx-pick"]')).toBeVisible();
   await expect(page.locator('[data-testid="bwx-move"][data-to="triage"]')).toHaveAttribute('data-ready', 'false');
 
+  // The client is confirmed on purpose before triage (#390).
+  await page.getByTestId('bwx-client-confirm').getByRole('button', { name: 'Confirm' }).click();
+  await expect(page.getByTestId('bwx-client-confirm')).toHaveCount(0, { timeout: 30_000 });
+
   // Since 2026-09-19 the two people are named here too, and the panel says so.
   await expect(page.locator('[data-testid="bwx-needed"][data-field="primary_user_id"]')).toContainText('needed to leave');
   await gate.locator('li[data-requirement="G-FUTURE-IDEA-3"] [data-testid="bwx-pick"]').selectOption('client-request');

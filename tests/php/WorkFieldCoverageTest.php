@@ -35,6 +35,8 @@ final class WorkFieldCoverageTest extends TestCase {
 		'stage',
 		'terminal_outcome',
 		'duplicate_of',
+		// Stamped by the confirm and move-client routes, never an edit (#390).
+		'client_confirmed_at',
 	);
 
 	/**

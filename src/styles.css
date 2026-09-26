@@ -868,6 +868,52 @@ body {
   gap: 8px;
 }
 
+/* ---- The task's client (#390) ---- */
+
+.bwx-client-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var( --color-warning-border );
+  border-radius: 8px;
+  background: var( --color-warning-bg );
+}
+
+.bwx-client-confirm-text,
+.bwx-client-confirm-hint,
+.bwx-client-line-text,
+.bwx-client-taken-off {
+  margin: 0;
+}
+
+.bwx-client-confirm-hint {
+  color: var( --color-warning );
+}
+
+.bwx-client-line {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bwx-client-line-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.bwx-client-move {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bwx-client-taken-off {
+  color: var( --color-warning );
+}
+
 /* ---- Comments ---- */
 
 .bwx-comments {

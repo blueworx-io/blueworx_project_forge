@@ -132,6 +132,12 @@ export function Card( {
           </span>
         ) }
         { blocked && <Tag tone="danger">Blocked</Tag> }
+        { /* A new idea waits for its client to be confirmed (#390). */ }
+        { 'future-idea' === item.stage && ! item.client_confirmed_at && (
+          <span data-testid="bwx-card-unconfirmed">
+            <Tag tone="warn">Client not confirmed</Tag>
+          </span>
+        ) }
         { 0 < ( item.assignees?.length ?? 0 ) && (
           <span data-testid="bwx-card-ticks">
             <Tag tone={ Object.keys( item.ticks ?? {} ).length >= item.assignees.length ? 'ok' : 'neutral' }>

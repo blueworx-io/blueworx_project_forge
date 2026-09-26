@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 33;
+	public const VERSION = 34;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -728,6 +728,8 @@ final class Schema {
 	release_method varchar(20) NOT NULL DEFAULT '',
 	release_destination varchar(191) NOT NULL DEFAULT '',
 	recurring_id varchar(32) NOT NULL DEFAULT '',
+	client_confirmed_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	client_confirmed_by bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
