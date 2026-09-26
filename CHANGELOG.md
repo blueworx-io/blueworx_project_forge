@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.137.0] - 2026-09-26
+
+### Added
+
+- A task can be sent to the client to review: they approve it or send it back from their Forge page, and an admin can record their answer for them.
+
 ## [2.136.0] - 2026-09-26
 
 ### Added
