@@ -78,6 +78,12 @@ final class Trail {
 				continue;
 			}
 
+			// Finished work (#384) is in the capacity read, but a change to
+			// somebody's hours does not change work that is already done.
+			if ( Allocations::DONE === (string) ( $allocation['status'] ?? '' ) ) {
+				continue;
+			}
+
 			$out[ (string) ( $allocation['item_id'] ?? '' ) ] = (string) ( $allocation['client_site_id'] ?? '' );
 		}
 

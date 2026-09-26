@@ -51,6 +51,35 @@ final class CapacityPositionTest extends TestCase {
 		$this->assertSame( Position::OVER, Position::calculate( 0.0, 3.0, true )['band'] );
 	}
 
+	/*
+	 * #384. Finished work used the time, so it fills the day as much as work
+	 * still to do — and is reported beside it rather than inside it.
+	 */
+	public function test_finished_work_counts_towards_a_full_day(): void {
+		$position = Position::calculate( 8.0, 3.0, true, 6.0 );
+
+		$this->assertSame( 3.0, $position['committed'] );
+		$this->assertSame( 6.0, $position['completed'] );
+		$this->assertSame( -1.0, $position['remaining'] );
+		$this->assertSame( Position::OVER, $position['band'] );
+	}
+
+	public function test_a_window_sums_finished_work_too(): void {
+		$days = array(
+			array(
+				'date'   => '2026-09-07',
+				'hours'  => 8.0,
+				'reason' => '',
+			),
+		);
+
+		$position = Position::over( $days, array( '2026-09-07' => 2.0 ), '2026-09-07', '2026-09-07', array( '2026-09-07' => 5.0 ) );
+
+		$this->assertSame( 2.0, $position['committed'] );
+		$this->assertSame( 5.0, $position['completed'] );
+		$this->assertSame( 1.0, $position['remaining'] );
+	}
+
 	/**
 	 * Days as Availability reports them.
 	 *

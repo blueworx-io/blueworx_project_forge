@@ -201,6 +201,7 @@ final class CapacityController {
 				'to'               => $to,
 				'days'             => Availability::by_day( $user_id, $from, $to ),
 				'committed_by_day' => $gathered[ $user_id ]['by_day'] ?? array(),
+				'completed_by_day' => $gathered[ $user_id ]['completed_by_day'] ?? array(),
 				'allocations'      => $gathered[ $user_id ]['allocations'] ?? array(),
 				'position'         => Position::for_people( array( $user_id ), $from, $to )[ $user_id ],
 			),

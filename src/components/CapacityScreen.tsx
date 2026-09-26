@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
+  CapacityAllocation,
   CapacityBand,
   CapacityBy,
   CapacityCell,
   CapacityDrilldown,
   CapacityPosition,
   CapacityResponse,
+  Stage,
 } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Aside } from '../kit';
+import { durationLabel } from '../duration.mjs';
+import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
 
 /**
@@ -60,8 +64,11 @@ function defaultRange( by: CapacityBy ): { from: string; to: string } {
   return { from: iso( monday ), to: iso( end ) };
 }
 
+/** The date as the person sees it, not as UTC has it — just after midnight they differ. */
 function iso( date: Date ): string {
-  return date.toISOString().slice( 0, 10 );
+  const pad = ( value: number ) => String( value ).padStart( 2, '0' );
+
+  return `${ date.getFullYear() }-${ pad( date.getMonth() + 1 ) }-${ pad( date.getDate() ) }`;
 }
 
 /**
@@ -102,6 +109,8 @@ const ROLE_WORD: Record< string, string > = {
   primary: 'Doing the work',
   review: 'Reviewing',
   delivery: 'Delivering',
+  assignee: 'Assigned',
+  meeting: 'Meeting',
 };
 
 /** Why a day is worth nothing, said plainly. */
@@ -117,13 +126,37 @@ function reasonWord( reason: string ): string {
   return reason;
 }
 
-/** How full a cell is, as a share, for the bar. Over runs full and no further. */
-function fill( position: CapacityPosition ): number {
-  if ( position.available <= 0 ) {
-    return position.committed > 0 ? 1 : 0;
+/**
+ * How full a cell is, as two shares for the bar: finished work first, then
+ * what is still to do (#384). Together they run full and no further; where
+ * there is more than fits, each keeps its proportion of the whole.
+ */
+function fill( position: CapacityPosition ): { done: number; todo: number } {
+  const used = position.committed + position.completed;
+
+  if ( used <= 0 ) {
+    return { done: 0, todo: 0 };
   }
 
-  return Math.min( 1, position.committed / position.available );
+  const whole = position.available <= 0 ? 1 : Math.min( 1, used / position.available );
+
+  return { done: whole * ( position.completed / used ), todo: whole * ( position.committed / used ) };
+}
+
+/**
+ * The hours of one allocation that land in the window the panel is about.
+ * An allocation can run for a fortnight; the day panel answers for its day.
+ */
+function hoursIn( allocation: CapacityAllocation ): number {
+  return Object.values( allocation.by_day ?? {} ).reduce( ( total, hours ) => total + hours, 0 );
+}
+
+/**
+ * Whether an allocation is a work item that can be opened. A meeting is not,
+ * and neither is a schedule's day ahead, whose task does not exist yet.
+ */
+function opens( allocation: CapacityAllocation ): boolean {
+  return 'meeting' !== allocation.role && ! allocation.item_id.includes( ':' ) && '' !== allocation.item_id;
 }
 
 export function CapacityScreen() {
@@ -131,6 +164,8 @@ export function CapacityScreen() {
   const [ range, setRange ] = useState( () => defaultRange( 'days' ) );
   const [ data, setData ] = useState< CapacityResponse | undefined >();
   const [ open, setOpen ] = useState< CapacityDrilldown | undefined >();
+  const [ opened, setOpened ] = useState( '' );
+  const [ stages, setStages ] = useState< Stage[] | undefined >();
   const [ notice, setNotice ] = useState( '' );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
 
@@ -179,6 +214,24 @@ export function CapacityScreen() {
   async function openCell( userId: string, from: string, to: string ) {
     try {
       setOpen( await api< CapacityDrilldown >( `/capacity/person/${ userId }?from=${ from }&to=${ to }` ) );
+    } catch ( failure ) {
+      setNotice( messageFor( failure, 'That could not be opened.' ) );
+    }
+  }
+
+  /*
+   * A task in the day panel opens in the same item panel every other screen
+   * uses (#385). The stages it needs are read the first time, not on every
+   * visit to this screen, so the grid itself costs nothing more to show.
+   */
+  async function openItem( itemId: string ) {
+    try {
+      if ( undefined === stages ) {
+        setStages( ( await api< { stages: Stage[] } >( '/stages' ) ).stages );
+      }
+
+      setOpen( undefined );
+      setOpened( itemId );
     } catch ( failure ) {
       setNotice( messageFor( failure, 'That could not be opened.' ) );
     }
@@ -288,9 +341,15 @@ export function CapacityScreen() {
 
       { 'ready' === state && undefined !== data && 0 < data.people.length && (
         <div className="bwx-capacity">
+          <p className="bwx-capacity-legend" data-testid="bwx-capacity-legend">
+            <span className="bwx-capacity-key" data-kind="todo" aria-hidden="true" />
+            Still to do (coloured by how full the day is)
+            <span className="bwx-capacity-key" data-kind="done" aria-hidden="true" />
+            Done
+          </p>
           <table className="bwx-capacity-grid" data-testid="bwx-capacity-grid">
             <caption className="bwx-visually-hidden">
-              Available and committed hours per person, { 'days' === by ? 'day by day' : 'week by week' }
+              Available, still to do and done hours per person, { 'days' === by ? 'day by day' : 'week by week' }
             </caption>
             <thead>
               <tr>
@@ -338,7 +397,11 @@ export function CapacityScreen() {
         </div>
       ) }
 
-      { undefined !== open && <Drilldown drilldown={ open } onClose={ () => setOpen( undefined ) } /> }
+      { undefined !== open && <Drilldown drilldown={ open } onClose={ () => setOpen( undefined ) } onOpenItem={ ( id ) => void openItem( id ) } /> }
+
+      { '' !== opened && undefined !== stages && (
+        <ItemPanel itemId={ opened } stages={ stages } onClose={ () => setOpened( '' ) } onChanged={ () => void load() } />
+      ) }
     </>
   );
 }
@@ -349,32 +412,55 @@ function Cell( { cell }: { cell: CapacityCell } ) {
     return <span className="bwx-capacity-unset">{ BAND_WORD.unrecorded }</span>;
   }
 
+  const share = fill( cell );
+
+  // Done first, then still to do, so the bar reads left to right the way the
+  // day went. Each segment is drawn only when there is something in it.
   return (
     <>
       <span className="bwx-capacity-bar" aria-hidden="true">
-        <span className="bwx-capacity-bar-fill" style={ { inlineSize: `${ fill( cell ) * 100 }%` } } />
+        { 0 < share.done && (
+          <span className="bwx-capacity-bar-done" data-testid="bwx-capacity-bar-done" style={ { inlineSize: `${ share.done * 100 }%` } } />
+        ) }
+        { 0 < share.todo && (
+          <span className="bwx-capacity-bar-fill" data-testid="bwx-capacity-bar-todo" style={ { inlineSize: `${ share.todo * 100 }%` } } />
+        ) }
       </span>
       <Figures position={ cell } />
     </>
   );
 }
 
-/** Committed of available, and what that leaves. */
+/** Time used of time available — still to do and done together (#384). */
 function Figures( { position }: { position: CapacityPosition } ) {
   if ( 'unrecorded' === position.band ) {
     return <span className="bwx-capacity-unset">{ BAND_WORD.unrecorded }</span>;
   }
 
   return (
-    <span className="bwx-capacity-figures">
-      <span className="bwx-capacity-committed">{ position.committed }</span>
-      <span className="bwx-capacity-of">/ { position.available }h</span>
+    <span
+      className="bwx-capacity-figures"
+      title={ `${ durationLabel( position.committed ) } still to do, ${ durationLabel( position.completed ) } done, of ${ durationLabel( position.available ) }` }
+    >
+      <span className="bwx-capacity-committed">{ durationLabel( position.committed + position.completed ) }</span>
+      <span className="bwx-capacity-of">/ { durationLabel( position.available ) }</span>
     </span>
   );
 }
 
 /** What is behind one person's week. */
-function Drilldown( { drilldown, onClose }: { drilldown: CapacityDrilldown; onClose: () => void } ) {
+function Drilldown( {
+  drilldown,
+  onClose,
+  onOpenItem,
+}: {
+  drilldown: CapacityDrilldown;
+  onClose: () => void;
+  onOpenItem: ( itemId: string ) => void;
+} ) {
+  const todo = drilldown.allocations.filter( ( allocation ) => 'completed' !== allocation.status );
+  const done = drilldown.allocations.filter( ( allocation ) => 'completed' === allocation.status );
+
   /*
    * Only real absences. A day off in somebody's normal week is not time off,
    * and a day nobody has set hours for is not time off either — listing those
@@ -410,26 +496,15 @@ function Drilldown( { drilldown, onClose }: { drilldown: CapacityDrilldown; onCl
         <p className="bwx-capacity-summary" data-band={ drilldown.position.band }>
           { 'unrecorded' === drilldown.position.band
             ? 'Nobody has set this person’s working hours, so there is no capacity to report.'
-            : `${ drilldown.position.committed } of ${ drilldown.position.available } hours committed, ${ drilldown.position.remaining } left.` }
+            : `${ durationLabel( drilldown.position.committed ) } still to do and ${ durationLabel( drilldown.position.completed ) } done, of ${ durationLabel( drilldown.position.available ) }. ${
+                drilldown.position.remaining < 0
+                  ? `${ durationLabel( -drilldown.position.remaining ) } over.`
+                  : `${ durationLabel( drilldown.position.remaining ) } left.`
+              }` }
         </p>
 
-        <div className="bwx-field">
-          <label>What is committed</label>
-          { 0 === drilldown.allocations.length ? (
-            <p className="bwx-list-empty">Nothing in this period.</p>
-          ) : (
-            <ul className="bwx-history" data-testid="bwx-capacity-work">
-              { drilldown.allocations.map( ( allocation ) => (
-                <li key={ `${ allocation.item_id }-${ allocation.role }` }>
-                  <strong>{ allocation.title }</strong>
-                  <br />
-                  { ROLE_WORD[ allocation.role ] ?? allocation.role }, { allocation.hours }h
-                  { '' !== allocation.covering ? ', covering for somebody' : '' }
-                </li>
-              ) ) }
-            </ul>
-          ) }
-        </div>
+        <WorkList title="Still to do" testId="bwx-capacity-todo" allocations={ todo } onOpenItem={ onOpenItem } />
+        <WorkList title="Done" testId="bwx-capacity-done" allocations={ done } onOpenItem={ onOpenItem } />
 
         { 0 < away.length && (
           <div className="bwx-field">
@@ -444,5 +519,58 @@ function Drilldown( { drilldown, onClose }: { drilldown: CapacityDrilldown; onCl
           </div>
         ) }
     </Aside>
+  );
+}
+
+/**
+ * One half of the day panel (#385): still to do, or done. Each with its total,
+ * and each task a button that opens it — a list of work nobody can open is a
+ * list people copy titles out of to go and search for.
+ */
+function WorkList( {
+  title,
+  testId,
+  allocations,
+  onOpenItem,
+}: {
+  title: string;
+  testId: string;
+  allocations: CapacityAllocation[];
+  onOpenItem: ( itemId: string ) => void;
+} ) {
+  const total = allocations.reduce( ( sum, allocation ) => sum + hoursIn( allocation ), 0 );
+
+  return (
+    <section className="bwx-field" data-testid={ testId }>
+      <h3 className="bwx-capacity-section">
+        { title } <span className="bwx-capacity-of">{ durationLabel( total ) }</span>
+      </h3>
+      { 0 === allocations.length ? (
+        <p className="bwx-list-empty">Nothing in this period.</p>
+      ) : (
+        <ul className="bwx-history">
+          { allocations.map( ( allocation, index ) => {
+            const detail = `${ ROLE_WORD[ allocation.role ] ?? allocation.role }, ${ durationLabel( hoursIn( allocation ) ) }${ '' !== allocation.covering ? ', covering for somebody' : '' }`;
+
+            return (
+              <li key={ `${ allocation.item_id }-${ allocation.role }-${ index }` }>
+                { opens( allocation ) ? (
+                  <button type="button" className="bwx-capacity-task" onClick={ () => onOpenItem( allocation.item_id ) }>
+                    <strong>{ allocation.title }</strong>
+                    <span>{ detail }</span>
+                  </button>
+                ) : (
+                  <>
+                    <strong>{ allocation.title }</strong>
+                    <br />
+                    { detail }
+                  </>
+                ) }
+              </li>
+            );
+          } ) }
+        </ul>
+      ) }
+    </section>
   );
 }

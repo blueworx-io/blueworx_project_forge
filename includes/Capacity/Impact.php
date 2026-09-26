@@ -152,8 +152,11 @@ final class Impact {
 			$days             = (array) ( $days_by_user[ $user_id ] ?? array() );
 			$by_day           = (array) ( $committed[ $user_id ]['by_day'] ?? array() );
 
+			// Finished work used its days (#384), so it takes up room here too.
+			$done = (array) ( $committed[ $user_id ]['completed_by_day'] ?? array() );
+
 			foreach ( $weeks as $week ) {
-				$position = Position::over( $days, $by_day, $week['from'], $week['to'] );
+				$position = Position::over( $days, $by_day, $week['from'], $week['to'], $done );
 
 				if ( Position::OVER !== $position['band'] ) {
 					continue;
@@ -164,8 +167,8 @@ final class Impact {
 					'week_from' => $week['from'],
 					'week_to'   => $week['to'],
 					'available' => $position['available'],
-					'committed' => $position['committed'],
-					'excess'    => round( $position['committed'] - $position['available'], 2 ),
+					'committed' => round( $position['committed'] + $position['completed'], 2 ),
+					'excess'    => round( 0 - $position['remaining'], 2 ),
 				);
 			}
 		}

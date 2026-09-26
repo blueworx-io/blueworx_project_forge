@@ -110,6 +110,37 @@ final class CapacityImpactTest extends TestCase {
 		$this->assertTrue( Impact::clear( $impact ) );
 	}
 
+	/*
+	 * #384: finished work used the time, so the gate at Up Next counts it.
+	 */
+	public function test_finished_work_in_the_week_still_takes_up_room(): void {
+		$done = Allocations::finished(
+			$this->item(
+				array(
+					'id'            => 'wrk_done',
+					'stage'         => 'completed',
+					'hours_primary' => 32.0,
+					'hours_review'  => 0.0,
+				)
+			)
+		);
+
+		$impact = Impact::assess(
+			Allocations::proposed( $this->item() ),
+			$done,
+			array(
+				'usr_a' => $this->days( '2026-09-07', 5 ),
+				'usr_b' => $this->days( '2026-09-07', 5 ),
+			),
+			'2026-09-07',
+			'2026-09-11'
+		);
+
+		$this->assertCount( 1, $impact['over'] );
+		$this->assertSame( 'usr_a', $impact['over'][0]['user_id'] );
+		$this->assertSame( 2.0, $impact['over'][0]['excess'] );
+	}
+
 	public function test_a_job_bigger_than_the_week_over_books_the_person_doing_it(): void {
 		$impact = Impact::assess(
 			Allocations::proposed( $this->item( array( 'hours_primary' => 50.0 ) ) ),

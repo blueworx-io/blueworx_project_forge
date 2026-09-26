@@ -84,7 +84,8 @@ final class ClientAnswer {
 
 			$recorded   = true;
 			$available += (float) ( $position['available'] ?? 0 );
-			$committed += (float) ( $position['committed'] ?? 0 );
+			// Finished work used the time too (#384).
+			$committed += (float) ( $position['committed'] ?? 0 ) + (float) ( $position['completed'] ?? 0 );
 		}
 
 		if ( ! $recorded ) {

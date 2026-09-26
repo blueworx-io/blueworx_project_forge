@@ -94,6 +94,77 @@ test('a person on two clients shows one combined commitment', async ({ browser, 
   await context.close();
 });
 
+// #384. Ticking work off does not free the day it used: its hours move from
+// "committed" to "completed", on the same day, and the day's total holds.
+test('finished work keeps its hours on its day', async ({ browser, baseURL }) => {
+  test.setTimeout(240_000);
+
+  const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await makeSite(api, 'Capacity done', RUN_ID);
+
+  await onSupport({ context, api }, where.site.id, 400);
+
+  const person = await makePerson(api, where.client.id, 'staff', `done${STAMP}`);
+  const reviewer = await makePerson(api, where.client.id, 'staff', `donereviewer${STAMP}`);
+  const deliverer = await makePerson(api, where.client.id, 'staff', `donedeliverer${STAMP}`);
+
+  await setHours(api, person.id, 8);
+
+  const created = await makeItem(api, where.site.id, { title: `Finished work ${RUN_ID}` });
+  expect(created.status(), await created.text()).toBe(200);
+
+  const item = await walkTo(
+    api,
+    (await created.json()).item,
+    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development'],
+    {
+      seats: {
+        primary_user_id: person.id,
+        reviewer_id: reviewer.id,
+        deliverer_id: deliverer.id,
+        planned_start: FROM,
+        planned_due: FROM,
+        hours_primary: 3,
+      },
+    }
+  );
+
+  const dayOf = async () => {
+    const grid = await api.get(`/capacity?from=${FROM}&to=${FROM}&by=days`);
+
+    return grid.people.find((entry) => entry.user_id === person.id).periods[0];
+  };
+
+  const before = await dayOf();
+
+  expect(before.committed, 'still to do').toBe(3);
+  expect(before.completed, 'nothing done yet').toBe(0);
+
+  const done = await api.post(`/work-items/${item.id}/override`, {
+    to: 'completed',
+    reason: 'Finished for the capacity spec.',
+    record_version: item.record_version,
+  });
+  expect(done.status(), await done.text()).toBe(200);
+
+  const after = await dayOf();
+
+  expect(after.committed, 'nothing left to do').toBe(0);
+  expect(after.completed, 'the hours stay on the day, as done').toBe(3);
+  expect(after.committed + after.completed, 'the day total is unchanged').toBe(before.committed + before.completed);
+  expect(after.remaining).toBe(before.remaining);
+
+  const drill = await api.get(`/capacity/person/${person.id}?from=${FROM}&to=${FROM}`);
+  const mine = drill.allocations.filter((entry) => entry.item_id === item.id);
+
+  expect(mine).toHaveLength(1);
+  expect(mine[0].status).toBe('completed');
+  expect(drill.completed_by_day[FROM]).toBe(3);
+  expect(drill.position.completed).toBe(3);
+
+  await context.close();
+});
+
 test('the grid can be cut by day, and is cut by week unless asked', async ({ browser, baseURL }) => {
   const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
 

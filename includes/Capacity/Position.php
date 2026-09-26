@@ -54,20 +54,27 @@ final class Position {
 	 *
 	 * No database in it, so the thresholds can be stated in a test.
 	 *
+	 * Finished work (#384) is reported beside what is still to do, and both
+	 * count against the time: the finished hours were used.
+	 *
 	 * @param float $available Hours the person has.
-	 * @param float $committed Hours already spoken for.
+	 * @param float $committed Hours still to do.
 	 * @param bool  $recorded  Whether anybody has set their hours up at all.
-	 * @return array{available: float, committed: float, remaining: float, band: string}
+	 * @param float $completed Hours of finished work on the same days.
+	 * @return array{available: float, committed: float, completed: float, remaining: float, band: string}
 	 */
-	public static function calculate( float $available, float $committed, bool $recorded ): array {
+	public static function calculate( float $available, float $committed, bool $recorded, float $completed = 0.0 ): array {
 		$available = round( $available, 2 );
 		$committed = round( $committed, 2 );
+		$completed = round( $completed, 2 );
+		$used      = round( $committed + $completed, 2 );
 
 		return array(
 			'available' => $available,
 			'committed' => $committed,
-			'remaining' => round( $available - $committed, 2 ),
-			'band'      => self::band( $available, $committed, $recorded ),
+			'completed' => $completed,
+			'remaining' => round( $available - $used, 2 ),
+			'band'      => self::band( $available, $used, $recorded ),
 		);
 	}
 
@@ -80,12 +87,13 @@ final class Position {
 	 * whole range, and any window inside it is a sum rather than another read.
 	 *
 	 * @param array<int, array<string, mixed>> $days      Availability::by_day for the person.
-	 * @param array<string, float>             $committed Committed hours by date.
+	 * @param array<string, float>             $committed Hours still to do, by date.
 	 * @param string                           $from      YYYY-MM-DD, inclusive.
 	 * @param string                           $to        YYYY-MM-DD, inclusive.
-	 * @return array{available: float, committed: float, remaining: float, band: string}
+	 * @param array<string, float>             $completed Hours of finished work, by date (#384).
+	 * @return array{available: float, committed: float, completed: float, remaining: float, band: string}
 	 */
-	public static function over( array $days, array $committed, string $from, string $to ): array {
+	public static function over( array $days, array $committed, string $from, string $to, array $completed = array() ): array {
 		$available = 0.0;
 		$recorded  = false;
 
@@ -109,17 +117,29 @@ final class Position {
 			}
 		}
 
-		$spent = 0.0;
+		return self::calculate( $available, self::sum( $committed, $from, $to ), $recorded, self::sum( $completed, $from, $to ) );
+	}
 
-		foreach ( $committed as $date => $hours ) {
+	/**
+	 * Hours by date, summed over a window.
+	 *
+	 * @param array<string, float> $by_day Hours by date.
+	 * @param string               $from   YYYY-MM-DD, inclusive.
+	 * @param string               $to     YYYY-MM-DD, inclusive.
+	 * @return float
+	 */
+	private static function sum( array $by_day, string $from, string $to ): float {
+		$sum = 0.0;
+
+		foreach ( $by_day as $date => $hours ) {
 			if ( (string) $date < $from || (string) $date > $to ) {
 				continue;
 			}
 
-			$spent += (float) $hours;
+			$sum += (float) $hours;
 		}
 
-		return self::calculate( $available, $spent, $recorded );
+		return $sum;
 	}
 
 	/**
@@ -139,7 +159,8 @@ final class Position {
 				$read['days'][ $user_id ] ?? array(),
 				$read['committed'][ $user_id ]['by_day'] ?? array(),
 				$from,
-				$to
+				$to,
+				$read['committed'][ $user_id ]['completed_by_day'] ?? array()
 			);
 		}
 
@@ -166,6 +187,7 @@ final class Position {
 		foreach ( $user_ids as $user_id ) {
 			$days      = $read['days'][ $user_id ] ?? array();
 			$committed = $read['committed'][ $user_id ]['by_day'] ?? array();
+			$completed = $read['committed'][ $user_id ]['completed_by_day'] ?? array();
 			$cells     = array();
 
 			foreach ( $periods as $period ) {
@@ -174,13 +196,13 @@ final class Position {
 						'from' => $period['from'],
 						'to'   => $period['to'],
 					),
-					self::over( $days, $committed, $period['from'], $period['to'] )
+					self::over( $days, $committed, $period['from'], $period['to'], $completed )
 				);
 			}
 
 			$out[ $user_id ] = array(
 				'periods' => $cells,
-				'total'   => self::over( $days, $committed, $from, $to ),
+				'total'   => self::over( $days, $committed, $from, $to, $completed ),
 			);
 		}
 
@@ -208,7 +230,7 @@ final class Position {
 	 * What to call a position.
 	 *
 	 * @param float $available Hours the person has.
-	 * @param float $committed Hours already spoken for.
+	 * @param float $committed Hours used or spoken for: still to do and finished.
 	 * @param bool  $recorded  Whether their hours are set up.
 	 * @return string
 	 */
