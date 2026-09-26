@@ -1181,6 +1181,11 @@ final class ClientController {
 			return $item;
 		}
 
+		/*
+		 * Asked as the client administrator, so this checks that a client may
+		 * do this at all, not which person is asking. Who on the client's site
+		 * may decide is checked there (can_manage), the same as for answers.
+		 */
 		$refused = self::refuse_client_unless( Capabilities::ANSWER_INFORMATION, $request, (string) $item['id'], 'item_id' );
 
 		if ( null !== $refused ) {

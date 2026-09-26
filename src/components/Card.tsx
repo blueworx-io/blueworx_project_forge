@@ -1,4 +1,5 @@
 import type { WorkItem } from '../types';
+import { CLIENT_REVIEWER } from '../types';
 import { phaseOf } from '../phases';
 import { Avatar, Tag } from '../kit';
 
@@ -158,7 +159,7 @@ export function Card( {
         <span className="bwx-card-seats" aria-hidden="true">
           { seats.map( ( id, i ) => (
             // #391. The client reviewing is named as the client.
-            <Avatar key={ i } name={ 'client' === id ? 'The client' : id ? names?.get( id ) ?? '?' : null } />
+            <Avatar key={ i } name={ CLIENT_REVIEWER === id ? 'The client' : id ? names?.get( id ) ?? '?' : null } />
           ) ) }
         </span>
         <span className="bwx-mono bwx-card-when" data-late={ when.late ? 'true' : undefined }>

@@ -13,6 +13,7 @@ import type {
   WorkEvent,
   WorkItem,
 } from '../types';
+import { CLIENT_REVIEWER } from '../types';
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
 import { useLiveReload } from '../live';
@@ -81,7 +82,7 @@ const DUPLICATE_PICK = 'G-TRIAGE-6';
 const TRIAGE_OUTCOME_PICK = 'G-TRIAGE-7';
 
 /** What the reviewer seat holds when the client reviews (#391). */
-const CLIENT = 'client';
+const CLIENT = CLIENT_REVIEWER;
 
 /** Whose a requirement is, when it is not anybody's. */
 const FOR_WHOM: Record< string, string > = {
@@ -2483,7 +2484,7 @@ function historyLines( events: WorkEvent[], label: ( id: string ) => string ): H
   let open: { line: HistoryLine; fields: string[] } | null = null;
 
   // #391. The client's own decision has no studio person behind it.
-  const who = ( event: WorkEvent ) => event.actor_name || ( 'client' === event.via ? 'The client' : 'Forge' );
+  const who = ( event: WorkEvent ) => event.actor_name || ( CLIENT === event.via ? 'The client' : 'Forge' );
   const wording = ( fields: string[] ) => {
     const names = Array.from( new Set( fields.map( ( field ) => FIELD_LABELS[ field ] ?? field.replace( /_/g, ' ' ) ) ) );
     const shown = names.slice( 0, 4 );
@@ -2519,7 +2520,7 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       return `Created in ${ label( event.to_stage ) }`;
     case 'returned':
       // #391. The client's note is what needs doing, so it is shown.
-      return 'client' === event.via && event.detail
+      return CLIENT === event.via && event.detail
         ? `Sent back to ${ label( event.to_stage ) }: ${ event.detail }`
         : `Sent back to ${ label( event.to_stage ) }`;
     case 'blocked':

@@ -326,3 +326,25 @@ test('the client is emailed for each review they are asked for', async () => {
   const staffed = await taskAt('Not emailed', 'in-review');
   expect(await asked(staffed.id)).toHaveLength(0);
 });
+
+test('sent back before Up Next, the client stops reviewing and the task still saves', async () => {
+  const item = await inClientReview('Back to design');
+
+  const back = await admin.api.post(`/work-items/${item.id}/return`, {
+    to: 'design-process',
+    reason: 'The brief changed.',
+    record_version: item.record_version,
+  });
+  expect(back.status(), await back.text()).toBe(200);
+
+  const now = await detail(item.id);
+  expect(now.item.stage).toBe('design-process');
+  expect(now.item.reviewer_id).toBe('');
+
+  const cleared = now.history.find((one) => 'edited' === one.action && 'reviewer_id' === one.field && '' === one.new_value);
+  expect(cleared.reason).toBe('The client is no longer the reviewer, because the task went back before Up Next.');
+
+  // Nothing holds up a save of something else.
+  const renamed = await edit(now.item, { title: `Back to design, renamed ${RUN_ID}`, reviewer_id: '' });
+  expect(renamed.status(), await renamed.text()).toBe(200);
+});

@@ -100,6 +100,52 @@ final class ClientReviewer {
 	}
 
 	/**
+	 * Whether a move takes the client out of the reviewer seat (2026-09-26):
+	 * the client reviews from Up Next on, so work going back before Up Next
+	 * has no reviewer until somebody picks one. Blocked keeps its place, so
+	 * it keeps the seat. Pure.
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @param string               $to   The stage it is moving to.
+	 * @return bool
+	 */
+	public static function leaves( array $item, string $to ): bool {
+		return self::is( $item ) && Stages::BLOCKED !== $to && ! self::may_choose( $to );
+	}
+
+	/**
+	 * The history line for the seat being cleared.
+	 *
+	 * @return string
+	 */
+	public static function cleared(): string {
+		return __( 'The client is no longer the reviewer, because the task went back before Up Next.', 'blueworx-forge' );
+	}
+
+	/**
+	 * Whether the client already decided the review this item is on. Pure.
+	 *
+	 * An approval keeps the review attempt; a send-back starts the next one.
+	 * So the last client decision in this cycle, on this attempt or the one
+	 * before, is the decision a second click is repeating.
+	 *
+	 * @param array<string, mixed> $item          The item, as read.
+	 * @param int|null             $last_attempt  The review attempt of the last
+	 *                                            client decision this cycle, or
+	 *                                            null when there is none.
+	 * @return bool
+	 */
+	public static function decided( array $item, ?int $last_attempt ): bool {
+		if ( null === $last_attempt ) {
+			return false;
+		}
+
+		$attempt = max( 1, (int) ( $item['review_attempt'] ?? 1 ) );
+
+		return $last_attempt === $attempt || $last_attempt === $attempt - 1;
+	}
+
+	/**
 	 * Whether the item is waiting on the client's review right now.
 	 *
 	 * @param array<string, mixed> $item The item, as read.

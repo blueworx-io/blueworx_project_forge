@@ -1265,3 +1265,6 @@ export interface AllClientsMeetingsAnswer {
   ok: true;
   meetings: AllClientsMeeting[];
 }
+
+/** What a task's reviewer seat holds when the client reviews it (#391). */
+export const CLIENT_REVIEWER = 'client';

@@ -256,26 +256,25 @@ final class Transition {
 			);
 		}
 
-		if ( ! ClientReviewer::is( $item ) ) {
-			return new WP_Error(
-				ClientReviewer::NOT_THEIRS,
-				__( 'This task isn\'t waiting on the client\'s review.', 'blueworx-forge' ),
-				array( 'status' => 409 )
-			);
-		}
-
 		if ( Outcomes::is_closed( $item ) || ! empty( $item['archived'] ) ) {
 			return self::closed_error();
 		}
 
 		if ( ! ClientReviewer::awaiting( $item ) ) {
+			// A second click on a review already decided says so; anything
+			// else simply is not waiting for the client.
+			if ( ClientReviewer::is( $item ) && ClientReviewer::decided( $item, self::last_client_decision( $item ) ) ) {
+				return new WP_Error(
+					ClientReviewer::DECIDED,
+					__( 'Already decided.', 'blueworx-forge' ),
+					array( 'status' => 409 )
+				);
+			}
+
 			return new WP_Error(
-				ClientReviewer::DECIDED,
-				__( 'Already decided.', 'blueworx-forge' ),
-				array(
-					'status' => 409,
-					'stage'  => (string) $item['stage'],
-				)
+				ClientReviewer::NOT_THEIRS,
+				__( 'This task isn\'t waiting for the client\'s review.', 'blueworx-forge' ),
+				array( 'status' => 409 )
 			);
 		}
 
@@ -334,6 +333,24 @@ final class Transition {
 			(int) $item['record_version'],
 			$actor_wp_user
 		);
+	}
+
+	/**
+	 * The review attempt of the client's last decision in this cycle, or null
+	 * when they have made none (#391).
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return int|null
+	 */
+	private static function last_client_decision( array $item ): ?int {
+		global $wpdb;
+
+		$table = Schema::work_events_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$attempt = $wpdb->get_var( $wpdb->prepare( "SELECT MAX( attempt ) FROM {$table} WHERE item_id = %s AND cycle = %d AND via = %s AND action IN ( %s, %s )", (string) $item['id'], (int) $item['cycle'], Events::VIA_CLIENT, Events::MOVED, Events::RETURNED ) );
+
+		return null === $attempt ? null : (int) $attempt;
 	}
 
 	/**
@@ -1321,6 +1338,13 @@ final class Transition {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'START TRANSACTION' );
 
+		// #391. Back before Up Next, the client stops being the reviewer.
+		$drops_client = ClientReviewer::leaves( $item, $to );
+
+		if ( $drops_client ) {
+			$also['reviewer_id'] = '';
+		}
+
 		$moved = Items::apply_stage( (string) $item['id'], $to, $sent_version, $also );
 
 		if ( ! $moved ) {
@@ -1354,6 +1378,24 @@ final class Transition {
 				$event
 			)
 		);
+
+		// The cleared seat is written down with the move, or neither happens.
+		if ( $recorded && $drops_client ) {
+			$recorded = Events::append(
+				array(
+					'item_id'        => (string) $item['id'],
+					'client_site_id' => (string) $item['client_site_id'],
+					'action'         => Events::EDITED,
+					'field'          => 'reviewer_id',
+					'previous_value' => ClientReviewer::ID,
+					'new_value'      => '',
+					'reason'         => ClientReviewer::cleared(),
+					'cycle'          => (int) $item['cycle'],
+					'attempt'        => (int) $item['review_attempt'],
+					'actor'          => $actor,
+				)
+			);
+		}
 
 		if ( ! $recorded ) {
 			// A move nobody can account for afterwards is worse than a move that

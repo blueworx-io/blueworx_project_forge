@@ -45,6 +45,34 @@ final class ClientReviewerTest extends TestCase {
 		}
 	}
 
+	public function test_a_seat_the_client_already_holds_never_blocks_a_save(): void {
+		// Sent back before Up Next with the client still named: saving the
+		// panel resends the seat, and that is not choosing the client.
+		$checked = Validate::item( array( 'reviewer_id' => 'client', 'title' => 'Renamed' ), true, 'triage', 'client' );
+
+		$this->assertSame( array(), $checked['errors'] );
+	}
+
+	public function test_changing_to_the_client_is_still_asked(): void {
+		$checked = Validate::item( array( 'reviewer_id' => 'client' ), true, 'triage', 'usr_abc' );
+
+		$this->assertArrayHasKey( 'reviewer_id', $checked['errors'] );
+	}
+
+	public function test_going_back_before_up_next_takes_the_client_off(): void {
+		$item = array( 'reviewer_id' => 'client' );
+
+		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process' ) as $stage ) {
+			$this->assertTrue( ClientReviewer::leaves( $item, $stage ), $stage );
+		}
+
+		foreach ( array( 'blocked', 'up-next', 'in-development', 'in-review', 'completed', 'released' ) as $stage ) {
+			$this->assertFalse( ClientReviewer::leaves( $item, $stage ), $stage );
+		}
+
+		$this->assertFalse( ClientReviewer::leaves( array( 'reviewer_id' => 'usr_abc' ), 'triage' ) );
+	}
+
 	public function test_new_work_cannot_start_with_the_client_reviewing(): void {
 		$checked = Validate::item(
 			array(

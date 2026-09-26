@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\Rest\Boundary;
+use Blueworx\Forge\Rest\ClientController;
 use Blueworx\Forge\Rest\Permissions;
 use Blueworx\Forge\Rest\Server;
 use PHPUnit\Framework\TestCase;
@@ -194,6 +195,7 @@ final class ClientContributionRouteTest extends TestCase {
 		$route = $this->route( self::CLIENT_REVIEW, 'POST' );
 
 		$this->assertNotNull( $route );
+		$this->assertSame( array( ClientController::class, 'review' ), $route['args']['callback'] );
 		$this->assertSame( array( Permissions::class, 'client_site' ), $route['args']['permission_callback'] );
 		$this->assertSame( Boundary::SCOPE_OPEN, $route['args']['scope']['kind'] );
 

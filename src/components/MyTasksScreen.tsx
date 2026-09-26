@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import type { ClientSite, Stage, WorkItem } from '../types';
+import { CLIENT_REVIEWER } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
@@ -46,7 +47,7 @@ function responsible( item: WorkItem ): Role | null {
 
   if ( 'released' === stage ) return null;
   // #391. While the client reviews, the owner keeps it, marked as waiting.
-  if ( 'in-review' === stage && 'client' === item.reviewer_id ) return 'primary';
+  if ( 'in-review' === stage && CLIENT_REVIEWER === item.reviewer_id ) return 'primary';
   if ( 'in-review' === stage ) return 'reviewer';
   if ( 'completed' === stage ) return 'deliverer';
 
@@ -235,7 +236,7 @@ export function MyTasksScreen() {
               { r.item.title }
             </button>
             { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
-            { 'in-review' === r.item.stage && 'client' === r.item.reviewer_id && (
+            { 'in-review' === r.item.stage && CLIENT_REVIEWER === r.item.reviewer_id && (
               <span data-testid="bwx-mytasks-client-reviewing">
                 <Tag tone="info">Waiting on the client</Tag>
               </span>

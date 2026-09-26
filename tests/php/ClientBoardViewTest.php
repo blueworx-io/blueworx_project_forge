@@ -198,13 +198,6 @@ final class ClientBoardViewTest extends TestCase {
 		$this->assertSame( array( 'primary', 'reviewer', 'deliverer' ), array_keys( $item['people'] ) );
 	}
 
-	// -----------------------------------------------------------------------
-	// Lists.
-	// -----------------------------------------------------------------------
-
-	/**
-	 * A list of rows projects to a list of items, in the order given.
-	 */
 	/**
 	 * #391. Whether the client is being asked to review it, and nothing else
 	 * about the review.
@@ -234,6 +227,13 @@ final class ClientBoardViewTest extends TestCase {
 		}
 	}
 
+	// -----------------------------------------------------------------------
+	// Lists.
+	// -----------------------------------------------------------------------
+
+	/**
+	 * A list of rows projects to a list of items, in the order given.
+	 */
 	public function test_a_list_of_rows_projects_in_order(): void {
 		$items = ClientView::items(
 			array(

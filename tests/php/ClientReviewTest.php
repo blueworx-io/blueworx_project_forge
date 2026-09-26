@@ -50,15 +50,25 @@ final class ClientReviewTest extends TestCase {
 		$this->assertSame( ClientReviewer::NOT_THEIRS, $answer->get_error_code() );
 	}
 
-	public function test_it_refuses_a_second_decision(): void {
-		foreach ( array( 'completed', 'in-development', 'up-next' ) as $stage ) {
+	public function test_it_refuses_work_not_in_review(): void {
+		foreach ( array( 'completed', 'in-development', 'up-next', 'blocked' ) as $stage ) {
 			$answer = Transition::client_review( $this->item( array( 'stage' => $stage ) ), 'approve', '', 'Jane', 0 );
 
 			$this->assertInstanceOf( WP_Error::class, $answer );
 			$this->assertSame( 409, $answer->get_error_data()['status'] );
-			$this->assertSame( ClientReviewer::DECIDED, $answer->get_error_code(), "at {$stage}" );
-			$this->assertSame( 'Already decided.', $answer->get_error_message() );
+			$this->assertSame( ClientReviewer::NOT_THEIRS, $answer->get_error_code(), "at {$stage}" );
+			$this->assertSame( "This task isn't waiting for the client's review.", $answer->get_error_message() );
 		}
+	}
+
+	public function test_a_second_decision_is_already_decided(): void {
+		// Approved on attempt 2: still attempt 2. Sent back on 2: now attempt 3.
+		$this->assertTrue( ClientReviewer::decided( array( 'review_attempt' => 2 ), 2 ) );
+		$this->assertTrue( ClientReviewer::decided( array( 'review_attempt' => 3 ), 2 ) );
+
+		// Nothing from the client yet, or only on an earlier review.
+		$this->assertFalse( ClientReviewer::decided( array( 'review_attempt' => 1 ), null ) );
+		$this->assertFalse( ClientReviewer::decided( array( 'review_attempt' => 4 ), 2 ) );
 	}
 
 	public function test_it_refuses_ended_work(): void {
