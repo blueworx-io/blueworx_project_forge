@@ -19,7 +19,8 @@ namespace Blueworx\Forge\Tenancy;
  * now, so the two cannot drift apart.
  *
  * A seat asks it "as staff": only our side of a membership counts, because a
- * client's own people reach their site but do not do the work.
+ * client's own people reach their site but do not do the work. A client set
+ * to All staff (#405) is reached by every studio person.
  */
 final class PersonReach {
 
@@ -39,14 +40,15 @@ final class PersonReach {
 	 * Whether a person, holding these memberships, reaches a site. Pure.
 	 *
 	 * @param array<string, mixed>             $person        The person.
-	 * @param array<int, array<string, mixed>> $memberships   Their active memberships.
+	 * @param array<int, array<string, mixed>> $memberships   Their memberships, any status.
 	 * @param bool                             $administrator Whether they are the studio's WordPress administrator.
 	 * @param string                           $client_id     The client the site sits under.
 	 * @param string                           $site_id       The site.
 	 * @param bool                             $as_staff      Count only our side of a membership.
+	 * @param array<int, string>               $all_staff     Clients set to All staff.
 	 * @return bool
 	 */
-	public static function reaches( array $person, array $memberships, bool $administrator, string $client_id, string $site_id, bool $as_staff = false ): bool {
+	public static function reaches( array $person, array $memberships, bool $administrator, string $client_id, string $site_id, bool $as_staff = false, array $all_staff = array() ): bool {
 		if ( 'active' !== (string) ( $person['status'] ?? '' ) ) {
 			return false;
 		}
@@ -58,6 +60,12 @@ final class PersonReach {
 		}
 
 		if ( $as_staff ) {
+			// Asked before the client's rows are dropped, or a client's own
+			// person would be left looking like somebody new of ours.
+			if ( ! Reach::is_studio_staff( $memberships ) ) {
+				return false;
+			}
+
 			$memberships = array_values(
 				array_filter(
 					$memberships,
@@ -66,7 +74,7 @@ final class PersonReach {
 			);
 		}
 
-		$reach = Reach::for_memberships( $memberships, (string) ( $person['grants'] ?? '' ) );
+		$reach = Reach::for_memberships( $memberships, $all_staff );
 
 		return Reach::reaches_site( $reach, $client_id, $site_id );
 	}
@@ -101,11 +109,12 @@ final class PersonReach {
 
 		return self::reaches(
 			$person,
-			Memberships::for_user( (string) $person['id'] ),
+			Memberships::for_user( (string) $person['id'], null ),
 			self::is_administrator( $person ),
 			$client_id,
 			$site_id,
-			$as_staff
+			$as_staff,
+			Clients::all_staff_ids()
 		);
 	}
 
@@ -210,25 +219,31 @@ final class PersonReach {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function staff_on_site( string $client_id, string $site_id ): array {
-		$by_client = Memberships::by_client( 'active' );
+		$active    = array();
 		$held      = array();
+		$all_staff = Clients::all_staff_ids();
 
-		foreach ( $by_client as $rows ) {
+		foreach ( Memberships::by_client( null ) as $client => $rows ) {
 			foreach ( $rows as $membership ) {
 				$held[ (string) $membership['user_id'] ][] = $membership;
+
+				if ( 'active' === (string) $membership['status'] ) {
+					$active[ $client ][] = $membership;
+				}
 			}
 		}
 
 		return array_values(
 			array_filter(
-				Users::ours( $by_client ),
+				Users::ours( $active ),
 				static fn( array $person ): bool => self::reaches(
 					$person,
 					$held[ (string) $person['id'] ] ?? array(),
 					self::is_administrator( $person ),
 					$client_id,
 					$site_id,
-					true
+					true,
+					$all_staff
 				)
 			)
 		);

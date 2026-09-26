@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 35;
+	public const VERSION = 36;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -494,6 +494,7 @@ final class Schema {
 	status varchar(20) NOT NULL DEFAULT 'active',
 	timezone varchar(64) NOT NULL DEFAULT 'UTC',
 	email_domains text NOT NULL,
+	staff_all tinyint(1) NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1634,6 +1635,12 @@ final class Schema {
 			// Design as it was. A fresh site has no work to keep.
 			if ( null !== $installed && $installed < 35 ) {
 				\Blueworx\Forge\Work\DesignerUpgrade::run();
+			}
+
+			// #405. Once: whoever held the cross-client grant is put on every
+			// client, then the grant goes.
+			if ( null !== $installed && $installed < 36 ) {
+				\Blueworx\Forge\Tenancy\CrossClientUpgrade::run();
 			}
 
 			update_option( self::OPTION, self::VERSION );

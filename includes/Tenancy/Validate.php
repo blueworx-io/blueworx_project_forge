@@ -90,6 +90,20 @@ final class Validate {
 			$values['email_domains'] = array();
 		}
 
+		// #405. Whether every studio person works on this client. Off unless
+		// asked for: the Clients screen asks, and defaults a new client to on.
+		if ( array_key_exists( 'staff_all', $input ) ) {
+			$all = filter_var( $input['staff_all'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
+
+			if ( null === $all ) {
+				$errors['staff_all'] = 'Say whether all staff work on this client.';
+			} else {
+				$values['staff_all'] = $all;
+			}
+		} elseif ( ! $partial ) {
+			$values['staff_all'] = false;
+		}
+
 		$status = self::status( $input, $partial );
 
 		if ( null === $status['error'] ) {

@@ -7,7 +7,6 @@
 
 declare( strict_types = 1 );
 
-use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Roles;
 use PHPUnit\Framework\TestCase;
@@ -50,7 +49,7 @@ final class TenantReachTest extends TestCase {
 	 * else is an addition to it.
 	 */
 	public function test_no_membership_reaches_nothing(): void {
-		$reach = Reach::for_memberships( array(), '' );
+		$reach = Reach::for_memberships( array() );
 
 		$this->assertFalse( Reach::reaches_client( $reach, 'cli_a' ) );
 		$this->assertFalse( Reach::reaches_site( $reach, 'cli_a', 'csite_1' ) );
@@ -61,7 +60,7 @@ final class TenantReachTest extends TestCase {
 	 * added to that client after the membership was written.
 	 */
 	public function test_a_client_wide_membership_reaches_every_site_under_it(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a' ) ) );
 
 		$this->assertTrue( Reach::reaches_client( $reach, 'cli_a' ) );
 		$this->assertTrue( Reach::reaches_site( $reach, 'cli_a', 'csite_1' ) );
@@ -73,7 +72,7 @@ final class TenantReachTest extends TestCase {
 	 * of a client's two sites does not reach the other one.
 	 */
 	public function test_a_site_membership_does_not_reach_the_clients_other_site(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ) );
 
 		$this->assertTrue( Reach::reaches_site( $reach, 'cli_a', 'csite_1' ) );
 		$this->assertFalse( Reach::reaches_site( $reach, 'cli_a', 'csite_2' ) );
@@ -84,7 +83,7 @@ final class TenantReachTest extends TestCase {
 	 * could not be listed under anything.
 	 */
 	public function test_a_site_membership_reaches_the_client_it_sits_under(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ) );
 
 		$this->assertTrue( Reach::reaches_client( $reach, 'cli_a' ) );
 	}
@@ -94,7 +93,7 @@ final class TenantReachTest extends TestCase {
 	 * about the next.
 	 */
 	public function test_a_membership_on_one_client_reaches_no_other_client(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a' ) ) );
 
 		$this->assertFalse( Reach::reaches_client( $reach, 'cli_b' ) );
 		$this->assertFalse( Reach::reaches_site( $reach, 'cli_b', 'csite_9' ) );
@@ -106,7 +105,7 @@ final class TenantReachTest extends TestCase {
 	 * muddled the two would be answered anyway.
 	 */
 	public function test_a_site_is_only_reached_under_its_own_client(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ) );
 
 		$this->assertFalse( Reach::reaches_site( $reach, 'cli_b', 'csite_1' ) );
 	}
@@ -120,7 +119,7 @@ final class TenantReachTest extends TestCase {
 	 * must not still reach anything.
 	 */
 	public function test_an_ended_membership_reaches_nothing(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', '', Roles::STAFF, 'inactive' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', '', Roles::STAFF, 'inactive' ) ) );
 
 		$this->assertFalse( Reach::reaches_client( $reach, 'cli_a' ) );
 	}
@@ -130,63 +129,104 @@ final class TenantReachTest extends TestCase {
 	 * it grants nothing — including the read.
 	 */
 	public function test_an_unrecognised_role_reaches_nothing(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', '', 'auditor' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', '', 'auditor' ) ) );
 
 		$this->assertFalse( Reach::reaches_client( $reach, 'cli_a' ) );
 	}
 
 	// -----------------------------------------------------------------------
-	// #93. The cross-client grant.
+	// #405. A client set to All staff.
 	// -----------------------------------------------------------------------
 
 	/**
-	 * The grant is what a studio user who works across clients holds, and it
-	 * reaches all of them.
+	 * Every studio person reaches an All staff client, with or without a
+	 * membership on it.
 	 */
-	public function test_the_cross_client_grant_reaches_every_client(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a' ) ), Grants::CROSS_CLIENT );
+	public function test_studio_staff_reach_an_all_staff_client(): void {
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a' ) ), array( 'cli_all' ) );
 
-		$this->assertTrue( Reach::reaches_client( $reach, 'cli_never_seen' ) );
-		$this->assertTrue( Reach::reaches_site( $reach, 'cli_never_seen', 'csite_never_seen' ) );
+		$this->assertTrue( Reach::reaches_client( $reach, 'cli_all' ) );
+		$this->assertTrue( Reach::reaches_site( $reach, 'cli_all', 'csite_new' ) );
+		$this->assertFalse( Reach::reaches_client( $reach, 'cli_b' ) );
 	}
 
 	/**
-	 * Its absence is the default, which is the half of #93 that matters: a
-	 * studio user without it is scoped exactly like a client user.
+	 * Somebody added to the team later, with no access yet, is studio staff.
 	 */
-	public function test_without_the_grant_a_studio_user_is_scoped_like_a_client_user(): void {
-		$staff  = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1', Roles::STAFF ) ), '' );
-		$client = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1', Roles::CLIENT_ADMIN ) ), '' );
+	public function test_somebody_with_no_memberships_yet_reaches_an_all_staff_client(): void {
+		$this->assertTrue( Reach::reaches_client( Reach::for_memberships( array(), array( 'cli_all' ) ), 'cli_all' ) );
+	}
+
+	/**
+	 * A client's own people never do.
+	 */
+	public function test_a_clients_person_does_not_reach_an_all_staff_client(): void {
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', '', Roles::CLIENT_ADMIN ) ), array( 'cli_all' ) );
+
+		$this->assertFalse( Reach::reaches_client( $reach, 'cli_all' ) );
+		$this->assertTrue( Reach::reaches_client( $reach, 'cli_a' ) );
+	}
+
+	/**
+	 * Ending a client person's access does not turn them into staff.
+	 */
+	public function test_a_clients_person_whose_access_ended_does_not_reach_it_either(): void {
+		$reach = Reach::for_memberships(
+			array( $this->membership( 'cli_a', '', Roles::CLIENT_VIEWER, 'inactive' ) ),
+			array( 'cli_all' )
+		);
+
+		$this->assertTrue( Reach::is_nothing( $reach ) );
+	}
+
+	/**
+	 * Somebody on both sides is ours, as Users::ours() says.
+	 */
+	public function test_somebody_on_both_sides_is_studio_staff(): void {
+		$held = array(
+			$this->membership( 'cli_a', '', Roles::CLIENT_ADMIN ),
+			$this->membership( 'cli_b', '', Roles::STAFF ),
+		);
+
+		$this->assertTrue( Reach::is_studio_staff( $held ) );
+		$this->assertTrue( Reach::reaches_client( Reach::for_memberships( $held, array( 'cli_all' ) ), 'cli_all' ) );
+	}
+
+	/**
+	 * Without an All staff client nothing widens: a studio user is scoped
+	 * exactly like a client user.
+	 */
+	public function test_without_all_staff_a_studio_user_is_scoped_like_a_client_user(): void {
+		$staff  = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1', Roles::STAFF ) ) );
+		$client = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1', Roles::CLIENT_ADMIN ) ) );
 
 		$this->assertSame( $staff, $client );
 	}
 
 	/**
-	 * The grant is a studio one. Held by somebody whose only memberships are on
-	 * the client's side it means nothing at all — otherwise one mis-set column
-	 * on a client administrator opens every other client to them.
+	 * The role somebody works with on an All staff client they hold no
+	 * membership on: Staff, or Internal viewer for somebody only ever that.
 	 */
-	public function test_the_grant_does_nothing_for_somebody_with_no_studio_membership(): void {
-		$reach = Reach::for_memberships(
-			array( $this->membership( 'cli_a', '', Roles::CLIENT_ADMIN ) ),
-			Grants::CROSS_CLIENT
+	public function test_the_role_held_through_all_staff(): void {
+		$this->assertSame( Roles::STAFF, Reach::all_staff_role( array() ) );
+		$this->assertSame( Roles::STAFF, Reach::all_staff_role( array( $this->membership( 'cli_a', '', Roles::PRIMARY_ADMIN ) ) ) );
+		$this->assertSame( Roles::INTERNAL_VIEWER, Reach::all_staff_role( array( $this->membership( 'cli_a', '', Roles::INTERNAL_VIEWER ) ) ) );
+		$this->assertSame(
+			Roles::STAFF,
+			Reach::all_staff_role(
+				array(
+					$this->membership( 'cli_a', '', Roles::INTERNAL_VIEWER ),
+					$this->membership( 'cli_b', '', Roles::STAFF ),
+				)
+			)
 		);
-
-		$this->assertFalse( Reach::reaches_client( $reach, 'cli_b' ) );
-		$this->assertTrue( Reach::reaches_client( $reach, 'cli_a' ) );
 	}
 
 	/**
-	 * A grant that is not this one changes nothing about reach. Principal and
-	 * Approver say what somebody may do, never how far they can see.
+	 * Nothing else widens reach.
 	 */
-	public function test_the_other_grants_do_not_widen_reach(): void {
-		$reach = Reach::for_memberships(
-			array( $this->membership( 'cli_a' ) ),
-			'principal,approver'
-		);
-
-		$this->assertFalse( Reach::reaches_client( $reach, 'cli_b' ) );
+	public function test_nothing_else_widens_reach(): void {
+		$this->assertFalse( Reach::reaches_client( Reach::for_memberships( array( $this->membership( 'cli_a' ) ) ), 'cli_b' ) );
 	}
 
 	// -----------------------------------------------------------------------
@@ -228,7 +268,7 @@ final class TenantReachTest extends TestCase {
 		$this->assertTrue( Reach::is_nothing( Reach::nothing() ) );
 		$this->assertFalse( Reach::is_nothing( Reach::everything() ) );
 		$this->assertFalse(
-			Reach::is_nothing( Reach::for_memberships( array( $this->membership( 'cli_a' ) ), '' ) )
+			Reach::is_nothing( Reach::for_memberships( array( $this->membership( 'cli_a' ) ) ) )
 		);
 	}
 
@@ -247,8 +287,7 @@ final class TenantReachTest extends TestCase {
 	 */
 	public function test_an_ended_membership_leaves_somebody_holding_nothing(): void {
 		$reach = Reach::for_memberships(
-			array( $this->membership( 'cli_a', '', Roles::STAFF, 'inactive' ) ),
-			''
+			array( $this->membership( 'cli_a', '', Roles::STAFF, 'inactive' ) )
 		);
 
 		$this->assertTrue( Reach::is_nothing( $reach ) );
@@ -263,7 +302,7 @@ final class TenantReachTest extends TestCase {
 	 * they can see gets it, not a refusal because some of it is somebody else's.
 	 */
 	public function test_a_list_is_filtered_to_what_is_reached(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ) );
 
 		$rows = array(
 			array(
@@ -292,7 +331,7 @@ final class TenantReachTest extends TestCase {
 	 * object once it reaches the wire.
 	 */
 	public function test_a_filtered_list_is_still_a_list(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_2' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_2' ) ) );
 
 		$kept = Reach::keep_sites(
 			$reach,
@@ -317,7 +356,7 @@ final class TenantReachTest extends TestCase {
 	 * quietly stops filtering: every row misses, or every row matches.
 	 */
 	public function test_a_list_of_sites_is_filtered_on_the_key_it_is_told(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ) );
 
 		$kept = Reach::keep_sites(
 			$reach,
@@ -343,7 +382,7 @@ final class TenantReachTest extends TestCase {
 	 * one of its sites still appears — with that site alone beneath it.
 	 */
 	public function test_clients_are_filtered_to_those_reached(): void {
-		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ), '' );
+		$reach = Reach::for_memberships( array( $this->membership( 'cli_a', 'csite_1' ) ) );
 
 		$kept = Reach::keep_clients(
 			$reach,

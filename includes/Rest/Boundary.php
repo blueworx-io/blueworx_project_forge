@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Reach;
@@ -322,9 +323,11 @@ final class Boundary {
 			return Reach::nothing();
 		}
 
+		// Every status: a client's person whose access ended is still theirs,
+		// not somebody new of ours reaching every All staff client (#405).
 		return Reach::for_memberships(
-			Memberships::for_user( (string) $user['id'] ),
-			(string) ( $user['grants'] ?? '' )
+			Memberships::for_user( (string) $user['id'], null ),
+			Clients::all_staff_ids()
 		);
 	}
 

@@ -51,6 +51,7 @@ final class Clients {
 			'status'         => (string) ( $values['status'] ?? 'active' ),
 			'timezone'       => (string) ( $values['timezone'] ?? 'UTC' ),
 			'email_domains'  => wp_json_encode( $values['email_domains'] ?? array() ),
+			'staff_all'      => empty( $values['staff_all'] ) ? 0 : 1,
 			'created_at'     => $now,
 			'updated_at'     => $now,
 			'created_by'     => $author,
@@ -104,6 +105,25 @@ final class Clients {
 		}
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * The active clients every studio person works on (#405).
+	 *
+	 * A closed client is left out: closing one ends everybody's access to it,
+	 * and All staff is no way back in.
+	 *
+	 * @return array<int, string> Client ids.
+	 */
+	public static function all_staff_ids(): array {
+		global $wpdb;
+
+		$table = Schema::clients_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$ids = $wpdb->get_col( "SELECT id FROM {$table} WHERE staff_all = 1 AND status = 'active'" );
+
+		return array_map( 'strval', is_array( $ids ) ? $ids : array() );
 	}
 
 	/**
@@ -198,6 +218,10 @@ final class Clients {
 			$changes['email_domains'] = wp_json_encode( $values['email_domains'] );
 		}
 
+		if ( array_key_exists( 'staff_all', $values ) ) {
+			$changes['staff_all'] = empty( $values['staff_all'] ) ? 0 : 1;
+		}
+
 		return $changes;
 	}
 
@@ -217,6 +241,7 @@ final class Clients {
 			'status'         => (string) $row['status'],
 			'timezone'       => (string) $row['timezone'],
 			'email_domains'  => is_array( $domains ) ? $domains : array(),
+			'staff_all'      => ! empty( $row['staff_all'] ),
 			'created_at'     => (int) $row['created_at'],
 			'updated_at'     => (int) $row['updated_at'],
 			'created_by'     => (int) $row['created_by'],

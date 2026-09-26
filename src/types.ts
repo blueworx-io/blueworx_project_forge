@@ -583,7 +583,18 @@ export interface ClientRow extends Client {
   legal_name: string;
   timezone: string;
   email_domains: string[];
+  /** Every studio person works on it (#405), rather than the staff chosen. */
+  staff_all: boolean;
   record_version: number;
+}
+
+/** Who works on one client (#405): All staff or not, who is chosen, and who there is to choose. */
+export interface ClientStaffAnswer {
+  ok: true;
+  client_id: string;
+  staff_all: boolean;
+  chosen: string[];
+  people: Person[];
 }
 
 /** A client as the Clients screen holds it: the record, and the two facts the list joins on. */
@@ -961,6 +972,8 @@ export interface Membership {
   record_version: number;
   client_name: string;
   site_name: string | null;
+  /** Not a membership: the client is set to All staff (#405), and it is changed there. */
+  all_staff?: boolean;
   [ key: string ]: unknown;
 }
 
@@ -1278,7 +1291,7 @@ export interface MeetingsAnswer {
   horizon: { from: string; to: string };
   /** Meetings gone by, twelve weeks to a page, newest first (2026-09-24). */
   past: { page: number; from: string; to: string; more: boolean; meetings: Meeting[] };
-  people: Array< { id: string; display_name: string } >;
+  people: Person[];
   added?: MeetingSeries;
   meeting?: Meeting | null;
 }

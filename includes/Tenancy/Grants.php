@@ -23,9 +23,9 @@ namespace Blueworx\Forge\Tenancy;
  * or an old export is restored, and a string nobody defined turns into
  * authority the first time something reads the column loosely.
  *
- * Two of the three sit on a membership, because they are held with one client.
- * Cross-client (#93) sits on the user, because its whole meaning is that it is
- * not held with one client.
+ * Both sit on a membership, because they are held with one client. The
+ * cross-client grant that sat on the user went in #405: which clients somebody
+ * works on is now set on each client, and a stored one reads as nothing.
  */
 final class Grants {
 
@@ -40,17 +40,11 @@ final class Grants {
 	public const APPROVER = 'approver';
 
 	/**
-	 * #93. Reaches every client rather than the ones they are a member of.
-	 */
-	public const CROSS_CLIENT = 'cross_client';
-
-	/**
 	 * Every grant there is.
 	 */
 	public const ALL = array(
 		self::PRINCIPAL,
 		self::APPROVER,
-		self::CROSS_CLIENT,
 	);
 
 	/**
@@ -62,11 +56,10 @@ final class Grants {
 	);
 
 	/**
-	 * The grants held on the user, across every client at once.
+	 * The grants held on the user, across every client at once. None since
+	 * #405; kept so the People routes still answer the same shape.
 	 */
-	public const ON_USER = array(
-		self::CROSS_CLIENT,
-	);
+	public const ON_USER = array();
 
 	/**
 	 * Reads a stored column as the grants it holds.
@@ -132,8 +125,6 @@ final class Grants {
 				return __( 'Principal — may review their own work', 'blueworx-forge' );
 			case self::APPROVER:
 				return __( 'Approver — may approve estimates and commercial terms', 'blueworx-forge' );
-			case self::CROSS_CLIENT:
-				return __( 'Cross-client — reaches every client, not only their own', 'blueworx-forge' );
 			default:
 				return __( 'Unknown grant', 'blueworx-forge' );
 		}
@@ -151,8 +142,6 @@ final class Grants {
 				return __( 'Waives the rule that the Reviewer must be somebody other than the Primary User. Give it to people who genuinely work alone.', 'blueworx-forge' );
 			case self::APPROVER:
 				return __( 'Lets them approve an estimate and confirm commercial terms. Without it those gates wait for somebody who has it.', 'blueworx-forge' );
-			case self::CROSS_CLIENT:
-				return __( 'Lets them see and work on every client. Without it they reach only the clients they are a member of, exactly like a client user.', 'blueworx-forge' );
 			default:
 				return '';
 		}

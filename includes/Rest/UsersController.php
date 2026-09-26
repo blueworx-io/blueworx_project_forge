@@ -894,10 +894,65 @@ final class UsersController {
 			$labelled[] = $membership;
 		}
 
+		/*
+		 * #405. A client set to All staff is shown on each studio person it
+		 * reaches, as a row that is not a membership and cannot be ended here:
+		 * it is changed on the client's Edit screen.
+		 */
+		if ( 'active' === (string) $user['status'] && Reach::is_studio_staff( $memberships ) ) {
+			$on = array();
+
+			foreach ( $memberships as $membership ) {
+				if ( 'active' === (string) $membership['status'] ) {
+					$on[ (string) $membership['client_id'] ] = true;
+				}
+			}
+
+			foreach ( self::all_staff_clients() as $client_id ) {
+				if ( isset( $on[ $client_id ] ) ) {
+					continue;
+				}
+
+				if ( ! array_key_exists( $client_id, $clients ) ) {
+					$clients[ $client_id ] = Clients::get( $client_id );
+				}
+
+				$labelled[] = array(
+					'id'             => 'all-staff-' . $client_id,
+					'user_id'        => (string) $user['id'],
+					'client_id'      => $client_id,
+					'client_site_id' => '',
+					'role'           => Reach::all_staff_role( $memberships ),
+					'role_label'     => __( 'All staff', 'blueworx-forge' ),
+					'grants'         => '',
+					'status'         => 'active',
+					'all_staff'      => true,
+					'client_name'    => null === $clients[ $client_id ] ? '' : (string) $clients[ $client_id ]['display_name'],
+					'site_name'      => null,
+					'record_version' => 0,
+				);
+			}
+		}
+
 		return array(
 			'user'        => $user,
 			'memberships' => $labelled,
 		);
+	}
+
+	/**
+	 * The clients set to All staff, read once for a whole list of people.
+	 *
+	 * @return array<int, string>
+	 */
+	private static function all_staff_clients(): array {
+		static $ids = null;
+
+		if ( null === $ids ) {
+			$ids = Clients::all_staff_ids();
+		}
+
+		return $ids;
 	}
 
 	// -----------------------------------------------------------------------

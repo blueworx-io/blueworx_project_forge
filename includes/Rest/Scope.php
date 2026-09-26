@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Tenancy\ClientStaff;
 use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Roles;
 use Blueworx\Forge\Tenancy\Users;
@@ -84,6 +85,15 @@ final class Scope {
 		foreach ( Memberships::for_user( $user_id ) as $membership ) {
 			if ( (string) $membership['client_id'] === $client_id ) {
 				$roles[] = (string) $membership['role'];
+			}
+		}
+
+		// #405. No membership there, but the client is set to All staff.
+		if ( array() === $roles ) {
+			$through = ClientStaff::role_through_all_staff( $user_id, $client_id );
+
+			if ( '' !== $through ) {
+				$roles[] = $through;
 			}
 		}
 

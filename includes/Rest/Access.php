@@ -11,8 +11,11 @@ namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\SecurityLog;
 use Blueworx\Forge\Tenancy\Capabilities;
+use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\ClientStaff;
 use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Memberships;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Roles;
 use Blueworx\Forge\Tenancy\Users;
 use WP_Error;
@@ -166,13 +169,23 @@ final class Access {
 		}
 
 		$user_id = (string) $user['id'];
+		$held    = Memberships::for_user( $user_id, null );
 
-		foreach ( Memberships::for_user( $user_id ) as $membership ) {
+		foreach ( $held as $membership ) {
+			if ( 'active' !== (string) $membership['status'] ) {
+				continue;
+			}
+
 			$context = self::build( (string) $membership['role'], $user_id, null, true, $membership );
 
 			if ( Capabilities::allows( $capability, $context ) ) {
 				return true;
 			}
+		}
+
+		// #405. A client set to All staff counts as one of theirs.
+		if ( array() !== Clients::all_staff_ids() && Reach::is_studio_staff( $held ) ) {
+			return Capabilities::allows( $capability, self::build( Reach::all_staff_role( $held ), $user_id, null, true ) );
 		}
 
 		return false;
@@ -206,6 +219,9 @@ final class Access {
 	 * only one that applies to that site. A client-wide membership is the one
 	 * with no site named on it, and it applies everywhere under that client.
 	 *
+	 * With neither, a client set to All staff (#405) gives a studio person a
+	 * whole-client Staff membership of no grants, never more.
+	 *
 	 * @param string                    $user_id   Forge user id.
 	 * @param string                    $client_id Client id.
 	 * @param array<string, mixed>|null $item      The item, where there is one.
@@ -215,9 +231,10 @@ final class Access {
 		$site_id  = null === $item ? '' : (string) $item['client_site_id'];
 		$wide     = null;
 		$for_site = null;
+		$held     = Memberships::for_user( $user_id, null );
 
-		foreach ( Memberships::for_user( $user_id ) as $membership ) {
-			if ( (string) $membership['client_id'] !== $client_id ) {
+		foreach ( $held as $membership ) {
+			if ( 'active' !== (string) $membership['status'] || (string) $membership['client_id'] !== $client_id ) {
 				continue;
 			}
 
@@ -231,7 +248,18 @@ final class Access {
 			}
 		}
 
-		return $for_site ?? $wide;
+		if ( null !== $for_site || null !== $wide ) {
+			return $for_site ?? $wide;
+		}
+
+		$role = ClientStaff::role_through_all_staff( $user_id, $client_id, $held );
+
+		return '' === $role ? null : array(
+			'role'           => $role,
+			'client_id'      => $client_id,
+			'client_site_id' => '',
+			'grants'         => '',
+		);
 	}
 
 	/**

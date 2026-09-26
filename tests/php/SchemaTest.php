@@ -464,6 +464,28 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
+	 * #405. A client says whether every studio person works on it. Existing
+	 * clients read as off, so nothing changes for them.
+	 */
+	public function test_a_client_says_whether_all_staff_work_on_it(): void {
+		$clients = Schema::definitions()[ Schema::clients_table() ];
+
+		$this->assertStringContainsString( 'staff_all tinyint(1) NOT NULL DEFAULT 0', $clients );
+	}
+
+	/**
+	 * #405. The step that retires the cross-client grant runs once, on a site
+	 * coming from before it.
+	 */
+	public function test_the_cross_client_step_runs_only_on_a_site_coming_from_before_it(): void {
+		$GLOBALS['bwx_forge_test_existing_tables'] = array_keys( Schema::definitions() );
+
+		update_option( Schema::OPTION, 35 );
+		Schema::maybe_upgrade();
+		$this->assertStringContainsString( 'cross_client', implode( "\n", array_column( $GLOBALS['bwx_forge_test_calls'], 1 ) ) );
+	}
+
+	/**
 	 * A site already at the current version never calls dbDelta() at all — the
 	 * ordinary case is one option read.
 	 */

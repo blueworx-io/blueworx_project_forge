@@ -770,7 +770,8 @@ test.describe('the people screen, over REST', () => {
     const answer = await api.get('/grants');
 
     expect(answer.ok).toBe(true);
-    expect(answer.on_user.map((one) => one.grant)).toEqual(['cross_client']);
+    // #405. The cross-client grant was the only one held on a person, and it is gone.
+    expect(answer.on_user).toEqual([]);
     expect(answer.on_membership.map((one) => one.grant)).toEqual(['principal', 'approver']);
 
     for (const one of [...answer.on_user, ...answer.on_membership]) {

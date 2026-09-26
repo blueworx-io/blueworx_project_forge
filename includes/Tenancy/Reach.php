@@ -12,7 +12,7 @@ namespace Blueworx\Forge\Tenancy;
 /**
  * The tenant boundary as a rule (#92), with nobody in it.
  *
- * Given the memberships somebody holds and the grants on their user record,
+ * Given the memberships somebody holds and which clients are set to All staff,
  * this says which clients and which sites exist as far as they are concerned.
  * It asks no questions of the database and knows nothing about the current
  * request, which is what makes the boundary readable: the rule is here, and
@@ -32,8 +32,7 @@ final class Reach {
 	/**
 	 * A reach that covers everything there is.
 	 *
-	 * Held by the studio's own WordPress administrator, and by nobody else
-	 * without the #93 grant. This is not a hole in the boundary: Forge runs on
+	 * Held by the studio's own WordPress administrator, and by nobody else. This is not a hole in the boundary: Forge runs on
 	 * our site, and somebody able to install plugins on it can already read
 	 * every table the boundary could hide.
 	 *
@@ -61,15 +60,17 @@ final class Reach {
 	}
 
 	/**
-	 * What a set of memberships, plus the grants on the user, reaches.
+	 * What a set of memberships reaches.
 	 *
-	 * @param array<int, array<string, mixed>> $memberships Membership rows.
-	 * @param string                           $user_grants The user's grants column.
+	 * A client set to All staff (#405) is reached by every studio person,
+	 * membership or not, including people added after it was set.
+	 *
+	 * @param array<int, array<string, mixed>> $memberships Membership rows, any status.
+	 * @param array<int, string>               $all_staff   Clients set to All staff.
 	 * @return array<string, mixed>
 	 */
-	public static function for_memberships( array $memberships, string $user_grants ): array {
+	public static function for_memberships( array $memberships, array $all_staff = array() ): array {
 		$reach = self::nothing();
-		$staff = false;
 
 		foreach ( $memberships as $membership ) {
 			$role = (string) ( $membership['role'] ?? '' );
@@ -85,10 +86,6 @@ final class Reach {
 
 			if ( '' === $client ) {
 				continue;
-			}
-
-			if ( ! Roles::is_client_side( $role ) ) {
-				$staff = true;
 			}
 
 			if ( '' === $site ) {
@@ -108,17 +105,73 @@ final class Reach {
 			}
 		}
 
-		/*
-		 * #93. The cross-client grant widens reach to every client, and it is
-		 * only a studio grant: held by somebody whose memberships are all on the
-		 * client's side it means nothing, because one mis-set column on a client
-		 * administrator would otherwise open every other client to them.
-		 */
-		if ( $staff && Grants::held( $user_grants, Grants::CROSS_CLIENT ) ) {
-			return self::everything();
+		if ( array() !== $all_staff && self::is_studio_staff( $memberships ) ) {
+			foreach ( $all_staff as $client ) {
+				if ( ! in_array( (string) $client, $reach['clients'], true ) ) {
+					$reach['clients'][] = (string) $client;
+				}
+			}
 		}
 
 		return $reach;
+	}
+
+	/**
+	 * Whether somebody is one of our people rather than a client's (#405).
+	 *
+	 * Ours: they hold a studio-side membership, or have never held a client
+	 * one — somebody new with no access yet counts, as in Users::ours(). A
+	 * client's person whose access has ended does not, or ending it would
+	 * open every All staff client to them.
+	 *
+	 * @param array<int, array<string, mixed>> $memberships Membership rows, any status.
+	 * @return bool
+	 */
+	public static function is_studio_staff( array $memberships ): bool {
+		$client_side = false;
+
+		foreach ( $memberships as $membership ) {
+			$role = (string) ( $membership['role'] ?? '' );
+
+			if ( Roles::is_client_side( $role ) ) {
+				$client_side = true;
+				continue;
+			}
+
+			if ( Roles::exists( $role ) && 'active' === (string) ( $membership['status'] ?? 'active' ) ) {
+				return true;
+			}
+		}
+
+		return ! $client_side;
+	}
+
+	/**
+	 * The role somebody works with on an All staff client they hold no
+	 * membership on: Staff, or Internal viewer when that is all they ever are
+	 * with us. Never more than Staff, and never a grant.
+	 *
+	 * @param array<int, array<string, mixed>> $memberships Membership rows, any status.
+	 * @return string
+	 */
+	public static function all_staff_role( array $memberships ): string {
+		$viewer = false;
+
+		foreach ( $memberships as $membership ) {
+			if ( 'active' !== (string) ( $membership['status'] ?? 'active' ) ) {
+				continue;
+			}
+
+			$role = (string) ( $membership['role'] ?? '' );
+
+			if ( Roles::INTERNAL_VIEWER === $role ) {
+				$viewer = true;
+			} elseif ( Roles::STAFF === $role || Roles::PRIMARY_ADMIN === $role ) {
+				return Roles::STAFF;
+			}
+		}
+
+		return $viewer ? Roles::INTERNAL_VIEWER : Roles::STAFF;
 	}
 
 	/**

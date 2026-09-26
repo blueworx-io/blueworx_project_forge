@@ -107,6 +107,12 @@ test('a client is added from a form and appears in the list', async ({ page }) =
 
   await form.getByTestId('bwx-clients-form-name').fill(name);
   await form.getByTestId('bwx-clients-form-domains').fill('example.test, example.co.uk');
+
+  // #405. A new client is All staff unless told otherwise. This one is set to
+  // chosen staff so it does not open itself to every staff test that follows
+  // on this reused instance.
+  await expect(form.getByTestId('bwx-clients-form-staff-all')).toBeChecked();
+  await form.getByTestId('bwx-clients-form-staff-chosen').check();
   await form.getByTestId('bwx-clients-form-save').click();
 
   await expect(form).toBeHidden();

@@ -297,10 +297,10 @@ test.describe('tenant isolation', () => {
   });
 
   // -------------------------------------------------------------------------
-  // #93. The cross-client grant, and the default absence of it.
+  // #405. All staff, and the default absence of it.
   // -------------------------------------------------------------------------
 
-  test('a studio user without the grant is scoped exactly like a client user', async ({ browser, baseURL }) => {
+  test('a studio user on a client not set to All staff is scoped exactly like a client user', async ({ browser, baseURL }) => {
     const staff = await signedIn(browser, baseURL, world.onA.login, PASSWORD);
     const client = await makePerson(world.admin, world.a.client.id, 'client_admin', `cadmin${RUN}`);
     const theirs = await signedIn(browser, baseURL, client.login, PASSWORD);
@@ -314,45 +314,45 @@ test.describe('tenant isolation', () => {
     await theirs.context.close();
   });
 
-  test('the cross-client grant reaches every client, and only when granted', async ({ browser, baseURL }) => {
+  test('a client set to All staff is reached by every staff person, and by no client person', async ({ browser, baseURL }) => {
     const roamer = await makePerson(world.admin, world.a.client.id, 'staff', `roamer${RUN}`);
+    const outsider = await makePerson(world.admin, world.a.client.id, 'client_admin', `noroam${RUN}`);
 
-    const before = await signedIn(browser, baseURL, roamer.login, PASSWORD);
-    const beforeIds = (await before.api.get('/client-sites')).sites.map((s) => s.id);
-    expect(beforeIds).not.toContain(world.b.site.id);
-    await before.context.close();
+    const sitesOf = async (login) => {
+      const { context, api } = await signedIn(browser, baseURL, login, PASSWORD);
+      const ids = (await api.get('/client-sites')).sites.map((s) => s.id);
+      await context.close();
+      return ids;
+    };
 
-    const person = (await world.admin.get(`/users/${roamer.id}`)).user;
-    const granted = await world.admin.patch(`/users/${roamer.id}`, {
-      grants: ['cross_client'],
-      record_version: person.record_version,
-    });
-    expect(granted.status(), await granted.text()).toBe(200);
+    const setAll = async (on) => {
+      const client = (await world.admin.get(`/clients/${world.b.client.id}`)).client;
+      const saved = await world.admin.patch(`/clients/${world.b.client.id}`, { staff_all: on, record_version: client.record_version });
+      expect(saved.status(), await saved.text()).toBe(200);
+    };
 
-    const after = await signedIn(browser, baseURL, roamer.login, PASSWORD);
-    const afterIds = (await after.api.get('/client-sites')).sites.map((s) => s.id);
-    expect(afterIds).toContain(world.b.site.id);
-    await after.context.close();
+    expect(await sitesOf(roamer.login)).not.toContain(world.b.site.id);
+
+    await setAll(true);
+
+    try {
+      expect(await sitesOf(roamer.login)).toContain(world.b.site.id);
+      expect(await sitesOf(outsider.login)).not.toContain(world.b.site.id);
+    } finally {
+      // Back to chosen staff, so the rest of this suite sees two unrelated clients.
+      await setAll(false);
+    }
+
+    expect(await sitesOf(roamer.login)).not.toContain(world.b.site.id);
   });
 
-  test('a client administrator cannot be given the cross-client grant', async ({ browser, baseURL }) => {
-    const client = await makePerson(world.admin, world.a.client.id, 'client_admin', `noroam${RUN}`);
-
-    const person = (await world.admin.get(`/users/${client.id}`)).user;
-    const granted = await world.admin.patch(`/users/${client.id}`, {
+  test('the cross-client grant can no longer be given', async () => {
+    const person = (await world.admin.get(`/users/${world.onA.id}`)).user;
+    const granted = await world.admin.patch(`/users/${world.onA.id}`, {
       grants: ['cross_client'],
       record_version: person.record_version,
     });
 
-    // The column can be written — it is a person's, not a membership's — but it
-    // grants nothing to somebody whose only memberships are the client's own.
-    expect(granted.status(), await granted.text()).toBe(200);
-
-    const { context, api } = await signedIn(browser, baseURL, client.login, PASSWORD);
-    const ids = (await api.get('/client-sites')).sites.map((s) => s.id);
-
-    expect(ids).not.toContain(world.b.site.id);
-
-    await context.close();
+    expect(granted.status(), await granted.text()).toBe(400);
   });
 });
