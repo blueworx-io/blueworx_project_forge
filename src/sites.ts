@@ -49,14 +49,9 @@ export function openingSite( sites: SiteOption[], asked = '' ): string {
 }
 
 /**
- * The last site chosen, and only that: the id if it is still offered,
- * otherwise nothing. For a screen that is about one site and should open on
- * nothing rather than guess — the board's "studio first, else whatever is
- * first" is right for work and wrong for a site's commercial record.
- *
- * `allowAll` is for a screen that offers "All Clients" as a choice of its
- * own (Meetings, #383): remembering it is fine there, the same as
- * remembering any one site, but only when the screen actually offers it.
+ * The last site chosen, if it is still offered; otherwise nothing.
+ * `allowAll` lets a remembered All clients count too, as the top bar's
+ * picker offers it (#402).
  */
 export function rememberedSite( sites: SiteOption[], allowAll = false ): string {
   let remembered = '';

@@ -3373,6 +3373,12 @@ td[ data-band='over' ] {
   height: 100%;
   background: var( --tile-teal-fg );
 }
+.bwx-support-sum-note {
+  margin: 0;
+  padding: 10px 16px 14px;
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+}
 .bwx-support-sum-left[data-low] {
   color: var( --tile-rose-fg );
 }

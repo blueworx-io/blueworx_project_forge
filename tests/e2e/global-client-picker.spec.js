@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
-import { asClientSite, makeItem, makePerson, makeSite, makeSubmission, PASSWORD, signedIn } from './helpers/forge.js';
+import { asClientSite, makeItem, makePerson, makeSite, makeSubmission, onSupport, PASSWORD, signedIn, startOnboarding } from './helpers/forge.js';
 
 // One Client picker in the top bar (#402): every client screen follows it,
 // and it is remembered.
@@ -305,4 +305,101 @@ test.describe('Reports and Capacity', () => {
 
     await admin.context.close();
   });
+});
+
+/** Gives a site the onboarding checklist, publishing one first if the studio has none. */
+async function onboard(page, api, siteId) {
+  const tried = await api.post(`/client-sites/${siteId}/onboarding`, {});
+
+  if (200 === tried.status()) {
+    return;
+  }
+
+  await page.goto('/wp-admin/admin.php?page=blueworx-forge-onboarding-template');
+  const start = page.locator('[data-bwx-start-draft="1"]');
+
+  if (await start.count()) {
+    await page.fill('#bwx-template-name', `Picker ${RUN_ID}`);
+    await start.locator('input[type="submit"]').click();
+  } else {
+    await page.locator('[data-bwx-copy-template="1"] input[type="submit"]').first().click();
+  }
+
+  await page.fill('#bwx-step-title', `Point the domain ${RUN_ID}`);
+  await page.check('#bwx-step-launch-critical');
+  await page.locator('[data-bwx-add-step="1"] input[type="submit"]').click();
+  await expect(page.locator('[data-bwx-result="step-added"]')).toBeVisible();
+  await page.locator('[data-bwx-publish-template="1"] input[type="submit"]').click();
+  await expect(page.locator('[data-bwx-result="published"]')).toBeVisible();
+
+  await startOnboarding(api, siteId);
+}
+
+test('Onboarding follows the picker, and says when a client has none', async ({ browser, baseURL, page }) => {
+  test.slow();
+
+  const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const one = await makeSite(admin.api, 'Onboard One', RUN_ID);
+  const two = await makeSite(admin.api, 'Onboard Two', RUN_ID);
+  const none = await makeSite(admin.api, 'Onboard None', RUN_ID);
+
+  await signIn(page, ADMIN_USER, ADMIN_PASS);
+  await onboard(page, admin.api, one.site.id);
+  await startOnboarding(admin.api, two.site.id);
+
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-client-choice').selectOption(one.site.id);
+  await page.getByTestId('bwx-screen-onboarding').click();
+
+  const rows = page.getByTestId('bwx-onboarding-row');
+  await expect(rows.first()).toBeVisible({ timeout: 60_000 });
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveAttribute('data-site', one.site.id);
+  await expect(page.getByTestId('bwx-onboarding-summary')).toContainText('of 1 ready to launch');
+
+  await page.getByTestId('bwx-client-choice').selectOption(none.site.id);
+  await expect(page.getByTestId('bwx-onboarding-state-screen')).toContainText(`Nothing for Onboard None ${RUN_ID} here.`);
+
+  await page.getByTestId('bwx-client-choice').selectOption('all');
+  await expect(page.locator(`[data-testid="bwx-onboarding-row"][data-site="${two.site.id}"]`)).toBeVisible({ timeout: 60_000 });
+
+  await admin.context.close();
+});
+
+test('the Support summary adds up a known site', async ({ browser, baseURL, page }) => {
+  test.slow();
+
+  const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await makeSite(admin.api, 'Support sums', RUN_ID);
+  await onSupport(admin, where.site.id, 12);
+  const host = await makePerson(admin.api, where.client.id, 'staff', `sums${RUN_ID.replace('-', '')}`);
+  const today = (await admin.api.get('/standup')).today;
+
+  // A one-hour meeting today, held: one hour used.
+  const made = await admin.api.post(`/client-sites/${where.site.id}/meetings/series`, {
+    title: `Sums call ${RUN_ID}`, frequency: 'weekly', starts_on: today, ends_on: '', time_of_day: '09:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const series = (await made.json()).series.find((one) => one.title === `Sums call ${RUN_ID}`);
+  const held = await admin.api.post(`/client-sites/${where.site.id}/meetings/${series.id}/${today}/settle`, { status: 'held' });
+  expect(held.status(), await held.text()).toBe(200);
+
+  const support = await admin.api.get(`/client-sites/${where.site.id}/support`);
+  const granted = support.periods[support.periods.length - 1].hours_granted;
+  const row = (await admin.api.get('/support-summary')).sites.find((one) => one.site_id === where.site.id);
+
+  expect(row.hours).toBe(granted);
+  expect(row.used).toBe(1);
+  expect(row.left).toBe(support.position.balance);
+
+  // And the table shows the same figures.
+  await freshVisit(page);
+  await page.getByTestId('bwx-screen-support').click();
+  const line = page.getByTestId('bwx-support-summary').locator('tr', { has: page.locator(`[data-site="${where.site.id}"]`) });
+  await expect(line.getByTestId('bwx-support-summary-used')).toHaveAttribute('data-used', '1', { timeout: 60_000 });
+  await expect(line.getByTestId('bwx-support-summary-left')).toHaveAttribute('data-left', String(Number(support.position.balance.toFixed(2))));
+  await expect(page.getByTestId('bwx-support-summary-note')).toBeVisible();
+
+  await admin.context.close();
 });

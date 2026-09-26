@@ -167,7 +167,6 @@ export function ReportsScreen() {
   useEffect( () => {
     if ( shownFor.current !== siteId ) {
       shownFor.current = siteId;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState( 'loading' );
     }
   }, [ siteId ] );

@@ -81,6 +81,11 @@ export function SupportScreen() {
 
   /** A write's answer is the whole picture, so it is shown rather than re-read. */
   function landed( fresh: SupportAnswer, said = '' ) {
+    // Another client was picked while this was saving: its answer is not for this screen.
+    if ( fresh.site.id !== latest.current ) {
+      return;
+    }
+
     setAnswer( fresh );
     setPanel( null );
     setNotice( '' === said ? NOTHING_SAID : ok( said ) );
@@ -343,6 +348,9 @@ function Summary( { rows, label, onPick }: { rows: SupportSummaryRow[]; label: (
         onRowClick={ ( row ) => onPick( row.site_id ) }
         testId="bwx-support-summary"
       />
+      <p className="bwx-support-sum-note" data-testid="bwx-support-summary-note">
+        Left is today&apos;s balance, including any top-ups or adjustments.
+      </p>
     </Panel>
   );
 }

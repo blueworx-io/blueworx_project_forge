@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 import type { OnboardingBoard, OnboardingChoice, OnboardingFilters, OnboardingSite } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
@@ -87,15 +89,29 @@ export function OnboardingScreen() {
     narrow( next );
   }
 
-  const sites = board?.sites ?? [];
+  // The top bar's client (#402): one site's row, and the summary counts just it.
+  const { siteId, label } = useClientChoice();
+  const narrowed = ALL_SITES !== siteId;
+  const sites = ( board?.sites ?? [] ).filter( ( one ) => ! narrowed || one.client_site_id === siteId );
   const open = sites.find( ( one ) => one.client_site_id === openId );
   const filtered = 0 < Object.keys( filters ).length;
+  const totals = narrowed
+    ? {
+        sites: sites.length,
+        launch_ready: sites.filter( ( one ) => one.launch_ready ).length,
+        awaiting_review: sites.reduce( ( sum, one ) => sum + one.awaiting_review, 0 ),
+        overdue: sites.reduce( ( sum, one ) => sum + one.overdue, 0 ),
+        blocked: sites.reduce( ( sum, one ) => sum + one.blocked, 0 ),
+      }
+    : board?.totals;
 
   return (
     <>
       <header className="bwx-header" data-testid="bwx-onboarding-header">
         <span className="bwx-eyebrow">Onboarding</span>
 
+        { /* The top bar already names one client, so this filter is for All only. */ }
+        { ! narrowed && (
         <Choose
           label="Client"
           testId="bwx-onboarding-client"
@@ -104,6 +120,7 @@ export function OnboardingScreen() {
           value={ filters.client_id ?? '' }
           onChange={ ( value ) => set( 'client_id', value ) }
         />
+        ) }
 
         <Choose
           label="Checklist"
@@ -239,7 +256,16 @@ export function OnboardingScreen() {
         />
       ) }
 
-      { 'ready' === state && 0 === sites.length && ! filtered && (
+      { 'ready' === state && 0 === sites.length && narrowed && (
+        <Screen
+          state="empty"
+          testId="bwx-onboarding-state-screen"
+          title={ `Nothing for ${ label() } here.` }
+          detail="Give this client's site a checklist from the clients screen, and it appears here."
+        />
+      ) }
+
+      { 'ready' === state && 0 === sites.length && ! filtered && ! narrowed && (
         <Screen
           state="empty"
           testId="bwx-onboarding-state-screen"
@@ -252,7 +278,7 @@ export function OnboardingScreen() {
          Filtered to nothing is not the same as nothing, and saying which is the
          difference between "clear the filters" and "there is no work to do".
        */ }
-      { 'ready' === state && 0 === sites.length && filtered && (
+      { 'ready' === state && 0 === sites.length && filtered && ! narrowed && (
         <Screen
           state="empty"
           testId="bwx-onboarding-state-screen"
@@ -266,16 +292,16 @@ export function OnboardingScreen() {
         />
       ) }
 
-      { 'ready' === state && 0 < sites.length && undefined !== board && (
+      { 'ready' === state && 0 < sites.length && undefined !== totals && (
         <div className="bwx-onboarding">
           <p className="bwx-onboarding-summary" data-testid="bwx-onboarding-summary">
-            <strong>{ board.totals.launch_ready }</strong> of { board.totals.sites } ready to launch
+            <strong>{ totals.launch_ready }</strong> of { totals.sites } ready to launch
             <span aria-hidden="true"> · </span>
-            <strong>{ board.totals.awaiting_review }</strong> waiting on us
+            <strong>{ totals.awaiting_review }</strong> waiting on us
             <span aria-hidden="true"> · </span>
-            <strong>{ board.totals.overdue }</strong> overdue
+            <strong>{ totals.overdue }</strong> overdue
             <span aria-hidden="true"> · </span>
-            <strong>{ board.totals.blocked }</strong> blocked
+            <strong>{ totals.blocked }</strong> blocked
           </p>
 
           <table className="bwx-table" data-testid="bwx-onboarding-table">

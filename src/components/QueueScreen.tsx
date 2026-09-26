@@ -143,6 +143,13 @@ export function QueueScreen() {
 
   useLiveReload( load );
 
+  // Another client picked: nothing stays ticked that is no longer on screen.
+  useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPicked( [] );
+    setDeciding( null );
+  }, [ siteId ] );
+
   /** Sets one set-valued filter, or clears it when nothing is chosen. */
   const set = ( key: 'client_id' | 'intake_state' | 'type', value: string ) => {
     const next = { ...filters };

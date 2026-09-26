@@ -235,10 +235,12 @@ final class Board {
 
 		foreach ( Register::failed_for_sites( $site_ids ) as $event ) {
 			$problems[] = array(
-				'id'           => (string) $event['id'],
-				'subject_type' => 'notification',
-				'about'        => (string) $event['subject_id'],
-				'kind'         => (string) $event['event_kind'],
+				'id'             => (string) $event['id'],
+				'subject_type'   => 'notification',
+				'about'          => (string) $event['subject_id'],
+				// Which client's email it was, so the Client picker can narrow to it (#402).
+				'client_site_id' => (string) ( $event['client_site_id'] ?? '' ),
+				'kind'           => (string) $event['event_kind'],
 
 				/*
 				 * What the mailer complained about (#174). Carried onto the card
@@ -246,9 +248,9 @@ final class Board {
 				 * and "SMTP connect() failed" is, and the person reading this
 				 * list is the person who has to act on it.
 				 */
-				'detail'       => (string) $event['last_detail'],
-				'attempts'     => (int) $event['attempts'],
-				'since'        => (int) $event['settled_at'],
+				'detail'         => (string) $event['last_detail'],
+				'attempts'       => (int) $event['attempts'],
+				'since'          => (int) $event['settled_at'],
 			);
 		}
 

@@ -147,6 +147,11 @@ export function MeetingsScreen() {
    * It carries the first page of past meetings, so a later page is read again.
    */
   function landed( fresh: MeetingsAnswer, said = '' ) {
+    // Another client was picked while this was saving: its answer is not for this screen.
+    if ( fresh.site.id !== latest.current.split( '|' )[ 0 ] ) {
+      return;
+    }
+
     setAnswer( fresh );
     setOpened( null );
     setNotice( '' === said ? NOTHING_SAID : ok( said ) );
