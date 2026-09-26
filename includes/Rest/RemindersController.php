@@ -13,9 +13,8 @@ use Blueworx\Forge\Recurring\Reminders;
 use Blueworx\Forge\Recurring\Sources;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
-use Blueworx\Forge\Tenancy\Memberships;
+use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Reach;
-use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
 
 /**
@@ -276,21 +275,9 @@ final class RemindersController {
 	 * @return bool
 	 */
 	private static function all_reach( array $people, array $site ): bool {
+		// The rule itself is shared with the seats on a task (#393).
 		foreach ( $people as $id ) {
-			$person = Users::get( (string) $id );
-
-			if ( null === $person || 'active' !== (string) $person['status'] ) {
-				return false;
-			}
-
-			// The studio's own administrator reaches everything, as in
-			// Boundary::for_user(), which only answers for the current user.
-			$wp_user = (int) $person['wp_user_id'];
-			$reach   = $wp_user > 0 && user_can( $wp_user, 'manage_options' )
-				? Reach::everything()
-				: Reach::for_memberships( Memberships::for_user( (string) $person['id'] ), (string) $person['grants'] );
-
-			if ( ! Reach::reaches_site( $reach, (string) $site['client_id'], (string) $site['id'] ) ) {
+			if ( ! PersonReach::person_reaches_site( (string) $id, (string) $site['client_id'], (string) $site['id'] ) ) {
 				return false;
 			}
 		}

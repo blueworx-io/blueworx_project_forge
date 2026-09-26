@@ -122,4 +122,29 @@ final class MaterialiseTest extends TestCase {
 		self::assertStringNotContainsString( '<img', $values['problem'] );
 		self::assertStringContainsString( '&lt;img', $values['problem'] );
 	}
+
+	/**
+	 * #393. A seat whose person has lost access to the client is left empty,
+	 * and the day's task is still made with the seats that do reach.
+	 */
+	public function test_a_seat_without_access_is_left_empty_and_the_task_still_made(): void {
+		$seated = Materialise::seated(
+			array_merge(
+				$this->source(),
+				array(
+					'client_id'      => 'cli_1',
+					'client_site_id' => 'cst_1',
+				)
+			),
+			static fn( string $id ): bool => 'usr_c' === $id
+		);
+
+		$copies = Materialise::copies( $seated, '2026-09-14' );
+
+		self::assertCount( 1, $copies );
+		self::assertSame( 'Weekly backups — 14 Sep', $copies[0]['title'] );
+		self::assertSame( '', $copies[0]['primary_user_id'] );
+		self::assertSame( 'usr_c', $copies[0]['deliverer_id'] );
+		self::assertSame( array(), $copies[0]['assignees'] );
+	}
 }

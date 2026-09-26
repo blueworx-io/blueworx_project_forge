@@ -186,13 +186,16 @@ final class Users {
 	 * a staff or administrator membership anywhere is ours, and so is one
 	 * added on the People screen who has not been given access yet.
 	 *
+	 * @param array<string, array<int, array<string, mixed>>>|null $by_client Active memberships grouped by
+	 *                                                                  client, when the caller has
+	 *                                                                  already read them.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function ours(): array {
+	public static function ours( ?array $by_client = null ): array {
 		$client_side = array();
 		$our_side    = array();
 
-		foreach ( Memberships::by_client( 'active' ) as $held ) {
+		foreach ( $by_client ?? Memberships::by_client( 'active' ) as $held ) {
 			foreach ( $held as $membership ) {
 				$user_id = (string) $membership['user_id'];
 

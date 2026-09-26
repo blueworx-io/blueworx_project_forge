@@ -13,6 +13,7 @@ use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Work\Conversion;
 use Blueworx\Forge\Work\Items;
@@ -309,6 +310,23 @@ final class SubmissionsController {
 
 		if ( null !== $closed ) {
 			return $closed;
+		}
+
+		/*
+		 * #393. The two people named at Triage are seats like any other, so
+		 * the conversion is refused rather than assigning somebody who cannot
+		 * open this client's work. Refused, not dropped: somebody is standing
+		 * at the screen and can pick again.
+		 */
+		$no_access = $links ? array() : PersonReach::seat_refusals( $asked, $client, (string) $row['client_site_id'] );
+
+		if ( array() !== $no_access ) {
+			return Errors::rest(
+				'seat_without_access',
+				(string) reset( $no_access ),
+				400,
+				array( 'fields' => $no_access )
+			);
 		}
 
 		$item = $links ? Items::get( (string) $asked['item_id'] ) : self::make( $row, $asked );

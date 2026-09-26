@@ -17,6 +17,7 @@ use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Changelog;
@@ -739,6 +740,14 @@ final class WorkItemsController {
 				'comments'      => Comments::for_item( $item['id'], Scope::NONE === $scope ? Comments::SCOPE_CLIENT : $scope ),
 				'scope'         => $scope,
 
+				/*
+				 * #393. The name behind each filled seat, for our own people
+				 * only. The pickers list who can be assigned now; somebody
+				 * already in a seat who has since left, or lost access, is not
+				 * on that list and would otherwise show as nobody in particular.
+				 */
+				'seat_names'    => Comments::SCOPE_STAFF === $scope ? self::seat_names( $item ) : array(),
+
 				// #103. What this waits on, what waits on it, and which of the
 				// first are not going to move on their own.
 				'dependencies'  => self::dependency_view( $item ),
@@ -756,6 +765,33 @@ final class WorkItemsController {
 				'notifications' => Notifications::for_subject( (string) $item['id'] ),
 			)
 		);
+	}
+
+	/**
+	 * Person id to display name, for every filled seat on an item (#393),
+	 * whatever the person's status.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return array<string, string>
+	 */
+	private static function seat_names( array $item ): array {
+		$names = array();
+
+		foreach ( PersonReach::SEATS as $field ) {
+			$id = (string) ( $item[ $field ] ?? '' );
+
+			if ( '' === $id || isset( $names[ $id ] ) ) {
+				continue;
+			}
+
+			$person = Users::get( $id );
+
+			if ( null !== $person ) {
+				$names[ $id ] = (string) $person['display_name'];
+			}
+		}
+
+		return $names;
 	}
 
 	/**
@@ -1245,7 +1281,12 @@ final class WorkItemsController {
 		$body['self_review_permitted'] = ! empty( Access::context( (string) $site['client_id'] )['principal'] );
 
 		$checked = Validate::item( $body, false );
-		$errors  = array_merge( $checked['errors'], Validate::dates_in_order( $checked['values'] ) );
+		$errors  = array_merge(
+			$checked['errors'],
+			Validate::dates_in_order( $checked['values'] ),
+			// #393. Nobody goes in a seat who cannot open this client's work.
+			PersonReach::seat_refusals( $checked['values'], (string) $site['client_id'], (string) $site['id'] )
+		);
 
 		if ( array() !== $errors ) {
 			return Errors::rest(
@@ -1324,14 +1365,27 @@ final class WorkItemsController {
 			return $refused;
 		}
 
-		$out_of_order = Validate::dates_in_order( array_merge( $item, $checked['values'] ) );
+		/*
+		 * #393. The seats this edit changes, and only those. The panel sends
+		 * every seat on every save, so a seat somebody has since lost access to
+		 * would otherwise block a save that only renamed the work; the picker
+		 * flags that seat instead.
+		 */
+		$unsaveable = array_merge(
+			Validate::dates_in_order( array_merge( $item, $checked['values'] ) ),
+			PersonReach::seat_refusals(
+				PersonReach::changed_seats( $checked['values'], $item ),
+				(string) $item['client_id'],
+				(string) $item['client_site_id']
+			)
+		);
 
-		if ( array() !== $out_of_order ) {
+		if ( array() !== $unsaveable ) {
 			return Errors::rest(
 				'invalid_work_item',
 				__( 'That change could not be saved.', 'blueworx-forge' ),
 				400,
-				array( 'fields' => $out_of_order )
+				array( 'fields' => $unsaveable )
 			);
 		}
 

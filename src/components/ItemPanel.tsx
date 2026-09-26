@@ -34,6 +34,8 @@ interface Detail {
   records: Record< string, GateRecord >;
   comments: Comment[];
   scope: string;
+  /** The name behind each filled seat, for our own people (#393). */
+  seat_names?: Record< string, string >;
   dependencies: {
     upstream: DependencyRow[];
     downstream: DependencyRow[];
@@ -399,6 +401,12 @@ export function ItemPanel( {
   /** Who can hold a seat. Empty until the list arrives, and harmless if it never does. */
   const [ staffList, setStaffList ] = useState< Person[] >( [] );
 
+  /**
+   * Who can hold a seat on this item: our people who reach its client (#393).
+   * Null until the list arrives, so nobody is flagged while it is on its way.
+   */
+  const [ siteStaff, setSiteStaff ] = useState< Person[] | null >( null );
+
   const label = ( id: string ) => stages.find( ( stage ) => stage.id === id )?.label ?? id;
   const staff = 'staff' === detail?.scope;
 
@@ -420,6 +428,13 @@ export function ItemPanel( {
       void api< { items: WorkItem[] } >( `/work-items?client_site_id=${ loaded.item.client_site_id }` )
         .then( ( answer ) => setSiteItems( answer.items.filter( ( one ) => one.id !== loaded.item.id && ! one.archived && ( '' === one.terminal_outcome || 'deferred' === one.terminal_outcome ) ) ) )
         .catch( () => setSiteItems( [] ) );
+
+      // The seats offer only the people who reach this client (#393). If the
+      // list cannot be read the pickers fall back to everybody, and the save
+      // still refuses anybody without access.
+      void api< { people: Person[] } >( `/people?client_site_id=${ loaded.item.client_site_id }` )
+        .then( ( answer ) => setSiteStaff( answer.people ) )
+        .catch( () => everybody().then( setSiteStaff ) );
     } catch ( error ) {
       // Told apart deliberately: "we could not load this" and "this is not
       // yours to read" are different problems with different next steps.
@@ -922,25 +937,45 @@ export function ItemPanel( {
     </label>
   );
 
-  /** One seat's picker, with the people who could sit in it. */
-  const pick = ( field: string, name: string ) => (
-    <div className="bwx-field">
-      { naming( field, name ) }
-      <select
-        id={ `bwx-${ field }` }
-        className="bwx-select"
-        value={ draft[ field ] ?? '' }
-        onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
-      >
-        <option value="">Nobody yet</option>
-        { staffList.map( ( person ) => (
-          <option key={ person.id } value={ person.id }>
-            { person.display_name }
-          </option>
-        ) ) }
-      </select>
-    </div>
-  );
+  /**
+   * One seat's picker, with the people who could sit in it (#393). Somebody
+   * already in the seat who no longer reaches the client stays in the list,
+   * flagged, so the picker shows who is there and why a save is refused.
+   */
+  const pick = ( field: string, name: string ) => {
+    const offered = siteStaff ?? [];
+    const current = draft[ field ] ?? '';
+    const stale = '' !== current && null !== siteStaff && ! offered.some( ( person ) => person.id === current );
+    // The item carries the name behind each seat, so somebody deactivated
+    // since is still named rather than left anonymous.
+    const who = detail?.seat_names?.[ current ]
+      ?? staffList.find( ( person ) => person.id === current )?.display_name
+      ?? 'Somebody';
+
+    return (
+      <div className="bwx-field">
+        { naming( field, name ) }
+        <select
+          id={ `bwx-${ field }` }
+          className="bwx-select"
+          value={ current }
+          onChange={ ( event ) => setDraft( { ...draft, [ field ]: event.target.value } ) }
+        >
+          <option value="">Nobody yet</option>
+          { stale && (
+            <option value={ current } data-testid="bwx-seat-no-access">
+              { `${ who } (no access to this client)` }
+            </option>
+          ) }
+          { offered.map( ( person ) => (
+            <option key={ person.id } value={ person.id }>
+              { person.display_name }
+            </option>
+          ) ) }
+        </select>
+      </div>
+    );
+  };
 
   /**
    * The earliest a date may be: the latest of the dates before it that are
@@ -1876,6 +1911,10 @@ export function ItemPanel( {
                     </select>
                   </div>
                 </div>
+
+                { 0 === ( item.assignees?.length ?? 0 ) && null !== siteStaff && 0 === siteStaff.length && (
+                  <p className="bwx-hint" data-testid="bwx-seats-empty">Nobody on this client can be assigned yet</p>
+                ) }
 
                 { 0 === ( item.assignees?.length ?? 0 ) && SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>

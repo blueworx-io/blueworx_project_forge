@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Recurring;
 
 use Blueworx\Forge\Commerce\SureCart\Sync;
+use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Transition;
@@ -99,7 +100,10 @@ final class Materialise {
 		$rule  = (array) $source['rule'];
 		$dates = Rule::due_between( $rule, (string) $source['next_due'], $today, (string) $source['ends_on'] );
 
-		if ( Sources::ACTIVE === (string) $source['status'] ) {
+		if ( Sources::ACTIVE === (string) $source['status'] && array() !== $dates ) {
+			// #393. Nobody without access is put in a seat overnight.
+			$source = self::seated( $source );
+
 			foreach ( $dates as $date ) {
 				if ( ! Occurrences::claim( (string) $source['id'], $date ) ) {
 					continue;
@@ -155,6 +159,21 @@ final class Materialise {
 		Sources::advance( (string) $source['id'], $next, 0 < $made );
 
 		return $made;
+	}
+
+	/**
+	 * The source with every seat emptied whose person cannot do work on its
+	 * site (#393). Nobody is at the screen when this runs, so the seat is left
+	 * empty rather than the day refused: the task is still made, and an empty
+	 * seat is visible and gets filled.
+	 *
+	 * @param array<string, mixed> $source  The source.
+	 * @param callable|null        $reaches Whether a person id reaches the
+	 *                                      site; the real check when null.
+	 * @return array<string, mixed>
+	 */
+	public static function seated( array $source, ?callable $reaches = null ): array {
+		return PersonReach::drop_unreached( $source, (string) ( $source['client_id'] ?? '' ), (string) ( $source['client_site_id'] ?? '' ), $reaches );
 	}
 
 	/**
