@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.134.0] - 2026-09-26
+
+### Changed
+
+- Capacity keeps finished work in the day, in its own colour, so a day that was used doesn't look free.
+- The Capacity day panel splits what's still to do from what's done, and each task opens when clicked.
+- Capacity shows time as 10 min or 1h 30m, like tasks do.
+
 ## [2.133.0] - 2026-09-26
 
 ### Added
