@@ -177,6 +177,15 @@ final class MeetingsController {
 			$names[ (string) $client['id'] ] = (string) $client['display_name'];
 		}
 
+		// Read once, the same way $names is: every host named on the list,
+		// looked up in one query rather than one per series (the brief's
+		// "a handful of queries", not one per row).
+		$hosts = array();
+
+		foreach ( Users::all( null ) as $user ) {
+			$hosts[ (string) $user['id'] ] = (string) $user['display_name'];
+		}
+
 		$today  = gmdate( 'Y-m-d' );
 		$to     = MeetingHours::horizon_end( $today );
 		$stored = Diary::stored_between( $today, $to, $site_ids );
@@ -204,7 +213,7 @@ final class MeetingsController {
 				$to
 			);
 
-			$row                = self::series( $series );
+			$row                = self::series( $series, $hosts );
 			$row['client_name'] = $names[ (string) $series['client_id'] ] ?? '';
 			$row['site_name']   = (string) $site['name'];
 			// The nearest thing the horizon catches, cheaply — the same
@@ -737,16 +746,29 @@ final class MeetingsController {
 	/**
 	 * One series as the screen shows it: the row, with the host named.
 	 *
-	 * @param array<string, mixed> $series The series.
+	 * `$hosts` is an id => display_name lookup, for a caller reading many
+	 * series at once ({@see self::index_all()}): built once from
+	 * {@see Users::all()} rather than read here per row, which is what kept
+	 * the cross-client list to a query per series rather than a handful.
+	 * Left null, a single series is looked up on its own, as every other
+	 * caller here still does.
+	 *
+	 * @param array<string, mixed>       $series The series.
+	 * @param array<string, string>|null $hosts  id => display_name, or null
+	 *                                            to read this one host.
 	 * @return array<string, mixed>
 	 */
-	private static function series( array $series ): array {
-		$host = Users::get( (string) $series['host_user_id'] );
+	private static function series( array $series, ?array $hosts = null ): array {
+		$id = (string) $series['host_user_id'];
 
-		return array_merge(
-			$series,
-			array( 'host_name' => null === $host ? '' : (string) $host['display_name'] )
-		);
+		if ( null !== $hosts ) {
+			$name = $hosts[ $id ] ?? '';
+		} else {
+			$host = Users::get( $id );
+			$name = null === $host ? '' : (string) $host['display_name'];
+		}
+
+		return array_merge( $series, array( 'host_name' => $name ) );
 	}
 
 	/**
