@@ -17,9 +17,12 @@ use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Meetings\Series;
 use Blueworx\Forge\Meetings\Validate;
+use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
+use WP_REST_Response;
 
 /**
  * What the Meetings admin page did, as routes, so the studio app is the one
@@ -93,6 +96,31 @@ final class MeetingsController {
 				)
 			);
 		}
+
+		/*
+		 * Every client's standing meetings, flat, for the picker's "All
+		 * Clients" (#383). Its own path rather than a special site id above,
+		 * like /work-items-all: the routes above are scoped to one named
+		 * site and this one is a set the callback narrows with Reach — the
+		 * difference SCOPE_LIST exists for.
+		 *
+		 * Held on the same permission as the routes above (manage()), because
+		 * a flat cross-client list of a site's configuration is no less
+		 * administrator-only than the site-scoped view it is drawn from.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/meetings',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'index_all' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_LIST,
+					'reason' => 'Standing meetings across every client, for the studio picker\'s "All Clients" (#383). Reach::keep_sites() narrows the set the same way the site picker does, in case this ever opens beyond manage().',
+				),
+			)
+		);
 	}
 
 	/**
@@ -109,6 +137,95 @@ final class MeetingsController {
 		}
 
 		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
+	}
+
+	/**
+	 * Every running standing meeting, across every client site in reach, flat
+	 * (#383): the "All Clients" pick on the studio's picker. No twelve-week
+	 * view and no week grouping — one row per series, with the next meeting
+	 * its own rule implies, if the horizon catches one.
+	 *
+	 * **Batched, never a query per site** (the brief this exists to satisfy).
+	 * One query lists the sites in reach, one lists their series
+	 * ({@see Series::for_sites()}), one lists the stored exceptions touching
+	 * the horizon ({@see Diary::stored_between()}), and the rest — expanding
+	 * each series' rule and merging it with what was actually stored — is
+	 * worked out in memory, exactly as a single site's read already does it
+	 * per series.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function index_all(): WP_REST_Response {
+		$reach = Boundary::current();
+		$sites = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
+
+		if ( array() === $sites ) {
+			return rest_ensure_response(
+				array(
+					'ok'       => true,
+					'meetings' => array(),
+				)
+			);
+		}
+
+		$by_site  = array_column( $sites, null, 'id' );
+		$site_ids = array_keys( $by_site );
+
+		$names = array();
+
+		foreach ( Clients::all( null ) as $client ) {
+			$names[ (string) $client['id'] ] = (string) $client['display_name'];
+		}
+
+		$today  = gmdate( 'Y-m-d' );
+		$to     = MeetingHours::horizon_end( $today );
+		$stored = Diary::stored_between( $today, $to, $site_ids );
+
+		$rows = array();
+
+		foreach ( Series::for_sites( $site_ids ) as $series ) {
+			// Only what is still standing. An ended series generates nothing
+			// new (Series::occurrences() agrees), and a list of "standing
+			// meetings" is no place for one that has stopped.
+			if ( Series::ACTIVE !== (string) $series['state'] ) {
+				continue;
+			}
+
+			$site = $by_site[ (string) $series['client_site_id'] ] ?? null;
+
+			if ( null === $site ) {
+				continue;
+			}
+
+			$merged = Occurrence::merge(
+				Series::occurrences( $series, $today, $to ),
+				$stored[ (string) $series['id'] ] ?? array(),
+				$today,
+				$to
+			);
+
+			$row                = self::series( $series );
+			$row['client_name'] = $names[ (string) $series['client_id'] ] ?? '';
+			$row['site_name']   = (string) $site['name'];
+			// The nearest thing the horizon catches, cheaply — the same
+			// expansion the row above the fold already paid for, read first.
+			$row['next_on'] = isset( $merged[0]['on'] ) ? (string) $merged[0]['on'] : null;
+
+			$rows[] = $row;
+		}
+
+		usort(
+			$rows,
+			static fn( array $a, array $b ): int =>
+				array( $a['client_name'], $a['site_name'], $a['title'] ) <=> array( $b['client_name'], $b['site_name'], $b['title'] )
+		);
+
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'meetings' => $rows,
+			)
+		);
 	}
 
 	/**

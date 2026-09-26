@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.133.0] - 2026-09-26
+
+### Added
+
+- Meetings has an "All Clients" option listing every client's standing meetings together.
+
 ## [2.132.0] - 2026-09-26
 
 ### Changed

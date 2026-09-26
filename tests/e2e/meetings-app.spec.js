@@ -264,3 +264,33 @@ test('meetings that have passed are listed below the next twelve weeks, and can 
   await expect(form).toBeHidden();
   await expect(rows.first()).toContainText('Held');
 });
+
+test('picking All Clients lists standing meetings across every site, with no week view', async ({ page }) => {
+  const another = await makeSite(admin.api, 'Meetings app all', `${RUN_ID}-all`);
+  await onSupport(admin, another.site.id, 200);
+  const wrote = await admin.api.post(`/client-sites/${another.site.id}/meetings/series`, {
+    title: `All clients standing ${RUN_ID}`, frequency: 'weekly', starts_on: first, ends_on: '', time_of_day: '09:00',
+    duration_mins: 30, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  // The picker read its site list in beforeEach, before this site existed —
+  // a fresh load, like a link landing here, is what picks it up.
+  await page.goto(`/blueworx-forge/#screen=meetings&site=${site.id}`);
+  await page.reload();
+  await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
+
+  await page.getByTestId('bwx-meetings-site').selectOption('all');
+
+  const table = page.getByTestId('bwx-meetings-all');
+  await expect(table).toBeVisible({ timeout: 30_000 });
+  await expect(table).toContainText(`All clients standing ${RUN_ID}`);
+  await expect(table).toContainText(another.site.name);
+  await expect(page.getByTestId('bwx-meetings-week')).toHaveCount(0);
+  await expect(page.getByTestId('bwx-meetings-list')).toHaveCount(0);
+
+  // A row is a shortcut: clicking it switches the picker to that client's site.
+  await table.getByText(`All clients standing ${RUN_ID}`).click();
+  await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(another.site.id, { timeout: 30_000 });
+  await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
+});
