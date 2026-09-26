@@ -156,6 +156,12 @@ export async function satisfy(api, item, to, seats = {}) {
           continue;
         }
 
+        // The client is confirmed on purpose, not typed in (#390).
+        if ('client_confirmed_at' === field) {
+          await confirmClient(api, item);
+          continue;
+        }
+
         // A seat holds a person (2026-09-19: two of them before triage), and
         // 'Written down.' is not one. A spec that named nobody gets people.
         if (SEAT_FIELDS.includes(field)) {
@@ -229,6 +235,18 @@ export async function satisfy(api, item, to, seats = {}) {
 }
 
 const SEAT_FIELDS = ['primary_user_id', 'reviewer_id', 'deliverer_id'];
+
+/** Confirms an item's client (#390), as the Confirm button on the task does. */
+export async function confirmClient(api, item) {
+  const current = await api.get(`/work-items/${item.id}`);
+  const confirmed = await api.post(`/work-items/${item.id}/confirm-client`, {
+    record_version: current.item.record_version,
+  });
+
+  expect(confirmed.status(), `confirming the client: ${await confirmed.text()}`).toBe(200);
+
+  return (await confirmed.json()).item;
+}
 
 /**
  * Three people for the seats a walk needs: made once per run (a WordPress

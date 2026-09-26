@@ -42,9 +42,14 @@ final class Items {
 	 * @param string               $client_id      That site's client, denormalised.
 	 * @param array<string, mixed> $values         Validated values.
 	 * @param int                  $author         WordPress user id of the author.
+	 * @param bool                 $confirmed      Whether the client is confirmed
+	 *                                             already (#390): true for the
+	 *                                             paths that choose the client
+	 *                                             deliberately, never from a
+	 *                                             request body.
 	 * @return array<string, mixed>|null Null when the insert failed.
 	 */
-	public static function create( string $client_site_id, string $client_id, array $values, int $author ): ?array {
+	public static function create( string $client_site_id, string $client_id, array $values, int $author, bool $confirmed = false ): ?array {
 		global $wpdb;
 
 		$now = bwx_forge_now();
@@ -52,6 +57,10 @@ final class Items {
 		$row = array_merge(
 			self::defaults(),
 			RoleHours::seed( self::writable( $values ) ),
+			$confirmed ? array(
+				'client_confirmed_at' => $now,
+				'client_confirmed_by' => $author,
+			) : array(),
 			array(
 				'id'             => Ids::create( self::PREFIX ),
 				// Only the recurring engine names one, at creation and never
@@ -332,6 +341,121 @@ final class Items {
 	}
 
 	/**
+	 * Stamps an item's client as confirmed (#390), against the version the
+	 * confirmation was made on.
+	 *
+	 * @param string $id           Item id.
+	 * @param int    $actor        WordPress user id of whoever confirmed it.
+	 * @param int    $sent_version Version the confirmation was made against.
+	 * @return array<string, mixed>|null Null when the version did not match.
+	 */
+	public static function confirm_client( string $id, int $actor, int $sent_version ): ?array {
+		return self::versioned(
+			$id,
+			array(
+				'client_confirmed_at' => bwx_forge_now(),
+				'client_confirmed_by' => $actor,
+			),
+			$sent_version
+		);
+	}
+
+	/**
+	 * Moves an item to another client's site (#390). The only write that sets
+	 * the site after creation, and only the route that has checked the move
+	 * calls it.
+	 *
+	 * Choosing the client counts as confirming it. The seats handed in are the
+	 * item's seats as they are to be kept, with anybody who cannot work on the
+	 * new site already emptied. The history, gate records and comments carry
+	 * the site on each row for the reads that scope by it, so they are moved
+	 * with the item; the hour ledger is the caller's, and never rewritten.
+	 *
+	 * @param string                $id             Item id.
+	 * @param string                $client_site_id The new site.
+	 * @param string                $client_id      That site's client.
+	 * @param array<string, string> $seats          Seat field to person id.
+	 * @param int                   $actor          WordPress user id of the mover.
+	 * @param int                   $sent_version   Version the move was made against.
+	 * @return array<string, mixed>|null|false Null when the version did not match,
+	 *                                         false when moving its rows failed.
+	 */
+	public static function move_client( string $id, string $client_site_id, string $client_id, array $seats, int $actor, int $sent_version ) {
+		global $wpdb;
+
+		$changes = array(
+			'client_site_id'      => $client_site_id,
+			'client_id'           => $client_id,
+			'client_confirmed_at' => bwx_forge_now(),
+			'client_confirmed_by' => $actor,
+		);
+
+		foreach ( $seats as $field => $person ) {
+			$changes[ (string) $field ] = (string) $person;
+		}
+
+		$moved = self::versioned( $id, $changes, $sent_version );
+
+		if ( null === $moved ) {
+			return null;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own tables; there is no core API for them.
+		$rekeyed = array(
+			$wpdb->update( Schema::work_events_table(), array( 'client_site_id' => $client_site_id ), array( 'item_id' => $id ), array( '%s' ), array( '%s' ) ),
+			$wpdb->update( Schema::gate_records_table(), array( 'client_site_id' => $client_site_id ), array( 'item_id' => $id ), array( '%s' ), array( '%s' ) ),
+			$wpdb->update(
+				Schema::comments_table(),
+				array(
+					'client_site_id' => $client_site_id,
+					'client_id'      => $client_id,
+				),
+				array( 'item_id' => $id ),
+				array( '%s', '%s' ),
+				array( '%s' )
+			),
+		);
+		// phpcs:enable
+
+		// Zero rows is fine, an item with no comments has none to move; false
+		// is a failed write, and the caller rolls the whole move back.
+		if ( in_array( false, $rekeyed, true ) ) {
+			return false;
+		}
+
+		return $moved;
+	}
+
+	/**
+	 * Writes columns against a version, moving the version on.
+	 *
+	 * @param string               $id           Item id.
+	 * @param array<string, mixed> $changes      Columns to write.
+	 * @param int                  $sent_version Version the write was made against.
+	 * @return array<string, mixed>|null Null when the version did not match.
+	 */
+	private static function versioned( string $id, array $changes, int $sent_version ): ?array {
+		global $wpdb;
+
+		$changes['updated_at']     = bwx_forge_now();
+		$changes['record_version'] = $sent_version + 1;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$changed = $wpdb->update(
+			Schema::work_items_table(),
+			$changes,
+			array(
+				'id'             => $id,
+				'record_version' => $sent_version,
+			),
+			Formats::for_row( $changes ),
+			array( '%s', '%d' )
+		);
+
+		return $changed ? self::get( $id ) : null;
+	}
+
+	/**
 	 * The columns an edit may set — never the stage, and never the site.
 	 *
 	 * @param array<string, mixed> $values Validated values.
@@ -595,6 +719,8 @@ final class Items {
 			'hours_delivery'           => '0',
 			'release_method'           => '',
 			'release_destination'      => '',
+			'client_confirmed_at'      => 0,
+			'client_confirmed_by'      => 0,
 		);
 	}
 
@@ -664,6 +790,8 @@ final class Items {
 			'hours_delivery'           => (float) ( $row['hours_delivery'] ?? 0 ),
 			'release_method'           => (string) $row['release_method'],
 			'release_destination'      => (string) $row['release_destination'],
+			'client_confirmed_at'      => (int) ( $row['client_confirmed_at'] ?? 0 ),
+			'client_confirmed_by'      => (int) ( $row['client_confirmed_by'] ?? 0 ),
 			'created_at'               => (int) $row['created_at'],
 			'updated_at'               => (int) $row['updated_at'],
 			'created_by'               => (int) $row['created_by'],

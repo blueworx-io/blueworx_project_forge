@@ -86,7 +86,8 @@ final class ClickUpImport {
 		$made      = 0;
 
 		foreach ( self::rows() as $row ) {
-			$item = Items::create( $site_id, $client_id, self::values( $row, $people ), 0 );
+			// Anything imported past Future Idea was on its client already (#390).
+			$item = Items::create( $site_id, $client_id, self::values( $row, $people ), 0, Stages::FIRST !== (string) $row['stage'] );
 
 			if ( null === $item ) {
 				continue;

@@ -236,6 +236,21 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
+	 * A new idea's client is confirmed before triage (#390): an unconfirmed
+	 * item, whose stamp is still the column's 0, does not meet it.
+	 */
+	public function test_triage_waits_for_the_client_to_be_confirmed(): void {
+		$rule = Gates::requirement( 'G-FUTURE-IDEA-7' );
+
+		$this->assertNotNull( $rule );
+		$this->assertSame( 'G-FUTURE-IDEA', Gates::gate_of( 'G-FUTURE-IDEA-7' ) );
+		$this->assertSame( array( 'client_confirmed_at' ), $rule['fields'] );
+		$this->assertFalse( Gates::satisfied( $rule, array( 'client_confirmed_at' => 0 ), array() ) );
+		$this->assertFalse( Gates::satisfied( $rule, array(), array() ) );
+		$this->assertTrue( Gates::satisfied( $rule, array( 'client_confirmed_at' => 1790000000 ), array() ) );
+	}
+
+	/**
 	 * The hours item is met by the three seats' hours, and by nothing else.
 	 */
 	public function test_planned_hours_are_met_by_the_three_seat_hours(): void {

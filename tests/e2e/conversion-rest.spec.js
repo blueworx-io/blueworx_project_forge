@@ -72,6 +72,9 @@ test.describe('turning a request into work', () => {
     expect(answer.item.client_id).toBe(mine.client.id);
     expect(answer.item.stage).toBe('future-idea');
 
+    // The client asked for it from their own site, so its client is certain (#390).
+    expect(answer.item.client_confirmed_at).toBeGreaterThan(0);
+
     // And the two records are linked in both directions.
     expect(answer.submission.converted_item_id).toBe(answer.item.id);
     expect(answer.submission.intake_state).toBe('converted');
@@ -153,6 +156,7 @@ test.describe('turning a request into work', () => {
     const item = (await converted.json()).item;
 
     expect(item.stage).toBe('triage');
+    expect(item.client_confirmed_at).toBeGreaterThan(0);
     expect(item.primary_user_id).toBe(seats.primary_user_id);
 
     // The three the conversion answered, each a record with a person and a time

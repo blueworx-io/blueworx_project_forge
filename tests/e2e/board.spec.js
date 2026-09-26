@@ -62,6 +62,7 @@ async function readyForTriage(page, itemId, clientId) {
     record_version: current.record_version,
   });
   expect(seated.status(), await seated.text()).toBe(200);
+  await Forge.confirmClient(api, { id: itemId });
 
   await page.evaluate(async (id) => {
     const nonce = window.bwxForgeData.nonce;
@@ -158,14 +159,14 @@ test.describe('the board', () => {
     await expect(page.locator('[data-testid="bwx-panel"]')).toBeVisible();
     await expect(page.locator('[data-testid="bwx-panel-stage"]')).toHaveText('Future idea');
 
-    // Two entries to begin with: the item being created, and the two people
-    // named for it (2026-09-19).
-    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(2);
+    // Three entries to begin with: the item being created, the two people
+    // named for it (2026-09-19), and its client confirmed (#390).
+    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(3);
 
     await page.locator('[data-testid="bwx-move"]').first().click();
 
     await expect(page.locator('[data-testid="bwx-panel-stage"]')).not.toHaveText('Future idea', { timeout: 30_000 });
-    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(3);
+    await expect(page.locator('[data-testid="bwx-history"] li')).toHaveCount(4);
   });
 
   test('the panel saves an edit', async ({ page }) => {

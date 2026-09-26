@@ -176,6 +176,10 @@ final class Gates {
 				// reviewer's approvals down the line have somebody to belong to.
 				self::field( 'G-FUTURE-IDEA-5', 'Doing the work assigned', 'reference', array( 'primary_user_id' ), 'Say who is doing the work.' ),
 				self::field( 'G-FUTURE-IDEA-6', 'Reviewing it assigned', 'reference', array( 'reviewer_id' ), 'Say who is reviewing it, somebody other than the person doing the work.' ),
+				// The client is confirmed on purpose before triage (2026-09-26,
+				// #390): picking it in the add-work form is not a check that it
+				// is the right one.
+				self::field( 'G-FUTURE-IDEA-7', 'Client confirmed', 'reference', array( 'client_confirmed_at' ), 'Confirm the client, or change it, before triage.' ),
 			),
 			'G-TRIAGE'          => array(
 				self::field( 'G-TRIAGE-1', 'Work type confirmed', 'enum', array( 'work_type' ), 'Confirm the work type.', self::APR ),
@@ -504,6 +508,11 @@ final class Gates {
 			// 'unclassified' is the column's default, so it means nobody has
 			// classified it — the opposite of an answer.
 			return '' !== (string) $value && 'unclassified' !== (string) $value;
+		}
+
+		// A time stamp, and 0 is the column's default: nobody has confirmed it.
+		if ( 'client_confirmed_at' === $field ) {
+			return (int) $value > 0;
 		}
 
 		// How to test is rich text: an empty paragraph is an empty field.

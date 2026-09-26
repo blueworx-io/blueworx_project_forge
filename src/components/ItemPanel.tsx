@@ -18,6 +18,7 @@ import { phaseOf } from '../phases';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
 import { RichText } from '../kit';
+import type { SiteOption } from '../sites';
 import { Inline, NOTHING_SAID, Notice, Screen } from './States';
 import type { Said, SaidTone } from './States';
 
@@ -407,6 +408,15 @@ export function ItemPanel( {
    */
   const [ siteStaff, setSiteStaff ] = useState< Person[] | null >( null );
 
+  /*
+   * The task's client (#390): the sites this person reaches, to name the
+   * client and to offer somewhere else; whether the picker is open and what
+   * it holds; and who the last move took off the task.
+   */
+  const [ sites, setSites ] = useState< SiteOption[] | null >( null );
+  const [ moving, setMoving ] = useState< string | null >( null );
+  const [ takenOff, setTakenOff ] = useState< string[] >( [] );
+
   const label = ( id: string ) => stages.find( ( stage ) => stage.id === id )?.label ?? id;
   const staff = 'staff' === detail?.scope;
 
@@ -435,6 +445,12 @@ export function ItemPanel( {
       void api< { people: Person[] } >( `/people?client_site_id=${ loaded.item.client_site_id }` )
         .then( ( answer ) => setSiteStaff( answer.people ) )
         .catch( () => everybody().then( setSiteStaff ) );
+
+      // The sites this person reaches: the client's name, and where else
+      // the task could go (#390).
+      void api< { sites: SiteOption[] } >( '/client-sites' )
+        .then( ( answer ) => setSites( answer.sites ) )
+        .catch( () => setSites( [] ) );
     } catch ( error ) {
       // Told apart deliberately: "we could not load this" and "this is not
       // yours to read" are different problems with different next steps.
@@ -720,6 +736,36 @@ export function ItemPanel( {
     }
   }
 
+  /**
+   * Moves the task to the client picked (#390). Choosing a client confirms
+   * it. Anybody in a seat who does not work on the new client is taken off,
+   * and named here so nobody is surprised by an empty seat.
+   */
+  async function moveClient( siteId: string ) {
+    if ( ! detail || '' === siteId ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      const answer = await api< { taken_off: Array< { id: string; name: string } > } >( `/work-items/${ itemId }/move-client`, {
+        method: 'POST',
+        body: { client_site_id: siteId, record_version: detail.item.record_version },
+      } );
+      setMoving( null );
+      setTakenOff( answer.taken_off.map( ( person ) => person.name || 'Somebody' ) );
+      await load();
+      onChanged();
+      setNotice( 'Moved to the new client.', 'ok' );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'The task could not be moved.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   /** Connects this item to one it waits on; written at once, not drafted. */
   async function waitOn( id: string ) {
     if ( '' === id ) {
@@ -978,6 +1024,135 @@ export function ItemPanel( {
   };
 
   /**
+   * The task's client (#390). A new idea shows it in a box with Confirm and
+   * Change, because triage waits for it. Once confirmed it is a quiet line
+   * that can still be changed until work starts; from In Development on the
+   * hours are counted against it, and it is only shown.
+   */
+  const clientBox = () => {
+    if ( ! item ) {
+      return null;
+    }
+
+    const here = ( sites ?? [] ).find( ( site ) => site.id === item.client_site_id );
+    // Until the list arrives it says so; if it never does, or the site is
+    // not on it, a plain label rather than a wait that never ends.
+    const named = here
+      ? ( '' === here.client_name ? here.name : `${ here.client_name } · ${ here.name }` )
+      : null === sites ? 'Loading…' : item.client_name || item.site_name || 'Not available';
+    const unconfirmed = 'future-idea' === item.stage && ! item.client_confirmed_at;
+    const changeable = ! reached( 'in-development' ) && ! ended;
+    const elsewhere = ( sites ?? [] ).filter( ( site ) => site.id !== item.client_site_id && 'active' === site.status );
+
+    const picker = null !== moving && (
+      <div className="bwx-client-move">
+        <div className="bwx-field">
+          <label htmlFor="bwx-client-site">Move to</label>
+          <select
+            id="bwx-client-site"
+            className="bwx-select"
+            data-testid="bwx-client-site"
+            value={ moving }
+            onChange={ ( event ) => setMoving( event.target.value ) }
+          >
+            <option value="">Choose a client</option>
+            { elsewhere.map( ( site ) => (
+              <option key={ site.id } value={ site.id }>
+                { '' === site.client_name ? site.name : `${ site.client_name } · ${ site.name }` }
+              </option>
+            ) ) }
+          </select>
+        </div>
+        <div className="bwx-moves">
+          <button
+            type="button"
+            className="bwx-button"
+            data-testid="bwx-client-save"
+            disabled={ busy || '' === moving }
+            onClick={ () => void moveClient( moving ) }
+          >
+            Save
+          </button>
+          <button type="button" className="bwx-button" data-variant="quiet" onClick={ () => setMoving( null ) }>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+
+    const gone = 0 < takenOff.length && (
+      <p className="bwx-client-taken-off" data-testid="bwx-client-taken-off">
+        { `Taken off: ${ takenOff.join( ', ' ) } — they don't work on this client.` }
+      </p>
+    );
+
+    if ( unconfirmed ) {
+      return (
+        <div className="bwx-client-confirm" id="bwx-client_confirmed_at" data-testid="bwx-client-confirm" tabIndex={ -1 }>
+          <p className="bwx-client-confirm-text">
+            Client: <strong>{ named }</strong>
+          </p>
+          <p className="bwx-client-confirm-hint">Confirm this is the right client, or change it, before triage.</p>
+          <div className="bwx-moves">
+            <button
+              type="button"
+              className="bwx-button"
+              disabled={ busy }
+              onClick={ () => {
+                setTakenOff( [] );
+                void act( '/confirm-client', {}, 'Client confirmed.' );
+              } }
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              className="bwx-button"
+              data-variant="quiet"
+              disabled={ busy }
+              onClick={ () => {
+                setTakenOff( [] );
+                setMoving( '' );
+              } }
+            >
+              Change
+            </button>
+          </div>
+          { picker }
+          { gone }
+        </div>
+      );
+    }
+
+    return (
+      <div className="bwx-client-line" data-testid="bwx-client-line">
+        <p className="bwx-client-line-text">
+          Client: <strong>{ named }</strong>
+          { changeable && null === moving && (
+            <>
+              { ' · ' }
+              <button
+                type="button"
+                className="bwx-button"
+                data-variant="quiet"
+                disabled={ busy }
+                onClick={ () => {
+                  setTakenOff( [] );
+                  setMoving( '' );
+                } }
+              >
+                Change
+              </button>
+            </>
+          ) }
+        </p>
+        { changeable && picker }
+        { gone }
+      </div>
+    );
+  };
+
+  /**
    * The earliest a date may be: the latest of the dates before it that are
    * set. The server refuses dates out of order; this stops the picker
    * offering them.
@@ -1153,6 +1328,8 @@ export function ItemPanel( {
 
         { detail && item && (
           <>
+            { staff && clientBox() }
+
             { blocked && (
               <div>
                 <p className="bwx-eyebrow">Blocked</p>
@@ -2255,6 +2432,13 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       // A recurring task or a renewal reminder, put straight where it is
       // worked from. The reason beside it says which and for what day.
       return `Placed in ${ label( event.to_stage ) } by the schedule`;
+    case 'client-confirmed':
+      // #390. The reason beside it names the client.
+      return 'Client confirmed';
+    case 'client-moved':
+      // The reason says from which client to which; the detail, who was
+      // taken off on the way.
+      return '' === ( event.detail ?? '' ) ? 'Moved to another client' : `Moved to another client. ${ event.detail }`;
     case 'over-allocated':
       // CAP-4. The reason sits beside it in the entry, so the line says what
       // was done and the reason says why.

@@ -343,7 +343,7 @@ final class Reminders {
 	 */
 	private static function add( array $source, string $person ): ?array {
 		$author = (int) ( $source['created_by'] ?? 0 );
-		$item   = Items::create( (string) $source['client_site_id'], (string) $source['client_id'], self::values( $source, $person ), $author );
+		$item   = Items::create( (string) $source['client_site_id'], (string) $source['client_id'], self::values( $source, $person ), $author, true );
 
 		if ( null === $item ) {
 			return null;

@@ -118,7 +118,9 @@ final class Materialise {
 						(string) $source['client_site_id'],
 						(string) $source['client_id'],
 						$values,
-						0
+						0,
+						// A schedule names its client on purpose (#390).
+						true
 					);
 
 					if ( null === $item ) {
