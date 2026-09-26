@@ -17,6 +17,7 @@ use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Changelog;
@@ -1245,7 +1246,12 @@ final class WorkItemsController {
 		$body['self_review_permitted'] = ! empty( Access::context( (string) $site['client_id'] )['principal'] );
 
 		$checked = Validate::item( $body, false );
-		$errors  = array_merge( $checked['errors'], Validate::dates_in_order( $checked['values'] ) );
+		$errors  = array_merge(
+			$checked['errors'],
+			Validate::dates_in_order( $checked['values'] ),
+			// #393. Nobody goes in a seat who cannot open this client's work.
+			PersonReach::seat_refusals( $checked['values'], (string) $site['client_id'], (string) $site['id'] )
+		);
 
 		if ( array() !== $errors ) {
 			return Errors::rest(
@@ -1324,14 +1330,22 @@ final class WorkItemsController {
 			return $refused;
 		}
 
-		$out_of_order = Validate::dates_in_order( array_merge( $item, $checked['values'] ) );
+		/*
+		 * #393. The seats this edit sends, and only those: a seat somebody has
+		 * since lost access to blocks a save that resends it, never one that
+		 * leaves it alone.
+		 */
+		$unsaveable = array_merge(
+			Validate::dates_in_order( array_merge( $item, $checked['values'] ) ),
+			PersonReach::seat_refusals( $checked['values'], (string) $item['client_id'], (string) $item['client_site_id'] )
+		);
 
-		if ( array() !== $out_of_order ) {
+		if ( array() !== $unsaveable ) {
 			return Errors::rest(
 				'invalid_work_item',
 				__( 'That change could not be saved.', 'blueworx-forge' ),
 				400,
-				array( 'fields' => $out_of_order )
+				array( 'fields' => $unsaveable )
 			);
 		}
 

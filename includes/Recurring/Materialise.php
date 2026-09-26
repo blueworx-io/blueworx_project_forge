@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Recurring;
 
 use Blueworx\Forge\Commerce\SureCart\Sync;
+use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Transition;
@@ -99,7 +100,15 @@ final class Materialise {
 		$rule  = (array) $source['rule'];
 		$dates = Rule::due_between( $rule, (string) $source['next_due'], $today, (string) $source['ends_on'] );
 
-		if ( Sources::ACTIVE === (string) $source['status'] ) {
+		if ( Sources::ACTIVE === (string) $source['status'] && array() !== $dates ) {
+			/*
+			 * #393. Nobody is at the screen when this runs, so a seat whose
+			 * person has since lost access to the client is left empty rather
+			 * than refused: the task is still made, and an empty seat is
+			 * visible and gets filled.
+			 */
+			$source = PersonReach::drop_unreached( $source, (string) $source['client_id'], (string) $source['client_site_id'] );
+
 			foreach ( $dates as $date ) {
 				if ( ! Occurrences::claim( (string) $source['id'], $date ) ) {
 					continue;

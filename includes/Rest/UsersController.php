@@ -14,6 +14,8 @@ use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\Memberships;
+use Blueworx\Forge\Tenancy\PersonReach;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
 use WP_REST_Request;
@@ -102,6 +104,13 @@ final class UsersController {
 				'callback'            => array( self::class, 'people' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => self::OPEN,
+				'args'                => array(
+					'client_site_id' => array(
+						'type'        => 'string',
+						'default'     => '',
+						'description' => 'Only the people who can do work on this site (#393).',
+					),
+				),
 			)
 		);
 
@@ -250,9 +259,27 @@ final class UsersController {
 	/**
 	 * Our own people, by name, for the pickers.
 	 *
-	 * @return WP_REST_Response
+	 * Given a site, only the ones who can do work on it (#393): the seat
+	 * pickers offer these, and the save refuses anybody else. The site has to
+	 * be one the caller reaches, or who works on it is not theirs to learn.
+	 *
+	 * @param WP_REST_Request|null $request Request.
+	 * @return WP_REST_Response|\WP_Error
 	 */
-	public static function people(): WP_REST_Response {
+	public static function people( ?WP_REST_Request $request = null ) {
+		$site_id = null === $request ? '' : trim( (string) $request->get_param( 'client_site_id' ) );
+		$people  = Users::ours();
+
+		if ( '' !== $site_id ) {
+			$site = ClientSites::get( $site_id );
+
+			if ( null === $site || ! Reach::reaches_site( Boundary::current(), (string) $site['client_id'], (string) $site['id'] ) ) {
+				return Boundary::absent( 'client_site' );
+			}
+
+			$people = PersonReach::staff_on_site( (string) $site['client_id'], (string) $site['id'] );
+		}
+
 		return rest_ensure_response(
 			array(
 				'ok'     => true,
@@ -262,7 +289,7 @@ final class UsersController {
 						'display_name' => (string) $person['display_name'],
 						'status'       => (string) $person['status'],
 					),
-					Users::ours()
+					$people
 				),
 			)
 		);

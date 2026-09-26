@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.135.0] - 2026-09-26
+
+### Changed
+
+- Only staff who work on a client can be put on its tasks.
+
 ## [2.134.0] - 2026-09-26
 
 ### Changed
