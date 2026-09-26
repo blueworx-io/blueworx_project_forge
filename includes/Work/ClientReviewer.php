@@ -36,6 +36,26 @@ final class ClientReviewer {
 	public const FROM = Stages::UP_NEXT;
 
 	/**
+	 * The client approves.
+	 */
+	public const APPROVE = 'approve';
+
+	/**
+	 * The client sends it back.
+	 */
+	public const SEND_BACK = 'send_back';
+
+	/**
+	 * Refused: the client is not this item's reviewer.
+	 */
+	public const NOT_THEIRS = 'bwx_forge_not_client_review';
+
+	/**
+	 * Refused: the review is not open, usually because it was already decided.
+	 */
+	public const DECIDED = 'bwx_forge_already_decided';
+
+	/**
 	 * Whether the client reviews this item.
 	 *
 	 * @param array<string, mixed> $item The item, or the values being written.
@@ -77,6 +97,43 @@ final class ClientReviewer {
 	 */
 	public static function too_early(): string {
 		return __( 'The client can be the reviewer from Up Next onwards.', 'blueworx-forge' );
+	}
+
+	/**
+	 * Whether the item is waiting on the client's review right now.
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return bool
+	 */
+	public static function awaiting( array $item ): bool {
+		return self::is( $item )
+			&& 'in-review' === (string) ( $item['stage'] ?? '' )
+			&& ! Outcomes::is_closed( $item )
+			&& empty( $item['archived'] );
+	}
+
+	/**
+	 * The history line for a decision.
+	 *
+	 * @param string $decision APPROVE or SEND_BACK.
+	 * @param string $client   Who on the client's side, where known.
+	 * @param string $admin    The admin who recorded it for them, if one did.
+	 * @return string
+	 */
+	public static function entry( string $decision, string $client, string $admin ): string {
+		$said = self::APPROVE === $decision
+			? __( 'Approved by the client', 'blueworx-forge' )
+			: __( 'Sent back by the client', 'blueworx-forge' );
+
+		$admin  = trim( $admin );
+		$client = trim( $client );
+
+		if ( '' !== $admin ) {
+			/* translators: 1: what the client decided, 2: the admin's name. */
+			return sprintf( __( '%1$s, recorded by %2$s on the client\'s behalf', 'blueworx-forge' ), $said, $admin );
+		}
+
+		return '' === $client ? $said : sprintf( '%1$s (%2$s)', $said, $client );
 	}
 
 	/**

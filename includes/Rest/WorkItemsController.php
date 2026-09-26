@@ -269,10 +269,13 @@ final class WorkItemsController {
 		 * #390. Confirming a task's client, and moving it to another. Their
 		 * own routes rather than fields on PATCH: the site is fixed for an
 		 * ordinary edit, and a move has checks an edit never makes.
+		 *
+		 * #391. And an admin recording the client's review decision for them.
 		 */
 		foreach ( array(
 			'confirm-client' => 'confirm_client',
 			'move-client'    => 'move_client',
+			'client-review'  => 'client_review',
 		) as $path => $callback ) {
 			Server::register_route(
 				$route_namespace,
@@ -1614,6 +1617,35 @@ final class WorkItemsController {
 			array(
 				'ok'   => true,
 				'item' => $confirmed,
+			)
+		);
+	}
+
+	/**
+	 * Records the client's review decision on their behalf (#391), for when
+	 * the client answers by email or on a call. The Primary administrator
+	 * only, and the history says who recorded it.
+	 *
+	 * @param WP_REST_Request $request Request, with decision and note.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function client_review( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::OVERRIDE );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+		$me   = wp_get_current_user();
+
+		return self::answer(
+			Transition::client_review(
+				$ready['item'],
+				(string) ( $body['decision'] ?? '' ),
+				(string) ( $body['note'] ?? '' ),
+				$me instanceof \WP_User ? (string) $me->display_name : '',
+				get_current_user_id()
 			)
 		);
 	}
