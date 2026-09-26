@@ -72,7 +72,8 @@ final class Operations {
 
 		foreach ( $people as $person ) {
 			$has  = round( (float) ( $person['available'] ?? 0 ), 2 );
-			$owes = round( (float) ( $person['committed'] ?? 0 ), 2 );
+			// Finished work used the time too (#384).
+			$owes = round( (float) ( $person['committed'] ?? 0 ) + (float) ( $person['completed'] ?? 0 ), 2 );
 
 			$committed += $owes;
 			$available += $has;

@@ -93,6 +93,48 @@ final class CapacityAllocationsTest extends TestCase {
 		$this->assertSame( array(), Allocations::from_item( $this->item( array( 'archived' => 1 ) ) ) );
 	}
 
+	/*
+	 * #384. Finished work is time that was used, so it stays on its days — as
+	 * finished, never as still to do.
+	 */
+	public function test_finished_work_is_read_as_time_used(): void {
+		foreach ( array( 'completed', 'released' ) as $stage ) {
+			$finished = Allocations::finished( $this->item( array( 'stage' => $stage ) ) );
+
+			$this->assertCount( 2, $finished, $stage );
+			$this->assertSame( Allocations::DONE, $finished[0]['status'] );
+			$this->assertSame( 10.0, $finished[0]['hours'] );
+		}
+
+		$this->assertSame( array(), Allocations::finished( $this->item() ), 'work still to do is not finished' );
+		$this->assertSame(
+			array(),
+			Allocations::finished(
+				$this->item(
+					array(
+						'stage'            => 'released',
+						'terminal_outcome' => 'cancelled',
+					)
+				)
+			)
+		);
+		$this->assertSame(
+			array(),
+			Allocations::finished(
+				$this->item(
+					array(
+						'stage'    => 'released',
+						'archived' => 1,
+					)
+				)
+			)
+		);
+	}
+
+	public function test_work_still_to_do_says_so(): void {
+		$this->assertSame( Allocations::TO_DO, Allocations::from_item( $this->item() )[0]['status'] );
+	}
+
 	public function test_blocked_work_still_counts_when_it_was_already_committed(): void {
 		$blocked = $this->item(
 			array(

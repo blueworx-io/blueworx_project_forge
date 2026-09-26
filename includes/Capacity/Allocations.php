@@ -59,6 +59,28 @@ final class Allocations {
 	);
 
 	/**
+	 * The stages at which the time has been used (#384).
+	 *
+	 * Finished work stays on the days it was planned for, so ticking a task
+	 * off does not make a used day look free. It is kept apart from work still
+	 * to do, which is why it has its own status rather than joining COMMITTING.
+	 */
+	public const FINISHED = array(
+		'completed',
+		'released',
+	);
+
+	/**
+	 * An allocation's status: the work is still to do.
+	 */
+	public const TO_DO = 'committed';
+
+	/**
+	 * An allocation's status: the work is done, and the time was used.
+	 */
+	public const DONE = 'completed';
+
+	/**
 	 * Each seat: the hours column, whose seat it is, and who may be covering.
 	 *
 	 * @var array<string, array<int, string>>
@@ -115,6 +137,27 @@ final class Allocations {
 	}
 
 	/**
+	 * The time a finished item used, on the days it was planned for (#384).
+	 *
+	 * Archived and abandoned work is left out: ended work was not done, and
+	 * archived work is out of the picture on purpose.
+	 *
+	 * @param array<string, mixed> $item A hydrated work item.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function finished( array $item ): array {
+		if ( ! empty( $item['archived'] ) || '' !== (string) ( $item['terminal_outcome'] ?? '' ) ) {
+			return array();
+		}
+
+		if ( ! in_array( (string) ( $item['stage'] ?? '' ), self::FINISHED, true ) ) {
+			return array();
+		}
+
+		return self::seats_of( $item, self::DONE );
+	}
+
+	/**
 	 * The commitments an item *would* make, asked before it makes them.
 	 *
 	 * The stage test is deliberately not run. COMMITTING begins at Up Next, so
@@ -139,10 +182,11 @@ final class Allocations {
 	/**
 	 * Each filled seat on an item, as an allocation.
 	 *
-	 * @param array<string, mixed> $item A hydrated work item.
+	 * @param array<string, mixed> $item   A hydrated work item.
+	 * @param string               $status TO_DO or DONE.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function seats_of( array $item ): array {
+	private static function seats_of( array $item, string $status = self::TO_DO ): array {
 		$window = self::window( $item );
 
 		if ( array() === $window ) {
@@ -182,6 +226,7 @@ final class Allocations {
 					'hours'          => $each,
 					'from'           => $window[0],
 					'to'             => $window[1],
+					'status'         => $status,
 				);
 			}
 		}
@@ -215,6 +260,7 @@ final class Allocations {
 				'hours'          => $hours,
 				'from'           => $window[0],
 				'to'             => $window[1],
+				'status'         => $status,
 			);
 		}
 

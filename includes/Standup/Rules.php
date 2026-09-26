@@ -413,7 +413,8 @@ final class Rules {
 			(string) ( $position['user_id'] ?? '' ),
 			array(
 				'display_name' => (string) ( $position['display_name'] ?? '' ),
-				'committed'    => (float) ( $position['committed'] ?? 0 ),
+				// Finished work used the time too (#384).
+				'committed'    => (float) ( $position['committed'] ?? 0 ) + (float) ( $position['completed'] ?? 0 ),
 				'available'    => (float) ( $position['available'] ?? 0 ),
 				'from'         => (string) ( $position['from'] ?? '' ),
 			)

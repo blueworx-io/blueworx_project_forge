@@ -49,7 +49,8 @@ final class Commitments {
 		}
 
 		$table  = Schema::work_items_table();
-		$stages = array_merge( Allocations::COMMITTING, array( Stages::BLOCKED ) );
+		// Finished work too (#384): the time was used, so it stays on its days.
+		$stages = array_merge( Allocations::COMMITTING, array( Stages::BLOCKED ), Allocations::FINISHED );
 		$slots  = implode( ', ', array_fill( 0, count( $stages ), '%s' ) );
 
 		$values = $stages;
@@ -86,7 +87,7 @@ final class Commitments {
 			// Allocations decides whether a Blocked item counts, from the stage
 			// it was blocked out of. The query cannot ask that question, so it
 			// fetches Blocked and lets the rule refuse it.
-			foreach ( Allocations::from_item( $row ) as $allocation ) {
+			foreach ( array_merge( Allocations::from_item( $row ), Allocations::finished( $row ) ) as $allocation ) {
 				$out[] = $allocation;
 			}
 		}
@@ -124,9 +125,11 @@ final class Commitments {
 
 		foreach ( array_keys( $days_by_user ) as $user_id ) {
 			$out[ $user_id ] = array(
-				'hours'       => 0.0,
-				'by_day'      => array(),
-				'allocations' => array(),
+				'hours'            => 0.0,
+				'by_day'           => array(),
+				'completed'        => 0.0,
+				'completed_by_day' => array(),
+				'allocations'      => array(),
 			);
 		}
 
@@ -139,16 +142,34 @@ final class Commitments {
 
 			$spread = Allocations::spread( $allocation, $days_by_user[ $user_id ] );
 
+			/*
+			 * #384. Finished work is counted beside what is still to do rather
+			 * than inside it, so "hours" and "by_day" keep meaning what they
+			 * always meant. Anything without a status — a meeting, a schedule's
+			 * day ahead — is still to do.
+			 */
+			$status = (string) ( $allocation['status'] ?? Allocations::TO_DO );
+			$done   = Allocations::DONE === $status;
+			$series = $done ? 'completed_by_day' : 'by_day';
+			$total  = $done ? 'completed' : 'hours';
+
 			foreach ( $spread as $date => $hours ) {
-				$out[ $user_id ]['by_day'][ $date ] = round( ( $out[ $user_id ]['by_day'][ $date ] ?? 0.0 ) + $hours, 2 );
+				$out[ $user_id ][ $series ][ $date ] = round( ( $out[ $user_id ][ $series ][ $date ] ?? 0.0 ) + $hours, 2 );
 			}
 
-			$out[ $user_id ]['allocations'][] = array_merge( $allocation, array( 'by_day' => $spread ) );
-			$out[ $user_id ]['hours']         = round( $out[ $user_id ]['hours'] + array_sum( $spread ), 2 );
+			$out[ $user_id ]['allocations'][] = array_merge(
+				$allocation,
+				array(
+					'status' => $status,
+					'by_day' => $spread,
+				)
+			);
+			$out[ $user_id ][ $total ]        = round( $out[ $user_id ][ $total ] + array_sum( $spread ), 2 );
 		}
 
 		foreach ( array_keys( $out ) as $user_id ) {
 			ksort( $out[ $user_id ]['by_day'] );
+			ksort( $out[ $user_id ]['completed_by_day'] );
 		}
 
 		return $out;

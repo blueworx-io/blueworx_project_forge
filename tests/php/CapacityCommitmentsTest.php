@@ -111,6 +111,22 @@ final class CapacityCommitmentsTest extends TestCase {
 		$this->assertSame( array(), $gathered['usr_a']['allocations'] );
 	}
 
+	public function test_finished_work_keeps_its_day_apart_from_what_is_still_to_do(): void {
+		$done           = $this->allocation( 'usr_a', 4.0, 'cli_2' );
+		$done['status'] = 'completed';
+
+		$gathered = Commitments::gather(
+			array( $this->allocation( 'usr_a', 6.0, 'cli_1' ), $done ),
+			array( 'usr_a' => $this->days() )
+		);
+
+		$this->assertSame( 6.0, $gathered['usr_a']['hours'], 'still to do' );
+		$this->assertSame( 4.0, $gathered['usr_a']['completed'], 'done' );
+		$this->assertSame( 3.0, $gathered['usr_a']['by_day']['2026-09-07'] );
+		$this->assertSame( 2.0, $gathered['usr_a']['completed_by_day']['2026-09-07'] );
+		$this->assertCount( 2, $gathered['usr_a']['allocations'] );
+	}
+
 	public function test_somebody_nobody_asked_about_is_left_out(): void {
 		$gathered = Commitments::gather(
 			array( $this->allocation( 'usr_z', 6.0, 'cli_1' ) ),
