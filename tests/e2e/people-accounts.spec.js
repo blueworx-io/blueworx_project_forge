@@ -313,7 +313,10 @@ test('somebody with work attributed to them cannot be deleted, only offboarded',
 
   // Work with their name on it. Once that exists, removing the row would leave
   // the work pointing at nobody (NOTIF-5).
-  const { site } = await makeSite(api, 'Record Co', RUN_ID);
+  const { client, site } = await makeSite(api, 'Record Co', RUN_ID);
+  // Only somebody who reaches the client can hold a seat on its work (#393).
+  const member = await api.post(`/clients/${client.id}/memberships`, { user_id: person.id, role: 'staff' });
+  expect(member.status(), await member.text()).toBe(200);
   const made = await makeItem(api, site.id, { title: `Their work ${RUN_ID}` });
   expect(made.status(), await made.text()).toBe(200);
   const { item } = await made.json();
