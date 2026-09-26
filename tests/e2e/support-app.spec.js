@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Picks this run's site and waits for its position to be drawn. */
 async function onSite(page) {
-  const picker = page.getByTestId('bwx-support-site');
+  const picker = page.getByTestId('bwx-client-choice');
   await expect(picker).toBeEnabled({ timeout: 30_000 });
   await picker.selectOption(site.id);
   await expect(page.getByTestId('bwx-support-state')).toBeVisible({ timeout: 30_000 });
@@ -50,7 +50,8 @@ function ledgerRow(page, text) {
 
 test('the rail offers Support under Clients, and a site nobody has put on a package says so', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('Support');
-  await expect(page.getByTestId('bwx-support')).toContainText('Choose a site to see what it is on');
+  // A first visit is on All clients, which is every client's hours (#402).
+  await expect(page.getByTestId('bwx-support-summary')).toBeVisible({ timeout: 30_000 });
 
   await onSite(page);
 
@@ -186,7 +187,7 @@ test('a link with the screen and site in the hash lands on them', async ({ page 
 
   await expect(page.getByTestId('bwx-support')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('bwx-support-state')).toHaveAttribute('data-state', 'lapsed', { timeout: 30_000 });
-  await expect(page.getByTestId('bwx-support-site')).toHaveValue(site.id);
+  await expect(page.getByTestId('bwx-client-choice')).toHaveValue(site.id);
   // Read once and cleared, so a reload is a plain reload.
   expect(new URL(page.url()).hash).toBe('');
 });

@@ -419,8 +419,8 @@ export function App() {
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
-        { 'support' === screen && <SupportScreen key={ generation } site={ landing.site } /> }
-        { 'meetings' === screen && <MeetingsScreen key={ generation } site={ landing.site } /> }
+        { 'support' === screen && <SupportScreen key={ generation } /> }
+        { 'meetings' === screen && <MeetingsScreen key={ generation } /> }
         { 'profile' === screen && <ProfileScreen key={ generation } /> }
         </WhenChosen>
       </main>

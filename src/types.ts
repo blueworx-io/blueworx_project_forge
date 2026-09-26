@@ -1171,6 +1171,30 @@ export interface SupportAnswer {
   entry?: LedgerEntry;
 }
 
+/** One site's hours, as the All clients table on Support shows them (#402). */
+export interface SupportSummaryRow {
+  site_id: string;
+  site_name: string;
+  client_id: string;
+  client_name: string;
+  state: SupportState;
+  label: string;
+  package_name: string;
+  package_version: number;
+  /** Hours the running period granted; 0 with no period running. */
+  hours: number;
+  /** Hours spent since the running period started. */
+  used: number;
+  /** The balance today. */
+  left: number;
+}
+
+/** What `/support-summary` answers. */
+export interface SupportSummaryAnswer {
+  ok: true;
+  sites: SupportSummaryRow[];
+}
+
 /** What assigning would grant, before anything is written (COMM-2). */
 export interface SupportPreview {
   ok: true;

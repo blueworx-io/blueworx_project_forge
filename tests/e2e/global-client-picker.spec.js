@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
-import { signedIn, makeItem, makeSite } from './helpers/forge.js';
+import { signedIn, makeItem, makePerson, makeSite, PASSWORD } from './helpers/forge.js';
 
 // One Client picker in the top bar (#402): every client screen follows it,
 // and it is remembered.
@@ -81,4 +81,65 @@ test.describe('the one Client picker', () => {
 
     await expect(page.getByTestId('bwx-client-choice')).toHaveValue('all');
   });
+});
+
+test.describe('Support with All clients', () => {
+  test('lists every client\'s hours, and a row opens that client', async ({ browser, baseURL, page }) => {
+    test.slow();
+
+    const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+    const world = await twoClients(admin.api, 'Support');
+
+    await freshVisit(page);
+    await page.getByTestId('bwx-screen-support').click();
+
+    const table = page.getByTestId('bwx-support-summary');
+    await expect(table).toBeVisible({ timeout: 30_000 });
+
+    const row = table.locator(`[data-testid="bwx-support-summary-row"][data-site="${world.one.site.id}"]`);
+    await expect(row).toBeVisible();
+    await expect(table.locator(`[data-testid="bwx-support-summary-row"][data-site="${world.two.site.id}"]`)).toBeVisible();
+    await expect(table.locator('thead')).toContainText('Hours this period');
+
+    await row.click();
+    await expect(page.getByTestId('bwx-client-choice')).toHaveValue(world.one.site.id);
+    await expect(page.getByTestId('bwx-support-state')).toBeVisible({ timeout: 30_000 });
+    await expect(table).toHaveCount(0);
+
+    await admin.context.close();
+  });
+
+  test('the summary is the administrator\'s only', async ({ browser, baseURL }) => {
+    const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+    const where = await makeSite(admin.api, 'Support staff', RUN_ID);
+    const person = await makePerson(admin.api, where.client.id, 'staff', `supsum${RUN_ID.replace('-', '')}`);
+    const staff = await signedIn(browser, baseURL, person.login, PASSWORD);
+
+    const answer = await staff.api.request.get('/wp-json/blueworx-forge/v1/support-summary', { headers: staff.api.headers });
+    expect(answer.status()).toBe(403);
+
+    const allowed = await admin.api.request.get('/wp-json/blueworx-forge/v1/support-summary', { headers: admin.api.headers });
+    expect(allowed.status()).toBe(200);
+    const body = await allowed.json();
+    expect(body.sites.some((one) => one.site_id === where.site.id)).toBe(true);
+
+    await staff.context.close();
+    await admin.context.close();
+  });
+});
+
+test('Meetings follows the picker: one client is its meetings, All is every client', async ({ browser, baseURL, page }) => {
+  const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await makeSite(admin.api, 'Meetings pick', RUN_ID);
+
+  await freshVisit(page);
+  await page.getByTestId('bwx-client-choice').selectOption(where.site.id);
+  await page.getByTestId('bwx-screen-meetings').click();
+  await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('bwx-meetings-all')).toHaveCount(0);
+
+  await page.getByTestId('bwx-client-choice').selectOption('all');
+  await expect(page.getByTestId('bwx-meetings-all')).toBeVisible({ timeout: 30_000 });
+
+  await admin.context.close();
 });

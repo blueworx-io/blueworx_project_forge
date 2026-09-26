@@ -252,7 +252,7 @@ test('meetings that have happened and are not settled are listed, and leave once
   // The line takes you to the site's meetings to settle it.
   await settle.locator('li', { hasText: title }).first().getByRole('link', { name: 'Open' }).click();
   await expect(page.getByTestId('bwx-meetings')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(site.id);
+  await expect(page.getByTestId('bwx-client-choice')).toHaveValue(site.id);
 
   await page.close();
   await admin.context.close();

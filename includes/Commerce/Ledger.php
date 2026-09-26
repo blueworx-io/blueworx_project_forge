@@ -187,6 +187,74 @@ final class Ledger {
 	}
 
 	/**
+	 * What several sites have left, keyed by site, in one query (#402).
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, float>
+	 */
+	public static function balances( array $client_site_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::hour_ledger_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the id placeholders are built above from the ids themselves.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, SUM(hours) AS total FROM {$table} WHERE client_site_id IN ({$slots}) GROUP BY client_site_id", $ids ), ARRAY_A );
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['client_site_id'] ] = round( (float) $row['total'], 2 );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Hours spent on each site since a moment of its own — work done and
+	 * meetings held, as a positive number — in one query (#402).
+	 *
+	 * @param array<string, int> $since Site id to Unix time; nothing before it counts.
+	 * @return array<string, float>
+	 */
+	public static function used_since( array $since ): array {
+		global $wpdb;
+
+		if ( array() === $since ) {
+			return array();
+		}
+
+		$table  = Schema::hour_ledger_table();
+		$clause = array();
+		$values = array( Entries::WORK_USAGE, Entries::MEETING_USAGE );
+
+		foreach ( $since as $site_id => $at ) {
+			$clause[] = '( client_site_id = %s AND occurred_at >= %d )';
+			$values[] = (string) $site_id;
+			$values[] = (int) $at;
+		}
+
+		$where = implode( ' OR ', $clause );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the placeholders are built above, one pair per site, and every value is prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, SUM(hours) AS total FROM {$table} WHERE event_type IN ( %s, %s ) AND ( {$where} ) GROUP BY client_site_id", $values ), ARRAY_A );
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['client_site_id'] ] = round( abs( (float) $row['total'] ), 2 );
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Everything one thing has put through the ledger.
 	 *
 	 * How a work item's reservation is found when it needs releasing, and how

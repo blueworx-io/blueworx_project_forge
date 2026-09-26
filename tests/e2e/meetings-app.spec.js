@@ -57,7 +57,7 @@ test.beforeEach(async ({ page }) => {
 
 /** Picks this run's site and waits for its meetings to be drawn. */
 async function onSite(page) {
-  const picker = page.getByTestId('bwx-meetings-site');
+  const picker = page.getByTestId('bwx-client-choice');
   await expect(picker).toBeEnabled({ timeout: 30_000 });
   await picker.selectOption(site.id);
   await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
@@ -70,7 +70,8 @@ function rowFor(page, slot) {
 
 test('the rail offers Meetings under Clients, and a site with none says so', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('Meetings');
-  await expect(page.getByTestId('bwx-meetings')).toContainText('Choose a site to see its meetings');
+  // A first visit is on All clients, which is every client's standing meetings (#402).
+  await expect(page.getByTestId('bwx-meetings-all')).toBeVisible({ timeout: 30_000 });
 
   await onSite(page);
 
@@ -228,7 +229,7 @@ test('a link with the screen and site in the hash lands on them', async ({ page 
 
   await expect(page.getByTestId('bwx-meetings')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('bwx-meetings-series')).toHaveCount(1, { timeout: 30_000 });
-  await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(site.id);
+  await expect(page.getByTestId('bwx-client-choice')).toHaveValue(site.id);
   // Read once and cleared, so a reload is a plain reload.
   expect(new URL(page.url()).hash).toBe('');
 });
@@ -280,7 +281,7 @@ test('picking All Clients lists standing meetings across every site, with no wee
   await page.reload();
   await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
 
-  await page.getByTestId('bwx-meetings-site').selectOption('all');
+  await page.getByTestId('bwx-client-choice').selectOption('all');
 
   const table = page.getByTestId('bwx-meetings-all');
   await expect(table).toBeVisible({ timeout: 30_000 });
@@ -291,6 +292,6 @@ test('picking All Clients lists standing meetings across every site, with no wee
 
   // A row is a shortcut: clicking it switches the picker to that client's site.
   await table.getByText(`All clients standing ${RUN_ID}`).click();
-  await expect(page.getByTestId('bwx-meetings-site')).toHaveValue(another.site.id, { timeout: 30_000 });
+  await expect(page.getByTestId('bwx-client-choice')).toHaveValue(another.site.id, { timeout: 30_000 });
   await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
 });

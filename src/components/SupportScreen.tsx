@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { LifeBuoy, Receipt } from 'lucide-react';
-import type { LedgerEntry, SupportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState } from '../types';
+import type { LedgerEntry, SupportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState, SupportSummaryAnswer, SupportSummaryRow } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Stat, Tag, TextArea, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { hoursLabel, priceLabel } from './PackagesScreen';
-import { SitePicker } from './SitePicker';
+import { ALL_SITES } from '../sites';
+import { useClientChoice } from '../ClientChoice';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
 import type { Said } from './States';
 
@@ -66,10 +67,14 @@ function today(): string {
   return new Date().toISOString().slice( 0, 10 );
 }
 
-export function SupportScreen( { site }: { site: string } ) {
-  const [ siteId, setSiteId ] = useState( site );
+export function SupportScreen() {
+  // The client is the top bar's (#402). All clients is the summary table.
+  const { siteId, setSiteId, label } = useClientChoice();
   const [ answer, setAnswer ] = useState< SupportAnswer | null >( null );
-  const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( site ? 'loading' : 'idle' );
+  const [ summary, setSummary ] = useState< SupportSummaryAnswer | null >( null );
+  const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
+  // The last site asked for; an answer for another is dropped (#402).
+  const latest = useRef( '' );
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ panel, setPanel ] = useState< 'assign' | 'topup' | 'adjust' | 'suspend' | null >( null );
   const [ busy, setBusy ] = useState( false );
@@ -83,44 +88,51 @@ export function SupportScreen( { site }: { site: string } ) {
 
   async function load( id: string = siteId ) {
     setNotice( NOTHING_SAID );
-
-    if ( '' === id ) {
-      setAnswer( null );
-      setState( 'idle' );
-
-      return;
-    }
+    latest.current = id;
 
     try {
+      if ( ALL_SITES === id ) {
+        const every = await api< SupportSummaryAnswer >( '/support-summary' );
+
+        if ( id === latest.current ) {
+          setSummary( every );
+          setAnswer( null );
+          setState( 'ready' );
+        }
+
+        return;
+      }
+
       const fresh = await api< SupportAnswer >( `/client-sites/${ id }/support` );
 
+      if ( id !== latest.current ) {
+        return;
+      }
+
       setAnswer( fresh );
+      setSummary( null );
       setState( 'ready' );
     } catch ( error ) {
+      if ( id !== latest.current ) {
+        return;
+      }
+
       setState( isDenied( error ) ? 'denied' : 'error' );
       setNotice( failed( messageFor( error, 'The site\'s support could not be read.' ) ) );
     }
   }
 
+  // Each client picked in the top bar reads afresh, with no form left open.
   useEffect( () => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load( site );
-    // The site prop is a landing, read once; picking is the picker's job.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setPanel( null );
+    setState( 'loading' );
+    /* eslint-enable react-hooks/set-state-in-effect */
+    void load( siteId );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [] );
+  }, [ siteId ] );
 
   useLiveReload( () => load() );
-
-  function pick( id: string ) {
-    if ( id === siteId ) {
-      return;
-    }
-
-    setSiteId( id );
-    setPanel( null );
-    setState( id ? 'loading' : 'idle' );
-    void load( id );
-  }
 
   /** One dated action from today, after a question: resume and cancel need no form. */
   async function act( path: 'resume' | 'cancel', question: string, said: string, fallback: string ) {
@@ -162,14 +174,13 @@ export function SupportScreen( { site }: { site: string } ) {
 
   return (
     <div className="bwx-support" data-testid="bwx-support">
-      <SitePicker value={ siteId } onChange={ pick } testId="bwx-support-site" />
-
-      { 'idle' === state && <EmptyState icon={ LifeBuoy } title="No site chosen" body="Choose a site to see what it is on." /> }
       { 'loading' === state && <Screen state="loading" testId="bwx-support-state-screen" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-support-state-screen" detail="A site's support is configuration, and configuration is the administrator's." /> }
       { 'error' === state && <Screen state="error" testId="bwx-support-state-screen" detail={ notice.text } /> }
 
-      { 'ready' === state && answer && position && (
+      { 'ready' === state && ALL_SITES === siteId && summary && <Summary rows={ summary.sites } label={ label } onPick={ setSiteId } /> }
+
+      { 'ready' === state && ALL_SITES !== siteId && answer && position && (
         <>
           <Notice said={ notice } testId="bwx-support-notice" />
 
@@ -265,6 +276,74 @@ export function SupportScreen( { site }: { site: string } ) {
         </>
       ) }
     </div>
+  );
+}
+
+/**
+ * Every client's hours on one table (#402): what each is on, what this
+ * period gave, what is spent and what is left. A row opens that client.
+ */
+function Summary( { rows, label, onPick }: { rows: SupportSummaryRow[]; label: ( id?: string ) => string; onPick: ( id: string ) => void } ) {
+  const columns: Column< SupportSummaryRow & { id: string } >[] = [
+    {
+      key: 'client',
+      label: 'Client',
+      wrap: true,
+      sortBy: ( r ) => label( r.site_id ) || r.client_name,
+      render: ( r ) => (
+        <span data-testid="bwx-support-summary-row" data-site={ r.site_id }>
+          { label( r.site_id ) || r.client_name || r.site_name }
+        </span>
+      ),
+    },
+    { key: 'package', label: 'Package', wrap: true, sortBy: ( r ) => r.package_name, render: ( r ) => ( r.package_name ? `${ r.package_name } v${ r.package_version }` : '—' ) },
+    { key: 'hours', label: 'Hours this period', mono: true, align: 'right', width: 150, sortBy: ( r ) => r.hours, render: ( r ) => ( 0 < r.hours ? hoursLabel( r.hours ) : '—' ) },
+    {
+      key: 'used',
+      label: 'Used',
+      mono: true,
+      align: 'right',
+      width: 150,
+      sortBy: ( r ) => r.used,
+      render: ( r ) => (
+        <span className="bwx-support-sum-used">
+          { 0 < r.hours && (
+            <span className="bwx-support-sum-track" aria-hidden="true">
+              <span style={ { width: `${ Math.min( 100, ( r.used / r.hours ) * 100 ) }%` } } />
+            </span>
+          ) }
+          <span data-testid="bwx-support-summary-used" data-used={ plain( r.used ) }>{ hoursLabel( r.used ) }</span>
+        </span>
+      ),
+    },
+    {
+      key: 'left',
+      label: 'Left',
+      mono: true,
+      align: 'right',
+      width: 100,
+      sortBy: ( r ) => r.left,
+      render: ( r ) => (
+        <span className="bwx-support-sum-left" data-low={ r.left <= 0 ? 'true' : undefined } data-testid="bwx-support-summary-left" data-left={ plain( r.left ) }>
+          { hoursLabel( r.left ) }
+        </span>
+      ),
+    },
+    { key: 'status', label: 'Status', width: 170, sortBy: ( r ) => r.state, render: ( r ) => <Tag tone={ 'active' === r.state ? 'ok' : 'neutral' }>{ r.label }</Tag> },
+  ];
+
+  return (
+    <Panel title="Every client's hours" flush>
+      <DataView< SupportSummaryRow & { id: string } >
+        bare
+        columns={ columns }
+        rows={ rows.map( ( r ) => ( { ...r, id: r.site_id } ) ) }
+        empty={ <EmptyState icon={ LifeBuoy } dense title="No clients yet" body="Add a client and a site, and its hours show here." /> }
+        footer={ `${ rows.length } ${ 1 === rows.length ? 'site' : 'sites' }. Pick one to see its periods and ledger.` }
+        onRowClick={ ( row ) => onPick( row.site_id ) }
+        testId="bwx-support-summary"
+      />
+    </Panel>
   );
 }
 

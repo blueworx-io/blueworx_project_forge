@@ -20,7 +20,9 @@ use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Meetings\Diary;
 use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Series;
+use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Work\Items;
 use WP_REST_Request;
 
@@ -89,6 +91,25 @@ final class SupportController {
 				)
 			);
 		}
+
+		/*
+		 * Every client's hours on one table, for Support's All clients
+		 * (#402). Administrator-only like the rest of Support; a set the
+		 * callback narrows with Reach, like /meetings.
+		 */
+		Server::register_route(
+			$route_namespace,
+			'/support-summary',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'summary' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_LIST,
+					'reason' => 'Every client\'s support hours, for the Client picker\'s All clients (#402). Reach::keep_sites() narrows the set the way the site picker does.',
+				),
+			)
+		);
 	}
 
 	/**
@@ -370,6 +391,81 @@ final class SupportController {
 		$done = Assignments::cancel( (string) $site['id'], self::from( $body ), get_current_user_id(), Support::CANCELLED );
 
 		return $done ? rest_ensure_response( self::answer( $site ) ) : self::refused();
+	}
+
+	/**
+	 * Every reachable site's hours on one table, for Support's All clients
+	 * (#402): what it is on, what the running period gave, what has been
+	 * spent since it started, and what is left.
+	 *
+	 * A handful of queries whatever the number of sites — the periods, the
+	 * balances, the spend and the package names are each read once for all
+	 * of them.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function summary() {
+		$sites = Reach::keep_sites( Boundary::current(), ClientSites::all( 'active' ), 'id' );
+		$ids   = array_map( 'strval', array_column( $sites, 'id' ) );
+		$today = gmdate( 'Y-m-d', bwx_forge_now() );
+
+		$names = array();
+
+		foreach ( Clients::all( null ) as $client ) {
+			$names[ (string) $client['id'] ] = (string) $client['display_name'];
+		}
+
+		$periods  = Assignments::for_sites( $ids );
+		$balances = Ledger::balances( $ids );
+		$running  = array();
+		$since    = array();
+
+		foreach ( $ids as $id ) {
+			$running[ $id ] = Support::entitlement_on( $periods[ $id ] ?? array(), $today );
+
+			if ( '' !== (string) $running[ $id ]['starts_on'] ) {
+				$since[ $id ] = (int) strtotime( $running[ $id ]['starts_on'] . ' 00:00:00 UTC' );
+			}
+		}
+
+		$used     = Ledger::used_since( $since );
+		$versions = Packages::versions( array_column( $running, 'package_version_id' ) );
+		$rows     = array();
+
+		foreach ( $sites as $site ) {
+			$id      = (string) $site['id'];
+			$now     = $running[ $id ];
+			$state   = (string) $now['state'];
+			$version = $versions[ (string) $now['package_version_id'] ] ?? null;
+
+			$rows[] = array(
+				'site_id'         => $id,
+				'site_name'       => (string) $site['name'],
+				'client_id'       => (string) $site['client_id'],
+				'client_name'     => $names[ (string) $site['client_id'] ] ?? '',
+				'state'           => $state,
+				'label'           => Support::label( $state ),
+				'package_name'    => null === $version ? '' : (string) $version['name'],
+				'package_version' => null === $version ? 0 : (int) $version['version'],
+				'hours'           => (float) $now['hours_granted'],
+				'used'            => $used[ $id ] ?? 0.0,
+				'left'            => $balances[ $id ] ?? 0.0,
+			);
+		}
+
+		usort(
+			$rows,
+			static function ( array $a, array $b ): int {
+				return strcasecmp( $a['client_name'] . ' ' . $a['site_name'], $b['client_name'] . ' ' . $b['site_name'] );
+			}
+		);
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'sites' => $rows,
+			)
+		);
 	}
 
 	/* ------------------------------------------------------------ private */
