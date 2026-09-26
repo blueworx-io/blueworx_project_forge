@@ -171,3 +171,31 @@ test('the panel says which field is holding the work up, and only that field', a
   await people.close();
   await admin.context.close();
 });
+
+// #409. The Designer is picked right after who is doing the work, and can be cleared.
+test('the Designer sits after Doing the work, and can be named and cleared', async ({ browser, baseURL }) => {
+  test.setTimeout(300_000);
+
+  const { admin, site, people, item } = await withWork(browser, baseURL, ['triage']);
+  const page = await openTheItem(admin, site.id);
+
+  const labels = page.locator('.bwx-seat > .bwx-field:first-child > label');
+  await expect(labels.nth(0)).toContainText('Doing the work');
+  await expect(labels.nth(1)).toContainText('Designer');
+  // No hours box beside it.
+  await expect(page.locator('.bwx-seat', { has: page.locator('#bwx-designer_id') }).locator('select')).toHaveCount(1);
+
+  await page.selectOption('#bwx-designer_id', people.primary.id);
+  await page.locator('[data-testid="bwx-save"]').click();
+  await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
+  expect((await admin.api.get(`/work-items/${item.id}`)).item.designer_id).toBe(people.primary.id);
+
+  await page.selectOption('#bwx-designer_id', '');
+  await page.locator('[data-testid="bwx-save"]').click();
+  await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
+  expect((await admin.api.get(`/work-items/${item.id}`)).item.designer_id).toBe('');
+
+  await page.close();
+  await people.close();
+  await admin.context.close();
+});

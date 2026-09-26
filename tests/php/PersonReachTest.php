@@ -89,6 +89,28 @@ final class PersonReachTest extends TestCase {
 		$this->assertSame( "That person doesn't have access to this client.", PersonReach::message( null ) );
 	}
 
+	/**
+	 * #409. The Designer is asked about like every other seat: somebody who
+	 * cannot reach the site is not left in it.
+	 */
+	public function test_a_designer_without_access_is_asked_about(): void {
+		$this->assertContains( 'designer_id', PersonReach::SEATS );
+		$this->assertSame( array( 'designer_id' => 'usr_d' ), PersonReach::changed_seats( array( 'designer_id' => 'usr_d' ), array( 'designer_id' => '' ) ) );
+
+		$kept = PersonReach::drop_unreached(
+			array(
+				'primary_user_id' => 'usr_in',
+				'designer_id'     => 'usr_out',
+			),
+			'cli_a',
+			'cst_1',
+			static fn( string $id ): bool => 'usr_in' === $id
+		);
+
+		$this->assertSame( 'usr_in', $kept['primary_user_id'] );
+		$this->assertSame( '', $kept['designer_id'] );
+	}
+
 	public function test_only_seats_the_edit_changes_are_asked_about(): void {
 		$item = array(
 			'primary_user_id'        => 'usr_old',

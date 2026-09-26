@@ -318,7 +318,7 @@ final class Users {
 		global $wpdb;
 
 		$columns = array(
-			Schema::work_items_table()       => array( 'primary_user_id', 'reviewer_id', 'deliverer_id' ),
+			Schema::work_items_table()       => array( 'primary_user_id', 'designer_id', 'reviewer_id', 'deliverer_id' ),
 			Schema::onboarding_steps_table() => array( 'reviewer_id' ),
 			Schema::meeting_series_table()   => array( 'host_user_id' ),
 			Schema::contacts_table()         => array( 'user_id' ),

@@ -96,6 +96,18 @@ class BWX_Forge_Test_Wpdb {
 
 		return in_array( $matches[1], $existing, true ) ? $matches[1] : null;
 	}
+
+	/**
+	 * Stub. No rows: the upgrade step Schema runs (#409) finds nothing to do.
+	 *
+	 * @param string $query Prepared query.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_results( string $query ): array {
+		bwx_forge_test_record( 'get_results', $query );
+
+		return array();
+	}
 }
 
 /**
@@ -111,6 +123,10 @@ function dbDelta( string $sql ): array {
 	bwx_forge_test_record( 'dbDelta', $sql );
 
 	return array();
+}
+
+if ( ! defined( 'ARRAY_A' ) ) {
+	define( 'ARRAY_A', 'ARRAY_A' );
 }
 
 $GLOBALS['wpdb'] = new BWX_Forge_Test_Wpdb();

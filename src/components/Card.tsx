@@ -69,7 +69,8 @@ export function Card( {
   const chip = TYPE_CHIP[ item.work_type ] ?? TYPE_CHIP.task;
   const blocked = 'blocked' === item.stage;
   const when = due( item );
-  const seats = [ item.primary_user_id, item.reviewer_id, item.deliverer_id ];
+  // The Designer (#409) only when there is one, so most cards keep three.
+  const seats = [ item.primary_user_id, ...( item.designer_id ? [ item.designer_id ] : [] ), item.reviewer_id, item.deliverer_id ];
 
   return (
     <button

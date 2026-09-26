@@ -34,6 +34,7 @@ final class Notify {
 	 */
 	private const SEATS = array(
 		'primary_user_id' => 'to do',
+		'designer_id'     => 'to design',
 		'reviewer_id'     => 'to review',
 		'deliverer_id'    => 'to ship',
 	);

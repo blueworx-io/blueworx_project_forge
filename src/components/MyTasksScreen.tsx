@@ -26,10 +26,10 @@ import { Screen } from './States';
  */
 
 type Site = ClientSite & { client_name: string };
-type Role = 'primary' | 'reviewer' | 'deliverer' | 'assignee';
+type Role = 'primary' | 'designer' | 'reviewer' | 'deliverer' | 'assignee';
 
-const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
-const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
+const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
+const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
 const DAY = 86400000;
 
 /** Today, in the browser's own zone — the same today the due dates below use. */
@@ -51,6 +51,8 @@ function responsible( item: WorkItem ): Role | null {
   if ( 'in-review' === stage && CLIENT_REVIEWER === item.reviewer_id ) return 'primary';
   if ( 'in-review' === stage ) return 'reviewer';
   if ( 'completed' === stage ) return 'deliverer';
+  // #409. At Design it is the Designer's, when there is one.
+  if ( 'design-process' === stage && item.designer_id ) return 'designer';
 
   return 'primary';
 }
@@ -179,6 +181,7 @@ export function MyTasksScreen() {
         const seat = responsible( item );
         const seats: Record< Exclude< Role, 'assignee' >, [ string, number ] > = {
           primary: [ item.primary_user_id, item.hours_primary ],
+          designer: [ item.designer_id ?? '', 0 ],
           reviewer: [ item.reviewer_id, item.hours_review ],
           deliverer: [ item.deliverer_id, item.hours_delivery ],
         };
@@ -351,7 +354,7 @@ export function MyTasksScreen() {
             search={ search }
             onSearch={ setSearch }
             searchPlaceholder="Search your tasks"
-            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Checker', 'Builder' ] } ] }
+            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Designer', 'Checker', 'Builder' ] } ] }
             onFilter={ ( _id, value ) => setRole( null === value || 'Any role' === value ? null : value ) }
             onClearFilters={ () => setRole( null ) }
             columns={ columns }

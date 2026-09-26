@@ -109,6 +109,8 @@ const OUTCOME_LABEL: Record< string, string > = {
  */
 const SEATS = [
   { field: 'primary_user_id', hours: 'hours_primary', label: 'Doing the work' },
+  // #409. Optional, and no hours: with nobody here the task skips Design.
+  { field: 'designer_id', hours: '', label: 'Designer' },
   { field: 'reviewer_id', hours: 'hours_review', label: 'Reviewing it' },
   { field: 'deliverer_id', hours: 'hours_delivery', label: 'Delivering it' },
 ] as const;
@@ -152,7 +154,7 @@ const ASSIGNMENT = [
   'priority',
   'release_method',
   'release_destination',
-  ...SEATS.flatMap( ( seat ) => [ seat.field, seat.hours ] ),
+  ...SEATS.flatMap( ( seat ) => ( '' === seat.hours ? [ seat.field ] : [ seat.field, seat.hours ] ) ),
   ...DATES.map( ( date ) => date.field ),
 ] as const;
 
@@ -2186,7 +2188,7 @@ export function ItemPanel( {
                 { 0 === ( item.assignees?.length ?? 0 ) && SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
                     { pick( seat.field, seat.label ) }
-                    { 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ? (
+                    { '' === seat.hours ? null : 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ? (
                       <div className="bwx-field">
                         <span className="bwx-eyebrow">Hours</span>
                         <p className="bwx-hint" data-testid="bwx-client-no-hours">
@@ -2447,6 +2449,7 @@ const FIELD_LABELS: Record< string, string > = {
   delivered_by_forge: 'who pays',
   priority: 'priority',
   primary_user_id: 'who does it',
+  designer_id: 'designer',
   reviewer_id: 'who reviews it',
   deliverer_id: 'who delivers it',
   hours_primary: 'hours',

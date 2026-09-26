@@ -121,6 +121,8 @@ export interface WorkItem {
    * the only thing that ever wrote them was a test calling the API.
    */
   primary_user_id: string;
+  /** #409. Optional; with nobody here the task skips Design. */
+  designer_id?: string;
   reviewer_id: string;
   deliverer_id: string;
   reviewer_substitute_id?: string;

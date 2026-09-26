@@ -113,6 +113,24 @@ final class WorkAuthorityTest extends TestCase {
 	}
 
 	/**
+	 * #409. The Designer is a seat like the others, and can be cleared.
+	 */
+	public function test_the_designer_holds_a_person_or_nobody(): void {
+		$named = Validate::item( array( 'designer_id' => 'usr_d' ), true );
+		$this->assertSame( array(), $named['errors'] );
+		$this->assertSame( 'usr_d', $named['values']['designer_id'] );
+
+		$this->assertArrayHasKey( 'designer_id', Validate::item( array( 'designer_id' => 'not-an-id' ), true )['errors'] );
+
+		$cleared = Validate::item( array( 'designer_id' => '' ), true );
+		$this->assertSame( array(), $cleared['errors'] );
+		$this->assertSame( '', $cleared['values']['designer_id'] );
+
+		// The client reviews; it never designs.
+		$this->assertArrayHasKey( 'designer_id', Validate::item( array( 'designer_id' => 'client' ), true )['errors'] );
+	}
+
+	/**
 	 * The planned hours are hours, not seats.
 	 *
 	 * They sit inside the accountability group so that "may this person set the

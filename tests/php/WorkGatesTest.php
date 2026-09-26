@@ -405,15 +405,43 @@ final class WorkGatesTest extends TestCase {
 	 * work — and it is a recorded approval, not a skipped stage.
 	 */
 	public function test_a_not_applicable_decision_satisfies_the_design_gate(): void {
-		$without = Gates::evaluate( 'G-DESIGN', $this->item( array( 'stage' => 'design-process' ) ), array() );
-		$with    = Gates::evaluate(
+		$designed = array(
+			'stage'       => 'design-process',
+			'designer_id' => 'usr_d',
+		);
+		$without  = Gates::evaluate( 'G-DESIGN', $this->item( $designed ), array() );
+		$with     = Gates::evaluate(
 			'G-DESIGN',
-			$this->item( array( 'stage' => 'design-process' ) ),
+			$this->item( $designed ),
 			array( Gates::DESIGN_NOT_APPLICABLE => array( 'actor' => 3 ) )
 		);
 
 		$this->assertNotSame( array(), $without['unmet'] );
 		$this->assertSame( array(), $with['unmet'] );
+	}
+
+	/**
+	 * #409. A task with a Designer goes through every Design check.
+	 */
+	public function test_a_designer_means_the_design_checks_apply(): void {
+		$result = Gates::evaluate( 'G-DESIGN', $this->item( array( 'stage' => 'design-process', 'designer_id' => 'usr_d' ) ), array() );
+
+		$this->assertContains( 'G-DESIGN-5', array_column( $result['unmet'], 'id' ) );
+		$this->assertNotSame( array(), $result['all'] );
+	}
+
+	/**
+	 * #409. No Designer is the same as an approved Not Applicable: nothing to
+	 * check. Read from the task each time, so clearing it counts at once.
+	 */
+	public function test_no_designer_means_nothing_to_check_at_design(): void {
+		foreach ( array( array(), array( 'designer_id' => '' ) ) as $over ) {
+			$result = Gates::evaluate( 'G-DESIGN', $this->item( array( 'stage' => 'design-process' ) + $over ), array() );
+
+			$this->assertSame( array(), $result['unmet'] );
+			$this->assertSame( array(), $result['all'] );
+			$this->assertSame( array(), $result['checks'] );
+		}
 	}
 
 	/**

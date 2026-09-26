@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 34;
+	public const VERSION = 35;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -704,6 +704,7 @@ final class Schema {
 	archived tinyint(1) NOT NULL DEFAULT 0,
 	review_attempt int(11) unsigned NOT NULL DEFAULT 1,
 	primary_user_id varchar(32) NOT NULL DEFAULT '',
+	designer_id varchar(32) NOT NULL DEFAULT '',
 	reviewer_id varchar(32) NOT NULL DEFAULT '',
 	deliverer_id varchar(32) NOT NULL DEFAULT '',
 	reviewer_substitute_id varchar(32) NOT NULL DEFAULT '',
@@ -1629,6 +1630,12 @@ final class Schema {
 		// A failed CREATE must not be remembered as a success: that is what
 		// leaves a site marked current and never retrying.
 		if ( self::tables_exist() ) {
+			// #409. Once, on the step that adds the Designer: open work keeps
+			// Design as it was. A fresh site has no work to keep.
+			if ( null !== $installed && $installed < 35 ) {
+				\Blueworx\Forge\Work\DesignerUpgrade::run();
+			}
+
 			update_option( self::OPTION, self::VERSION );
 		}
 	}

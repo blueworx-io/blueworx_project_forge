@@ -700,6 +700,7 @@ final class Items {
 			'recurring_id'             => '',
 			'review_attempt'           => 1,
 			'primary_user_id'          => '',
+			'designer_id'              => '',
 			'reviewer_id'              => '',
 			'deliverer_id'             => '',
 			'reviewer_substitute_id'   => '',
@@ -771,6 +772,7 @@ final class Items {
 			'hours_each'               => (float) ( $row['hours_each'] ?? 0 ),
 			'review_attempt'           => (int) $row['review_attempt'],
 			'primary_user_id'          => (string) $row['primary_user_id'],
+			'designer_id'              => (string) ( $row['designer_id'] ?? '' ),
 			'reviewer_id'              => (string) $row['reviewer_id'],
 			'deliverer_id'             => (string) $row['deliverer_id'],
 			'reviewer_substitute_id'   => (string) $row['reviewer_substitute_id'],
@@ -824,7 +826,8 @@ final class Items {
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-				"SELECT * FROM {$table} WHERE ( primary_user_id = %s OR reviewer_id = %s OR deliverer_id = %s OR assignees LIKE %s ) AND archived = 0 AND terminal_outcome = '' AND stage <> %s ORDER BY planned_due ASC, created_at ASC",
+				"SELECT * FROM {$table} WHERE ( primary_user_id = %s OR designer_id = %s OR reviewer_id = %s OR deliverer_id = %s OR assignees LIKE %s ) AND archived = 0 AND terminal_outcome = '' AND stage <> %s ORDER BY planned_due ASC, created_at ASC",
+				$user_id,
 				$user_id,
 				$user_id,
 				$user_id,

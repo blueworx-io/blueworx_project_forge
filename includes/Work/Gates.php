@@ -386,8 +386,13 @@ final class Gates {
 		 * approved Not Applicable decision for non-UI work satisfies it whole,
 		 * and is a recorded approval with a reason — not a stage anybody got to
 		 * skip quietly.
+		 *
+		 * #409. No Designer on the task does the same, read from the task each
+		 * time, so naming or clearing one counts from then on.
 		 */
-		if ( 'G-DESIGN' === $gate && isset( $records[ self::DESIGN_NOT_APPLICABLE ] ) ) {
+		$no_designer = '' === (string) ( $item['designer_id'] ?? '' );
+
+		if ( 'G-DESIGN' === $gate && ( $no_designer || isset( $records[ self::DESIGN_NOT_APPLICABLE ] ) ) ) {
 			return array(
 				'unmet'  => array(),
 				'checks' => array(),
