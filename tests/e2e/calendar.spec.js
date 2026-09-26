@@ -168,7 +168,12 @@ test.describe( 'the calendar', () => {
 
     await page.fill( '[data-testid="bwx-search"]', 'twice over' );
 
-    await expect( entriesFor( page, world.twice.id ) ).toHaveCount( 2 );
+    // Searching reloads the work and redraws the calendar in month view, where
+    // today's crowded cell can hide an entry. Back to the week until it holds.
+    await expect( async () => {
+      await page.locator( '[data-testid="bwx-calendar-mode-week"]' ).click();
+      await expect( entriesFor( page, world.twice.id ) ).toHaveCount( 2, { timeout: 1000 } );
+    } ).toPass();
     await expect( entriesFor( page, world.full.id ) ).toHaveCount( 0 );
   } );
 
