@@ -106,7 +106,7 @@ final class Feed {
 		// Every site's series, and what has happened to their meetings, in two
 		// reads rather than two per site.
 		$all    = Series::for_sites( array_keys( $sites ) );
-		$stored = Diary::stored_between( $from, $today );
+		$stored = Diary::stored_between( $from, $today, array_keys( $sites ) );
 
 		foreach ( $all as $series ) {
 			$site = $sites[ (string) $series['client_site_id'] ] ?? null;
@@ -303,9 +303,26 @@ final class Feed {
 	private static function meetings( array $sites, string $from, string $to, array $names ): array {
 		$out = array();
 
+		// Every site's series and what has happened to their meetings, in two
+		// reads rather than two per site (2026-09-26, #388). Each site's series
+		// keep the order a read of that site alone gives them.
+		$ids     = array_column( $sites, 'id' );
+		$stored  = Diary::stored_between( $from, $to, $ids );
+		$by_site = array();
+
+		foreach ( Series::for_sites( $ids ) as $series ) {
+			$by_site[ (string) $series['client_site_id'] ][] = $series;
+		}
+
 		foreach ( $sites as $site ) {
-			foreach ( Series::for_site( (string) $site['id'] ) as $series ) {
-				foreach ( Diary::for_series( $series, $from, $to ) as $meeting ) {
+			$of_site = $by_site[ (string) $site['id'] ] ?? array();
+
+			usort( $of_site, static fn( array $a, array $b ): int => strcmp( (string) $a['state'], (string) $b['state'] ) );
+
+			foreach ( $of_site as $series ) {
+				$merged = Occurrence::merge( Series::occurrences( $series, $from, $to ), $stored[ (string) $series['id'] ] ?? array(), $from, $to );
+
+				foreach ( $merged as $meeting ) {
 					if ( 'cancelled' === (string) ( $meeting['status'] ?? '' ) ) {
 						continue;
 					}

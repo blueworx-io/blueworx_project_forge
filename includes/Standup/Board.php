@@ -17,6 +17,7 @@ use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Sync;
 use Blueworx\Forge\Tenancy\Users;
+use Blueworx\Forge\Work\GateRecords;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
@@ -39,8 +40,9 @@ use Blueworx\Forge\Work\Transitions;
  * it. The same order the request queue uses, for the same reason.
  *
  * **This is not cheap, and that is known rather than overlooked.** Working out
- * whether a piece of work is stuck at a gate means asking the workflow engine,
- * and the engine reads that item's gate records — one query per item. The
+ * whether a piece of work is stuck at a gate means asking the workflow engine.
+ * The gate records it reads are fetched for every item at once and handed to
+ * it (#388); what else a gate asks about is still looked up per item. The
  * alternative was a second, cheaper implementation of the gates inside the
  * standup rules, which is exactly the disagreement this product keeps refusing
  * to create: a board saying an item is ready while the transition route refuses
@@ -96,18 +98,29 @@ final class Board {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private static function items( array $sites ): array {
-		$items = array();
+		// Every site's work in one read, and every open item's gate records in
+		// one more (2026-09-26, #388), rather than a query per site and another
+		// per item — which on a studio with a few hundred clients was a
+		// thousand queries a load, and enough to take a modest host's database
+		// down.
+		$by_site = Items::for_sites( array_column( $sites, 'id' ) );
+		$open    = array();
 
 		foreach ( $sites as $site ) {
-			foreach ( Items::for_site( (string) $site['id'] ) as $item ) {
-				if ( Stages::RELEASED === (string) $item['stage'] ) {
-					continue;
+			foreach ( $by_site[ (string) $site['id'] ] ?? array() as $item ) {
+				if ( Stages::RELEASED !== (string) $item['stage'] ) {
+					$open[] = $item;
 				}
-
-				$item['unmet'] = self::unmet( $item );
-
-				$items[] = $item;
 			}
+		}
+
+		$records = GateRecords::for_items( array_column( $open, 'id' ) );
+		$items   = array();
+
+		foreach ( $open as $item ) {
+			$item['unmet'] = self::unmet( $item, $records[ (string) $item['id'] ] ?? array() );
+
+			$items[] = $item;
 		}
 
 		return $items;
@@ -121,17 +134,18 @@ final class Board {
 	 * from a requirement nobody has met, and putting it on the list as though
 	 * it were the same would fill the board with decisions rather than tasks.
 	 *
-	 * @param array<string, mixed> $item The item.
+	 * @param array<string, mixed>             $item    The item.
+	 * @param array<int, array<string, mixed>> $records Every gate record on it, oldest first.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function unmet( array $item ): array {
+	private static function unmet( array $item, array $records ): array {
 		$next = Transitions::next_from( (string) $item['stage'], (string) $item['work_type'] );
 
 		if ( 1 !== count( $next ) ) {
 			return array();
 		}
 
-		return Transition::readiness( $item, (string) $next[0] )['unmet'];
+		return Transition::readiness( $item, (string) $next[0], array(), '', GateRecords::current_among( $item, $records ) )['unmet'];
 	}
 
 	/**

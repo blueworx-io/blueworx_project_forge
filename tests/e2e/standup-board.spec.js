@@ -301,3 +301,112 @@ test('the host settles their own meeting from the standup; somebody else cannot'
   await asHost.context.close();
   await admin.context.close();
 });
+
+test('settling from the standup as the host takes the meeting off the list, and a second press is harmless', async ({ browser, baseURL }) => {
+  test.slow();
+
+  // #388: pressing a settle button used to bring the site down. The press
+  // records the outcome, the meeting leaves the list, and pressing again
+  // does no harm.
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { site, client } = await Forge.makeSite(admin.api, `Settle Twice Co ${RUN_ID}`, `${RUN_ID}-t`);
+  await Forge.onSupport(admin, site.id, 200);
+  const stamp = RUN_ID.replace('-', '');
+  const host = await Forge.makePerson(admin.api, client.id, 'staff', `st${stamp}`);
+  const title = `Settle twice ${RUN_ID}`;
+  const started = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  const wrote = await admin.api.post(`/client-sites/${site.id}/meetings/series`, {
+    title, frequency: 'weekly', starts_on: started, ends_on: '', time_of_day: '10:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const asHost = await Forge.signedIn(browser, baseURL, host.login, Forge.PASSWORD);
+  const mine = (await asHost.api.get('/standup')).to_settle.filter((one) => one.title === title);
+  expect(mine.length).toBeGreaterThanOrEqual(2);
+
+  const page = await asHost.context.newPage();
+  const failures = [];
+  page.on('response', (response) => {
+    if (response.url().includes('/wp-json/') && response.status() >= 500) {
+      failures.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-standup').click();
+  const lines = page.getByTestId('bwx-standup-settle').locator('li', { hasText: title });
+  await expect(lines).toHaveCount(mine.length, { timeout: 30_000 });
+
+  // The buttons are shut while the answer is on its way, so a second press
+  // cannot send a second settle.
+  const line = lines.first();
+  await line.getByRole('button', { name: 'Cancelled' }).click();
+  await expect(lines).toHaveCount(mine.length - 1, { timeout: 30_000 });
+  await expect(page.getByText('Settled.')).toBeVisible();
+
+  // The same settle sent again, as a repeated press that got through would,
+  // is answered and changes nothing.
+  const again = await asHost.api.post(`/client-sites/${site.id}/meetings/${mine[0].series_id}/${mine[0].slot}/settle`, { status: 'cancelled' });
+  expect(again.status(), await again.text()).toBe(200);
+  const after = (await asHost.api.get('/standup')).to_settle.filter((one) => one.title === title);
+  expect(after).toHaveLength(mine.length - 1);
+  const stored = (await admin.api.get(`/client-sites/${site.id}/meetings`)).past.meetings.find((one) => one.slot === mine[0].slot);
+  expect(stored.status).toBe('cancelled');
+  expect(failures).toEqual([]);
+
+  await page.close();
+  await asHost.context.close();
+  await admin.context.close();
+});
+
+test('each meeting to settle has a full-width row, and its buttons never cover its title', async ({ browser, baseURL }) => {
+  test.slow();
+
+  // #381: the panel was a three-column grid and the buttons sat over the titles.
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { site, client } = await Forge.makeSite(admin.api, `Settle Rows Co ${RUN_ID}`, `${RUN_ID}-r`);
+  const host = await Forge.makePerson(admin.api, client.id, 'staff', `sr${RUN_ID.replace('-', '')}`);
+  const title = `A meeting with a fairly long title to read ${RUN_ID}`;
+  const started = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  const wrote = await admin.api.post(`/client-sites/${site.id}/meetings/series`, {
+    title, frequency: 'weekly', starts_on: started, ends_on: '', time_of_day: '10:00',
+    duration_mins: 60, timezone: 'Europe/London', host_user_id: host.id, attendees: '', planned_hours: 0,
+  });
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const page = await admin.context.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-standup').click();
+  const panel = page.getByTestId('bwx-standup-settle');
+  const lines = panel.locator('li', { hasText: title });
+  await expect(lines.first()).toBeVisible({ timeout: 30_000 });
+
+  const list = await panel.locator('ul').boundingBox();
+  const count = await lines.count();
+  expect(count).toBeGreaterThanOrEqual(2);
+
+  for (let at = 0; at < count; at += 1) {
+    const line = lines.nth(at);
+    const row = await line.boundingBox();
+    const titled = await line.locator('.bwx-diary-title').boundingBox();
+    const buttons = await line.locator('.bwx-moves').boundingBox();
+
+    // One meeting to a row: as wide as the list.
+    expect(Math.abs(row.width - list.width)).toBeLessThanOrEqual(2);
+
+    // The buttons sit to the right of the title and do not overlap it.
+    const overlaps = titled.x < buttons.x + buttons.width && buttons.x < titled.x + titled.width
+      && titled.y < buttons.y + buttons.height && buttons.y < titled.y + titled.height;
+    expect(overlaps).toBe(false);
+    expect(buttons.x).toBeGreaterThanOrEqual(titled.x + titled.width);
+  }
+
+  // Rows stack: the second starts below the first.
+  const first = await lines.nth(0).boundingBox();
+  const second = await lines.nth(1).boundingBox();
+  expect(second.y).toBeGreaterThanOrEqual(first.y + first.height - 1);
+
+  await page.close();
+  await admin.context.close();
+});

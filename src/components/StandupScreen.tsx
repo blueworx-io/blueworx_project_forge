@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
@@ -67,6 +67,7 @@ export function StandupScreen() {
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  const settling = useRef( false );
 
   const load = useCallback( async ( fresh = false ) => {
     try {
@@ -111,6 +112,13 @@ export function StandupScreen() {
 
   /** Says what became of a meeting, from its line (admins or its host, 2026-09-24). */
   async function settle( entry: NonNullable< StandupList[ 'to_settle' ] >[ number ], status: string ) {
+    // One settle at a time (#388). The buttons are shut while busy, but a
+    // second press can land before that render; this catches it.
+    if ( settling.current ) {
+      return;
+    }
+
+    settling.current = true;
     setBusy( true );
     setNotice( '' );
 
@@ -121,6 +129,7 @@ export function StandupScreen() {
     } catch ( failure ) {
       setNotice( messageFor( failure, 'That meeting could not be settled.' ) );
     } finally {
+      settling.current = false;
       setBusy( false );
     }
   }
@@ -260,7 +269,7 @@ export function StandupScreen() {
           site's meetings.
        */ }
       { 'ready' === state && 0 < ( list?.to_settle?.length ?? 0 ) && (
-        <section className="bwx-standup-diary" data-testid="bwx-standup-settle">
+        <section className="bwx-standup-diary bwx-standup-settle" data-testid="bwx-standup-settle">
           <p className="bwx-eyebrow">Meetings to settle</p>
           <ul className="bwx-diary-lines">
             { ( list?.to_settle ?? [] ).map( ( entry ) => (

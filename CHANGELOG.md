@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.131.1] - 2026-09-26
+
+### Fixed
+
+- Settling a meeting from the Daily standup works again and no longer brings the site down.
+- Meetings to settle show one per row, so titles are readable.
+
 ## [2.131.0] - 2026-09-25
 
 ### Added

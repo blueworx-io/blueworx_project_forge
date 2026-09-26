@@ -150,10 +150,16 @@ final class Hours {
 
 		$found = array();
 		$seen  = array();
+		$until = MeetingHours::horizon_end( $today );
+
+		// Every series' exceptions in the window in one read, not one per
+		// series (2026-09-26, #388): this runs on every meetings read and
+		// every settle, including the ones pressed from the standup.
+		$stored = array() === $series_by_id ? array() : Diary::stored_between( $today, $until, array( $client_site_id ) );
 
 		// What is coming up, from the rules and their exceptions together.
-		foreach ( $series_by_id as $series ) {
-			foreach ( Diary::for_series( $series, $today, MeetingHours::horizon_end( $today ) ) as $meeting ) {
+		foreach ( $series_by_id as $id => $series ) {
+			foreach ( Occurrence::merge( Series::occurrences( $series, $today, $until ), $stored[ (string) $id ] ?? array(), $today, $until ) as $meeting ) {
 				$key          = (string) $series['id'] . '|' . (string) ( $meeting['excepted_from'] ?? $meeting['on'] );
 				$seen[ $key ] = true;
 				$found[]      = array(

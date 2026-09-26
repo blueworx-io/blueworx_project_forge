@@ -111,11 +111,24 @@ final class GateRecords {
 	 * @return array<string, array<string, mixed>>
 	 */
 	public static function current_for( array $item ): array {
+		return self::current_among( $item, self::for_item( (string) $item['id'] ) );
+	}
+
+	/**
+	 * The records that count for an item, picked out of records already read
+	 * (2026-09-26, #388). Pure, so the standup can read every item's records
+	 * in one query and still answer exactly as {@see self::current_for()}.
+	 *
+	 * @param array<string, mixed>             $item    The item, as read.
+	 * @param array<int, array<string, mixed>> $records Its records, oldest first.
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function current_among( array $item, array $records ): array {
 		$cycle   = max( 1, (int) ( $item['cycle'] ?? 1 ) );
 		$attempt = max( 1, (int) ( $item['review_attempt'] ?? 1 ) );
 		$current = array();
 
-		foreach ( self::for_item( (string) $item['id'] ) as $record ) {
+		foreach ( $records as $record ) {
 			if ( $record['cycle'] !== $cycle ) {
 				continue;
 			}
@@ -148,6 +161,38 @@ final class GateRecords {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE item_id = %s ORDER BY completed_at ASC, id ASC", $item_id ), ARRAY_A );
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * Every record on many items, in one query, keyed by item and oldest
+	 * first within each (2026-09-26, #388). The standup asks this once for
+	 * all its open work rather than once per item.
+	 *
+	 * @param array<int, string> $item_ids Item ids.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function for_items( array $item_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $item_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::gate_records_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE item_id IN ({$slots}) ORDER BY completed_at ASC, id ASC", $wanted ), ARRAY_A );
+
+		$by_item = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_item[ (string) $row['item_id'] ][] = self::hydrate( $row );
+		}
+
+		return $by_item;
 	}
 
 	/**

@@ -145,6 +145,40 @@ final class Items {
 	}
 
 	/**
+	 * The unarchived items on many sites, in one query, keyed by site and
+	 * newest first within each (2026-09-26, #388) — what {@see self::for_site()}
+	 * answers with no filters, for every site at once. The standup reads its
+	 * work this way rather than once per client site.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function for_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table  = Schema::work_items_table();
+		$slots  = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+		$values = array_merge( $wanted, array( '0' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$slots}) AND archived = %s ORDER BY created_at DESC", $values ), ARRAY_A );
+
+		$by_site = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_site[ (string) $row['client_site_id'] ][] = self::hydrate( $row );
+		}
+
+		return $by_site;
+	}
+
+	/**
 	 * Just enough about several items to name them, keyed by id.
 	 *
 	 * For lists built from something other than the items themselves — the
