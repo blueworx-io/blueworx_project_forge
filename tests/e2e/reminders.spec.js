@@ -272,6 +272,41 @@ test('anyone on the team adds a reminder from its page', async ({ browser, baseU
   await page.close();
 });
 
+test('Sales and Finance are reminder types, and the type still shows after a reload', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindSalesFin', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remsalesfin');
+  const salesTitle = `Sales one ${RUN_ID}`;
+  const financeTitle = `Finance one ${RUN_ID}`;
+
+  for (const [title, category] of [[salesTitle, 'sales'], [financeTitle, 'finance']]) {
+    const made = await admin.api.post('/reminders', { client_site_id: site.id, title, assignees: [person.id], starts_on: today, category });
+    expect(made.status(), await made.text()).toBe(200);
+    expect((await made.json()).reminder.category).toBe(category);
+  }
+
+  const me = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+  const page = await me.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-reminders').click();
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+
+  const table = page.getByTestId('bwx-reminders-table');
+  await expect(table.locator('tbody tr', { hasText: salesTitle })).toContainText('Sales');
+  await expect(table.locator('tbody tr', { hasText: financeTitle })).toContainText('Finance');
+
+  // A bare reload lands on the default screen, so land on Reminders by its hash first.
+  await page.goto('/blueworx-forge/#screen=reminders');
+  await page.reload();
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+  await expect(table.locator('tbody tr', { hasText: salesTitle })).toContainText('Sales');
+  await expect(table.locator('tbody tr', { hasText: financeTitle })).toContainText('Finance');
+  await page.close();
+});
+
 test('only staff add a reminder, and only for people on its client', async ({ browser, baseURL }) => {
   test.slow();
 
