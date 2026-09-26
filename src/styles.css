@@ -1876,8 +1876,16 @@ body {
   border-radius: 2px;
 }
 
+/* The still-to-do key shows all three band colours the bar can take, so it
+   cannot disagree with whichever one a cell is in. */
 .bwx-capacity-key[ data-kind='todo' ] {
-  background: var( --color-success );
+  inline-size: 18px;
+  background: linear-gradient(
+    to right,
+    var( --color-success ) 0 33%,
+    var( --color-warning ) 33% 66%,
+    var( --color-over ) 66% 100%
+  );
 }
 
 .bwx-capacity-key + .bwx-capacity-key {

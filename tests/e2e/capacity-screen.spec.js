@@ -5,6 +5,16 @@ import * as Forge from './helpers/forge.js';
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
+// Today as the browser sees it. The config sets no timezone, so the browser
+// runs on this machine's, and so does this. UTC would be a day out just after
+// midnight.
+function localToday() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 // #139's acceptance: the view reconciles to the allocations behind it, and
 // drill-down explains every number. So the spec reads a cell, opens it, and
 // checks the panel is talking about the same period.
@@ -36,7 +46,7 @@ test('the studio can see who has room', async ({ page }) => {
 
 test('it opens on the next fourteen days, today first, and can be read by week instead', async ({ page }) => {
   const grid = await openCapacity(page);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
 
   // A day per column, starting today: the question is "who has room now",
   // not "who had room on Monday".
@@ -92,7 +102,7 @@ test('a day shows what is done beside what is still to do, and every task opens'
 
   const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const STAMP = RUN_ID.replace('-', '');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const { context, api } = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const where = await Forge.makeSite(api, 'Capacity day', RUN_ID);
 

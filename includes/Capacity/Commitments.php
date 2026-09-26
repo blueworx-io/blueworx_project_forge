@@ -118,10 +118,12 @@ final class Commitments {
 	 *
 	 * @param array<int, array<string, mixed>>                $allocations  Every allocation to consider.
 	 * @param array<string, array<int, array<string, mixed>>> $days_by_user Availability::by_day per person.
+	 * @param string                                          $today        YYYY-MM-DD; the site's today when empty.
 	 * @return array<string, array<string, mixed>>
 	 */
-	public static function gather( array $allocations, array $days_by_user ): array {
-		$out = array();
+	public static function gather( array $allocations, array $days_by_user, string $today = '' ): array {
+		$today = '' === $today ? ( new \DateTimeImmutable( 'now', wp_timezone() ) )->format( 'Y-m-d' ) : $today;
+		$out   = array();
 
 		foreach ( array_keys( $days_by_user ) as $user_id ) {
 			$out[ $user_id ] = array(
@@ -152,6 +154,21 @@ final class Commitments {
 			$done   = Allocations::DONE === $status;
 			$series = $done ? 'completed_by_day' : 'by_day';
 			$total  = $done ? 'completed' : 'hours';
+
+			/*
+			 * Finished work used the days that have been, and today — not the
+			 * days it was planned for that have not come yet. A task finished
+			 * early leaves those days free, and every reader of this (the
+			 * screen, the gate, the standup, reports, the client's answer)
+			 * has to see them free, so it is decided here and nowhere else.
+			 */
+			if ( $done ) {
+				$spread = array_filter(
+					$spread,
+					static fn( $date ): bool => (string) $date <= $today,
+					ARRAY_FILTER_USE_KEY
+				);
+			}
 
 			foreach ( $spread as $date => $hours ) {
 				$out[ $user_id ][ $series ][ $date ] = round( ( $out[ $user_id ][ $series ][ $date ] ?? 0.0 ) + $hours, 2 );

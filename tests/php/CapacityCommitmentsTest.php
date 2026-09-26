@@ -7,7 +7,9 @@
 
 declare( strict_types = 1 );
 
+use Blueworx\Forge\Capacity\ClientAnswer;
 use Blueworx\Forge\Capacity\Commitments;
+use Blueworx\Forge\Capacity\Position;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -125,6 +127,28 @@ final class CapacityCommitmentsTest extends TestCase {
 		$this->assertSame( 3.0, $gathered['usr_a']['by_day']['2026-09-07'] );
 		$this->assertSame( 2.0, $gathered['usr_a']['completed_by_day']['2026-09-07'] );
 		$this->assertCount( 2, $gathered['usr_a']['allocations'] );
+	}
+
+	/*
+	 * Finished work used the days that have been, not the days still to
+	 * come. A task planned for today and tomorrow, finished today, leaves
+	 * tomorrow free — for the screen, the gate and the client's answer alike.
+	 */
+	public function test_finished_work_only_counts_up_to_today(): void {
+		$done           = $this->allocation( 'usr_a', 4.0, 'cli_1' );
+		$done['status'] = 'completed';
+
+		$gathered = Commitments::gather( array( $done ), array( 'usr_a' => $this->days() ), '2026-09-07' );
+
+		$this->assertSame( array( '2026-09-07' => 2.0 ), $gathered['usr_a']['completed_by_day'], 'today\'s share only' );
+		$this->assertSame( 2.0, $gathered['usr_a']['completed'] );
+		$this->assertSame( array( '2026-09-07' => 2.0 ), $gathered['usr_a']['allocations'][0]['by_day'] );
+
+		$tomorrow = Position::over( $this->days(), $gathered['usr_a']['by_day'], '2026-09-08', '2026-09-08', $gathered['usr_a']['completed_by_day'] );
+
+		$this->assertSame( 0.0, $tomorrow['completed'], 'tomorrow shows no finished hours' );
+		$this->assertSame( Position::CLEAR, $tomorrow['band'] );
+		$this->assertSame( ClientAnswer::ROOM, ClientAnswer::band( array( 'usr_a' => $tomorrow ) ), 'and the client is told there is room' );
 	}
 
 	public function test_somebody_nobody_asked_about_is_left_out(): void {

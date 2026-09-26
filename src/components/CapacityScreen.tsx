@@ -64,8 +64,11 @@ function defaultRange( by: CapacityBy ): { from: string; to: string } {
   return { from: iso( monday ), to: iso( end ) };
 }
 
+/** The date as the person sees it, not as UTC has it — just after midnight they differ. */
 function iso( date: Date ): string {
-  return date.toISOString().slice( 0, 10 );
+  const pad = ( value: number ) => String( value ).padStart( 2, '0' );
+
+  return `${ date.getFullYear() }-${ pad( date.getMonth() + 1 ) }-${ pad( date.getDate() ) }`;
 }
 
 /**
@@ -145,9 +148,7 @@ function fill( position: CapacityPosition ): { done: number; todo: number } {
  * An allocation can run for a fortnight; the day panel answers for its day.
  */
 function hoursIn( allocation: CapacityAllocation ): number {
-  const days = Object.values( allocation.by_day ?? {} );
-
-  return 0 < days.length ? days.reduce( ( total, hours ) => total + hours, 0 ) : allocation.hours;
+  return Object.values( allocation.by_day ?? {} ).reduce( ( total, hours ) => total + hours, 0 );
 }
 
 /**
@@ -342,7 +343,7 @@ export function CapacityScreen() {
         <div className="bwx-capacity">
           <p className="bwx-capacity-legend" data-testid="bwx-capacity-legend">
             <span className="bwx-capacity-key" data-kind="todo" aria-hidden="true" />
-            Still to do
+            Still to do (coloured by how full the day is)
             <span className="bwx-capacity-key" data-kind="done" aria-hidden="true" />
             Done
           </p>
@@ -495,7 +496,11 @@ function Drilldown( {
         <p className="bwx-capacity-summary" data-band={ drilldown.position.band }>
           { 'unrecorded' === drilldown.position.band
             ? 'Nobody has set this person’s working hours, so there is no capacity to report.'
-            : `${ durationLabel( drilldown.position.committed ) } still to do and ${ durationLabel( drilldown.position.completed ) } done, of ${ durationLabel( drilldown.position.available ) }. ${ durationLabel( drilldown.position.remaining ) } left.` }
+            : `${ durationLabel( drilldown.position.committed ) } still to do and ${ durationLabel( drilldown.position.completed ) } done, of ${ durationLabel( drilldown.position.available ) }. ${
+                drilldown.position.remaining < 0
+                  ? `${ durationLabel( -drilldown.position.remaining ) } over.`
+                  : `${ durationLabel( drilldown.position.remaining ) } left.`
+              }` }
         </p>
 
         <WorkList title="Still to do" testId="bwx-capacity-todo" allocations={ todo } onOpenItem={ onOpenItem } />
