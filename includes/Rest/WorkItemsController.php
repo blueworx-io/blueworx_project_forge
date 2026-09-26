@@ -1523,6 +1523,11 @@ final class WorkItemsController {
 			);
 		}
 
+		// #391. The client made reviewer while already in review is asked now.
+		if ( ! ClientReviewer::is( $item ) ) {
+			Transition::request_client_review( $updated );
+		}
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
 		$wpdb->query( 'COMMIT' );
 

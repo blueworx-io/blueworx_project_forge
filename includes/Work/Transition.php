@@ -337,6 +337,30 @@ final class Transition {
 	}
 
 	/**
+	 * Emails the client that a task waits on their review (#391), once for
+	 * each review: the cycle and the review attempt are part of the event, so
+	 * a second review after a send-back is emailed too. Does nothing unless
+	 * the task is in review with the client reviewing.
+	 *
+	 * @param array<string, mixed> $item The item as it now stands.
+	 */
+	public static function request_client_review( array $item ): void {
+		if ( ! ClientReviewer::awaiting( $item ) ) {
+			return;
+		}
+
+		Register::claim(
+			array(
+				'kind'           => Notifications::REVIEW_REQUESTED,
+				'subject_id'     => (string) $item['id'],
+				'occurrence'     => Notifications::review_occurrence( (int) $item['cycle'], (int) $item['review_attempt'] ),
+				'client_id'      => (string) ( $item['client_id'] ?? '' ),
+				'client_site_id' => (string) $item['client_site_id'],
+			)
+		);
+	}
+
+	/**
 	 * Pauses work without losing its place (#109).
 	 *
 	 * The stage it came from is stored on the item by this move, so resolution
@@ -1405,6 +1429,9 @@ final class Transition {
 				)
 			);
 		}
+
+		// #391. Arriving in review with the client reviewing asks them to.
+		self::request_client_review( $moved_item );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'COMMIT' );

@@ -68,7 +68,13 @@ final class Events {
 	public const RELEASED = 'work-released';
 
 	/**
-	 * The three events that send a client an email.
+	 * The studio asks the client to review a task (#391, 2026-09-26): it has
+	 * entered In Review with the client as its reviewer.
+	 */
+	public const REVIEW_REQUESTED = 'review-requested';
+
+	/**
+	 * The events that send a client an email.
 	 *
 	 * @var array<int, string>
 	 */
@@ -76,6 +82,7 @@ final class Events {
 		self::RECEIVED,
 		self::COMPLETED,
 		self::RELEASED,
+		self::REVIEW_REQUESTED,
 	);
 
 	/**
@@ -161,6 +168,19 @@ final class Events {
 		$of = sha1( $kind . '|' . $subject_id . '|' . max( 1, $occurrence ) );
 
 		return self::PREFIX . '_' . substr( $of, 0, self::DIGITS );
+	}
+
+	/**
+	 * Which time round a review request is (#391): the cycle and the review
+	 * attempt together, so a second review after a send-back is emailed too
+	 * and a replay of the first is not.
+	 *
+	 * @param int $cycle   The item's cycle.
+	 * @param int $attempt Its review attempt.
+	 * @return int
+	 */
+	public static function review_occurrence( int $cycle, int $attempt ): int {
+		return max( 1, $cycle ) * 1000 + max( 1, $attempt );
 	}
 
 	/**

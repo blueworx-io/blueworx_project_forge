@@ -298,3 +298,31 @@ test('the client site decides over its signed route, and only while it waits on 
   expect(returned.stage).toBe('in-development');
   expect(returned.review_attempt).toBe(back.review_attempt + 1);
 });
+
+test('the client is emailed for each review they are asked for', async () => {
+  const asked = (id) => detail(id).then((one) => (one.notifications ?? []).filter((event) => 'review-requested' === event.event_kind));
+
+  const item = await inClientReview('Emailed');
+  expect(await asked(item.id)).toHaveLength(1);
+
+  // Sent back and back in review: a second review, so a second email.
+  const back = await admin.api.post(`/work-items/${item.id}/client-review`, {
+    decision: 'send_back',
+    note: 'Not yet.',
+    record_version: item.record_version,
+  });
+  expect(back.status(), await back.text()).toBe(200);
+
+  const again = await admin.api.post(`/work-items/${item.id}/override`, {
+    to: 'in-review',
+    reason: 'Set up for the test.',
+    record_version: (await back.json()).item.record_version,
+  });
+  expect(again.status(), await again.text()).toBe(200);
+
+  expect(await asked(item.id)).toHaveLength(2);
+
+  // Somebody else reviewing: no email to the client.
+  const staffed = await taskAt('Not emailed', 'in-review');
+  expect(await asked(staffed.id)).toHaveLength(0);
+});
