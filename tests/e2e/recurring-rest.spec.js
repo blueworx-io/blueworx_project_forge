@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
 import { signedIn, makePerson, PASSWORD } from './helpers/forge.js';
+import { signIn } from '../helpers/sign-in.js';
+import { installSureCartStub, removeSureCartStub, STUB_TOKEN } from './helpers/surecart.js';
 
 // Recurring tasks, through the API: a source makes one task per due day on
 // the studio's site, once, and not while paused.
@@ -140,6 +142,68 @@ test('a recurring task is set up for a chosen client, and needs one', async ({ b
 
   const listed = await admin.api.get('/recurring');
   expect(listed.sources.some((source) => source.client_site_id === site.id)).toBe(true);
+
+  await admin.context.close();
+});
+
+test('Recurring tasks leaves out subscription renewals, which still get made (#408)', async ({ browser, baseURL, page }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const sites = await admin.api.get('/client-sites');
+  const studio = sites.sites.find((one) => one.studio);
+  const checker = await makePerson(admin.api, studio.client_id, 'staff', 'subrecur');
+  const today = await serverToday(admin.api);
+
+  // A normal recurring task, which should still be listed.
+  const made = await admin.api.post('/recurring', {
+    title: `Normal chore ${RUN_ID}`,
+    description: '<p>Do the normal thing.</p>',
+    work_type: 'task',
+    rule: { every: 'day' },
+    starts_on: today,
+    assignees: [checker.id],
+    hours_each: '0.5',
+    client_site_id: studio.id,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const normalSource = (await made.json()).source;
+
+  installSureCartStub();
+  try {
+    await signIn(page, ADMIN_USER, ADMIN_PASS);
+    await page.goto('/wp-admin/admin.php?page=blueworx-forge-connections');
+    const add = page.locator('form[data-bwx-add-store]');
+    await add.locator('input[name="name"]').fill(`Recur Stub ${RUN_ID}`);
+    await add.locator('input[name="token"]').fill(STUB_TOKEN);
+    await add.locator('select[name="primary_user_id"]').selectOption(checker.id);
+    await add.locator('input[type="submit"]').click();
+    await expect(page.locator('[data-bwx-result="added"]')).toBeVisible();
+
+    const store = page.locator('[data-bwx-store]', { hasText: `Recur Stub ${RUN_ID}` });
+    await store.locator('[data-bwx-action="refresh"]').click();
+    await expect(page.locator('[data-bwx-result="refreshed"]')).toBeVisible();
+
+    await admin.api.post('/recurring/run', {});
+
+    // The renewal work item still gets made.
+    await expect.poll(async () => {
+      const work = await admin.api.get(`/work-items?client_site_id=${studio.id}`);
+      return work.items.some((item) => item.title.includes('Subscription Renewal: Acme Ltd'));
+    }, { timeout: 60_000 }).toBe(true);
+
+    // Recurring tasks lists the normal task, and not the subscription's own source.
+    const recurring = await admin.api.get('/recurring');
+    expect(recurring.sources.some((source) => source.id === normalSource.id)).toBe(true);
+    expect(recurring.sources.some((source) => 'subscription' === source.kind)).toBe(false);
+
+    await page.goto('/wp-admin/admin.php?page=blueworx-forge-connections');
+    page.once('dialog', (dialog) => dialog.accept());
+    await store.locator('[data-bwx-action="remove"]').click();
+    await expect(page.locator('[data-bwx-result="removed"]')).toBeVisible();
+  } finally {
+    removeSureCartStub();
+  }
 
   await admin.context.close();
 });

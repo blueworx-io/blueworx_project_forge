@@ -122,8 +122,9 @@ final class RecurringController {
 		// is true as of now rather than as of the last time somebody looked.
 		Materialise::maybe();
 
+		// Subscription renewals belong on the Subscriptions screen, not here (#408).
 		$sites   = array_column( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ), 'id' );
-		$sources = Sources::for_sites( $sites, array( Sources::SCHEDULE, Sources::SUBSCRIPTION ) );
+		$sources = Sources::for_sites( $sites, array( Sources::SCHEDULE ) );
 		$latest  = Occurrences::latest_for( array_column( $sources, 'id' ) );
 
 		foreach ( $sources as $index => $source ) {
