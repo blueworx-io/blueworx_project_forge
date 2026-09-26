@@ -545,6 +545,11 @@ final class Gates {
 
 			case 'hours':
 				foreach ( Fields::HOURS as $field ) {
+					// #391. The client's review takes no hours, so none are asked for.
+					if ( 'hours_review' === $field && ClientReviewer::is( $item ) ) {
+						continue;
+					}
+
 					if ( (float) ( $item[ $field ] ?? 0 ) <= 0.0 ) {
 						return false;
 					}

@@ -24,6 +24,7 @@ use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\ClientMove;
+use Blueworx\Forge\Work\ClientReviewer;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Dependencies;
 use Blueworx\Forge\Work\Derived;
@@ -268,10 +269,13 @@ final class WorkItemsController {
 		 * #390. Confirming a task's client, and moving it to another. Their
 		 * own routes rather than fields on PATCH: the site is fixed for an
 		 * ordinary edit, and a move has checks an edit never makes.
+		 *
+		 * #391. And an admin recording the client's review decision for them.
 		 */
 		foreach ( array(
 			'confirm-client' => 'confirm_client',
 			'move-client'    => 'move_client',
+			'client-review'  => 'client_review',
 		) as $path => $callback ) {
 			Server::register_route(
 				$route_namespace,
@@ -1410,7 +1414,7 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true );
+		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true, ClientReviewer::stage_of( $item ), (string) $item['reviewer_id'] );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -1426,6 +1430,10 @@ final class WorkItemsController {
 		if ( null !== $refused ) {
 			return $refused;
 		}
+
+		// #391. Settled here as well as on the write, so the history shows the
+		// review hours going to 0.
+		$checked['values'] = ClientReviewer::settle( $checked['values'], $item );
 
 		/*
 		 * #393. The seats this edit changes, and only those. The panel sends
@@ -1513,6 +1521,11 @@ final class WorkItemsController {
 				409,
 				array( 'balance' => Ledger::balance( (string) $item['client_site_id'] ) )
 			);
+		}
+
+		// #391. The client made reviewer while already in review is asked now.
+		if ( ! ClientReviewer::is( $item ) ) {
+			Transition::request_client_review( $updated );
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
@@ -1609,6 +1622,35 @@ final class WorkItemsController {
 			array(
 				'ok'   => true,
 				'item' => $confirmed,
+			)
+		);
+	}
+
+	/**
+	 * Records the client's review decision on their behalf (#391), for when
+	 * the client answers by email or on a call. The Primary administrator
+	 * only, and the history says who recorded it.
+	 *
+	 * @param WP_REST_Request $request Request, with decision and note.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function client_review( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::OVERRIDE );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$body = (array) $request->get_json_params();
+		$me   = wp_get_current_user();
+
+		return self::answer(
+			Transition::client_review(
+				$ready['item'],
+				(string) ( $body['decision'] ?? '' ),
+				(string) ( $body['note'] ?? '' ),
+				$me instanceof \WP_User ? (string) $me->display_name : '',
+				get_current_user_id()
 			)
 		);
 	}

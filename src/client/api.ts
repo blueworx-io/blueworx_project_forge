@@ -57,6 +57,8 @@ export interface WorkItem {
   review_target: string;
   release_target: string;
   people: { primary: Person[]; reviewer: Person[]; deliverer: Person[] };
+  /** The studio has asked this client to review it (#391); an older studio sends nothing. */
+  awaiting_review?: boolean;
 }
 
 export interface BoardView {
@@ -222,6 +224,8 @@ export const api = {
   discussion: ( item: string ) => call< DiscussionView >( 'GET', `/items/${ item }/discussion` ),
   say: ( item: string, values: { body: string; url?: string; answers?: string } ) =>
     call< { ok: boolean; result: string; message: string } >( 'POST', `/items/${ item }/discussion`, values ),
+  review: ( item: string, values: { decision: 'approve' | 'send_back'; note?: string } ) =>
+    call< { ok: boolean; result: string; message: string } >( 'POST', `/items/${ item }/review`, values ),
   submit: ( form: FormData ) => call< { ok: boolean; result: string; fields?: Record< string, string > } >( 'POST', '/submissions', form ),
   answerStep: ( step: string, values: { response: string; intent: 'save' | 'submit' } ) =>
     call< { ok: boolean; result: string } >( 'POST', `/checklist/${ step }/answer`, values ),

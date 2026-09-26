@@ -109,7 +109,7 @@ final class NotificationEventsTest extends TestCase {
 
 	public function test_the_three_are_the_three(): void {
 		$this->assertSame(
-			array( Events::RECEIVED, Events::COMPLETED, Events::RELEASED ),
+			array( Events::RECEIVED, Events::COMPLETED, Events::RELEASED, Events::REVIEW_REQUESTED ),
 			Events::ALL
 		);
 
@@ -118,6 +118,22 @@ final class NotificationEventsTest extends TestCase {
 		}
 
 		$this->assertFalse( Events::exists( 'work-nearly-done' ) );
+	}
+
+	/**
+	 * #391. A second review after a send-back is a second email, and a replay
+	 * of the first is not.
+	 */
+	public function test_each_review_the_client_is_asked_for_is_its_own_event(): void {
+		$first  = Events::id_for( Events::REVIEW_REQUESTED, 'wrk_abc', Events::review_occurrence( 1, 1 ) );
+		$second = Events::id_for( Events::REVIEW_REQUESTED, 'wrk_abc', Events::review_occurrence( 1, 2 ) );
+		$reopen = Events::id_for( Events::REVIEW_REQUESTED, 'wrk_abc', Events::review_occurrence( 2, 1 ) );
+
+		$this->assertNotSame( $first, $second );
+		$this->assertNotSame( $first, $reopen );
+		$this->assertNotSame( $second, $reopen );
+		$this->assertSame( $first, Events::id_for( Events::REVIEW_REQUESTED, 'wrk_abc', Events::review_occurrence( 1, 1 ) ) );
+		$this->assertSame( Events::WORK_ITEM, Events::subject_type( Events::REVIEW_REQUESTED ) );
 	}
 
 	/* ------------------------------------------------ which moves tell anybody */

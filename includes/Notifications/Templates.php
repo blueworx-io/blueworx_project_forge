@@ -83,6 +83,16 @@ final class Templates {
 			);
 		}
 
+		if ( Events::REVIEW_REQUESTED === $kind ) {
+			return self::email(
+				'Ready for your review: ' . $title,
+				array(
+					$title . ' is ready for you to review. Open your Forge page to approve it or send it back.',
+				),
+				$ref
+			);
+		}
+
 		if ( Events::RELEASED === $kind ) {
 			$where = self::plain( (string) ( $about['destination'] ?? '' ) );
 

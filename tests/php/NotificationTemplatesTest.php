@@ -59,6 +59,19 @@ final class NotificationTemplatesTest extends TestCase {
 		$this->assertSame( '', $email['body'] );
 	}
 
+	/**
+	 * #391. The client is asked to review, and told where.
+	 */
+	public function test_a_review_request_says_what_to_do(): void {
+		$email = Templates::render( Events::REVIEW_REQUESTED, $this->about() );
+
+		$this->assertSame( 'Ready for your review: The checkout page', $email['subject'] );
+		$this->assertStringContainsString(
+			'The checkout page is ready for you to review. Open your Forge page to approve it or send it back.',
+			$email['body']
+		);
+	}
+
 	/* -------------------------------------------------------- ready is not done */
 
 	public function test_ready_does_not_say_it_is_live(): void {

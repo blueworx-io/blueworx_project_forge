@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\Rest\Boundary;
+use Blueworx\Forge\Rest\ClientController;
 use Blueworx\Forge\Rest\Permissions;
 use Blueworx\Forge\Rest\Server;
 use PHPUnit\Framework\TestCase;
@@ -33,6 +34,13 @@ final class ClientContributionRouteTest extends TestCase {
 	 * The contribution route's path.
 	 */
 	private const COMMENTS = '/client/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/comments';
+
+	/**
+	 * The one exception to the lock (#391, 2026-09-26): the client approves or
+	 * sends back work in review whose reviewer is the client. This path, POST
+	 * only, and nothing else. See D-14a in docs/architecture/permission-matrix.md.
+	 */
+	private const CLIENT_REVIEW = '/client/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/review';
 
 	/**
 	 * Every registered route.
@@ -161,10 +169,15 @@ final class ClientContributionRouteTest extends TestCase {
 	 * getting right (§14, D-10 to D-19).
 	 */
 	public function test_no_client_route_moves_work(): void {
-		$moves = array( 'transition', 'reopen', 'override', 'send-back', 'block', 'unblock', 'outcome', 'archive', 'gate' );
+		$moves = array( 'transition', 'reopen', 'override', 'send-back', 'block', 'unblock', 'outcome', 'archive', 'gate', 'review', 'approve', 'return', 'move' );
 		$found = array();
 
 		foreach ( $this->client_routes() as $route ) {
+			// The one named exception, #391. Its own tests are below.
+			if ( self::CLIENT_REVIEW === $route['path'] && 'POST' === $route['method'] ) {
+				continue;
+			}
+
 			foreach ( $moves as $move ) {
 				if ( str_contains( $route['path'], $move ) ) {
 					$found[] = $route['method'] . ' ' . $route['path'];
@@ -173,6 +186,34 @@ final class ClientContributionRouteTest extends TestCase {
 		}
 
 		$this->assertSame( array(), $found );
+	}
+
+	/**
+	 * The one exception exists, as a POST on exactly one path (#391).
+	 */
+	public function test_the_client_review_route_is_the_one_exception(): void {
+		$route = $this->route( self::CLIENT_REVIEW, 'POST' );
+
+		$this->assertNotNull( $route );
+		$this->assertSame( array( ClientController::class, 'review' ), $route['args']['callback'] );
+		$this->assertSame( array( Permissions::class, 'client_site' ), $route['args']['permission_callback'] );
+		$this->assertSame( Boundary::SCOPE_OPEN, $route['args']['scope']['kind'] );
+
+		$found = array_filter(
+			$this->client_routes(),
+			static fn( array $one ): bool => str_contains( $one['path'], 'review' )
+		);
+
+		$this->assertSame(
+			array(
+				array(
+					'path'   => self::CLIENT_REVIEW,
+					'method' => 'POST',
+				),
+			),
+			array_values( $found ),
+			'only one client route may carry a review decision'
+		);
 	}
 
 	/**

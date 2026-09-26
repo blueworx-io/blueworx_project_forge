@@ -200,6 +200,12 @@ final class Events {
 	public const VIA_SCHEDULE = 'schedule';
 
 	/**
+	 * The client's own review decision, made on their site or recorded for
+	 * them by an admin (#391).
+	 */
+	public const VIA_CLIENT = 'client';
+
+	/**
 	 * Appends an entry.
 	 *
 	 * @param array<string, mixed> $entry item_id, client_site_id, action, and

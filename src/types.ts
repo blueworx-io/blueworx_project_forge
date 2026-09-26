@@ -461,6 +461,8 @@ export interface WorkEvent {
   occurred_at: number;
   /** Who did it, by display name; empty when it was the system. */
   actor_name: string;
+  /** How they were entitled to: a substitute, the override, or the client (#391). */
+  via?: string;
 }
 
 /** How often a recurring task is due (PR 3). */
@@ -1263,3 +1265,6 @@ export interface AllClientsMeetingsAnswer {
   ok: true;
   meetings: AllClientsMeeting[];
 }
+
+/** What a task's reviewer seat holds when the client reviews it (#391). */
+export const CLIENT_REVIEWER = 'client';

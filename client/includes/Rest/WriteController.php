@@ -14,13 +14,15 @@ use Blueworx\Forge\Client\Admin\ChecklistActions;
 use Blueworx\Forge\Client\ChecklistAnswer;
 use Blueworx\Forge\Client\Connection;
 use Blueworx\Forge\Client\Discussion;
+use Blueworx\Forge\Client\Review;
 use Blueworx\Forge\Client\Submission;
 use WP_REST_Request;
 use WP_REST_Response;
 
 /**
  * The write routes the client app is built on (#298): a comment or evidence
- * on an item, a new submission, and an answer or a file on a checklist step.
+ * on an item, a new submission, an answer or a file on a checklist step, and
+ * (#391) the client's review decision on work the studio asked them to review.
  *
  * Each route hands the same values to the same class the wp-admin form for
  * it already hands them to, and hands back that class's answer as it is —
@@ -72,6 +74,30 @@ final class WriteController {
 							'default'           => '',
 							'sanitize_callback' => 'sanitize_text_field',
 						),
+					),
+				),
+			)
+		);
+
+		// #391. The client's review decision, on work the studio asked them to review.
+		register_rest_route(
+			WorkspaceController::NAMESPACE,
+			'/items/(?P<item>[A-Za-z0-9_-]+)/review',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'review' ),
+				'permission_callback' => $guard,
+				'args'                => array(
+					'decision' => array(
+						'type'     => 'string',
+						'required' => true,
+						'enum'     => array( Review::APPROVE, Review::SEND_BACK ),
+					),
+					'note'     => array(
+						'type'              => 'string',
+						'required'          => false,
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_textarea_field',
 					),
 				),
 			)
@@ -184,6 +210,26 @@ final class WriteController {
 					'answers'     => (string) $request->get_param( 'answers' ),
 					'author_name' => self::who(),
 				)
+			)
+		);
+	}
+
+	/**
+	 * Approves, or sends back with a note, work waiting on the client's review.
+	 *
+	 * @param WP_REST_Request $request The request.
+	 */
+	public static function review( WP_REST_Request $request ): WP_REST_Response {
+		if ( ! Connection::is_configured() ) {
+			return self::not_connected();
+		}
+
+		return rest_ensure_response(
+			Review::send(
+				(string) $request['item'],
+				(string) $request->get_param( 'decision' ),
+				(string) $request->get_param( 'note' ),
+				self::who()
 			)
 		);
 	}

@@ -331,3 +331,12 @@ is a security boundary rather than a workflow gate.
 
 The complete denial list is in [`permission-matrix.md`](permission-matrix.md)
 and is the test manifest for Milestones 2, 4 and 6.
+
+**One exception, 2026-09-26 (#391).** "The client" can be a task's reviewer from
+Up Next on. While such a task is In Review, the client may approve it (to
+Completed) or send it back with a note (to In Development, as a new review
+attempt), from their own site. Nothing else: not another stage, not another
+item, not any other move. The approval is the history entry for the move, and
+the review gate reads it as meeting the reviewer's rows; open client questions
+still have to be answered. An admin may record the client's answer for them.
+See D-14a in the permission matrix.

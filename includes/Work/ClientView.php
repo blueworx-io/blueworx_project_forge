@@ -97,6 +97,10 @@ final class ClientView {
 			'review_target'   => (string) ( $row['review_target'] ?? '' ),
 			'release_target'  => (string) ( $row['release_target'] ?? '' ),
 			'people'          => self::people( $row, $lookup ),
+
+			// #391. Whether this is waiting on the client to approve it or
+			// send it back.
+			'awaiting_review' => ClientReviewer::awaiting( $row ),
 		);
 	}
 

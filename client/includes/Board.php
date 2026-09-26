@@ -14,9 +14,9 @@ namespace Blueworx\Forge\Client;
  *
  * A read, and only a read. There is no method here that changes anything,
  * because there is nothing on a client site a client may change about work:
- * every transition is refused server-side, the permission matrix leaves that
- * whole block "no" for every client role, and this artifact holds no route that
- * could ask for one.
+ * every transition is refused server-side, and the permission matrix leaves
+ * that whole block "no" for every client role. The one exception, a review the
+ * studio asked the client for (#391), is sent by Review, not from here.
  *
  * The stage list arrives with the items rather than being declared here. The
  * columns a board draws are the studio state machine, and a second copy of that

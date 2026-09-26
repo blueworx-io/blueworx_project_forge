@@ -20,6 +20,9 @@ import { useView } from '../useView';
  * waiting on first, then everything said in order — and the two things a
  * client may add: a comment, or a link to evidence. Both go to the same route
  * the wp-admin item screen posts to, and neither names a stage.
+ *
+ * One exception (#391): work the studio asked the client to review is listed
+ * at the top, to approve or send back with a note.
  */
 
 type Mode = 'kanban' | 'schedule' | 'dates';
@@ -363,6 +366,109 @@ function SayForm( {
   );
 }
 
+/** What the screen says when a review decision did not go through. */
+const REVIEW_PROBLEM: Record< string, string > = {
+  note_required: 'Say what needs to change before sending it back.',
+  not_connected: 'This site is not connected to the studio yet.',
+  unreachable: 'That could not be sent. The studio did not answer.',
+};
+
+/**
+ * One task waiting on the client's review (#391): approve it, or send it back
+ * with a note saying what needs to change.
+ */
+function ReviewRow( { item, onDecided }: { item: WorkItem; onDecided: () => void } ) {
+  const [ sendingBack, setSendingBack ] = useState( false );
+  const [ note, setNote ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const [ problem, setProblem ] = useState< string | null >( null );
+  const toast = useToast();
+
+  const decide = async ( decision: 'approve' | 'send_back' ) => {
+    setBusy( true );
+    setProblem( null );
+    try {
+      const answer = await api.review( item.id, { decision, note: 'send_back' === decision ? note.trim() : '' } );
+      if ( ! answer.ok ) {
+        setProblem( answer.message || REVIEW_PROBLEM[ answer.result ] || 'That could not be sent. The studio did not take it.' );
+        return;
+      }
+      toast( 'approve' === decision ? 'Approved. The studio has been told.' : 'Sent back to the studio with your note.' );
+      onDecided();
+    } catch {
+      setProblem( REVIEW_PROBLEM.unreachable );
+    } finally {
+      setBusy( false );
+    }
+  };
+
+  return (
+    <div className="fc-question" data-testid="bwx-review-item" data-item={ item.id }>
+      <p>
+        <a href={ `#board/${ item.id }` } className="fc-link">
+          { item.title }
+        </a>
+      </p>
+      <span className="fc-thread-by fk-mono">
+        { [ item.id, kind( item ), item.planned_due ? `due ${ day( item.planned_due ) }` : '' ].filter( Boolean ).join( ' · ' ) }
+      </span>
+      { sendingBack ? (
+        <form
+          className="fc-say"
+          data-testid="bwx-review-send-back"
+          onSubmit={ ( event: FormEvent ) => {
+            event.preventDefault();
+            if ( note.trim() ) void decide( 'send_back' );
+          } }
+        >
+          <Field label="What needs to change">
+            { ( id ) => <TextArea id={ id } rows={ 3 } value={ note } onChange={ ( e ) => setNote( e.target.value ) } /> }
+          </Field>
+          <div className="fk-actions-end">
+            <Button variant="ghost" disabled={ busy } onClick={ () => setSendingBack( false ) }>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={ busy || ! note.trim() }>
+              { busy ? 'Sending…' : 'Send back to the studio' }
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div className="fk-actions-end">
+          <Button variant="secondary" disabled={ busy } onClick={ () => setSendingBack( true ) }>
+            Send back
+          </Button>
+          <Button disabled={ busy } onClick={ () => void decide( 'approve' ) }>
+            { busy ? 'Sending…' : 'Approve' }
+          </Button>
+        </div>
+      ) }
+      { problem && (
+        <p className="fc-problem" role="alert">
+          { problem }
+        </p>
+      ) }
+    </div>
+  );
+}
+
+/** Everything the studio has asked this client to review, at the top of the board. */
+function NeedsReview( { items, onDecided }: { items: WorkItem[]; onDecided: () => void } ) {
+  if ( 0 === items.length ) {
+    return null;
+  }
+
+  return (
+    <section className="fc-questions" data-testid="bwx-needs-review" aria-label="Needs your review">
+      <h3>Needs your review</h3>
+      <p className="fc-muted">The studio has finished these and asked you to check them. Approve, or send back and say what needs to change.</p>
+      { items.map( ( item ) => (
+        <ReviewRow key={ item.id } item={ item } onDecided={ onDecided } />
+      ) ) }
+    </section>
+  );
+}
+
 function ItemRecord( { id, onClose }: { id: string; onClose: () => void } ) {
   const [ view, setView ] = useState< DiscussionView | null >( null );
   const [ failed, setFailed ] = useState( false );
@@ -413,10 +519,17 @@ function ItemRecord( { id, onClose }: { id: string; onClose: () => void } ) {
               <Tag>Read-only for workflow movement</Tag>
             </div>
 
-            <p className="fc-note" data-testid="bwx-no-moves">
-              You cannot change the stage of this item. You can comment, attach evidence and answer questions — all of
-              which the studio team sees immediately.
-            </p>
+            { item.awaiting_review ? (
+              <p className="fc-note" data-testid="bwx-awaiting-review">
+                The studio has asked you to review this. Approve it or send it back under Needs your review, at the top
+                of the board.
+              </p>
+            ) : (
+              <p className="fc-note" data-testid="bwx-no-moves">
+                You cannot change the stage of this item. You can comment, attach evidence and answer questions — all of
+                which the studio team sees immediately.
+              </p>
+            ) }
 
             { view && view.outstanding.length > 0 && (
               <section className="fc-questions" data-testid="bwx-questions">
@@ -488,6 +601,10 @@ export function Board( { item }: { item: string } ) {
       </div>
 
       { denied && <Refusal onDismiss={ () => setDenied( false ) } /> }
+
+      { board.view?.ok && (
+        <NeedsReview items={ board.view.items.filter( ( one ) => one.awaiting_review ) } onDecided={ () => void board.reload( true ) } />
+      ) }
 
       { board.loading ? (
         <Card>

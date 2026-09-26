@@ -160,7 +160,107 @@ final class GateRecords {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE item_id = %s ORDER BY completed_at ASC, id ASC", $item_id ), ARRAY_A );
 
-		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+		return self::with_client_approvals(
+			array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() ),
+			self::client_approvals( array( $item_id ) )[ $item_id ] ?? array()
+		);
+	}
+
+	/**
+	 * The reviewer's rows, met by the client's approval (#391).
+	 *
+	 * A gate record needs a studio user, and the client is not one, so their
+	 * approval is the history entry for the move. This reads that entry as the
+	 * reviewer's records for its attempt. Open client questions
+	 * (G-IN-REVIEW-3) are not the reviewer's to record, so they still count.
+	 * Pure.
+	 *
+	 * @param array<string, mixed> $approval The history entry: id, item_id,
+	 *                                       reason, cycle, attempt, actor,
+	 *                                       occurred_at.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function from_client_approval( array $approval ): array {
+		$records = array();
+
+		foreach ( Gates::requirements( 'G-IN-REVIEW' ) as $requirement ) {
+			if ( Gates::BY_RECORD !== $requirement['by'] || Gates::REV !== $requirement['who'] ) {
+				continue;
+			}
+
+			$records[] = array(
+				'id'           => (string) ( $approval['id'] ?? '' ) . ':' . $requirement['id'],
+				'item_id'      => (string) ( $approval['item_id'] ?? '' ),
+				'gate'         => 'G-IN-REVIEW',
+				'requirement'  => (string) $requirement['id'],
+				// No hours adjustment: the client's review took nobody's time.
+				'value'        => 'number' === $requirement['type'] ? '0' : (string) ( $approval['reason'] ?? '' ),
+				'evidence'     => '',
+				'cycle'        => max( 1, (int) ( $approval['cycle'] ?? 1 ) ),
+				'attempt'      => max( 1, (int) ( $approval['attempt'] ?? 1 ) ),
+				'actor'        => (int) ( $approval['actor'] ?? 0 ),
+				'completed_at' => (int) ( $approval['occurred_at'] ?? 0 ),
+				'by_client'    => true,
+			);
+		}
+
+		return $records;
+	}
+
+	/**
+	 * Records and client approvals as one list, oldest first. Pure.
+	 *
+	 * @param array<int, array<string, mixed>> $records   Gate records.
+	 * @param array<int, array<string, mixed>> $approvals Client approval entries.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function with_client_approvals( array $records, array $approvals ): array {
+		if ( array() === $approvals ) {
+			return $records;
+		}
+
+		foreach ( $approvals as $approval ) {
+			$records = array_merge( $records, self::from_client_approval( $approval ) );
+		}
+
+		usort(
+			$records,
+			static fn( array $a, array $b ): int => $a['completed_at'] <=> $b['completed_at']
+		);
+
+		return $records;
+	}
+
+	/**
+	 * The client's approvals on these items, keyed by item: the history
+	 * entries of moves out of review made through the client (#391).
+	 *
+	 * @param array<int, string> $item_ids Item ids.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	private static function client_approvals( array $item_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $item_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::work_events_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+		$args  = array_merge( $wanted, array( Events::MOVED, 'in-review', Events::VIA_CLIENT ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, item_id, reason, cycle, attempt, actor, occurred_at FROM {$table} WHERE item_id IN ({$slots}) AND action = %s AND from_stage = %s AND via = %s ORDER BY occurred_at ASC, id ASC", $args ), ARRAY_A );
+
+		$by_item = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_item[ (string) $row['item_id'] ][] = $row;
+		}
+
+		return $by_item;
 	}
 
 	/**
@@ -190,6 +290,11 @@ final class GateRecords {
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			$by_item[ (string) $row['item_id'] ][] = self::hydrate( $row );
+		}
+
+		// #391. One more query for every item's client approvals.
+		foreach ( self::client_approvals( $wanted ) as $item_id => $approvals ) {
+			$by_item[ $item_id ] = self::with_client_approvals( $by_item[ $item_id ] ?? array(), $approvals );
 		}
 
 		return $by_item;

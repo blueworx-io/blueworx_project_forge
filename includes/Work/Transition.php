@@ -156,9 +156,11 @@ final class Transition {
 	 *                                           return.
 	 * @param int                  $sent_version Version moved against.
 	 * @param int                  $actor        Who is doing it.
+	 * @param string               $via          Events::VIA_CLIENT for the client's
+	 *                                           own decision (#391).
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public static function send_back( array $item, string $to, string $reason, string $feedback, int $sent_version, int $actor ) {
+	public static function send_back( array $item, string $to, string $reason, string $feedback, int $sent_version, int $actor, string $via = '' ) {
 		$from   = (string) $item['stage'];
 		$reason = trim( $reason );
 
@@ -215,9 +217,163 @@ final class Transition {
 				'reason'  => $reason,
 				'detail'  => $feedback,
 				'attempt' => (int) $item['review_attempt'],
+				'via'     => $via,
 			),
 			$sent_version,
 			$actor
+		);
+	}
+
+	/**
+	 * The client's review decision (#391): approve, or send back with a note.
+	 *
+	 * Only for an item in review with the client as its reviewer. Nobody at
+	 * the studio can approve as the client, so this is the one door: the
+	 * client's own site, or an admin recording what the client said.
+	 *
+	 * Approving still needs the rest of the review gate — open client
+	 * questions have to be answered first. The reviewer's own rows count as
+	 * met by the approval, which is the history entry of this move
+	 * ({@see GateRecords::from_client_approval()}).
+	 *
+	 * The item is the one just read, and its own version is moved against,
+	 * so a second decision on the same review is refused.
+	 *
+	 * @param array<string, mixed> $item          The item, as read.
+	 * @param string               $decision      ClientReviewer::APPROVE or SEND_BACK.
+	 * @param string               $note          What needs to change; required to send back.
+	 * @param string               $actor_label   The client's name, or the admin's.
+	 * @param int                  $actor_wp_user 0 for the client; the admin's id when
+	 *                                            recorded on the client's behalf.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function client_review( array $item, string $decision, string $note, string $actor_label, int $actor_wp_user ) {
+		if ( ! in_array( $decision, array( ClientReviewer::APPROVE, ClientReviewer::SEND_BACK ), true ) ) {
+			return new WP_Error(
+				'bwx_forge_unknown_decision',
+				__( 'Approve it or send it back.', 'blueworx-forge' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( Outcomes::is_closed( $item ) || ! empty( $item['archived'] ) ) {
+			return self::closed_error();
+		}
+
+		if ( ! ClientReviewer::awaiting( $item ) ) {
+			// A second click on a review already decided says so; anything
+			// else simply is not waiting for the client.
+			if ( ClientReviewer::is( $item ) && ClientReviewer::decided( $item, self::last_client_decision( $item ) ) ) {
+				return new WP_Error(
+					ClientReviewer::DECIDED,
+					__( 'Already decided.', 'blueworx-forge' ),
+					array( 'status' => 409 )
+				);
+			}
+
+			return new WP_Error(
+				ClientReviewer::NOT_THEIRS,
+				__( 'This task isn\'t waiting for the client\'s review.', 'blueworx-forge' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$note  = trim( $note );
+		$admin = $actor_wp_user > 0;
+		$entry = ClientReviewer::entry( $decision, $admin ? '' : $actor_label, $admin ? $actor_label : '' );
+
+		if ( ClientReviewer::SEND_BACK === $decision ) {
+			if ( '' === $note ) {
+				return new WP_Error(
+					'bwx_forge_feedback_required',
+					__( 'Say what needs to change.', 'blueworx-forge' ),
+					array( 'status' => 400 )
+				);
+			}
+
+			return self::send_back( $item, 'in-development', $entry, $note, (int) $item['record_version'], $actor_wp_user, Events::VIA_CLIENT );
+		}
+
+		$records = GateRecords::current_among(
+			$item,
+			array_merge(
+				array_values( GateRecords::current_for( $item ) ),
+				GateRecords::from_client_approval(
+					array(
+						'id'          => 'pending',
+						'item_id'     => (string) $item['id'],
+						'reason'      => $entry,
+						'cycle'       => (int) $item['cycle'],
+						'attempt'     => (int) $item['review_attempt'],
+						'actor'       => $actor_wp_user,
+						'occurred_at' => bwx_forge_now(),
+					)
+				)
+			)
+		);
+
+		$gates  = array( Transitions::gate_for( 'in-review', Stages::COMPLETED ), Transitions::entry_gate_for( Stages::COMPLETED ) );
+		$result = self::evaluate( $item, $gates, Items::children( (string) $item['id'] ), '', $records );
+
+		if ( array() !== $result['unmet'] ) {
+			return self::gate_error( $item, Stages::COMPLETED, $result['unmet'], $result['checks'] );
+		}
+
+		return self::commit(
+			$item,
+			Stages::COMPLETED,
+			array(),
+			array(
+				'action' => Events::MOVED,
+				'gate'   => $gates[0],
+				'reason' => $entry,
+				'detail' => $note,
+				'via'    => Events::VIA_CLIENT,
+			),
+			(int) $item['record_version'],
+			$actor_wp_user
+		);
+	}
+
+	/**
+	 * The review attempt of the client's last decision in this cycle, or null
+	 * when they have made none (#391).
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return int|null
+	 */
+	private static function last_client_decision( array $item ): ?int {
+		global $wpdb;
+
+		$table = Schema::work_events_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$attempt = $wpdb->get_var( $wpdb->prepare( "SELECT MAX( attempt ) FROM {$table} WHERE item_id = %s AND cycle = %d AND via = %s AND action IN ( %s, %s )", (string) $item['id'], (int) $item['cycle'], Events::VIA_CLIENT, Events::MOVED, Events::RETURNED ) );
+
+		return null === $attempt ? null : (int) $attempt;
+	}
+
+	/**
+	 * Emails the client that a task waits on their review (#391), once for
+	 * each review: the cycle and the review attempt are part of the event, so
+	 * a second review after a send-back is emailed too. Does nothing unless
+	 * the task is in review with the client reviewing.
+	 *
+	 * @param array<string, mixed> $item The item as it now stands.
+	 */
+	public static function request_client_review( array $item ): void {
+		if ( ! ClientReviewer::awaiting( $item ) ) {
+			return;
+		}
+
+		Register::claim(
+			array(
+				'kind'           => Notifications::REVIEW_REQUESTED,
+				'subject_id'     => (string) $item['id'],
+				'occurrence'     => Notifications::review_occurrence( (int) $item['cycle'], (int) $item['review_attempt'] ),
+				'client_id'      => (string) ( $item['client_id'] ?? '' ),
+				'client_site_id' => (string) $item['client_site_id'],
+			)
 		);
 	}
 
@@ -1182,6 +1338,13 @@ final class Transition {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'START TRANSACTION' );
 
+		// #391. Back before Up Next, the client stops being the reviewer.
+		$drops_client = ClientReviewer::leaves( $item, $to );
+
+		if ( $drops_client ) {
+			$also['reviewer_id'] = '';
+		}
+
 		$moved = Items::apply_stage( (string) $item['id'], $to, $sent_version, $also );
 
 		if ( ! $moved ) {
@@ -1215,6 +1378,24 @@ final class Transition {
 				$event
 			)
 		);
+
+		// The cleared seat is written down with the move, or neither happens.
+		if ( $recorded && $drops_client ) {
+			$recorded = Events::append(
+				array(
+					'item_id'        => (string) $item['id'],
+					'client_site_id' => (string) $item['client_site_id'],
+					'action'         => Events::EDITED,
+					'field'          => 'reviewer_id',
+					'previous_value' => ClientReviewer::ID,
+					'new_value'      => '',
+					'reason'         => ClientReviewer::cleared(),
+					'cycle'          => (int) $item['cycle'],
+					'attempt'        => (int) $item['review_attempt'],
+					'actor'          => $actor,
+				)
+			);
+		}
 
 		if ( ! $recorded ) {
 			// A move nobody can account for afterwards is worse than a move that
@@ -1290,6 +1471,9 @@ final class Transition {
 				)
 			);
 		}
+
+		// #391. Arriving in review with the client reviewing asks them to.
+		self::request_client_review( $moved_item );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'COMMIT' );

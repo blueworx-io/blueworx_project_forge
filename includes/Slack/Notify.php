@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Slack;
 use Blueworx\Forge\Frontend;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Users;
+use Blueworx\Forge\Work\ClientReviewer;
 use Blueworx\Forge\Work\Stages;
 
 /**
@@ -54,6 +55,11 @@ final class Notify {
 		foreach ( array_keys( self::SEATS ) as $seat ) {
 			$now = (string) ( $after[ $seat ] ?? '' );
 
+			// #391. The client is not somebody Slack can reach.
+			if ( ClientReviewer::ID === $now ) {
+				continue;
+			}
+
 			if ( '' !== $now && (string) ( $before[ $seat ] ?? '' ) !== $now ) {
 				$changes[ $seat ] = $now;
 			}
@@ -92,7 +98,7 @@ final class Notify {
 	public static function moved( array $item ): void {
 		$stage = (string) ( $item['stage'] ?? '' );
 
-		if ( 'in-review' === $stage && '' !== (string) ( $item['reviewer_id'] ?? '' ) ) {
+		if ( 'in-review' === $stage && '' !== (string) ( $item['reviewer_id'] ?? '' ) && ! ClientReviewer::is( $item ) ) {
 			self::send(
 				Events::READY,
 				(string) $item['id'],
@@ -129,7 +135,7 @@ final class Notify {
 		foreach ( array_keys( self::SEATS ) as $seat ) {
 			$user_id = (string) ( $item[ $seat ] ?? '' );
 
-			if ( '' === $user_id || $user_id === $author_uid ) {
+			if ( '' === $user_id || $user_id === $author_uid || ClientReviewer::ID === $user_id ) {
 				continue;
 			}
 
