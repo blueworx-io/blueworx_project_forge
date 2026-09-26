@@ -103,12 +103,14 @@ final class RemindersTest extends TestCase {
 		self::assertFalse( Reminders::is_reminder( '' ) );
 	}
 
-	public function test_the_type_defaults_to_general_and_must_be_one_of_five(): void {
+	public function test_the_type_defaults_to_general_and_must_be_one_of_seven(): void {
 		self::assertSame( 'general', Reminders::validate( $this->good(), false )['values']['category'] );
 		self::assertSame( 'deadline', Reminders::validate( array_merge( $this->good(), array( 'category' => 'deadline' ) ), false )['values']['category'] );
+		self::assertSame( 'sales', Reminders::validate( array_merge( $this->good(), array( 'category' => 'sales' ) ), false )['values']['category'] );
+		self::assertSame( 'finance', Reminders::validate( array_merge( $this->good(), array( 'category' => 'finance' ) ), false )['values']['category'] );
 		self::assertSame( 'Pick a type.', Reminders::validate( array_merge( $this->good(), array( 'category' => 'party' ) ), false )['errors']['category'] );
 		self::assertArrayNotHasKey( 'category', Reminders::validate( array( 'title' => 'Only the title' ), true )['values'] );
-		self::assertSame( array( 'general', 'campaign', 'marketing', 'deadline', 'other' ), array_keys( Reminders::CATEGORIES ) );
+		self::assertSame( array( 'general', 'campaign', 'marketing', 'sales', 'finance', 'deadline', 'other' ), array_keys( Reminders::CATEGORIES ) );
 	}
 
 	public function test_a_day_the_calendar_does_not_have_is_not_a_date(): void {
