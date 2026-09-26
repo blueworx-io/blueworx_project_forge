@@ -1906,6 +1906,12 @@ body {
   transition: inline-size var( --motion-fast ) var( --ease-out );
 }
 
+/* Said beside the dates: the top bar's client does not narrow this screen (#402). */
+.bwx-capacity-scope {
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+}
+
 .bwx-capacity-legend {
   display: flex;
   align-items: center;

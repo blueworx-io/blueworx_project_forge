@@ -259,3 +259,51 @@ test.describe('screens that narrow what they load', () => {
     await admin.context.close();
   });
 });
+
+test.describe('Reports and Capacity', () => {
+  test('/reports narrows to one reachable client, and refuses one out of reach', async ({ browser, baseURL }) => {
+    const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+    const world = await twoClients(admin.api, 'Reports');
+    await makeItem(admin.api, world.one.site.id, { title: `Another first ${RUN_ID}` });
+
+    const counted = (answer) => Object.values(answer.reports.stage_distribution).reduce((sum, n) => sum + n, 0);
+
+    const one = await admin.api.get(`/reports?client_site_id=${world.one.site.id}`);
+    const two = await admin.api.get(`/reports?client_site_id=${world.two.site.id}`);
+    const every = await admin.api.get('/reports');
+    expect(counted(one)).toBe(2);
+    expect(counted(two)).toBe(1);
+    expect(counted(every)).toBeGreaterThanOrEqual(3);
+
+    const person = await makePerson(admin.api, world.one.client.id, 'staff', `reports${RUN_ID.replace('-', '')}`);
+    const staff = await signedIn(browser, baseURL, person.login, PASSWORD);
+    const mine = await staff.api.request.get(`/wp-json/blueworx-forge/v1/reports?client_site_id=${world.one.site.id}`, { headers: staff.api.headers });
+    expect(mine.status()).toBe(200);
+    const theirs = await staff.api.request.get(`/wp-json/blueworx-forge/v1/reports?client_site_id=${world.two.site.id}`, { headers: staff.api.headers });
+    expect(theirs.status()).toBe(403);
+
+    await staff.context.close();
+    await admin.context.close();
+  });
+
+  test('the Reports screen sends the picked client; Capacity shows everyone', async ({ browser, baseURL, page }) => {
+    const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+    const where = await makeSite(admin.api, 'Reports screen', RUN_ID);
+
+    await signIn(page, ADMIN_USER, ADMIN_PASS);
+    await page.goto('/blueworx-forge/');
+    await page.getByTestId('bwx-client-choice').selectOption(where.site.id);
+
+    const asked = page.waitForRequest((req) => req.url().includes('/reports?') && req.url().includes(`client_site_id=${where.site.id}`));
+    await page.getByTestId('bwx-screen-reports').click();
+    await asked;
+
+    await page.getByTestId('bwx-screen-capacity').click();
+    await expect(page.getByTestId('bwx-capacity-scope')).toHaveText('Capacity counts all clients.', { timeout: 60_000 });
+    const capacity = page.waitForRequest((req) => req.url().includes('/capacity'));
+    await page.getByTestId('bwx-refresh-all').click();
+    expect((await capacity).url()).not.toContain('client_site_id');
+
+    await admin.context.close();
+  });
+});

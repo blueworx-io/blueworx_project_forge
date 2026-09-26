@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 import type { ReportsResponse, ReportSummary } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
@@ -125,21 +127,50 @@ export function ReportsScreen() {
   const [ data, setData ] = useState< ReportsResponse | undefined >();
   const [ notice, setNotice ] = useState( '' );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
+  // The top bar's client (#402): the server narrows the numbers to it.
+  const { siteId } = useClientChoice();
+  // The last read asked for; an answer for an older one is dropped.
+  const latest = useRef( '' );
 
   const load = useCallback( async () => {
+    const site = ALL_SITES === siteId ? '' : `&client_site_id=${ encodeURIComponent( siteId ) }`;
+    const path = `/reports?from=${ range.from }&to=${ range.to }${ site }`;
+
+    latest.current = path;
+
     try {
-      setData( await api< ReportsResponse >( `/reports?from=${ range.from }&to=${ range.to }` ) );
+      const answer = await api< ReportsResponse >( path );
+
+      if ( path !== latest.current ) {
+        return;
+      }
+
+      setData( answer );
       setState( 'ready' );
     } catch ( failure ) {
+      if ( path !== latest.current ) {
+        return;
+      }
+
       setNotice( messageFor( failure, 'The delivery numbers could not be read.' ) );
       setState( isDenied( failure ) ? 'denied' : 'error' );
     }
-  }, [ range.from, range.to ] );
+  }, [ range.from, range.to, siteId ] );
 
   useEffect( () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load ] );
+
+  // Another client picked: say it is loading rather than show the last one's numbers.
+  const shownFor = useRef( siteId );
+  useEffect( () => {
+    if ( shownFor.current !== siteId ) {
+      shownFor.current = siteId;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState( 'loading' );
+    }
+  }, [ siteId ] );
 
   useLiveReload( load );
 
