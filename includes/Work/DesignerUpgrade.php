@@ -23,6 +23,12 @@ use Blueworx\Forge\Data\Schema;
 final class DesignerUpgrade {
 
 	/**
+	 * Rows written per UPDATE, so a large site batches rather than issuing one
+	 * statement per task.
+	 */
+	private const CHUNK = 500;
+
+	/**
 	 * Names the Designers on this site.
 	 */
 	public static function run(): void {
@@ -31,14 +37,66 @@ final class DesignerUpgrade {
 		$items   = Schema::work_items_table();
 		$records = Schema::gate_records_table();
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own tables; names cannot be placeholders.
-		$rows = $wpdb->get_results( "SELECT id, stage, prior_stage, primary_user_id, designer_id, cycle, archived, terminal_outcome FROM {$items} WHERE designer_id = ''", ARRAY_A );
+		// Only open work not yet past Design can be a candidate at all; picks()
+		// still checks stage, primary and cycle precisely, this just keeps the
+		// row set small on a large table.
+		$design = Stages::position( 'design-process' );
+		$stages = array_merge( array_slice( Stages::ALL, 0, $design + 1 ), array( 'blocked' ) );
+		$slots  = implode( ', ', array_fill( 0, count( $stages ), '%s' ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own tables; names cannot be placeholders; the stage placeholders are counted above.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, stage, prior_stage, primary_user_id, designer_id, cycle, archived, terminal_outcome FROM {$items} WHERE designer_id = '' AND archived = 0 AND terminal_outcome = '' AND stage IN ({$slots})",
+				$stages
+			),
+			ARRAY_A
+		);
 		$skip = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, cycle FROM {$records} WHERE requirement = %s", Gates::DESIGN_NOT_APPLICABLE ), ARRAY_A );
 
-		foreach ( self::picks( is_array( $rows ) ? $rows : array(), is_array( $skip ) ? $skip : array() ) as $id => $designer ) {
-			$wpdb->update( $items, array( 'designer_id' => $designer ), array( 'id' => $id ), array( '%s' ), array( '%s' ) );
+		$picks = self::picks( is_array( $rows ) ? $rows : array(), is_array( $skip ) ? $skip : array() );
+
+		foreach ( array_chunk( $picks, self::CHUNK, true ) as $chunk ) {
+			self::apply( $items, $chunk );
 		}
-		// phpcs:enable
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+	}
+
+	/**
+	 * Writes one chunk of picks in a single UPDATE, each row set to its own
+	 * Designer via CASE. `designer_id = ''` in the WHERE keeps a second run a
+	 * no-op even if called again with the same picks.
+	 *
+	 * @param string                $items Work items table.
+	 * @param array<string, string> $picks Task id to Designer, one chunk.
+	 */
+	private static function apply( string $items, array $picks ): void {
+		global $wpdb;
+
+		if ( array() === $picks ) {
+			return;
+		}
+
+		$cases  = '';
+		$values = array();
+		$ids    = array_keys( $picks );
+
+		foreach ( $picks as $id => $designer ) {
+			$cases   .= ' WHEN %s THEN %s';
+			$values[] = $id;
+			$values[] = $designer;
+		}
+
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own table; the CASE structure is fixed, only values are interpolated, and all through prepare(); the placeholders are counted above.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$items} SET designer_id = CASE id{$cases} ELSE designer_id END WHERE id IN ({$slots}) AND designer_id = ''",
+				array_merge( $values, $ids )
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 	}
 
 	/**

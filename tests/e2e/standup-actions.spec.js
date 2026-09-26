@@ -34,6 +34,10 @@ const UP_TO_DESIGN = [
  * stage would do; this one is chosen because the gate it is sitting behind
  * is satisfied by picks rather than by filling in fields, so there is
  * something on the card for a person to actually do.
+ *
+ * #409: a task with no Designer clears Design with nothing to check, so a
+ * Designer is named here (the same person doing the work) to keep Design's
+ * checks outstanding for these specs.
  */
 async function withSomethingOutstanding(browser, baseURL) {
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -47,7 +51,7 @@ async function withSomethingOutstanding(browser, baseURL) {
   expect(made.status(), await made.text()).toBe(200);
 
   const item = await Forge.walkTo(admin.api, (await made.json()).item, UP_TO_DESIGN, {
-    seats: crew.seats,
+    seats: { ...crew.seats, designer_id: crew.seats.primary_user_id },
   });
 
   return { admin, client, crew, item };
