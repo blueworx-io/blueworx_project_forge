@@ -20,7 +20,7 @@ Studio only; the client plugin is untouched. Version 2.138.0.
 - **Calendar diary**: `/calendar` entries gain `site_id` — the site of the chore, reminder, meeting or subscription, and `''` for things that belong to no client (company dates, leave, birthdays). With a single site picked, entries show if their `site_id` is that site or `''`.
 - **Meetings**: as today, including All clients.
 - **Support**: one site is as today. All clients shows a new table, one row per site the person reaches: client, package, hours this period, used, left, and status. A row opens that site (sets the top bar). New route `GET /support-summary`, administrator-only like the rest of Support, reach-filtered, read in one batched query rather than one per site.
-- **My Tasks**: filtered in the browser by `client_site_id` (rows carry it). The Today's diary on My Tasks follows the same rule as the calendar.
+- **My Tasks**: filtered in the browser by `client_site_id` (rows carry it). Its own "Client" filter chip is removed; the top bar replaces it. The Today's diary on My Tasks follows the same rule as the calendar.
 - **Standup**: filtered in the browser by each row's `site_id`. Rows without a site (company-wide) always show.
 - **Recurring tasks, Reminders, Requests (Queue)**: filtered in the browser by `client_site_id`.
 - **Reports**: `/reports` accepts an optional `client_site_id` that narrows the rows before they are added up. The site must be one the person reaches, or the answer is 403.
