@@ -48,8 +48,8 @@ final class Commitments {
 			return array();
 		}
 
-		$table  = Schema::work_items_table();
 		// Finished work too (#384): the time was used, so it stays on its days.
+		$table  = Schema::work_items_table();
 		$stages = array_merge( Allocations::COMMITTING, array( Stages::BLOCKED ), Allocations::FINISHED );
 		$slots  = implode( ', ', array_fill( 0, count( $stages ), '%s' ) );
 
