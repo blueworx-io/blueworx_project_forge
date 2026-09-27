@@ -60,6 +60,8 @@ final class Fields {
 	 */
 	public const ACCOUNTABILITY = array(
 		'primary_user_id',
+		// #409. Optional: with nobody here, the task skips Design.
+		'designer_id',
 		'reviewer_id',
 		'deliverer_id',
 		'hours_primary',

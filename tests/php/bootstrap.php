@@ -65,13 +65,18 @@ class BWX_Forge_Test_Wpdb {
 	}
 
 	/**
-	 * Stub. A %s-only sprintf, which is all Schema's own query needs.
+	 * Stub. A %s-only sprintf, which is all Schema's own queries need. As in
+	 * core, a single array argument is unpacked to one value per placeholder.
 	 *
 	 * @param string $query Query with %s placeholders.
-	 * @param mixed  ...$args Values to interpolate.
+	 * @param mixed  ...$args Values to interpolate, or one array of them.
 	 * @return string
 	 */
 	public function prepare( string $query, ...$args ): string {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) {
+			$args = $args[0];
+		}
+
 		foreach ( $args as $arg ) {
 			$query = preg_replace( '/%s/', "'" . (string) $arg . "'", $query, 1 );
 		}
@@ -96,6 +101,42 @@ class BWX_Forge_Test_Wpdb {
 
 		return in_array( $matches[1], $existing, true ) ? $matches[1] : null;
 	}
+
+	/**
+	 * Stub. Returns rows a test staged for the upgrade step Schema runs (#409):
+	 * $GLOBALS['bwx_forge_test_designer_rows'] for the work items query,
+	 * $GLOBALS['bwx_forge_test_designer_na'] for the gate records one. Neither
+	 * staged, the table "has" no rows.
+	 *
+	 * @param string $query Prepared query.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_results( string $query ): array {
+		bwx_forge_test_record( 'get_results', $query );
+
+		if ( false !== strpos( $query, 'bwx_forge_work_items' ) ) {
+			return $GLOBALS['bwx_forge_test_designer_rows'] ?? array();
+		}
+
+		if ( false !== strpos( $query, 'bwx_forge_gate_records' ) ) {
+			return $GLOBALS['bwx_forge_test_designer_na'] ?? array();
+		}
+
+		return array();
+	}
+
+	/**
+	 * Stub. Records a write query so a test can assert what it says, without
+	 * touching a database.
+	 *
+	 * @param string $query Prepared query.
+	 * @return int
+	 */
+	public function query( string $query ): int {
+		bwx_forge_test_record( 'query', $query );
+
+		return 0;
+	}
 }
 
 /**
@@ -111,6 +152,10 @@ function dbDelta( string $sql ): array {
 	bwx_forge_test_record( 'dbDelta', $sql );
 
 	return array();
+}
+
+if ( ! defined( 'ARRAY_A' ) ) {
+	define( 'ARRAY_A', 'ARRAY_A' );
 }
 
 $GLOBALS['wpdb'] = new BWX_Forge_Test_Wpdb();

@@ -424,6 +424,46 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
+	 * #409. The step that adds the Designer names one on existing work, once;
+	 * a fresh site has nothing to name. Beyond querying, this checks what the
+	 * upgrade actually writes: the open task's own doer, on its own row.
+	 */
+	public function test_the_designer_step_runs_only_on_a_site_coming_from_before_it(): void {
+		$GLOBALS['bwx_forge_test_existing_tables']  = array_keys( Schema::definitions() );
+		$GLOBALS['bwx_forge_test_designer_rows']    = array(
+			array(
+				'id'               => 'wrk_open',
+				'stage'            => 'technical-audit',
+				'prior_stage'      => '',
+				'primary_user_id'  => 'usr_p',
+				'designer_id'      => '',
+				'cycle'            => 1,
+				'archived'         => 0,
+				'terminal_outcome' => '',
+			),
+		);
+		$GLOBALS['bwx_forge_test_designer_na']      = array();
+
+		update_option( Schema::OPTION, 34 );
+		Schema::maybe_upgrade();
+
+		$calls   = $GLOBALS['bwx_forge_test_calls'];
+		$queries = array_column( array_filter( $calls, static fn( $call ) => 'query' === $call[0] ), 1 );
+
+		$this->assertContains( 'get_results', array_column( $calls, 0 ) );
+		$this->assertNotEmpty( $queries, 'the upgrade writes the pick it found' );
+		$this->assertStringContainsString( "'wrk_open'", $queries[0] );
+		$this->assertStringContainsString( "'usr_p'", $queries[0] );
+		$this->assertStringContainsString( 'designer_id', $queries[0] );
+
+		unset( $GLOBALS['bwx_forge_test_designer_rows'], $GLOBALS['bwx_forge_test_designer_na'] );
+		$GLOBALS['bwx_forge_test_calls'] = array();
+		delete_option( Schema::OPTION );
+		Schema::maybe_upgrade();
+		$this->assertNotContains( 'get_results', array_column( $GLOBALS['bwx_forge_test_calls'], 0 ) );
+	}
+
+	/**
 	 * A site already at the current version never calls dbDelta() at all — the
 	 * ordinary case is one option read.
 	 */

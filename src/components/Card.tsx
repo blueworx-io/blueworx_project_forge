@@ -69,7 +69,10 @@ export function Card( {
   const chip = TYPE_CHIP[ item.work_type ] ?? TYPE_CHIP.task;
   const blocked = 'blocked' === item.stage;
   const when = due( item );
-  const seats = [ item.primary_user_id, item.reviewer_id, item.deliverer_id ];
+  // The Designer (#409) only when there is one and it isn't also the person
+  // doing the work, so most cards keep three and nobody's avatar repeats.
+  const hasDesigner = item.designer_id && item.designer_id !== item.primary_user_id;
+  const seats = [ item.primary_user_id, ...( hasDesigner ? [ item.designer_id ] : [] ), item.reviewer_id, item.deliverer_id ];
 
   return (
     <button

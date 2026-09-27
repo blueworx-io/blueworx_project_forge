@@ -66,7 +66,7 @@ final class Filters {
 	/**
 	 * The seats the person filter looks at.
 	 */
-	private const SEATS = array( 'primary_user_id', 'reviewer_id', 'deliverer_id' );
+	private const SEATS = array( 'primary_user_id', 'designer_id', 'reviewer_id', 'deliverer_id' );
 
 	/**
 	 * What a saved view is allowed to hold.

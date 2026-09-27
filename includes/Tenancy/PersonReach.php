@@ -28,6 +28,7 @@ final class PersonReach {
 	 */
 	public const SEATS = array(
 		'primary_user_id',
+		'designer_id',
 		'reviewer_id',
 		'deliverer_id',
 		'reviewer_substitute_id',

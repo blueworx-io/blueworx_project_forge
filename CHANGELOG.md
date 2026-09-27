@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.140.0] - 2026-09-27
+
+### Added
+
+- Tasks can name a Designer. With one, the Design checks apply; without one, the task skips Design.
+
 ## [2.139.0] - 2026-09-27
 
 ### Added
