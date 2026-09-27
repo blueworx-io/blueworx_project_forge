@@ -21,7 +21,7 @@ test( 'releasing asks nothing about where or when, and the panel shows when it w
   // None of the four release details is asked for on the way out of Completed.
   const read = await admin.api.get( `/work-items/${ item.id }` );
   const asked = ( read.readiness.released?.unmet ?? [] ).map( ( row ) => row.label );
-  for ( const gone of [ 'Target environment, version or destination', 'Release window', 'Release date and time', 'Environment and version, or handover destination' ] ) {
+  for ( const gone of [ 'Release method', 'Target environment, version or destination', 'Release window', 'Release date and time', 'Environment and version, or handover destination' ] ) {
     expect( asked ).not.toContain( gone );
   }
   expect( ( read.readiness.released?.unmet ?? [] ).map( ( row ) => row.id ).filter( ( id ) => id.startsWith( 'G-RELEASED' ) ) ).toEqual( [] );
@@ -31,6 +31,7 @@ test( 'releasing asks nothing about where or when, and the panel shows when it w
   const panel = page.getByTestId( 'bwx-panel' );
   await expect( panel ).toContainText( `Ship it ${ RUN }`, { timeout: 60_000 } );
   await expect( panel.locator( '#bwx-release_destination' ) ).toHaveCount( 0 );
+  await expect( panel.locator( '#bwx-release_method' ) ).toHaveCount( 0 );
   await page.close();
 
   item = read.item;

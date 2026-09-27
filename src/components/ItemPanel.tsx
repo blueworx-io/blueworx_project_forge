@@ -130,14 +130,6 @@ const CLASSES = [
 
 const PRIORITIES = [ 'low', 'normal', 'high', 'urgent' ] as const;
 
-const RELEASE_METHODS = [
-  { value: 'software', label: 'Software' },
-  { value: 'content', label: 'Content' },
-  { value: 'design', label: 'Design' },
-  { value: 'infrastructure', label: 'Infrastructure' },
-  { value: 'non-deployment', label: 'Nothing was deployed' },
-] as const;
-
 const DATES = [
   { field: 'planned_start', label: 'Starts', needed: 'up-next' },
   { field: 'planned_due', label: 'Due', needed: 'up-next' },
@@ -154,8 +146,6 @@ const DATES = [
 const ASSIGNMENT = [
   'commercial_class',
   'priority',
-  'release_method',
-  'release_destination',
   ...SEATS.flatMap( ( seat ) => [ seat.field, seat.hours ] ),
   ...DATES.map( ( date ) => date.field ),
 ] as const;
@@ -175,7 +165,6 @@ const NEEDED_FROM: Record< string, string > = {
   deliverer_id: 'up-next',
   planned_start: 'up-next',
   planned_due: 'up-next',
-  release_method: 'completed',
   non_goals: 'documentation-period',
 };
 
@@ -2248,30 +2237,6 @@ export function ItemPanel( {
                     </div>
                   ) ) }
                 </div>
-
-                { /* WF-6, and only once something has actually been delivered. */ }
-                { reached( 'completed' ) && (
-                  <div className="bwx-pair">
-                    <div className="bwx-field">
-                      { naming( 'release_method', 'How it was released' ) }
-                      <select
-                        id="bwx-release_method"
-                        className="bwx-select"
-                        value={ draft.release_method ?? '' }
-                        onChange={ ( event ) =>
-                          setDraft( { ...draft, release_method: event.target.value } )
-                        }
-                      >
-                        <option value="">Not set</option>
-                        { RELEASE_METHODS.map( ( option ) => (
-                          <option key={ option.value } value={ option.value }>
-                            { option.label }
-                          </option>
-                        ) ) }
-                      </select>
-                    </div>
-                  </div>
-                ) }
               </div>
             ) }
 
