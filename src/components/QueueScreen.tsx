@@ -455,14 +455,17 @@ function kindOf( type: string ): string {
 /**
  * How long a request has been waiting, in the roughest unit that is still true.
  *
- * Shown for everything, answered or not. "Answered after eleven days" is as
- * much a fact about how the studio is doing as "waiting eleven days" is.
+ * Shown for everything, answered or not. An answered request counts to its
+ * answer and stops there (#419): "answered after two days" stays two days, so
+ * the column never makes a quick reply look slow.
  */
 function waited( one: Submission ): string {
-  const days = Math.floor( ( Date.now() / 1000 - one.created_at ) / 86400 );
+  const answered = 0 < ( one.decided_at ?? 0 );
+  const until = answered ? one.decided_at : Date.now() / 1000;
+  const days = Math.floor( ( until - one.created_at ) / 86400 );
 
   if ( 0 >= days ) {
-    return 'today';
+    return answered ? 'same day' : 'today';
   }
 
   if ( 1 === days ) {

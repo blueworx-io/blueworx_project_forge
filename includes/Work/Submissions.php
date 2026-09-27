@@ -266,6 +266,10 @@ final class Submissions {
 		$changes['updated_at']     = bwx_forge_now();
 		$changes['record_version'] = ( (int) $existing['record_version'] ) + 1;
 
+		if ( isset( $changes['intake_state'] ) ) {
+			$changes['decided_at'] = self::decided_at( $existing, (string) $changes['intake_state'], $changes['updated_at'] );
+		}
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- This plugin's own table; there is no core API for it.
 		$written = $wpdb->update(
 			Schema::submissions_table(),
@@ -313,10 +317,12 @@ final class Submissions {
 			return null;
 		}
 
+		$now     = bwx_forge_now();
 		$changes = array(
 			'converted_item_id' => $item_id,
 			'intake_state'      => 'converted',
-			'updated_at'        => bwx_forge_now(),
+			'decided_at'        => self::decided_at( $existing, 'converted', $now ),
+			'updated_at'        => $now,
 			'record_version'    => ( (int) $existing['record_version'] ) + 1,
 		);
 
@@ -398,6 +404,42 @@ final class Submissions {
 	}
 
 	/**
+	 * When a request was answered, given the state it is moving to (#419).
+	 *
+	 * The first answer's time is kept, so a request accepted and then
+	 * converted counts to when it was accepted; put back to waiting, it has no
+	 * answer and counts on.
+	 *
+	 * @param array<string, mixed> $existing The stored row.
+	 * @param string               $state    The state it is moving to.
+	 * @param int                  $now      Unix time.
+	 * @return int Unix time, or 0 while it waits.
+	 */
+	public static function decided_at( array $existing, string $state, int $now ): int {
+		if ( in_array( $state, array( self::RECEIVED, 'in-review' ), true ) ) {
+			return 0;
+		}
+
+		$already = (int) ( $existing['decided_at'] ?? 0 );
+
+		return $already > 0 ? $already : $now;
+	}
+
+	/**
+	 * Every request answered before its answer's time was kept is given its
+	 * last change as the nearest there is (#419). Once, on the schema step
+	 * that adds the column.
+	 */
+	public static function backfill_decided_at(): void {
+		global $wpdb;
+
+		$table = Schema::submissions_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The table name is this class's own literal, and there is nothing to interpolate.
+		$wpdb->query( "UPDATE {$table} SET decided_at = updated_at WHERE decided_at = 0 AND intake_state IN ('accepted', 'declined', 'converted')" );
+	}
+
+	/**
 	 * A stored row, with its numbers as numbers.
 	 *
 	 * @param array<string, mixed> $row As the database returned it.
@@ -406,6 +448,7 @@ final class Submissions {
 	private static function hydrate( array $row ): array {
 		$row['created_at']     = (int) $row['created_at'];
 		$row['updated_at']     = (int) $row['updated_at'];
+		$row['decided_at']     = (int) ( $row['decided_at'] ?? 0 );
 		$row['created_by']     = (int) $row['created_by'];
 		$row['record_version'] = (int) $row['record_version'];
 

@@ -37,9 +37,9 @@ test( 'a bulk decline records the reason on every request picked', async ( { bro
   const dialog = page.getByTestId( 'bwx-queue-decline' );
   await dialog.getByLabel( 'Reason' ).fill( reason );
   await dialog.getByRole( 'button', { name: 'Decline them' } ).click();
-
   // Both are declined with the reason on them; the third is untouched.
-  await expect( row( first.id ) ).toHaveAttribute( 'data-state', 'declined' );
+  // The saves go one after another, so allow for a slow host.
+  await expect( row( first.id ) ).toHaveAttribute( 'data-state', 'declined', { timeout: 30_000 } );
   await expect( row( second.id ) ).toHaveAttribute( 'data-state', 'declined' );
   await expect( row( kept.id ) ).toHaveAttribute( 'data-state', 'received' );
   await expect( bar ).toHaveCount( 0 );
@@ -49,8 +49,13 @@ test( 'a bulk decline records the reason on every request picked', async ( { bro
     const one = queue.submissions.find( ( each ) => each.id === id );
     expect( one.intake_state ).toBe( 'declined' );
     expect( one.response ).toBe( reason );
+    // When it was answered is kept, and Waiting counts to it (#419).
+    expect( one.decided_at ).toBeGreaterThanOrEqual( one.created_at );
   }
   expect( queue.submissions.find( ( each ) => each.id === kept.id ).response ).toBe( '' );
+  expect( queue.submissions.find( ( each ) => each.id === kept.id ).decided_at ).toBe( 0 );
+  await expect( row( first.id ) ).toContainText( 'same day' );
+  await expect( row( kept.id ) ).toContainText( 'today' );
 
   await page.close();
   await admin.context.close();

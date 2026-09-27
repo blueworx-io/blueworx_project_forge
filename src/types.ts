@@ -300,6 +300,8 @@ export interface Submission {
   converted_item_id: string;
   created_at: number;
   updated_at: number;
+  /** When it was first answered; 0 while it waits (#419). */
+  decided_at: number;
 }
 
 /**
