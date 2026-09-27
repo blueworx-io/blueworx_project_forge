@@ -39,7 +39,8 @@ final class SubscriptionsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
-				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				// #406. Administrators only; hidden from Managers.
+				'permission_callback' => array( Permissions::class, 'manage' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
 					'reason' => 'Subscriptions belong to the studio; the callback refuses anyone whose reach does not include the studio\'s own site.',

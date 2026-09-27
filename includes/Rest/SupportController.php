@@ -80,22 +80,30 @@ final class SupportController {
 		);
 
 		foreach ( $routes as list( $method, $path, $callback ) ) {
+			// #406. A Manager reads the hours of a site they reach; every
+			// change here stays the administrator's.
+			$read = 'read' === $callback;
+
 			Server::register_route(
 				$route_namespace,
 				$site . $path,
 				array(
 					'methods'             => $method,
 					'callback'            => array( self::class, $callback ),
-					'permission_callback' => array( Permissions::class, 'manage' ),
-					'scope'               => $scope,
+					'permission_callback' => $read ? array( Permissions::class, 'signed_in' ) : array( Permissions::class, 'manage' ),
+					'scope'               => $read ? array(
+						'kind'   => Boundary::SCOPE_SITE,
+						'param'  => 'site_id',
+						'record' => 'client_site',
+					) : $scope,
 				)
 			);
 		}
 
 		/*
 		 * Every client's hours on one table, for Support's All clients
-		 * (#402). Administrator-only like the rest of Support; a set the
-		 * callback narrows with Reach, like /meetings.
+		 * (#402). Open to a Manager like the one-site
+		 * read (#406); a set the callback narrows with Reach, like /meetings.
 		 */
 		Server::register_route(
 			$route_namespace,
@@ -103,7 +111,7 @@ final class SupportController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'summary' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
 					'reason' => 'Every client\'s support hours, for the Client picker\'s All clients (#402). Reach::keep_sites() narrows the set the way the site picker does.',

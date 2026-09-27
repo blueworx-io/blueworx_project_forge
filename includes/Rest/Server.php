@@ -68,6 +68,12 @@ final class Server {
 			);
 		}
 
+		// #406. Only administrators and Managers get past this, whatever the
+		// route itself would have said.
+		if ( Permissions::behind_the_door( $args['permission_callback'] ) ) {
+			$args['permission_callback'] = Permissions::behind_door( $args['permission_callback'] );
+		}
+
 		register_rest_route( $route_namespace, $route, Boundary::apply( $route_namespace . $route, $args ) );
 	}
 

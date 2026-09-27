@@ -27,8 +27,9 @@ use WP_REST_Response;
  * work, hours, packages, onboarding — lives here rather than on the client
  * above it.
  *
- * Every route here stays on Permissions::manage(). That is not a leftover: a
- * client site is administrator-only configuration (ARCH-7). Since #92 they
+ * Every write here stays on Permissions::manage(). That is not a leftover: a
+ * client site is administrator-only configuration (ARCH-7). The two lists are
+ * open to a Manager, read-only (#406). Since #92 they
  * are scoped as well as gated, so
  * the listing offers only the sites the person reaches and a named site outside
  * their reach answers as absent.
@@ -80,7 +81,9 @@ final class ClientSitesController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				// #406. Read-only for a Manager on the Clients screen, and only
+				// the sites they reach.
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_CLIENT,
 					'param'  => 'client_id',
@@ -237,7 +240,7 @@ final class ClientSitesController {
 		}
 
 		$status = (string) $request->get_param( 'status' );
-		$sites  = ClientSites::for_client( $client_id, 'all' === $status ? null : $status );
+		$sites  = Reach::keep_sites( Boundary::current(), ClientSites::for_client( $client_id, 'all' === $status ? null : $status ), 'id' );
 
 		/*
 		 * Every site's connection comes back with it, from one query rather than

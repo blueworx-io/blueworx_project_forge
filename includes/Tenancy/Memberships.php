@@ -71,6 +71,9 @@ final class Memberships {
 			return null;
 		}
 
+		// #406. Their account's Manager role follows.
+		do_action( 'bwx_forge_access_changed', $user_id );
+
 		return self::hydrate( $row );
 	}
 
@@ -202,7 +205,13 @@ final class Memberships {
 			return null;
 		}
 
-		return self::get( $id );
+		$updated = self::get( $id );
+
+		if ( null !== $updated ) {
+			do_action( 'bwx_forge_access_changed', (string) $updated['user_id'] );
+		}
+
+		return $updated;
 	}
 
 	/**
@@ -224,7 +233,11 @@ final class Memberships {
 	 * @return int Rows changed.
 	 */
 	public static function deactivate_for_user( string $user_id ): int {
-		return self::deactivate_where( 'user_id = %s', $user_id );
+		$ended = self::deactivate_where( 'user_id = %s', $user_id );
+
+		do_action( 'bwx_forge_access_changed', $user_id );
+
+		return $ended;
 	}
 
 	/**

@@ -60,6 +60,16 @@ final class MeetingsController {
 	private const ADD_OPERATION = 'meetings.series.create';
 
 	/**
+	 * The one-site read is scoped to the site, so a Manager reads only the
+	 * sites they reach (#406).
+	 */
+	private const SITE_SCOPE = array(
+		'kind'   => Boundary::SCOPE_SITE,
+		'param'  => 'site_id',
+		'record' => 'client_site',
+	);
+
+	/**
 	 * Registers this controller's routes.
 	 *
 	 * @param string $route_namespace REST namespace.
@@ -83,6 +93,13 @@ final class MeetingsController {
 		);
 
 		foreach ( $routes as list( $method, $path, $callback ) ) {
+			$permission = 'settle' === $callback ? array( self::class, 'may_settle' ) : array( Permissions::class, 'manage' );
+
+			// #406. A Manager reads the meetings of a site they reach.
+			if ( 'read' === $callback ) {
+				$permission = array( Permissions::class, 'signed_in' );
+			}
+
 			Server::register_route(
 				$route_namespace,
 				$site . $path,
@@ -91,8 +108,8 @@ final class MeetingsController {
 					'callback'            => array( self::class, $callback ),
 					// Admins or the meeting's host settle it (2026-09-24);
 					// everything else here is the administrator's.
-					'permission_callback' => 'settle' === $callback ? array( self::class, 'may_settle' ) : array( Permissions::class, 'manage' ),
-					'scope'               => $scope,
+					'permission_callback' => $permission,
+					'scope'               => 'read' === $callback ? self::SITE_SCOPE : $scope,
 				)
 			);
 		}
@@ -104,9 +121,8 @@ final class MeetingsController {
 		 * site and this one is a set the callback narrows with Reach — the
 		 * difference SCOPE_LIST exists for.
 		 *
-		 * Held on the same permission as the routes above (manage()), because
-		 * a flat cross-client list of a site's configuration is no less
-		 * administrator-only than the site-scoped view it is drawn from.
+		 * Open to a Manager like the one-site read (#406), narrowed to the
+		 * sites they reach.
 		 */
 		Server::register_route(
 			$route_namespace,
@@ -114,7 +130,7 @@ final class MeetingsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index_all' ),
-				'permission_callback' => array( Permissions::class, 'manage' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
 					'reason' => 'Standing meetings across every client, for the studio picker\'s "All Clients" (#383). Reach::keep_sites() narrows the set the same way the site picker does, in case this ever opens beyond manage().',
