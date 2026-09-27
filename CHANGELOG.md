@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.146.0] - 2026-09-27
+
+### Added
+
+- The daily standup shows who each task is waiting on, or "Pending" when nobody is in that seat yet.
+- A task that still needs action shows who it is waiting on, read-only, under its title.
+
 ## [2.145.0] - 2026-09-27
 
 ### Changed
