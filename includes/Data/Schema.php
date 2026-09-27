@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 36;
+	public const VERSION = 37;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -775,6 +775,7 @@ final class Schema {
 	converted_item_id varchar(32) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	decided_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 	record_version int(11) unsigned NOT NULL DEFAULT 1,
 	PRIMARY KEY  (id),
@@ -1641,6 +1642,11 @@ final class Schema {
 			// client, then the grant goes.
 			if ( null !== $installed && $installed < 36 ) {
 				\Blueworx\Forge\Tenancy\CrossClientUpgrade::run();
+			}
+
+			// #419. Once: requests answered before the answer's time was kept.
+			if ( null !== $installed && $installed < 37 ) {
+				\Blueworx\Forge\Work\Submissions::backfill_decided_at();
 			}
 
 			update_option( self::OPTION, self::VERSION );
