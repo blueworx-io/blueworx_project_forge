@@ -600,7 +600,8 @@ final class SupportController {
 			),
 			'periods'  => array_map( array( self::class, 'period' ), Assignments::for_site( $id ) ),
 			'ledger'   => array_map( array( self::class, 'entry' ), Ledger::for_site( $id ) ),
-			'packages' => self::packages(),
+			// #406. What is sold, and for what, is the administrator's.
+			'packages' => Permissions::manage() ? self::packages() : array(),
 		);
 	}
 
@@ -612,6 +613,11 @@ final class SupportController {
 	 */
 	private static function period( array $period ): array {
 		$version = Packages::version( (string) $period['package_version_id'] );
+
+		// #406. What was charged is the administrator's too.
+		if ( ! Permissions::manage() ) {
+			unset( $period['price_charged'], $period['currency'] );
+		}
 
 		return array_merge(
 			$period,

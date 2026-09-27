@@ -58,17 +58,62 @@ final class ManagerRole {
 		add_action( 'init', array( self::class, 'maybe_upgrade' ), 11 );
 		add_action( 'bwx_forge_access_changed', array( self::class, 'sync_person' ) );
 		add_action( 'bwx_forge_account_unlinked', array( self::class, 'sync_account' ) );
+		add_filter( 'login_redirect', array( self::class, 'after_sign_in' ), 10, 3 );
 	}
 
 	/**
-	 * Administrators hold the capability. Pure; the filter feeds it.
+	 * Where somebody lands after signing in. A Manager who asked for nowhere
+	 * in particular goes straight to Forge; everybody else as WordPress
+	 * decided. Pure.
+	 *
+	 * @param string $decided   Where WordPress would send them.
+	 * @param string $requested Where they asked to go, if anywhere.
+	 * @param bool   $manager   Whether they are a Manager and not an administrator.
+	 * @param string $forge     The Forge app page.
+	 * @param string $admin     The wp-admin address.
+	 * @return string
+	 */
+	public static function landing( string $decided, string $requested, bool $manager, string $forge, string $admin ): string {
+		if ( ! $manager ) {
+			return $decided;
+		}
+
+		$asked = rtrim( $requested, '/' );
+
+		return '' === $asked || rtrim( $admin, '/' ) === $asked ? $forge : $decided;
+	}
+
+	/**
+	 * The `login_redirect` filter.
+	 *
+	 * @param string             $redirect_to Where WordPress would send them.
+	 * @param string             $requested   Where they asked to go.
+	 * @param \WP_User|\WP_Error $user        Who signed in.
+	 * @return string
+	 */
+	public static function after_sign_in( $redirect_to, $requested, $user ): string {
+		$manager = $user instanceof \WP_User && $user->has_cap( self::USE ) && ! $user->has_cap( 'manage_options' );
+
+		return self::landing(
+			(string) $redirect_to,
+			(string) $requested,
+			$manager,
+			\Blueworx\Forge\Frontend::instance()->app_page_url(),
+			admin_url()
+		);
+	}
+
+	/**
+	 * Administrators hold the capability: the administrator role, or anybody
+	 * who can manage the site, so the door agrees with Permissions::manage().
+	 * Pure; the filter feeds it.
 	 *
 	 * @param array<string, bool> $allcaps What the user already has.
 	 * @param array<int, string>  $roles   The user's roles.
 	 * @return array<string, bool>
 	 */
 	public static function with_forge_caps( array $allcaps, array $roles ): array {
-		if ( in_array( 'administrator', $roles, true ) ) {
+		if ( in_array( 'administrator', $roles, true ) || ! empty( $allcaps['manage_options'] ) ) {
 			$allcaps[ self::USE ] = true;
 		}
 
@@ -235,23 +280,35 @@ final class ManagerRole {
 			return;
 		}
 
-		self::upgrade();
-		update_option( self::UPGRADE_OPTION, 1 );
+		// Marked done only when it really ran: a failed read would otherwise
+		// leave staff locked out for good.
+		if ( self::upgrade() ) {
+			update_option( self::UPGRADE_OPTION, 1 );
+		}
 	}
 
 	/**
 	 * The one-off upgrade: every existing staff account that is not an
 	 * administrator is given the role, so nobody is locked out. Their other
 	 * roles stay as they were.
+	 *
+	 * @return bool False when the people could not be read.
 	 */
-	public static function upgrade(): void {
+	public static function upgrade(): bool {
+		global $wpdb;
+
 		self::ensure_role();
 
-		$people      = Users::all( null );
-		$memberships = array();
+		$wpdb->last_error = '';
+		$people           = Users::all( null );
+		$memberships      = array();
 
 		foreach ( $people as $person ) {
 			$memberships = array_merge( $memberships, Memberships::for_user( (string) $person['id'], null ) );
+		}
+
+		if ( '' !== $wpdb->last_error ) {
+			return false;
 		}
 
 		$admins = array_map(
@@ -271,6 +328,8 @@ final class ManagerRole {
 				$account->add_role( self::ROLE );
 			}
 		}
+
+		return true;
 	}
 
 	/**

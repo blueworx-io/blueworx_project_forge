@@ -13,6 +13,7 @@ commits and pull requests.
 ### Added
 
 - A Forge: Manager role for staff: they see and edit their own clients' work, and nothing else.
+- Managers go straight to Forge when they sign in, and wp-admin has a Forge link for them.
 
 ### Changed
 

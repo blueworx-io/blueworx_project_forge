@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
-import { signedIn, makeSite, makePerson, makeItem, PASSWORD } from './helpers/forge.js';
+import { signedIn, makeSite, makePerson, makeItem, satisfy, onSupport, PASSWORD } from './helpers/forge.js';
 
 // #406. Only administrators and Forge: Managers get into Forge. A Manager is
 // one of our people: they see and edit their own clients' work, and none of
@@ -46,6 +46,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
 
   mine = await makeSite(admin.api, 'Manager mine', RUN);
   theirs = await makeSite(admin.api, 'Manager theirs', RUN);
+  await onSupport(admin, mine.site.id);
 
   manager = await makePerson(admin.api, mine.client.id, 'staff', `manager${RUN}`);
 
@@ -84,6 +85,21 @@ test('a Manager opens Forge, without the five administrator screens', async () =
   await page.close();
 });
 
+test('a Manager lands on Forge after signing in, and wp-admin links to it', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL });
+  const page = await context.newPage();
+  await signIn(page, manager.login, PASSWORD);
+
+  await expect(page).toHaveURL(/\/blueworx-forge\/?$/);
+
+  await page.goto('/wp-admin/profile.php');
+  const link = page.locator('#adminmenu a', { hasText: 'Forge' });
+  await expect(link).toHaveCount(1);
+  expect(await link.getAttribute('href')).toMatch(/\/blueworx-forge\/?$/);
+
+  await context.close();
+});
+
 test('the five screens are refused on the server too', async () => {
   const other = await makePerson(admin.api, mine.client.id, 'staff', `colleague${RUN}`);
 
@@ -115,6 +131,48 @@ test('a Manager edits a task on their client, and cannot reach another client\'s
   expect(wrote.status()).toBe(404);
 });
 
+test('a Manager moves a task on their client and changes its seat; an override is theirs to refuse', async () => {
+  const item = (await (await makeItem(admin.api, mine.site.id, { title: `Moves ${RUN}` })).json()).item;
+  const ready = await satisfy(admin.api, item, 'triage');
+
+  const moved = await asManager.api.post(`/work-items/${item.id}/transition`, { to: 'triage', record_version: ready.record_version });
+  expect(moved.status(), await moved.text()).toBe(200);
+  const triaged = (await moved.json()).item;
+  expect(triaged.stage).toBe('triage');
+
+  const seated = await asManager.api.patch(`/work-items/${item.id}`, { primary_user_id: manager.id, record_version: triaged.record_version });
+  expect(seated.status(), await seated.text()).toBe(200);
+  const now = (await seated.json()).item;
+  expect(now.primary_user_id).toBe(manager.id);
+
+  const overridden = await asManager.api.post(`/work-items/${item.id}/override`, { to: 'released', reason: 'Because.', record_version: now.record_version });
+  expect(overridden.status()).toBe(403);
+});
+
+test('a Manager cannot settle a meeting on a site outside their clients, even as its host', async () => {
+  const monday = new Date();
+  monday.setUTCDate(monday.getUTCDate() + ((8 - monday.getUTCDay()) % 7 || 7));
+  const on = monday.toISOString().slice(0, 10);
+
+  const made = await admin.api.post(`/client-sites/${theirs.site.id}/meetings/series`, {
+    title: `Not theirs ${RUN}`,
+    frequency: 'weekly',
+    starts_on: on,
+    ends_on: '',
+    time_of_day: '10:00',
+    duration_mins: 30,
+    timezone: 'Europe/London',
+    host_user_id: manager.id,
+    attendees: '',
+    planned_hours: 0,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const series = (await made.json()).series.find((one) => one.title === `Not theirs ${RUN}`);
+
+  const settled = await asManager.api.post(`/client-sites/${theirs.site.id}/meetings/${series.id}/${on}/settle`, { status: 'held' });
+  expect(settled.status()).toBe(403);
+});
+
 test('a Manager\'s lists and picker hold their own clients only', async () => {
   const sites = await asManager.api.get('/client-sites');
   const ids = sites.sites.map((site) => site.id);
@@ -140,6 +198,16 @@ test('a Manager\'s lists and picker hold their own clients only', async () => {
   for (const path of [ 'meetings', 'support' ]) {
     const ours = await asManager.api.request.get(`${BASE}/client-sites/${mine.site.id}/${path}`, { headers: asManager.api.headers });
     expect(ours.status(), `${path} on their own site`).toBe(200);
+
+    // The price list stays the administrator's.
+    if ('support' === path) {
+      const read = await ours.json();
+      expect(read.packages).toEqual([]);
+      expect(read.periods.length).toBeGreaterThan(0);
+      for (const period of read.periods) {
+        expect(period.price_charged).toBeUndefined();
+      }
+    }
 
     const not = await asManager.api.request.get(`${BASE}/client-sites/${theirs.site.id}/${path}`, { headers: asManager.api.headers });
     expect(not.status(), `${path} on another client's site`).toBe(404);

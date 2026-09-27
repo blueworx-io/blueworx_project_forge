@@ -35,6 +35,30 @@ final class ManagerRoleTest extends TestCase {
 	}
 
 	/**
+	 * Anybody who can manage the site gets in too, whatever their role is
+	 * called, so the door agrees with the routes that ask for manage_options.
+	 */
+	public function test_anyone_who_manages_the_site_holds_it(): void {
+		$caps = ManagerRole::with_forge_caps( array( 'manage_options' => true ), array( 'site_owner' ) );
+
+		$this->assertTrue( $caps[ ManagerRole::USE ] );
+	}
+
+	/**
+	 * A Manager who asked for nowhere lands on Forge; anybody else, or a
+	 * Manager who asked for a page, goes where WordPress decided.
+	 */
+	public function test_where_a_manager_lands_after_sign_in(): void {
+		$forge = 'http://site.test/blueworx-forge/';
+		$admin = 'http://site.test/wp-admin/';
+
+		$this->assertSame( $forge, ManagerRole::landing( $admin, '', true, $forge, $admin ) );
+		$this->assertSame( $forge, ManagerRole::landing( $admin, 'http://site.test/wp-admin', true, $forge, $admin ) );
+		$this->assertSame( 'http://site.test/wp-admin/profile.php', ManagerRole::landing( 'http://site.test/wp-admin/profile.php', 'http://site.test/wp-admin/profile.php', true, $forge, $admin ) );
+		$this->assertSame( $admin, ManagerRole::landing( $admin, '', false, $forge, $admin ) );
+	}
+
+	/**
 	 * Nobody else is handed it by the filter.
 	 */
 	public function test_other_roles_are_not_handed_it(): void {

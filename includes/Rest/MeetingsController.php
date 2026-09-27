@@ -504,7 +504,12 @@ final class MeetingsController {
 			return true;
 		}
 
-		return self::is_host( (string) $request['series_id'], (string) $request['site_id'] );
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		// #406. The host, and only on a site they still reach.
+		return null !== $site
+			&& Reach::reaches_site( Boundary::current(), (string) $site['client_id'], (string) $site['id'] )
+			&& self::is_host( (string) $request['series_id'], (string) $request['site_id'] );
 	}
 
 	/**

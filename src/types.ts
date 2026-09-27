@@ -1141,8 +1141,9 @@ export interface SupportPeriod {
   began_because: string;
   ended_because: string;
   hours_granted: number;
-  price_charged: number;
-  currency: string;
+  /** Administrators only (#406). */
+  price_charged?: number;
+  currency?: string;
   prorated: boolean;
   note: string;
   created_at: number;

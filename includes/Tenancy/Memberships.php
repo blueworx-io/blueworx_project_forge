@@ -233,11 +233,7 @@ final class Memberships {
 	 * @return int Rows changed.
 	 */
 	public static function deactivate_for_user( string $user_id ): int {
-		$ended = self::deactivate_where( 'user_id = %s', $user_id );
-
-		do_action( 'bwx_forge_access_changed', $user_id );
-
-		return $ended;
+		return self::deactivate_where( 'user_id = %s', $user_id, array( $user_id ) );
 	}
 
 	/**
@@ -299,14 +295,22 @@ final class Memberships {
 	 * consequence of somebody's edit elsewhere rather than an edit of its own,
 	 * and must not be refusable because a row moved underneath it.
 	 *
-	 * @param string $where A WHERE fragment with one %s — never user input.
-	 * @param string $value The value for it.
+	 * @param string                  $where  A WHERE fragment with one %s — never user input.
+	 * @param string                  $value  The value for it.
+	 * @param array<int, string>|null $people Whose access to re-check after,
+	 *                                        when the caller already knows.
 	 * @return int Rows changed.
 	 */
-	private static function deactivate_where( string $where, string $value ): int {
+	private static function deactivate_where( string $where, string $value, ?array $people = null ): int {
 		global $wpdb;
 
 		$table = Schema::memberships_table();
+
+		// #406. Whoever loses access here has their Manager role re-checked.
+		if ( null === $people ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and WHERE fragment (which carries the placeholder) are this class's own literals, never input.
+			$people = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT user_id FROM {$table} WHERE {$where} AND status = 'active'", $value ) );
+		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
 		$changed = $wpdb->query(
@@ -318,6 +322,10 @@ final class Memberships {
 				$value
 			)
 		);
+
+		foreach ( $people as $person ) {
+			do_action( 'bwx_forge_access_changed', (string) $person );
+		}
 
 		return (int) $changed;
 	}
