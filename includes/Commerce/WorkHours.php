@@ -67,16 +67,18 @@ final class WorkHours {
 	public const CHARGEABLE = 'chargeable';
 
 	/**
-	 * The hours a piece of work commits: all three seats, added up.
+	 * The hours a piece of work commits: every seat, added up.
 	 *
-	 * Not the estimate, and not the Primary User's figure alone. Three people
-	 * are booked and the client is paying for all three (CAP-2).
+	 * Not the estimate, and not the Primary User's figure alone. Everybody on it
+	 * is booked and the client is paying for all of them (CAP-2), the designer
+	 * included (#421).
 	 *
 	 * @param array<string, mixed> $item The item, as read.
 	 * @return float
 	 */
 	public static function planned( array $item ): float {
 		$total = (float) ( $item['hours_primary'] ?? 0 )
+			+ ( '' === (string) ( $item['designer_id'] ?? '' ) ? 0.0 : (float) ( $item['hours_designer'] ?? 0 ) )
 			+ (float) ( $item['hours_review'] ?? 0 )
 			+ (float) ( $item['hours_delivery'] ?? 0 );
 

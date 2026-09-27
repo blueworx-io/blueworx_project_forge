@@ -96,6 +96,13 @@ final class WorkHoursTest extends TestCase {
 		$this->assertSame( 13.0, WorkHours::planned( $this->item() ) );
 	}
 
+	public function test_the_designer_hours_count_too(): void {
+		// #421. Four people booked, all four paid for.
+		$this->assertSame( 14.5, WorkHours::planned( $this->item( array( 'designer_id' => 'usr_d', 'hours_designer' => 1.5 ) ) ) );
+		// No design required: whatever was left in the box is nobody's time.
+		$this->assertSame( 13.0, WorkHours::planned( $this->item( array( 'designer_id' => '', 'hours_designer' => 1.5 ) ) ) );
+	}
+
 	public function test_a_seat_with_no_hours_contributes_nothing_rather_than_a_default(): void {
 		// CAP-2 lets somebody decide a piece of work needs no review time, and
 		// a figure invented here would quietly re-decide it — and bill for it.

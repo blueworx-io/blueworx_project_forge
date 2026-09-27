@@ -33,6 +33,11 @@ final class Allocations {
 	public const PRIMARY = 'primary';
 
 	/**
+	 * The person who designs it (#421).
+	 */
+	public const DESIGN = 'design';
+
+	/**
 	 * The person who reviews it.
 	 */
 	public const REVIEW = 'review';
@@ -87,6 +92,7 @@ final class Allocations {
 	 */
 	private const SEATS = array(
 		self::PRIMARY  => array( 'hours_primary', 'primary_user_id', '' ),
+		self::DESIGN   => array( 'hours_designer', 'designer_id', '' ),
 		self::REVIEW   => array( 'hours_review', 'reviewer_id', 'reviewer_substitute_id' ),
 		self::DELIVERY => array( 'hours_delivery', 'deliverer_id', 'deliverer_substitute_id' ),
 	);

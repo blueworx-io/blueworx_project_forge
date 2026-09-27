@@ -262,6 +262,25 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
+	 * #421. A designer's hours are asked for only when there is a designer: with
+	 * no design required, there is no design time to plan.
+	 */
+	public function test_designer_hours_are_wanted_only_with_a_designer(): void {
+		$hours    = array(
+			'hours_primary'  => 2.0,
+			'hours_review'   => 1.0,
+			'hours_delivery' => 0.5,
+		);
+		$none     = Gates::evaluate( 'G-UP-NEXT', $this->item( $hours ), array() );
+		$unplaned = Gates::evaluate( 'G-UP-NEXT', $this->item( $hours + array( 'designer_id' => 'usr_d' ) ), array() );
+		$planned  = Gates::evaluate( 'G-UP-NEXT', $this->item( $hours + array( 'designer_id' => 'usr_d', 'hours_designer' => 1.0 ) ), array() );
+
+		$this->assertNotContains( 'G-UP-NEXT-4', array_column( $none['unmet'], 'id' ) );
+		$this->assertContains( 'G-UP-NEXT-4', array_column( $unplaned['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-UP-NEXT-4', array_column( $planned['unmet'], 'id' ) );
+	}
+
+	/**
 	 * A checklist all ticked confirms the requirements implemented without a
 	 * record; a checklist with a line open does not.
 	 */

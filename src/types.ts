@@ -128,6 +128,8 @@ export interface WorkItem {
   reviewer_substitute_id?: string;
   deliverer_substitute_id?: string;
   hours_primary: number;
+  /** #421. Only counts while there is a designer. */
+  hours_designer: number;
   hours_review: number;
   hours_delivery: number;
   delivered_by_forge: boolean;
@@ -238,7 +240,7 @@ export interface CapacityAllocation {
   item_id: string;
   title: string;
   client_id: string;
-  role: 'primary' | 'review' | 'delivery' | 'assignee' | 'meeting';
+  role: 'primary' | 'design' | 'review' | 'delivery' | 'assignee' | 'meeting';
   covering: string;
   hours: number;
   from: string;

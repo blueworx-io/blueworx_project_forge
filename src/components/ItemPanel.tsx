@@ -110,8 +110,9 @@ const OUTCOME_LABEL: Record< string, string > = {
  */
 const SEATS = [
   { field: 'primary_user_id', hours: 'hours_primary', label: 'Doing the work' },
-  // #409. Optional, and no hours: with nobody here the task skips Design.
-  { field: 'designer_id', hours: '', label: 'Designer' },
+  // #409. Optional: with nobody here the task skips Design. Hours once
+  // somebody is in it (#421).
+  { field: 'designer_id', hours: 'hours_designer', label: 'Designer' },
   { field: 'reviewer_id', hours: 'hours_review', label: 'Reviewing it' },
   { field: 'deliverer_id', hours: 'hours_delivery', label: 'Delivering it' },
 ] as const;
@@ -155,7 +156,7 @@ const ASSIGNMENT = [
   'priority',
   'release_method',
   'release_destination',
-  ...SEATS.flatMap( ( seat ) => ( '' === seat.hours ? [ seat.field ] : [ seat.field, seat.hours ] ) ),
+  ...SEATS.flatMap( ( seat ) => [ seat.field, seat.hours ] ),
   ...DATES.map( ( date ) => date.field ),
 ] as const;
 
@@ -1039,6 +1040,8 @@ export function ItemPanel( {
               [ field ]: event.target.value,
               // The client's review takes nobody's hours.
               ...( reviewing && CLIENT === event.target.value ? { hours_review: '' } : {} ),
+              // No design required is no design time (#421).
+              ...( 'designer_id' === field && '' === event.target.value ? { hours_designer: '0' } : {} ),
             } )
           }
         >
@@ -2207,7 +2210,7 @@ export function ItemPanel( {
                 { 0 === ( item.assignees?.length ?? 0 ) && SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
                     { pick( seat.field, seat.label ) }
-                    { '' === seat.hours ? null : 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ? (
+                    { 'hours_designer' === seat.hours && ! draft.designer_id ? null : 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ? (
                       <div className="bwx-field">
                         <span className="bwx-eyebrow">Hours</span>
                         <p className="bwx-hint" data-testid="bwx-client-no-hours">
