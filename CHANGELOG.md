@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.143.0] - 2026-09-27
+
+### Added
+
+- A reminder's title starts with its type, e.g. "General: Catch up with Client". Change the type and the start of the title follows.
+
+### Changed
+
+- My tasks no longer lists finished work, not even under Everything.
+- A reminder in My tasks shows "Done 0 of 1" beside its title, with no tick box: open the task to tick it off.
+
+### Fixed
+
+- The Client picker in the top bar showed two arrows; it now shows one.
+- On a screen with little on it, the header and toolbars no longer stretch to fill the page.
+
 ## [2.142.0] - 2026-09-27
 
 ### Added

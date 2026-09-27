@@ -75,7 +75,7 @@ interface Mine extends Record< string, unknown > {
 
 type View = 'today' | 'week' | 'later' | 'all';
 
-/** Where a row sorts: one of the dated views, or done (only under Everything). */
+/** Where a row sorts: one of the dated views, or done (under none of them). */
 type Slot = Exclude< View, 'all' > | 'done';
 
 function daysUntil( date: string ): number | null {
@@ -88,7 +88,7 @@ function daysUntil( date: string ): number | null {
 
 /** Today: late, blocked, in delivery or in review with you; the rest by date. */
 function viewOf( one: Mine ): Slot {
-  // Released or ticked off is done: only under Everything. Completed but late
+  // Released or ticked off is done, and not listed. Completed but late
   // is still to ship, so it sorts by date like the rest (Luke, 2026-09-26).
   if ( 'released' === one.item.stage || one.ticked ) return 'done';
   // A reminder is Today from its first day until it is ticked (2026-09-25).
@@ -206,18 +206,12 @@ export function MyTasksScreen() {
 
   useLiveReload( load );
 
-  /** Your tick on a chore, on or off; the list is read again so a finished chore leaves it. */
-  async function tick( item: WorkItem, done: boolean ) {
-    try {
-      await api( `/work-items/${ item.id }/tick`, { method: 'POST', body: { done } } );
-      await load();
-    } catch ( error ) {
-      setNotice( messageFor( error, 'That could not be ticked.' ) );
-    }
-  }
-
   // Narrowed first, so the counts on the tabs are for the picked client too.
-  const ours = useMemo( () => ( ALL_SITES === siteId ? mine : mine.filter( ( one ) => one.item.client_site_id === siteId ) ), [ mine, siteId ] );
+  // Done work is under no view, Everything included (Luke, 2026-09-27).
+  const ours = useMemo(
+    () => mine.filter( ( one ) => 'done' !== viewOf( one ) && ( ALL_SITES === siteId || one.item.client_site_id === siteId ) ),
+    [ mine, siteId ]
+  );
 
   const counts = useMemo( () => {
     const c: Record< View | 'done', number > = { today: 0, week: 0, later: 0, done: 0, all: ours.length };
@@ -259,24 +253,14 @@ export function MyTasksScreen() {
                 <Tag tone="info">Waiting on the client</Tag>
               </span>
             ) }
+            { /* How many have done a chore, beside its title. It is ticked off
+                  from inside the task, never from the list (2026-09-27). */ }
+            { 'assignee' === r.role && (
+              <span className="bwx-mytasks-done" data-testid="bwx-mytasks-done">
+                Done <span className="bwx-mono">{ `${ Object.keys( r.item.ticks ?? {} ).length } of ${ r.item.assignees.length }` }</span>
+              </span>
+            ) }
           </span>
-          { /* Your tick, beneath the title (2026-09-19). A recurring task has
-                no checklist to show beside it (#382): one tick finishes it. */ }
-          { 'assignee' === r.role && (
-            <span className="bwx-mytasks-under">
-              <label className="bwx-mytasks-tick">
-                <input
-                  type="checkbox"
-                  data-testid="bwx-mytasks-tick"
-                  aria-label={ `Done: ${ r.item.title }` }
-                  checked={ undefined !== ( r.item.ticks ?? {} )[ me?.id ?? '' ] }
-                  onChange={ ( event ) => void tick( r.item, event.target.checked ) }
-                />
-                <span>Done</span>
-                <span className="bwx-mono bwx-mytasks-count">{ `${ Object.keys( r.item.ticks ?? {} ).length } of ${ r.item.assignees.length }` }</span>
-              </label>
-            </span>
-          ) }
         </span>
       ),
     },
@@ -361,7 +345,7 @@ export function MyTasksScreen() {
             rows={ rows }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
-            footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } + done ${ counts.done } = ${ counts.all }` }
+            footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }
             testId="bwx-mytasks-table"
           />
         </div>

@@ -3696,8 +3696,7 @@ td[ data-band='over' ] {
   background: var( --brand-050, #eef2ff );
 }
 .bwx-recurring-person input,
-.bwx-chore-tick input,
-.bwx-mytasks-tick input {
+.bwx-chore-tick input {
   margin: 0;
   accent-color: var( --brand-600 );
 }
@@ -3721,8 +3720,7 @@ td[ data-band='over' ] {
 .bwx-chore-people li[ data-done='true' ] > span:first-child {
   color: var( --ink-500 );
 }
-.bwx-chore-tick,
-.bwx-mytasks-tick {
+.bwx-chore-tick {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3740,16 +3738,15 @@ td[ data-band='over' ] {
   gap: 8px;
   flex-wrap: wrap;
 }
-.bwx-mytasks-under {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.bwx-mytasks-tick {
+/* "Title | Done 0 of 1": the count beside the title, after a hairline. */
+.bwx-mytasks-done {
+  padding-left: 8px;
+  border-left: 1px solid var( --border-hairline );
   color: var( --ink-700 );
+  font-size: var( --text-small );
+  white-space: nowrap;
 }
-.bwx-mytasks-count {
+.bwx-mytasks-done .bwx-mono {
   color: var( --ink-500 );
 }
 .bwx-mytasks-due[ data-due='late' ] { color: var( --color-coral ); font-weight: var( --weight-medium ); }

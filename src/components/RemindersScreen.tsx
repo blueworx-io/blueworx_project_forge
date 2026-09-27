@@ -51,9 +51,24 @@ function blank( site = '' ): Draft {
   return { title: '', description: '', category: 'general', client_site_id: site, assignees: [], starts_on: today(), ends_on: '' };
 }
 
+/** A title without its type in front: "General: Catch up" reads "Catch up". */
+function bare( title: string ): string {
+  const prefix = CATEGORIES.find( ( option ) => title.startsWith( `${ option.label }: ` ) );
+
+  return prefix ? title.slice( prefix.label.length + 2 ) : title;
+}
+
+/** A reminder's title is saved with its type in front (2026-09-27). */
+function titled( draft: Draft ): string {
+  const label = CATEGORIES.find( ( option ) => option.id === draft.category )?.label;
+  const title = bare( draft.title.trim() );
+
+  return label ? `${ label }: ${ title }` : title;
+}
+
 function fromReminder( reminder: Reminder ): Draft {
   return {
-    title: reminder.title,
+    title: bare( reminder.title ),
     description: reminder.description,
     category: reminder.category,
     client_site_id: reminder.client_site_id,
@@ -259,7 +274,7 @@ function ReminderForm( {
     setNotice( '' );
 
     const body = {
-      title: draft.title,
+      title: titled( draft ),
       description: draft.description,
       category: draft.category,
       assignees: draft.assignees,
@@ -310,6 +325,11 @@ function ReminderForm( {
       <div className="bwx-field">
         <label htmlFor="bwx-reminder-title">Title</label>
         <input id="bwx-reminder-title" className="bwx-input" data-testid="bwx-reminder-title" autoFocus value={ draft.title } onChange={ ( event ) => set( 'title', event.target.value ) } />
+        { '' !== draft.title.trim() && (
+          <span className="bwx-hint" data-testid="bwx-reminder-titled">
+            Saved as { titled( draft ) }
+          </span>
+        ) }
       </div>
 
       <div className="bwx-field">
