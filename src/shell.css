@@ -223,9 +223,12 @@
   max-width: 280px;
 }
 .fs-client[data-narrowed] {
+  /* The text is a step darker than the teal marker: the marker on the tint
+     is 3.6:1, short of the 4.5:1 small text needs (the #182 rule). */
+  --client-ink: #0f766e;
   border-color: var( --tile-teal-fg );
   background: var( --tile-teal-bg );
-  color: var( --tile-teal-fg );
+  color: var( --client-ink );
 }
 .fs-client-label {
   color: inherit;
@@ -250,13 +253,13 @@
   cursor: pointer;
 }
 .fs-client[data-narrowed] .fs-client-select {
-  color: var( --tile-teal-fg );
+  color: var( --client-ink );
 }
 .fs-client .fs-client-select:hover {
   color: var( --ink-900 );
 }
 .fs-client[data-narrowed] .fs-client-select:hover {
-  color: var( --tile-teal-fg );
+  color: var( --client-ink );
 }
 .fs-client .fs-client-select:focus,
 .fs-client .fs-client-select:focus-visible {

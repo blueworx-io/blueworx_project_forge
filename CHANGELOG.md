@@ -14,6 +14,10 @@ commits and pull requests.
 
 - Requests review shows how long a request took to answer once it is answered, instead of counting on from when it was sent.
 
+### Fixed
+
+- The Client picker's text is easier to read once a client is chosen.
+
 ## [2.144.0] - 2026-09-27
 
 ### Changed
