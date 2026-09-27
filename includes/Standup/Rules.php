@@ -349,10 +349,11 @@ final class Rules {
 			'submission',
 			(string) ( $submission['id'] ?? '' ),
 			array(
-				'title'     => (string) ( $submission['title'] ?? '' ),
-				'client_id' => (string) ( $submission['client_id'] ?? '' ),
-				'since'     => (int) ( $submission['created_at'] ?? 0 ),
-				'state'     => $state,
+				'title'          => (string) ( $submission['title'] ?? '' ),
+				'client_id'      => (string) ( $submission['client_id'] ?? '' ),
+				'client_site_id' => (string) ( $submission['client_site_id'] ?? '' ),
+				'since'          => (int) ( $submission['created_at'] ?? 0 ),
+				'state'          => $state,
 			)
 		);
 	}

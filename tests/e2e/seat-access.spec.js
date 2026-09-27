@@ -185,7 +185,7 @@ test.describe('seats go only to people who reach the client', () => {
     const page = await admin.context.newPage();
     await page.goto('/blueworx-forge/');
     await page.waitForSelector('[data-testid="bwx-board"]');
-    await page.selectOption('[data-testid="bwx-site"]', mine.site.id);
+    await page.selectOption('[data-testid="bwx-client-choice"]', mine.site.id);
     await page.locator('[data-testid="bwx-card"]').click();
     await expect(page.locator('[data-testid="bwx-panel"]')).toBeVisible();
 

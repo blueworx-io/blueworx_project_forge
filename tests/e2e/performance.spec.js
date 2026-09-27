@@ -50,6 +50,7 @@ const BUDGET = {
   '/standup': { queries: 400, ms: 15000 },
   '/onboarding/board': { queries: 120, ms: 8000 },
   '/reports': { queries: 60, ms: 5000 },
+  '/support-summary': { queries: 60, ms: 5000 },
 };
 
 const WINDOW = ( () => {
@@ -113,6 +114,7 @@ test.describe( 'the cross-client views hold up as clients accumulate', () => {
     measured['/standup'] = await measure( admin.api, '/standup' );
     measured['/onboarding/board'] = await measure( admin.api, '/onboarding/board' );
     measured['/reports'] = await measure( admin.api, '/reports' );
+    measured['/support-summary'] = await measure( admin.api, '/support-summary' );
 
     // Reported whatever happens, so a run that passes still says what it cost.
     // A budget nobody sees the numbers behind is a budget that drifts.

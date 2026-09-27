@@ -343,6 +343,38 @@ final class Packages {
 	}
 
 	/**
+	 * Several versions by their own ids, keyed by id, in one query (#402).
+	 *
+	 * @param array<int, string> $version_ids The versions.
+	 * @return array<string, array<string, mixed>>
+	 */
+	public static function versions( array $version_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $version_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::package_versions_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the id placeholders are built above from the ids themselves.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE id IN ({$slots})", $ids ), ARRAY_A );
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$version = self::hydrate_version( $row );
+
+			$out[ (string) $version['id'] ] = $version;
+		}
+
+		return $out;
+	}
+
+	/**
 	 * The current version of every package named, keyed by package id.
 	 *
 	 * One query rather than one per package, so a catalogue of twenty does not

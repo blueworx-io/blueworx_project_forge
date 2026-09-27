@@ -34,37 +34,24 @@ export function siteLabel( site: SiteOption, sites: SiteOption[] ): string {
 }
 
 /**
- * Which site the picker should open on.
+ * Which client the top bar opens on (#402).
  *
- * The last one chosen, if it is still offered; otherwise the studio's own
- * site, because the board is for our work first; otherwise whatever is
- * first. "All clients" is remembered like any site.
+ * A site a link named, if the person reaches it; otherwise the last one
+ * chosen, if still reachable; otherwise All clients. A site that has gone,
+ * or been taken away, falls back to All rather than to a blank screen.
  */
-export function recallSite( sites: SiteOption[] ): string {
-  let remembered = '';
-
-  try {
-    remembered = window.localStorage.getItem( REMEMBERED ) ?? '';
-  } catch {
-    // Storage can be missing or refused; the default below is fine.
+export function openingSite( sites: SiteOption[], asked = '' ): string {
+  if ( '' !== asked && sites.some( ( one ) => one.id === asked ) ) {
+    return asked;
   }
 
-  if ( ALL_SITES === remembered || sites.some( ( one ) => one.id === remembered ) ) {
-    return remembered;
-  }
-
-  return sites.find( ( one ) => one.studio )?.id ?? sites[ 0 ]?.id ?? '';
+  return rememberedSite( sites, true ) || ALL_SITES;
 }
 
 /**
- * The last site chosen, and only that: the id if it is still offered,
- * otherwise nothing. For a screen that is about one site and should open on
- * nothing rather than guess — the board's "studio first, else whatever is
- * first" is right for work and wrong for a site's commercial record.
- *
- * `allowAll` is for a screen that offers "All Clients" as a choice of its
- * own (Meetings, #383): remembering it is fine there, the same as
- * remembering any one site, but only when the screen actually offers it.
+ * The last site chosen, if it is still offered; otherwise nothing.
+ * `allowAll` lets a remembered All clients count too, as the top bar's
+ * picker offers it (#402).
  */
 export function rememberedSite( sites: SiteOption[], allowAll = false ): string {
   let remembered = '';

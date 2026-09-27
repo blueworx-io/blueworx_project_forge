@@ -12,7 +12,7 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
 async function openBoardOn(page, siteId) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', siteId);
+  await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
   await expect(page.getByTestId('bwx-card')).toHaveCount(1);
 }
 

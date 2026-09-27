@@ -133,7 +133,7 @@ test.describe('views', () => {
     await signIn(page);
 
     await page.goto('/blueworx-forge/');
-    await page.selectOption('[data-testid="bwx-site"]', world.site.id);
+    await page.selectOption('[data-testid="bwx-client-choice"]', world.site.id);
 
     await expect(page.locator('[data-testid="bwx-board"]')).toBeVisible();
     const onBoard = await page.locator('[data-testid="bwx-card"]').count();

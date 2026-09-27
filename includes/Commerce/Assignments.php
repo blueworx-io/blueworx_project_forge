@@ -276,6 +276,39 @@ final class Assignments {
 	}
 
 	/**
+	 * Every period of several sites, keyed by site, oldest first within each —
+	 * one query rather than one per site (#402).
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function for_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $ids ) {
+			return array();
+		}
+
+		$table = Schema::site_packages_table();
+		$slots = implode( ', ', array_fill( 0, count( $ids ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the id placeholders are built above from the ids themselves.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$slots}) ORDER BY starts_on ASC, created_at ASC", $ids ), ARRAY_A );
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$period = self::hydrate( $row );
+
+			$out[ $period['client_site_id'] ][] = $period;
+		}
+
+		return $out;
+	}
+
+	/**
 	 * The period running now, if there is one.
 	 *
 	 * @param string $client_site_id The site.

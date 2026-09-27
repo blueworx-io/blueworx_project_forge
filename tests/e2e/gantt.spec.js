@@ -90,7 +90,7 @@ test.describe( 'the schedule', () => {
       process.env.WP_ADMIN_PASS ?? 'admin'
     );
     await page.goto( '/blueworx-forge/' );
-    await page.selectOption( '[data-testid="bwx-site"]', world.site.id );
+    await page.selectOption( '[data-testid="bwx-client-choice"]', world.site.id );
     await page.locator( '[data-testid="bwx-view-gantt"]' ).click();
     await expect( page.locator( '[data-testid="bwx-gantt"]' ) ).toBeVisible();
   }

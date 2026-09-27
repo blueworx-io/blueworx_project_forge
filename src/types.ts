@@ -809,6 +809,8 @@ export interface DiaryEntry {
   people: string[] | 'all';
   /** The work item behind a chore, for opening it. */
   item_id: string;
+  /** The client site it belongs to, or '' for no client (#402). */
+  site_id: string;
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */
@@ -1169,6 +1171,30 @@ export interface SupportAnswer {
   packages: SupportOffer[];
   assignment?: SupportPeriod;
   entry?: LedgerEntry;
+}
+
+/** One site's hours, as the All clients table on Support shows them (#402). */
+export interface SupportSummaryRow {
+  site_id: string;
+  site_name: string;
+  client_id: string;
+  client_name: string;
+  state: SupportState;
+  label: string;
+  package_name: string;
+  package_version: number;
+  /** Hours the running period granted; 0 with no period running. */
+  hours: number;
+  /** Hours spent since the running period started. */
+  used: number;
+  /** The balance today. */
+  left: number;
+}
+
+/** What `/support-summary` answers. */
+export interface SupportSummaryAnswer {
+  ok: true;
+  sites: SupportSummaryRow[];
 }
 
 /** What assigning would grant, before anything is written (COMM-2). */

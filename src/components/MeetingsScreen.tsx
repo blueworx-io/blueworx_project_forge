@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarClock, CalendarX2 } from 'lucide-react';
 import type { AllClientsMeeting, AllClientsMeetingsAnswer, Meeting, MeetingFrequency, MeetingLedgerState, MeetingSeries, MeetingStatus, MeetingsAnswer } from '../types';
 import { ApiError, api, isDenied, messageFor } from '../api';
@@ -6,8 +6,8 @@ import { useLiveReload } from '../live';
 import { Button, Card, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { hoursLabel } from './PackagesScreen';
-import { SitePicker } from './SitePicker';
 import { ALL_SITES } from '../sites';
+import { useClientChoice } from '../ClientChoice';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
 import type { Said } from './States';
 
@@ -129,11 +129,14 @@ function byWeek( meetings: Meeting[] ): Array< { monday: string; rows: MeetingRo
 
 type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | null;
 
-export function MeetingsScreen( { site }: { site: string } ) {
-  const [ siteId, setSiteId ] = useState( site );
+export function MeetingsScreen() {
+  // The client is the top bar's (#402): All is every client's list, one site is that site.
+  const { siteId, setSiteId } = useClientChoice();
   const [ answer, setAnswer ] = useState< MeetingsAnswer | null >( null );
   const [ allAnswer, setAllAnswer ] = useState< AllClientsMeetingsAnswer | null >( null );
-  const [ state, setState ] = useState< 'idle' | 'loading' | 'ready' | 'denied' | 'error' >( site ? 'loading' : 'idle' );
+  const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
+  // The last read asked for; an answer for an older one is dropped (#402).
+  const latest = useRef( '' );
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
   const [ opened, setOpened ] = useState< Opened >( null );
   const [ busy, setBusy ] = useState( false );
@@ -144,6 +147,11 @@ export function MeetingsScreen( { site }: { site: string } ) {
    * It carries the first page of past meetings, so a later page is read again.
    */
   function landed( fresh: MeetingsAnswer, said = '' ) {
+    // Another client was picked while this was saving: its answer is not for this screen.
+    if ( fresh.site.id !== latest.current.split( '|' )[ 0 ] ) {
+      return;
+    }
+
     setAnswer( fresh );
     setOpened( null );
     setNotice( '' === said ? NOTHING_SAID : ok( said ) );
@@ -159,13 +167,23 @@ export function MeetingsScreen( { site }: { site: string } ) {
       setNotice( NOTHING_SAID );
     }
 
+    latest.current = ALL_SITES;
+
     try {
       const fresh = await api< AllClientsMeetingsAnswer >( '/meetings' );
+
+      if ( ALL_SITES !== latest.current ) {
+        return;
+      }
 
       setAllAnswer( fresh );
       setAnswer( null );
       setState( 'ready' );
     } catch ( error ) {
+      if ( ALL_SITES !== latest.current ) {
+        return;
+      }
+
       setState( isDenied( error ) ? 'denied' : 'error' );
       setNotice( failed( messageFor( error, 'Every client\'s meetings could not be read.' ) ) );
     }
@@ -176,50 +194,52 @@ export function MeetingsScreen( { site }: { site: string } ) {
       setNotice( NOTHING_SAID );
     }
 
-    if ( '' === id ) {
-      setAnswer( null );
-      setAllAnswer( null );
-      setState( 'idle' );
-
-      return;
-    }
-
     if ( ALL_SITES === id ) {
       await loadAll( quiet );
 
       return;
     }
 
+    const asked = `${ id }|${ page }`;
+
+    latest.current = asked;
+
     try {
       const fresh = await api< MeetingsAnswer >( `/client-sites/${ id }/meetings${ 1 === page ? '' : `?past_page=${ page }` }` );
+
+      if ( asked !== latest.current ) {
+        return;
+      }
 
       setAnswer( fresh );
       setAllAnswer( null );
       setState( 'ready' );
     } catch ( error ) {
+      if ( asked !== latest.current ) {
+        return;
+      }
+
       setState( isDenied( error ) ? 'denied' : 'error' );
       setNotice( failed( messageFor( error, 'The site\'s meetings could not be read.' ) ) );
     }
   }
 
+  // Each client picked in the top bar starts from the first page, closed.
   useEffect( () => {
-    void load( site );
-    // The site prop is a landing, read once; picking is the picker's job.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setOpened( null );
+    setPastPage( 1 );
+    setState( 'loading' );
+    /* eslint-enable react-hooks/set-state-in-effect */
+    void load( siteId, 1 );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [] );
+  }, [ siteId ] );
 
   useLiveReload( () => load() );
 
+  /** A row in the All list opens that client, in the top bar too. */
   function pick( id: string ) {
-    if ( id === siteId ) {
-      return;
-    }
-
     setSiteId( id );
-    setOpened( null );
-    setPastPage( 1 );
-    setState( id ? 'loading' : 'idle' );
-    void load( id, 1 );
   }
 
   /** Another twelve weeks of past meetings. */
@@ -307,9 +327,6 @@ export function MeetingsScreen( { site }: { site: string } ) {
 
   return (
     <div className="bwx-meetings" data-testid="bwx-meetings">
-      <SitePicker value={ siteId } onChange={ pick } testId="bwx-meetings-site" allOption="All Clients" />
-
-      { 'idle' === state && <EmptyState icon={ CalendarClock } title="No site chosen" body="Choose a site to see its meetings." /> }
       { 'loading' === state && <Screen state="loading" testId="bwx-meetings-state-screen" /> }
       { 'denied' === state && <Screen state="denied" testId="bwx-meetings-state-screen" detail="A site's standing meetings are configuration, and configuration is the administrator's." /> }
       { 'error' === state && <Screen state="error" testId="bwx-meetings-state-screen" detail={ notice.text } /> }

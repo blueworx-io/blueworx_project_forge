@@ -33,7 +33,7 @@ test('dates added from the calendar list are on the month view and in the list',
 
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-view-calendar').click();
   await expect(page.getByTestId('bwx-calendar')).toBeVisible();
 
@@ -97,7 +97,7 @@ test('a busy day shows its first few and opens the rest', async () => {
   const page = await admin.context.newPage();
   await page.goto(`/blueworx-forge/#site=${site.id}`);
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-view-calendar').click();
   await page.getByTestId('bwx-calendar-mode-month').click();
   await page.getByTestId('bwx-calendar-goto').fill(busy);

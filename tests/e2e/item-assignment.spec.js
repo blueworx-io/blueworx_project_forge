@@ -40,7 +40,7 @@ async function openTheItem(admin, siteId) {
 
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', siteId);
+  await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
   await page.locator('[data-testid="bwx-card"]').click();
   await expect(page.locator('[data-testid="bwx-panel"]')).toBeVisible();
 

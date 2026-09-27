@@ -3,7 +3,8 @@ import { signIn } from '../helpers/sign-in.js';
 import { signedIn, makeItem } from './helpers/forge.js';
 
 // The site picker: how sites are named in it, "All clients" at the top, and
-// which site it opens on.
+// which site it opens on. Since #402 it is the one Client picker in the top
+// bar, and a first visit opens on All clients.
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
@@ -23,7 +24,7 @@ async function clientWithSites(api, label, siteNames) {
 }
 
 test.describe('the site picker', () => {
-  test('names a site once, offers All clients, and opens on the studio', async ({ browser, baseURL, page }) => {
+  test('names a site once, offers All clients, and opens on All', async ({ browser, baseURL, page }) => {
     test.slow();
 
     const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -44,8 +45,8 @@ test.describe('the site picker', () => {
     await page.goto('/blueworx-forge/');
     await page.waitForSelector('[data-testid="bwx-board"]');
 
-    const picker = page.getByTestId('bwx-site');
-    await expect(picker).toHaveValue(studio.id);
+    const picker = page.getByTestId('bwx-client-choice');
+    await expect(picker).toHaveValue('all');
 
     const labels = await picker.locator('option').allTextContents();
     expect(labels[0]).toBe('All clients');
@@ -54,7 +55,6 @@ test.describe('the site picker', () => {
     expect(labels).toContain(`Pair Co ${RUN_ID} — Second ${RUN_ID}`);
     expect(labels.some((one) => one.includes(`Solo site ${RUN_ID}`))).toBe(false);
 
-    await picker.selectOption('all');
     const soloCard = page.locator(`[data-testid="bwx-card"][data-item="${onSolo.id}"]`);
     const pairCard = page.locator(`[data-testid="bwx-card"][data-item="${onPair.id}"]`);
     await expect(soloCard).toBeVisible();

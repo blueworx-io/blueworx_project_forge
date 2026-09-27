@@ -202,7 +202,7 @@ test('the panel confirms the client, and changes it with a picker', async () => 
 
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', from.site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', from.site.id);
   await page.getByTestId('bwx-card').filter({ hasText: `Panel ${RUN_ID}` }).click();
 
   const box = page.getByTestId('bwx-client-confirm');

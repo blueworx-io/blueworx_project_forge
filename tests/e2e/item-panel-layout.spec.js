@@ -30,7 +30,7 @@ test.afterAll(async () => {
 async function openThePanel(page) {
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-card').filter({ hasText: `Framed ${RUN_ID}` }).click();
   await expect(page.getByTestId('bwx-panel')).toBeVisible();
   await expect(page.getByTestId('bwx-save')).toBeVisible();
@@ -109,7 +109,7 @@ test('New task asks which client, offers them all, and lands the item where it w
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
-  await page.selectOption('[data-testid="bwx-site"]', site.id);
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-add').click();
 
   const client = page.getByTestId('bwx-new-site');

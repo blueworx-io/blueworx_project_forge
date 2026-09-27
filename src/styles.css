@@ -1906,6 +1906,12 @@ body {
   transition: inline-size var( --motion-fast ) var( --ease-out );
 }
 
+/* Said beside the dates: the top bar's client does not narrow this screen (#402). */
+.bwx-capacity-scope {
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+}
+
 .bwx-capacity-legend {
   display: flex;
   align-items: center;
@@ -3335,7 +3341,7 @@ td[ data-band='over' ] {
   gap: 16px;
 }
 
-/* One site, chosen — shared by every screen that is about a single site. */
+/* A labelled picker in a screen's own header (Availability's person). */
 .bwx-site-picker {
   display: flex;
   align-items: center;
@@ -3346,6 +3352,35 @@ td[ data-band='over' ] {
 .bwx-site-picker label {
   font-size: var( --text-small );
   color: var( --ink-700 );
+}
+
+/* All clients on Support (#402): a thin used-of-period bar before the figure. */
+.bwx-support-sum-used {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.bwx-support-sum-track {
+  width: 48px;
+  height: 4px;
+  border-radius: var( --radius-pill );
+  background: var( --border-hairline );
+  overflow: hidden;
+}
+.bwx-support-sum-track > span {
+  display: block;
+  height: 100%;
+  background: var( --tile-teal-fg );
+}
+.bwx-support-sum-note {
+  margin: 0;
+  padding: 10px 16px 14px;
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+}
+.bwx-support-sum-left[data-low] {
+  color: var( --tile-rose-fg );
 }
 
 /* ---- Meetings (PR 6 of spec 2026-09-17) ---- */

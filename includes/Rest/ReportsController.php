@@ -10,6 +10,8 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Reports\Source;
+use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Tenancy\Reach;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -53,8 +55,9 @@ final class ReportsController {
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'args'                => array(
-					'from' => array( 'type' => 'string' ),
-					'to'   => array( 'type' => 'string' ),
+					'from'           => array( 'type' => 'string' ),
+					'to'             => array( 'type' => 'string' ),
+					'client_site_id' => array( 'type' => 'string' ),
 				),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
@@ -89,11 +92,27 @@ final class ReportsController {
 			return Errors::rest( 'window_too_long', __( 'That is longer than a year. Ask for a shorter period.', 'blueworx-forge' ), 400 );
 		}
 
+		/*
+		 * One client, when the Client picker names one (#402). It must be a
+		 * site the person reaches; one that is not, or that does not exist,
+		 * gets the same refusal, so the answer says nothing about which.
+		 */
+		$reach   = Boundary::current();
+		$site_id = sanitize_text_field( (string) $request->get_param( 'client_site_id' ) );
+
+		if ( '' !== $site_id ) {
+			$site = ClientSites::get( $site_id );
+
+			if ( null === $site || ! Reach::reaches_site( $reach, (string) $site['client_id'], $site_id ) ) {
+				return Errors::rest( 'client_site_forbidden', __( 'That client is not one you can see.', 'blueworx-forge' ), 403 );
+			}
+		}
+
 		return rest_ensure_response(
 			array(
 				'ok'        => true,
 				'generated' => bwx_forge_now(),
-				'reports'   => Source::for_reach( Boundary::current(), $from, $to ),
+				'reports'   => Source::for_reach( $reach, $from, $to, $site_id ),
 			)
 		);
 	}

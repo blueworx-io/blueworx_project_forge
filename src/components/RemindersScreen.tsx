@@ -7,6 +7,8 @@ import { Aside, DataView, EmptyState, RichText } from '../kit';
 import type { Column } from '../kit';
 import { everybody, ItemPanel } from './ItemPanel';
 import { Screen } from './States';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 
 /**
  * Reminders (2026-09-25): a task on a fixed day or over a few, for one or
@@ -43,8 +45,8 @@ function today(): string {
   return `${ now.getFullYear() }-${ String( now.getMonth() + 1 ).padStart( 2, '0' ) }-${ String( now.getDate() ).padStart( 2, '0' ) }`;
 }
 
-function blank(): Draft {
-  return { title: '', description: '', category: 'general', client_site_id: '', assignees: [], starts_on: today(), ends_on: '' };
+function blank( site = '' ): Draft {
+  return { title: '', description: '', category: 'general', client_site_id: site, assignees: [], starts_on: today(), ends_on: '' };
 }
 
 function fromReminder( reminder: Reminder ): Draft {
@@ -84,6 +86,9 @@ export function RemindersScreen() {
   const [ editing, setEditing ] = useState< Reminder | 'new' | null >( null );
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  // The top bar's client (#402): the list narrows, and a new one starts on it.
+  const { siteId, label } = useClientChoice();
+  const shown = reminders.filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
 
   async function load() {
     try {
@@ -197,10 +202,10 @@ export function RemindersScreen() {
               </button>
             }
             columns={ columns }
-            rows={ reminders }
+            rows={ shown }
             sortable
-            empty={ <EmptyState icon={ Bell } dense title="No reminders yet" body="Add one for a day or a few, and each person gets their own task to tick off." /> }
-            footer={ `${ reminders.length } reminders · each person gets their own task as soon as a reminder is saved` }
+            empty={ <EmptyState icon={ Bell } dense title={ ALL_SITES === siteId ? 'No reminders yet' : `Nothing for ${ label() } here.` } body="Add one for a day or a few, and each person gets their own task to tick off." /> }
+            footer={ `${ shown.length } reminders · each person gets their own task as soon as a reminder is saved` }
             testId="bwx-reminders-table"
           />
         </div>
@@ -211,6 +216,7 @@ export function RemindersScreen() {
           reminder={ 'new' === editing ? null : editing }
           people={ people }
           sites={ sites }
+          site={ ALL_SITES === siteId ? '' : siteId }
           onClose={ () => setEditing( null ) }
           onSaved={ () => {
             setEditing( null );
@@ -228,16 +234,19 @@ function ReminderForm( {
   reminder,
   people,
   sites,
+  site,
   onClose,
   onSaved,
 }: {
   reminder: Reminder | null;
   people: Person[];
   sites: Site[];
+  /** The client a new reminder starts on. */
+  site: string;
   onClose: () => void;
   onSaved: () => void;
 } ) {
-  const [ draft, setDraft ] = useState< Draft >( () => ( reminder ? fromReminder( reminder ) : blank() ) );
+  const [ draft, setDraft ] = useState< Draft >( () => ( reminder ? fromReminder( reminder ) : blank( site ) ) );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 

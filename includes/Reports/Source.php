@@ -46,14 +46,21 @@ final class Source {
 	 * @param array<string, mixed> $reach The caller's reach.
 	 * @param int                  $from  Window start, a timestamp.
 	 * @param int                  $to    Window end, a timestamp.
+	 * @param string               $only  One site to narrow to (#402), or '' for every site in reach.
 	 * @return array<string, mixed>
 	 */
-	public static function for_reach( array $reach, int $from, int $to ): array {
+	public static function for_reach( array $reach, int $from, int $to, string $only = '' ): array {
 		if ( Reach::is_nothing( $reach ) ) {
 			return Delivery::compute( array(), array(), $from, $to );
 		}
 
-		$sites    = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
+		$sites = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
+
+		// Narrowed before anything is read or added up, never after (#402).
+		if ( '' !== $only ) {
+			$sites = array_values( array_filter( $sites, static fn( array $site ): bool => (string) $site['id'] === $only ) );
+		}
+
 		$site_ids = array_column( $sites, 'id' );
 
 		if ( array() === $site_ids ) {

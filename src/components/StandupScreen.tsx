@@ -4,6 +4,8 @@ import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { SECTIONS, cardDetail, cardTitle, keyOf, ruleTone, ruleWord } from '../standup';
 import { DiaryLine } from './Diary';
+import { useClientChoice } from '../ClientChoice';
+import { ALL_SITES } from '../sites';
 import { GateList, ItemPanel } from './ItemPanel';
 import { NOTHING_SAID, Notice, Screen } from './States';
 import type { Said, SaidTone } from './States';
@@ -57,7 +59,17 @@ type Complete = (
   evidence: string
 ) => Promise< void >;
 
+/** The site a card is about, or '' when it belongs to no one client (#402). */
+function siteOf( card: StandupCard ): string {
+  const detail = card.detail ?? {};
+
+  return String( detail.client_site_id ?? ( 'client_site' === card.subject_type ? detail.about ?? '' : '' ) );
+}
+
 export function StandupScreen() {
+  // The top bar's client (#402); cards with no client always show.
+  const { siteId, label } = useClientChoice();
+  const mine = ( id: string ) => ALL_SITES === siteId || '' === id || id === siteId;
   const [ list, setList ] = useState< StandupList | undefined >();
   const [ hidden, setHidden ] = useState< string[] >( [] );
   const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
@@ -163,7 +175,8 @@ export function StandupScreen() {
     }
   }
 
-  const cards = list?.cards ?? [];
+  const cards = ( list?.cards ?? [] ).filter( ( card ) => mine( siteOf( card ) ) );
+  const toSettle = ( list?.to_settle ?? [] ).filter( ( entry ) => mine( entry.site_id ) );
 
   function dismiss( card: StandupCard ) {
     setHidden( [ ...hidden, keyOf( card ) ] );
@@ -252,11 +265,11 @@ export function StandupScreen() {
           or the meeting's host settles it here; an admin can also open the
           site's meetings.
        */ }
-      { 'ready' === state && 0 < ( list?.to_settle?.length ?? 0 ) && (
+      { 'ready' === state && 0 < toSettle.length && (
         <section className="bwx-standup-diary bwx-standup-settle" data-testid="bwx-standup-settle">
           <p className="bwx-eyebrow">Meetings to settle</p>
           <ul className="bwx-diary-lines">
-            { ( list?.to_settle ?? [] ).map( ( entry ) => (
+            { toSettle.map( ( entry ) => (
               <DiaryLine
                 key={ entry.id }
                 entry={ { ...entry, title: `${ entry.title } · ${ entry.date }` } }
@@ -295,7 +308,7 @@ export function StandupScreen() {
         <Screen
           state="empty"
           testId="bwx-standup-state-screen"
-          title="Nothing needs attention"
+          title={ ALL_SITES === siteId ? 'Nothing needs attention' : `Nothing for ${ label() } here.` }
           detail="Nothing is late, blocked, or waiting on anybody. This is worked out fresh each time, so it is genuinely clear rather than cleared."
         />
       ) }

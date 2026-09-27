@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Requirement, SavedView, Stage, ViewName, WorkFilters, WorkItem } from '../types';
 import { api, GateError, forgeData, isConnected, isDenied, messageFor } from '../api';
-import { ALL_SITES, recallSite, rememberSite, siteLabel, type SiteOption } from '../sites';
+import { ALL_SITES } from '../sites';
+import { useClientChoice } from '../ClientChoice';
 import { useLiveReload } from '../live';
 import { Board } from './Board';
 import { Filters } from './Filters';
@@ -39,8 +40,6 @@ function asQuery( filters: WorkFilters ): string {
   return 0 === parts.length ? '' : `&${ parts.join( '&' ) }`;
 }
 
-type Site = SiteOption;
-
 /** What the board is currently able to show (#125). */
 type Loading = 'loading' | 'ready' | 'error' | 'denied';
 
@@ -73,8 +72,8 @@ export function WorkScreen( {
   openItem?: string;
 } = {} ) {
   const data = forgeData();
-  const [ sites, setSites ] = useState< Site[] >( [] );
-  const [ siteId, setSiteId ] = useState( '' );
+  // Which client is the top bar's (#402); this screen only follows it.
+  const { siteId, sites, label, failure } = useClientChoice();
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ columns, setColumns ] = useState< string[] >( [] );
   const [ items, setItems ] = useState< WorkItem[] >( [] );
@@ -113,9 +112,13 @@ export function WorkScreen( {
 
   async function loadShell() {
     try {
-      const [ stageList, siteList, viewList ] = await Promise.all( [
+      // Nobody's sites could be read: the same refusal the board would get.
+      if ( null !== failure ) {
+        throw failure;
+      }
+
+      const [ stageList, viewList ] = await Promise.all( [
         api< { stages: Stage[]; columns: string[] } >( '/stages' ),
-        api< { sites: Site[] } >( '/client-sites' ),
 
         // A person with no saved views is the ordinary case, and a failure to
         // read them must not stop the board loading — so this one is allowed to
@@ -125,8 +128,6 @@ export function WorkScreen( {
 
       setStages( stageList.stages );
       setColumns( stageList.columns );
-      setSites( siteList.sites );
-      setSiteId( recallSite( siteList.sites ) );
       setSavedViews( viewList.views );
       setShell( 'ready' );
     } catch ( error ) {
@@ -166,7 +167,18 @@ export function WorkScreen( {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [] );
 
+  /*
+   * The last read asked for. An answer for anything older is dropped, so a
+   * client picked while another was loading never shows the first one's
+   * work.
+   */
+  const latest = useRef( '' );
+
   async function loadItems( id: string, applied: WorkFilters = filters ) {
+    const asked = `${ id }|${ JSON.stringify( applied ) }`;
+
+    latest.current = asked;
+
     try {
       /*
        * The filters go to the server rather than being applied here. That is
@@ -179,9 +191,18 @@ export function WorkScreen( {
           ? `/work-items-all?${ asQuery( applied ).replace( /^&/, '' ) }`
           : `/work-items?client_site_id=${ encodeURIComponent( id ) }${ asQuery( applied ) }`
       );
+
+      if ( latest.current !== asked ) {
+        return;
+      }
+
       setItems( loaded.items );
       setBoard( 'ready' );
     } catch ( error ) {
+      if ( latest.current !== asked ) {
+        return;
+      }
+
       setBoard( isDenied( error ) ? 'denied' : 'error' );
       setNotice( messageFor( error, 'That work could not be loaded.' ) );
     }
@@ -201,6 +222,9 @@ export function WorkScreen( {
 
   useEffect( () => {
     if ( 'ready' === shell && '' !== siteId ) {
+      // A new client from the top bar: say so rather than keep the old one's work up.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBoard( 'loading' );
       void loadItems( siteId );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,42 +295,11 @@ export function WorkScreen( {
     }
   }
 
-  const site = sites.find( ( candidate ) => candidate.id === siteId );
   const blocked = items.filter( ( each ) => 'blocked' === each.stage );
 
   return (
     <>
       <header className="bwx-header">
-        <select
-          className="bwx-select"
-          data-testid="bwx-site"
-          aria-label="Site"
-          value={ siteId }
-          onChange={ ( event ) => {
-            /*
-             * Only when the site actually changes. Picking the site already
-             * shown would otherwise put the board into loading with nothing on
-             * its way to take it out again — the effect below does not run,
-             * because from its point of view nothing happened.
-             */
-            if ( event.target.value === siteId ) {
-              return;
-            }
-
-            setBoard( 'loading' );
-            setSiteId( event.target.value );
-            rememberSite( event.target.value );
-          } }
-        >
-          { 0 === sites.length && <option value="">No sites yet</option> }
-          { 0 < sites.length && <option value={ ALL_SITES }>All clients</option> }
-          { sites.map( ( option ) => (
-            <option key={ option.id } value={ option.id }>
-              { siteLabel( option, sites ) }
-            </option>
-          ) ) }
-        </select>
-
         <span className="bwx-header-spacer" />
 
         { /*
@@ -499,7 +492,7 @@ export function WorkScreen( {
           { 0 === items.length && (
             <Screen
               state="empty"
-              title="No work on this site yet"
+              title={ ALL_SITES === siteId ? 'No work yet' : `Nothing for ${ label() } here.` }
               detail="Add the first piece of work and it starts as a future idea."
               action={
                 <button type="button" className="bwx-button" onClick={ () => setAdding( true ) }>
@@ -582,7 +575,7 @@ export function WorkScreen( {
       ) }
 
       <footer style={ { padding: '0 20px 16px' } }>
-        <span className="bwx-mono">{ ALL_SITES === siteId ? 'All clients' : site ? siteLabel( site, sites ) : '' }</span>
+        <span className="bwx-mono">{ label() }</span>
       </footer>
     </>
   );
