@@ -174,6 +174,53 @@ final class Diary {
 	}
 
 	/**
+	 * Brings a series' coming meetings into line after the series is edited.
+	 *
+	 * A meeting holding hours has a row of its own ({@see self::materialise()}),
+	 * and that row keeps the hours and time the rule had on the day it was
+	 * written. Editing the series changes the rule, not the rows, so a meeting
+	 * shortened to half an hour went on holding an hour (2026-09-27, #427).
+	 *
+	 * Only rows still scheduled are touched: one held, cancelled or missed is a
+	 * record of what happened. A moved meeting keeps the day and time somebody
+	 * moved it to, and takes only the new hours. A row whose slot the new rule
+	 * no longer lands on is left as it is.
+	 *
+	 * @param array<string, mixed> $series The series, as stored after the edit.
+	 * @param string               $from   YYYY-MM-DD; rows before it are history.
+	 * @return int How many rows changed.
+	 */
+	public static function follow_series( array $series, string $from ): int {
+		$hours   = Validate::hours_for( $series );
+		$changed = 0;
+
+		foreach ( self::stored_for( (string) $series['id'], $from, '9999-12-31' ) as $row ) {
+			if ( Occurrence::SCHEDULED !== (string) $row['status'] || (string) $row['on'] < $from ) {
+				continue;
+			}
+
+			$changes = array( 'planned_hours' => $hours );
+			$slot    = (string) $row['excepted_from'];
+
+			if ( '' === $slot || $slot === (string) $row['on'] ) {
+				$fresh = Recurrence::expand( $series, (string) $row['on'], (string) $row['on'] );
+
+				if ( isset( $fresh[0] ) ) {
+					$changes['at']        = (string) $fresh[0]['at'];
+					$changes['starts_at'] = (int) $fresh[0]['starts_at'];
+					$changes['ends_at']   = (int) $fresh[0]['ends_at'];
+				}
+			}
+
+			if ( null !== self::amend( $row, $changes ) ) {
+				++$changed;
+			}
+		}
+
+		return $changed;
+	}
+
+	/**
 	 * Every meeting on a site that is still holding hours, whenever it is.
 	 *
 	 * The date is deliberately not part of this. A meeting that has been and
