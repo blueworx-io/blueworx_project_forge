@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Tenancy\ManagerRole;
 use Blueworx\Forge\Tenancy\Users;
 use SplObjectStorage;
 use WP_REST_Request;
@@ -60,6 +61,46 @@ final class Permissions {
 		$me = Users::by_wp_user( get_current_user_id() );
 
 		return null !== $me && (string) $me['id'] === (string) $request['user_id'];
+	}
+
+	/**
+	 * Somebody allowed into Forge: an administrator or a Forge: Manager (#406).
+	 *
+	 * @return bool
+	 */
+	public static function forge_user(): bool {
+		return current_user_can( ManagerRole::USE );
+	}
+
+	/**
+	 * Whether a route sits behind the Forge door (#406). Everything does,
+	 * except what a client site signs for and the product's own public shape.
+	 * Pure.
+	 *
+	 * @param mixed $callback The route's permission callback.
+	 * @return bool
+	 */
+	public static function behind_the_door( $callback ): bool {
+		return ! in_array( $callback, array( array( self::class, 'client_site' ), array( self::class, 'read' ) ), true );
+	}
+
+	/**
+	 * A route's permission callback with the door in front of it: somebody
+	 * who may not use Forge is refused before the route is asked.
+	 *
+	 * WordPress answers the refusal: 401 signed out, 403 signed in.
+	 *
+	 * @param callable $callback The route's own permission callback.
+	 * @return callable
+	 */
+	public static function behind_door( $callback ): callable {
+		return static function ( $request ) use ( $callback ) {
+			if ( ! self::forge_user() ) {
+				return false;
+			}
+
+			return call_user_func( $callback, $request );
+		};
 	}
 
 	/**

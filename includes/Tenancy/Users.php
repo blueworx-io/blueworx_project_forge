@@ -68,6 +68,11 @@ final class Users {
 			return null;
 		}
 
+		// #406. A person made already linked to an account.
+		if ( $row['wp_user_id'] > 0 ) {
+			do_action( 'bwx_forge_access_changed', $row['id'] );
+		}
+
 		return self::hydrate( $row );
 	}
 
@@ -234,6 +239,9 @@ final class Users {
 			}
 		}
 
+		// #406. Which account the Manager role moves with, or away from.
+		$before = array_key_exists( 'wp_user_id', $values ) || array_key_exists( 'status', $values ) ? self::get( $id ) : null;
+
 		if ( array_key_exists( 'wp_user_id', $values ) ) {
 			$changes['wp_user_id'] = (int) $values['wp_user_id'];
 		}
@@ -268,6 +276,16 @@ final class Users {
 
 		if ( ! $changed ) {
 			return null;
+		}
+
+		if ( null !== $before ) {
+			$was = (int) $before['wp_user_id'];
+
+			if ( 0 < $was && (int) ( $changes['wp_user_id'] ?? $was ) !== $was ) {
+				do_action( 'bwx_forge_account_unlinked', $was );
+			}
+
+			do_action( 'bwx_forge_access_changed', $id );
 		}
 
 		return self::get( $id );

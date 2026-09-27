@@ -52,8 +52,8 @@ import './shell.css';
 
 type Entry =
   | { group: string }
-  | { key: ScreenName; label: string; icon: LucideIcon; testId: string; view?: ViewName }
-  | { href: string; label: string; icon: LucideIcon; testId: string };
+  | { key: ScreenName; label: string; icon: LucideIcon; testId: string; view?: ViewName; admin?: true }
+  | { href: string; label: string; icon: LucideIcon; testId: string; admin?: true };
 
 const RAIL: Entry[] = [
   { group: 'My day' },
@@ -73,15 +73,25 @@ const RAIL: Entry[] = [
   { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
   { key: 'meetings', label: 'Meetings', icon: CalendarClock, testId: 'bwx-screen-meetings' },
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
-  { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync' },
+  { href: 'admin.php?page=blueworx-forge-sync', label: 'Sync health', icon: RefreshCw, testId: 'bwx-link-sync', admin: true },
   { group: 'Team' },
-  { key: 'people', label: 'People', icon: Users, testId: 'bwx-screen-people' },
-  { key: 'availability', label: 'Availability', icon: CalendarCheck, testId: 'bwx-screen-availability' },
+  { key: 'people', label: 'People', icon: Users, testId: 'bwx-screen-people', admin: true },
+  { key: 'availability', label: 'Availability', icon: CalendarCheck, testId: 'bwx-screen-availability', admin: true },
   { group: 'Insight' },
-  { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports' },
-  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions' },
-  { key: 'packages', label: 'Packages', icon: Receipt, testId: 'bwx-screen-packages' },
+  { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports', admin: true },
+  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions', admin: true },
+  { key: 'packages', label: 'Packages', icon: Receipt, testId: 'bwx-screen-packages', admin: true },
 ];
+
+/** The screens only an administrator opens (#406). A Manager is refused them by the server too. */
+const ADMIN_ONLY = new Set< string >( RAIL.flatMap( ( entry ) => ( 'key' in entry && entry.admin ? [ entry.key ] : [] ) ) );
+
+/** The rail somebody sees: a Manager's has no admin entries, and no group left empty by that. */
+function railFor( admin: boolean ): Entry[] {
+  const kept = RAIL.filter( ( entry ) => admin || ! ( 'admin' in entry && entry.admin ) );
+
+  return kept.filter( ( entry, i ) => ! ( 'group' in entry ) || ( undefined !== kept[ i + 1 ] && ! ( 'group' in kept[ i + 1 ] ) ) );
+}
 
 /**
  * When the screen's data last came from the server, and a way to ask again.
@@ -240,6 +250,7 @@ function WhenChosen( { children }: { children: ReactNode } ) {
 
 export function App() {
   const data = forgeData();
+  const admin = data?.canManage ?? false;
   /**
    * A link can land on a screen: from Slack on the task in the hash (PR 5),
    * or from anywhere on a screen and, for availability and people, a person,
@@ -257,7 +268,10 @@ export function App() {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
-    return { item, screen: Object.hasOwn( TITLES, screen ) ? ( screen as ScreenName ) : null, person, site };
+    // A Manager landing on an administrator's screen opens the board instead.
+    const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) );
+
+    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
@@ -308,7 +322,7 @@ export function App() {
         </div>
 
         <div className="fs-rail-list">
-          { RAIL.map( ( entry, i ) => {
+          { railFor( admin ).map( ( entry, i ) => {
             if ( 'group' in entry ) {
               return (
                 <div key={ i } className="fs-rail-group">

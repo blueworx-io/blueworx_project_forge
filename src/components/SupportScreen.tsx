@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LifeBuoy, Receipt } from 'lucide-react';
 import type { LedgerEntry, SupportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState, SupportSummaryAnswer, SupportSummaryRow } from '../types';
-import { api, isDenied, messageFor } from '../api';
+import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Stat, Tag, TextArea, TextInput } from '../kit';
 import type { Column } from '../kit';
@@ -70,6 +70,8 @@ function today(): string {
 export function SupportScreen() {
   // The client is the top bar's (#402). All clients is the summary table.
   const { siteId, setSiteId, label } = useClientChoice();
+  // #406. A Manager reads the hours; changing them is the administrator's.
+  const admin = forgeData()?.canManage ?? false;
   const [ answer, setAnswer ] = useState< SupportAnswer | null >( null );
   const [ summary, setSummary ] = useState< SupportSummaryAnswer | null >( null );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
@@ -191,7 +193,7 @@ export function SupportScreen() {
 
           <Panel
             title="Position"
-            right={
+            right={ admin && (
               <div className="bwx-moves">
                 { /*
                    * In every state, as the admin page offers it: a covered
@@ -223,7 +225,7 @@ export function SupportScreen() {
                   Adjust
                 </Button>
               </div>
-            }
+            ) }
           >
             <div className="bwx-support-position">
               <Stat

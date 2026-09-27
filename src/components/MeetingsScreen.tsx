@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarClock, CalendarX2 } from 'lucide-react';
 import type { AllClientsMeeting, AllClientsMeetingsAnswer, Meeting, MeetingFrequency, MeetingLedgerState, MeetingSeries, MeetingStatus, MeetingsAnswer } from '../types';
-import { ApiError, api, isDenied, messageFor } from '../api';
+import { ApiError, api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, Card, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
@@ -132,6 +132,9 @@ type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind
 export function MeetingsScreen() {
   // The client is the top bar's (#402): All is every client's list, one site is that site.
   const { siteId, setSiteId } = useClientChoice();
+  // #406. A Manager reads the meetings, and settles the ones they host.
+  const admin = forgeData()?.canManage ?? false;
+  const me = forgeData()?.person?.id ?? '';
   const [ answer, setAnswer ] = useState< MeetingsAnswer | null >( null );
   const [ allAnswer, setAllAnswer ] = useState< AllClientsMeetingsAnswer | null >( null );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
@@ -307,16 +310,18 @@ export function MeetingsScreen() {
              * the admin page: only a scheduled one can move. Move sits left
              * and Settle right, so the two never stack.
              */ }
-          { 'scheduled' === m.status ? (
+          { admin && 'scheduled' === m.status ? (
             <Button size="sm" variant="link" data-testid="bwx-meetings-move" aria-label={ `Move the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'move', meeting: { ...m, id: m.stored } } ) }>
               Move
             </Button>
           ) : (
             <span />
           ) }
-          <Button size="sm" variant="link" data-testid="bwx-meetings-settle" aria-label={ `Settle the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'settle', meeting: { ...m, id: m.stored } } ) }>
-            Settle
-          </Button>
+          { ( admin || ( '' !== me && answer?.series.find( ( one ) => one.id === m.series_id )?.host_user_id === me ) ) && (
+            <Button size="sm" variant="link" data-testid="bwx-meetings-settle" aria-label={ `Settle the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'settle', meeting: { ...m, id: m.stored } } ) }>
+              Settle
+            </Button>
+          ) }
         </span>
       ),
     },
@@ -347,11 +352,11 @@ export function MeetingsScreen() {
 
           <Panel
             title="Standing meetings"
-            right={
+            right={ admin && (
               <Button size="sm" data-testid="bwx-meetings-add" disabled={ busy } onClick={ () => setOpened( { kind: 'add' } ) }>
                 Add a standing meeting
               </Button>
-            }
+            ) }
           >
             <div data-testid="bwx-meetings-standing">
               { 0 === answer.series.length ? (
@@ -359,7 +364,7 @@ export function MeetingsScreen() {
               ) : (
                 <div className="bwx-meetings-cards">
                   { answer.series.map( ( one ) => (
-                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } onEdit={ () => setOpened( { kind: 'edit', series: one } ) } onEnd={ () => void end( one ) } />
+                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } editable={ admin } onEdit={ () => setOpened( { kind: 'edit', series: one } ) } onEnd={ () => void end( one ) } />
                   ) ) }
                 </div>
               ) }
@@ -474,7 +479,7 @@ function AllClientsList( { answer, onPick }: { answer: AllClientsMeetingsAnswer;
 }
 
 /** One standing meeting: what, how often, when, who hosts, what each costs, and whether it still runs. */
-function SeriesCard( { series, people, busy, onEdit, onEnd }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; onEdit: () => void; onEnd: () => void } ) {
+function SeriesCard( { series, people, busy, editable, onEdit, onEnd }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; editable: boolean; onEdit: () => void; onEnd: () => void } ) {
   const running = 'active' === series.state;
   const span = '' === series.ends_on ? `from ${ series.starts_on }` : `${ series.starts_on } to ${ series.ends_on }`;
   const others = ( series.attendee_ids ?? [] ).map( ( id ) => people.find( ( one ) => one.id === id )?.display_name ?? id );
@@ -486,7 +491,7 @@ function SeriesCard( { series, people, busy, onEdit, onEnd }: { series: MeetingS
           <h4 className="bwx-meetings-card-title">
             { series.title } { running ? <Tag tone="ok">Running</Tag> : <Tag tone="neutral">Ended</Tag> }
           </h4>
-          { running && (
+          { running && editable && (
             <span className="bwx-moves">
               <Button size="sm" variant="ghost" data-testid="bwx-meetings-series-edit" aria-label={ `Edit ${ series.title }` } disabled={ busy } onClick={ onEdit }>
                 Edit

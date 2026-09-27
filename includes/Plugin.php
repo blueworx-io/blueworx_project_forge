@@ -98,6 +98,9 @@ final class Plugin {
 		// #292. Every person is a WordPress user, and the two are kept in step.
 		Tenancy\Accounts::boot();
 
+		// #406. Only administrators and Forge: Managers get into Forge.
+		Tenancy\ManagerRole::boot();
+
 		// The one scheduled job: the morning Slack message (PR 5).
 		Slack\Morning::boot();
 	}
@@ -116,6 +119,8 @@ final class Plugin {
 		 * halfway through.
 		 */
 		Onboarding\Version1::seed( get_current_user_id() );
+
+		Tenancy\ManagerRole::ensure_role();
 
 		Frontend::instance()->create_app_page();
 		flush_rewrite_rules();

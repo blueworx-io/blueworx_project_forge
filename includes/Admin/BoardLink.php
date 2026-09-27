@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Admin;
 
 use Blueworx\Forge\Frontend;
+use Blueworx\Forge\Tenancy\ManagerRole;
 
 /**
  * A "Board" entry in the Forge menu, pointing at the front-end app.
@@ -46,6 +47,7 @@ final class BoardLink {
 	 */
 	public static function boot(): void {
 		add_action( 'admin_menu', array( self::class, 'register' ) );
+		add_action( 'admin_menu', array( self::class, 'register_for_managers' ) );
 		add_action( 'admin_print_footer_scripts', array( self::class, 'open_in_a_new_tab' ) );
 	}
 
@@ -67,6 +69,26 @@ final class BoardLink {
 			Frontend::instance()->app_page_url(),
 			'',
 			1
+		);
+	}
+
+	/**
+	 * A Manager has no Forge menu (#406), so they get one entry of their own:
+	 * a "Forge" link straight to the app page. Administrators have the menu.
+	 */
+	public static function register_for_managers(): void {
+		if ( current_user_can( 'manage_options' ) || ! current_user_can( ManagerRole::USE ) ) {
+			return;
+		}
+
+		add_menu_page(
+			__( 'Forge', 'blueworx-forge' ),
+			__( 'Forge', 'blueworx-forge' ),
+			ManagerRole::USE,
+			Frontend::instance()->app_page_url(),
+			'',
+			'dashicons-hammer',
+			2
 		);
 	}
 

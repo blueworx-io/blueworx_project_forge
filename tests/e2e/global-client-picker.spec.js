@@ -109,14 +109,18 @@ test.describe('Support with All clients', () => {
     await admin.context.close();
   });
 
-  test('the summary is the administrator\'s only', async ({ browser, baseURL }) => {
+  test('a Manager\'s summary holds only their clients (#406)', async ({ browser, baseURL }) => {
     const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
     const where = await makeSite(admin.api, 'Support staff', RUN_ID);
+    const elsewhere = await makeSite(admin.api, 'Support elsewhere', `${RUN_ID}x`);
     const person = await makePerson(admin.api, where.client.id, 'staff', `supsum${RUN_ID.replace('-', '')}`);
     const staff = await signedIn(browser, baseURL, person.login, PASSWORD);
 
     const answer = await staff.api.request.get('/wp-json/blueworx-forge/v1/support-summary', { headers: staff.api.headers });
-    expect(answer.status()).toBe(403);
+    expect(answer.status()).toBe(200);
+    const theirs = await answer.json();
+    expect(theirs.sites.some((one) => one.site_id === where.site.id)).toBe(true);
+    expect(theirs.sites.some((one) => one.site_id === elsewhere.site.id)).toBe(false);
 
     const allowed = await admin.api.request.get('/wp-json/blueworx-forge/v1/support-summary', { headers: admin.api.headers });
     expect(allowed.status()).toBe(200);
@@ -277,8 +281,9 @@ test.describe('Reports and Capacity', () => {
 
     const person = await makePerson(admin.api, world.one.client.id, 'staff', `reports${RUN_ID.replace('-', '')}`);
     const staff = await signedIn(browser, baseURL, person.login, PASSWORD);
+    // Reports are administrators' only since #406.
     const mine = await staff.api.request.get(`/wp-json/blueworx-forge/v1/reports?client_site_id=${world.one.site.id}`, { headers: staff.api.headers });
-    expect(mine.status()).toBe(200);
+    expect(mine.status()).toBe(403);
     const theirs = await staff.api.request.get(`/wp-json/blueworx-forge/v1/reports?client_site_id=${world.two.site.id}`, { headers: staff.api.headers });
     expect(theirs.status()).toBe(403);
 

@@ -229,6 +229,8 @@ export interface CapacityResponse {
   by: CapacityBy;
   periods: { from: string; to: string }[];
   people: CapacityPerson[];
+  /** #406. A Manager is shown their own row only. */
+  only_me?: boolean;
 }
 
 /** One piece of work behind a committed figure. */
@@ -1139,8 +1141,9 @@ export interface SupportPeriod {
   began_because: string;
   ended_because: string;
   hours_granted: number;
-  price_charged: number;
-  currency: string;
+  /** Administrators only (#406). */
+  price_charged?: number;
+  currency?: string;
   prorated: boolean;
   note: string;
   created_at: number;

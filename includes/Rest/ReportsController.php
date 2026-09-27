@@ -53,7 +53,8 @@ final class ReportsController {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
-				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				// #406. Administrators only; hidden from Managers.
+				'permission_callback' => array( Permissions::class, 'manage' ),
 				'args'                => array(
 					'from'           => array( 'type' => 'string' ),
 					'to'             => array( 'type' => 'string' ),

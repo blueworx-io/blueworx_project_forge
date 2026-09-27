@@ -291,7 +291,7 @@ export function CapacityScreen() {
 
         { /* A person's load is across every client, so the top bar's pick does not narrow this (#402). */ }
         <span className="bwx-capacity-scope" data-testid="bwx-capacity-scope">
-          Capacity counts all clients.
+          { data?.only_me ? 'Showing your own hours only.' : 'Capacity counts all clients.' }
         </span>
 
         <span className="bwx-mono" data-testid="bwx-capacity-count">

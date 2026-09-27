@@ -59,6 +59,7 @@ final class Frontend {
 	 * Hooks the front end up.
 	 */
 	public function boot(): void {
+		add_action( 'template_redirect', array( $this, 'keep_out' ) );
 		add_filter( 'template_include', array( $this, 'use_app_template' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_shortcode( 'blueworx_forge', array( $this, 'render_mount_point' ) );
@@ -114,6 +115,24 @@ final class Frontend {
 		$url     = 0 !== $page_id ? get_permalink( $page_id ) : '';
 
 		return is_string( $url ) && '' !== $url ? $url : home_url( '/' );
+	}
+
+	/**
+	 * Keeps signed-in accounts that may not use Forge off the app page (#406).
+	 *
+	 * Only administrators and Forge: Managers get in. Somebody signed out still
+	 * gets the page, which asks them to sign in and reads nothing.
+	 */
+	public function keep_out(): void {
+		if ( ! $this->is_app_page() || ! is_user_logged_in() || current_user_can( Tenancy\ManagerRole::USE ) ) {
+			return;
+		}
+
+		wp_die(
+			esc_html__( 'Sorry, you are not allowed to use Forge. Ask an administrator if you need to.', 'blueworx-forge' ),
+			esc_html__( 'Not allowed', 'blueworx-forge' ),
+			array( 'response' => 403 )
+		);
 	}
 
 	/**

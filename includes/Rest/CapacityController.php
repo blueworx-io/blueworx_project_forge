@@ -123,7 +123,7 @@ final class CapacityController {
 
 		list( $from, $to ) = $window;
 
-		$people = Users::all( 'active' );
+		$people = self::visible( Users::all( 'active' ) );
 		$ids    = array_map(
 			static fn( array $person ): string => (string) $person['id'],
 			$people
@@ -158,6 +158,8 @@ final class CapacityController {
 				'by'      => 'days' === $by ? 'days' : 'weeks',
 				'periods' => $periods,
 				'people'  => $rows,
+				// #406. A Manager sees their own row only.
+				'only_me' => ! Permissions::manage(),
 			),
 			200
 		);
@@ -187,7 +189,7 @@ final class CapacityController {
 		$user_id = (string) $request->get_param( 'user_id' );
 		$person  = Users::get( $user_id );
 
-		if ( null === $person ) {
+		if ( null === $person || array() === self::visible( array( $person ) ) ) {
 			return Errors::rest( 'not_found', __( 'There is no such person.', 'blueworx-forge' ), 404 );
 		}
 
@@ -206,6 +208,30 @@ final class CapacityController {
 				'position'         => Position::for_people( array( $user_id ), $from, $to )[ $user_id ],
 			),
 			200
+		);
+	}
+
+	/**
+	 * The people the caller may see (#406): everybody for an administrator,
+	 * and only themselves for anybody else. A colleague's hours add up work on
+	 * clients a Manager may not reach, so their row is not shown at all.
+	 *
+	 * @param array<int, array<string, mixed>> $people People rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function visible( array $people ): array {
+		if ( Permissions::manage() ) {
+			return $people;
+		}
+
+		$me = Users::by_wp_user( get_current_user_id() );
+
+		if ( null === $me ) {
+			return array();
+		}
+
+		return array_values(
+			array_filter( $people, static fn( array $person ): bool => (string) $person['id'] === (string) $me['id'] )
 		);
 	}
 

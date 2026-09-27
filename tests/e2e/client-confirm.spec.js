@@ -238,12 +238,9 @@ test("the new client's own people do not read which client the task came from", 
   const signed = await Forge.signedIn(browser, baseURL, theirs.login, Forge.PASSWORD);
   const read = await signed.api.request.get(`/wp-json/blueworx-forge/v1/work-items/${item.id}`, { headers: signed.api.headers });
 
-  expect(read.status(), await read.text()).toBe(200);
-  const body = await read.text();
-  expect(body).not.toContain(`Wrong Co ${RUN_ID}`);
-  const actions = JSON.parse(body).history.map((event) => event.action);
-  expect(actions).not.toContain('client-moved');
-  expect(actions).not.toContain('client-confirmed');
+  // #406. A client's own people are kept out of the studio altogether.
+  expect(read.status(), await read.text()).toBe(403);
+  expect(await read.text()).not.toContain(`Wrong Co ${RUN_ID}`);
 
   await signed.context.close();
 });

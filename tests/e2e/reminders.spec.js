@@ -326,9 +326,9 @@ test('only staff add a reminder, and only for people on its client', async ({ br
     expect(refused.status(), `${role}: ${await refused.text()}`).toBe(403);
 
     // Recurring tasks are the studio's own business, not a client's.
-    const recurring = await asThem.api.get('/recurring');
-    expect(recurring.denied, role).toBe(true);
-    expect(recurring.sources, role).toEqual([]);
+    // Since #406 they are kept out of the studio altogether.
+    const recurring = await asThem.api.request.get('/wp-json/blueworx-forge/v1/recurring', { headers: asThem.api.headers });
+    expect(recurring.status(), role).toBe(403);
     await asThem.context.close();
   }
 
