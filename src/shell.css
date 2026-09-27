@@ -325,12 +325,12 @@
   white-space: nowrap;
 }
 
-/* The wrappers that let a phone drop New task and the profile from the bar. */
+/* The wrappers that let a phone drop New task and the profile from the bar.
+   On a desktop they take no part in the layout, so the bar is spaced as it
+   always was. */
 .fs-topbar-new,
 .fs-topbar-you {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: contents;
 }
 
 /*

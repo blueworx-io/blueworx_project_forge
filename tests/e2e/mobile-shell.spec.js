@@ -133,6 +133,18 @@ test('the client picker sits to the left of Updates, on a desktop and a phone', 
   await admin.context.close();
 });
 
+test('on a desktop the top bar keeps its spacing around New task and your profile', async ({ browser, baseURL }) => {
+  const { page, admin } = await onPhone(browser, baseURL);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const newTask = await page.getByTestId('bwx-new-task').boundingBox();
+  const divider = await page.locator('.fs-topbar-divider').boundingBox();
+  const profile = await page.getByTestId('bwx-profile').boundingBox();
+  // The bar's 16px gap plus the divider's 4px margin, either side, as before #428.
+  expect(Math.round(divider.x - (newTask.x + newTask.width))).toBe(20);
+  expect(Math.round(profile.x - (divider.x + divider.width))).toBe(20);
+  await admin.context.close();
+});
+
 test('a desktop still opens the calendar on the month, with no bottom bar', async ({ browser, baseURL }) => {
   const { page, admin } = await onPhone(browser, baseURL);
   await page.setViewportSize({ width: 1280, height: 800 });
