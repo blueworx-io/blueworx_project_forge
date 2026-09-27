@@ -258,19 +258,11 @@ final class Gates {
 			'G-COMPLETED'       => array(
 				self::system( 'G-COMPLETED-1', 'Review approval preserved', 'review_approval', 'The review approval from this cycle has to still be on the item.' ),
 				self::field( 'G-COMPLETED-2', 'Release method', 'enum', array( 'release_method' ), 'Choose how this is released: software, content, design, infrastructure or non-deployment.', self::DEL ),
-				self::field( 'G-COMPLETED-3', 'Target environment, version or destination', 'text', array( 'release_destination' ), 'Fill in where this is going.', self::DEL ),
-				self::box( 'G-COMPLETED-4', 'Release window', 'date', 'Fill in the release window.', self::DEL ),
+				// Where it goes and its window are not asked (#418); ids stay as they were.
 				self::done( 'G-COMPLETED-5', 'Delivery checklist', 'Mark the delivery checklist as done.', self::DEL ),
 				self::auto( 'G-COMPLETED-6', 'Dependencies ready', 'reference', 'dependencies_ready', 'Everything this waits on has to reach Completed first.', self::DEL ),
 				self::box( 'G-COMPLETED-7', 'Release notes', 'text', 'Fill in the release notes.', self::DEL ),
 				self::system( 'G-COMPLETED-8', 'Every child item Completed', 'children_completed', 'Every item beneath this one has to reach Completed first.' ),
-			),
-			'G-RELEASED'        => array(
-				self::box( 'G-RELEASED-1', 'Release date and time', 'datetime', 'Fill in when it was released.', self::DEL ),
-				self::box( 'G-RELEASED-2', 'Environment and version, or handover destination', 'text', 'Fill in where it went.', self::DEL ),
-				self::evidence( 'G-RELEASED-3', 'Release evidence', 'Add a comment with a link to the release.', self::DEL ),
-				self::deferred( 'G-RELEASED-4', 'Client communication status', 'client_communication', 'The NOTIF-2 confirmation arrives with the notification work; until it does this reports as passed.' ),
-				self::done( 'G-RELEASED-5', 'Post-release check', 'Mark the post-release check as done.', self::DEL ),
 			),
 			'G-BLOCKED-ENTRY'   => array(
 				// Who owns the blocker is the one answer blocking needs

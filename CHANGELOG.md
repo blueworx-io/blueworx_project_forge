@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.144.0] - 2026-09-27
+
+### Changed
+
+- Releasing a completed task asks for nothing more. Where it went, the release window, and the release date and time are no longer asked for; a released task shows when it was released, recorded automatically.
+
 ## [2.143.0] - 2026-09-27
 
 ### Added

@@ -174,7 +174,6 @@ const NEEDED_FROM: Record< string, string > = {
   planned_start: 'up-next',
   planned_due: 'up-next',
   release_method: 'completed',
-  release_destination: 'completed',
   non_goals: 'documentation-period',
 };
 
@@ -910,6 +909,10 @@ export function ItemPanel( {
   // #391. In review with the client: only the client, or an admin for them, decides.
   const clientReviewing = undefined !== item && CLIENT === item.reviewer_id && 'in-review' === item.stage && ! ended;
   const lines = detail ? historyLines( detail.history, label ) : [];
+  // The latest move into Released.
+  const releasedAt = ( detail?.history ?? [] )
+    .filter( ( event ) => 'released' === event.to_stage )
+    .reduce( ( latest, event ) => Math.max( latest, event.occurred_at ), 0 );
 
   /*
    * The stages work passes through, in order, with Blocked left out — it is an
@@ -1233,6 +1236,12 @@ export function ItemPanel( {
                   { item.id.replace( 'wrk_', '' ).slice( 0, 8 ) }
                   { item.planned_due && ` · due ${ item.planned_due }` }
                   { 0 < item.blocked_elapsed && ` · blocked ${ forHowLong( item.blocked_elapsed ) }` }
+                </span>
+              ) }
+              { /* When it went, from the move itself: nobody types it in (#418). */ }
+              { 'released' === item?.stage && releasedAt && (
+                <span className="bwx-mono bwx-panel-meta" data-testid="bwx-panel-released">
+                  released { new Date( releasedAt * 1000 ).toLocaleString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' } ) }
                 </span>
               ) }
             </div>
@@ -2247,18 +2256,6 @@ export function ItemPanel( {
                           </option>
                         ) ) }
                       </select>
-                    </div>
-
-                    <div className="bwx-field">
-                      { naming( 'release_destination', 'Where it went' ) }
-                      <input
-                        id="bwx-release_destination"
-                        className="bwx-input"
-                        value={ draft.release_destination ?? '' }
-                        onChange={ ( event ) =>
-                          setDraft( { ...draft, release_destination: event.target.value } )
-                        }
-                      />
                     </div>
                   </div>
                 ) }
