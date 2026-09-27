@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 37;
+	public const VERSION = 38;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -725,6 +725,7 @@ final class Schema {
 	release_target varchar(10) NOT NULL DEFAULT '',
 	remaining_estimate decimal(8,2) NOT NULL DEFAULT 0,
 	hours_primary decimal(8,2) NOT NULL DEFAULT 0,
+	hours_designer decimal(8,2) NOT NULL DEFAULT 0,
 	hours_review decimal(8,2) NOT NULL DEFAULT 0,
 	hours_delivery decimal(8,2) NOT NULL DEFAULT 0,
 	release_method varchar(20) NOT NULL DEFAULT '',

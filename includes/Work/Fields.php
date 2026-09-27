@@ -65,6 +65,8 @@ final class Fields {
 		'reviewer_id',
 		'deliverer_id',
 		'hours_primary',
+		// #421. Only wanted when there is a designer.
+		'hours_designer',
 		'hours_review',
 		'hours_delivery',
 	);
@@ -83,6 +85,7 @@ final class Fields {
 	 */
 	public const HOURS = array(
 		'hours_primary',
+		'hours_designer',
 		'hours_review',
 		'hours_delivery',
 	);

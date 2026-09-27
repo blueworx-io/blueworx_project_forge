@@ -107,7 +107,8 @@ final class WorkFieldCoverageTest extends TestCase {
 	 * and M7's capacity planning has nothing to work from without the second.
 	 */
 	public function test_each_seat_carries_planned_hours(): void {
-		foreach ( array( 'hours_primary', 'hours_review', 'hours_delivery' ) as $field ) {
+		// #421. The designer has hours too.
+		foreach ( array( 'hours_primary', 'hours_designer', 'hours_review', 'hours_delivery' ) as $field ) {
 			$this->assertContains( $field, Fields::HOURS, sprintf( '%s is not a planned-hours field', $field ) );
 			$this->assertContains( $field, Fields::writable(), sprintf( '%s cannot be written', $field ) );
 		}

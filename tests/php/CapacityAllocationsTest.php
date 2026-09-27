@@ -83,6 +83,24 @@ final class CapacityAllocationsTest extends TestCase {
 		$this->assertSame( 'usr_b', $allocations[1]['user_id'] );
 	}
 
+	public function test_a_designer_with_hours_is_committed_too(): void {
+		// #421. The designer's time counts on their capacity like everyone's.
+		$allocations = Allocations::from_item(
+			$this->item(
+				array(
+					'designer_id'    => 'usr_d',
+					'hours_designer' => 3.0,
+				)
+			)
+		);
+
+		$design = array_values( array_filter( $allocations, static fn( array $one ): bool => Allocations::DESIGN === $one['role'] ) );
+
+		$this->assertCount( 1, $design );
+		$this->assertSame( 'usr_d', $design[0]['user_id'] );
+		$this->assertSame( 3.0, $design[0]['hours'] );
+	}
+
 	public function test_an_idea_commits_nothing(): void {
 		$this->assertSame( array(), Allocations::from_item( $this->item( array( 'stage' => 'triage' ) ) ) );
 	}

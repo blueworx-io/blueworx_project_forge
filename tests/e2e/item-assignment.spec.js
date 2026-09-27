@@ -182,22 +182,30 @@ test('the Designer sits after Doing the work, and can be named and cleared', asy
   const labels = page.locator('.bwx-seat > .bwx-field:first-child > label');
   await expect(labels.nth(0)).toContainText('Doing the work');
   await expect(labels.nth(1)).toContainText('Designer');
-  // No hours box beside it.
-  await expect(page.locator('.bwx-seat', { has: page.locator('#bwx-designer_id') }).locator('select')).toHaveCount(1);
+  // With no designer there is no hours box beside it (#421).
+  await expect(page.locator('#bwx-hours_designer')).toHaveCount(0);
 
   // Nobody in the seat means no design is needed (2026-09-27).
   await expect(page.locator('#bwx-designer_id option[value=""]')).toHaveText('No design required');
   await expect(page.locator('#bwx-primary_user_id option[value=""]')).toHaveText('Nobody yet');
 
+  // Named, the designer is given hours like everybody else.
   await page.selectOption('#bwx-designer_id', people.primary.id);
+  await page.selectOption('#bwx-hours_designer', '1');
   await page.locator('[data-testid="bwx-save"]').click();
   await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
-  expect((await admin.api.get(`/work-items/${item.id}`)).item.designer_id).toBe(people.primary.id);
+  const named = (await admin.api.get(`/work-items/${item.id}`)).item;
+  expect(named.designer_id).toBe(people.primary.id);
+  expect(named.hours_designer).toBe(1);
 
+  // Cleared, the hours go with them.
   await page.selectOption('#bwx-designer_id', '');
+  await expect(page.locator('#bwx-hours_designer')).toHaveCount(0);
   await page.locator('[data-testid="bwx-save"]').click();
   await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
-  expect((await admin.api.get(`/work-items/${item.id}`)).item.designer_id).toBe('');
+  const cleared = (await admin.api.get(`/work-items/${item.id}`)).item;
+  expect(cleared.designer_id).toBe('');
+  expect(cleared.hours_designer).toBe(0);
 
   await page.close();
   await people.close();

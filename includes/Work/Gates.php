@@ -547,6 +547,11 @@ final class Gates {
 						continue;
 					}
 
+					// #421. With no design required there is no design time.
+					if ( 'hours_designer' === $field && '' === (string) ( $item['designer_id'] ?? '' ) ) {
+						continue;
+					}
+
 					if ( (float) ( $item[ $field ] ?? 0 ) <= 0.0 ) {
 						return false;
 					}

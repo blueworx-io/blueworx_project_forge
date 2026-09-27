@@ -163,7 +163,7 @@ export function MyTasksScreen() {
         const seat = responsible( item );
         const seats: Record< Exclude< Role, 'assignee' >, [ string, number ] > = {
           primary: [ item.primary_user_id, item.hours_primary ],
-          designer: [ item.designer_id ?? '', 0 ],
+          designer: [ item.designer_id ?? '', item.hours_designer ?? 0 ],
           reviewer: [ item.reviewer_id, item.hours_review ],
           deliverer: [ item.deliverer_id, item.hours_delivery ],
         };

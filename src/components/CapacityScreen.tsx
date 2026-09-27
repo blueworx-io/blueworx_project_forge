@@ -107,6 +107,7 @@ const BAND_WORD: Record< CapacityBand, string > = {
 
 const ROLE_WORD: Record< string, string > = {
   primary: 'Doing the work',
+  design: 'Designing',
   review: 'Reviewing',
   delivery: 'Delivering',
   assignee: 'Assigned',
