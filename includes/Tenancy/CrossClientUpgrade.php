@@ -49,10 +49,11 @@ final class CrossClientUpgrade {
 			$memberships = array_merge( $memberships, Memberships::for_user( (string) $holder['id'], null ) );
 		}
 
-		$plan = self::plan( $holders, $memberships, array_column( Clients::all( 'active' ), 'id' ) );
+		$plan   = self::plan( $holders, $memberships, array_column( Clients::all( 'active' ), 'id' ) );
+		$failed = array();
 
 		foreach ( $plan['create'] as $one ) {
-			Memberships::create(
+			$made = Memberships::create(
 				$one['user_id'],
 				$one['client_id'],
 				array(
@@ -61,10 +62,14 @@ final class CrossClientUpgrade {
 				),
 				0
 			);
+
+			if ( null === $made ) {
+				$failed[ $one['user_id'] ] = true;
+			}
 		}
 
 		foreach ( $plan['reactivate'] as $id => $version ) {
-			Memberships::update(
+			$back = Memberships::update(
 				(string) $id,
 				array(
 					'status' => 'active',
@@ -73,10 +78,17 @@ final class CrossClientUpgrade {
 				),
 				(int) $version
 			);
+
+			if ( null === $back ) {
+				$failed[ (string) ( $plan['owners'][ (string) $id ] ?? '' ) ] = true;
+			}
 		}
 
 		foreach ( $holders as $holder ) {
-			if ( ! in_array( (string) $holder['id'], $plan['clear'], true ) ) {
+			// Somebody whose memberships could not all be written keeps the
+			// grant in the column. It grants nothing now, but it records who
+			// still needs putting on their clients, rather than losing it.
+			if ( ! in_array( (string) $holder['id'], $plan['clear'], true ) || isset( $failed[ (string) $holder['id'] ] ) ) {
 				continue;
 			}
 
@@ -98,13 +110,14 @@ final class CrossClientUpgrade {
 	 * @param array<int, array<string, mixed>> $users       People: id, grants, status.
 	 * @param array<int, array<string, mixed>> $memberships Their memberships, any status.
 	 * @param array<int, string>               $client_ids  Every active client.
-	 * @return array{create: array<int, array{user_id: string, client_id: string}>, reactivate: array<string, int>, clear: array<int, string>}
+	 * @return array{create: array<int, array{user_id: string, client_id: string}>, reactivate: array<string, int>, clear: array<int, string>, owners: array<string, string>}
 	 */
 	public static function plan( array $users, array $memberships, array $client_ids ): array {
 		$plan = array(
 			'create'     => array(),
 			'reactivate' => array(),
 			'clear'      => array(),
+			'owners'     => array(),
 		);
 
 		foreach ( $users as $user ) {
@@ -123,21 +136,20 @@ final class CrossClientUpgrade {
 			}
 
 			foreach ( $client_ids as $client_id ) {
-				$whole = null;
+				$step = ClientStaff::whole_client_step(
+					array_values( array_filter( $held, static fn( array $row ): bool => (string) $row['client_id'] === (string) $client_id ) )
+				);
 
-				foreach ( $held as $row ) {
-					if ( (string) $row['client_id'] === (string) $client_id && '' === (string) $row['client_site_id'] ) {
-						$whole = $row;
-					}
-				}
-
-				if ( null === $whole ) {
+				// A client-side row there is never revived as Staff; that
+				// client is left as it is.
+				if ( 'add' === $step['action'] ) {
 					$plan['create'][] = array(
 						'user_id'   => $user_id,
 						'client_id' => (string) $client_id,
 					);
-				} elseif ( 'active' !== (string) $whole['status'] ) {
-					$plan['reactivate'][ (string) $whole['id'] ] = (int) $whole['record_version'];
+				} elseif ( 'reactivate' === $step['action'] ) {
+					$plan['reactivate'][ (string) $step['row']['id'] ] = (int) $step['row']['record_version'];
+					$plan['owners'][ (string) $step['row']['id'] ]     = $user_id;
 				}
 			}
 		}

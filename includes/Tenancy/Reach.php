@@ -12,11 +12,12 @@ namespace Blueworx\Forge\Tenancy;
 /**
  * The tenant boundary as a rule (#92), with nobody in it.
  *
- * Given the memberships somebody holds and which clients are set to All staff,
- * this says which clients and which sites exist as far as they are concerned.
- * It asks no questions of the database and knows nothing about the current
- * request, which is what makes the boundary readable: the rule is here, and
- * Rest\Boundary is the part that knows who is asking and refuses them.
+ * Given the memberships somebody holds and which clients are set to All
+ * staff, this says which clients and which sites exist as far as they are
+ * concerned. It asks no questions of the database and knows nothing about
+ * the current request, which is what makes the boundary readable: the rule
+ * is here, and Rest\Boundary is the part that knows who is asking and
+ * refuses them.
  *
  * ARCH-3 makes the **site** the unit, not the client. A membership naming no
  * site covers every site under its client, including ones added later; a
@@ -65,7 +66,8 @@ final class Reach {
 	 * A client set to All staff (#405) is reached by every studio person,
 	 * membership or not, including people added after it was set.
 	 *
-	 * @param array<int, array<string, mixed>> $memberships Membership rows, any status.
+	 * @param array<int, array<string, mixed>> $memberships Membership rows,
+	 *                                                      any status.
 	 * @param array<int, string>               $all_staff   Clients set to All staff.
 	 * @return array<string, mixed>
 	 */
@@ -119,31 +121,26 @@ final class Reach {
 	/**
 	 * Whether somebody is one of our people rather than a client's (#405).
 	 *
-	 * Ours: they hold a studio-side membership, or have never held a client
-	 * one — somebody new with no access yet counts, as in Users::ours(). A
-	 * client's person whose access has ended does not, or ending it would
-	 * open every All staff client to them.
+	 * Ours only while they hold an active studio-side membership, on any
+	 * client including the studio's own. Nobody else counts: not somebody
+	 * with no access yet, not a client's person, not somebody whose access
+	 * has ended, and not a row with a role nobody defined. Joining the team
+	 * means being given a studio-side membership.
 	 *
-	 * @param array<int, array<string, mixed>> $memberships Membership rows, any status.
+	 * @param array<int, array<string, mixed>> $memberships Membership rows,
+	 *                                                      any status.
 	 * @return bool
 	 */
 	public static function is_studio_staff( array $memberships ): bool {
-		$client_side = false;
-
 		foreach ( $memberships as $membership ) {
 			$role = (string) ( $membership['role'] ?? '' );
 
-			if ( Roles::is_client_side( $role ) ) {
-				$client_side = true;
-				continue;
-			}
-
-			if ( Roles::exists( $role ) && 'active' === (string) ( $membership['status'] ?? 'active' ) ) {
+			if ( Roles::exists( $role ) && ! Roles::is_client_side( $role ) && 'active' === (string) ( $membership['status'] ?? '' ) ) {
 				return true;
 			}
 		}
 
-		return ! $client_side;
+		return false;
 	}
 
 	/**
@@ -151,7 +148,8 @@ final class Reach {
 	 * membership on: Staff, or Internal viewer when that is all they ever are
 	 * with us. Never more than Staff, and never a grant.
 	 *
-	 * @param array<int, array<string, mixed>> $memberships Membership rows, any status.
+	 * @param array<int, array<string, mixed>> $memberships Membership rows,
+	 *                                                      any status.
 	 * @return string
 	 */
 	public static function all_staff_role( array $memberships ): string {

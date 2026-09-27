@@ -83,12 +83,49 @@ final class CrossClientUpgradeTest extends TestCase {
 	public function test_an_ended_membership_there_is_brought_back_rather_than_duplicated(): void {
 		$plan = CrossClientUpgrade::plan(
 			array( $this->person( 'usr_a' ) ),
-			array( $this->membership( 'mem_1', 'usr_a', 'cli_1', Roles::STAFF, 'inactive' ) ),
+			array(
+				$this->membership( 'mem_2', 'usr_a', 'cli_2' ),
+				$this->membership( 'mem_1', 'usr_a', 'cli_1', Roles::STAFF, 'inactive' ),
+			),
 			array( 'cli_1' )
 		);
 
 		$this->assertSame( array(), $plan['create'] );
 		$this->assertSame( array( 'mem_1' => 3 ), $plan['reactivate'] );
+	}
+
+	/**
+	 * A client-side row that ended is never brought back as Staff, and the
+	 * unique row blocks a second one, so that client is skipped and named.
+	 */
+	public function test_an_ended_client_row_is_not_revived_as_staff(): void {
+		$plan = CrossClientUpgrade::plan(
+			array( $this->person( 'usr_a' ) ),
+			array(
+				$this->membership( 'mem_2', 'usr_a', 'cli_2' ),
+				$this->membership( 'mem_1', 'usr_a', 'cli_1', Roles::CLIENT_ADMIN, 'inactive' ),
+			),
+			array( 'cli_1' )
+		);
+
+		$this->assertSame( array(), $plan['create'] );
+		$this->assertSame( array(), $plan['reactivate'] );
+		$this->assertSame( array( 'usr_a' ), $plan['clear'] );
+	}
+
+	/**
+	 * Somebody whose only access had ended was not reaching anything through
+	 * the grant, since it only widened staff with an active membership.
+	 */
+	public function test_a_holder_with_no_active_studio_membership_is_given_nothing(): void {
+		$plan = CrossClientUpgrade::plan(
+			array( $this->person( 'usr_a' ) ),
+			array( $this->membership( 'mem_1', 'usr_a', 'cli_1', Roles::STAFF, 'inactive' ) ),
+			array( 'cli_1' )
+		);
+
+		$this->assertSame( array(), $plan['reactivate'] );
+		$this->assertSame( array( 'usr_a' ), $plan['clear'] );
 	}
 
 	public function test_a_site_only_membership_still_gets_the_whole_client(): void {

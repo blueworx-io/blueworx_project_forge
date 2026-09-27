@@ -142,12 +142,17 @@ test('All staff offers every staff person, including one added afterwards, and P
 
   expect(await offered()).toContain(outsider.id);
 
-  // Somebody added to the team after the client was set.
-  const added = await admin.api.post('/users', { email: `late${RUN_ID.replace('-', '')}@example.test`, display_name: `Latecomer-${RUN_ID}` });
-  expect(added.status(), await added.text()).toBe(200);
-  const latecomer = (await added.json()).user;
+  // Somebody added to the team after the client was set: staff somewhere else.
+  const latecomer = await Forge.makePerson(admin.api, other.client.id, 'staff', `Latecomer-${RUN_ID}`);
 
   expect(await offered()).toContain(latecomer.id);
+
+  // Somebody with no access yet is not staff, and reaches nothing.
+  const added = await admin.api.post('/users', { email: `nobody${RUN_ID.replace('-', '')}@example.test`, display_name: `Nobody-${RUN_ID}` });
+  expect(added.status(), await added.text()).toBe(200);
+  const nobody = (await added.json()).user;
+  expect(await offered()).not.toContain(nobody.id);
+  expect((await admin.api.get(`/users/${nobody.id}`)).memberships).toEqual([]);
 
   const seated = await Forge.makeItem(admin.api, mine.site.id, { title: `All staff ${RUN_ID}`, primary_user_id: latecomer.id });
   expect(seated.status(), await seated.text()).toBe(200);
@@ -180,10 +185,22 @@ test('only an administrator can change who works on a client', async ({ browser,
 
   await staff.context.close();
 
-  // And only our own people can be chosen.
+  // And only our own people can be chosen: not a client's person, nor one
+  // whose client access has ended.
   const clientSide = await Forge.makePerson(admin.api, mine.client.id, 'client_admin', `Picked-${RUN_ID}`);
   const refused = await admin.api.put(`/clients/${mine.client.id}/staff`, { user_ids: [clientSide.id] });
   expect(refused.status(), await refused.text()).toBe(400);
+
+  const former = await Forge.makePerson(admin.api, other.client.id, 'client_viewer', `Former-${RUN_ID}`);
+  const held = (await admin.api.get(`/users/${former.id}`)).memberships[0];
+  const ended = await admin.api.patch(`/memberships/${held.id}`, { status: 'inactive', record_version: held.record_version });
+  expect(ended.status(), await ended.text()).toBe(200);
+
+  const pickable = (await admin.api.get(`/clients/${mine.client.id}/staff`)).people.map((one) => one.id);
+  expect(pickable).not.toContain(former.id);
+  expect(pickable).not.toContain(clientSide.id);
+  const formerRefused = await admin.api.put(`/clients/${mine.client.id}/staff`, { user_ids: [former.id] });
+  expect(formerRefused.status(), await formerRefused.text()).toBe(400);
 });
 
 test('the Cross-client grant is gone from People', async ({ page }) => {

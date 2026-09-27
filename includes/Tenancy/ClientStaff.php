@@ -68,21 +68,15 @@ final class ClientStaff {
 				continue;
 			}
 
-			$whole = null;
+			$step = self::whole_client_step(
+				array_values( array_filter( $memberships, static fn( array $row ): bool => (string) $row['user_id'] === $user_id ) )
+			);
 
-			foreach ( $memberships as $membership ) {
-				if ( (string) $membership['user_id'] === $user_id && '' === (string) $membership['client_site_id'] ) {
-					$whole = $membership;
-				}
-			}
-
-			if ( null === $whole ) {
+			if ( 'add' === $step['action'] ) {
 				$changes['add'][] = $user_id;
-			} elseif ( 'active' !== (string) $whole['status'] ) {
-				$changes['reactivate'][ (string) $whole['id'] ] = (int) $whole['record_version'];
-			} else {
-				// Active on the whole client and not studio-side: they are one
-				// of this client's own people here.
+			} elseif ( 'reactivate' === $step['action'] ) {
+				$changes['reactivate'][ (string) $step['row']['id'] ] = (int) $step['row']['record_version'];
+			} elseif ( 'refuse' === $step['action'] ) {
 				$changes['refused'][] = $user_id;
 			}
 		}
@@ -103,6 +97,80 @@ final class ClientStaff {
 		}
 
 		return $changes;
+	}
+
+	/**
+	 * How to put one person on one client as Staff, from their rows there.
+	 * Pure. Only the whole-client row matters, since there can be one of it,
+	 * and it is picked by role rather than by the order the rows came in:
+	 *
+	 * - held: an active studio-side row is already there;
+	 * - refuse: a client-side (or unknown) row is there, active or ended. It
+	 *   is never brought back as Staff, and blocks a second row;
+	 * - reactivate: an ended studio-side row comes back as Staff;
+	 * - add: there is no row, so a new one is made.
+	 *
+	 * @param array<int, array<string, mixed>> $rows The person's rows on the client, any status.
+	 * @return array{action: string, row: array<string, mixed>|null}
+	 */
+	public static function whole_client_step( array $rows ): array {
+		$ended  = null;
+		$action = 'add';
+
+		foreach ( $rows as $row ) {
+			if ( '' !== (string) $row['client_site_id'] ) {
+				continue;
+			}
+
+			$role   = (string) $row['role'];
+			$studio = Roles::exists( $role ) && ! Roles::is_client_side( $role );
+
+			if ( ! $studio ) {
+				$action = 'refuse';
+			} elseif ( 'active' === (string) $row['status'] ) {
+				return array(
+					'action' => 'held',
+					'row'    => $row,
+				);
+			} else {
+				$ended = $row;
+			}
+		}
+
+		if ( 'refuse' !== $action && null !== $ended ) {
+			return array(
+				'action' => 'reactivate',
+				'row'    => $ended,
+			);
+		}
+
+		return array(
+			'action' => $action,
+			'row'    => null,
+		);
+	}
+
+	/**
+	 * Our people who can be chosen: active, and staff by Reach's rule — an
+	 * active studio-side membership somewhere. One read of the memberships.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function people(): array {
+		$held = array();
+
+		foreach ( Memberships::by_client( null ) as $rows ) {
+			foreach ( $rows as $membership ) {
+				$held[ (string) $membership['user_id'] ][] = $membership;
+			}
+		}
+
+		return array_values(
+			array_filter(
+				Users::all( 'active' ),
+				static fn( array $person ): bool => Reach::is_studio_staff( $held[ (string) $person['id'] ] ?? array() )
+			)
+		);
 	}
 
 	/**

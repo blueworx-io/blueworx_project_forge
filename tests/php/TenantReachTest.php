@@ -151,10 +151,15 @@ final class TenantReachTest extends TestCase {
 	}
 
 	/**
-	 * Somebody added to the team later, with no access yet, is studio staff.
+	 * Only an active studio-side membership makes somebody staff. Nobody with
+	 * no access yet, nobody whose staff access ended, and no row with a role
+	 * nobody defined.
 	 */
-	public function test_somebody_with_no_memberships_yet_reaches_an_all_staff_client(): void {
-		$this->assertTrue( Reach::reaches_client( Reach::for_memberships( array(), array( 'cli_all' ) ), 'cli_all' ) );
+	public function test_only_an_active_studio_membership_makes_somebody_staff(): void {
+		$this->assertFalse( Reach::reaches_client( Reach::for_memberships( array(), array( 'cli_all' ) ), 'cli_all' ) );
+		$this->assertFalse( Reach::is_studio_staff( array( $this->membership( 'cli_a', '', Roles::STAFF, 'inactive' ) ) ) );
+		$this->assertFalse( Reach::is_studio_staff( array( $this->membership( 'cli_a', '', 'auditor' ) ) ) );
+		$this->assertTrue( Reach::is_studio_staff( array( $this->membership( 'cli_studio', '', Roles::INTERNAL_VIEWER ) ) ) );
 	}
 
 	/**

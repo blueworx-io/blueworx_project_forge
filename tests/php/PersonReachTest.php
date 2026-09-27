@@ -77,7 +77,7 @@ final class PersonReachTest extends TestCase {
 		$held = array( $this->membership( 'cli_b' ) );
 
 		$this->assertTrue( PersonReach::reaches( $this->person(), $held, false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
-		$this->assertTrue( PersonReach::reaches( $this->person(), array(), false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
+		$this->assertFalse( PersonReach::reaches( $this->person(), array(), false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
 		$this->assertFalse( PersonReach::reaches( $this->person(), $held, false, 'cli_a', 'cst_1', true ) );
 	}
 

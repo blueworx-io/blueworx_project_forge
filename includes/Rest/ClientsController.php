@@ -167,6 +167,20 @@ final class ClientsController {
 
 		Server::register_route(
 			$route_namespace,
+			'/staff',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'staff_to_choose' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The staff a new client can be given, before there is a client to scope it to. Administrator-only.',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
 			'/studio',
 			array(
 				'methods'             => 'PUT',
@@ -496,6 +510,23 @@ final class ClientsController {
 	}
 
 	/**
+	 * The staff a new client can be given (#405): nobody chosen yet.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function staff_to_choose(): WP_REST_Response {
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'client_id' => '',
+				'staff_all' => true,
+				'chosen'    => array(),
+				'people'    => self::choosable(),
+			)
+		);
+	}
+
+	/**
 	 * Sets the chosen staff on a client (#405): a Staff membership for each
 	 * one picked, and the end of every studio-side membership of each one
 	 * not. Only our own people can be picked. All staff itself is the
@@ -519,7 +550,7 @@ final class ClientsController {
 		$picked = array_values( array_unique( array_filter( array_map( 'strval', (array) ( $body['user_ids'] ?? array() ) ) ) ) );
 		$ours   = array();
 
-		foreach ( Users::ours() as $person ) {
+		foreach ( ClientStaff::people() as $person ) {
 			$ours[ (string) $person['id'] ] = $person;
 		}
 
@@ -535,16 +566,17 @@ final class ClientsController {
 			return self::staff_refused(
 				sprintf(
 					/* translators: %s: a person's name. */
-					__( '%s is one of this client\'s own people.', 'blueworx-forge' ),
+					__( '%s is, or was, one of this client\'s own people. Change their access on People.', 'blueworx-forge' ),
 					(string) $ours[ $changes['refused'][0] ]['display_name']
 				)
 			);
 		}
 
-		$author = get_current_user_id();
+		$author  = get_current_user_id();
+		$written = true;
 
 		foreach ( $changes['add'] as $user_id ) {
-			Memberships::create(
+			$written = null !== Memberships::create(
 				$user_id,
 				$client['id'],
 				array(
@@ -552,11 +584,11 @@ final class ClientsController {
 					'client_site_id' => '',
 				),
 				$author
-			);
+			) && $written;
 		}
 
 		foreach ( $changes['reactivate'] as $id => $version ) {
-			Memberships::update(
+			$written = null !== Memberships::update(
 				(string) $id,
 				array(
 					'status' => 'active',
@@ -564,11 +596,17 @@ final class ClientsController {
 					'grants' => array(),
 				),
 				(int) $version
-			);
+			) && $written;
 		}
 
 		foreach ( $changes['end'] as $id => $version ) {
-			Memberships::deactivate( (string) $id, (int) $version );
+			$written = null !== Memberships::deactivate( (string) $id, (int) $version ) && $written;
+		}
+
+		// Every write is tried, so one that fails does not stop the others;
+		// the screen is told, and reads the staff again.
+		if ( ! $written ) {
+			return Errors::rest( 'write_failed', __( 'Not every change to the staff could be saved. Check the list and try again.', 'blueworx-forge' ), 500 );
 		}
 
 		return rest_ensure_response( self::staff_answer( $client ) );
@@ -581,15 +619,7 @@ final class ClientsController {
 	 * @return array<string, mixed>
 	 */
 	private static function staff_answer( array $client ): array {
-		$ours = array_map(
-			static fn( array $person ): array => array(
-				'id'           => (string) $person['id'],
-				'display_name' => (string) $person['display_name'],
-				'status'       => (string) $person['status'],
-			),
-			Users::ours()
-		);
-
+		$ours   = self::choosable();
 		$active = array_column( $ours, 'id' );
 
 		return array(
@@ -603,6 +633,22 @@ final class ClientsController {
 				)
 			),
 			'people'    => $ours,
+		);
+	}
+
+	/**
+	 * The people who can be chosen, cut down to what the pick list shows.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	private static function choosable(): array {
+		return array_map(
+			static fn( array $person ): array => array(
+				'id'           => (string) $person['id'],
+				'display_name' => (string) $person['display_name'],
+				'status'       => (string) $person['status'],
+			),
+			ClientStaff::people()
 		);
 	}
 

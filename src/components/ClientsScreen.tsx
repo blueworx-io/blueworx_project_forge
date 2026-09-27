@@ -504,34 +504,40 @@ function ClientForm( {
   // #405. A new client is worked on by all staff, so it is workable at once.
   const [ staffAll, setStaffAll ] = useState( editing?.staff_all ?? true );
   const [ chosen, setChosen ] = useState< string[] >( [] );
+  // Who was chosen when the staff were read; null until that read succeeds,
+  // so a save can never write an empty list over staff it never saw.
+  const [ known, setKnown ] = useState< string[] | null >( null );
   const [ people, setPeople ] = useState< Person[] | null >( null );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  const editingId = editing?.id ?? '';
 
+  // Read once per client, not on every re-fetch of the record, so a pick in
+  // progress is not reset under somebody's hand.
   useEffect( () => {
     if ( studio ) {
       return;
     }
 
-    const read = editing
-      ? api< ClientStaffAnswer >( `/clients/${ editing.id }/staff` ).then( ( answer ) => {
-          setChosen( answer.chosen );
-
-          return answer.people;
-        } )
-      : api< { ok: true; people: Person[] } >( '/people' ).then( ( answer ) => answer.people );
-
-    read
-      .then( ( found ) => setPeople( found ) )
+    api< ClientStaffAnswer >( '' === editingId ? '/staff' : `/clients/${ editingId }/staff` )
+      .then( ( answer ) => {
+        setChosen( answer.chosen );
+        setKnown( answer.chosen );
+        setPeople( answer.people );
+      } )
       .catch( ( error: unknown ) => {
         setPeople( [] );
         setNotice( messageFor( error, 'The staff could not be read.' ) );
       } );
-  }, [ editing, studio ] );
+  }, [ editingId, studio ] );
 
-  /** The chosen staff, written after the client itself so a new client has an id. */
+  const staffReady = null !== known;
+  const picked = [ ...chosen ].sort().join( ',' );
+  const staffChanged = staffReady && picked !== [ ...known ].sort().join( ',' );
+
+  /** The chosen staff, written after the client itself so a new client has an id; only when the pick changed. */
   async function saveStaff( clientId: string ) {
-    if ( ! staffAll ) {
+    if ( ! staffAll && staffChanged ) {
       await api< ClientStaffAnswer >( `/clients/${ clientId }/staff`, { method: 'PUT', body: { user_ids: chosen } } );
     }
   }
@@ -579,7 +585,7 @@ function ClientForm( {
       onClose={ onClose }
       footer={
         <div className="bwx-moves">
-          <Button data-testid="bwx-clients-form-save" disabled={ busy } onClick={ () => void save() }>
+          <Button data-testid="bwx-clients-form-save" disabled={ busy || ( ! studio && ! staffAll && ! staffReady ) } onClick={ () => void save() }>
             { editing ? 'Save' : 'Add client' }
           </Button>
           <Button variant="ghost" data-testid="bwx-clients-form-cancel" onClick={ onClose }>

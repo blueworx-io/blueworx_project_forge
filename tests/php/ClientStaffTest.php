@@ -83,6 +83,27 @@ final class ClientStaffTest extends TestCase {
 		$this->assertSame( array(), $changes['end'] );
 	}
 
+	/**
+	 * A client-side row that ended is never brought back as Staff, whatever
+	 * order the rows come in; a staff row that ended is.
+	 */
+	public function test_an_ended_client_row_is_never_revived_as_staff(): void {
+		$changes = ClientStaff::changes( array( 'usr_e' ), array( $this->membership( 'mem_5', 'usr_e', Roles::CLIENT_VIEWER, 'inactive' ) ) );
+
+		$this->assertSame( array( 'usr_e' ), $changes['refused'] );
+		$this->assertSame( array(), $changes['reactivate'] );
+	}
+
+	public function test_an_active_client_row_is_refused_whatever_the_order(): void {
+		$held = array(
+			$this->membership( 'mem_6', 'usr_f', Roles::CLIENT_ADMIN ),
+			$this->membership( 'mem_7', 'usr_f', Roles::STAFF, 'inactive' ),
+		);
+
+		$this->assertSame( array( 'usr_f' ), ClientStaff::changes( array( 'usr_f' ), $held )['refused'] );
+		$this->assertSame( array( 'usr_f' ), ClientStaff::changes( array( 'usr_f' ), array_reverse( $held ) )['refused'] );
+	}
+
 	public function test_nothing_changes_when_the_list_is_as_it_stands(): void {
 		$changes = ClientStaff::changes( array( 'usr_a' ), array( $this->membership( 'mem_1', 'usr_a' ) ) );
 
