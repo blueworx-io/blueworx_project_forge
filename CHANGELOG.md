@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.147.0] - 2026-09-27
+
+### Added
+
+- The designer on a task has hours, like everyone else on it. They count on the designer's capacity and in the task's total. With no design required there are no designer hours.
+
 ## [2.146.0] - 2026-09-27
 
 ### Added
