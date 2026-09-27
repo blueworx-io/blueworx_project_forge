@@ -182,9 +182,9 @@ final class Diary {
 	 * shortened to half an hour went on holding an hour (2026-09-27, #427).
 	 *
 	 * Only rows still scheduled are touched: one held, cancelled or missed is a
-	 * record of what happened. A moved meeting keeps the day and time somebody
-	 * moved it to, and takes only the new hours. A row whose slot the new rule
-	 * no longer lands on is left as it is.
+	 * record of what happened. A moved meeting keeps the day somebody moved it
+	 * to, and takes the new hours and time — a move only ever chose the day.
+	 * A row whose slot the new rule no longer lands on is left as it is.
 	 *
 	 * @param array<string, mixed> $series The series, as stored after the edit.
 	 * @param string               $from   YYYY-MM-DD; rows before it are history.
@@ -199,7 +199,10 @@ final class Diary {
 				continue;
 			}
 
-			$changes = array( 'planned_hours' => $hours );
+			$changes = array(
+				'planned_hours' => $hours,
+				'at'            => (string) ( $series['time_of_day'] ?? $row['at'] ),
+			);
 			$slot    = (string) $row['excepted_from'];
 
 			if ( '' === $slot || $slot === (string) $row['on'] ) {

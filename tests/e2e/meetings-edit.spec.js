@@ -47,6 +47,14 @@ test('shortening a standing meeting shortens the meetings it has coming, and giv
   expect(before.meetings.every((meeting) => 1 === meeting.hours)).toBe(true);
   expect(before.meetings.every((meeting) => 'reserved' === meeting.ledger_state)).toBe(true);
 
+  // One meeting moved a day later first: it keeps its new day, and follows the
+  // series' new length and time like the rest.
+  const landing = new Date(`${first}T00:00:00Z`);
+  landing.setUTCDate(landing.getUTCDate() + 1);
+  const movedTo = landing.toISOString().slice(0, 10);
+  const moved = await api.post(`/client-sites/${where.site.id}/meetings/${series.id}/${first}/move`, { on: movedTo });
+  expect(moved.status(), await moved.text()).toBe(200);
+
   const edited = await api.post(
     `/client-sites/${where.site.id}/meetings/series/${series.id}`,
     weekly(host, first, { duration_mins: 30, time_of_day: '14:00', record_version: series.record_version })
@@ -56,6 +64,7 @@ test('shortening a standing meeting shortens the meetings it has coming, and giv
 
   expect(after.series[0].hours_each).toBe(0.5);
   expect(after.meetings.length).toBe(before.meetings.length);
+  expect(after.meetings.map((meeting) => meeting.on)).toContain(movedTo);
   for (const meeting of after.meetings) {
     expect(meeting.hours, `${meeting.on} follows the new length`).toBe(0.5);
     expect(meeting.time, `${meeting.on} follows the new time`).toBe('14:00');
