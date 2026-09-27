@@ -2615,6 +2615,15 @@ td[ data-band='over' ] {
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+/* Who the work waits on (#420): read-only, beside the stage it is at. */
+.bwx-panel-waiting {
+  font-size: var( --text-small );
+  color: var( --ink-500 );
+}
+.bwx-panel-waiting strong {
+  color: var( --ink-900 );
+  font-weight: var( --weight-medium );
+}
 
 /*
  * The item panel's frame: a head that stays, a body that scrolls, a foot that
@@ -3028,11 +3037,12 @@ td[ data-band='over' ] {
 }
 .bwx-standup-card {
   display: grid;
-  grid-template-columns: 150px minmax( 0, 1fr ) auto;
+  /* Who it waits on has a column of its own (#420), so the names line up. */
+  grid-template-columns: 150px minmax( 0, 1fr ) 200px auto;
   grid-template-areas:
-    'head title actions'
-    'head detail actions'
-    'head gate actions';
+    'head title waiting actions'
+    'head detail waiting actions'
+    'head gate gate actions';
   column-gap: 16px;
   row-gap: 2px;
   align-items: start;
@@ -3070,6 +3080,16 @@ td[ data-band='over' ] {
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+.bwx-standup-waiting {
+  grid-area: waiting;
+  font-size: var( --text-small );
+  color: var( --ink-500 );
+  overflow-wrap: anywhere;
+}
+.bwx-standup-waiting strong {
+  color: var( --ink-900 );
+  font-weight: var( --weight-medium );
+}
 .bwx-standup-show {
   margin-left: 8px;
   padding: 0;
@@ -3105,6 +3125,7 @@ td[ data-band='over' ] {
       'head'
       'title'
       'detail'
+      'waiting'
       'gate'
       'actions';
   }

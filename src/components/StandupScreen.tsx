@@ -3,6 +3,8 @@ import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { SECTIONS, cardDetail, cardTitle, keyOf, ruleTone, ruleWord } from '../standup';
+import { waitingOn } from '../turn';
+import type { Seated } from '../turn';
 import { DiaryLine } from './Diary';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
@@ -512,6 +514,11 @@ function Card( {
 } ) {
   const detail = cardDetail( card );
   const isWork = 'work_item' === card.subject_type;
+  // #420. Who it waits on, for our own people: the names only come to them.
+  const names = card.detail?.seat_names as Record< string, string > | undefined;
+  const waiting = isWork && names && ! card.detail?.chore
+    ? waitingOn( { stage: String( card.detail?.stage ?? '' ), prior_stage: String( card.detail?.prior_stage ?? '' ), ...( card.detail?.seats as Seated ) }, names )
+    : null;
   const unmet = Array.isArray( card.detail?.unmet ) ? ( card.detail.unmet as Requirement[] ) : [];
   // The outstanding list starts folded (Luke, 2026-09-20): the card says how
   // many, and Show opens them. A page of every requirement on every item was
@@ -533,6 +540,12 @@ function Card( {
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
+
+      { null !== waiting && (
+        <span className="bwx-standup-waiting" data-testid="bwx-standup-waiting">
+          Waiting on <strong>{ waiting }</strong>
+        </span>
+      ) }
 
       { '' !== detail && (
         <span className="bwx-standup-card-detail">

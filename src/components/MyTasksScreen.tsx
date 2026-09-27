@@ -11,6 +11,8 @@ import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
+// A task is on somebody's list only while it is theirs to act on, and only once.
+import { responsible } from '../turn';
 
 /*
  * My Tasks (#309): one person's day and week, from the same records as the
@@ -35,26 +37,6 @@ const DAY = 86400000;
 /** Today, in the browser's own zone — the same today the due dates below use. */
 function todayISO(): string {
   return new Date().toISOString().slice( 0, 10 );
-}
-
-/**
- * Whose move it is at a stage (2026-09-24): the reviewer's in review, the
- * deliverer's once completed, nobody's once released, and the owner's before
- * that. Blocked work is whoever's stage it was blocked from. A task is on
- * somebody's list only while it is theirs to act on, and only once.
- */
-function responsible( item: WorkItem ): Role | null {
-  const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
-
-  if ( 'released' === stage ) return null;
-  // #391. While the client reviews, the owner keeps it, marked as waiting.
-  if ( 'in-review' === stage && CLIENT_REVIEWER === item.reviewer_id ) return 'primary';
-  if ( 'in-review' === stage ) return 'reviewer';
-  if ( 'completed' === stage ) return 'deliverer';
-  // #409. At Design it is the Designer's, when there is one.
-  if ( 'design-process' === stage && item.designer_id ) return 'designer';
-
-  return 'primary';
 }
 
 interface Mine extends Record< string, unknown > {

@@ -14,6 +14,8 @@ use Blueworx\Forge\Calendar\Feed;
 use Blueworx\Forge\Standup\Board;
 use Blueworx\Forge\Standup\Rules;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Users;
+use Blueworx\Forge\Work\Comments;
 use WP_REST_Response;
 
 /**
@@ -56,6 +58,39 @@ final class StandupController {
 	}
 
 	/**
+	 * Each work card with the names behind its seats (#420), so the board can
+	 * say who it waits on. Our own people only, as the task panel's seat names
+	 * are (#393); everybody is read once rather than once per person.
+	 *
+	 * @param array<int, array<string, mixed>> $cards The cards.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function with_seat_names( array $cards ): array {
+		$names = null;
+		$staff = array();
+
+		foreach ( $cards as $index => $card ) {
+			if ( ! isset( $card['detail']['seats'] ) ) {
+				continue;
+			}
+
+			$client = (string) ( $card['detail']['client_id'] ?? '' );
+
+			$staff[ $client ] ??= Comments::SCOPE_STAFF === Scope::current( $client );
+
+			if ( ! $staff[ $client ] ) {
+				continue;
+			}
+
+			$names ??= array_column( Users::all( null ), 'display_name', 'id' );
+
+			$cards[ $index ]['detail']['seat_names'] = array_intersect_key( $names, array_flip( array_filter( (array) $card['detail']['seats'] ) ) );
+		}
+
+		return $cards;
+	}
+
+	/**
 	 * What needs attention today.
 	 *
 	 * Somebody who reaches nothing is told so rather than shown an empty list
@@ -89,7 +124,7 @@ final class StandupController {
 		Materialise::maybe();
 
 		$today = gmdate( 'Y-m-d', bwx_forge_now() );
-		$cards = Board::for_reach( $reach, $today );
+		$cards = self::with_seat_names( Board::for_reach( $reach, $today ) );
 
 		return rest_ensure_response(
 			array(
