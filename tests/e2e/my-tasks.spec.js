@@ -274,6 +274,18 @@ test( 'overdue work is under Today, and released work is under none of the dated
   await place( `Late to ship ${ RUN }`, 'completed' );
   await place( `Shipped ${ RUN }`, 'released' );
 
+  // Two reminders for them today, one already ticked off.
+  const today = ( await admin.api.get( '/standup' ) ).today;
+  const remind = async ( title ) => {
+    const made = await admin.api.post( '/reminders', { client_site_id: site.id, title, assignees: [ person.id ], starts_on: today } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+    return ( await made.json() ).reminder.copies[ 0 ].item_id;
+  };
+  await remind( `Still to do ${ RUN }` );
+  const doneId = await remind( `Ticked off ${ RUN }` );
+  const ticked = await admin.api.post( `/work-items/${ doneId }/tick`, { user_id: person.id, done: true } );
+  expect( ticked.status(), await ticked.text() ).toBe( 200 );
+
   const me = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
   const page = await me.context.newPage();
   await page.goto( '/blueworx-forge/#screen=mytasks' );
@@ -281,10 +293,18 @@ test( 'overdue work is under Today, and released work is under none of the dated
   await expect( table ).toBeVisible( { timeout: 60_000 } );
 
   await expect( table ).toContainText( `Late to ship ${ RUN }` );
-  for ( const tab of [ /^Today/, /^Next seven days/, /^Further out/ ] ) {
+  // Done work is under no view, Everything included (Luke, 2026-09-27).
+  for ( const tab of [ /^Today/, /^Next seven days/, /^Further out/, /^Everything/ ] ) {
     await table.getByRole( 'button', { name: tab } ).click();
     await expect( table ).not.toContainText( `Shipped ${ RUN }` );
+    await expect( table ).not.toContainText( `Ticked off ${ RUN }` );
   }
+
+  // A reminder's count sits beside its title, with no tick box: it is ticked
+  // off from inside the task.
+  const open = table.locator( 'tbody tr', { hasText: `Still to do ${ RUN }` } );
+  await expect( open ).toContainText( 'Done 0 of 1' );
+  await expect( open.locator( 'input[type="checkbox"]' ) ).toHaveCount( 0 );
 
   await page.close();
   await me.context.close();

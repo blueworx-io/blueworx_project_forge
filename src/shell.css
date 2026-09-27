@@ -167,8 +167,15 @@
  * when the page itself scrolled: squeezed, a screen became a second scroller
  * and its sections overlapped (#407).
  */
+/* `:not()` keeps these above a screen's own `flex: 1`, which would squeeze it
+   back into a second scroller. */
 .fs-main > :not( .fs-topbar ) {
-  flex: 1 0 auto;
+  flex: 0 0 auto;
+}
+/* Only the last section takes spare height: shared out, a short screen's
+   header and toolbars stretched with it. */
+.fs-main > :last-child:not( .fs-topbar ) {
+  flex-grow: 1;
 }
 .fs-topbar {
   position: sticky;
@@ -224,7 +231,8 @@
   color: inherit;
   white-space: nowrap;
 }
-.fs-client-select {
+/* Doubled class: wp-admin's `.wp-core-ui select` draws its own arrow otherwise. */
+.fs-client .fs-client-select {
   appearance: none;
   min-width: 0;
   max-width: 200px;
@@ -232,6 +240,8 @@
   margin: 0;
   padding: 0 18px 0 2px;
   border: 0;
+  border-radius: 0;
+  box-shadow: none;
   background: transparent;
   color: var( --ink-900 );
   font: inherit;
@@ -242,8 +252,16 @@
 .fs-client[data-narrowed] .fs-client-select {
   color: var( --tile-teal-fg );
 }
-.fs-client-select:focus-visible {
+.fs-client .fs-client-select:hover {
+  color: var( --ink-900 );
+}
+.fs-client[data-narrowed] .fs-client-select:hover {
+  color: var( --tile-teal-fg );
+}
+.fs-client .fs-client-select:focus,
+.fs-client .fs-client-select:focus-visible {
   outline: none;
+  box-shadow: none;
 }
 .fs-client:focus-within {
   box-shadow: var( --focus-ring );

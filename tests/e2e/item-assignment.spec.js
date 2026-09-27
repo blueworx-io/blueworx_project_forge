@@ -185,6 +185,10 @@ test('the Designer sits after Doing the work, and can be named and cleared', asy
   // No hours box beside it.
   await expect(page.locator('.bwx-seat', { has: page.locator('#bwx-designer_id') }).locator('select')).toHaveCount(1);
 
+  // Nobody in the seat means no design is needed (2026-09-27).
+  await expect(page.locator('#bwx-designer_id option[value=""]')).toHaveText('No design required');
+  await expect(page.locator('#bwx-primary_user_id option[value=""]')).toHaveText('Nobody yet');
+
   await page.selectOption('#bwx-designer_id', people.primary.id);
   await page.locator('[data-testid="bwx-save"]').click();
   await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });

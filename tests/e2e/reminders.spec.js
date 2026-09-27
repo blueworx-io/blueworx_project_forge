@@ -272,6 +272,40 @@ test('anyone on the team adds a reminder from its page', async ({ browser, baseU
   await page.close();
 });
 
+test('a reminder added on its page is titled with its type in front', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindPrefix', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remprefix');
+  const title = `Catch up ${RUN_ID}`;
+
+  const me = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+  const page = await me.context.newPage();
+  await page.goto('/blueworx-forge/#screen=reminders');
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+
+  await page.getByTestId('bwx-reminders-add').click();
+  await page.getByTestId('bwx-reminder-title').fill(title);
+  await page.getByTestId('bwx-reminder-client').selectOption(site.id);
+  await page.getByTestId(`bwx-reminder-person-${person.id}`).check();
+  await page.getByTestId('bwx-reminder-starts').fill(today);
+  await page.getByTestId('bwx-reminder-save').click();
+
+  const saved = async () => (await admin.api.get('/reminders')).reminders.find((one) => one.client_site_id === site.id);
+  await expect.poll(async () => (await saved())?.title, { timeout: 30_000 }).toBe(`General: ${title}`);
+
+  // Editing shows the bare title, and a new type replaces the old prefix.
+  const row = page.getByTestId('bwx-reminders-table').locator('tbody tr', { hasText: title });
+  await row.getByTestId('bwx-reminder-edit').click();
+  await expect(page.getByTestId('bwx-reminder-title')).toHaveValue(title);
+  await page.getByTestId('bwx-reminder-category').selectOption('sales');
+  await page.getByTestId('bwx-reminder-save').click();
+  await expect.poll(async () => (await saved())?.title, { timeout: 30_000 }).toBe(`Sales: ${title}`);
+  await page.close();
+});
+
 test('Sales and Finance are reminder types, and the type still shows after a reload', async ({ browser, baseURL }) => {
   test.slow();
 
