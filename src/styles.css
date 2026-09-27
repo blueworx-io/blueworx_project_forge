@@ -3666,7 +3666,7 @@ td[ data-band='over' ] {
 /* Two columns where there is room: a full day's diary is a long list. */
 .bwx-standup-diary .bwx-diary-lines {
   display: grid;
-  grid-template-columns: repeat( auto-fill, minmax( 380px, 1fr ) );
+  grid-template-columns: repeat( auto-fill, minmax( min( 380px, 100% ), 1fr ) );
   column-gap: 32px;
 }
 .bwx-standup-diary .bwx-diary-lines > .bwx-diary-line {
@@ -3686,6 +3686,18 @@ td[ data-band='over' ] {
   flex: 0 0 auto;
   flex-wrap: nowrap;
   margin-left: auto;
+}
+/* On a phone (#429) the buttons go under the title and wrap: side by side,
+   four of them ran off the screen. */
+@media ( max-width: 640px ) {
+  .bwx-standup-settle .bwx-diary-line {
+    flex-wrap: wrap;
+  }
+  .bwx-standup-settle .bwx-diary-line > .bwx-moves {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
 }
 .bwx-calendar-diary[ data-tone='teal' ] { --entry-ink: var( --phase-pipeline-ink ); --entry-wash: var( --phase-pipeline-bg ); --entry-edge: var( --phase-pipeline-border ); }
 .bwx-calendar-diary[ data-tone='violet' ] { --entry-ink: var( --phase-idea-ink ); --entry-wash: var( --phase-idea-bg ); --entry-edge: var( --phase-idea-border ); }
