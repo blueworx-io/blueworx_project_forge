@@ -107,6 +107,18 @@ final class TenancyValidateTest extends TestCase {
 	}
 
 	/**
+	 * #405. Whether every studio person works on a client. Left out of a new
+	 * client it is off; the screen asks for it.
+	 */
+	public function test_a_client_says_whether_all_staff_work_on_it(): void {
+		$this->assertTrue( Validate::client( array( 'display_name' => 'Acme', 'staff_all' => true ), false )['values']['staff_all'] );
+		$this->assertFalse( Validate::client( array( 'display_name' => 'Acme' ), false )['values']['staff_all'] );
+		$this->assertFalse( Validate::client( array( 'staff_all' => '0' ), true )['values']['staff_all'] );
+		$this->assertArrayNotHasKey( 'staff_all', Validate::client( array( 'legal_name' => 'A' ), true )['values'] );
+		$this->assertArrayHasKey( 'staff_all', Validate::client( array( 'staff_all' => 'maybe' ), true )['errors'] );
+	}
+
+	/**
 	 * Name length is measured in characters, not bytes — a 191-character name in
 	 * a multi-byte script must be accepted, not refused for a byte count that
 	 * has nothing to do with what varchar(191) actually stores.
@@ -214,14 +226,13 @@ final class TenancyValidateTest extends TestCase {
 	}
 
 	/**
-	 * A person can hold the cross-client grant, which is the one that is not
-	 * about any single client.
+	 * #405. A person holds no grant of their own any more; the cross-client
+	 * one is refused.
 	 */
-	public function test_a_person_may_hold_the_cross_client_grant(): void {
+	public function test_a_person_may_not_hold_the_cross_client_grant(): void {
 		$checked = Validate::user( array( 'grants' => array( 'cross_client' ) ), true );
 
-		$this->assertSame( array(), $checked['errors'] );
-		$this->assertSame( array( 'cross_client' ), $checked['values']['grants'] );
+		$this->assertArrayHasKey( 'grants', $checked['errors'] );
 	}
 
 	/**

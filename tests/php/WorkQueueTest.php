@@ -49,13 +49,13 @@ final class WorkQueueTest extends TestCase {
 	}
 
 	/**
-	 * A reach built from one staff membership, with the grants given.
+	 * A reach built from one staff membership, with the All staff clients given.
 	 *
-	 * @param string $client_id The client the membership is on.
-	 * @param string $grants    The user's grants column.
+	 * @param string             $client_id The client the membership is on.
+	 * @param array<int, string> $all_staff Clients set to All staff.
 	 * @return array<string, mixed>
 	 */
-	private function reach( string $client_id = 'cli_acme', string $grants = '' ): array {
+	private function reach( string $client_id = 'cli_acme', array $all_staff = array() ): array {
 		return Reach::for_memberships(
 			array(
 				array(
@@ -64,7 +64,7 @@ final class WorkQueueTest extends TestCase {
 					'status'    => 'active',
 				),
 			),
-			$grants
+			$all_staff
 		);
 	}
 
@@ -332,10 +332,9 @@ final class WorkQueueTest extends TestCase {
 	}
 
 	/**
-	 * The cross-client grant is what widens the queue to every client, and it
-	 * is the only thing that does.
+	 * #405. A client set to All staff widens the queue to it, and only to it.
 	 */
-	public function test_the_cross_client_grant_sees_every_client(): void {
+	public function test_an_all_staff_client_is_in_the_queue(): void {
 		$rows = array(
 			$this->row(),
 			$this->row(
@@ -347,6 +346,6 @@ final class WorkQueueTest extends TestCase {
 			),
 		);
 
-		$this->assertCount( 2, Queue::visible( $this->reach( 'cli_acme', 'cross_client' ), $rows ) );
+		$this->assertCount( 2, Queue::visible( $this->reach( 'cli_acme', array( 'cli_belltown' ) ), $rows ) );
 	}
 }

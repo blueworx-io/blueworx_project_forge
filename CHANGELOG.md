@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.141.0] - 2026-09-27
+
+### Added
+
+- Each client's Edit screen sets which staff work on it: All staff, or chosen people.
+
+### Removed
+
+- The Cross-client permission is gone; anyone who had it is now on every client, and can be taken off each one.
+
 ## [2.140.0] - 2026-09-27
 
 ### Added

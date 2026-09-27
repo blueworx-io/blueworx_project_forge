@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Building2, Globe } from 'lucide-react';
-import type { ClientContact, ClientRecord, ClientRow, ClientSiteRecord, IssuedKey, Person, SiteIntegration } from '../types';
+import type { ClientContact, ClientRecord, ClientRow, ClientSiteRecord, ClientStaffAnswer, IssuedKey, Person, SiteIntegration } from '../types';
 import { api, ApiError, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
@@ -431,6 +431,8 @@ export function ClientsScreen() {
                       { ' · ' }
                       { selected.timezone }
                       { selected.email_domains.length > 0 && ` · ${ selected.email_domains.join( ', ' ) }` }
+                      { ' · ' }
+                      <span data-testid="bwx-clients-selected-staff">{ selected.staff_all ? 'All staff' : 'Chosen staff' }</span>
                     </>
                   ) }
                 </p>
@@ -499,8 +501,46 @@ function ClientForm( {
   const [ timezone, setTimezone ] = useState( editing?.timezone ?? 'Europe/London' );
   const [ domains, setDomains ] = useState( editing?.email_domains.join( ', ' ) ?? '' );
   const [ status, setStatus ] = useState( editing?.status ?? 'active' );
+  // #405. A new client is worked on by all staff, so it is workable at once.
+  const [ staffAll, setStaffAll ] = useState( editing?.staff_all ?? true );
+  const [ chosen, setChosen ] = useState< string[] >( [] );
+  // Who was chosen when the staff were read; null until that read succeeds,
+  // so a save can never write an empty list over staff it never saw.
+  const [ known, setKnown ] = useState< string[] | null >( null );
+  const [ people, setPeople ] = useState< Person[] | null >( null );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  const editingId = editing?.id ?? '';
+
+  // Read once per client, not on every re-fetch of the record, so a pick in
+  // progress is not reset under somebody's hand.
+  useEffect( () => {
+    if ( studio ) {
+      return;
+    }
+
+    api< ClientStaffAnswer >( '' === editingId ? '/staff' : `/clients/${ editingId }/staff` )
+      .then( ( answer ) => {
+        setChosen( answer.chosen );
+        setKnown( answer.chosen );
+        setPeople( answer.people );
+      } )
+      .catch( ( error: unknown ) => {
+        setPeople( [] );
+        setNotice( messageFor( error, 'The staff could not be read.' ) );
+      } );
+  }, [ editingId, studio ] );
+
+  const staffReady = null !== known;
+  const picked = [ ...chosen ].sort().join( ',' );
+  const staffChanged = staffReady && picked !== [ ...known ].sort().join( ',' );
+
+  /** The chosen staff, written after the client itself so a new client has an id; only when the pick changed. */
+  async function saveStaff( clientId: string ) {
+    if ( ! staffAll && staffChanged ) {
+      await api< ClientStaffAnswer >( `/clients/${ clientId }/staff`, { method: 'PUT', body: { user_ids: chosen } } );
+    }
+  }
 
   async function save() {
     setBusy( true );
@@ -514,12 +554,18 @@ function ClientForm( {
       } else if ( editing ) {
         const answer = await api< { ok: true; client: ClientRow } >( `/clients/${ editing.id }`, {
           method: 'PATCH',
-          body: { display_name: name, legal_name: legal, timezone, email_domains: domains, status, record_version: editing.record_version },
+          body: { display_name: name, legal_name: legal, timezone, email_domains: domains, status, staff_all: staffAll, record_version: editing.record_version },
         } );
+
+        if ( 'active' === status ) {
+          await saveStaff( editing.id );
+        }
 
         onSaved( answer.client, 'inactive' === status && 'active' === editing.status ? `${ name } has been deactivated, and every site under it.` : '' );
       } else {
-        const answer = await api< { ok: true; client: ClientRow } >( '/clients', { method: 'POST', body: { display_name: name, legal_name: legal, timezone, email_domains: domains } } );
+        const answer = await api< { ok: true; client: ClientRow } >( '/clients', { method: 'POST', body: { display_name: name, legal_name: legal, timezone, email_domains: domains, staff_all: staffAll } } );
+
+        await saveStaff( answer.client.id );
 
         onSaved( answer.client );
       }
@@ -539,7 +585,7 @@ function ClientForm( {
       onClose={ onClose }
       footer={
         <div className="bwx-moves">
-          <Button data-testid="bwx-clients-form-save" disabled={ busy } onClick={ () => void save() }>
+          <Button data-testid="bwx-clients-form-save" disabled={ busy || ( ! studio && ! staffAll && ! staffReady ) } onClick={ () => void save() }>
             { editing ? 'Save' : 'Add client' }
           </Button>
           <Button variant="ghost" data-testid="bwx-clients-form-cancel" onClick={ onClose }>
@@ -569,6 +615,38 @@ function ClientForm( {
           <Field label="Permitted email domains" help="Each one a domain on its own, separated by commas, such as acme.co.uk, acme.com.">
             { ( id ) => <TextInput id={ id } maxLength={ 1000 } placeholder="acme.co.uk, acme.com" data-testid="bwx-clients-form-domains" value={ domains } onChange={ ( event ) => setDomains( event.target.value ) } /> }
           </Field>
+          <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-clients-form-staff">
+            <legend>Staff</legend>
+            <label className="bwx-recurring-person">
+              <input type="radio" name="bwx-clients-staff" data-testid="bwx-clients-form-staff-all" checked={ staffAll } onChange={ () => setStaffAll( true ) } />
+              All staff
+            </label>
+            <label className="bwx-recurring-person">
+              <input type="radio" name="bwx-clients-staff" data-testid="bwx-clients-form-staff-chosen" checked={ ! staffAll } onChange={ () => setStaffAll( false ) } />
+              Chosen staff
+            </label>
+            <span className="bwx-hint">
+              { staffAll ? 'Everyone on the team works on this client, including people added later.' : 'Only the people ticked below work on this client.' }
+            </span>
+          </fieldset>
+          { ! staffAll && (
+            <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-clients-form-staff-people">
+              <legend>Who works on it</legend>
+              { null === people && <span className="bwx-hint">Reading the staff…</span> }
+              { ( people ?? [] ).map( ( person ) => (
+                <label key={ person.id } className="bwx-recurring-person">
+                  <input
+                    type="checkbox"
+                    data-testid={ `bwx-clients-form-staff-person-${ person.id }` }
+                    checked={ chosen.includes( person.id ) }
+                    onChange={ ( event ) => setChosen( event.target.checked ? [ ...chosen, person.id ] : chosen.filter( ( one ) => one !== person.id ) ) }
+                  />
+                  { person.display_name }
+                </label>
+              ) ) }
+              { null !== people && 0 === people.length && <span className="bwx-hint">Nobody on People yet.</span> }
+            </fieldset>
+          ) }
           { editing && (
             <Field label="Status" help="Deactivating closes every site under them too.">
               { ( id ) => (

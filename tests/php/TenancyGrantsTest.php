@@ -86,13 +86,12 @@ final class TenancyGrantsTest extends TestCase {
 	}
 
 	/**
-	 * The three grants, named. Cross-client is here rather than being a role
-	 * because it does not change what somebody may do — only how far it reaches.
+	 * The two grants, named. Cross-client went in #405: a stored one is read
+	 * as nothing.
 	 */
-	public function test_the_grants_are_the_three_the_matrix_names(): void {
-		$this->assertSame(
-			array( 'principal', 'approver', 'cross_client' ),
-			Grants::ALL
-		);
+	public function test_the_grants_are_the_two_the_matrix_names(): void {
+		$this->assertSame( array( 'principal', 'approver' ), Grants::ALL );
+		$this->assertSame( array(), Grants::ON_USER );
+		$this->assertSame( array(), Grants::parse( 'cross_client' ) );
 	}
 }

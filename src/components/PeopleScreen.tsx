@@ -228,7 +228,7 @@ export function PeopleScreen( { person }: { person: string } ) {
           { opened && 'add' === opened.kind && <AddForm onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'account' === opened.kind && <FromAccountForm onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'edit' === opened.kind && target && grants && (
-            <EditForm person={ target } grants={ grants.on_user } onClose={ () => setOpened( null ) } onSaved={ landed } />
+            <EditForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } />
           ) }
           { opened && 'link' === opened.kind && target && <LinkForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'membership' === opened.kind && target && <MembershipForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
@@ -279,7 +279,8 @@ function PersonCard( {
 
   const columns: Column< Membership >[] = [
     { key: 'client', label: 'Client', wrap: true, render: ( m ) => m.client_name || 'Unknown client' },
-    { key: 'role', label: 'Role', width: 130, wrap: true, render: ( m ) => m.role_label },
+    // #405. A client set to All staff shows as a row of its own, changed on the client.
+    { key: 'role', label: 'Role', width: 130, wrap: true, render: ( m ) => ( m.all_staff ? <Tag tone="info">All staff</Tag> : m.role_label ) },
     { key: 'reaches', label: 'Reaches', wrap: true, render: ( m ) => ( '' === m.client_site_id ? 'every site' : `one site: ${ m.site_name ?? 'unknown' }` ) },
     {
       key: 'status',
@@ -293,7 +294,7 @@ function PersonCard( {
       label: '',
       width: 190,
       render: ( m ) =>
-        'active' === m.status && active ? (
+        'active' === m.status && active && ! m.all_staff ? (
           <span className="bwx-moves">
             { ! clientSide( m.role ) && (
               <Button size="sm" variant="ghost" data-testid="bwx-people-membership-grants" aria-label={ `Grants with ${ m.client_name }` } disabled={ busy } onClick={ () => onGrants( m ) }>
@@ -493,22 +494,19 @@ function FromAccountForm( { onClose, onSaved }: { onClose: () => void; onSaved: 
   );
 }
 
-/** A person's name, address, status and reach. Saved against the version they were read at. */
+/** A person's name, address and status. Saved against the version they were read at. */
 function EditForm( {
   person,
-  grants,
   onClose,
   onSaved,
 }: {
   person: PersonRecord;
-  grants: GrantOption[];
   onClose: () => void;
   onSaved: ( answer: PersonAnswer, said?: string ) => void;
 } ) {
   const [ name, setName ] = useState( person.display_name );
   const [ email, setEmail ] = useState( person.email );
   const [ status, setStatus ] = useState( person.status );
-  const [ held, setHeld ] = useState< string[] >( () => heldGrants( person.grants ) );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
@@ -522,7 +520,7 @@ function EditForm( {
       onSaved(
         await api< PersonAnswer >( `/users/${ person.id }`, {
           method: 'PATCH',
-          body: { display_name: name, email, status, grants: held, record_version: person.record_version },
+          body: { display_name: name, email, status, record_version: person.record_version },
         } ),
         offboarding ? `${ name } has been offboarded. Their access to every client has ended.` : ''
       );
@@ -531,10 +529,6 @@ function EditForm( {
     } finally {
       setBusy( false );
     }
-  }
-
-  function toggle( grant: string ) {
-    setHeld( ( current ) => ( current.includes( grant ) ? current.filter( ( one ) => one !== grant ) : [ ...current, grant ] ) );
   }
 
   return (
@@ -585,19 +579,6 @@ function EditForm( {
           Offboarding ends every membership they hold and they can no longer sign in. Their history stays.
         </p>
       ) }
-
-      <fieldset className="bwx-field">
-        <legend>Reach</legend>
-        { grants.map( ( one ) => (
-          <div key={ one.grant }>
-            <label className="bwx-field-inline">
-              <input type="checkbox" data-testid={ `bwx-people-edit-grant-${ one.grant }` } checked={ held.includes( one.grant ) } onChange={ () => toggle( one.grant ) } />
-              <span>{ one.label }</span>
-            </label>
-            { '' !== one.description && <p className="bwx-hint">{ one.description }</p> }
-          </div>
-        ) ) }
-      </fieldset>
     </Modal>
   );
 }

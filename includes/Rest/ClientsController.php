@@ -10,8 +10,11 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Tenancy\Clients;
+use Blueworx\Forge\Tenancy\ClientStaff;
 use Blueworx\Forge\Tenancy\Contacts;
+use Blueworx\Forge\Tenancy\Memberships;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Roles;
 use Blueworx\Forge\Tenancy\Studio;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Tenancy\Validate;
@@ -132,6 +135,46 @@ final class ClientsController {
 					'kind'   => Boundary::SCOPE_CLIENT,
 					'param'  => 'client_id',
 					'record' => 'client',
+				),
+			)
+		);
+
+		/*
+		 * #405. Which staff work on a client. Administrator-only, like every
+		 * other client write: this decides who reaches the client's work.
+		 */
+		$staff_routes = array(
+			'GET' => 'staff',
+			'PUT' => 'choose_staff',
+		);
+
+		foreach ( $staff_routes as $method => $callback ) {
+			Server::register_route(
+				$route_namespace,
+				'/clients/(?P<client_id>[A-Za-z0-9_\-]+)/staff',
+				array(
+					'methods'             => $method,
+					'callback'            => array( self::class, $callback ),
+					'permission_callback' => array( Permissions::class, 'manage' ),
+					'scope'               => array(
+						'kind'   => Boundary::SCOPE_CLIENT,
+						'param'  => 'client_id',
+						'record' => 'client',
+					),
+				)
+			);
+		}
+
+		Server::register_route(
+			$route_namespace,
+			'/staff',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'staff_to_choose' ),
+				'permission_callback' => array( Permissions::class, 'manage' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The staff a new client can be given, before there is a client to scope it to. Administrator-only.',
 				),
 			)
 		);
@@ -447,6 +490,181 @@ final class ClientsController {
 		}
 
 		return rest_ensure_response( $response );
+	}
+
+	/**
+	 * Who works on a client (#405): All staff or not, who is chosen, and the
+	 * staff there are to choose from.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function staff( WP_REST_Request $request ) {
+		$client = Clients::get( (string) $request['client_id'] );
+
+		if ( null === $client ) {
+			return Boundary::absent( 'client' );
+		}
+
+		return rest_ensure_response( self::staff_answer( $client ) );
+	}
+
+	/**
+	 * The staff a new client can be given (#405): nobody chosen yet.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function staff_to_choose(): WP_REST_Response {
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'client_id' => '',
+				'staff_all' => true,
+				'chosen'    => array(),
+				'people'    => self::choosable(),
+			)
+		);
+	}
+
+	/**
+	 * Sets the chosen staff on a client (#405): a Staff membership for each
+	 * one picked, and the end of every studio-side membership of each one
+	 * not. Only our own people can be picked. All staff itself is the
+	 * client's `staff_all`, saved with the client.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function choose_staff( WP_REST_Request $request ) {
+		$client = Clients::get( (string) $request['client_id'] );
+
+		if ( null === $client ) {
+			return Boundary::absent( 'client' );
+		}
+
+		if ( 'active' !== (string) $client['status'] ) {
+			return Errors::rest( 'inactive_client', __( 'That client has been deactivated.', 'blueworx-forge' ), 409 );
+		}
+
+		$body   = (array) $request->get_json_params();
+		$picked = array_values( array_unique( array_filter( array_map( 'strval', (array) ( $body['user_ids'] ?? array() ) ) ) ) );
+		$ours   = array();
+
+		foreach ( ClientStaff::people() as $person ) {
+			$ours[ (string) $person['id'] ] = $person;
+		}
+
+		foreach ( $picked as $user_id ) {
+			if ( ! isset( $ours[ $user_id ] ) ) {
+				return self::staff_refused( __( 'Only our own active staff can work on a client.', 'blueworx-forge' ) );
+			}
+		}
+
+		$changes = ClientStaff::changes( $picked, Memberships::for_client( $client['id'], null ) );
+
+		if ( array() !== $changes['refused'] ) {
+			return self::staff_refused(
+				sprintf(
+					/* translators: %s: a person's name. */
+					__( '%s is, or was, one of this client\'s own people. Change their access on People.', 'blueworx-forge' ),
+					(string) $ours[ $changes['refused'][0] ]['display_name']
+				)
+			);
+		}
+
+		$author  = get_current_user_id();
+		$written = true;
+
+		foreach ( $changes['add'] as $user_id ) {
+			$written = null !== Memberships::create(
+				$user_id,
+				$client['id'],
+				array(
+					'role'           => Roles::STAFF,
+					'client_site_id' => '',
+				),
+				$author
+			) && $written;
+		}
+
+		foreach ( $changes['reactivate'] as $id => $version ) {
+			$written = null !== Memberships::update(
+				(string) $id,
+				array(
+					'status' => 'active',
+					'role'   => Roles::STAFF,
+					'grants' => array(),
+				),
+				(int) $version
+			) && $written;
+		}
+
+		foreach ( $changes['end'] as $id => $version ) {
+			$written = null !== Memberships::deactivate( (string) $id, (int) $version ) && $written;
+		}
+
+		// Every write is tried, so one that fails does not stop the others;
+		// the screen is told, and reads the staff again.
+		if ( ! $written ) {
+			return Errors::rest( 'write_failed', __( 'Not every change to the staff could be saved. Check the list and try again.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response( self::staff_answer( $client ) );
+	}
+
+	/**
+	 * What both staff routes answer with.
+	 *
+	 * @param array<string, mixed> $client The client.
+	 * @return array<string, mixed>
+	 */
+	private static function staff_answer( array $client ): array {
+		$ours   = self::choosable();
+		$active = array_column( $ours, 'id' );
+
+		return array(
+			'ok'        => true,
+			'client_id' => (string) $client['id'],
+			'staff_all' => (bool) $client['staff_all'],
+			'chosen'    => array_values(
+				array_filter(
+					ClientStaff::chosen( Memberships::for_client( $client['id'] ) ),
+					static fn( string $id ): bool => in_array( $id, $active, true )
+				)
+			),
+			'people'    => $ours,
+		);
+	}
+
+	/**
+	 * The people who can be chosen, cut down to what the pick list shows.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	private static function choosable(): array {
+		return array_map(
+			static fn( array $person ): array => array(
+				'id'           => (string) $person['id'],
+				'display_name' => (string) $person['display_name'],
+				'status'       => (string) $person['status'],
+			),
+			ClientStaff::people()
+		);
+	}
+
+	/**
+	 * A pick that cannot be saved.
+	 *
+	 * @param string $message What to say.
+	 * @return \WP_Error
+	 */
+	private static function staff_refused( string $message ) {
+		return Errors::rest(
+			'invalid_staff',
+			__( 'Those staff could not be saved.', 'blueworx-forge' ),
+			400,
+			array( 'fields' => array( 'user_ids' => $message ) )
+		);
 	}
 
 	/**

@@ -7,7 +7,6 @@
 
 declare( strict_types = 1 );
 
-use Blueworx\Forge\Tenancy\Grants;
 use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Roles;
 use PHPUnit\Framework\TestCase;
@@ -74,10 +73,26 @@ final class PersonReachTest extends TestCase {
 		$this->assertTrue( PersonReach::reaches( $this->person(), array(), true, 'cli_a', 'cst_1', true ) );
 	}
 
-	public function test_the_cross_client_grant_reaches_everything_for_staff(): void {
+	public function test_studio_staff_reach_an_all_staff_client_without_a_membership(): void {
 		$held = array( $this->membership( 'cli_b' ) );
 
-		$this->assertTrue( PersonReach::reaches( $this->person( 'active', Grants::CROSS_CLIENT ), $held, false, 'cli_a', 'cst_1', true ) );
+		$this->assertTrue( PersonReach::reaches( $this->person(), $held, false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
+		$this->assertFalse( PersonReach::reaches( $this->person(), array(), false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
+		$this->assertFalse( PersonReach::reaches( $this->person(), $held, false, 'cli_a', 'cst_1', true ) );
+	}
+
+	public function test_a_clients_person_is_never_staff_on_an_all_staff_client(): void {
+		$held  = array( $this->membership( 'cli_a', Roles::CLIENT_ADMIN ) );
+		$ended = array( array_merge( $this->membership( 'cli_b', Roles::CLIENT_VIEWER ), array( 'status' => 'inactive' ) ) );
+
+		$this->assertFalse( PersonReach::reaches( $this->person(), $held, false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
+		$this->assertFalse( PersonReach::reaches( $this->person(), $ended, false, 'cli_a', 'cst_1', true, array( 'cli_a' ) ) );
+	}
+
+	public function test_the_retired_cross_client_grant_reaches_nothing(): void {
+		$held = array( $this->membership( 'cli_b' ) );
+
+		$this->assertFalse( PersonReach::reaches( $this->person( 'active', 'cross_client' ), $held, false, 'cli_a', 'cst_1', true ) );
 	}
 
 	public function test_somebody_inactive_reaches_nothing(): void {
