@@ -1034,7 +1034,7 @@ export function ItemPanel( {
             } )
           }
         >
-          <option value="">Nobody yet</option>
+          <option value="">{ 'designer_id' === field ? 'No design required' : 'Nobody yet' }</option>
           { reviewing && (
             <option value={ CLIENT } disabled={ clientTooEarly } data-testid="bwx-reviewer-client">
               The client

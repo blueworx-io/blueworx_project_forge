@@ -13,6 +13,7 @@ use Blueworx\Forge\Capacity\Periods;
 use Blueworx\Forge\Capacity\Position;
 use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Onboarding\Steps;
+use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Sync;
@@ -259,6 +260,8 @@ final class Board {
 				'id'           => (string) $site['id'],
 				'subject_type' => 'client_site',
 				'about'        => (string) $site['client_site_id'],
+				// The site by name, so the card never heads itself with an id (2026-09-27).
+				'title'        => self::site_name( (string) $site['client_site_id'] ),
 
 				/*
 				 * The worst thing wrong with it, and the rest listed under it.
@@ -276,5 +279,30 @@ final class Board {
 		}
 
 		return $problems;
+	}
+
+	/**
+	 * A client site as a person reads it: the client, then the site where the
+	 * two differ.
+	 *
+	 * @param string $site_id The client site's id.
+	 * @return string Empty when the site is gone.
+	 */
+	private static function site_name( string $site_id ): string {
+		$site = ClientSites::get( $site_id );
+
+		if ( null === $site ) {
+			return '';
+		}
+
+		$client = Clients::get( (string) $site['client_id'] );
+		$name   = (string) ( $site['name'] ?? '' );
+		$owner  = null === $client ? '' : (string) $client['display_name'];
+
+		if ( '' === $owner || $owner === $name ) {
+			return '' === $name ? $owner : $name;
+		}
+
+		return '' === $name ? $owner : $owner . ' · ' . $name;
 	}
 }

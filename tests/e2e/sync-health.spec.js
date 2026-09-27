@@ -162,5 +162,21 @@ test('the day’s list says the same thing the sync screen does', async ({
   // Carrying the same sentence, not a second wording of it.
   expect(card.detail.detail).toContain('Failing');
 
+  // On the page the card names the site and says what is wrong, never just
+  // the site's id and a code (2026-09-27).
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/#screen=standup');
+  const studio = page.locator('[data-testid="bwx-standup-section"][data-section="studio"]');
+  await expect(studio).toBeVisible({ timeout: 60_000 });
+  if ('false' === (await studio.getAttribute('data-open'))) {
+    await studio.getByTestId('bwx-standup-section-toggle').click();
+  }
+  const shown = page.locator(`[data-testid="bwx-standup-card"][data-subject="${card.subject_id}"]`);
+  await expect(shown).toBeVisible({ timeout: 60_000 });
+  await expect(shown).toContainText(`Sync Health Co ${RUN_ID}`);
+  await expect(shown).toContainText('Failing');
+  await expect(shown).not.toContainText(site.id);
+
+  await page.close();
   await admin.context.close();
 });
