@@ -254,11 +254,10 @@ test.describe('the board', () => {
 
     await signIn(page, login, 'visitor-pw-9931');
 
-    await page.goto('/blueworx-forge/');
-
-    const state = page.locator('[data-testid="bwx-state"]');
-    await expect(state).toHaveAttribute('data-state', 'denied');
-    await expect(state).toContainText('Not yours to see');
+    // Since #406 an account that is neither an administrator nor a Manager is
+    // turned away at the door, before any board is drawn.
+    const response = await page.goto('/blueworx-forge/');
+    expect(response?.status()).toBe(403);
     await expect(page.locator('[data-testid="bwx-board"]')).toHaveCount(0);
   });
 

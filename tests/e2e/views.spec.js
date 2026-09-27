@@ -240,14 +240,15 @@ test.describe('views', () => {
 
     const them = await signedIn(browser, baseURL, login, 'forge-test-pw-4471');
 
-    const theirs = await them.api.get('/saved-views');
-    expect(theirs.views.some((view) => view.id === saved.view.id)).toBe(false);
+    // Since #406 an account without Forge access is refused at the door.
+    const theirs = await them.api.request.get('/wp-json/blueworx-forge/v1/saved-views', { headers: them.api.headers });
+    expect(theirs.status()).toBe(403);
 
     const removed = await them.api.request.delete(
       `/wp-json/blueworx-forge/v1/saved-views/${saved.view.id}`,
       { headers: them.api.headers }
     );
-    expect(removed.status()).toBe(404);
+    expect(removed.status()).toBe(403);
 
     await them.context.close();
 
