@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.148.0] - 2026-09-27
+
+### Added
+
+- Forge works on a phone: the four screens you use every day — My tasks, Daily standup, Requests review and Calendar — sit along the bottom, and Menu opens everything else. New task and your profile are in the menu. The calendar opens on today on a phone.
+
+### Changed
+
+- The client picker now sits to the left of Updates in the top bar.
+
+### Fixed
+
+- The small labels on calendar entries are easier to read.
+
 ## [2.147.2] - 2026-09-27
 
 ### Fixed

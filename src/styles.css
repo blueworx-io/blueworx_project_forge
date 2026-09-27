@@ -1517,8 +1517,9 @@ body {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  /* No fading: the phase inks are chosen to just meet 4.5:1 on their wash,
+     and 10px text faded below that failed on the day view (#428). */
   color: var( --entry-ink, var( --ink-500 ) );
-  opacity: 0.85;
 }
 
 .bwx-calendar-entry-title {
@@ -2294,6 +2295,17 @@ td[ data-band='over' ] {
   border: 1px solid var( --color-chalk );
   border-radius: 10px;
   box-shadow: 0 10px 30px rgb( 0 0 0 / 12% );
+}
+/* On a phone the panel is pinned under the top bar, full width less a margin:
+   hung off the Lately button, it ran off the left edge (#428). */
+@media ( max-width: 900px ) {
+  .bwx-signals-panel {
+    position: fixed;
+    inset-inline: 12px;
+    inset-block-start: 64px;
+    width: auto;
+    max-height: calc( 100dvh - 64px - 80px );
+  }
 }
 
 .bwx-signals-empty {
