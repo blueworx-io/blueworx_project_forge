@@ -167,12 +167,14 @@
  * when the page itself scrolled: squeezed, a screen became a second scroller
  * and its sections overlapped (#407).
  */
-.fs-main > * {
+/* `:not()` keeps these above a screen's own `flex: 1`, which would squeeze it
+   back into a second scroller. */
+.fs-main > :not( .fs-topbar ) {
   flex: 0 0 auto;
 }
 /* Only the last section takes spare height: shared out, a short screen's
    header and toolbars stretched with it. */
-.fs-main > :last-child {
+.fs-main > :last-child:not( .fs-topbar ) {
   flex-grow: 1;
 }
 .fs-topbar {
