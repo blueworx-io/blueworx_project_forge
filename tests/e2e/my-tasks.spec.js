@@ -156,3 +156,39 @@ test( 'a company date for everyone shows in every person’s diary', async ( { b
   await asPerson.context.close();
   await admin.context.close();
 } );
+
+test( 'overdue work is under Today, and released work is under none of the dated views', async ( { browser, baseURL } ) => {
+  test.setTimeout( 180_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { client, site } = await Forge.makeSite( admin.api, `Late Co ${ RUN }`, `${ RUN }l` );
+  const person = await Forge.makePerson( admin.api, client.id, 'staff', `late${ RUN }` );
+
+  // Completed and late is the builder's, and late means Today (Luke, 2026-09-26).
+  const place = async ( title, stage ) => {
+    const made = await Forge.makeItem( admin.api, site.id, { title } );
+    const item = ( await made.json() ).item;
+    const edited = await admin.api.patch( `/work-items/${ item.id }`, { deliverer_id: person.id, planned_due: on( -5 ), record_version: item.record_version } );
+    expect( edited.status(), await edited.text() ).toBe( 200 );
+    const moved = await admin.api.post( `/work-items/${ item.id }/override`, { to: stage, reason: 'Set up for the test.', record_version: ( await edited.json() ).item.record_version } );
+    expect( moved.status(), await moved.text() ).toBe( 200 );
+  };
+  await place( `Late to ship ${ RUN }`, 'completed' );
+  await place( `Shipped ${ RUN }`, 'released' );
+
+  const me = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
+  const page = await me.context.newPage();
+  await page.goto( '/blueworx-forge/#screen=mytasks' );
+  const table = page.getByTestId( 'bwx-mytasks-table' );
+  await expect( table ).toBeVisible( { timeout: 60_000 } );
+
+  await expect( table ).toContainText( `Late to ship ${ RUN }` );
+  for ( const tab of [ /^Today/, /^Next seven days/, /^Further out/ ] ) {
+    await table.getByRole( 'button', { name: tab } ).click();
+    await expect( table ).not.toContainText( `Shipped ${ RUN }` );
+  }
+
+  await page.close();
+  await me.context.close();
+  await admin.context.close();
+} );

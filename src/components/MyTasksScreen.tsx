@@ -28,7 +28,6 @@ type Role = 'primary' | 'reviewer' | 'deliverer' | 'assignee';
 
 const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
 const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
-const FINISHED = [ 'completed', 'released' ];
 const DAY = 86400000;
 
 /** Today, in the browser's own zone — the same today the due dates below use. */
@@ -66,9 +65,14 @@ interface Mine extends Record< string, unknown > {
   reminder: boolean;
   /** Days until a reminder starts; null otherwise. */
   starts: number | null;
+  /** A chore or reminder this person has already ticked. */
+  ticked: boolean;
 }
 
 type View = 'today' | 'week' | 'later' | 'all';
+
+/** Where a row sorts: one of the dated views, or done (only under Everything). */
+type Slot = Exclude< View, 'all' > | 'done';
 
 function daysUntil( date: string ): number | null {
   if ( ! date ) return null;
@@ -79,9 +83,10 @@ function daysUntil( date: string ): number | null {
 }
 
 /** Today: late, blocked, in delivery or in review with you; the rest by date. */
-function viewOf( one: Mine ): View {
-  const finished = FINISHED.includes( one.item.stage );
-  if ( finished ) return 'later';
+function viewOf( one: Mine ): Slot {
+  // Released or ticked off is done: only under Everything. Completed but late
+  // is still to ship, so it sorts by date like the rest (Luke, 2026-09-26).
+  if ( 'released' === one.item.stage || one.ticked ) return 'done';
   // A reminder is Today from its first day until it is ticked (2026-09-25).
   if ( one.reminder && null !== one.starts ) {
     if ( one.starts <= 0 ) return 'today';
@@ -155,7 +160,7 @@ export function MyTasksScreen() {
         if ( 0 < ( item.assignees?.length ?? 0 ) ) {
           if ( item.assignees.includes( person.id ) ) {
             const reminder = ( item.recurring_id ?? '' ).startsWith( 'rem_' );
-            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null } );
+            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null, ticked: undefined !== ( item.ticks ?? {} )[ person.id ] } );
           }
           continue;
         }
@@ -169,7 +174,7 @@ export function MyTasksScreen() {
         };
 
         if ( null !== seat && 'assignee' !== seat && seats[ seat ][ 0 ] === person.id ) {
-          found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due, reminder: false, starts: null } );
+          found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due, reminder: false, starts: null, ticked: false } );
         }
       }
       setMine( found );
@@ -199,7 +204,7 @@ export function MyTasksScreen() {
   }
 
   const counts = useMemo( () => {
-    const c: Record< View, number > = { today: 0, week: 0, later: 0, all: mine.length };
+    const c: Record< View | 'done', number > = { today: 0, week: 0, later: 0, done: 0, all: mine.length };
     for ( const one of mine ) c[ viewOf( one ) ] += 1;
     return c;
   }, [ mine ] );
@@ -348,7 +353,7 @@ export function MyTasksScreen() {
             rows={ rows }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ EMPTY[ view ] } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
-            footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }
+            footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } + done ${ counts.done } = ${ counts.all }` }
             testId="bwx-mytasks-table"
           />
         </div>

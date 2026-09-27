@@ -3042,6 +3042,10 @@ td[ data-band='over' ] {
 .bwx-standup-card-head .bwx-header-spacer {
   display: none;
 }
+/* A tag stays on one line (Luke, 2026-09-26). */
+.bwx-standup-card-head .bwx-chip {
+  white-space: nowrap;
+}
 .bwx-standup-card-title {
   grid-area: title;
   font-size: var( --text-small );
