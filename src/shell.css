@@ -162,6 +162,14 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/*
+ * A screen is as tall as its content and never squeezed to the viewport, as
+ * when the page itself scrolled: squeezed, a screen became a second scroller
+ * and its sections overlapped (#407).
+ */
+.fs-main > :not( .fs-topbar ) {
+  flex: 1 0 auto;
+}
 .fs-topbar {
   position: sticky;
   top: 0;
