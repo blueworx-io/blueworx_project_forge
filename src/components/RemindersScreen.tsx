@@ -25,6 +25,8 @@ const CATEGORIES: Array< { id: Reminder[ 'category' ]; label: string } > = [
   { id: 'general', label: 'General' },
   { id: 'campaign', label: 'Campaign' },
   { id: 'marketing', label: 'Marketing' },
+  { id: 'sales', label: 'Sales' },
+  { id: 'finance', label: 'Finance' },
   { id: 'deadline', label: 'Deadline' },
   { id: 'other', label: 'Other' },
 ];

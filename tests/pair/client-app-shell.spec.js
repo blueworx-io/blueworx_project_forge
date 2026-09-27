@@ -79,3 +79,28 @@ test( 'somebody not signed in is sent to sign in', async ( { browser } ) => {
 
   await context.close();
 } );
+
+// #407: the same page-never-scrolls behaviour as the studio shell, proven on
+// the client's own workspace page.
+test( 'scrolling past the end leaves the header in place; only the content scrolls', async ( { browser } ) => {
+  const client = await signedIn( browser, CLIENT_URL );
+  const page = await client.context.newPage();
+  await page.setViewportSize( { width: 1024, height: 320 } );
+
+  await page.goto( PAGE );
+  const shell = page.getByTestId( 'bwx-client-app' );
+  await expect( shell ).toBeVisible();
+
+  const header = page.locator( '.fc-header' );
+  const before = await header.boundingBox();
+
+  await page.mouse.move( 512, 200 );
+  await page.mouse.wheel( 0, 100_000 );
+
+  await expect.poll( () => page.evaluate( () => document.querySelector( '.fc-scroll' )?.scrollTop ?? 0 ) ).toBeGreaterThan( 0 );
+  expect( await page.evaluate( () => window.scrollY ) ).toBe( 0 );
+  expect( await header.boundingBox() ).toEqual( before );
+
+  await page.close();
+  await client.context.close();
+} );

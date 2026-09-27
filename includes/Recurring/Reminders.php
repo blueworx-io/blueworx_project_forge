@@ -41,6 +41,8 @@ final class Reminders {
 		'general'   => 'General',
 		'campaign'  => 'Campaign',
 		'marketing' => 'Marketing',
+		'sales'     => 'Sales',
+		'finance'   => 'Finance',
 		'deadline'  => 'Deadline',
 		'other'     => 'Other',
 	);

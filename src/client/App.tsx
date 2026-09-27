@@ -160,6 +160,8 @@ export function App() {
           </span>
         </header>
 
+        { /* The one scroller (#407): the banner and header above stay put, and this is the only thing that scrolls, and stops at its own edges. */ }
+        <div className="fc-scroll">
         <main className="fc-main">
           <SectionTitle sub={ current.sub }>{ current.title }</SectionTitle>
           { 'dashboard' === screen && data ? (
@@ -198,6 +200,7 @@ export function App() {
           <span>Forge client workspace · embedded in your WordPress site</span>
           { data && <span>Forge client { data.version }</span> }
         </footer>
+        </div>
       </div>
     </ToastProvider>
   );

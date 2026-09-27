@@ -511,7 +511,7 @@ export interface Reminder {
   client_id: string;
   title: string;
   description: string;
-  category: 'general' | 'campaign' | 'marketing' | 'deadline' | 'other';
+  category: 'general' | 'campaign' | 'marketing' | 'sales' | 'finance' | 'deadline' | 'other';
   assignees: string[];
   starts_on: string;
   /** '' for a one-day reminder. */
@@ -811,6 +811,8 @@ export interface DiaryEntry {
   item_id: string;
   /** The client site it belongs to, or '' for no client (#402). */
   site_id: string;
+  /** Everyone on it has ticked (#412); always false for a kind with no ticking. */
+  done: boolean;
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */

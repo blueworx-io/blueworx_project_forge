@@ -135,6 +135,13 @@ export function MyTasksScreen() {
     () => diary.entries.filter( ( entry ) => 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ),
     [ diary.entries, me ]
   );
+  // A finished chore or reminder leaves Today's diary; a meeting, date or
+  // renewal stays regardless (#412). The calendar screen still shows a done
+  // one — it is a record — so this filter is Today's diary alone.
+  const openDiary = useMemo(
+    () => myDiary.filter( ( entry ) => ! ( ( 'recurring' === entry.kind || 'reminder' === entry.kind ) && entry.done ) ),
+    [ myDiary ]
+  );
 
   async function load() {
     try {
@@ -321,11 +328,15 @@ export function MyTasksScreen() {
       { 'ready' === state && 0 < myDiary.length && (
         <section className="bwx-standup-diary" data-testid="bwx-mytasks-diary">
           <p className="bwx-eyebrow">Today&apos;s diary</p>
-          <ul className="bwx-diary-lines">
-            { myDiary.map( ( entry ) => (
-              <DiaryLine key={ entry.id } entry={ entry } onOpen={ setOpened } />
-            ) ) }
-          </ul>
+          { 0 < openDiary.length ? (
+            <ul className="bwx-diary-lines">
+              { openDiary.map( ( entry ) => (
+                <DiaryLine key={ entry.id } entry={ entry } onOpen={ setOpened } />
+              ) ) }
+            </ul>
+          ) : (
+            <p className="bwx-muted" data-testid="bwx-mytasks-diary-clear">All done for today.</p>
+          ) }
         </section>
       ) }
 
