@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Building2, Globe } from 'lucide-react';
 import type { ClientContact, ClientRecord, ClientRow, ClientSiteRecord, ClientStaffAnswer, IssuedKey, Person, SiteIntegration } from '../types';
-import { api, ApiError, isDenied, messageFor } from '../api';
+import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
@@ -105,6 +105,8 @@ type Opened =
   | { kind: 'key'; site: string };
 
 export function ClientsScreen() {
+  // #406. A Manager reads their clients here and changes nothing.
+  const admin = forgeData()?.canManage ?? false;
   const [ clients, setClients ] = useState< ClientRecord[] >( [] );
   // The sites of every client picked so far, by client id: read once each.
   const [ sites, setSites ] = useState< Record< string, ClientSiteRecord[] > >( {} );
@@ -308,7 +310,7 @@ export function ClientsScreen() {
       wrap: true,
       render: ( s ) => <Tag tone={ connectionTone( s.integration ) }>{ connectionLabel( s.integration ) }</Tag>,
     },
-    {
+    ...( admin ? [ {
       key: 'actions',
       label: '',
       width: 300,
@@ -339,7 +341,7 @@ export function ClientsScreen() {
           ) }
         </span>
       ),
-    },
+    } ] : [] ),
   ];
 
   return (
@@ -360,9 +362,11 @@ export function ClientsScreen() {
                 <Button size="sm" variant="ghost" data-testid="bwx-clients-show-all" aria-pressed={ everyone } onClick={ () => setEveryone( ( on ) => ! on ) }>
                   { everyone ? 'Show active only' : 'Show everyone, including deactivated' }
                 </Button>
-                <Button size="sm" data-testid="bwx-clients-add" disabled={ busy } onClick={ () => setOpened( { kind: 'add' } ) }>
-                  Add a client
-                </Button>
+                { admin && (
+                  <Button size="sm" data-testid="bwx-clients-add" disabled={ busy } onClick={ () => setOpened( { kind: 'add' } ) }>
+                    Add a client
+                  </Button>
+                ) }
               </div>
             }
           >
@@ -398,7 +402,7 @@ export function ClientsScreen() {
                   </>
                 }
                 flush
-                right={
+                right={ admin && (
                   <div className="bwx-moves">
                     <Button size="sm" variant="ghost" data-testid="bwx-clients-edit" disabled={ busy } onClick={ () => setOpened( { kind: 'edit' } ) }>
                       Edit
@@ -419,7 +423,7 @@ export function ClientsScreen() {
                       </Button>
                     ) }
                   </div>
-                }
+                ) }
               >
                 <p className="bwx-hint bwx-panel-lead" data-testid="bwx-clients-selected-detail">
                   { selected.is_studio ? (

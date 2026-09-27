@@ -305,10 +305,14 @@ test.describe('tenant isolation', () => {
     const client = await makePerson(world.admin, world.a.client.id, 'client_admin', `cadmin${RUN}`);
     const theirs = await signedIn(browser, baseURL, client.login, PASSWORD);
 
+    // Their own client's sites, and nothing of B. The client's person is kept
+    // out of Forge altogether since #406.
     const staffSites = (await staff.api.get('/client-sites')).sites.map((s) => s.id).sort();
-    const clientSites = (await theirs.api.get('/client-sites')).sites.map((s) => s.id).sort();
+    expect(staffSites).toEqual(expect.arrayContaining([ world.a.site.id, world.aSecond.id ]));
+    expect(staffSites).not.toContain(world.b.site.id);
 
-    expect(staffSites).toEqual(clientSites);
+    const refused = await theirs.api.request.get('/wp-json/blueworx-forge/v1/client-sites', { headers: theirs.api.headers });
+    expect(refused.status()).toBe(403);
 
     await staff.context.close();
     await theirs.context.close();
@@ -320,7 +324,8 @@ test.describe('tenant isolation', () => {
 
     const sitesOf = async (login) => {
       const { context, api } = await signedIn(browser, baseURL, login, PASSWORD);
-      const ids = (await api.get('/client-sites')).sites.map((s) => s.id);
+      // A client's person is refused outright (#406): they reach no site.
+      const ids = (await api.get('/client-sites')).sites?.map((s) => s.id) ?? [];
       await context.close();
       return ids;
     };

@@ -39,13 +39,13 @@ test('no client role moves work, by any route, and the item is untouched', async
 
   const before = await api.get(`/work-items/${item.id}`);
 
-  // Now as the client administrator, who may sign in and read their own work
-  // and may not move any of it.
+  // Now as the client administrator. Since #406 they are kept out of Forge
+  // altogether, so every route refuses them at the door; the transition lock
+  // behind it is proved by the unit tests.
   const theirs = await browser.newContext({ baseURL });
   const theirPage = await theirs.newPage();
   await signIn(theirPage, person.login, PASSWORD);
-  await theirPage.goto('/blueworx-forge/');
-  const theirNonce = await theirPage.evaluate(() => window.bwxForgeData?.nonce);
+  const theirNonce = await (await theirs.request.get('/wp-admin/admin-ajax.php?action=rest-nonce')).text();
   await theirPage.close();
 
   const attempts = [
@@ -75,7 +75,7 @@ test('no client role moves work, by any route, and the item is untouched', async
     expect(refused.status(), `${path} should be refused`).toBe(403);
 
     const body_ = await refused.json();
-    expect(body_.data.denied_by, `${path} should name the lock`).toBe('client_transition_lock');
+    expect(body_.code, `${path} should be refused at the door`).toBe('rest_forbidden');
   }
 
   // Nothing moved, and nothing was recorded as having moved.

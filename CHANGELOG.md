@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.142.0] - 2026-09-27
+
+### Added
+
+- A Forge: Manager role for staff: they see and edit their own clients' work, and nothing else.
+
+### Changed
+
+- Only administrators and Managers can open Forge; existing staff accounts were given the Manager role.
+- Managers can read Clients, Meetings and Support for their own clients; changing them stays with administrators. Capacity shows a Manager their own hours only.
+
 ## [2.141.0] - 2026-09-27
 
 ### Added

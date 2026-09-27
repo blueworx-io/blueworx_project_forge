@@ -66,11 +66,12 @@ test('a site that is not there is a 404', async () => {
   expect((await read.json()).code).toBe('bwx_forge_unknown_client_site');
 });
 
-test('somebody who is not an administrator cannot read a site\'s support, or put it on a package', async ({ browser, baseURL }) => {
+// #406. A Manager on the site reads it; changing it stays the administrator's.
+test('a Manager reads their site\'s support, and cannot put it on a package', async ({ browser, baseURL }) => {
   const other = await signedIn(browser, baseURL, person.login, PASSWORD);
 
   const read = await other.api.request.get(`${BASE}/client-sites/${site.id}/support`, { headers: other.api.headers });
-  expect(read.status()).toBe(403);
+  expect(read.status()).toBe(200);
 
   const wrote = await other.api.post(`/client-sites/${site.id}/support`, { package_version: pkg.current.id, starts_on: TODAY });
   expect(wrote.status()).toBe(403);

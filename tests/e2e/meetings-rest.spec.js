@@ -91,11 +91,12 @@ test('a site that is not there is a 404', async () => {
   expect((await read.json()).code).toBe('bwx_forge_unknown_client_site');
 });
 
-test('somebody who is not an administrator cannot read a site\'s meetings, or add a series', async ({ browser, baseURL }) => {
+// #406. A Manager on the site reads it; adding stays the administrator's.
+test('a Manager reads their site\'s meetings, and cannot add a series', async ({ browser, baseURL }) => {
   const other = await signedIn(browser, baseURL, host.login, PASSWORD);
 
   const read = await other.api.request.get(`${BASE}/client-sites/${site.id}/meetings`, { headers: other.api.headers });
-  expect(read.status()).toBe(403);
+  expect(read.status()).toBe(200);
 
   const wrote = await other.api.post(`/client-sites/${site.id}/meetings/series`, weekly(host, first));
   expect(wrote.status()).toBe(403);
@@ -377,14 +378,18 @@ test('GET /meetings lists standing meetings across every site in reach', async (
   expect(betaRow.site_name).toBe(beta.name);
 });
 
-test('somebody who is not an administrator cannot read every client\'s meetings either', async ({ browser, baseURL }) => {
-  // The route is scoped the same way the site-scoped list is (manage()):
-  // an account that cannot open one site's meetings reaches nothing across
-  // every site either, which is what a caller with no reach sees.
+test('a Manager reads every client\'s meetings only as far as they reach', async ({ browser, baseURL }) => {
+  // #406. Open to a Manager like the one-site read, and narrowed to the
+  // sites they reach.
   const other = await signedIn(browser, baseURL, host.login, PASSWORD);
 
   const read = await other.api.request.get(`${BASE}/meetings`, { headers: other.api.headers });
-  expect(read.status()).toBe(403);
+  expect(read.status()).toBe(200);
+
+  const reached = (await other.api.get('/client-sites')).sites.map((one) => one.id);
+  for (const row of (await read.json()).meetings) {
+    expect(reached).toContain(row.client_site_id);
+  }
 
   await other.context.close();
 });

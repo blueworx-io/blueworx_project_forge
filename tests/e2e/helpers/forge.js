@@ -30,7 +30,10 @@ export async function signedIn(browser, baseURL, user, pass) {
   await signIn(page, user, pass);
   await page.goto('/blueworx-forge/');
 
-  const nonce = await page.evaluate(() => window.bwxForgeData?.nonce);
+  // #406. Somebody who may not use Forge is kept off the app page, so their
+  // nonce comes from WordPress itself — the requests are still theirs.
+  const nonce = (await page.evaluate(() => window.bwxForgeData?.nonce))
+    || (await (await context.request.get('/wp-admin/admin-ajax.php?action=rest-nonce')).text());
   expect(nonce, `no REST nonce was localised for ${user}`).toBeTruthy();
 
   await page.close();
