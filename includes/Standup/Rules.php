@@ -471,6 +471,17 @@ final class Rules {
 					'stage'          => (string) ( $item['stage'] ?? '' ),
 					'client_id'      => (string) ( $item['client_id'] ?? '' ),
 					'client_site_id' => (string) ( $item['client_site_id'] ?? '' ),
+					// #420. Who holds each seat, so the screen can say whose turn
+					// it is by the same rule My tasks uses.
+					'prior_stage'    => (string) ( $item['prior_stage'] ?? '' ),
+					// A chore names its people rather than seats.
+					'chore'          => ! empty( $item['assignees'] ),
+					'seats'          => array(
+						'primary_user_id' => (string) ( $item['primary_user_id'] ?? '' ),
+						'designer_id'     => (string) ( $item['designer_id'] ?? '' ),
+						'reviewer_id'     => (string) ( $item['reviewer_id'] ?? '' ),
+						'deliverer_id'    => (string) ( $item['deliverer_id'] ?? '' ),
+					),
 				),
 				$detail
 			)

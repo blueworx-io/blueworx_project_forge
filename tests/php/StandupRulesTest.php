@@ -168,6 +168,36 @@ final class StandupRulesTest extends TestCase {
 		$this->assertSame( 'usr_deliverer', $cards[0]['detail']['waiting_on'] );
 	}
 
+	public function test_a_work_card_carries_its_seats_so_it_can_say_who_it_waits_on(): void {
+		// #420. The screen names whose turn it is from these, by the one rule
+		// My tasks uses, so the two never disagree.
+		$cards = Rules::for_item(
+			$this->item(
+				array(
+					'stage'           => 'blocked',
+					'prior_stage'     => 'in-review',
+					'planned_due'     => '2026-03-01',
+					'primary_user_id' => 'usr_owner',
+					'reviewer_id'     => 'usr_checker',
+				)
+			),
+			self::TODAY
+		);
+
+		foreach ( $cards as $card ) {
+			$this->assertSame( 'in-review', $card['detail']['prior_stage'] );
+			$this->assertSame(
+				array(
+					'primary_user_id' => 'usr_owner',
+					'designer_id'     => '',
+					'reviewer_id'     => 'usr_checker',
+					'deliverer_id'    => '',
+				),
+				$card['detail']['seats']
+			);
+		}
+	}
+
 	public function test_work_sent_back_is_somebody_to_pick_it_up(): void {
 		$this->assertSame(
 			array( Rules::RETURNED ),

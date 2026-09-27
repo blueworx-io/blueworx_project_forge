@@ -16,6 +16,7 @@ import type {
 import { CLIENT_REVIEWER } from '../types';
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
+import { waitingOn } from '../turn';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
 import { RichText } from '../kit';
@@ -913,6 +914,10 @@ export function ItemPanel( {
   const releasedAt = ( detail?.history ?? [] )
     .filter( ( event ) => 'released' === event.to_stage )
     .reduce( ( latest, event ) => Math.max( latest, event.occurred_at ), 0 );
+  // #420. Who it waits on, read-only, while it still has somewhere to go.
+  const waitingFor = item && ! ended && ! chore
+    ? waitingOn( item, { ...Object.fromEntries( staffList.map( ( person ) => [ person.id, person.display_name ] ) ), ...detail?.seat_names } )
+    : null;
 
   /*
    * The stages work passes through, in order, with Blocked left out — it is an
@@ -1242,6 +1247,11 @@ export function ItemPanel( {
               { 'released' === item?.stage && releasedAt && (
                 <span className="bwx-mono bwx-panel-meta" data-testid="bwx-panel-released">
                   released { new Date( releasedAt * 1000 ).toLocaleString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' } ) }
+                </span>
+              ) }
+              { null !== waitingFor && (
+                <span className="bwx-panel-waiting" data-testid="bwx-panel-waiting">
+                  Waiting on <strong>{ waitingFor }</strong>
                 </span>
               ) }
             </div>

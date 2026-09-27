@@ -124,6 +124,39 @@ test('the day’s list shows what is late, in a section that names itself', asyn
   await admin.context.close();
 });
 
+test('a card and its task say who the work waits on, or Pending with nobody in the seat', async ({
+  browser,
+  baseURL,
+}) => {
+  test.slow();
+
+  // #420. One with an owner, one with nobody in the seat yet.
+  const { admin, item: nobody } = await withSomethingLate(browser, baseURL);
+  const { client, site } = await Forge.makeSite(admin.api, `Waiting On Co ${RUN_ID}`, `${RUN_ID}w`);
+  const owner = await Forge.makePerson(admin.api, client.id, 'staff', `waitowner${Date.now()}`);
+  const made = await Forge.makeItem(admin.api, site.id, { title: `Owned late thing ${RUN_ID}`, planned_start: '2020-01-01', planned_due: '2020-01-02' });
+  const owned = (await made.json()).item;
+  const edited = await admin.api.patch(`/work-items/${owned.id}`, { primary_user_id: owner.id, record_version: owned.record_version });
+  expect(edited.status(), await edited.text()).toBe(200);
+  const name = (await admin.api.get(`/work-items/${owned.id}`)).seat_names[owner.id];
+
+  const page = await admin.context.newPage();
+  await openStandup(page);
+
+  const card = (id) => page.locator(`[data-testid="bwx-standup-card"][data-subject="${id}"][data-rule="overdue"]`);
+  await expect(card(owned.id).getByTestId('bwx-standup-waiting')).toHaveText(`Waiting on ${name}`);
+  await expect(card(nobody.id).getByTestId('bwx-standup-waiting')).toHaveText('Waiting on Pending');
+
+  // The task itself says the same, read-only.
+  const panel = await admin.context.newPage();
+  await panel.goto(`/blueworx-forge/#item=${owned.id}`);
+  await expect(panel.getByTestId('bwx-panel-waiting')).toHaveText(`Waiting on ${name}`, { timeout: 60_000 });
+
+  await panel.close();
+  await page.close();
+  await admin.context.close();
+});
+
 test('hiding a card never makes the count lie, and a reload brings it back', async ({
   browser,
   baseURL,
