@@ -3200,6 +3200,58 @@ td[ data-band='over' ] {
 .bwx-row-open:hover {
   color: var( --accent-signal );
 }
+/*
+ * The request queue on a phone (#430): each request a card — the tick and the
+ * title on the first line, then client, status and wait, each labelled. The
+ * rail colour moves to the card's edge.
+ */
+@media ( max-width: 640px ) {
+  .bwx-queue {
+    padding: 12px;
+  }
+  .bwx-table[data-stack='true'] {
+    background: transparent;
+    border: 0;
+  }
+  .bwx-table[data-stack='true'] thead {
+    display: none;
+  }
+  .bwx-table[data-stack='true'],
+  .bwx-table[data-stack='true'] tbody {
+    display: block;
+  }
+  .bwx-table[data-stack='true'] .bwx-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 8px;
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    background: var( --surface-card );
+    border: 1px solid var( --border-hairline );
+    border-left: 3px solid var( --row-rail, var( --border-hairline ) );
+    border-radius: 12px;
+  }
+  .bwx-table[data-stack='true'] .bwx-row td {
+    display: block;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+  }
+  .bwx-table[data-stack='true'] .bwx-row td[data-label] {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    text-align: end;
+  }
+  .bwx-table[data-stack='true'] .bwx-row td[data-label]::before {
+    content: attr( data-label );
+    color: var( --ink-500 );
+    font-family: var( --font-ui );
+    font-size: var( --text-caption );
+  }
+}
 .bwx-progress {
   block-size: 6px;
   background: var( --paper-stone );
@@ -3265,6 +3317,18 @@ td[ data-band='over' ] {
 .bwx-app .fk-bulk-bar {
   position: fixed;
   left: calc( 50% + 132px );
+}
+/* On a phone there is no rail beside the screen and the bottom bar is below
+   it (#430): the bar spans the screen, just above the bottom bar. */
+@media ( max-width: 900px ) {
+  .bwx-app .fk-bulk-bar {
+    left: 12px;
+    right: 12px;
+    bottom: calc( 68px + env( safe-area-inset-bottom ) );
+    transform: none;
+    flex-wrap: wrap;
+    border-radius: 16px;
+  }
 }
 .bwx-views-row {
   display: flex;
