@@ -60,5 +60,14 @@ test('Requests review works on a phone: a request is a card, and picking it show
   expect(box.x + box.width, 'the actions end on screen').toBeLessThanOrEqual(PHONE.width);
   expect(box.y + box.height, 'the actions sit above the bottom bar').toBeLessThanOrEqual(bar.y);
   await checkAccessibility(page, 'Requests on a phone', 'app');
+
+  // Picking every request is still one tap on a phone.
+  await row.getByRole('checkbox').click();
+  await expect(bulk).toBeHidden();
+  const all = page.getByRole('checkbox', { name: 'Select every request shown' });
+  await expect(all).toBeVisible();
+  await all.click();
+  await expect(bulk).toBeVisible();
+  await expect(row.getByRole('checkbox')).toBeChecked();
   await admin.context.close();
 });

@@ -3213,12 +3213,31 @@ td[ data-band='over' ] {
     background: transparent;
     border: 0;
   }
-  .bwx-table[data-stack='true'] thead {
-    display: none;
-  }
+  /* The head's one control stays: picking every request is one tap. */
   .bwx-table[data-stack='true'],
+  .bwx-table[data-stack='true'] thead,
+  .bwx-table[data-stack='true'] thead tr,
   .bwx-table[data-stack='true'] tbody {
     display: block;
+  }
+  .bwx-table[data-stack='true'] thead th:not( .bwx-table-check ) {
+    display: none;
+  }
+  .bwx-table[data-stack='true'] thead th.bwx-table-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    padding: 0 12px 8px;
+    background: transparent;
+    border: 0;
+  }
+  .bwx-table[data-stack='true'] thead th.bwx-table-check::after {
+    content: 'Select all';
+    color: var( --ink-700 );
+    font-size: var( --text-small );
+    text-transform: none;
+    letter-spacing: normal;
   }
   .bwx-table[data-stack='true'] .bwx-row {
     display: grid;
