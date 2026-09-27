@@ -490,6 +490,7 @@ final class WorkGatesTest extends TestCase {
 		$gates = Gates::all();
 		$ids   = array_column( $gates['G-COMPLETED'], 'id' );
 
+		$this->assertNotContains( 'G-COMPLETED-2', $ids, 'nor how it is released' );
 		$this->assertNotContains( 'G-COMPLETED-3', $ids );
 		$this->assertNotContains( 'G-COMPLETED-4', $ids );
 		$this->assertArrayNotHasKey( 'G-RELEASED', $gates );

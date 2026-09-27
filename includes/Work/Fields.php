@@ -158,7 +158,6 @@ final class Fields {
 		'planned_due'         => 'up-next',
 		'priority'            => 'up-next',
 		'test_description'    => 'in-development',
-		'release_method'      => 'completed',
 	);
 
 	/**
