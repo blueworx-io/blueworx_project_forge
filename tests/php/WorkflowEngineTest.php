@@ -171,19 +171,11 @@ final class WorkflowEngineTest extends TestCase {
 	}
 
 	/**
-	 * Entering Released has a gate of its own, recorded on the way in. It is
-	 * separate from the exit gate before it on purpose: G-COMPLETED asks
-	 * whether the work is ready to go, and G-RELEASED asks what happened when
-	 * it went.
+	 * No stage has an entry gate (#418). Released used to ask what happened on
+	 * the way in; released is done, and asks for nothing further.
 	 */
-	public function test_released_has_an_entry_gate_and_nothing_else_does(): void {
-		$this->assertSame( 'G-RELEASED', Transitions::entry_gate_for( 'released' ) );
-
+	public function test_no_stage_has_an_entry_gate(): void {
 		foreach ( Stages::ALL as $stage ) {
-			if ( 'released' === $stage ) {
-				continue;
-			}
-
 			$this->assertSame( '', Transitions::entry_gate_for( $stage ) );
 		}
 	}
@@ -281,7 +273,7 @@ final class WorkflowEngineTest extends TestCase {
 	 * is a set of requirements nobody will ever be asked for.
 	 */
 	public function test_every_defined_gate_is_reachable(): void {
-		$named = array( Transitions::CREATE_GATE, 'G-RELEASED', 'G-BLOCKED-ENTRY', 'G-BLOCKED-EXIT' );
+		$named = array( Transitions::CREATE_GATE, 'G-BLOCKED-ENTRY', 'G-BLOCKED-EXIT' );
 
 		foreach ( self::table() as $row ) {
 			$named[] = Transitions::gate_for( $row[0], $row[1] );

@@ -64,7 +64,7 @@ final class WorkGatesTest extends TestCase {
 	 * @return array<string, array{string}>
 	 */
 	public static function gate_names(): array {
-		$named = array( Transitions::CREATE_GATE, 'G-RELEASED', 'G-BLOCKED-ENTRY', 'G-BLOCKED-EXIT' );
+		$named = array( Transitions::CREATE_GATE, 'G-BLOCKED-ENTRY', 'G-BLOCKED-EXIT' );
 
 		foreach ( Stages::ALL as $from ) {
 			foreach ( Stages::ALL as $to ) {
@@ -464,6 +464,19 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
+	 * Leaving Completed asks nothing about where, when or in what window it
+	 * goes, and entering Released asks nothing at all (#418).
+	 */
+	public function test_releasing_asks_for_no_release_details(): void {
+		$gates = Gates::all();
+		$ids   = array_column( $gates['G-COMPLETED'], 'id' );
+
+		$this->assertNotContains( 'G-COMPLETED-3', $ids );
+		$this->assertNotContains( 'G-COMPLETED-4', $ids );
+		$this->assertArrayNotHasKey( 'G-RELEASED', $gates );
+	}
+
+	/**
 	 * The evidence requirements from the specification are the ones marked so
 	 * here. A requirement that wants proof and does not say so is satisfied by
 	 * a tick.
@@ -471,7 +484,6 @@ final class WorkGatesTest extends TestCase {
 	public function test_the_requirements_that_need_evidence_say_so(): void {
 		$expected = array(
 			'G-BUG-TRACKING-5',
-			'G-RELEASED-3',
 		);
 
 		$found = array();

@@ -172,17 +172,17 @@ final class Transitions {
 	/**
 	 * The gate recorded on *entering* a stage, as against leaving one.
 	 *
-	 * Released is the only stage with one, and it has to be a separate idea from
-	 * the exit gate: G-COMPLETED asks whether the item is ready to be released,
-	 * and G-RELEASED asks what actually happened when it was. Folding the second
-	 * into the first would mean recording the release evidence before the
-	 * release.
+	 * No stage has one now. Released used to ask what happened on the way in;
+	 * released is done, and asks for nothing further (#418). When it happened
+	 * is the move's own record.
 	 *
 	 * @param string $to Stage being entered.
 	 * @return string The gate's name, or '' where entry has no gate of its own.
 	 */
 	public static function entry_gate_for( string $to ): string {
-		return 'released' === $to ? 'G-RELEASED' : '';
+		unset( $to );
+
+		return '';
 	}
 
 	/**

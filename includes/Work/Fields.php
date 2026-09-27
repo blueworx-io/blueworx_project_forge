@@ -156,7 +156,6 @@ final class Fields {
 		'priority'            => 'up-next',
 		'test_description'    => 'in-development',
 		'release_method'      => 'completed',
-		'release_destination' => 'completed',
 	);
 
 	/**
