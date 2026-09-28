@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.4] - 2026-09-28
+
+### Fixed
+
+- Recurring tasks on the Daily standup now show who they belong to, like every other task, so two people's copies of the same chore can be told apart.
+
 ## [2.152.3] - 2026-09-28
 
 ### Fixed

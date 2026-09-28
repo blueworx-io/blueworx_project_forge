@@ -198,6 +198,26 @@ final class StandupRulesTest extends TestCase {
 		}
 	}
 
+	public function test_a_recurring_task_card_carries_its_people_so_it_can_say_whose_it_is(): void {
+		// #455. A chore names its people rather than seats.
+		$cards = Rules::for_item(
+			$this->item(
+				array(
+					'planned_due' => self::TODAY,
+					'assignees'   => array( 'usr_one' ),
+				)
+			),
+			self::TODAY
+		);
+
+		$this->assertNotSame( array(), $cards );
+
+		foreach ( $cards as $card ) {
+			$this->assertTrue( $card['detail']['chore'] );
+			$this->assertSame( array( 'usr_one' ), $card['detail']['assignees'] );
+		}
+	}
+
 	public function test_work_sent_back_is_somebody_to_pick_it_up(): void {
 		$this->assertSame(
 			array( Rules::RETURNED ),
