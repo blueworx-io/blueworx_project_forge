@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.151.0] - 2026-09-27
+
+### Changed
+
+- Every Forge screen now fits a phone. Wide views like Kanban and Gantt scroll sideways within the screen, and Gantt gives the timeline most of the width.
+
+## [2.150.0] - 2026-09-27
+
+### Changed
+
+- Requests review works on a phone: each request is a card, and the actions for the ones you pick sit above the bottom bar.
+
+## [2.149.0] - 2026-09-27
+
+### Changed
+
+- On a phone, lists show each row as a card, and My tasks and Daily standup fit the screen.
+
+## [2.148.0] - 2026-09-27
+
+### Added
+
+- Forge works on a phone: the four screens you use every day — My tasks, Daily standup, Requests review and Calendar — sit along the bottom, and Menu opens everything else. New task and your profile are in the menu. The calendar opens on today on a phone.
+
+### Changed
+
+- The client picker now sits to the left of Updates in the top bar.
+
+### Fixed
+
+- The small labels on calendar entries are easier to read.
+
+## [2.147.2] - 2026-09-27
+
+### Fixed
+
+- Changing a standing meeting's length or time now changes the meetings it has coming, and gives back any hours they no longer need.
+
 ## [2.147.1] - 2026-09-27
 
 ### Changed

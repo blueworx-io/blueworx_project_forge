@@ -199,6 +199,7 @@ export function DataView< Row extends RowRecord >( {
   footer,
   fixed,
   dense = true,
+  stack = true,
   bare = false,
   title,
   titleRight,
@@ -232,6 +233,8 @@ export function DataView< Row extends RowRecord >( {
   footer?: ReactNode;
   fixed?: boolean;
   dense?: boolean;
+  /** On a phone, each row as a card of labelled values (#429). Off for a table that only reads as a grid. */
+  stack?: boolean;
   bare?: boolean;
   title?: ReactNode;
   titleRight?: ReactNode;
@@ -340,7 +343,7 @@ export function DataView< Row extends RowRecord >( {
       ) }
 
       <div className="fk-dataview-scroll" data-capped={ maxHeight ? 'true' : undefined } style={ { maxHeight } }>
-        <table className="fk-table" data-dense={ dense ? 'true' : 'false' } data-fixed={ fixed ? 'true' : undefined }>
+        <table className="fk-table" data-dense={ dense ? 'true' : 'false' } data-fixed={ fixed ? 'true' : undefined } data-stack={ stack ? 'true' : undefined }>
           <thead>
             <tr>
               { selectable && (
@@ -425,7 +428,7 @@ export function DataView< Row extends RowRecord >( {
                   { columns.map( ( column ) => {
                     const cell = column.render ? column.render( row ) : ( row[ column.key ] as ReactNode );
                     return (
-                      <td key={ column.key } data-align={ column.align } data-mono={ column.mono ? 'true' : undefined } data-wrap={ column.wrap ? 'true' : undefined }>
+                      <td key={ column.key } data-label={ column.label || undefined } data-align={ column.align } data-mono={ column.mono ? 'true' : undefined } data-wrap={ column.wrap ? 'true' : undefined }>
                         { column.clamp ? (
                           <span className="fk-clamp" style={ { WebkitLineClamp: column.clamp } }>
                             { cell }

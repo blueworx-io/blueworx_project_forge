@@ -13,6 +13,7 @@ import {
 } from '../calendar';
 import type { Mode } from '../calendar';
 import { DIARY_KINDS, DiaryList, diaryByDay, useDiary } from './Diary';
+import { isCompact } from '../viewport';
 
 /** How many entries a month cell shows before it says there are more. */
 const CELL_LIMIT = 3;
@@ -46,7 +47,8 @@ export function CalendarView( {
 } ) {
   const today = todayIso();
 
-  const [ mode, setMode ] = useState< Mode >( 'month' );
+  // A phone opens on today (2026-09-27, #428): a month of seven columns is 44px a day there.
+  const [ mode, setMode ] = useState< Mode >( () => ( isCompact() ? 'day' : 'month' ) );
   const [ anchor, setAnchor ] = useState( today );
   const [ expanded, setExpanded ] = useState( '' );
 

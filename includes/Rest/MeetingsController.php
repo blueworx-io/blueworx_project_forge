@@ -339,9 +339,15 @@ final class MeetingsController {
 			return $checked['error'];
 		}
 
-		if ( null === Series::update( (string) $series['id'], $checked['values'], (int) $sent ) ) {
+		$updated = Series::update( (string) $series['id'], $checked['values'], (int) $sent );
+
+		if ( null === $updated ) {
 			return self::refused();
 		}
+
+		// Its coming meetings follow the change before answer() settles the
+		// hours, so what they hold is worked out from the new length (#427).
+		Diary::follow_series( $updated, gmdate( 'Y-m-d' ) );
 
 		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}

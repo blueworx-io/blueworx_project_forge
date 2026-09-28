@@ -325,7 +325,7 @@ export function QueueScreen() {
 
       { 'ready' === queue && 0 < shown.length && (
         <div className="bwx-queue" data-testid="bwx-queue">
-          <table className="bwx-table">
+          <table className="bwx-table" data-stack="true">
             <thead>
               <tr>
                 <th scope="col" className="bwx-table-check">
@@ -377,13 +377,13 @@ export function QueueScreen() {
                       <span className="bwx-mono">{ one.submitted_by }</span>
                     </span>
                   </td>
-                  <td data-testid="bwx-queue-client-name">{ one.client_name }</td>
-                  <td>
+                  <td data-label="Client" data-testid="bwx-queue-client-name">{ one.client_name }</td>
+                  <td data-label="Status">
                     <span className="bwx-chip" data-state={ one.intake_state }>
                       { one.intake_label }
                     </span>
                   </td>
-                  <td className="bwx-mono">{ waited( one ) }</td>
+                  <td className="bwx-mono" data-label="Waiting">{ waited( one ) }</td>
                 </tr>
               ) ) }
             </tbody>

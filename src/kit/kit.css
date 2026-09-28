@@ -658,6 +658,67 @@
 .fk-row[aria-selected='true'] { background: var( --accent-signal-wash ); }
 .fk-row[aria-selected='true']:hover { background: var( --accent-signal-wash ); }
 .fk-table-empty { padding: 32px; text-align: center; font-size: var( --text-ui ); color: var( --ink-500 ); }
+
+/*
+ * On a phone a row is a card (#429): each value on its own line, its column's
+ * name beside it. The head is hidden — it names what every card already says.
+ * After the rules above so it wins over the dense and fixed variants. The
+ * studio page only: the client app shares the kit and keeps its tables.
+ */
+@media ( max-width: 640px ) {
+  .bwx-forge-page .fk-dataview-scroll:has( > .fk-table[data-stack='true'] ) {
+    overflow-x: visible;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] thead {
+    display: none;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'],
+  .bwx-forge-page .fk-table[data-stack='true'] tbody,
+  .bwx-forge-page .fk-table[data-stack='true'] tr {
+    display: block;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] tr.fk-row {
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    border: 1px solid var( --border-hairline );
+    border-radius: 12px;
+    background: var( --surface-card );
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    height: auto;
+    padding: 4px 0;
+    border: 0;
+    text-align: end;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] td[data-label]::before {
+    content: attr( data-label );
+    flex: 0 0 auto;
+    max-width: 45%;
+    color: var( --ink-500 );
+    font-family: var( --font-ui );
+    font-weight: var( --weight-regular, 400 );
+    font-size: var( --text-caption );
+    text-align: start;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] td.fk-check-cell {
+    justify-content: flex-start;
+    line-height: normal;
+  }
+  .bwx-forge-page .fk-table[data-stack='true'] td.fk-table-empty {
+    justify-content: center;
+  }
+}
 .fk-clamp {
   display: -webkit-box;
   -webkit-box-orient: vertical;

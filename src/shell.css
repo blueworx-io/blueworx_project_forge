@@ -325,29 +325,158 @@
   white-space: nowrap;
 }
 
+/* The wrappers that let a phone drop New task and the profile from the bar.
+   On a desktop they take no part in the layout, so the bar is spaced as it
+   always was. */
+.fs-topbar-new,
+.fs-topbar-you {
+  display: contents;
+}
+
+/*
+ * A phone (2026-09-27, #428): the rail slides out from the left as the menu,
+ * the four daily screens sit in a bar along the bottom, and the screen
+ * scrolls between the two. 900px is COMPACT_QUERY in src/viewport.ts.
+ */
 @media ( max-width: 900px ) {
   .fs-shell {
     flex-direction: column;
   }
   .fs-rail {
-    position: static;
-    width: 100%;
-    height: auto;
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 70;
+    width: min( 304px, 86vw );
+    height: 100dvh;
+    transform: translateX( -100% );
+    visibility: hidden;
+    transition: transform 200ms ease, visibility 0s linear 200ms;
+    box-shadow: 0 16px 48px rgb( 15 23 42 / 0.2 );
   }
-  .fs-rail-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
+  .fs-rail[data-open='true'] {
+    transform: none;
+    visibility: visible;
+    transition: transform 200ms ease;
   }
-  .fs-rail-group {
-    width: 100%;
+  .fs-rail [data-primary='true'] {
+    display: none;
   }
-  .fs-rail-item {
-    width: auto;
+  .fs-rail-foot {
+    padding-bottom: calc( 12px + env( safe-area-inset-bottom ) );
   }
   .fs-main {
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
   }
+  /* One line, always: .bwx-shellbar wraps, and a wrapped bar spilled out of
+     its 64px onto the screen below. The title gives way instead. */
+  .fs-topbar.bwx-shellbar {
+    flex-wrap: nowrap;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .fs-topbar .bwx-header-spacer {
+    display: none;
+  }
+  .fs-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fs-topbar-new,
+  .fs-topbar-you {
+    display: none;
+  }
+  .fs-client {
+    max-width: 150px;
+    flex: 0 0 auto;
+  }
+  .fs-topbar .bwx-signals {
+    flex: 0 0 auto;
+  }
+  .fs-client .fs-client-select {
+    max-width: 110px;
+  }
+  .fs-main .fk-crumbs {
+    display: none;
+  }
+  .fs-main .fk-page-header-text {
+    min-width: 0;
+  }
+}
+@media ( max-width: 900px ) and ( prefers-reduced-motion: reduce ) {
+  .fs-rail,
+  .fs-rail[data-open='true'] {
+    transition: none;
+  }
+}
+
+.fs-rail-close {
+  margin-inline-start: auto;
+}
+/* New task and who you are, at the top of the phone's menu. */
+.fs-rail-extras {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fs-menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgb( 15 23 42 / 0.4 );
+}
+
+/* The bottom bar: four screens and Menu, each a full-height target. */
+.fs-tabbar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat( 5, 1fr );
+  padding-bottom: env( safe-area-inset-bottom );
+  background: var( --surface-card );
+  border-top: 1px solid var( --border-hairline );
+}
+.fs-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  border: 0;
+  background: transparent;
+  color: var( --ink-700 );
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fs-tab svg {
+  color: var( --ink-500 );
+}
+.fs-tab[aria-current='page'] {
+  color: var( --brand-700 );
+  font-weight: var( --weight-medium );
+}
+.fs-tab[aria-current='page'] svg {
+  color: var( --brand-600 );
+}
+.fs-tab:focus-visible {
+  outline: 2px solid var( --accent-signal );
+  outline-offset: -2px;
+}
+.fs-tab .fs-rail-count {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-start: calc( 50% + 10px );
 }
 
 /* Anything that opens over the screen — an item, a drilldown — sits above the

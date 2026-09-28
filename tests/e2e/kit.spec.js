@@ -56,6 +56,26 @@ test( 'the data view selects rows and shows the bulk bar', async ( { page } ) =>
   await expect( bar ).toBeHidden();
 } );
 
+test( 'on a phone a table\'s rows are cards, each value labelled, none wider than the screen', async ( { page } ) => {
+  // #429: every list in the studio is this table, so this is every list.
+  await page.setViewportSize( { width: 390, height: 844 } );
+  await page.goto( GALLERY );
+  const table = page.getByTestId( 'fk-gallery' ).locator( '[data-section="dataview"] .fk-table[data-stack="true"]' );
+
+  await expect( table.locator( 'thead' ) ).toBeHidden();
+  const cell = table.locator( 'tbody td[data-label]' ).first();
+  await expect( cell ).toBeVisible();
+  expect( await cell.evaluate( ( el ) => getComputedStyle( el, '::before' ).content ) ).not.toBe( 'none' );
+
+  const row = await table.locator( 'tbody tr' ).first().boundingBox();
+  expect( row.x ).toBeGreaterThanOrEqual( 0 );
+  expect( row.x + row.width ).toBeLessThanOrEqual( 390 );
+
+  // Picking a row still works from its card.
+  await table.getByRole( 'checkbox', { name: 'Select row 1' } ).click();
+  await expect( page.getByTestId( 'fk-bulk-bar' ) ).toBeVisible();
+} );
+
 test( 'saved views filter the rows and search narrows them', async ( { page } ) => {
   await page.goto( GALLERY );
   const view = page.getByTestId( 'fk-gallery' ).locator( '[data-section="dataview"]' );
