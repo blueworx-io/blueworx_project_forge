@@ -215,12 +215,43 @@ final class Diary {
 				}
 			}
 
-			if ( null !== self::amend( $row, $changes ) ) {
+			// Only a row whose length or time actually moved is rewritten, so
+			// renaming a series leaves its meetings alone (2026-09-28, #445).
+			$changes = self::differences( $row, $changes );
+
+			if ( array() !== $changes && null !== self::amend( $row, $changes ) ) {
 				++$changed;
 			}
 		}
 
 		return $changed;
+	}
+
+	/**
+	 * The part of a change that is actually different from a stored row.
+	 *
+	 * Hours are compared to the penny and times as written, so a change that
+	 * only restates what the row already holds comes back empty.
+	 *
+	 * @param array<string, mixed> $row     The stored occurrence.
+	 * @param array<string, mixed> $changes planned_hours, at, starts_at, ends_at.
+	 * @return array<string, mixed> Only the fields that differ.
+	 */
+	public static function differences( array $row, array $changes ): array {
+		$different = array();
+
+		foreach ( $changes as $field => $value ) {
+			$now  = $row[ $field ] ?? null;
+			$same = 'planned_hours' === $field
+				? round( (float) $now, 2 ) === round( (float) $value, 2 )
+				: (string) $now === (string) $value;
+
+			if ( ! $same ) {
+				$different[ $field ] = $value;
+			}
+		}
+
+		return $different;
 	}
 
 	/**
