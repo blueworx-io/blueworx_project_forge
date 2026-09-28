@@ -296,7 +296,13 @@ export function App() {
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
-  const [ newWorkAsked, setNewWorkAsked ] = useState( 0 );
+  /*
+   * "New task" asks the board to open its add form; the board says when it
+   * has, and the ask is over (#452). A count kept for good would be re-read
+   * as a fresh ask by every board opened afterwards.
+   */
+  const [ newWorkAsked, setNewWorkAsked ] = useState( false );
+  const newWorkOpened = () => setNewWorkAsked( false );
   const [ generation, setGeneration ] = useState( 0 );
   const waiting = useRequestsWaiting( screen );
   /*
@@ -446,7 +452,7 @@ export function App() {
               data-testid="bwx-menu-new-task"
               onClick={ () => {
                 go( 'work', 'board' );
-                setNewWorkAsked( ( n ) => n + 1 );
+                setNewWorkAsked( true );
               } }
             >
               New task
@@ -521,7 +527,7 @@ export function App() {
                 // From anywhere: the form lives on the board, so go there.
                 setScreen( 'work' );
                 setView( 'board' );
-                setNewWorkAsked( ( n ) => n + 1 );
+                setNewWorkAsked( true );
               } }
             >
               New task
@@ -556,7 +562,7 @@ export function App() {
          */ }
         <WhenChosen>
         { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
-        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } openItem={ landing.item } /> }
+        { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } onNewWorkOpened={ newWorkOpened } openItem={ landing.item } /> }
         { 'requests' === screen && <QueueScreen key={ generation } /> }
         { 'capacity' === screen && <CapacityScreen key={ generation } /> }
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }

@@ -60,14 +60,17 @@ type Loading = 'loading' | 'ready' | 'error' | 'denied';
 export function WorkScreen( {
   view: chosenView,
   onViewChange,
-  newWorkAsked = 0,
+  newWorkAsked = false,
+  onNewWorkOpened,
   openItem = '',
 }: {
   /** The view the shell wants shown; the screen keeps its own when absent. */
   view?: ViewName;
   onViewChange?: ( view: ViewName ) => void;
-  /** Bumped by the shell's "New task"; each bump opens the add form. */
-  newWorkAsked?: number;
+  /** Set by the shell's "New task" until this screen has opened the add form. */
+  newWorkAsked?: boolean;
+  /** Tells the shell the ask was answered, so opening the board again does not repeat it. */
+  onNewWorkOpened?: () => void;
   /** A task to open the panel on straight away — a link from Slack. */
   openItem?: string;
 } = {} ) {
@@ -139,14 +142,17 @@ export function WorkScreen( {
   // The shell's "New task" is the same as this screen's own "Add work": it
   // opens the form for the site on screen, and needs a site to open for. An
   // ask that arrives before the sites have loaded is kept until they have,
-  // and each ask opens the form once.
-  const asked = useRef( 0 );
+  // and each ask opens the form once. The shell forgets an ask once it is
+  // answered (#452), so a board opened later is just the board.
   useEffect( () => {
-    if ( newWorkAsked > asked.current && '' !== siteId ) {
-      asked.current = newWorkAsked;
+    if ( newWorkAsked && '' !== siteId ) {
+      // The ask comes from the shell, outside this screen; answering it once
+      // is what this effect is for.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAdding( true );
+      onNewWorkOpened?.();
     }
-  }, [ newWorkAsked, siteId ] );
+  }, [ newWorkAsked, siteId, onNewWorkOpened ] );
 
   // A re-check that found something new: the list, in place. The shell
   // (stages, sites, saved views) is only re-read by the header's refresh.
