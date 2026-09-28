@@ -975,6 +975,14 @@ body {
   padding: 20px;
   gap: 16px;
 }
+/* On a phone the names give the timeline most of the width (#431). A fixed
+   width, not a percentage, so the axis and the rows still share one gutter. */
+@media ( max-width: 640px ) {
+  .bwx-gantt {
+    --gantt-gutter: 120px;
+    padding: 12px;
+  }
+}
 
 /* The count on the left, the legend on the right (2026-09-20). */
 .bwx-gantt-head {
@@ -1680,6 +1688,17 @@ body {
   display: inline-flex;
   gap: 6px;
   white-space: nowrap;
+}
+/* On a phone the buttons wrap under the title rather than off the side (#431). */
+@media ( max-width: 640px ) {
+  .bwx-recurring-toolbar {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+  .fk-dataview-title-right {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
 }
 /* The days of the week as a row of pills; the box inside each is the real control. */
 .bwx-recurring-days {
@@ -3200,6 +3219,77 @@ td[ data-band='over' ] {
 .bwx-row-open:hover {
   color: var( --accent-signal );
 }
+/*
+ * The request queue on a phone (#430): each request a card — the tick and the
+ * title on the first line, then client, status and wait, each labelled. The
+ * rail colour moves to the card's edge.
+ */
+@media ( max-width: 640px ) {
+  .bwx-queue {
+    padding: 12px;
+  }
+  .bwx-table[data-stack='true'] {
+    background: transparent;
+    border: 0;
+  }
+  /* The head's one control stays: picking every request is one tap. */
+  .bwx-table[data-stack='true'],
+  .bwx-table[data-stack='true'] thead,
+  .bwx-table[data-stack='true'] thead tr,
+  .bwx-table[data-stack='true'] tbody {
+    display: block;
+  }
+  .bwx-table[data-stack='true'] thead th:not( .bwx-table-check ) {
+    display: none;
+  }
+  .bwx-table[data-stack='true'] thead th.bwx-table-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    padding: 0 12px 8px;
+    background: transparent;
+    border: 0;
+  }
+  .bwx-table[data-stack='true'] thead th.bwx-table-check::after {
+    content: 'Select all';
+    color: var( --ink-700 );
+    font-size: var( --text-small );
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .bwx-table[data-stack='true'] .bwx-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 8px;
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    background: var( --surface-card );
+    border: 1px solid var( --border-hairline );
+    border-left: 3px solid var( --row-rail, var( --border-hairline ) );
+    border-radius: 12px;
+  }
+  .bwx-table[data-stack='true'] .bwx-row td {
+    display: block;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+  }
+  .bwx-table[data-stack='true'] .bwx-row td[data-label] {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    text-align: end;
+  }
+  .bwx-table[data-stack='true'] .bwx-row td[data-label]::before {
+    content: attr( data-label );
+    color: var( --ink-500 );
+    font-family: var( --font-ui );
+    font-size: var( --text-caption );
+  }
+}
 .bwx-progress {
   block-size: 6px;
   background: var( --paper-stone );
@@ -3265,6 +3355,18 @@ td[ data-band='over' ] {
 .bwx-app .fk-bulk-bar {
   position: fixed;
   left: calc( 50% + 132px );
+}
+/* On a phone there is no rail beside the screen and the bottom bar is below
+   it (#430): the bar spans the screen, just above the bottom bar. */
+@media ( max-width: 900px ) {
+  .bwx-app .fk-bulk-bar {
+    left: 12px;
+    right: 12px;
+    bottom: calc( 68px + env( safe-area-inset-bottom ) );
+    transform: none;
+    flex-wrap: wrap;
+    border-radius: 16px;
+  }
 }
 .bwx-views-row {
   display: flex;
@@ -3666,7 +3768,7 @@ td[ data-band='over' ] {
 /* Two columns where there is room: a full day's diary is a long list. */
 .bwx-standup-diary .bwx-diary-lines {
   display: grid;
-  grid-template-columns: repeat( auto-fill, minmax( 380px, 1fr ) );
+  grid-template-columns: repeat( auto-fill, minmax( min( 380px, 100% ), 1fr ) );
   column-gap: 32px;
 }
 .bwx-standup-diary .bwx-diary-lines > .bwx-diary-line {
@@ -3686,6 +3788,18 @@ td[ data-band='over' ] {
   flex: 0 0 auto;
   flex-wrap: nowrap;
   margin-left: auto;
+}
+/* On a phone (#429) the buttons go under the title and wrap: side by side,
+   four of them ran off the screen. */
+@media ( max-width: 640px ) {
+  .bwx-standup-settle .bwx-diary-line {
+    flex-wrap: wrap;
+  }
+  .bwx-standup-settle .bwx-diary-line > .bwx-moves {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
 }
 .bwx-calendar-diary[ data-tone='teal' ] { --entry-ink: var( --phase-pipeline-ink ); --entry-wash: var( --phase-pipeline-bg ); --entry-edge: var( --phase-pipeline-border ); }
 .bwx-calendar-diary[ data-tone='violet' ] { --entry-ink: var( --phase-idea-ink ); --entry-wash: var( --phase-idea-bg ); --entry-edge: var( --phase-idea-border ); }

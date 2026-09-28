@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.151.0] - 2026-09-27
+
+### Changed
+
+- Every Forge screen now fits a phone. Wide views like Kanban and Gantt scroll sideways within the screen, and Gantt gives the timeline most of the width.
+
+## [2.150.0] - 2026-09-27
+
+### Changed
+
+- Requests review works on a phone: each request is a card, and the actions for the ones you pick sit above the bottom bar.
+
+## [2.149.0] - 2026-09-27
+
+### Changed
+
+- On a phone, lists show each row as a card, and My tasks and Daily standup fit the screen.
+
 ## [2.148.0] - 2026-09-27
 
 ### Added
