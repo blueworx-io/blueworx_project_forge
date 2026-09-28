@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.1] - 2026-09-28
+
+### Fixed
+
+- Moving a standing meeting to another day, changing how often it runs or bringing its end date forward no longer leaves the old meetings on the list holding the client's hours. They go, and their hours come back. Meetings somebody had already moved or dealt with stay as they are.
+- Renaming a standing meeting no longer rewrites every meeting it has coming. Only a change to its length or time does.
+
 ## [2.152.0] - 2026-09-28
 
 ### Added

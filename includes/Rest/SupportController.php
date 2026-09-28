@@ -639,12 +639,15 @@ final class SupportController {
 	 * @return array<string, mixed>
 	 */
 	private static function entry( array $entry ): array {
+		// Not said twice where the line's own reason already says it (#432).
+		$about = self::about( (string) $entry['source_type'], (string) $entry['source_id'] );
+
 		return array_merge(
 			$entry,
 			array(
 				'when'   => gmdate( 'Y-m-d', (int) $entry['occurred_at'] ),
 				'source' => (string) $entry['source_type'] . ':' . (string) $entry['source_id'],
-				'about'  => self::about( (string) $entry['source_type'], (string) $entry['source_id'] ),
+				'about'  => (string) ( $entry['reason'] ?? '' ) === $about ? '' : $about,
 			)
 		);
 	}
@@ -681,6 +684,15 @@ final class SupportController {
 					(string) $series['title'],
 					(string) $meeting['on']
 				);
+			} elseif ( null === $meeting ) {
+				// Taken away when its series changed (2026-09-28, #432). Its
+				// release named it, so the lines before that still can.
+				foreach ( Ledger::for_source( $type, $id ) as $line ) {
+					if ( '' !== (string) ( $line['reason'] ?? '' ) ) {
+						$names[ $key ] = (string) $line['reason'];
+						break;
+					}
+				}
 			}
 		} elseif ( WorkHours::SOURCE === $type ) {
 			$item = Items::get( $id );

@@ -184,7 +184,8 @@ final class Diary {
 	 * Only rows still scheduled are touched: one held, cancelled or missed is a
 	 * record of what happened. A moved meeting keeps the day somebody moved it
 	 * to, and takes the new hours and time — a move only ever chose the day.
-	 * A row whose slot the new rule no longer lands on is left as it is.
+	 * A row whose slot the new rule no longer lands on is {@see self::strays()}'
+	 * to find, and {@see Hours::let_go()}'s to take away (2026-09-28, #432).
 	 *
 	 * @param array<string, mixed> $series The series, as stored after the edit.
 	 * @param string               $from   YYYY-MM-DD; rows before it are history.
@@ -225,6 +226,61 @@ final class Diary {
 		}
 
 		return $changed;
+	}
+
+	/**
+	 * The coming meetings an edited series no longer has (2026-09-28, #432).
+	 *
+	 * Move a weekly Monday meeting to Tuesdays and the Mondays already holding
+	 * hours kept their rows, so the next twelve weeks showed both days and the
+	 * client's hours were held twice. These are those rows: still scheduled,
+	 * on the day the rule first put them, and not on the new rule's days.
+	 *
+	 * Only rows nobody has touched. A meeting somebody moved, gave a link or
+	 * did anything else to has history, and stays as it is.
+	 *
+	 * @param array<string, mixed> $series The series, as stored after the edit.
+	 * @param string               $from   YYYY-MM-DD; rows before it are history.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function strays( array $series, string $from ): array {
+		$strays = array();
+
+		foreach ( self::stored_for( (string) $series['id'], $from, '9999-12-31' ) as $row ) {
+			$on = (string) $row['on'];
+
+			if ( Occurrence::SCHEDULED !== (string) $row['status'] || $on < $from || (string) $row['excepted_from'] !== $on ) {
+				continue;
+			}
+
+			if ( '' !== (string) $row['meeting_link'] || array() !== Recurrence::expand( $series, $on, $on ) ) {
+				continue;
+			}
+
+			if ( array() !== Events::for_occurrence( (string) $row['id'] ) ) {
+				continue;
+			}
+
+			$strays[] = $row;
+		}
+
+		return $strays;
+	}
+
+	/**
+	 * Removes a stored meeting.
+	 *
+	 * Only for a row that is bookkeeping and nothing else — see
+	 * {@see self::strays()}. Anything a person did to a meeting is kept.
+	 *
+	 * @param string $id The occurrence.
+	 * @return bool Whether it was removed.
+	 */
+	public static function forget( string $id ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		return (bool) $wpdb->delete( Schema::meeting_occurrences_table(), array( 'id' => $id ), array( '%s' ) );
 	}
 
 	/**

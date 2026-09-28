@@ -349,6 +349,10 @@ final class MeetingsController {
 		// hours, so what they hold is worked out from the new length (#427).
 		Diary::follow_series( $updated, gmdate( 'Y-m-d' ) );
 
+		// And the ones the new rule no longer has go, with their hours
+		// (2026-09-28, #432): moved to Tuesdays, the Mondays stop showing.
+		Hours::let_go( $updated, gmdate( 'Y-m-d' ), get_current_user_id() );
+
 		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
 	}
 
