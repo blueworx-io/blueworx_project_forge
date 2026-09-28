@@ -28,7 +28,7 @@ import { WorkScreen } from './components/WorkScreen';
 import { Avatar, Button, PageHeader } from './kit';
 import type { TileHue } from './kit';
 import './shell.css';
-import { useCompact } from './viewport';
+import { onCompactChange, useCompact } from './viewport';
 
 /**
  * The studio application shell (#304): a rail down the left with the screens
@@ -308,22 +308,40 @@ export function App() {
   const menuButton = useRef< HTMLButtonElement >( null );
   const menuClose = useRef< HTMLButtonElement >( null );
   const railRef = useRef< HTMLElement >( null );
+  const wasOpen = useRef( false );
+  /*
+   * Whether the menu slides (#442): only when somebody opens or closes it.
+   * A window narrowed to a phone puts the rail away without it sliding across.
+   */
+  const [ motion, setMotion ] = useState( false );
 
-  // Opening the menu takes focus into it, so a keyboard user follows it.
   useEffect( () => {
     if ( compact && menuOpen ) {
+      // Opening the menu takes focus into it, so a keyboard user follows it.
       menuClose.current?.focus();
+    } else if ( compact && wasOpen.current ) {
+      // Closed: back to the Menu button, once the bar behind is reachable again.
+      menuButton.current?.focus();
+    } else if ( ! compact && wasOpen.current ) {
+      // Widened with it open (#441): the close button has gone, so focus
+      // moves to where the rail says you are rather than falling to the page.
+      railRef.current?.querySelector< HTMLElement >( '[aria-current="page"], button' )?.focus();
     }
+    wasOpen.current = compact && menuOpen;
   }, [ compact, menuOpen ] );
 
-  // Widened past a phone with the menu open: the rail is the rail again, and
-  // narrowed back it starts closed. Set while rendering, not in an effect, so
-  // there is no frame drawn with the menu still open.
-  const [ wasCompact, setWasCompact ] = useState( compact );
-  if ( wasCompact !== compact ) {
-    setWasCompact( compact );
-    setMenuOpen( false );
-  }
+  // Crossing between a phone and a desktop: the rail is the rail again, and
+  // narrowed back it starts closed, without sliding. Done when the window
+  // changes, not while drawing: a state change made mid-draw stopped React
+  // hearing the next change, and the bottom bar never came back (2026-09-28).
+  useEffect(
+    () =>
+      onCompactChange( () => {
+        setMenuOpen( false );
+        setMotion( false );
+      } ),
+    []
+  );
 
   if ( ! isConnected() ) {
     return (
@@ -347,9 +365,18 @@ export function App() {
   const opening = OPENINGS[ 'work' === screen && ( 'gantt' === view || 'calendar' === view ) ? view : screen ];
 
   const closeMenu = () => {
+    setMotion( true );
     setMenuOpen( false );
-    menuButton.current?.focus();
   };
+
+  const openMenu = () => {
+    setMotion( true );
+    setMenuOpen( true );
+  };
+
+  // While the menu is open the screen and the bottom bar behind it are out of
+  // reach (#443): not tabbable, and not found by a screen reader's cursor.
+  const shut = compact && menuOpen ? { inert: '' } : {};
 
   const go = ( key: ScreenName, next?: ViewName ) => {
     setScreen( key );
@@ -394,7 +421,7 @@ export function App() {
   return (
     <ClientChoiceProvider landing={ landing.site }>
     <div className="fs-shell" data-testid="bwx-forge-ready">
-      <nav className="fs-rail" aria-label="Screens" id="bwx-menu" ref={ railRef } data-open={ menuOpen ? 'true' : undefined } onKeyDown={ onMenuKey }>
+      <nav className="fs-rail" aria-label="Screens" id="bwx-menu" ref={ railRef } data-open={ menuOpen ? 'true' : undefined } data-motion={ motion ? 'true' : undefined } onKeyDown={ onMenuKey }>
         <div className="fs-rail-brand">
           <span className="fs-mark" aria-hidden="true">
             F
@@ -479,7 +506,7 @@ export function App() {
         </div>
       </nav>
 
-      <main className="bwx-app fs-main">
+      <main className="bwx-app fs-main" { ...shut }>
         <div className="fs-topbar bwx-shellbar">
           <span className="fs-title">{ title }</span>
           <span className="bwx-header-spacer" />
@@ -557,7 +584,8 @@ export function App() {
           menuOpen={ menuOpen }
           menuRef={ menuButton }
           onPick={ go }
-          onMenu={ () => ( menuOpen ? closeMenu() : setMenuOpen( true ) ) }
+          onMenu={ () => ( menuOpen ? closeMenu() : openMenu() ) }
+          shut={ compact && menuOpen }
         />
       ) }
     </div>

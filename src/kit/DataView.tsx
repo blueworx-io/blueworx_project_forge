@@ -342,6 +342,29 @@ export function DataView< Row extends RowRecord >( {
         </div>
       ) }
 
+      { /* On a phone the headers are hidden, so sorting is a choice above the cards (#438). */ }
+      { stack && sortable && columns.some( ( column ) => false !== column.sortable && !! column.label ) && (
+        <label className="fk-phone-sort">
+          Sort by
+          <select
+            className="fk-select"
+            value={ sort ? `${ sort.key }:${ sort.dir }` : '' }
+            onChange={ ( event ) => {
+              const [ key, dir ] = event.target.value.split( ':' );
+              setSort( '' === key ? null : { key, dir: 'desc' === dir ? 'desc' : 'asc' } );
+            } }
+          >
+            <option value="">As listed</option>
+            { columns
+              .filter( ( column ) => false !== column.sortable && !! column.label )
+              .map( ( column ) => [
+                <option key={ `${ column.key }:asc` } value={ `${ column.key }:asc` }>{ `${ column.label }, low to high` }</option>,
+                <option key={ `${ column.key }:desc` } value={ `${ column.key }:desc` }>{ `${ column.label }, high to low` }</option>,
+              ] ) }
+          </select>
+        </label>
+      ) }
+
       <div className="fk-dataview-scroll" data-capped={ maxHeight ? 'true' : undefined } style={ { maxHeight } }>
         <table className="fk-table" data-dense={ dense ? 'true' : 'false' } data-fixed={ fixed ? 'true' : undefined } data-stack={ stack ? 'true' : undefined }>
           <thead>

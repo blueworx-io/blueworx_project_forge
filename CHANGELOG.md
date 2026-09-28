@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.0] - 2026-09-28
+
+### Added
+
+- On a phone, lists can be sorted from a "Sort by" choice above them.
+
+### Fixed
+
+- On a phone, the bottom bar comes back after the window has been widened and narrowed again.
+- On a phone, notices appear above the bottom bar rather than over it.
+- On a phone, buttons in a list card sit on the right, in line with the other values.
+- Widening the window with the menu open keeps keyboard focus in the menu.
+- The side menu no longer slides across the screen when a window is narrowed to phone size.
+- With the side menu open, the screen behind it can't be reached by keyboard or screen reader.
+
 ## [2.151.0] - 2026-09-27
 
 ### Changed

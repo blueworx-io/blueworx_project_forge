@@ -32,6 +32,7 @@ export function TabBar( {
   menuRef,
   onPick,
   onMenu,
+  shut,
 }: {
   screen: ScreenName;
   view: ViewName;
@@ -40,9 +41,11 @@ export function TabBar( {
   menuRef: RefObject< HTMLButtonElement >;
   onPick: ( key: ScreenName, view?: ViewName ) => void;
   onMenu: () => void;
+  /** The menu is open over it (#443): out of reach until it closes. */
+  shut: boolean;
 } ) {
   return (
-    <nav className="fs-tabbar" aria-label="Quick screens" data-testid="bwx-tabbar">
+    <nav className="fs-tabbar" aria-label="Quick screens" data-testid="bwx-tabbar" { ...( shut ? { inert: '' } : {} ) }>
       { TABS.map( ( tab ) => {
         const Icon = tab.icon;
         const current = tab.key === screen && ( ! tab.view || tab.view === view );
