@@ -905,9 +905,14 @@ export function ItemPanel( {
     .filter( ( event ) => 'released' === event.to_stage )
     .reduce( ( latest, event ) => Math.max( latest, event.occurred_at ), 0 );
   // #420. Who it waits on, read-only, while it still has somewhere to go.
-  const waitingFor = item && ! ended && ! chore
-    ? waitingOn( item, { ...Object.fromEntries( staffList.map( ( person ) => [ person.id, person.display_name ] ) ), ...detail?.seat_names } )
-    : null;
+  const names: Record< string, string > = { ...Object.fromEntries( staffList.map( ( person ) => [ person.id, person.display_name ] ) ), ...detail?.seat_names };
+  let waitingFor: string | null = null;
+  if ( item && ! ended && chore ) {
+    // #462. A recurring task waits on whoever on it has not done it yet.
+    waitingFor = 'released' === item.stage || 0 === undone.length ? null : undone.map( ( id ) => names[ id ] ?? 'Somebody' ).join( ', ' );
+  } else if ( item && ! ended ) {
+    waitingFor = waitingOn( item, names );
+  }
 
   /*
    * The stages work passes through, in order, with Blocked left out — it is an

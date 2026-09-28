@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.6] - 2026-09-28
+
+### Fixed
+
+- Opening a recurring task now shows who it belongs to, like any other task.
+
 ## [2.152.5] - 2026-09-28
 
 ### Fixed

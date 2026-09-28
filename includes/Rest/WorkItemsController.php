@@ -842,10 +842,10 @@ final class WorkItemsController {
 	 */
 	private static function seat_names( array $item ): array {
 		$names = array();
+		$ids   = array_map( static fn( string $field ): string => (string) ( $item[ $field ] ?? '' ), PersonReach::SEATS );
 
-		foreach ( PersonReach::SEATS as $field ) {
-			$id = (string) ( $item[ $field ] ?? '' );
-
+		// A recurring task's people are named the same way (#462).
+		foreach ( array_merge( $ids, array_map( 'strval', (array) ( $item['assignees'] ?? array() ) ) ) as $id ) {
 			if ( '' === $id || isset( $names[ $id ] ) ) {
 				continue;
 			}
