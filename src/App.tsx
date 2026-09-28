@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -23,10 +23,12 @@ import { StandupScreen } from './components/StandupScreen';
 import { SubscriptionsScreen } from './components/SubscriptionsScreen';
 import { SupportScreen } from './components/SupportScreen';
 import { Screen } from './components/States';
+import { TabBar } from './components/TabBar';
 import { WorkScreen } from './components/WorkScreen';
 import { Avatar, Button, PageHeader } from './kit';
 import type { TileHue } from './kit';
 import './shell.css';
+import { useCompact } from './viewport';
 
 /**
  * The studio application shell (#304): a rail down the left with the screens
@@ -52,19 +54,19 @@ import './shell.css';
 
 type Entry =
   | { group: string }
-  | { key: ScreenName; label: string; icon: LucideIcon; testId: string; view?: ViewName; admin?: true }
+  | { key: ScreenName; label: string; icon: LucideIcon; testId: string; view?: ViewName; admin?: true; primary?: true }
   | { href: string; label: string; icon: LucideIcon; testId: string; admin?: true };
 
 const RAIL: Entry[] = [
   { group: 'My day' },
-  { key: 'mytasks', label: 'My tasks', icon: ListChecks, testId: 'bwx-screen-mytasks' },
-  { key: 'standup', label: 'Daily standup', icon: Clock, testId: 'bwx-screen-standup' },
+  { key: 'mytasks', label: 'My tasks', icon: ListChecks, testId: 'bwx-screen-mytasks', primary: true },
+  { key: 'standup', label: 'Daily standup', icon: Clock, testId: 'bwx-screen-standup', primary: true },
   { group: 'Intake' },
-  { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests' },
+  { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests', primary: true },
   { group: 'Delivery' },
   { key: 'work', view: 'board', label: 'Kanban', icon: Columns3, testId: 'bwx-screen-work' },
   { key: 'work', view: 'gantt', label: 'Gantt', icon: GanttChart, testId: 'bwx-screen-gantt' },
-  { key: 'work', view: 'calendar', label: 'Calendar', icon: CalendarDays, testId: 'bwx-screen-calendar' },
+  { key: 'work', view: 'calendar', label: 'Calendar', icon: CalendarDays, testId: 'bwx-screen-calendar', primary: true },
   { key: 'capacity', label: 'Capacity', icon: Gauge, testId: 'bwx-screen-capacity' },
   { key: 'recurring', label: 'Recurring tasks', icon: Repeat, testId: 'bwx-screen-recurring' },
   { key: 'reminders', label: 'Reminders', icon: Bell, testId: 'bwx-screen-reminders' },
@@ -94,6 +96,25 @@ function railFor( admin: boolean ): Entry[] {
 }
 
 /**
+ * Whether an entry is on the phone's bottom bar (#428) — and so left out of
+ * the phone's menu. A group heading is, when everything under it is.
+ */
+function onTabBar( rail: Entry[], i: number ): boolean {
+  const entry = rail[ i ];
+
+  if ( ! ( 'group' in entry ) ) {
+    return 'primary' in entry && true === entry.primary;
+  }
+
+  const under: Entry[] = [];
+  for ( let next = i + 1; next < rail.length && ! ( 'group' in rail[ next ] ); next += 1 ) {
+    under.push( rail[ next ] );
+  }
+
+  return under.every( ( one ) => 'primary' in one && true === one.primary );
+}
+
+/**
  * When the screen's data last came from the server, and a way to ask again.
  *
  * The time is the newest answer the app holds (see api.ts): a screen's own
@@ -106,7 +127,7 @@ function railFor( admin: boolean ): Entry[] {
  * Who is signed in, top right of every screen, by name; it opens their
  * profile screen, where their own settings live (2026-09-18).
  */
-function Profile( { onOpen }: { onOpen: () => void } ) {
+function Profile( { onOpen, testId = 'bwx-profile' }: { onOpen: () => void; testId?: string } ) {
   const data = forgeData();
   const who = data?.currentUser;
 
@@ -118,7 +139,7 @@ function Profile( { onOpen }: { onOpen: () => void } ) {
     <a
       className="fs-profile"
       href="#screen=profile"
-      data-testid="bwx-profile"
+      data-testid={ testId }
       title="Your profile"
       onClick={ ( event ) => {
         event.preventDefault();
@@ -126,7 +147,7 @@ function Profile( { onOpen }: { onOpen: () => void } ) {
       } }
     >
       <Avatar name={ who.name } />
-      <span className="fs-profile-name" data-testid="bwx-profile-name">{ who.name }</span>
+      <span className="fs-profile-name" data-testid={ `${ testId }-name` }>{ who.name }</span>
     </a>
   );
 }
@@ -278,6 +299,31 @@ export function App() {
   const [ newWorkAsked, setNewWorkAsked ] = useState( 0 );
   const [ generation, setGeneration ] = useState( 0 );
   const waiting = useRequestsWaiting( screen );
+  /*
+   * On a phone (#428) the rail is a side menu, opened from the bottom bar.
+   * Whether it is open only matters while the shell is compact.
+   */
+  const compact = useCompact();
+  const [ menuOpen, setMenuOpen ] = useState( false );
+  const menuButton = useRef< HTMLButtonElement >( null );
+  const menuClose = useRef< HTMLButtonElement >( null );
+  const railRef = useRef< HTMLElement >( null );
+
+  // Opening the menu takes focus into it, so a keyboard user follows it.
+  useEffect( () => {
+    if ( compact && menuOpen ) {
+      menuClose.current?.focus();
+    }
+  }, [ compact, menuOpen ] );
+
+  // Widened past a phone with the menu open: the rail is the rail again, and
+  // narrowed back it starts closed. Set while rendering, not in an effect, so
+  // there is no frame drawn with the menu still open.
+  const [ wasCompact, setWasCompact ] = useState( compact );
+  if ( wasCompact !== compact ) {
+    setWasCompact( compact );
+    setMenuOpen( false );
+  }
 
   if ( ! isConnected() ) {
     return (
@@ -300,6 +346,44 @@ export function App() {
   const title = 'work' === screen ? VIEW_TITLES[ view ] ?? TITLES.work : TITLES[ screen ];
   const opening = OPENINGS[ 'work' === screen && ( 'gantt' === view || 'calendar' === view ) ? view : screen ];
 
+  const closeMenu = () => {
+    setMenuOpen( false );
+    menuButton.current?.focus();
+  };
+
+  const go = ( key: ScreenName, next?: ViewName ) => {
+    setScreen( key );
+    if ( next ) setView( next );
+    if ( menuOpen ) closeMenu();
+  };
+
+  /** Keeps Tab inside the open menu, and lets Escape close it — the kit Modal's pattern. */
+  const onMenuKey = ( event: KeyboardEvent< HTMLElement > ) => {
+    if ( ! compact || ! menuOpen ) return;
+
+    if ( 'Escape' === event.key ) {
+      closeMenu();
+      return;
+    }
+
+    if ( 'Tab' !== event.key || ! railRef.current ) return;
+
+    const focusable = Array.from( railRef.current.querySelectorAll< HTMLElement >( 'button, a[href], select' ) ).filter( ( el ) => null !== el.offsetParent );
+    if ( 0 === focusable.length ) return;
+
+    const first = focusable[ 0 ];
+    const last = focusable[ focusable.length - 1 ];
+    if ( event.shiftKey && document.activeElement === first ) {
+      event.preventDefault();
+      last.focus();
+    } else if ( ! event.shiftKey && document.activeElement === last ) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  const rail = railFor( admin );
+
   const isCurrent = ( entry: Entry ): boolean => {
     if ( ! ( 'key' in entry ) || entry.key !== screen ) return false;
     if ( 'work' !== entry.key ) return true;
@@ -310,7 +394,7 @@ export function App() {
   return (
     <ClientChoiceProvider landing={ landing.site }>
     <div className="fs-shell" data-testid="bwx-forge-ready">
-      <nav className="fs-rail" aria-label="Screens">
+      <nav className="fs-rail" aria-label="Screens" id="bwx-menu" ref={ railRef } data-open={ menuOpen ? 'true' : undefined } onKeyDown={ onMenuKey }>
         <div className="fs-rail-brand">
           <span className="fs-mark" aria-hidden="true">
             F
@@ -319,13 +403,36 @@ export function App() {
             <span className="fs-rail-brand-name">Forge</span>
             <span className="fs-rail-brand-sub">Command centre</span>
           </span>
+          { compact && (
+            <button type="button" className="bwx-icon-button fs-rail-close" ref={ menuClose } data-testid="bwx-menu-close" aria-label="Close the menu" onClick={ closeMenu }>
+              <X size={ 18 } strokeWidth={ 2 } aria-hidden="true" />
+            </button>
+          ) }
         </div>
 
+        { /* What leaves the top bar on a phone (#428): New task, and who you are. */ }
+        { compact && (
+          <div className="fs-rail-extras">
+            <Button
+              variant="soft"
+              size="sm"
+              data-testid="bwx-menu-new-task"
+              onClick={ () => {
+                go( 'work', 'board' );
+                setNewWorkAsked( ( n ) => n + 1 );
+              } }
+            >
+              New task
+            </Button>
+            <Profile testId="bwx-menu-profile" onOpen={ () => go( 'profile' ) } />
+          </div>
+        ) }
+
         <div className="fs-rail-list">
-          { railFor( admin ).map( ( entry, i ) => {
+          { rail.map( ( entry, i ) => {
             if ( 'group' in entry ) {
               return (
-                <div key={ i } className="fs-rail-group">
+                <div key={ i } className="fs-rail-group" data-primary={ onTabBar( rail, i ) ? 'true' : undefined }>
                   { entry.group }
                 </div>
               );
@@ -351,10 +458,8 @@ export function App() {
                 aria-current={ current ? 'page' : undefined }
                 aria-pressed={ current }
                 data-testid={ entry.testId }
-                onClick={ () => {
-                  setScreen( entry.key );
-                  if ( entry.view ) setView( entry.view );
-                } }
+                data-primary={ onTabBar( rail, i ) ? 'true' : undefined }
+                onClick={ () => go( entry.key, entry.view ) }
               >
                 <Icon size={ 18 } strokeWidth={ 1.5 } aria-hidden="true" />
                 <span className="fs-rail-label">{ entry.label }</span>
@@ -378,23 +483,27 @@ export function App() {
         <div className="fs-topbar bwx-shellbar">
           <span className="fs-title">{ title }</span>
           <span className="bwx-header-spacer" />
-          <Signals />
           <ClientPicker />
-          <Button
-            variant="soft"
-            size="sm"
-            data-testid="bwx-new-task"
-            onClick={ () => {
-              // From anywhere: the form lives on the board, so go there.
-              setScreen( 'work' );
-              setView( 'board' );
-              setNewWorkAsked( ( n ) => n + 1 );
-            } }
-          >
-            New task
-          </Button>
-          <span className="fs-topbar-divider" aria-hidden="true" />
-          <Profile onOpen={ () => setScreen( 'profile' ) } />
+          <Signals />
+          <span className="fs-topbar-new">
+            <Button
+              variant="soft"
+              size="sm"
+              data-testid="bwx-new-task"
+              onClick={ () => {
+                // From anywhere: the form lives on the board, so go there.
+                setScreen( 'work' );
+                setView( 'board' );
+                setNewWorkAsked( ( n ) => n + 1 );
+              } }
+            >
+              New task
+            </Button>
+          </span>
+          <span className="fs-topbar-you">
+            <span className="fs-topbar-divider" aria-hidden="true" />
+            <Profile onOpen={ () => setScreen( 'profile' ) } />
+          </span>
         </div>
 
         { /*
@@ -438,6 +547,19 @@ export function App() {
         { 'profile' === screen && <ProfileScreen key={ generation } /> }
         </WhenChosen>
       </main>
+
+      { compact && menuOpen && <div className="fs-menu-scrim" data-testid="bwx-menu-scrim" onClick={ closeMenu } /> }
+      { compact && (
+        <TabBar
+          screen={ screen }
+          view={ view }
+          waiting={ waiting }
+          menuOpen={ menuOpen }
+          menuRef={ menuButton }
+          onPick={ go }
+          onMenu={ () => ( menuOpen ? closeMenu() : setMenuOpen( true ) ) }
+        />
+      ) }
     </div>
     </ClientChoiceProvider>
   );
