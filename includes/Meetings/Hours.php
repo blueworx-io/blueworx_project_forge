@@ -135,6 +135,58 @@ final class Hours {
 	}
 
 	/**
+	 * Takes away the coming meetings an edited series no longer has, and gives
+	 * back the hours they were holding (2026-09-28, #432).
+	 *
+	 * The release goes in first and names the meeting, because the row it was
+	 * against is gone afterwards and the ledger line still has to say what it
+	 * was for. A row whose hours could not be given back is kept, so the
+	 * balance never shows hours returned for a meeting still on the list.
+	 *
+	 * @param array<string, mixed> $series The series, as stored after the edit.
+	 * @param string               $from   YYYY-MM-DD; rows before it are history.
+	 * @param int                  $actor  Who edited it.
+	 * @return int How many meetings were taken away.
+	 */
+	public static function let_go( array $series, string $from, int $actor ): int {
+		$gone = 0;
+
+		foreach ( Diary::strays( $series, $from ) as $row ) {
+			$id     = (string) $row['id'];
+			$reason = sprintf(
+				/* translators: 1: the meeting's title, 2: its date. */
+				__( '%1$s on %2$s, no longer in the standing meeting', 'blueworx-forge' ),
+				(string) ( $series['title'] ?? '' ),
+				(string) $row['on']
+			);
+
+			// Not running, as far as this one meeting is concerned: whatever
+			// it holds goes back.
+			foreach ( MeetingHours::plan( $row, self::entries_for( $id ), $from, '', false ) as $entry ) {
+				Ledger::append(
+					array(
+						'client_site_id' => (string) ( $series['client_site_id'] ?? '' ),
+						'event_type'     => (string) $entry['event_type'],
+						'hours'          => (float) $entry['hours'],
+						'source_type'    => MeetingHours::SOURCE,
+						'source_id'      => $id,
+						'reason'         => $reason,
+						'actor'          => $actor,
+					)
+				);
+			}
+
+			$held = MeetingHours::position( self::entries_for( $id ) );
+
+			if ( 0.0 === $held['reserved'] && 0.0 === $held['used'] && Diary::forget( $id ) ) {
+				++$gone;
+			}
+		}
+
+		return $gone;
+	}
+
+	/**
 	 * Every meeting on a site whose hours might need moving.
 	 *
 	 * @param string $client_site_id The site.

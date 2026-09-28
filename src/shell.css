@@ -351,12 +351,18 @@
     height: 100dvh;
     transform: translateX( -100% );
     visibility: hidden;
-    transition: transform 200ms ease, visibility 0s linear 200ms;
     box-shadow: 0 16px 48px rgb( 15 23 42 / 0.2 );
   }
   .fs-rail[data-open='true'] {
     transform: none;
     visibility: visible;
+  }
+  /* It slides only when somebody opens or closes it (#442): a window narrowed
+     to a phone puts it away at once, rather than sliding it across. */
+  .fs-rail[data-motion='true'] {
+    transition: transform 200ms ease, visibility 0s linear 200ms;
+  }
+  .fs-rail[data-motion='true'][data-open='true'] {
     transition: transform 200ms ease;
   }
   .fs-rail [data-primary='true'] {
@@ -409,8 +415,8 @@
   }
 }
 @media ( max-width: 900px ) and ( prefers-reduced-motion: reduce ) {
-  .fs-rail,
-  .fs-rail[data-open='true'] {
+  .fs-rail[data-motion='true'],
+  .fs-rail[data-motion='true'][data-open='true'] {
     transition: none;
   }
 }

@@ -76,6 +76,32 @@ test( 'on a phone a table\'s rows are cards, each value labelled, none wider tha
   await expect( page.getByTestId( 'fk-bulk-bar' ) ).toBeVisible();
 } );
 
+test( 'on a phone a list can still be sorted, from a Sort by choice above the cards (#438)', async ( { page } ) => {
+  await page.setViewportSize( { width: 390, height: 844 } );
+  await page.goto( GALLERY );
+  const view = page.getByTestId( 'fk-gallery' ).locator( '[data-section="dataview"]' );
+  const sort = view.getByRole( 'combobox', { name: 'Sort by' } );
+
+  await expect( sort ).toBeVisible();
+  await sort.selectOption( { label: 'Hours, high to low' } );
+  const hours = await view.locator( 'tbody td[data-label="Hours"]' ).allInnerTexts();
+  const numbers = hours.map( ( text ) => parseFloat( text ) );
+  expect( numbers ).toEqual( [ ...numbers ].sort( ( a, b ) => b - a ) );
+
+  // On a desktop the headers sort, as before, and there is no extra choice.
+  await page.setViewportSize( { width: 1280, height: 800 } );
+  await expect( sort ).toBeHidden();
+} );
+
+test( 'on a phone a notice sits above the bottom bar (#439)', async ( { page } ) => {
+  await page.setViewportSize( { width: 390, height: 844 } );
+  await page.goto( GALLERY );
+  await page.getByRole( 'button', { name: 'Show a toast' } ).click();
+  const toast = await page.locator( '.fk-toasts' ).boundingBox();
+  // The bottom bar is 56px plus its border; the notice clears it.
+  expect( toast.y + toast.height ).toBeLessThanOrEqual( 844 - 64 );
+} );
+
 test( 'saved views filter the rows and search narrows them', async ( { page } ) => {
   await page.goto( GALLERY );
   const view = page.getByTestId( 'fk-gallery' ).locator( '[data-section="dataview"]' );

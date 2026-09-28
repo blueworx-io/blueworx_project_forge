@@ -711,12 +711,39 @@
     font-size: var( --text-caption );
     text-align: start;
   }
+  /* A value with no column name — a row's buttons, say — sits on the right
+     with the labelled values, not alone on the left (#440). */
+  .bwx-forge-page .fk-table[data-stack='true'] td:not( [data-label] ) {
+    justify-content: flex-end;
+  }
   .bwx-forge-page .fk-table[data-stack='true'] td.fk-check-cell {
     justify-content: flex-start;
     line-height: normal;
   }
   .bwx-forge-page .fk-table[data-stack='true'] td.fk-table-empty {
     justify-content: center;
+  }
+  /* The headers sort on a desktop; on a phone they are hidden, so this does (#438). */
+  .bwx-forge-page .fk-phone-sort {
+    display: flex;
+  }
+}
+.fk-phone-sort {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 8px;
+  font-size: var( --text-small );
+  color: var( --ink-700 );
+}
+.fk-phone-sort select {
+  flex: 1;
+  min-width: 0;
+}
+/* On a phone the studio's notices sit above its bottom bar, not over it (#439). */
+@media ( max-width: 900px ) {
+  .bwx-forge-page .fk-toasts {
+    bottom: calc( 72px + env( safe-area-inset-bottom ) );
   }
 }
 .fk-clamp {

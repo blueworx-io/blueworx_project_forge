@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.2] - 2026-09-28
+
+### Fixed
+
+- A screen that reloads straight after a change no longer sometimes shows the list from before it. On a busy site, making today's recurring tasks could look as though nothing had happened.
+
+## [2.152.1] - 2026-09-28
+
+### Fixed
+
+- Moving a standing meeting to another day, changing how often it runs or bringing its end date forward no longer leaves the old meetings on the list holding the client's hours. They go, and their hours come back. Meetings somebody had already moved or dealt with stay as they are.
+- Renaming a standing meeting no longer rewrites every meeting it has coming. Only a change to its length or time does.
+
+## [2.152.0] - 2026-09-28
+
+### Added
+
+- On a phone, lists can be sorted from a "Sort by" choice above them.
+
+### Fixed
+
+- On a phone, the bottom bar comes back after the window has been widened and narrowed again.
+- On a phone, notices appear above the bottom bar rather than over it.
+- On a phone, buttons in a list card sit on the right, in line with the other values.
+- Widening the window with the menu open keeps keyboard focus in the menu.
+- The side menu no longer slides across the screen when a window is narrowed to phone size.
+- With the side menu open, the screen behind it can't be reached by keyboard or screen reader.
+
 ## [2.151.0] - 2026-09-27
 
 ### Changed

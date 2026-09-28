@@ -17,11 +17,22 @@ export function isCompact(): boolean {
   return query()?.matches ?? false;
 }
 
+/**
+ * One function for the life of the page, so React subscribes once rather than
+ * on every render (#444).
+ */
+function subscribe( changed: () => void ): () => void {
+  const list = query();
+  list?.addEventListener( 'change', changed );
+  return () => list?.removeEventListener( 'change', changed );
+}
+
+/** Runs `changed` whenever the window crosses between a phone and a desktop; returns how to stop. */
+export function onCompactChange( changed: () => void ): () => void {
+  return subscribe( changed );
+}
+
 /** Follows the window: a phone turned sideways, or a desktop window narrowed. */
 export function useCompact(): boolean {
-  return useSyncExternalStore( ( changed ) => {
-    const list = query();
-    list?.addEventListener( 'change', changed );
-    return () => list?.removeEventListener( 'change', changed );
-  }, isCompact );
+  return useSyncExternalStore( subscribe, isCompact );
 }
