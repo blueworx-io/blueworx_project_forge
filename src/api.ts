@@ -106,8 +106,15 @@ export async function api< T >(
 
     if ( kept ) {
       if ( shouldRevalidate( path ) ) {
+        const asked = writes;
+
         void fetchJson< T >( path, options )
           .then( ( fresh ) => {
+            // Asked before a change was made: not an answer to keep (#446).
+            if ( asked !== writes ) {
+              return;
+            }
+
             const changed = JSON.stringify( fresh ) !== JSON.stringify( kept.value );
 
             if ( changed ) {
@@ -130,6 +137,14 @@ export async function api< T >(
   if ( 'GET' !== method ) {
     const payload = await fetchJson< T >( path, options );
 
+    /*
+     * A read that set off before this change describes the world before it
+     * (#446). It must not be shared with anyone who asks from now on, nor
+     * kept when it lands — or a screen that reloads straight after a change
+     * is handed the answer from before it, and shows the change undone.
+     */
+    writes += 1;
+    inFlight.clear();
     clear();
 
     return payload;
@@ -147,17 +162,23 @@ export async function api< T >(
     return sharing;
   }
 
+  const asked = writes;
   const request = fetchJson< T >( path, options )
     .then( ( payload ) => {
       // Kept, and the time announced for the header. Not as a change: the
-      // screen that asked is about to render this answer itself.
-      write( path, payload );
-      announce( path, false );
+      // screen that asked is about to render this answer itself. Only kept
+      // when nothing has changed since it was asked (#446).
+      if ( asked === writes ) {
+        write( path, payload );
+        announce( path, false );
+      }
 
       return payload;
     } )
     .finally( () => {
-      inFlight.delete( path );
+      if ( inFlight.get( path ) === request ) {
+        inFlight.delete( path );
+      }
     } );
 
   inFlight.set( path, request );
@@ -167,6 +188,9 @@ export async function api< T >(
 
 /** Reads on their way, by path, so a second ask joins the first. */
 const inFlight = new Map< string, Promise< unknown > >();
+
+/** How many changes have been made this session; a read remembers the count it set off at. */
+let writes = 0;
 
 /** When the most recent answer arrived from the server, or 0 before any has. */
 export function refreshedAt(): number {
