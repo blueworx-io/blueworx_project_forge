@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.3] - 2026-09-28
+
+### Fixed
+
+- Opening the Kanban board no longer opens the new task panel. It only opens when you ask for a new task.
+
 ## [2.152.2] - 2026-09-28
 
 ### Fixed
