@@ -975,6 +975,14 @@ body {
   padding: 20px;
   gap: 16px;
 }
+/* On a phone the names give the timeline most of the width (#431). A fixed
+   width, not a percentage, so the axis and the rows still share one gutter. */
+@media ( max-width: 640px ) {
+  .bwx-gantt {
+    --gantt-gutter: 120px;
+    padding: 12px;
+  }
+}
 
 /* The count on the left, the legend on the right (2026-09-20). */
 .bwx-gantt-head {
@@ -1680,6 +1688,17 @@ body {
   display: inline-flex;
   gap: 6px;
   white-space: nowrap;
+}
+/* On a phone the buttons wrap under the title rather than off the side (#431). */
+@media ( max-width: 640px ) {
+  .bwx-recurring-toolbar {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+  .fk-dataview-title-right {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
 }
 /* The days of the week as a row of pills; the box inside each is the real control. */
 .bwx-recurring-days {
