@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.152.7] - 2026-09-28
+
+### Fixed
+
+- The top bar stays full height on long screens, on a phone and on a desktop.
+
 ## [2.152.6] - 2026-09-28
 
 ### Fixed

@@ -181,6 +181,8 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  /* Never squeezed by a long screen below it (#463). */
+  flex: 0 0 auto;
   height: 64px;
   padding: 0 24px;
   background: var( --surface-nav );
