@@ -84,7 +84,10 @@ final class StandupController {
 
 			$names ??= array_column( Users::all( null ), 'display_name', 'id' );
 
-			$cards[ $index ]['detail']['seat_names'] = array_intersect_key( $names, array_flip( array_filter( (array) $card['detail']['seats'] ) ) );
+			// A recurring task's people are named the same way (#455).
+			$people = array_merge( array_values( (array) $card['detail']['seats'] ), (array) ( $card['detail']['assignees'] ?? array() ) );
+
+			$cards[ $index ]['detail']['seat_names'] = array_intersect_key( $names, array_flip( array_filter( $people ) ) );
 		}
 
 		return $cards;

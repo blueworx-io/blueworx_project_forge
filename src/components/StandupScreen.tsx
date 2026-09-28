@@ -516,9 +516,15 @@ function Card( {
   const isWork = 'work_item' === card.subject_type;
   // #420. Who it waits on, for our own people: the names only come to them.
   const names = card.detail?.seat_names as Record< string, string > | undefined;
-  const waiting = isWork && names && ! card.detail?.chore
-    ? waitingOn( { stage: String( card.detail?.stage ?? '' ), prior_stage: String( card.detail?.prior_stage ?? '' ), ...( card.detail?.seats as Seated ) }, names )
-    : null;
+  // #455. A recurring task has people rather than seats: it waits on them.
+  const assignees = Array.isArray( card.detail?.assignees ) ? ( card.detail.assignees as string[] ) : [];
+  const chorePeople = assignees.map( ( id ) => names?.[ id ] ?? 'Somebody' ).join( ', ' );
+  let waiting: string | null = null;
+  if ( isWork && names && card.detail?.chore ) {
+    waiting = '' === chorePeople ? null : chorePeople;
+  } else if ( isWork && names ) {
+    waiting = waitingOn( { stage: String( card.detail?.stage ?? '' ), prior_stage: String( card.detail?.prior_stage ?? '' ), ...( card.detail?.seats as Seated ) }, names );
+  }
   const unmet = Array.isArray( card.detail?.unmet ) ? ( card.detail.unmet as Requirement[] ) : [];
   // The outstanding list starts folded (Luke, 2026-09-20): the card says how
   // many, and Show opens them. A page of every requirement on every item was

@@ -476,6 +476,8 @@ final class Rules {
 					'prior_stage'    => (string) ( $item['prior_stage'] ?? '' ),
 					// A chore names its people rather than seats.
 					'chore'          => ! empty( $item['assignees'] ),
+					// #455. Whose it is, so two people's copies can be told apart.
+					'assignees'      => array_values( array_map( 'strval', (array) ( $item['assignees'] ?? array() ) ) ),
 					'seats'          => array(
 						'primary_user_id' => (string) ( $item['primary_user_id'] ?? '' ),
 						'designer_id'     => (string) ( $item['designer_id'] ?? '' ),
