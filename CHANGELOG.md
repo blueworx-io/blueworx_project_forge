@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.154.0] - 2026-09-29
+
+### Added
+
+- A Changelog page in the Forge menu in WordPress admin, beside Updates. It lists every release, newest first, with what changed in each, and marks the version this site runs.
+
 ## [2.153.1] - 2026-09-29
 
 ### Changed
