@@ -25,6 +25,8 @@ test('an administrator reads the rules under Insight, and jumps to a section', a
 
   await page.getByTestId('bwx-rules-jump').getByRole('link', { name: 'Reminders' }).click();
   await expect(page.getByTestId('bwx-rules-reminders')).toBeInViewport();
+  // Keyboard users land where they jumped to, not back on the links.
+  await expect(page.getByTestId('bwx-rules-reminders')).toBeFocused();
 
   await admin.context.close();
 });

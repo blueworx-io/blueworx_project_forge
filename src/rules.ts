@@ -119,7 +119,7 @@ export const RULES: RuleSection[] = [
     title: 'Review and release',
     rules: [
       {
-        what: 'Only the named reviewer, or a stand-in an administrator has named, can pass a review and move the task to Completed; an administrator who isn\'t the reviewer has to use an override.',
+        what: 'An administrator can tick the review checks for anyone, but only the named reviewer, or a stand-in an administrator has named, can move the task to Completed; an administrator who isn\'t the reviewer has to use an override.',
         why: 'A review only means something if it\'s done by the person chosen to do it.',
       },
       {
@@ -261,7 +261,7 @@ export const RULES: RuleSection[] = [
         why: 'Each person answers for their own part.',
       },
       {
-        what: 'Recurring tasks are free and never use a client\'s support hours.',
+        what: 'Each copy of a recurring task is made free, so it uses none of the client\'s support hours unless an administrator changes who pays on that copy.',
         why: 'They are our own routine work, not something a client asked for.',
       },
       {

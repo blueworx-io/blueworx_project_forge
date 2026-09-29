@@ -15,7 +15,12 @@ export function SettingsScreen() {
    */
   const jump = ( event: MouseEvent< HTMLAnchorElement >, id: string ) => {
     event.preventDefault();
-    document.getElementById( `rules-${ id }` )?.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+    const target = document.getElementById( `rules-${ id }` );
+    const still = window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+
+    target?.scrollIntoView( { behavior: still ? 'auto' : 'smooth', block: 'start' } );
+    // Keyboard and screen-reader users carry on from the section, not the links.
+    target?.focus( { preventScroll: true } );
   };
 
   return (
@@ -31,7 +36,7 @@ export function SettingsScreen() {
       </nav>
 
       { RULES.map( ( section ) => (
-        <div key={ section.id } id={ `rules-${ section.id }` } className="bwx-rules-section" data-testid={ `bwx-rules-${ section.id }` }>
+        <div key={ section.id } id={ `rules-${ section.id }` } tabIndex={ -1 } className="bwx-rules-section" data-testid={ `bwx-rules-${ section.id }` }>
           <Panel title={ section.title }>
             <ul className="bwx-rules">
               { section.rules.map( ( rule ) => (
