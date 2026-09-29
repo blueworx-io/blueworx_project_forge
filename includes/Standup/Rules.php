@@ -230,6 +230,19 @@ final class Rules {
 		$finished = in_array( $stage, self::FINISHED, true );
 		$due      = (string) ( $item['planned_due'] ?? '' );
 
+		/*
+		 * Work in delivery, or waiting to be released, is off the standup
+		 * until it is due today or late, unless it is Urgent (2026-09-29).
+		 * Once it is back, everything about it shows. Blocked work keeps its
+		 * place whatever its date.
+		 */
+		$dated_now = '' !== $due && $due <= $today;
+		$urgent    = 'urgent' === (string) ( $item['priority'] ?? '' );
+
+		if ( in_array( $stage, self::IN_DELIVERY, true ) && ! $dated_now && ! $urgent ) {
+			return array();
+		}
+
 		$cards = array();
 
 		/*
@@ -439,6 +452,13 @@ final class Rules {
 	 * @var array<int, string>
 	 */
 	private const FINISHED = array( 'released' );
+
+	/**
+	 * Stages on the standup only once due or late, or when Urgent (2026-09-29).
+	 *
+	 * @var array<int, string>
+	 */
+	private const IN_DELIVERY = array( 'up-next', 'in-development', 'in-review', 'completed' );
 
 	/**
 	 * Rules that already account for why an item is not moving (#251).

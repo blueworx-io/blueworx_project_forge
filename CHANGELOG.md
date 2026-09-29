@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.153.1] - 2026-09-29
+
+### Changed
+
+- The Daily standup no longer lists work from Up Next to Completed, recurring tasks and reminders included, until it is due today or late, or is Urgent. Work before Up Next, and blocked work, show as before.
+
 ## [2.153.0] - 2026-09-29
 
 ### Changed
