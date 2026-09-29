@@ -56,7 +56,9 @@ final class Items {
 
 		$row = array_merge(
 			self::defaults(),
-			RoleHours::seed( self::writable( $values ) ),
+			// #468. A new task can start with the client reviewing: no review
+			// hours and no stand-in, as on an edit.
+			ClientReviewer::settle( RoleHours::seed( self::writable( $values ) ) ),
 			$confirmed ? array(
 				'client_confirmed_at' => $now,
 				'client_confirmed_by' => $author,

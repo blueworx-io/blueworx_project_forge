@@ -17,63 +17,23 @@ use Blueworx\Forge\Work\Validate;
 use PHPUnit\Framework\TestCase;
 
 /**
- * #391. "The client" can be the reviewer from Up Next on, and their review
+ * #391. "The client" can be the reviewer at any stage (#468), and their review
  * time counts against nobody.
  */
 final class ClientReviewerTest extends TestCase {
 
 	// ---- Validation ----------------------------------------------------
 
-	public function test_the_client_can_be_the_reviewer_from_up_next_on(): void {
-		foreach ( array( 'up-next', 'in-development', 'in-review', 'completed', 'released' ) as $stage ) {
-			$checked = Validate::item( array( 'reviewer_id' => 'client' ), true, $stage );
-
-			$this->assertSame( array(), $checked['errors'], "refused at {$stage}" );
-			$this->assertSame( 'client', $checked['values']['reviewer_id'] );
-		}
-	}
-
-	public function test_not_before_up_next(): void {
-		foreach ( array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'technical-audit', 'design-process', '' ) as $stage ) {
-			$checked = Validate::item( array( 'reviewer_id' => 'client' ), true, $stage );
-
-			$this->assertSame(
-				'The client can be the reviewer from Up Next onwards.',
-				$checked['errors']['reviewer_id'] ?? '',
-				"allowed at '{$stage}'"
-			);
-		}
-	}
-
-	public function test_a_seat_the_client_already_holds_never_blocks_a_save(): void {
-		// Sent back before Up Next with the client still named: saving the
-		// panel resends the seat, and that is not choosing the client.
-		$checked = Validate::item( array( 'reviewer_id' => 'client', 'title' => 'Renamed' ), true, 'triage', 'client' );
+	public function test_the_client_can_be_the_reviewer_at_any_stage(): void {
+		// #468. From the start, not only from Up Next: nothing about the
+		// stage is asked.
+		$checked = Validate::item( array( 'reviewer_id' => 'client' ), true );
 
 		$this->assertSame( array(), $checked['errors'] );
+		$this->assertSame( 'client', $checked['values']['reviewer_id'] );
 	}
 
-	public function test_changing_to_the_client_is_still_asked(): void {
-		$checked = Validate::item( array( 'reviewer_id' => 'client' ), true, 'triage', 'usr_abc' );
-
-		$this->assertArrayHasKey( 'reviewer_id', $checked['errors'] );
-	}
-
-	public function test_going_back_before_up_next_takes_the_client_off(): void {
-		$item = array( 'reviewer_id' => 'client' );
-
-		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process' ) as $stage ) {
-			$this->assertTrue( ClientReviewer::leaves( $item, $stage ), $stage );
-		}
-
-		foreach ( array( 'blocked', 'up-next', 'in-development', 'in-review', 'completed', 'released' ) as $stage ) {
-			$this->assertFalse( ClientReviewer::leaves( $item, $stage ), $stage );
-		}
-
-		$this->assertFalse( ClientReviewer::leaves( array( 'reviewer_id' => 'usr_abc' ), 'triage' ) );
-	}
-
-	public function test_new_work_cannot_start_with_the_client_reviewing(): void {
+	public function test_new_work_can_start_with_the_client_reviewing(): void {
 		$checked = Validate::item(
 			array(
 				'title'       => 'A task',
@@ -84,12 +44,13 @@ final class ClientReviewerTest extends TestCase {
 			false
 		);
 
-		$this->assertArrayHasKey( 'reviewer_id', $checked['errors'] );
+		$this->assertArrayNotHasKey( 'reviewer_id', $checked['errors'] );
+		$this->assertSame( 'client', $checked['values']['reviewer_id'] );
 	}
 
 	public function test_only_the_reviewer_seat_takes_the_client(): void {
 		foreach ( array( 'primary_user_id', 'deliverer_id', 'reviewer_substitute_id', 'deliverer_substitute_id' ) as $seat ) {
-			$checked = Validate::item( array( $seat => 'client' ), true, 'in-review' );
+			$checked = Validate::item( array( $seat => 'client' ), true );
 
 			$this->assertSame( 'That is not a person.', $checked['errors'][ $seat ] ?? '', "{$seat} took the client" );
 		}
@@ -101,8 +62,7 @@ final class ClientReviewerTest extends TestCase {
 				'primary_user_id' => 'usr_abc',
 				'reviewer_id'     => 'client',
 			),
-			true,
-			'up-next'
+			true
 		);
 
 		$this->assertSame( array(), $checked['errors'] );
@@ -112,19 +72,6 @@ final class ClientReviewerTest extends TestCase {
 		$this->assertTrue( ClientReviewer::is( array( 'reviewer_id' => 'client' ) ) );
 		$this->assertFalse( ClientReviewer::is( array( 'reviewer_id' => 'usr_client' ) ) );
 		$this->assertFalse( ClientReviewer::is( array() ) );
-	}
-
-	public function test_a_blocked_item_is_judged_by_where_it_was(): void {
-		$this->assertSame(
-			'in-review',
-			ClientReviewer::stage_of(
-				array(
-					'stage'       => 'blocked',
-					'prior_stage' => 'in-review',
-				)
-			)
-		);
-		$this->assertSame( 'triage', ClientReviewer::stage_of( array( 'stage' => 'triage' ) ) );
 	}
 
 	// ---- Hours ---------------------------------------------------------

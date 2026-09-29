@@ -254,7 +254,7 @@ rather than being quietly absent from a count.
 
 **D-14a — decision, 2026-09-26 (#391): the client as reviewer.** Some work needs
 the client to sign it off, so "the client" can be chosen as a task's reviewer,
-from Up Next on. One narrow exception to D-14 follows, and only this one: **a
+at any stage from a new task on (#468, 2026-09-29). One narrow exception to D-14 follows, and only this one: **a
 client may approve, or send back with a note, an item in In Review whose
 reviewer is the client.** It goes through one signed route,
 `POST /client/work-items/{id}/review`, which re-reads the item and refuses

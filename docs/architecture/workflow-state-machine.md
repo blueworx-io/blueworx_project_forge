@@ -332,8 +332,8 @@ is a security boundary rather than a workflow gate.
 The complete denial list is in [`permission-matrix.md`](permission-matrix.md)
 and is the test manifest for Milestones 2, 4 and 6.
 
-**One exception, 2026-09-26 (#391).** "The client" can be a task's reviewer from
-Up Next on. While such a task is In Review, the client may approve it (to
+**One exception, 2026-09-26 (#391).** "The client" can be a task's reviewer, at
+any stage from a new task on (#468, 2026-09-29). While such a task is In Review, the client may approve it (to
 Completed) or send it back with a note (to In Development, as a new review
 attempt), from their own site. Nothing else: not another stage, not another
 item, not any other move. The approval is the history entry for the move, and
