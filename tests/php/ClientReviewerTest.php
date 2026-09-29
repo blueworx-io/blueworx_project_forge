@@ -181,11 +181,14 @@ final class ClientReviewerTest extends TestCase {
 				'reviewer_id'    => 'client',
 				'client_id'      => 'cli_a',
 				'client_site_id' => 'sit_a',
+				// In review, it is on the standup once due (2026-09-29).
+				'planned_due'    => '2026-09-26',
 			),
 			'2026-09-26'
 		);
+		$review = array_values( array_filter( $cards, static fn( array $card ): bool => Rules::AWAITING_REVIEW === $card['rule'] ) );
 
-		$this->assertSame( 'The client', $cards[0]['detail']['waiting_on_name'] ?? '' );
+		$this->assertSame( 'The client', $review[0]['detail']['waiting_on_name'] ?? '' );
 	}
 
 	// ---- Seat access (#393) -------------------------------------------

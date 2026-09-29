@@ -45,6 +45,9 @@ final class StandupRulesTest extends TestCase {
 				'client_id'      => 'cli_one',
 				'client_site_id' => 'cst_one',
 				'planned_due'    => '',
+				// Urgent, so work in delivery stays on the standup undated
+				// (2026-09-29) and each test below is about its own rule.
+				'priority'       => 'urgent',
 			),
 			$overrides
 		);
@@ -136,6 +139,80 @@ final class StandupRulesTest extends TestCase {
 				)
 			)
 		);
+	}
+
+	/* ------------------------------------------------ in delivery (2026-09-29) */
+
+	/**
+	 * Work from Up Next to Completed, with everything that would otherwise
+	 * put it on the standup.
+	 *
+	 * @param string               $stage     The stage.
+	 * @param array<string, mixed> $overrides Anything else.
+	 * @return array<string, mixed>
+	 */
+	private function busy_delivery( string $stage, array $overrides = array() ): array {
+		return $this->item(
+			array_merge(
+				array(
+					'stage'        => $stage,
+					'unmet'        => array( array( 'id' => 'scope-agreed' ) ),
+					'was_returned' => true,
+					'reviewer_id'  => 'usr_reviewer',
+					'deliverer_id' => 'usr_deliverer',
+					'priority'     => 'normal',
+				),
+				$overrides
+			)
+		);
+	}
+
+	public function test_work_in_delivery_is_off_the_standup_until_it_is_due(): void {
+		foreach ( array( 'up-next', 'in-development', 'in-review', 'completed' ) as $stage ) {
+			$this->assertSame( array(), Rules::for_item( $this->busy_delivery( $stage ), self::TODAY ), "{$stage}, no date" );
+			$this->assertSame( array(), Rules::for_item( $this->busy_delivery( $stage, array( 'planned_due' => '2026-03-11' ) ), self::TODAY ), "{$stage}, due tomorrow" );
+		}
+	}
+
+	public function test_work_in_delivery_due_today_is_back_with_everything(): void {
+		$rules = $this->rules( Rules::for_item( $this->busy_delivery( 'in-review', array( 'planned_due' => self::TODAY ) ), self::TODAY ) );
+
+		$this->assertContains( Rules::DUE_TODAY, $rules );
+		$this->assertContains( Rules::AWAITING_REVIEW, $rules );
+		$this->assertContains( Rules::RETURNED, $rules );
+	}
+
+	public function test_work_in_delivery_past_due_is_back(): void {
+		$rules = $this->rules( Rules::for_item( $this->busy_delivery( 'completed', array( 'planned_due' => '2026-03-01' ) ), self::TODAY ) );
+
+		$this->assertContains( Rules::OVERDUE, $rules );
+		$this->assertContains( Rules::AWAITING_RELEASE, $rules );
+	}
+
+	public function test_urgent_work_in_delivery_stays_on_the_standup(): void {
+		$rules = $this->rules( Rules::for_item( $this->busy_delivery( 'in-development', array( 'priority' => 'urgent' ) ), self::TODAY ) );
+
+		$this->assertContains( Rules::RETURNED, $rules );
+	}
+
+	public function test_work_before_up_next_is_on_the_standup_undated(): void {
+		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'design-process' ) as $stage ) {
+			$this->assertContains( Rules::RETURNED, $this->rules( Rules::for_item( $this->busy_delivery( $stage ), self::TODAY ) ), $stage );
+		}
+	}
+
+	public function test_blocked_work_stays_on_the_standup_whatever_its_date(): void {
+		$rules = $this->rules( Rules::for_item( $this->busy_delivery( 'blocked', array( 'prior_stage' => 'in-development' ) ), self::TODAY ) );
+
+		$this->assertContains( Rules::BLOCKED, $rules );
+	}
+
+	public function test_a_chore_shows_only_when_due_today_or_late(): void {
+		$chore = array( 'assignees' => array( 'usr_one' ) );
+
+		$this->assertSame( array(), Rules::for_item( $this->item( $chore + array( 'stage' => 'up-next', 'planned_due' => '2026-03-11' ) ), self::TODAY ) );
+		$this->assertSame( array( Rules::DUE_TODAY ), $this->rules( Rules::for_item( $this->item( $chore + array( 'stage' => 'up-next', 'planned_due' => self::TODAY ) ), self::TODAY ) ) );
+		$this->assertSame( array( Rules::OVERDUE ), $this->rules( Rules::for_item( $this->item( $chore + array( 'stage' => 'up-next', 'planned_due' => '2026-03-09' ) ), self::TODAY ) ) );
 	}
 
 	public function test_work_waiting_to_be_reviewed_names_who_it_waits_on(): void {
