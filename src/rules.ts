@@ -315,8 +315,12 @@ export const RULES: RuleSection[] = [
         why: 'An item leaves the standup the moment its problem is fixed, and can\'t be hidden without fixing it.',
       },
       {
-        what: 'The standup shows work with something outstanding from capture until release, plus overdue and due-today work, blocked work, reviews and releases waiting, work sent back, unanswered client requests, onboarding steps waiting or late, people over their hours, sites or emails needing attention, and meetings to settle.',
+        what: 'The standup shows work with something outstanding before Up Next, plus overdue and due-today work, blocked work, reviews and releases waiting, work sent back, unanswered client requests, onboarding steps waiting or late, people over their hours, sites or emails needing attention, and meetings to settle.',
         why: 'One screen should answer what needs attention today.',
+      },
+      {
+        what: 'From Up Next to Completed, recurring tasks and reminders included, work only shows on the standup once it is due today or late, or when it is Urgent; then everything about it shows. Blocked work always shows.',
+        why: 'Work that is planned and moving doesn\'t need talking about every morning until its date arrives.',
       },
       {
         what: 'Each task on the standup says who it is waiting on, or \'Pending\' when nobody is in that seat yet.',
