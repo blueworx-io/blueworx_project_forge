@@ -86,6 +86,13 @@ const TRIAGE_OUTCOME_PICK = 'G-TRIAGE-7';
 const CLIENT = CLIENT_REVIEWER;
 
 /** Whose a requirement is, when it is not anybody's. */
+/**
+ * #468. Whether a reviewer's row is part of the review itself. The client
+ * answers those by approving; the approvals before it are an admin's to give
+ * for them.
+ */
+const inReview = ( requirement: Requirement ) => requirement.id.startsWith( 'G-IN-REVIEW' );
+
 const FOR_WHOM: Record< string, string > = {
   PU: 'For the person doing the work',
   REV: 'For the reviewer',
@@ -703,8 +710,9 @@ export function ItemPanel( {
     const it = detail?.item;
 
     // #391. The client's review rows are the client's, whoever is looking.
+    // #468. Before review, an administrator signs off for them.
     if ( 'REV' === requirement.who && CLIENT === it?.reviewer_id ) {
-      return false;
+      return ! inReview( requirement ) && ( forgeData()?.canManage ?? false );
     }
 
     // An administrator acts for anyone (2026-09-19); the server agrees.
@@ -2602,7 +2610,20 @@ export function GateList( {
           const isPick = 'record' === requirement.by && 'pick' === requirement.control;
           const value = picks[ requirement.id ] ?? records[ requirement.id ]?.value ?? '';
           // #391. A reviewer's row the client answers by approving.
-          const theirs = ! met && clientReviews && 'REV' === requirement.who && 'record' === requirement.by;
+          const clientsRow = ! met && clientReviews && 'REV' === requirement.who && 'record' === requirement.by;
+          const theirs = clientsRow && inReview( requirement );
+
+          // #468. Before review, an admin signs off for the client.
+          if ( clientsRow && ! theirs && ! allowed( requirement ) ) {
+            return (
+              <li key={ requirement.id } data-requirement={ requirement.id } data-met="false">
+                <span className="bwx-unmet-label">{ requirement.label }</span>
+                <span className="bwx-unmet-who" data-testid="bwx-waiting-on-admin">
+                  An admin signs this off for the client
+                </span>
+              </li>
+            );
+          }
 
           if ( theirs ) {
             return (

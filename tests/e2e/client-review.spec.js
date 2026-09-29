@@ -333,6 +333,54 @@ test('the client is emailed for each review they are asked for', async () => {
   expect(await asked(staffed.id)).toHaveLength(0);
 });
 
+test('before review, an admin signs off for the client, and staff cannot', async ({ browser, baseURL }) => {
+  // #468. With the client reviewing from the start, the documentation,
+  // technical and design approvals are an admin's to give, or the task stalls.
+  const item = await taskAt('Docs for client', 'documentation-period');
+  const edited = await edit(item, { reviewer_id: 'client' });
+  expect(edited.status(), await edited.text()).toBe(200);
+
+  const rows = Object.values((await detail(item.id)).readiness).flatMap((gate) => gate.all ?? []);
+  const approval = rows.find((row) => 'G-DOCUMENTATION-9' === row.id);
+  const value = approval.options?.[0]?.value ?? 'Done.';
+
+  const staff = await Forge.signedIn(browser, baseURL, primary.login, Forge.PASSWORD);
+  const refused = await staff.api.post(`/work-items/${item.id}/gate`, { requirement: 'G-DOCUMENTATION-9', value, evidence: '' });
+  expect(refused.status()).toBe(403);
+  await staff.context.close();
+
+  const page = await panelFor((await edited.json()).item, 'Docs for client');
+  const row = page.locator('[data-requirement="G-DOCUMENTATION-9"]').first();
+  await expect(row.getByTestId('bwx-pick')).toBeVisible();
+  await expect(row.getByTestId('bwx-waiting-on-client')).toHaveCount(0);
+  await page.close();
+
+  const recorded = await admin.api.post(`/work-items/${item.id}/gate`, { requirement: 'G-DOCUMENTATION-9', value, evidence: '' });
+  expect(recorded.status(), await recorded.text()).toBe(200);
+  const after = Object.values((await detail(item.id)).readiness).flatMap((gate) => gate.all ?? []);
+  expect(after.find((one) => 'G-DOCUMENTATION-9' === one.id).met).toBe(true);
+});
+
+test('a task with the client reviewing from the start walks all the way to review', async () => {
+  // #468. Nothing on the way stalls it: an admin gives the early sign-offs.
+  const created = await Forge.makeItem(admin.api, made.site.id, {
+    title: `Whole walk ${RUN_ID}`,
+    reviewer_id: 'client',
+    commercial_class: 'chargeable',
+  });
+  expect(created.status(), await created.text()).toBe(200);
+
+  const walked = await Forge.walkTo(
+    admin.api,
+    (await created.json()).item,
+    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development', 'in-review'],
+    { seats: { primary_user_id: primary.id, deliverer_id: deliverer.id, planned_start: FROM, planned_due: TO } },
+  );
+
+  expect(walked.stage).toBe('in-review');
+  expect(walked.reviewer_id).toBe('client');
+});
+
 test('sent back before Up Next, the client stays the reviewer and the task still saves', async () => {
   // #468. The client can review at any stage, so going back keeps them.
   const item = await inClientReview('Back to design');

@@ -12,7 +12,7 @@ commits and pull requests.
 
 ### Changed
 
-- "The client" can be picked as a task's reviewer at any stage, including on a new task, not only from Up Next. The client stays the reviewer when a task goes back a stage.
+- "The client" can be picked as a task's reviewer at any stage, including on a new task, not only from Up Next. The client stays the reviewer when a task goes back a stage. Before review, an admin gives the documentation, technical and design sign-offs for the client.
 
 ## [2.152.7] - 2026-09-28
 
