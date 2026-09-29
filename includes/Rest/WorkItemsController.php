@@ -1414,7 +1414,7 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true, ClientReviewer::stage_of( $item ), (string) $item['reviewer_id'] );
+		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(

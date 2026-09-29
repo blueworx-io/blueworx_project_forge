@@ -17,6 +17,9 @@ namespace Blueworx\Forge\Work;
  * matches a person, and no staff member can approve as the reviewer. The
  * client approves from their own site, or an admin records it for them.
  *
+ * The client can be chosen at any stage, from a new task on (#468), and
+ * stays the reviewer when work goes back.
+ *
  * Their review time counts against nobody: the review hours are held at 0,
  * which keeps capacity and the support allowance right without either
  * knowing about this.
@@ -29,11 +32,6 @@ final class ClientReviewer {
 	 * What the reviewer seat holds when the client reviews.
 	 */
 	public const ID = 'client';
-
-	/**
-	 * The client can be chosen from here on, and not before.
-	 */
-	public const FROM = Stages::UP_NEXT;
 
 	/**
 	 * The client approves.
@@ -63,63 +61,6 @@ final class ClientReviewer {
 	 */
 	public static function is( array $item ): bool {
 		return self::ID === (string) ( $item['reviewer_id'] ?? '' );
-	}
-
-	/**
-	 * Whether the client may be chosen at this stage.
-	 *
-	 * @param string $stage The stage the item is at.
-	 * @return bool
-	 */
-	public static function may_choose( string $stage ): bool {
-		return Stages::exists( $stage )
-			&& Stages::BLOCKED !== $stage
-			&& Stages::position( $stage ) >= Stages::position( self::FROM );
-	}
-
-	/**
-	 * The stage that decides it: where the item is, or for blocked work where
-	 * it was.
-	 *
-	 * @param array<string, mixed> $item The item, as read.
-	 * @return string
-	 */
-	public static function stage_of( array $item ): string {
-		$stage = (string) ( $item['stage'] ?? '' );
-
-		return Stages::BLOCKED === $stage ? (string) ( $item['prior_stage'] ?? '' ) : $stage;
-	}
-
-	/**
-	 * The refusal for choosing the client too early.
-	 *
-	 * @return string
-	 */
-	public static function too_early(): string {
-		return __( 'The client can be the reviewer from Up Next onwards.', 'blueworx-forge' );
-	}
-
-	/**
-	 * Whether a move takes the client out of the reviewer seat (2026-09-26):
-	 * the client reviews from Up Next on, so work going back before Up Next
-	 * has no reviewer until somebody picks one. Blocked keeps its place, so
-	 * it keeps the seat. Pure.
-	 *
-	 * @param array<string, mixed> $item The item, as read.
-	 * @param string               $to   The stage it is moving to.
-	 * @return bool
-	 */
-	public static function leaves( array $item, string $to ): bool {
-		return self::is( $item ) && Stages::BLOCKED !== $to && ! self::may_choose( $to );
-	}
-
-	/**
-	 * The history line for the seat being cleared.
-	 *
-	 * @return string
-	 */
-	public static function cleared(): string {
-		return __( 'The client is no longer the reviewer, because the task went back before Up Next.', 'blueworx-forge' );
 	}
 
 	/**

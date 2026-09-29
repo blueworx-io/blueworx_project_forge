@@ -1011,9 +1011,8 @@ export function ItemPanel( {
   const pick = ( field: string, name: string ) => {
     const offered = siteStaff ?? [];
     const current = draft[ field ] ?? '';
-    // #391. The client can review, from Up Next on.
+    // #391. The client can review, at any stage (#468).
     const reviewing = 'reviewer_id' === field;
-    const clientTooEarly = reviewing && ! reached( 'up-next' );
     const stale = '' !== current && CLIENT !== current && null !== siteStaff && ! offered.some( ( person ) => person.id === current );
     // The item carries the name behind each seat, so somebody deactivated
     // since is still named rather than left anonymous.
@@ -1041,7 +1040,7 @@ export function ItemPanel( {
         >
           <option value="">{ 'designer_id' === field ? 'No design required' : 'Nobody yet' }</option>
           { reviewing && (
-            <option value={ CLIENT } disabled={ clientTooEarly } data-testid="bwx-reviewer-client">
+            <option value={ CLIENT } data-testid="bwx-reviewer-client">
               The client
             </option>
           ) }
@@ -1056,11 +1055,6 @@ export function ItemPanel( {
             </option>
           ) ) }
         </select>
-        { clientTooEarly && (
-          <p className="bwx-hint" data-testid="bwx-reviewer-client-hint">
-            The client can be the reviewer from Up Next onwards.
-          </p>
-        ) }
       </div>
     );
   };

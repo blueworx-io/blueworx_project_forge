@@ -1338,13 +1338,6 @@ final class Transition {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read: there is no result to cache and no way to say it through the API.
 		$wpdb->query( 'START TRANSACTION' );
 
-		// #391. Back before Up Next, the client stops being the reviewer.
-		$drops_client = ClientReviewer::leaves( $item, $to );
-
-		if ( $drops_client ) {
-			$also['reviewer_id'] = '';
-		}
-
 		$moved = Items::apply_stage( (string) $item['id'], $to, $sent_version, $also );
 
 		if ( ! $moved ) {
@@ -1378,24 +1371,6 @@ final class Transition {
 				$event
 			)
 		);
-
-		// The cleared seat is written down with the move, or neither happens.
-		if ( $recorded && $drops_client ) {
-			$recorded = Events::append(
-				array(
-					'item_id'        => (string) $item['id'],
-					'client_site_id' => (string) $item['client_site_id'],
-					'action'         => Events::EDITED,
-					'field'          => 'reviewer_id',
-					'previous_value' => ClientReviewer::ID,
-					'new_value'      => '',
-					'reason'         => ClientReviewer::cleared(),
-					'cycle'          => (int) $item['cycle'],
-					'attempt'        => (int) $item['review_attempt'],
-					'actor'          => $actor,
-				)
-			);
-		}
 
 		if ( ! $recorded ) {
 			// A move nobody can account for afterwards is worse than a move that

@@ -3,7 +3,7 @@ import * as Forge from './helpers/forge.js';
 
 // #391: the client as a task's reviewer.
 //
-// "The client" can review from Up Next on. Their review time counts against
+// "The client" can review at any stage, from a new task on (#468). Their review time counts against
 // nobody's capacity and not against the support allowance. An admin can
 // record the client's answer for them, approving or sending it back.
 //
@@ -85,12 +85,24 @@ async function inClientReview(title) {
   return (await moved.json()).item;
 }
 
-test('the client can review from Up Next on, and not before', async () => {
-  const early = await taskAt('Too early', 'design-process');
-  const refused = await edit(early, { reviewer_id: 'client' });
+test('the client can review at any stage, from a new task on', async () => {
+  // #468. A new task can start with the client reviewing, and it takes no
+  // review hours even when some are sent.
+  const created = await Forge.makeItem(admin.api, made.site.id, {
+    title: `From the start ${RUN_ID}`,
+    reviewer_id: 'client',
+    hours_primary: 4,
+    hours_review: 2,
+  });
+  expect(created.status(), await created.text()).toBe(200);
+  expect((await created.json()).item.reviewer_id).toBe('client');
+  expect(Number((await created.json()).item.hours_review)).toBe(0);
 
-  expect(refused.status()).toBe(400);
-  expect((await refused.json()).data.fields.reviewer_id).toBe('The client can be the reviewer from Up Next onwards.');
+  const early = await taskAt('Early', 'design-process');
+  const earlyChosen = await edit(early, { reviewer_id: 'client' });
+
+  expect(earlyChosen.status(), await earlyChosen.text()).toBe(200);
+  expect((await earlyChosen.json()).item.reviewer_id).toBe('client');
 
   const ready = await taskAt('Up next', 'up-next');
   const chosen = await edit(ready, { reviewer_id: 'client' });
@@ -229,15 +241,9 @@ async function panelFor(item, title) {
   return page;
 }
 
-test('the panel offers the client as reviewer from Up Next, and records their answer', async () => {
-  // Before Up Next the choice is there, greyed out, with the reason.
-  const early = await panelFor(await taskAt('Panel early', 'triage'), 'Panel early');
-  await expect(early.getByTestId('bwx-reviewer-client')).toBeDisabled();
-  await expect(early.getByTestId('bwx-reviewer-client-hint')).toHaveText('The client can be the reviewer from Up Next onwards.');
-  await early.close();
-
-  // From Up Next it can be chosen, and the review takes no hours.
-  const ready = await taskAt('Panel ready', 'up-next');
+test('the panel offers the client as reviewer at any stage, and records their answer', async () => {
+  // #468. Early on it can be chosen, and the review takes no hours.
+  const ready = await taskAt('Panel ready', 'triage');
   const readyPage = await panelFor(ready, 'Panel ready');
   await expect(readyPage.getByTestId('bwx-reviewer-client')).toBeEnabled();
   await readyPage.locator('#bwx-reviewer_id').selectOption('client');
@@ -327,7 +333,8 @@ test('the client is emailed for each review they are asked for', async () => {
   expect(await asked(staffed.id)).toHaveLength(0);
 });
 
-test('sent back before Up Next, the client stops reviewing and the task still saves', async () => {
+test('sent back before Up Next, the client stays the reviewer and the task still saves', async () => {
+  // #468. The client can review at any stage, so going back keeps them.
   const item = await inClientReview('Back to design');
 
   const back = await admin.api.post(`/work-items/${item.id}/return`, {
@@ -339,12 +346,9 @@ test('sent back before Up Next, the client stops reviewing and the task still sa
 
   const now = await detail(item.id);
   expect(now.item.stage).toBe('design-process');
-  expect(now.item.reviewer_id).toBe('');
+  expect(now.item.reviewer_id).toBe('client');
+  expect(now.history.find((one) => 'edited' === one.action && 'reviewer_id' === one.field && '' === one.new_value)).toBeUndefined();
 
-  const cleared = now.history.find((one) => 'edited' === one.action && 'reviewer_id' === one.field && '' === one.new_value);
-  expect(cleared.reason).toBe('The client is no longer the reviewer, because the task went back before Up Next.');
-
-  // Nothing holds up a save of something else.
-  const renamed = await edit(now.item, { title: `Back to design, renamed ${RUN_ID}`, reviewer_id: '' });
+  const renamed = await edit(now.item, { title: `Back to design, renamed ${RUN_ID}`, reviewer_id: 'client' });
   expect(renamed.status(), await renamed.text()).toBe(200);
 });

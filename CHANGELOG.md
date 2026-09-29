@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.153.0] - 2026-09-29
+
+### Changed
+
+- "The client" can be picked as a task's reviewer at any stage, including on a new task, not only from Up Next. The client stays the reviewer when a task goes back a stage.
+
 ## [2.152.7] - 2026-09-28
 
 ### Fixed
