@@ -77,6 +77,8 @@ final class Plugin {
 		 * than leaving its place to depend on where this line happens to sit.
 		 */
 		add_action( 'admin_menu', array( Admin\UpdatesScreen::class, 'register' ), 99 );
+		// Beside Updates, and after it (#466).
+		add_action( 'admin_menu', array( Admin\ChangelogScreen::class, 'register' ), 100 );
 		// A token from before releases went public (#340) is dropped on sight.
 		add_action( 'admin_init', array( Updates::class, 'retire_stored_token' ) );
 
