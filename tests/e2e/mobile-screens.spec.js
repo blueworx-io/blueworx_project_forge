@@ -95,7 +95,7 @@ async function stickingOut(page, selector) {
 const MENU_SCREENS = [
   'bwx-screen-work', 'bwx-screen-gantt', 'bwx-screen-capacity', 'bwx-screen-recurring', 'bwx-screen-reminders',
   'bwx-screen-clients', 'bwx-screen-support', 'bwx-screen-meetings', 'bwx-screen-onboarding',
-  'bwx-screen-people', 'bwx-screen-availability', 'bwx-screen-reports', 'bwx-screen-subscriptions', 'bwx-screen-packages',
+  'bwx-screen-people', 'bwx-screen-availability', 'bwx-screen-reports', 'bwx-screen-subscriptions', 'bwx-screen-packages', 'bwx-screen-settings',
 ];
 
 test('every screen in the menu opens on a phone without spilling off the side', async ({ browser, baseURL }) => {

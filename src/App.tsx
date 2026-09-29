@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, ScrollText, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -13,6 +13,7 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import { PeopleScreen } from './components/PeopleScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { RecurringScreen } from './components/RecurringScreen';
@@ -83,6 +84,7 @@ const RAIL: Entry[] = [
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports', admin: true },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions', admin: true },
   { key: 'packages', label: 'Packages', icon: Receipt, testId: 'bwx-screen-packages', admin: true },
+  { key: 'settings', label: 'Settings', icon: ScrollText, testId: 'bwx-screen-settings', admin: true },
 ];
 
 /** The screens only an administrator opens (#406). A Manager is refused them by the server too. */
@@ -192,6 +194,7 @@ const TITLES: Record< ScreenName, string > = {
   subscriptions: 'Subscriptions',
   availability: 'Availability',
   packages: 'Support packages',
+  settings: 'Settings',
   people: 'People',
   clients: 'Clients',
   support: 'Support',
@@ -229,6 +232,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
+  settings: { crumbs: [ 'Insight', 'Settings' ], eyebrow: 'How Forge behaves, and why', tile: ScrollText, hue: 'slate' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
@@ -573,6 +577,7 @@ export function App() {
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
+        { 'settings' === screen && <SettingsScreen key={ generation } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }

@@ -77,10 +77,18 @@ test('a Manager opens Forge, without the five administrator screens', async () =
   await expect(page.getByTestId('bwx-screen-work')).toBeVisible();
   await expect(page.getByTestId('bwx-screen-clients')).toBeVisible();
 
-  for (const hidden of [ 'packages', 'subscriptions', 'reports', 'availability', 'people' ]) {
+  for (const hidden of [ 'settings', 'packages', 'subscriptions', 'reports', 'availability', 'people' ]) {
     await expect(page.getByTestId(`bwx-screen-${hidden}`), `${hidden} is on a Manager's rail`).toHaveCount(0);
   }
   await expect(page.getByTestId('bwx-link-sync')).toHaveCount(0);
+
+  // A link straight to an administrator's screen lands on the board (#467).
+  // Loaded afresh: a hash change alone is not a reload, and the link is read on load.
+  await page.goto('about:blank');
+  await page.goto('/blueworx-forge/#screen=settings');
+  await expect(page.getByTestId('bwx-screen-work')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('bwx-forge-ready')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('bwx-settings')).toHaveCount(0);
 
   await page.close();
 });

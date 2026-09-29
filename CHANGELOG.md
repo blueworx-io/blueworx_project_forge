@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.155.0] - 2026-09-29
+
+### Added
+
+- A Settings page under Insight, for administrators, listing every rule Forge follows in plain English: what happens, and why.
+
 ## [2.154.0] - 2026-09-29
 
 ### Added

@@ -26,6 +26,7 @@ const ADMIN_SCREENS = [
   [ 'Onboarding template', 'blueworx-forge-onboarding-template' ],
   [ 'Sync', 'blueworx-forge-sync' ],
   [ 'Updates', 'blueworx-forge-updates' ],
+  [ 'Changelog', 'blueworx-forge-changelog' ],
 ];
 
 /** Every screen the application has. */
@@ -40,6 +41,7 @@ const APP_SCREENS = [
   [ 'People', 'bwx-screen-people' ],
   [ 'Availability', 'bwx-screen-availability' ],
   [ 'Packages', 'bwx-screen-packages' ],
+  [ 'Settings', 'bwx-screen-settings' ],
   [ 'Support', 'bwx-screen-support' ],
   [ 'Meetings', 'bwx-screen-meetings' ],
 ];
