@@ -154,6 +154,11 @@ export interface WorkItem {
    * Ids only — the titles are already in the list holding this.
    */
   waits_on?: string[];
+  /**
+   * Whether it could move to the next stage right now (#453), by the same check
+   * a move is refused by. Null where there is no next stage to move to.
+   */
+  next_step?: { to: string; ready: boolean; missing: string[] } | null;
 }
 
 /**

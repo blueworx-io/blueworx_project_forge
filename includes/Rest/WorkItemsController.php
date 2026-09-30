@@ -674,13 +674,21 @@ final class WorkItemsController {
 		 */
 		$waits = Dependencies::chain_on_site( $site_id );
 
+		// Every open item's gate records in one read, for the ready-to-move icon
+		// (#453), rather than a query per card.
+		$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
+		$records = GateRecords::for_items( $open );
+
 		foreach ( $items as $index => $item ) {
 			$id = (string) $item['id'];
 
 			$items[ $index ] = array_merge(
 				$item,
 				Derived::fields( $children[ $id ] ?? array() ),
-				array( 'waits_on' => $waits[ $id ] ?? array() )
+				array(
+					'waits_on'  => $waits[ $id ] ?? array(),
+					'next_step' => empty( $item['archived'] ) ? Transition::next_step( $item, $children[ $id ] ?? array(), $records[ $id ] ?? array() ) : null,
+				)
 			);
 		}
 

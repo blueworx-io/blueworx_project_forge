@@ -1,3 +1,4 @@
+import { CircleCheck, CircleX } from 'lucide-react';
 import type { WorkItem } from '../types';
 import { CLIENT_REVIEWER } from '../types';
 import { phaseOf } from '../phases';
@@ -69,6 +70,8 @@ export function Card( {
   const chip = TYPE_CHIP[ item.work_type ] ?? TYPE_CHIP.task;
   const blocked = 'blocked' === item.stage;
   const when = due( item );
+  // Null in the last stage, and wherever nothing lies ahead: no icon there.
+  const step = item.next_step ?? null;
   // The Designer (#409) only when there is one and it isn't also the person
   // doing the work, so most cards keep three and nobody's avatar repeats.
   const hasDesigner = item.designer_id && item.designer_id !== item.primary_user_id;
@@ -165,10 +168,32 @@ export function Card( {
             <Avatar key={ i } name={ CLIENT_REVIEWER === id ? 'The client' : id ? names?.get( id ) ?? '?' : null } />
           ) ) }
         </span>
+        { step && (
+          // The shape says it as well as the colour: a tick, or a cross. Not a
+          // control of its own — the card is a button already — so the reason
+          // shows on hover or when the card is focused, below.
+          <span
+            className="bwx-card-ready"
+            data-testid="bwx-card-ready"
+            data-ready={ step.ready ? 'true' : 'false' }
+            role="img"
+            aria-label={ step.ready ? 'Ready to move to the next stage' : `Not ready to move on. Still needed: ${ step.missing.join( '; ' ) }` }
+          >
+            { step.ready ? <CircleCheck size={ 16 } aria-hidden="true" /> : <CircleX size={ 16 } aria-hidden="true" /> }
+          </span>
+        ) }
         <span className="bwx-mono bwx-card-when" data-late={ when.late ? 'true' : undefined }>
           { age( item ) } · { when.text }
         </span>
       </span>
+      { step && ! step.ready && (
+        <span className="bwx-card-missing" data-testid="bwx-card-missing" aria-hidden="true">
+          <span>Still needed</span>
+          { step.missing.map( ( label ) => (
+            <span key={ label }>{ label }</span>
+          ) ) }
+        </span>
+      ) }
     </button>
   );
 }

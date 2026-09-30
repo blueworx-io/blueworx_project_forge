@@ -936,6 +936,38 @@ final class Transition {
 	}
 
 	/**
+	 * Whether an item is ready to move to the next stage, for the card on the
+	 * board (#453).
+	 *
+	 * The same gates, and the same site check, that a move to that stage is
+	 * refused by, so a card and a drag cannot disagree.
+	 *
+	 * @param array<string, mixed>             $item     The item, as read.
+	 * @param array<int, array<string, mixed>> $children Its children.
+	 * @param array<int, array<string, mixed>> $records  Every gate record on it, oldest first.
+	 * @return array{to: string, ready: bool, missing: array<int, string>}|null Null when there is no next stage.
+	 */
+	public static function next_step( array $item, array $children, array $records ): ?array {
+		$next = Transitions::next_from( (string) $item['stage'], (string) $item['work_type'] );
+
+		if ( 1 !== count( $next ) ) {
+			return null;
+		}
+
+		$to    = (string) $next[0];
+		$unmet = array_merge(
+			self::readiness( $item, $to, $children, '', GateRecords::current_among( $item, $records ) )['unmet'],
+			self::onboarding_unmet( $item, $to )
+		);
+
+		return array(
+			'to'      => $to,
+			'ready'   => array() === $unmet,
+			'missing' => array_values( array_map( 'strval', array_column( $unmet, 'label' ) ) ),
+		);
+	}
+
+	/**
 	 * Evaluates a list of gates and merges the results.
 	 *
 	 * @param array<string, mixed>             $item     The item, as read.
@@ -1169,18 +1201,35 @@ final class Transition {
 	 * @return WP_Error|null Null when nothing is in the way.
 	 */
 	private static function onboarding_refusal( array $item, string $to ) {
-		if ( Stages::RELEASED !== $to ) {
+		$unmet = self::onboarding_unmet( $item, $to );
+
+		if ( array() === $unmet ) {
 			return null;
+		}
+
+		return self::gate_error( $item, $to, $unmet, array() );
+	}
+
+	/**
+	 * What the site's unfinished onboarding puts in the way of a move (#166).
+	 *
+	 * @param array<string, mixed> $item The item being moved.
+	 * @param string               $to   The stage it is moving to.
+	 * @return array<int, array<string, mixed>> Empty when nothing is in the way.
+	 */
+	private static function onboarding_unmet( array $item, string $to ): array {
+		if ( Stages::RELEASED !== $to ) {
+			return array();
 		}
 
 		$site_id  = (string) ( $item['client_site_id'] ?? '' );
 		$progress = Progress::of( Steps::for_site( $site_id ) );
 
 		if ( ! LaunchGate::refuses( $progress, Events::has_ever_reached( $site_id, Stages::RELEASED ) ) ) {
-			return null;
+			return array();
 		}
 
-		return self::gate_error( $item, $to, LaunchGate::unmet( $progress ), array() );
+		return LaunchGate::unmet( $progress );
 	}
 
 	/**
