@@ -24,6 +24,7 @@ import { StandupScreen } from './components/StandupScreen';
 import { SubscriptionsScreen } from './components/SubscriptionsScreen';
 import { SupportScreen } from './components/SupportScreen';
 import { Screen } from './components/States';
+import { RailCount } from './sidebarCounts';
 import { TabBar } from './components/TabBar';
 import { WorkScreen } from './components/WorkScreen';
 import { Avatar, Button, PageHeader } from './kit';
@@ -505,6 +506,7 @@ export function App() {
                     { count }
                   </span>
                 ) }
+                <RailCount name={ entry.key } screen={ screen } />
               </button>
             );
           } ) }
