@@ -30,7 +30,7 @@ export interface Mine extends Record< string, unknown > {
   ticked: boolean;
 }
 
-export type View = 'today' | 'week' | 'later' | 'all';
+export type View = 'today' | 'tomorrow' | 'week' | 'later' | 'all';
 
 /** Where a row sorts: one of the dated views, or done (under none of them). */
 export type Slot = Exclude< View, 'all' > | 'done';
@@ -43,22 +43,21 @@ export function daysUntil( date: string ): number | null {
   return Math.round( ( at - today ) / DAY );
 }
 
-/** Today: late, blocked, in delivery or in review with you; the rest by date. */
+/**
+ * By date alone: Today is due today or late and nothing else (Luke,
+ * 2026-09-30, #481). Blocked or in review no longer puts a row in Today on
+ * its own, and undated work is Further out.
+ */
 export function viewOf( one: Mine ): Slot {
   // Released or ticked off is done, and not listed. Completed but late
   // is still to ship, so it sorts by date like the rest (Luke, 2026-09-26).
   if ( 'released' === one.item.stage || one.ticked ) return 'done';
   // A reminder is Today from its first day until it is ticked (2026-09-25).
-  if ( one.reminder && null !== one.starts ) {
-    if ( one.starts <= 0 ) return 'today';
-    return one.starts <= 7 ? 'week' : 'later';
-  }
-  if ( 'blocked' === one.item.stage ) return 'today';
-  if ( null !== one.due && one.due <= 1 ) return 'today';
-  if ( 'primary' === one.role && 'in-development' === one.item.stage ) return 'today';
-  if ( 'reviewer' === one.role && 'in-review' === one.item.stage ) return 'today';
-  if ( null !== one.due && one.due <= 8 ) return 'week';
-  return 'later';
+  const days = one.reminder && null !== one.starts ? one.starts : one.due;
+  if ( null === days ) return 'later';
+  if ( days <= 0 ) return 'today';
+  if ( 1 === days ) return 'tomorrow';
+  return days <= 8 ? 'week' : 'later';
 }
 
 /** Every row that is this person's, from the sites and the work read in one go. */

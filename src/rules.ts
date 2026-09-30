@@ -189,7 +189,7 @@ export const RULES: RuleSection[] = [
         why: 'When it unblocks it still needs that time, so the week shouldn\'t look free.',
       },
       {
-        what: 'Blocked tasks show on the daily standup and under Today in My tasks for whoever\'s turn it was.',
+        what: 'Blocked tasks show on the daily standup for whoever\'s turn it was.',
         why: 'Stuck work needs chasing every day.',
       },
     ],
@@ -517,6 +517,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'A task shows in someone\'s My tasks only while it is their turn: the doer\'s until review, the designer\'s at Design Process, the reviewer\'s in review, the deliverer\'s once Completed, and the doer\'s while the client reviews.',
         why: 'Each person\'s list shows what they need to act on now, and each task appears once.',
+      },
+      {
+        what: 'My tasks sorts by due date alone: Today is due today or late, then Tomorrow, the next seven days, and further out. Undated work is further out.',
+        why: 'Today should be the day\'s work, not everything in progress.',
       },
     ],
   },
