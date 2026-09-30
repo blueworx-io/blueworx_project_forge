@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.160.0] - 2026-09-30
+
+### Added
+
+- My tasks has a Tomorrow tab, and Today now shows only work due today or late.
+
 ## [2.159.0] - 2026-09-30
 
 ### Added
