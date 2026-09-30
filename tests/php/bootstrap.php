@@ -566,6 +566,16 @@ function sanitize_text_field( string $text ): string {
 }
 
 /**
+ * Stub. Trims, as the text field does.
+ *
+ * @param string $text Text.
+ * @return string
+ */
+function sanitize_textarea_field( string $text ): string {
+	return trim( $text );
+}
+
+/**
  * Stub. Identity — the tests do not go through WordPress's slashing.
  *
  * @param string $value Value.

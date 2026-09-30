@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError, isDenied, messageFor } from '../api';
 import { Button, Field, Panel, Stat, TextInput } from '../kit';
 import { AvailabilityScreen } from './AvailabilityScreen';
+import { RolePanel } from './RoleSection';
 import { failed, NOTHING_SAID, Notice, ok, Screen, warn } from './States';
 import type { Said } from './States';
 
@@ -145,6 +146,8 @@ export function ProfileScreen() {
           <Stat label="Signs in as" value={ me.account.login } />
         </div>
       </Panel>
+
+      <RolePanel person={ me.person.id } />
 
       <AvailabilityScreen person={ me.person.id } fixed />
 

@@ -99,6 +99,7 @@ final class Server {
 		RecurringController::register_routes( self::NAMESPACE );
 		RemindersController::register_routes( self::NAMESPACE );
 		AvailabilityController::register_routes( self::NAMESPACE );
+		StaffRoleController::register_routes( self::NAMESPACE );
 		PackagesController::register_routes( self::NAMESPACE );
 		SupportController::register_routes( self::NAMESPACE );
 		MeetingsController::register_routes( self::NAMESPACE );
