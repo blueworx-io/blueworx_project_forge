@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 38;
+	public const VERSION = 39;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -346,6 +346,17 @@ final class Schema {
 	}
 
 	/**
+	 * The staff roles table's full name.
+	 *
+	 * @return string
+	 */
+	public static function staff_roles_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_staff_roles';
+	}
+
+	/**
 	 * The Slack events table's full name.
 	 *
 	 * @return string
@@ -484,6 +495,7 @@ final class Schema {
 		$subscriptions    = self::subscriptions_table();
 		$slack_people     = self::slack_people_table();
 		$slack_events     = self::slack_events_table();
+		$staff_roles      = self::staff_roles_table();
 		$calendar_dates   = self::calendar_dates_table();
 
 		return array(
@@ -1559,6 +1571,22 @@ final class Schema {
 	connected_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	last_ok_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	last_error varchar(191) NOT NULL DEFAULT '',
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id)
+) {$collate};",
+
+			/*
+			 * #474. What a person does here, one row per person, keyed by the
+			 * person's own id. Hours are a note; nothing reads them.
+			 */
+			$staff_roles      => "CREATE TABLE {$staff_roles} (
+	id varchar(32) NOT NULL,
+	title varchar(191) NOT NULL DEFAULT '',
+	weekly_hours varchar(10) NOT NULL DEFAULT '',
+	starts_on varchar(10) NOT NULL DEFAULT '',
+	ends_on varchar(10) NOT NULL DEFAULT '',
+	description text NOT NULL,
+	duties text NOT NULL,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id)
 ) {$collate};",

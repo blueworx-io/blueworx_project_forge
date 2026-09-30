@@ -479,6 +479,10 @@ export const RULES: RuleSection[] = [
         why: 'People work on what they are assigned to, and configuration stays with administrators.',
       },
       {
+        what: 'Each person has a Role: a title, weekly hours, contract dates, a description and regular duties. Administrators set it on the People screen and each person can read their own on their profile; the hours are a note and change nothing about capacity.',
+        why: 'Everyone can see what they are there to do, without it changing how time is counted.',
+      },
+      {
         what: 'Each client is worked on by All staff or by chosen people, set on the client\'s Edit screen, and only those people can be put on its tasks or reminders.',
         why: 'Nobody should be given work they can\'t open.',
       },

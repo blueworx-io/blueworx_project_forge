@@ -1323,3 +1323,13 @@ export interface AllClientsMeetingsAnswer {
 
 /** What a task's reviewer seat holds when the client reviews it (#391). */
 export const CLIENT_REVIEWER = 'client';
+
+/** What a person does here (#474). Hours are a note only. */
+export interface StaffRole {
+  title: string;
+  weekly_hours: string;
+  starts_on: string;
+  ends_on: string;
+  description: string;
+  duties: string[];
+}

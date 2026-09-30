@@ -389,6 +389,8 @@ final class Users {
 			$wpdb->delete( $table, array( 'user_id' => $id ), array( '%s' ) );
 		}
 
+		StaffRoles::forget( $id );
+
 		return true;
 	}
 

@@ -7,6 +7,7 @@ import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInp
 import type { Column } from '../kit';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
 import type { Said } from './States';
+import { RoleForm } from './RoleSection';
 
 /**
  * Everyone, and everywhere they work (PR 3 of spec 2026-09-16), in the app.
@@ -65,6 +66,7 @@ type Opened =
   | { kind: 'add' }
   | { kind: 'account' }
   | { kind: 'edit'; id: string }
+  | { kind: 'role'; id: string }
   | { kind: 'link'; id: string }
   | { kind: 'membership'; id: string }
   | { kind: 'grants'; id: string; membership: string };
@@ -214,6 +216,7 @@ export function PeopleScreen( { person }: { person: string } ) {
                   known={ grants?.on_membership ?? [] }
                   busy={ busy }
                   onEdit={ () => setOpened( { kind: 'edit', id: one.id } ) }
+                  onRole={ () => setOpened( { kind: 'role', id: one.id } ) }
                   onLink={ () => setOpened( { kind: 'link', id: one.id } ) }
                   onAddMembership={ () => setOpened( { kind: 'membership', id: one.id } ) }
                   onGrants={ ( membership ) => setOpened( { kind: 'grants', id: one.id, membership: membership.id } ) }
@@ -229,6 +232,17 @@ export function PeopleScreen( { person }: { person: string } ) {
           { opened && 'account' === opened.kind && <FromAccountForm onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'edit' === opened.kind && target && grants && (
             <EditForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } />
+          ) }
+          { opened && 'role' === opened.kind && target && (
+            <RoleForm
+              id={ target.id }
+              name={ target.display_name }
+              onClose={ () => setOpened( null ) }
+              onSaved={ ( said ) => {
+                setOpened( null );
+                setNotice( ok( said ) );
+              } }
+            />
           ) }
           { opened && 'link' === opened.kind && target && <LinkForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'membership' === opened.kind && target && <MembershipForm person={ target } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
@@ -254,6 +268,7 @@ function PersonCard( {
   known,
   busy,
   onEdit,
+  onRole,
   onLink,
   onAddMembership,
   onGrants,
@@ -267,6 +282,7 @@ function PersonCard( {
   known: GrantOption[];
   busy: boolean;
   onEdit: () => void;
+  onRole: () => void;
   onLink: () => void;
   onAddMembership: () => void;
   onGrants: ( membership: Membership ) => void;
@@ -327,6 +343,9 @@ function PersonCard( {
           <div className="bwx-moves">
             <Button size="sm" variant="ghost" data-testid="bwx-people-edit" disabled={ busy } onClick={ onEdit }>
               Edit
+            </Button>
+            <Button size="sm" variant="ghost" data-testid="bwx-people-role" disabled={ busy } onClick={ onRole }>
+              Role
             </Button>
             { ! person.account && (
               <Button size="sm" variant="ghost" data-testid="bwx-people-link" disabled={ busy } onClick={ onLink }>

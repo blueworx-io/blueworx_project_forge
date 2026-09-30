@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 35, $definitions );
+		$this->assertCount( 36, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -135,6 +135,13 @@ final class SchemaTest extends TestCase {
 			 */
 			Schema::slack_people_table(),
 			Schema::slack_events_table(),
+
+			/*
+			 * #474. A person's role is one row of their own, written by an
+			 * administrator and replaced whole, so the last save is the truth
+			 * and there is no version to guard.
+			 */
+			Schema::staff_roles_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {
