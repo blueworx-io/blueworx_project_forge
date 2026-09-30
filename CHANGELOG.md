@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.159.0] - 2026-09-30
+
+### Added
+
+- Administrators can delete a client from the Clients screen, and everything attached to it goes too. A confirmation first names the client and shows how much will go.
+
 ## [2.158.0] - 2026-09-30
 
 ### Added
