@@ -302,6 +302,8 @@ written into `phpcs.xml.dist`; nothing security-related is among them.
   what needs WordPress itself: the app page, site connection, updates and sync
   health. A screen is built once, in the app, and never rebuilt as a WordPress
   admin page.
+- **The rules page stays true.** A change to how Forge behaves updates `src/rules.ts`
+  (the Settings screen, #467) in the same pull request as its changelog entry.
 - Use the `frontend-design` skill for all UI work.
 - When a Figma URL is provided, use the Figma MCP tools before writing any code.
 - Reuse the patterns already established in the repo — don't reinvent what exists.
