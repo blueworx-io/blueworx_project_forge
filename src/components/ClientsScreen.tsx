@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Building2, Globe } from 'lucide-react';
-import type { ClientContact, ClientRecord, ClientRow, ClientSiteRecord, ClientStaffAnswer, IssuedKey, Person, SiteIntegration } from '../types';
+import type { ClientContact, ClientDeletion, ClientRecord, ClientRow, ClientSiteRecord, ClientStaffAnswer, IssuedKey, Person, SiteIntegration } from '../types';
 import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
@@ -100,6 +100,7 @@ type Opened =
   | { kind: 'add' }
   | { kind: 'edit' }
   | { kind: 'contact' }
+  | { kind: 'delete' }
   | { kind: 'add-site' }
   | { kind: 'edit-site'; site: string }
   | { kind: 'key'; site: string };
@@ -181,6 +182,15 @@ export function ClientsScreen() {
       },
       'That client could not be deactivated.'
     );
+  }
+
+  /** #458. The client is gone, with everything under it: out of the list, and nothing of it kept. */
+  function deleted( target: ClientRecord ) {
+    setClients( ( current ) => current.filter( ( one ) => one.id !== target.id ) );
+    setSites( ( current ) => Object.fromEntries( Object.entries( current ).filter( ( [ id ] ) => id !== target.id ) ) );
+    setSelectedId( null );
+    setOpened( null );
+    setNotice( ok( `${ target.display_name } has been deleted, with everything attached to it.` ) );
   }
 
   function deactivateSite( target: ClientSiteRecord ) {
@@ -422,6 +432,11 @@ export function ClientsScreen() {
                         Deactivate
                       </Button>
                     ) }
+                    { ! selected.is_studio && (
+                      <Button size="sm" variant="ghost" data-testid="bwx-clients-delete" disabled={ busy } onClick={ () => setOpened( { kind: 'delete' } ) }>
+                        Delete
+                      </Button>
+                    ) }
                   </div>
                 ) }
               >
@@ -472,6 +487,7 @@ export function ClientsScreen() {
               } }
             />
           ) }
+          { opened && 'delete' === opened.kind && selected && <DeleteClient client={ selected } onClose={ () => setOpened( null ) } onDeleted={ () => deleted( selected ) } /> }
           { opened && 'add-site' === opened.kind && selected && <SiteForm client={ selected } onClose={ () => setOpened( null ) } onSaved={ () => sitesLanded( selected.id ) } /> }
           { opened && 'edit-site' === opened.kind && selected && targetSite && (
             <SiteForm client={ selected } editing={ targetSite } onClose={ () => setOpened( null ) } onSaved={ () => sitesLanded( selected.id ) } />
@@ -668,6 +684,107 @@ function ClientForm( {
             </Field>
           ) }
         </>
+      ) }
+    </Modal>
+  );
+}
+
+/** What each kind of record is called, one and many, in the order the confirmation lists them (#458). */
+const GOING: Array< [ string, string, string ] > = [
+  [ 'sites', 'site', 'sites' ],
+  [ 'tasks', 'task', 'tasks' ],
+  [ 'requests', 'request', 'requests' ],
+  [ 'meetings', 'standing meeting', 'standing meetings' ],
+  [ 'recurring', 'recurring task', 'recurring tasks' ],
+  [ 'reminders', 'reminder', 'reminders' ],
+  [ 'onboarding', 'onboarding step', 'onboarding steps' ],
+  [ 'time', 'hours entry', 'hours entries' ],
+  [ 'alerts', 'alert', 'alerts' ],
+  [ 'connections', 'site connection', 'site connections' ],
+  [ 'people', 'person on their side', 'people on their side' ],
+];
+
+/**
+ * Deleting a client and everything attached to it (#458). It cannot be
+ * undone, so the dialog names the client and counts what goes before the
+ * button is offered, and the button says what it does.
+ */
+function DeleteClient( { client, onClose, onDeleted }: { client: ClientRecord; onClose: () => void; onDeleted: () => void } ) {
+  const [ answer, setAnswer ] = useState< ClientDeletion | null >( null );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  useEffect( () => {
+    api< ClientDeletion >( `/clients/${ client.id }/deletion`, { cache: 'fresh' } )
+      .then( setAnswer )
+      .catch( ( error: unknown ) => setNotice( messageFor( error, 'What goes with this client could not be counted.' ) ) );
+  }, [ client.id ] );
+
+  const going = answer ? GOING.filter( ( [ key ] ) => ( answer.counts[ key ] ?? 0 ) > 0 ) : [];
+  const refused = '' !== ( answer?.refusal ?? '' );
+
+  async function remove() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api( `/clients/${ client.id }`, { method: 'DELETE' } );
+      onDeleted();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That client could not be deleted.' ) );
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Modal
+      title={ `Delete ${ client.display_name }?` }
+      description="Everything attached to them goes too, and nothing of it shows in Forge again. This cannot be undone."
+      width={ 480 }
+      testId="bwx-clients-delete-form"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button variant="danger" data-testid="bwx-clients-delete-confirm" disabled={ busy || null === answer || refused } onClick={ () => void remove() }>
+            { `Delete ${ client.display_name }` }
+          </Button>
+          <Button variant="ghost" data-testid="bwx-clients-delete-cancel" onClick={ onClose }>
+            Keep them
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-clients-delete-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      { null === answer && '' === notice && <p className="bwx-hint">Counting what goes with them…</p> }
+
+      { answer && refused && (
+        <p className="bwx-notice" data-testid="bwx-clients-delete-notice" role="status">
+          { answer.refusal }
+        </p>
+      ) }
+
+      { answer && ! refused && (
+        0 === going.length ? (
+          <p className="bwx-hint" data-testid="bwx-clients-delete-nothing">Nothing else is attached to them.</p>
+        ) : (
+          <ul className="bwx-going" data-testid="bwx-clients-delete-counts" aria-label="What goes with them">
+            { going.map( ( [ key, one, many ] ) => {
+              const count = answer.counts[ key ] ?? 0;
+
+              return (
+                <li key={ key } data-testid={ `bwx-clients-delete-count-${ key }` } data-count={ count }>
+                  <span className="bwx-going-count">{ count }</span>
+                  <span>{ 1 === count ? one : many }</span>
+                </li>
+              );
+            } ) }
+          </ul>
+        )
       ) }
     </Modal>
   );

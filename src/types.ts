@@ -608,6 +608,14 @@ export interface ClientStaffAnswer {
   people: Person[];
 }
 
+/** How much goes with a client if it is deleted (#458), by kind. */
+export interface ClientDeletion {
+  ok: true;
+  client: ClientRow;
+  refusal: string;
+  counts: Record< string, number >;
+}
+
 /** A client as the Clients screen holds it: the record, and the two facts the list joins on. */
 export interface ClientRecord extends ClientRow {
   is_studio: boolean;

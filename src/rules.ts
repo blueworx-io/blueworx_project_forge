@@ -475,6 +475,10 @@ export const RULES: RuleSection[] = [
         why: 'Setup and irreversible actions sit with the people accountable for the whole studio.',
       },
       {
+        what: 'Only an administrator can delete a client, after being shown how much goes with it; its sites, tasks, requests, meetings, recurring tasks, reminders, onboarding, hours, alerts and its own people all go too, and nothing of it shows in reports again. The studio\'s own client can\'t be deleted.',
+        why: 'A test client shouldn\'t skew the numbers, and a delete can\'t be undone, so it is deliberate and complete.',
+      },
+      {
         what: 'A Manager sees and works on their own clients\' work only, and can read those clients\' details, meetings and support but not change them.',
         why: 'People work on what they are assigned to, and configuration stays with administrators.',
       },

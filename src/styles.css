@@ -4265,3 +4265,23 @@ select.bwx-select {
 .bwx-move[ data-ready='false' ]:hover:not( :disabled ) {
   background: var( --surface-sunken );
 }
+
+/* What goes with a deleted client (#458): each count lined up against what it counts. */
+.bwx-going {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.bwx-going li {
+  display: grid;
+  grid-template-columns: 5ch minmax( 0, 1fr );
+  gap: 12px;
+}
+.bwx-going-count {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: var( --weight-medium );
+  color: var( --color-ink );
+}
