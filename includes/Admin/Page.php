@@ -274,7 +274,8 @@ final class Page {
 	 * accordion's open state, because the system's accordion is a React button
 	 * and these screens have no React. And it takes the bullets off a panel
 	 * column written as a list, which the system draws as divs and the specs
-	 * need to be <li> elements.
+	 * need to be <li> elements. The changelog's entries get their bullets back,
+	 * because they are a list people read (#466).
 	 *
 	 * A field's width inside a toolbar is not here: bw-input is width:100% by
 	 * design, so three in a row each took a line of their own, and the system's
@@ -302,6 +303,7 @@ ul.bw-panels,ul.bw-panel__loose{list-style:none;margin:0;padding-left:0}
 .bw-accordion>summary{list-style:none}
 .bw-accordion>summary::-webkit-details-marker{display:none}
 .bw-accordion[open]>summary .bw-accordion__chev{transform:rotate(180deg)}
+.bw-admin ul.bwx-changelog{list-style:disc;margin:var(--bw-space-2) 0 var(--bw-space-5);padding-left:var(--bw-space-6)}
 CSS;
 	}
 
