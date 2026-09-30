@@ -2,7 +2,7 @@
  * The five phase groups the twelve stages fall into.
  *
  * The stages are a flat list in the state machine, but they are not a flat
- * thing: work is captured, then defined and approved through four gates, then
+ * thing: work is captured, then defined and approved through the gates, then
  * delivered, then finished. That shape is the most useful thing a board can
  * tell somebody at a glance — "this is stuck in approvals" is a different
  * problem from "this is stuck in development" — so it is encoded rather than
@@ -20,7 +20,7 @@ const PHASE_OF: Record< string, Phase > = {
   'bug-tracking': 'gate',
   'documentation-period': 'gate',
   'technical-audit': 'gate',
-  'design-process': 'gate',
+  'design-process': 'pipeline',
   blocked: 'exception',
   'up-next': 'pipeline',
   'in-development': 'pipeline',
