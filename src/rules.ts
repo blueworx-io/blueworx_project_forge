@@ -59,6 +59,10 @@ export const RULES: RuleSection[] = [
         why: 'The checklist is the doer\'s own list of what done means.',
       },
       {
+        what: 'A task\'s checklist saves as soon as it changes, without Save changes; every other edit in the task panel still waits for Save changes.',
+        why: 'A tick or a new line is too easy to lose by closing the task.',
+      },
+      {
         what: 'A task\'s dates must stay in order (start, then due, then review by, then release by), though any of them may be in the past.',
         why: 'Dates that run backwards make the plan and the timeline meaningless.',
       },

@@ -570,10 +570,50 @@ export function ItemPanel( {
   }
 
   /** A list of lines, only when it differs from what was read — an unchanged list is not an edit. */
-  function linesChange( field: 'checklist' | 'test_steps', rows: ChecklistRow[] ): Record< string, ChecklistRow[] > {
+  function linesChange( field: 'checklist' | 'test_steps', rows: ChecklistRow[], from: Detail | null = detail ): Record< string, ChecklistRow[] > {
     const kept = rows.filter( ( row ) => '' !== row.text.trim() ).map( ( row ) => ( { text: row.text.trim(), done: row.done } ) );
 
-    return JSON.stringify( kept ) === JSON.stringify( detail?.item[ field ] ?? [] ) ? {} : { [ field ]: kept };
+    return JSON.stringify( kept ) === JSON.stringify( from?.item[ field ] ?? [] ) ? {} : { [ field ]: kept };
+  }
+
+  // The last record read or written, and a queue so quick changes to the
+  // checklist are written one after another, each quoting the version the
+  // one before left.
+  const latest = useRef< Detail | null >( null );
+  useEffect( () => {
+    latest.current = detail;
+  }, [ detail ] );
+  const queue = useRef< Promise< void > >( Promise.resolve() );
+
+  /**
+   * #451. A checklist change is written as soon as it is made, on its own:
+   * nothing else in the panel goes with it, and the held version moves on so
+   * a later Save changes does not meet a conflict. A refusal says so and the
+   * rows stay as they are, for Save changes to try again.
+   */
+  function saveChecklist( rows: ChecklistRow[] ) {
+    queue.current = queue.current.then( async () => {
+      const current = latest.current;
+      const change = linesChange( 'checklist', rows, current );
+
+      if ( ! current || ! change.checklist ) {
+        return;
+      }
+
+      try {
+        const answer = await api< { item: WorkItem } >( `/work-items/${ itemId }`, {
+          method: 'PATCH',
+          body: { checklist: change.checklist, record_version: current.item.record_version },
+        } );
+
+        latest.current = { ...current, item: { ...current.item, checklist: answer.item.checklist, record_version: answer.item.record_version } };
+        setDetail( latest.current );
+        onChanged();
+        setNotice( 'Checklist saved.', 'ok' );
+      } catch ( error ) {
+        setNotice( `The checklist was not saved. ${ refusal( error ) }` );
+      }
+    } );
   }
 
   /** The links, only when they changed. */
@@ -616,23 +656,29 @@ export function ItemPanel( {
     setBusy( true );
     setNotice( '' );
 
+    // A checklist change still on its way to the server lands first, so this
+    // save quotes the version it left.
+    await queue.current;
+
+    const current = latest.current ?? detail;
+
     const edits = {
       ...draft,
-      ...linesChange( 'checklist', checklist ),
-      ...linesChange( 'test_steps', testSteps ),
+      ...linesChange( 'checklist', checklist, current ),
+      ...linesChange( 'test_steps', testSteps, current ),
       ...linksChange(),
     };
 
     // Only an edit is written as an edit. A save that only answered a pick
     // writes the answer and nothing else, so there is no empty edit in the
     // history and no refusal about a change nobody made.
-    const edited = JSON.stringify( edits ) !== JSON.stringify( asDraft( detail.item ) );
+    const edited = JSON.stringify( edits ) !== JSON.stringify( asDraft( current.item ) );
 
     try {
       if ( edited ) {
         await api( `/work-items/${ itemId }`, {
           method: 'PATCH',
-          body: { ...edits, record_version: detail.item.record_version },
+          body: { ...edits, record_version: current.item.record_version },
         } );
       }
 
@@ -1853,11 +1899,11 @@ export function ItemPanel( {
             ) ) }
 
             { /*
-                The checklist: up to ten one-line items, ticked here and saved
-                with everything else. Enter on a line starts the next; the
+                The checklist: up to ten one-line items, saved as soon as they
+                change (#451), unlike the rest. Enter on a line starts the next; the
                 count says how many of the ten are used.
              */ }
-            <LineList name="Checklist" testId="bwx-checklist" rows={ checklist } onChange={ setChecklist } />
+            <LineList name="Checklist" testId="bwx-checklist" rows={ checklist } onChange={ setChecklist } onCommit={ saveChecklist } />
 
             { /*
                 The definition boxes, once the item has got as far as the
@@ -2837,12 +2883,20 @@ export function LineList( {
   testId,
   rows,
   onChange,
+  onCommit,
 }: {
   name: string;
   testId: string;
   rows: ChecklistRow[];
   onChange: ( rows: ChecklistRow[] ) => void;
+  /** Called with the new rows when a change is complete: a tick, an add, a removal, or leaving a line. */
+  onCommit?: ( rows: ChecklistRow[] ) => void;
 } ) {
+  const change = ( next: ChecklistRow[] ) => {
+    onChange( next );
+    onCommit?.( next );
+  };
+
   return (
     <div className="bwx-field bwx-checklist" data-testid={ testId }>
       <span className="bwx-checklist-head">
@@ -2860,7 +2914,7 @@ export function LineList( {
             data-testid={ `${ testId }-done` }
             aria-label={ `Done: ${ row.text || 'line ' + ( at + 1 ) }` }
             checked={ row.done }
-            onChange={ ( event ) => onChange( rows.map( ( one, i ) => ( i === at ? { ...one, done: event.target.checked } : one ) ) ) }
+            onChange={ ( event ) => change( rows.map( ( one, i ) => ( i === at ? { ...one, done: event.target.checked } : one ) ) ) }
           />
           <input
             className="bwx-input"
@@ -2868,15 +2922,16 @@ export function LineList( {
             aria-label={ `${ name } line ${ at + 1 }` }
             maxLength={ 191 }
             value={ row.text }
+            onBlur={ () => onCommit?.( rows ) }
             data-done={ row.done ? 'true' : undefined }
             onChange={ ( event ) => onChange( rows.map( ( one, i ) => ( i === at ? { ...one, text: event.target.value } : one ) ) ) }
             onKeyDown={ ( event ) => {
               if ( 'Enter' === event.key && rows.length < CHECKLIST_ROWS ) {
                 event.preventDefault();
-                onChange( [ ...rows.slice( 0, at + 1 ), { text: '', done: false }, ...rows.slice( at + 1 ) ] );
+                change( [ ...rows.slice( 0, at + 1 ), { text: '', done: false }, ...rows.slice( at + 1 ) ] );
               } else if ( 'Backspace' === event.key && '' === row.text && 1 < rows.length ) {
                 event.preventDefault();
-                onChange( rows.filter( ( _, i ) => i !== at ) );
+                change( rows.filter( ( _, i ) => i !== at ) );
               }
             } }
           />
@@ -2885,7 +2940,7 @@ export function LineList( {
             className="bwx-icon-button"
             aria-label={ `Remove line ${ at + 1 }` }
             data-testid={ `${ testId }-remove` }
-            onClick={ () => onChange( rows.filter( ( _, i ) => i !== at ) ) }
+            onClick={ () => change( rows.filter( ( _, i ) => i !== at ) ) }
           >
             ✕
           </button>
@@ -2898,7 +2953,7 @@ export function LineList( {
             className="bwx-button"
             data-variant="quiet"
             data-testid={ `${ testId }-add` }
-            onClick={ () => onChange( [ ...rows, { text: '', done: false } ] ) }
+            onClick={ () => change( [ ...rows, { text: '', done: false } ] ) }
           >
             Add a line
           </button>

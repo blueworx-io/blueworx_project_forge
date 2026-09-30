@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.156.1] - 2026-09-30
+
+### Changed
+
+- A task's checklist now saves as soon as you tick, add, edit or remove a line, without pressing Save changes. If it can't save, it says so.
+
 ## [2.156.0] - 2026-09-30
 
 ### Added
