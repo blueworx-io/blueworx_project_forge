@@ -778,7 +778,7 @@ function DeleteClient( { client, onClose, onDeleted }: { client: ClientRecord; o
 
               return (
                 <li key={ key } data-testid={ `bwx-clients-delete-count-${ key }` } data-count={ count }>
-                  <span className="bwx-going-count">{ count }</span>
+                  <span className="bwx-going-count">{ count }</span>{ ' ' }
                   <span>{ 1 === count ? one : many }</span>
                 </li>
               );
