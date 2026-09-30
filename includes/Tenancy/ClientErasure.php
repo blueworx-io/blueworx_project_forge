@@ -94,7 +94,7 @@ final class ClientErasure {
 	}
 
 	/**
-	 * The tables that belong to nobody's client: people, their hours, the
+	 * The tables that belong to nobody's client: people, their hours and roles, the
 	 * studio's templates, packages, connections and dates. A client's delete
 	 * never touches them. Every table is in this list or in plan(), and a test
 	 * holds that true when a table is added.
@@ -113,6 +113,7 @@ final class ClientErasure {
 			Schema::connections_table(),
 			Schema::subscriptions_table(),
 			Schema::slack_people_table(),
+			Schema::staff_roles_table(),
 			Schema::calendar_dates_table(),
 		);
 	}
