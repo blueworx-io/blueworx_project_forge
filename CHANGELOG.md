@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.158.0] - 2026-09-30
+
+### Added
+
+- Each person now has a Role section with their title, weekly hours, contract dates, a description and a list of regular duties. Admins set it from the People screen, and staff can see their own on their profile.
+
 ## [2.157.0] - 2026-09-30
 
 ### Added
