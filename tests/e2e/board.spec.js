@@ -109,7 +109,18 @@ test.describe('the board', () => {
     await expect(page.locator('[data-stage="bug-tracking"][data-testid="bwx-column"]')).toHaveCount(0);
   });
 
-  test('new work appears in the first column', async ({ page }) => {
+  test("Design Process sits under In delivery, with that group's colour", async ({ page }) => {
+    await page.waitForSelector('[data-testid="bwx-board"]');
+
+    const head = (stage) => page.locator(`[data-testid="bwx-column"][data-stage="${ stage }"] .bwx-column-head`);
+    await expect(head('design-process')).toHaveAttribute('data-phase', 'pipeline');
+    await expect(head('technical-audit')).toHaveAttribute('data-phase', 'gate');
+
+    // Design Process, Up Next, In Development and In Review make one band.
+    await expect(page.locator('.bwx-phase', { hasText: 'In delivery' })).toHaveCount(1);
+  });
+
+  test('new work appears in the first column',async ({ page }) => {
     const { siteId } = await seed(page, 'Board');
     await openBoardOn(page, siteId);
 
