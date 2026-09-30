@@ -154,12 +154,20 @@ test.describe( 'the calendar', () => {
       await page.locator( `[data-testid="bwx-calendar-mode-${ mode }"]` ).click();
       await page.locator( '[data-testid="bwx-calendar-goto"]' ).fill( on( 1 ) );
 
-      await expect(
-        page.locator(
-          `[data-testid="bwx-calendar-day"][data-date="${ on( 1 ) }"] [data-testid="bwx-calendar-entry"][data-item="${ world.full.id }"][data-kind="due"]`
-        ),
-        `the due date should be on ${ on( 1 ) } in ${ mode }`
-      ).toHaveCount( 1 );
+      const day = page.locator( `[data-testid="bwx-calendar-day"][data-date="${ on( 1 ) }"]` );
+      const due = day.locator(
+        `[data-testid="bwx-calendar-entry"][data-item="${ world.full.id }"][data-kind="due"]`
+      );
+
+      // A month cell shows three entries and "+N more". When the suite has
+      // filled that day with other work, the entry is behind the button.
+      await expect( async () => {
+        const more = day.locator( '[data-testid="bwx-calendar-more"]' );
+        if ( 0 < ( await more.count() ) ) {
+          await more.click();
+        }
+        await expect( due ).toHaveCount( 1, { timeout: 1000 } );
+      }, `the due date should be on ${ on( 1 ) } in ${ mode }` ).toPass();
     }
   } );
 
