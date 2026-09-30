@@ -113,7 +113,7 @@ export function MyTasksScreen() {
   const ours = useMemo( () => listed( mine, siteId ), [ mine, siteId ] );
 
   const counts = useMemo( () => {
-    const c: Record< View | 'done', number > = { today: 0, week: 0, later: 0, done: 0, all: ours.length };
+    const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, done: 0, all: ours.length };
     for ( const one of ours ) c[ viewOf( one ) ] += 1;
     return c;
   }, [ ours ] );
@@ -129,6 +129,7 @@ export function MyTasksScreen() {
 
   const views: SavedView[] = [
     { id: 'today', label: 'Today', count: counts.today },
+    { id: 'tomorrow', label: 'Tomorrow', count: counts.tomorrow },
     { id: 'week', label: 'Next seven days', count: counts.week },
     { id: 'later', label: 'Further out', count: counts.later },
     { id: 'all', label: 'Everything assigned to you', count: counts.all },

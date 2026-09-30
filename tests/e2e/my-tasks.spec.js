@@ -36,6 +36,7 @@ test( 'the four views reconcile, and each opens the item', async ( { browser, ba
   // Captured work is the owner's: theirs, but not the checker's or builder's yet.
   await seat( site.id, `Late one ${ RUN }`, { primary_user_id: person.id, planned_due: on( -3 ) } );
   await seat( site.id, `This week ${ RUN }`, { primary_user_id: person.id, planned_due: on( 4 ) } );
+  await seat( site.id, `Tomorrow one ${ RUN }`, { primary_user_id: person.id, planned_due: on( 1 ) } );
   await seat( site.id, `Not yet checking ${ RUN }`, { reviewer_id: person.id, planned_due: on( 30 ) } );
   await seat( other.site.id, `Not yet building ${ RUN }`, { deliverer_id: person.id } );
   await seat( site.id, `Not theirs ${ RUN }`, { planned_due: on( 1 ) } );
@@ -58,14 +59,21 @@ test( 'the four views reconcile, and each opens the item', async ( { browser, ba
     return parseInt( ( await pill.innerText() ).replace( /\D/g, '' ), 10 );
   };
   const today = await count( 'Today' );
+  const tomorrow = await count( 'Tomorrow' );
   const week = await count( 'Next seven days' );
   const later = await count( 'Further out' );
   const all = await count( 'Everything' );
-  expect( all ).toBe( 4 );
-  expect( today + week + later, 'the three views add up to everything' ).toBe( all );
+  expect( all ).toBe( 5 );
+  expect( today + tomorrow + week + later, 'the four dated views add up to everything' ).toBe( all );
 
-  // Today holds the late one and the one in review with them.
+  // Today is due today or late, and nothing else (#481): the late one, and
+  // not tomorrow's or the undated one in review.
   await expect( table ).toContainText( `Late one ${ RUN }` );
+  await expect( table ).not.toContainText( `Tomorrow one ${ RUN }` );
+  await expect( table ).not.toContainText( `Checking ${ RUN }` );
+  await table.getByRole( 'button', { name: /^Tomorrow/ } ).click();
+  await expect( table.locator( 'tbody tr', { hasText: `Tomorrow one ${ RUN }` } ) ).toHaveCount( 1 );
+  await expect( table ).not.toContainText( `Late one ${ RUN }` );
   await table.getByRole( 'button', { name: /^Everything/ } ).click();
   await expect( table.locator( 'tbody tr', { hasText: `Both seats ${ RUN }` } ) ).toHaveCount( 1 );
   await expect( table.locator( 'tbody tr', { hasText: `Checking ${ RUN }` } ) ).toContainText( 'Checker' );
@@ -294,7 +302,7 @@ test( 'overdue work is under Today, and released work is under none of the dated
 
   await expect( table ).toContainText( `Late to ship ${ RUN }` );
   // Done work is under no view, Everything included (Luke, 2026-09-27).
-  for ( const tab of [ /^Today/, /^Next seven days/, /^Further out/, /^Everything/ ] ) {
+  for ( const tab of [ /^Today/, /^Tomorrow/, /^Next seven days/, /^Further out/, /^Everything/ ] ) {
     await table.getByRole( 'button', { name: tab } ).click();
     await expect( table ).not.toContainText( `Shipped ${ RUN }` );
     await expect( table ).not.toContainText( `Ticked off ${ RUN }` );
