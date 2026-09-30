@@ -319,6 +319,10 @@ export const RULES: RuleSection[] = [
         why: 'One screen should answer what needs attention today.',
       },
       {
+        what: 'My tasks and Daily standup show a count in the sidebar: the number on My tasks\' Today tab, and the standup\'s items plus meetings to settle, for the client picked at the top. Nothing shows at zero.',
+        why: 'You can see what waits for you without opening each screen.',
+      },
+      {
         what: 'From Up Next to Completed, recurring tasks and reminders included, work only shows on the standup once it is due today or late, or when it is Urgent; then everything about it shows. Blocked work always shows.',
         why: 'Work that is planned and moving doesn\'t need talking about every morning until its date arrives.',
       },

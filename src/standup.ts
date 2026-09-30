@@ -1,4 +1,5 @@
-import type { StandupCard } from './types';
+import type { StandupCard, StandupList } from './types';
+import { ALL_SITES } from './sites';
 
 /**
  * The words and the shape of the day's list (#170).
@@ -135,4 +136,31 @@ export function cardTitle( card: StandupCard ): string {
   const title = detail.title ?? detail.display_name ?? detail.about ?? '';
 
   return '' === String( title ) ? card.subject_id : String( title );
+}
+
+/** The site a card is about, or '' when it belongs to no one client (#402). */
+function siteOf( card: StandupCard ): string {
+  const detail = card.detail ?? {};
+
+  return String( detail.client_site_id ?? ( 'client_site' === card.subject_type ? detail.about ?? '' : '' ) );
+}
+
+/** Whether something for this site shows under the top bar's client; no client always shows. */
+function forSite( id: string, siteId: string ): boolean {
+  return ALL_SITES === siteId || '' === id || id === siteId;
+}
+
+/** The cards the standup lists for the picked client. */
+export function cardsFor( list: StandupList | undefined, siteId: string ): StandupCard[] {
+  return ( list?.cards ?? [] ).filter( ( card ) => forSite( siteOf( card ), siteId ) );
+}
+
+/** The meetings the standup asks to be settled, for the picked client. */
+export function toSettleFor( list: StandupList | undefined, siteId: string ): NonNullable< StandupList[ 'to_settle' ] > {
+  return ( list?.to_settle ?? [] ).filter( ( entry ) => forSite( entry.site_id, siteId ) );
+}
+
+/** The number in the sidebar: what needs attention, and meetings waiting to be settled. */
+export function standupCount( list: StandupList | undefined, siteId: string ): number {
+  return cardsFor( list, siteId ).length + toSettleFor( list, siteId ).length;
 }

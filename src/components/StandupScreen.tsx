@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { SECTIONS, cardDetail, cardTitle, keyOf, ruleTone, ruleWord } from '../standup';
+import { SECTIONS, cardDetail, cardTitle, cardsFor, keyOf, ruleTone, ruleWord, toSettleFor } from '../standup';
 import { waitingOn } from '../turn';
 import type { Seated } from '../turn';
 import { DiaryLine } from './Diary';
@@ -61,17 +61,9 @@ type Complete = (
   evidence: string
 ) => Promise< void >;
 
-/** The site a card is about, or '' when it belongs to no one client (#402). */
-function siteOf( card: StandupCard ): string {
-  const detail = card.detail ?? {};
-
-  return String( detail.client_site_id ?? ( 'client_site' === card.subject_type ? detail.about ?? '' : '' ) );
-}
-
 export function StandupScreen() {
   // The top bar's client (#402); cards with no client always show.
   const { siteId, label } = useClientChoice();
-  const mine = ( id: string ) => ALL_SITES === siteId || '' === id || id === siteId;
   const [ list, setList ] = useState< StandupList | undefined >();
   const [ hidden, setHidden ] = useState< string[] >( [] );
   const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
@@ -177,8 +169,8 @@ export function StandupScreen() {
     }
   }
 
-  const cards = ( list?.cards ?? [] ).filter( ( card ) => mine( siteOf( card ) ) );
-  const toSettle = ( list?.to_settle ?? [] ).filter( ( entry ) => mine( entry.site_id ) );
+  const cards = cardsFor( list, siteId );
+  const toSettle = toSettleFor( list, siteId );
 
   function dismiss( card: StandupCard ) {
     setHidden( [ ...hidden, keyOf( card ) ] );

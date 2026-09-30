@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
-import type { ClientSite, Stage, WorkItem } from '../types';
+import type { Stage, WorkItem } from '../types';
 import { CLIENT_REVIEWER } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
@@ -8,11 +8,11 @@ import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { DiaryLine, useDiary } from './Diary';
 import { useClientChoice } from '../ClientChoice';
-import { ALL_SITES } from '../sites';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
-// A task is on somebody's list only while it is theirs to act on, and only once.
-import { responsible } from '../turn';
+import { ALL_SITES } from '../sites';
+import { listed, mineFor, viewOf } from '../mytasks';
+import type { Mine, Role, Site, View } from '../mytasks';
 
 /*
  * My Tasks (#309): one person's day and week, from the same records as the
@@ -27,63 +27,12 @@ import { responsible } from '../turn';
  * here from the due dates, the same way the standup does.
  */
 
-type Site = ClientSite & { client_name: string };
-type Role = 'primary' | 'designer' | 'reviewer' | 'deliverer' | 'assignee';
-
 const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
 const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
-const DAY = 86400000;
 
 /** Today, in the browser's own zone — the same today the due dates below use. */
 function todayISO(): string {
   return new Date().toISOString().slice( 0, 10 );
-}
-
-interface Mine extends Record< string, unknown > {
-  id: string;
-  item: WorkItem;
-  role: Role;
-  site: Site;
-  hours: number;
-  /** Days until due; null when undated. */
-  due: number | null;
-  /** A reminder's copy (2026-09-25): sorted by when it starts, not when it is due. */
-  reminder: boolean;
-  /** Days until a reminder starts; null otherwise. */
-  starts: number | null;
-  /** A chore or reminder this person has already ticked. */
-  ticked: boolean;
-}
-
-type View = 'today' | 'week' | 'later' | 'all';
-
-/** Where a row sorts: one of the dated views, or done (under none of them). */
-type Slot = Exclude< View, 'all' > | 'done';
-
-function daysUntil( date: string ): number | null {
-  if ( ! date ) return null;
-  const at = new Date( `${ date }T00:00:00Z` ).getTime();
-  if ( isNaN( at ) ) return null;
-  const today = new Date( new Date().toISOString().slice( 0, 10 ) + 'T00:00:00Z' ).getTime();
-  return Math.round( ( at - today ) / DAY );
-}
-
-/** Today: late, blocked, in delivery or in review with you; the rest by date. */
-function viewOf( one: Mine ): Slot {
-  // Released or ticked off is done, and not listed. Completed but late
-  // is still to ship, so it sorts by date like the rest (Luke, 2026-09-26).
-  if ( 'released' === one.item.stage || one.ticked ) return 'done';
-  // A reminder is Today from its first day until it is ticked (2026-09-25).
-  if ( one.reminder && null !== one.starts ) {
-    if ( one.starts <= 0 ) return 'today';
-    return one.starts <= 7 ? 'week' : 'later';
-  }
-  if ( 'blocked' === one.item.stage ) return 'today';
-  if ( null !== one.due && one.due <= 1 ) return 'today';
-  if ( 'primary' === one.role && 'in-development' === one.item.stage ) return 'today';
-  if ( 'reviewer' === one.role && 'in-review' === one.item.stage ) return 'today';
-  if ( null !== one.due && one.due <= 8 ) return 'week';
-  return 'later';
 }
 
 function dueText( one: Mine ): string {
@@ -142,36 +91,7 @@ export function MyTasksScreen() {
       ] );
       setStages( stageList.stages );
 
-      const sites = new Map( siteList.sites.map( ( site ) => [ site.id, site ] ) );
-      const found: Mine[] = [];
-      for ( const item of loaded.items ) {
-        const site = sites.get( item.client_site_id );
-        if ( ! site ) continue;
-        const due = daysUntil( item.planned_due || item.derived_due || '' );
-
-        // A recurring chore names its people rather than seats (2026-09-18):
-        // one row for you, with your own tick on it, and nothing else.
-        if ( 0 < ( item.assignees?.length ?? 0 ) ) {
-          if ( item.assignees.includes( person.id ) ) {
-            const reminder = ( item.recurring_id ?? '' ).startsWith( 'rem_' );
-            found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null, ticked: undefined !== ( item.ticks ?? {} )[ person.id ] } );
-          }
-          continue;
-        }
-
-        // Otherwise one row, for whoever's stage it is (2026-09-24).
-        const seat = responsible( item );
-        const seats: Record< Exclude< Role, 'assignee' >, [ string, number ] > = {
-          primary: [ item.primary_user_id, item.hours_primary ],
-          designer: [ item.designer_id ?? '', item.hours_designer ?? 0 ],
-          reviewer: [ item.reviewer_id, item.hours_review ],
-          deliverer: [ item.deliverer_id, item.hours_delivery ],
-        };
-
-        if ( null !== seat && 'assignee' !== seat && seats[ seat ][ 0 ] === person.id ) {
-          found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due, reminder: false, starts: null, ticked: false } );
-        }
-      }
+      const found = mineFor( person, siteList.sites, loaded.items );
       setMine( found );
       setState( 'ready' );
     } catch ( error ) {
@@ -190,10 +110,7 @@ export function MyTasksScreen() {
 
   // Narrowed first, so the counts on the tabs are for the picked client too.
   // Done work is under no view, Everything included (Luke, 2026-09-27).
-  const ours = useMemo(
-    () => mine.filter( ( one ) => 'done' !== viewOf( one ) && ( ALL_SITES === siteId || one.item.client_site_id === siteId ) ),
-    [ mine, siteId ]
-  );
+  const ours = useMemo( () => listed( mine, siteId ), [ mine, siteId ] );
 
   const counts = useMemo( () => {
     const c: Record< View | 'done', number > = { today: 0, week: 0, later: 0, done: 0, all: ours.length };

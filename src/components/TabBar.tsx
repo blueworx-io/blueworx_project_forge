@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { CalendarDays, Clock, Inbox, ListChecks, Menu } from 'lucide-react';
 import type { ScreenName, ViewName } from '../types';
+import { RailCount } from '../sidebarCounts';
 
 interface Tab {
   key: ScreenName;
@@ -66,6 +67,7 @@ export function TabBar( {
                 { count }
               </span>
             ) }
+            <RailCount name={ tab.key } screen={ screen } />
           </button>
         );
       } ) }
