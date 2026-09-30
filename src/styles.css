@@ -482,6 +482,35 @@ body {
   display: inline-flex;
   gap: 4px;
 }
+.bwx-card-ready {
+  display: inline-flex;
+  margin-left: auto;
+  margin-right: 8px;
+  color: var( --state-danger );
+}
+.bwx-card-ready[ data-ready='true' ] {
+  color: var( --state-ok );
+}
+/* What is still missing: shown on hovering the cross, or with the card focused,
+   under the foot so nothing moves out from beneath the pointer. */
+.bwx-card-missing {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var( --text-micro );
+  color: var( --state-danger );
+  background: var( --state-danger-wash );
+  border: 1px solid var( --state-danger-edge );
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.bwx-card-missing > :first-child {
+  font-weight: var( --weight-medium );
+}
+.bwx-card:focus-visible .bwx-card-missing,
+.bwx-card:has( .bwx-card-ready[ data-ready='false' ]:hover ) .bwx-card-missing {
+  display: flex;
+}
 .bwx-card-when {
   font-size: var( --text-micro );
   color: var( --ink-500 );
