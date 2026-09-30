@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Tenancy\ClientErasure;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientStaff;
 use Blueworx\Forge\Tenancy\Contacts;
@@ -123,6 +124,33 @@ final class ClientsController {
 				),
 			)
 		);
+
+		/*
+		 * #458. Deleting a client and everything attached to it, and first
+		 * how much that is. The administrator's alone, like every other
+		 * client write; a Manager is refused at the door.
+		 */
+		$delete_routes = array(
+			array( '/clients/(?P<client_id>[A-Za-z0-9_\-]+)/deletion', 'GET', 'deletion' ),
+			array( '/clients/(?P<client_id>[A-Za-z0-9_\-]+)', 'DELETE', 'destroy' ),
+		);
+
+		foreach ( $delete_routes as $handler ) {
+			Server::register_route(
+				$route_namespace,
+				$handler[0],
+				array(
+					'methods'             => $handler[1],
+					'callback'            => array( self::class, $handler[2] ),
+					'permission_callback' => array( Permissions::class, 'manage' ),
+					'scope'               => array(
+						'kind'   => Boundary::SCOPE_CLIENT,
+						'param'  => 'client_id',
+						'record' => 'client',
+					),
+				)
+			);
+		}
 
 		Server::register_route(
 			$route_namespace,
@@ -397,6 +425,66 @@ final class ClientsController {
 			array(
 				'ok'     => true,
 				'client' => $updated,
+			)
+		);
+	}
+
+	/**
+	 * How much goes with a client if it is deleted (#458), by kind.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function deletion( WP_REST_Request $request ) {
+		$client = Clients::get( (string) $request['client_id'] );
+
+		if ( null === $client ) {
+			return Boundary::absent( 'client' );
+		}
+
+		$refusal = ClientErasure::refusal( $client, Studio::client_id() );
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'client'  => $client,
+				'refusal' => $refusal,
+				'counts'  => '' === $refusal ? ClientErasure::counts( $client['id'] ) : array(),
+			)
+		);
+	}
+
+	/**
+	 * Deletes a client and everything attached to it (#458). Not undoable.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function destroy( WP_REST_Request $request ) {
+		$client = Clients::get( (string) $request['client_id'] );
+
+		if ( null === $client ) {
+			return Boundary::absent( 'client' );
+		}
+
+		$refusal = ClientErasure::refusal( $client, Studio::client_id() );
+
+		if ( '' !== $refusal ) {
+			return Errors::rest( 'client_not_deletable', $refusal, 400 );
+		}
+
+		$deleted = ClientErasure::erase( $client['id'] );
+
+		// The client row goes last; still being here means the delete stopped.
+		if ( null !== Clients::get( $client['id'] ) ) {
+			return Errors::rest( 'write_failed', __( 'That client could not be fully deleted. Try again.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'deleted' => $client['id'],
+				'counts'  => $deleted,
 			)
 		);
 	}

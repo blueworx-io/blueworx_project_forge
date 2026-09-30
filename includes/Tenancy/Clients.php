@@ -19,7 +19,8 @@ use Blueworx\Forge\Data\Schema;
  * here later is the mistake ARCH-3 exists to prevent.
  *
  * Two rules live here rather than in callers. There is no delete: a client is
- * deactivated and kept (NOTIF-5). And every update quotes the version it was
+ * deactivated and kept (NOTIF-5). The one way to delete a client is the
+ * administrator's, in ClientErasure (#458). And every update quotes the version it was
  * made against, refused in the UPDATE's own WHERE so two writes racing cannot
  * both believe they were current (ARCH-5).
  */

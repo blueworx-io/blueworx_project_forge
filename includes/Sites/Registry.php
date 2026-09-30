@@ -214,6 +214,27 @@ final class Registry {
 	}
 
 	/**
+	 * Removes a site from the register, key and all (#458). Only for a client
+	 * that is being deleted: anything else is cut off with revoke(), which
+	 * keeps the record.
+	 *
+	 * @param string $site_id Site id.
+	 * @return bool False when there was no such site.
+	 */
+	public static function forget( string $site_id ): bool {
+		$sites = self::sites();
+
+		if ( ! isset( $sites[ $site_id ] ) ) {
+			return false;
+		}
+
+		unset( $sites[ $site_id ] );
+		self::save( $sites );
+
+		return true;
+	}
+
+	/**
 	 * Every site record, including keys. Private: no caller outside this class
 	 * has a reason to hold a list of every key at once.
 	 *
