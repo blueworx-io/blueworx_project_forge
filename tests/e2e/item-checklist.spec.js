@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { signedIn, makeSite, makeItem } from './helpers/forge.js';
 
 // A task's checklist: up to ten one-line items, ticked in the panel, saved
-// with Save changes, and counted on the board card.
+// at once (#451), and counted on the board card.
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
@@ -84,4 +84,67 @@ test('an eleventh line, or a line with a line break, is refused', async () => {
 
   // Nothing above changed the record.
   expect((await admin.api.get(`/work-items/${item.id}`)).item.checklist).toHaveLength(3);
+});
+
+test('a checklist change is saved at once, and a later Save changes does not conflict or lose other edits (#451)', async () => {
+  const made = (await (await makeItem(admin.api, site.id, { title: `Instant ${RUN_ID}` })).json()).item;
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
+  await page.getByTestId('bwx-card').filter({ hasText: `Instant ${RUN_ID}` }).click();
+  await expect(page.getByTestId('bwx-save')).toBeVisible();
+
+  // Another field edited but not saved, then the checklist changed.
+  await page.locator('#bwx-title').fill(`Renamed ${RUN_ID}`);
+  await page.getByTestId('bwx-checklist-add').click();
+  await page.getByTestId('bwx-checklist-text').nth(0).fill('First');
+  await page.getByTestId('bwx-checklist-text').nth(0).blur();
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Checklist saved.');
+  await page.getByTestId('bwx-checklist-done').nth(0).check();
+  await expect(async () => {
+    const now = (await admin.api.get(`/work-items/${made.id}`)).item;
+    expect(now.checklist).toEqual([{ text: 'First', done: true }]);
+    // The rename was not sent early.
+    expect(now.title).toBe(`Instant ${RUN_ID}`);
+  }).toPass();
+
+  // Still there on reopening, without Save changes.
+  await page.reload();
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.getByTestId('bwx-card').filter({ hasText: `Instant ${RUN_ID}` }).click();
+  await expect(page.getByTestId('bwx-checklist-done').nth(0)).toBeChecked();
+
+  // Removing a line is saved at once too, and Save changes afterwards is not a conflict.
+  await page.locator('#bwx-title').fill(`Renamed ${RUN_ID}`);
+  await page.getByTestId('bwx-checklist-remove').nth(0).click();
+  await expect(async () => {
+    expect((await admin.api.get(`/work-items/${made.id}`)).item.checklist).toEqual([]);
+  }).toPass();
+  await page.getByTestId('bwx-save').click();
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  const after = (await admin.api.get(`/work-items/${made.id}`)).item;
+  expect(after.title).toBe(`Renamed ${RUN_ID}`);
+  expect(after.checklist).toEqual([]);
+  await page.close();
+});
+
+test('a checklist change that cannot be saved says so (#451)', async () => {
+  const made = (await (await makeItem(admin.api, site.id, { title: `Refused ${RUN_ID}` })).json()).item;
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
+  await page.getByTestId('bwx-card').filter({ hasText: `Refused ${RUN_ID}` }).click();
+  await expect(page.getByTestId('bwx-save')).toBeVisible();
+
+  await page.route(new RegExp(`/work-items/${made.id}$`), (route) =>
+    route.request().method() === 'PATCH' ? route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }) : route.continue()
+  );
+  await page.getByTestId('bwx-checklist-add').click();
+  await page.getByTestId('bwx-checklist-text').nth(0).fill('Lost');
+  await page.getByTestId('bwx-checklist-text').nth(0).blur();
+  await expect(page.getByTestId('bwx-panel-notice')).toContainText('The checklist was not saved');
+  await expect(page.getByTestId('bwx-checklist-text').nth(0)).toHaveValue('Lost');
+  await page.close();
 });
