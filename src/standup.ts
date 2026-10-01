@@ -1,5 +1,6 @@
 import type { StandupCard, StandupList } from './types';
 import { ALL_SITES } from './sites';
+import { priorityRank } from './priority';
 
 /**
  * The words and the shape of the day's list (#170).
@@ -78,6 +79,19 @@ const RULE_TONE: Record< string, string > = {
 
 export function ruleTone( rule: string ): string {
   return RULE_TONE[ rule ] ?? 'waiting';
+}
+
+/**
+ * A section's cards by due date, then priority (#483). Undated cards go last,
+ * and cards that tie keep the server's order, so a card that is not about
+ * dated work — over hours, a quiet site — stays where it was.
+ */
+export function inOrder( cards: StandupCard[] ): StandupCard[] {
+  const dueOf = ( card: StandupCard ): string => String( card.detail?.planned_due ?? '' ) || '9999-99-99';
+
+  return [ ...cards ].sort(
+    ( a, b ) => dueOf( a ).localeCompare( dueOf( b ) ) || priorityRank( a.detail?.priority ) - priorityRank( b.detail?.priority )
+  );
 }
 
 /** A card's own identity, so one can be told from another in a list. */

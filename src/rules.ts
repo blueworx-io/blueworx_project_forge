@@ -334,6 +334,10 @@ export const RULES: RuleSection[] = [
         what: 'Each task on the standup says who it is waiting on, or \'Pending\' when nobody is in that seat yet.',
         why: 'Everyone can see whose move it is without opening the task.',
       },
+      {
+        what: 'Each task on the standup shows its priority, and each section runs by due date, then priority, urgent first. Undated items come last.',
+        why: 'The most pressing work of the day is at the top.',
+      },
     ],
   },
   {
@@ -519,7 +523,7 @@ export const RULES: RuleSection[] = [
         why: 'Each person\'s list shows what they need to act on now, and each task appears once.',
       },
       {
-        what: 'My tasks sorts by due date alone: Today is due today or late, then Tomorrow, the next seven days, and further out. Undated work is further out.',
+        what: 'My tasks sorts by due date alone: Today is due today or late, then Tomorrow, the next seven days, and further out. Undated work is further out. Within a tab, work runs by due date, then priority, urgent first.',
         why: 'Today should be the day\'s work, not everything in progress.',
       },
     ],

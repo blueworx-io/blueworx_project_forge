@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { SECTIONS, cardDetail, cardTitle, cardsFor, keyOf, ruleTone, ruleWord, toSettleFor } from '../standup';
+import { SECTIONS, cardDetail, cardTitle, cardsFor, inOrder, keyOf, ruleTone, ruleWord, toSettleFor } from '../standup';
+import { PRIORITY_TONE } from '../priority';
+import { Tag } from '../kit';
 import { waitingOn } from '../turn';
 import type { Seated } from '../turn';
 import { DiaryLine } from './Diary';
@@ -410,7 +412,7 @@ function Section( {
     return null;
   }
 
-  const shown = cards.filter( ( card ) => ! hidden.includes( keyOf( card ) ) );
+  const shown = inOrder( cards ).filter( ( card ) => ! hidden.includes( keyOf( card ) ) );
   const away = cards.length - shown.length;
 
   return (
@@ -506,6 +508,7 @@ function Card( {
 } ) {
   const detail = cardDetail( card );
   const isWork = 'work_item' === card.subject_type;
+  const priority = String( card.detail?.priority ?? '' );
   // #420. Who it waits on, for our own people: the names only come to them.
   const names = card.detail?.seat_names as Record< string, string > | undefined;
   // #455. A recurring task has people rather than seats: it waits on them.
@@ -538,6 +541,13 @@ function Card( {
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
+
+      { /* #483. Its priority, in a column of its own beside who it waits on; only work has one. */ }
+      { isWork && (
+        <span className="bwx-standup-priority" data-testid="bwx-standup-priority" data-priority={ priority }>
+          { '' === priority ? '—' : <Tag tone={ PRIORITY_TONE[ priority ] ?? 'neutral' }>{ priority }</Tag> }
+        </span>
+      ) }
 
       { null !== waiting && (
         <span className="bwx-standup-waiting" data-testid="bwx-standup-waiting">
