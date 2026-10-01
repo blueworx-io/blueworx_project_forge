@@ -12,6 +12,7 @@ import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
 import { ALL_SITES } from '../sites';
 import { listed, mineFor, viewOf } from '../mytasks';
+import { PRIORITY_TONE, priorityRank } from '../priority';
 import type { Mine, Role, Site, View } from '../mytasks';
 
 /*
@@ -124,7 +125,8 @@ export function MyTasksScreen() {
       .filter( ( one ) => 'all' === view || viewOf( one ) === view )
       .filter( ( one ) => ! role || ROLE_LABEL[ one.role ] === role )
       .filter( ( one ) => ! needle || `${ one.item.id } ${ one.item.title } ${ one.site.client_name }`.toLowerCase().includes( needle ) )
-      .sort( ( a, b ) => ( a.due ?? 9999 ) - ( b.due ?? 9999 ) );
+      // By date, then priority on the same day (#483).
+      .sort( ( a, b ) => ( a.due ?? 9999 ) - ( b.due ?? 9999 ) || priorityRank( a.item.priority ) - priorityRank( b.item.priority ) );
   }, [ ours, view, role, search ] );
 
   const views: SavedView[] = [
@@ -167,6 +169,17 @@ export function MyTasksScreen() {
     { key: 'client', label: 'Client', width: 140, sortBy: ( r ) => r.site.client_name, render: ( r ) => r.site.client_name || r.site.name },
     { key: 'stage', label: 'Stage', width: 170, sortBy: ( r ) => r.item.stage_label, render: ( r ) => <StageChip stage={ r.item.stage } dense /> },
     { key: 'role', label: 'Your role', width: 110, sortBy: ( r ) => r.role, render: ( r ) => <Tag tone={ ROLE_TONE[ r.role ] }>{ ROLE_LABEL[ r.role ] }</Tag> },
+    {
+      key: 'priority',
+      label: 'Priority',
+      width: 100,
+      sortBy: ( r ) => priorityRank( r.item.priority ),
+      render: ( r ) => (
+        <span data-testid="bwx-mytasks-priority" data-priority={ r.item.priority }>
+          { r.item.priority ? <Tag tone={ PRIORITY_TONE[ r.item.priority ] ?? 'neutral' }>{ r.item.priority }</Tag> : '—' }
+        </span>
+      ),
+    },
     { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, sortBy: ( r ) => r.hours, render: ( r ) => ( r.hours ? `${ r.hours.toFixed( 1 ) }h` : '—' ) },
     {
       key: 'due',

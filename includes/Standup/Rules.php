@@ -489,6 +489,9 @@ final class Rules {
 				array(
 					'title'          => (string) ( $item['title'] ?? '' ),
 					'stage'          => (string) ( $item['stage'] ?? '' ),
+					// #483. Shown on the card, and what the cards sort by.
+					'priority'       => (string) ( $item['priority'] ?? '' ),
+					'planned_due'    => (string) ( $item['planned_due'] ?? '' ),
 					'client_id'      => (string) ( $item['client_id'] ?? '' ),
 					'client_site_id' => (string) ( $item['client_site_id'] ?? '' ),
 					// #420. Who holds each seat, so the screen can say whose turn

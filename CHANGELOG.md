@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.161.0] - 2026-10-01
+
+### Added
+
+- My tasks and the daily standup show each task's priority, and both list work by due date, then priority.
+
 ## [2.160.0] - 2026-09-30
 
 ### Added

@@ -2,6 +2,7 @@ import { CircleCheck, CircleX } from 'lucide-react';
 import type { WorkItem } from '../types';
 import { CLIENT_REVIEWER } from '../types';
 import { phaseOf } from '../phases';
+import { PRIORITY_TONE } from '../priority';
 import { Avatar, Tag } from '../kit';
 
 const TYPE_CHIP: Record< string, { bg: string; border: string; ink: string } > = {
@@ -40,14 +41,6 @@ function due( item: WorkItem ): { text: string; late: boolean } {
  * usable from the keyboard. Dragging is the quick way to move a card, never the
  * only way — the panel carries the same moves as buttons.
  */
-/** Urgent reads red, high amber, normal blue, low grey. */
-const PRIORITY_TONE: Record< string, 'danger' | 'warn' | 'info' | 'neutral' > = {
-  urgent: 'danger',
-  high: 'warn',
-  normal: 'info',
-  low: 'neutral',
-};
-
 export function Card( {
   item,
   parent,
