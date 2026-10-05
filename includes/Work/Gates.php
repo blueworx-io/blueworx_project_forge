@@ -257,10 +257,9 @@ final class Gates {
 			),
 			'G-COMPLETED'       => array(
 				self::system( 'G-COMPLETED-1', 'Review approval preserved', 'review_approval', 'The review approval from this cycle has to still be on the item.' ),
-				// How, where and when it goes are not asked (#418); ids stay as they were.
+				// How, where and when it goes are not asked (#418), nor release notes (2026-10-05); ids stay as they were.
 				self::done( 'G-COMPLETED-5', 'Delivery checklist', 'Mark the delivery checklist as done.', self::DEL ),
 				self::auto( 'G-COMPLETED-6', 'Dependencies ready', 'reference', 'dependencies_ready', 'Everything this waits on has to reach Completed first.', self::DEL ),
-				self::box( 'G-COMPLETED-7', 'Release notes', 'text', 'Fill in the release notes.', self::DEL ),
 				self::system( 'G-COMPLETED-8', 'Every child item Completed', 'children_completed', 'Every item beneath this one has to reach Completed first.' ),
 			),
 			'G-BLOCKED-ENTRY'   => array(

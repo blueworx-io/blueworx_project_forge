@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.163.0] - 2026-10-05
+
+### Changed
+
+- Releasing a completed task no longer asks for release notes.
+
 ## [2.162.0] - 2026-10-05
 
 ### Added

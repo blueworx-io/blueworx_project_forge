@@ -143,8 +143,8 @@ export const RULES: RuleSection[] = [
         why: 'Releasing is a deliberate act by the person responsible for delivering the work.',
       },
       {
-        what: 'To release, the delivery checklist must be marked done, release notes written, everything the task waits on must have reached Completed, and this round\'s review approval must still be on the task.',
-        why: 'Nothing goes live ahead of what it depends on, or without a note of what changed.',
+        what: 'To release, the delivery checklist must be marked done, everything the task waits on must have reached Completed, and this round\'s review approval must still be on the task.',
+        why: 'Nothing goes live ahead of what it depends on, and never with its delivery checklist still open.',
       },
       {
         what: 'Releasing doesn\'t ask how, where or when the work was released; the release time is recorded automatically.',
