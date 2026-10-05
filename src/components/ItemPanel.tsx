@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { alphabetical } from '../alphabetical.mjs';
 import type { ReactNode } from 'react';
 import type {
   ChecklistRow,
@@ -441,7 +442,7 @@ export function ItemPanel( {
       // The site's other open items, for the picks that choose one. Read
       // after the item so a slow list never holds the panel up.
       void api< { items: WorkItem[] } >( `/work-items?client_site_id=${ loaded.item.client_site_id }` )
-        .then( ( answer ) => setSiteItems( answer.items.filter( ( one ) => one.id !== loaded.item.id && ! one.archived && ( '' === one.terminal_outcome || 'deferred' === one.terminal_outcome ) ) ) )
+        .then( ( answer ) => setSiteItems( alphabetical( answer.items, 'title' ).filter( ( one ) => one.id !== loaded.item.id && ! one.archived && ( '' === one.terminal_outcome || 'deferred' === one.terminal_outcome ) ) ) )
         .catch( () => setSiteItems( [] ) );
 
       // The seats offer only the people who reach this client (#393). If the

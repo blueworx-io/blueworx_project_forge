@@ -1,4 +1,5 @@
 import type { SavedView, WorkFilters } from '../types';
+import { alphabetical } from '../alphabetical.mjs';
 
 /**
  * The filter bar every view sits under (#123).
@@ -74,8 +75,8 @@ export function Filters( {
         onChange={ ( event ) => set( 'work_type', event.target.value ) }
       >
         <option value="">Any kind</option>
-        <option value="feature">Features</option>
         <option value="bug">Bugs</option>
+        <option value="feature">Features</option>
         <option value="feedback">Feedback</option>
         <option value="task">Tasks</option>
       </select>
@@ -97,7 +98,7 @@ export function Filters( {
           } }
         >
           <option value="">Saved views…</option>
-          { views.map( ( view ) => (
+          { alphabetical( views, 'name' ).map( ( view ) => (
             <option key={ view.id } value={ view.id }>
               { view.name }
             </option>

@@ -338,6 +338,10 @@ export const RULES: RuleSection[] = [
         what: 'Each task on the standup shows its priority, and each section runs by due date, then priority, urgent first. Undated items come last.',
         why: 'The most pressing work of the day is at the top.',
       },
+      {
+        what: 'Unfinished work that nothing else puts on the standup comes back as \'Untouched 30 days\' once nobody has changed it for 30 days, recurring tasks and reminders included.',
+        why: 'Work that was triaged and then forgotten gets looked at again rather than sitting there for good.',
+      },
     ],
   },
   {
@@ -425,6 +429,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'Editing a reminder updates the copies nobody has ticked; removing a person removes their unticked copy, and deleting the reminder keeps ticked copies as the record.',
         why: 'Changes reach the people who still have it to do, without rewriting what was already done.',
+      },
+      {
+        what: 'Once everyone named on a reminder has ticked it, it leaves the Reminders list. \'Show completed\' brings finished ones back.',
+        why: 'The list is what is still to do, and the record stays a click away.',
       },
     ],
   },

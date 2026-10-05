@@ -12,7 +12,7 @@ namespace Blueworx\Forge\Standup;
 use Blueworx\Forge\Work\ClientReviewer;
 
 /**
- * #169. The twelve inclusion rules, worked out from what is true now.
+ * #169. The thirteen inclusion rules, worked out from what is true now.
  *
  * **Nothing is stored on the item, and that is the whole issue.** The obvious
  * implementation puts a flag on a record when it starts needing attention and
@@ -111,8 +111,26 @@ final class Rules {
 	 */
 	public const NEEDS_INTERVENTION = 'needs-intervention';
 
+	/* ---------------------------------------------------------------- forgotten */
+
 	/**
-	 * The twelve, in the order a person reads them.
+	 * Open work nobody has touched for thirty days, and that no other rule
+	 * has anything to say about (2026-10-05).
+	 *
+	 * The rest of the board is about work that is moving or stuck. This is
+	 * about work that is neither: triaged, set aside, and then never picked
+	 * up again. Left alone it would never come up in the morning, so it comes
+	 * back for a second look.
+	 */
+	public const STALE = 'stale';
+
+	/**
+	 * How long work can go untouched before it comes back (2026-10-05).
+	 */
+	public const STALE_AFTER_DAYS = 30;
+
+	/**
+	 * The thirteen, in the order a person reads them.
 	 *
 	 * Work first, because most days that is the whole answer. Then the two
 	 * queues that are somebody's turn, then what a client is waiting on us for,
@@ -130,6 +148,7 @@ final class Rules {
 		self::AWAITING_REVIEW,
 		self::AWAITING_RELEASE,
 		self::RETURNED,
+		self::STALE,
 		self::REQUEST_WAITING,
 		self::ONBOARDING_WAITING,
 		self::ONBOARDING_OVERDUE,
@@ -150,10 +169,11 @@ final class Rules {
 		self::AWAITING_REVIEW,
 		self::AWAITING_RELEASE,
 		self::RETURNED,
+		self::STALE,
 	);
 
 	/**
-	 * Whether this is one of the twelve.
+	 * Whether this is one of the thirteen.
 	 *
 	 * @param string $rule Rule name.
 	 * @return bool
@@ -240,7 +260,7 @@ final class Rules {
 		$urgent    = 'urgent' === (string) ( $item['priority'] ?? '' );
 
 		if ( in_array( $stage, self::IN_DELIVERY, true ) && ! $dated_now && ! $urgent ) {
-			return array();
+			return self::stale_or_nothing( $item, $finished, $today );
 		}
 
 		$cards = array();
@@ -305,7 +325,42 @@ final class Rules {
 			$cards[] = self::work_card( self::GATE_UNMET, $item, array( 'unmet' => (array) $item['unmet'] ) );
 		}
 
+		// Only when nothing else is said about it: a card already on the board
+		// for a reason does not need a second one saying it is old.
+		if ( array() === $cards ) {
+			return self::stale_or_nothing( $item, $finished, $today );
+		}
+
 		return $cards;
+	}
+
+	/**
+	 * The one card for work nobody has touched in thirty days, or none.
+	 *
+	 * Reads `updated_at`, which every edit and move writes, so "touched" means
+	 * somebody changed the record. Work whose age is not known is left alone:
+	 * guessing it old would put things on the board for no reason anyone could
+	 * see.
+	 *
+	 * @param array<string, mixed> $item     The work item.
+	 * @param bool                 $finished Whether its stage is a finished one.
+	 * @param string               $today    YYYY-MM-DD.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function stale_or_nothing( array $item, bool $finished, string $today ): array {
+		$touched = (int) ( $item['updated_at'] ?? 0 );
+
+		if ( $finished || 0 >= $touched ) {
+			return array();
+		}
+
+		$cutoff = (int) strtotime( $today . ' 00:00:00 UTC' ) - self::STALE_AFTER_DAYS * DAY_IN_SECONDS;
+
+		if ( $touched >= $cutoff ) {
+			return array();
+		}
+
+		return array( self::work_card( self::STALE, $item, array( 'last_touched' => gmdate( 'Y-m-d', $touched ) ) ) );
 	}
 
 	/**
