@@ -247,7 +247,7 @@ The prior review attempt is preserved.
 | 4 | Release window | Date | No | DEL |
 | 5 | Delivery checklist | Checklist record | No | DEL |
 | 6 | Dependencies ready | Worked out: everything this waits on has reached Completed | No | DEL |
-| 7 | Release notes | Text, required | No | DEL |
+| 7 | ~~Release notes~~ (removed 2026-10-05) | — | — | — |
 | 8 | Every child item Completed, where the item has children (WORK-2) | System check | No | System |
 
 ### G-RELEASED — recorded on entry to Released
