@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.162.0] - 2026-10-05
+
+### Added
+
+- Reminders everyone has ticked leave the Reminders list; "Show completed" brings them back.
+- Unfinished work nobody has changed for 30 days, and that nothing else puts on the standup, comes back as "Untouched 30 days".
+
+### Changed
+
+- Dropdowns of clients, sites, people, work items, packages and types now read A to Z.
+
 ## [2.161.0] - 2026-10-01
 
 ### Added

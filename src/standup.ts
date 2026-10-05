@@ -15,8 +15,8 @@ export const SECTIONS = [
   {
     id: 'work',
     title: 'Work needing attention',
-    blurb: 'Late, due today, stopped, or waiting on a requirement.',
-    rules: [ 'overdue', 'due-today', 'blocked', 'gate-unmet' ],
+    blurb: 'Late, due today, stopped, waiting on a requirement, or untouched for 30 days.',
+    rules: [ 'overdue', 'due-today', 'blocked', 'gate-unmet', 'stale' ],
   },
   {
     id: 'turn',
@@ -49,6 +49,7 @@ const RULE_WORD: Record< string, string > = {
   'due-today': 'Due today',
   blocked: 'Blocked',
   'gate-unmet': 'Pending',
+  stale: 'Untouched 30 days',
   'awaiting-review': 'To review',
   'awaiting-release': 'Ready to ship',
   returned: 'Sent back',
@@ -120,6 +121,8 @@ export function cardDetail( card: StandupCard ): string {
       return '' === said( 'due' ) ? '' : `Due ${ said( 'due' ) }`;
     case 'onboarding-overdue':
       return '' === said( 'due' ) ? '' : `Wanted by ${ said( 'due' ) }`;
+    case 'stale':
+      return '' === said( 'last_touched' ) ? '' : `Last touched ${ said( 'last_touched' ) }`;
     case 'gate-unmet': {
       const unmet = Array.isArray( detail.unmet ) ? detail.unmet.length : 0;
 

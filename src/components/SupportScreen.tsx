@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { alphabetical } from '../alphabetical.mjs';
 import { LifeBuoy, Receipt } from 'lucide-react';
 import type { LedgerEntry, SupportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState, SupportSummaryAnswer, SupportSummaryRow } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
@@ -463,7 +464,7 @@ function AssignForm( { siteId, packages, changing, onClose, onSaved }: { siteId:
                 onChange={ ( event ) => setVersion( event.target.value ) }
                 options={ [
                   { value: '', label: 'Choose a package' },
-                  ...packages.map( ( one ) => ( {
+                  ...alphabetical( packages, 'name' ).map( ( one ) => ( {
                     value: one.current.id,
                     label: `${ one.name } — ${ hoursLabel( one.current.hours ) } for ${ one.current.validity_months } months, ${ priceLabel( one.current.price, one.current.currency ) }`,
                   } ) ),

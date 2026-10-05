@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { alphabetical } from '../alphabetical.mjs';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
 import type { OnboardingBoard, OnboardingChoice, OnboardingFilters, OnboardingSite } from '../types';
@@ -386,7 +387,7 @@ function Choose( {
       onChange={ ( event ) => onChange( event.target.value ) }
     >
       <option value="">{ empty }</option>
-      { options.map( ( one ) => (
+      { alphabetical( options, 'label' ).map( ( one ) => (
         <option key={ one.id } value={ one.id }>
           { one.label }
         </option>

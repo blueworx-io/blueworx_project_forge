@@ -22,13 +22,13 @@ import { ALL_SITES } from '../sites';
 type Site = ClientSite & { client_name: string };
 
 const CATEGORIES: Array< { id: Reminder[ 'category' ]; label: string } > = [
-  { id: 'general', label: 'General' },
   { id: 'campaign', label: 'Campaign' },
-  { id: 'marketing', label: 'Marketing' },
-  { id: 'sales', label: 'Sales' },
-  { id: 'finance', label: 'Finance' },
   { id: 'deadline', label: 'Deadline' },
+  { id: 'finance', label: 'Finance' },
+  { id: 'general', label: 'General' },
+  { id: 'marketing', label: 'Marketing' },
   { id: 'other', label: 'Other' },
+  { id: 'sales', label: 'Sales' },
 ];
 
 interface Draft {
@@ -89,6 +89,11 @@ function when( reminder: Reminder ): string {
   return '' === reminder.ends_on || reminder.ends_on === reminder.starts_on ? day( reminder.starts_on ) : `${ day( reminder.starts_on ) } – ${ day( reminder.ends_on ) }`;
 }
 
+/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. */
+function isCompleted( reminder: Reminder ): boolean {
+  return reminder.copies.every( ( copy ) => copy.done );
+}
+
 function siteLabel( site: Site ): string {
   return site.client_name && site.client_name !== site.name ? `${ site.client_name } · ${ site.name }` : site.client_name || site.name;
 }
@@ -103,9 +108,13 @@ export function RemindersScreen() {
   const [ editing, setEditing ] = useState< Reminder | 'new' | null >( null );
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  // A reminder everybody has ticked is finished, and leaves the list unless asked for (2026-10-05).
+  const [ showCompleted, setShowCompleted ] = useState( false );
   // The top bar's client (#402): the list narrows, and a new one starts on it.
   const { siteId, label } = useClientChoice();
-  const shown = reminders.filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
+  const forClient = reminders.filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
+  const completed = forClient.filter( isCompleted ).length;
+  const shown = showCompleted ? forClient : forClient.filter( ( one ) => ! isCompleted( one ) );
 
   async function load() {
     try {
@@ -214,15 +223,34 @@ export function RemindersScreen() {
           <DataView< Reminder >
             title="Reminders"
             titleRight={
-              <button type="button" className="bwx-button" data-testid="bwx-reminders-add" disabled={ busy } onClick={ () => setEditing( 'new' ) }>
-                Add reminder
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="bwx-button"
+                  data-variant="quiet"
+                  data-testid="bwx-reminders-completed"
+                  aria-pressed={ showCompleted }
+                  onClick={ () => setShowCompleted( ! showCompleted ) }
+                >
+                  { showCompleted ? 'Hide completed' : `Show completed${ 0 < completed ? ` (${ completed })` : '' }` }
+                </button>
+                <button type="button" className="bwx-button" data-testid="bwx-reminders-add" disabled={ busy } onClick={ () => setEditing( 'new' ) }>
+                  Add reminder
+                </button>
+              </>
             }
             columns={ columns }
             rows={ shown }
             sortable
-            empty={ <EmptyState icon={ Bell } dense title={ ALL_SITES === siteId ? 'No reminders yet' : `Nothing for ${ label() } here.` } body="Add one for a day or a few, and each person gets their own task to tick off." /> }
-            footer={ `${ shown.length } reminders · each person gets their own task as soon as a reminder is saved` }
+            empty={
+              <EmptyState
+                icon={ Bell }
+                dense
+                title={ 0 < completed ? 'Everything here is done' : ALL_SITES === siteId ? 'No reminders yet' : `Nothing for ${ label() } here.` }
+                body={ 0 < completed ? 'Show completed to see them.' : 'Add one for a day or a few, and each person gets their own task to tick off.' }
+              />
+            }
+            footer={ `${ shown.length } reminders${ showCompleted ? '' : ` · ${ completed } completed hidden` } · each person gets their own task as soon as a reminder is saved` }
             testId="bwx-reminders-table"
           />
         </div>

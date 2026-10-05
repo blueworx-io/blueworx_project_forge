@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { alphabetical } from '../alphabetical.mjs';
 import type { ConversionRequest, IntakeState, Person, Submission, WorkItem } from '../types';
 import { api, messageFor } from '../api';
 import { Aside } from '../kit';
@@ -235,7 +236,7 @@ function Conversion( {
           `/work-items?client_site_id=${ encodeURIComponent( submission.client_site_id ) }`
         );
 
-        setItems( answer.items );
+        setItems( alphabetical( answer.items, 'title' ) );
       } catch {
         /*
          * A candidate list that failed to load is not a reason to refuse the

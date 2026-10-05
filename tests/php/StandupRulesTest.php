@@ -629,6 +629,55 @@ final class StandupRulesTest extends TestCase {
 		}
 	}
 
+	/* ------------------------------------------------ untouched (2026-10-05) */
+
+	/** Thirty-one days before TODAY, as a timestamp. */
+	private const LONG_AGO = 1_770_000_000; // 2026-02-02
+
+	/** Last week, as a timestamp. */
+	private const RECENTLY = 1_772_700_000; // 2026-03-05
+
+	public function test_work_nobody_has_touched_for_thirty_days_is_back_on_the_list(): void {
+		$item  = $this->busy_delivery( 'in-development', array( 'updated_at' => self::LONG_AGO ) );
+		$cards = Rules::for_item( $item, self::TODAY );
+
+		$this->assertSame( array( Rules::STALE ), $this->rules( $cards ) );
+		$this->assertSame( '2026-02-02', $cards[0]['detail']['last_touched'] );
+	}
+
+	public function test_work_touched_recently_stays_off(): void {
+		$this->assertSame( array(), Rules::for_item( $this->busy_delivery( 'in-development', array( 'updated_at' => self::RECENTLY ) ), self::TODAY ) );
+	}
+
+	public function test_thirty_days_exactly_is_not_yet_stale(): void {
+		// 2026-02-08 is thirty days before 2026-03-10; the thirty-first day is the first stale one.
+		$this->assertSame( array(), Rules::for_item( $this->busy_delivery( 'in-development', array( 'updated_at' => strtotime( '2026-02-08 12:00:00 UTC' ) ) ), self::TODAY ) );
+		$this->assertSame( array( Rules::STALE ), $this->rules( Rules::for_item( $this->busy_delivery( 'in-development', array( 'updated_at' => strtotime( '2026-02-07 12:00:00 UTC' ) ) ), self::TODAY ) ) );
+	}
+
+	public function test_work_already_on_the_list_is_not_also_stale(): void {
+		// Something another rule says about it is the thing to act on; "untouched" adds nothing.
+		$rules = $this->rules( Rules::for_item( $this->item( array( 'planned_due' => '2026-03-01', 'updated_at' => self::LONG_AGO ) ), self::TODAY ) );
+
+		$this->assertContains( Rules::OVERDUE, $rules );
+		$this->assertNotContains( Rules::STALE, $rules );
+	}
+
+	public function test_released_work_is_never_stale(): void {
+		$this->assertSame( array(), Rules::for_item( $this->item( array( 'stage' => 'released', 'updated_at' => self::LONG_AGO ) ), self::TODAY ) );
+	}
+
+	public function test_work_whose_age_is_unknown_is_not_stale(): void {
+		$this->assertSame( array(), Rules::for_item( $this->busy_delivery( 'in-development' ), self::TODAY ) );
+		$this->assertSame( array(), Rules::for_item( $this->busy_delivery( 'in-development', array( 'updated_at' => 0 ) ), self::TODAY ) );
+	}
+
+	public function test_an_old_chore_comes_back_too(): void {
+		$chore = array( 'assignees' => array( 'usr_one' ), 'stage' => 'up-next', 'updated_at' => self::LONG_AGO );
+
+		$this->assertSame( array( Rules::STALE ), $this->rules( Rules::for_item( $this->item( $chore ), self::TODAY ) ) );
+	}
+
 	/* ----------------------------------------------------------- the whole list */
 
 	public function test_the_list_is_everything_that_is_true(): void {
@@ -689,8 +738,8 @@ final class StandupRulesTest extends TestCase {
 		}
 	}
 
-	public function test_there_are_twelve_of_them(): void {
-		$this->assertCount( 12, Rules::ALL );
+	public function test_there_are_thirteen_of_them(): void {
+		$this->assertCount( 13, Rules::ALL );
 		$this->assertSame( Rules::ALL, array_unique( Rules::ALL ) );
 		$this->assertFalse( Rules::exists( 'looks-a-bit-quiet' ) );
 	}

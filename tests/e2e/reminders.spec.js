@@ -399,3 +399,42 @@ test('only staff add a reminder, and only for people on its client', async ({ br
   expect(still.title).toBe(`On client ${RUN_ID}`);
   expect(still.copies).toHaveLength(1);
 });
+
+test('a reminder everybody has ticked leaves the list until "Show completed" is pressed', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindDone', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remdone');
+  const finished = `All ticked ${RUN_ID}`;
+  const open = `Still open ${RUN_ID}`;
+
+  for (const title of [finished, open]) {
+    const made = await admin.api.post('/reminders', { client_site_id: site.id, title, assignees: [person.id], starts_on: today });
+    expect(made.status(), await made.text()).toBe(200);
+  }
+  const work = await admin.api.get(`/work-items?client_site_id=${site.id}`);
+  const copy = work.items.find((item) => item.title === finished);
+  const asPerson = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+  const ticked = await asPerson.api.post(`/work-items/${copy.id}/tick`, { done: true });
+  expect(ticked.status(), await ticked.text()).toBe(200);
+
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-reminders').click();
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+
+  const rows = page.getByTestId('bwx-reminders-table').locator('tbody tr');
+  await expect(rows.filter({ hasText: open })).toHaveCount(1, { timeout: 30_000 });
+  await expect(rows.filter({ hasText: finished })).toHaveCount(0);
+
+  await page.getByTestId('bwx-reminders-completed').click();
+  await expect(rows.filter({ hasText: finished })).toHaveCount(1);
+  await expect(rows.filter({ hasText: finished })).toContainText('1 of 1 done');
+  await expect(rows.filter({ hasText: open })).toHaveCount(1);
+
+  await page.getByTestId('bwx-reminders-completed').click();
+  await expect(rows.filter({ hasText: finished })).toHaveCount(0);
+  await page.close();
+});

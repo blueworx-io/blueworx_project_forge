@@ -231,9 +231,9 @@ export function AddDate( { onSaved, onClose }: { onSaved: () => void; onClose: (
             data-testid="bwx-date-kind"
             value={ kind }
             options={ [
-              { value: 'company-day', label: 'Company day' },
               { value: 'birthday', label: 'Birthday' },
               { value: 'campaign', label: 'Campaign' },
+              { value: 'company-day', label: 'Company day' },
               { value: 'other', label: 'Other' },
             ] }
             onChange={ ( event ) => setKind( event.target.value ) }

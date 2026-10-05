@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { alphabetical } from '../alphabetical.mjs';
 import type { IntakeState, QueueFilters, Submission } from '../types';
 import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
@@ -163,7 +164,7 @@ export function QueueScreen() {
     setFilters( next );
   };
 
-  const clients = [ ...new Map( submissions.map( ( one ) => [ one.client_id, one.client_name ] ) ) ];
+  const clients = alphabetical( [ ...new Map( submissions.map( ( one ) => [ one.client_id, one.client_name ] ) ) ], ( pair ) => pair[ 1 ] );
   const open = submissions.find( ( one ) => one.id === openId );
 
   /*
@@ -251,8 +252,8 @@ export function QueueScreen() {
           onChange={ ( event ) => set( 'type', event.target.value ) }
         >
           <option value="">Anything</option>
-          <option value="request">Requests</option>
           <option value="idea">Ideas</option>
+          <option value="request">Requests</option>
           <option value="suggestion">Suggestions</option>
         </select>
 

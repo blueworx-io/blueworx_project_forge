@@ -218,6 +218,17 @@ final class ClientSitesController {
 			$sites[]             = $site;
 		}
 
+		// A to Z by client, then site, so every picker built from this reads
+		// the way a person looks a name up rather than newest first (2026-10-05).
+		usort(
+			$sites,
+			static function ( array $a, array $b ): int {
+				$by_client = strnatcasecmp( (string) $a['client_name'], (string) $b['client_name'] );
+
+				return 0 !== $by_client ? $by_client : strnatcasecmp( (string) $a['name'], (string) $b['name'] );
+			}
+		);
+
 		return rest_ensure_response(
 			array(
 				'ok'    => true,

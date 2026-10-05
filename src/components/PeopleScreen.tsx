@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { alphabetical } from '../alphabetical.mjs';
 import { Users } from 'lucide-react';
 import type { Client, ClientSite, GrantOption, GrantsAnswer, Membership, PersonAnswer, PersonRecord, UnlinkedAccount } from '../types';
 import { api, ApiError, isDenied, messageFor } from '../api';
@@ -445,7 +446,7 @@ function FromAccountForm( { onClose, onSaved }: { onClose: () => void; onSaved: 
 
   useEffect( () => {
     api< { ok: true; accounts: UnlinkedAccount[] } >( '/accounts' )
-      .then( ( answer ) => setAccounts( answer.accounts ) )
+      .then( ( answer ) => setAccounts( alphabetical( answer.accounts, 'display_name' ) ) )
       .catch( ( error: unknown ) => {
         setAccounts( [] );
         setNotice( messageFor( error, 'The accounts could not be read.' ) );
@@ -619,7 +620,7 @@ function LinkForm( {
 
   useEffect( () => {
     api< { ok: true; accounts: UnlinkedAccount[] } >( '/accounts' )
-      .then( ( answer ) => setAccounts( answer.accounts ) )
+      .then( ( answer ) => setAccounts( alphabetical( answer.accounts, 'display_name' ) ) )
       .catch( ( error: unknown ) => {
         setAccounts( [] );
         setNotice( messageFor( error, 'The accounts could not be read.' ) );
@@ -707,7 +708,7 @@ function MembershipForm( {
 
   useEffect( () => {
     api< { ok: true; clients: Client[] } >( '/clients' )
-      .then( ( answer ) => setClients( answer.clients ) )
+      .then( ( answer ) => setClients( alphabetical( answer.clients, 'display_name' ) ) )
       .catch( ( error: unknown ) => {
         setClients( [] );
         setNotice( messageFor( error, 'The clients could not be read.' ) );
@@ -729,7 +730,7 @@ function MembershipForm( {
     api< { ok: true; sites: ClientSite[] } >( `/clients/${ clientId }/sites` )
       .then( ( answer ) => {
         if ( live ) {
-          setSites( answer.sites );
+          setSites( alphabetical( answer.sites, 'name' ) );
         }
       } )
       .catch( () => undefined );

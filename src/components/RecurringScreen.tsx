@@ -33,9 +33,9 @@ const WEEKDAYS = [
 ] as const;
 
 const TYPES = [
-  { id: 'task', label: 'Task' },
   { id: 'bug', label: 'Bug' },
   { id: 'feedback', label: 'Feedback' },
+  { id: 'task', label: 'Task' },
 ];
 
 interface Listing {

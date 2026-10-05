@@ -34,9 +34,9 @@ export const DAYS: Array< [ keyof AvailabilityPattern & `hours_${ string }`, str
 
 export const KINDS: Array< { value: LeaveRecord[ 'kind' ]; label: string } > = [
   { value: 'leave', label: 'Leave' },
+  { value: 'other', label: 'Other' },
   { value: 'public-holiday', label: 'Public holiday' },
   { value: 'training', label: 'Training' },
-  { value: 'other', label: 'Other' },
 ];
 
 function kindLabel( kind: string ): string {

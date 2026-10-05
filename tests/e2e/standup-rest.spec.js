@@ -3,7 +3,7 @@ import * as Forge from './helpers/forge.js';
 
 // #169. The day's list, worked out from what is true rather than stored.
 //
-// The unit tests state the twelve rules and argue with them. What only a real
+// The unit tests state the thirteen rules and argue with them. What only a real
 // WordPress can show is the property the whole board rests on: a card appears
 // because a condition became true, and leaves when that condition resolves —
 // with nothing anywhere to mark it seen. So the spec makes a condition true,
@@ -111,7 +111,7 @@ test('the list says which day it was worked out for', async ({ browser, baseURL 
   // the only way a screen can know that is to be told which day it was given.
   expect(list.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   expect(list.denied).toBe(false);
-  expect(list.rules).toHaveLength(12);
+  expect(list.rules).toHaveLength(13);
 
   // Every card names a rule from that list and the record it is about. A card
   // that named neither would be one nobody could act on.
