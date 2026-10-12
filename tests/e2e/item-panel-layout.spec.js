@@ -44,11 +44,12 @@ test('the footer holds Delete and Save, and history stays folded until opened', 
   await expect(foot.getByTestId('bwx-item-delete')).toBeVisible();
   await expect(foot.getByTestId('bwx-save')).toBeVisible();
 
-  // Scope and Requirements are gone; the two long boxes carry their new names.
+  // Scope and Requirements are gone, and so are Not covered and Completed when (#493, #494).
   await expect(page.locator('#bwx-scope')).toHaveCount(0);
   await expect(page.locator('#bwx-requirements')).toHaveCount(0);
   await expect(page.locator('label[for="bwx-problem"]')).toHaveText('Item description');
-  await expect(page.locator('label[for="bwx-acceptance_criteria"]')).toHaveText('Completed when');
+  await expect(page.locator('#bwx-acceptance_criteria')).toHaveCount(0);
+  await expect(page.locator('#bwx-non_goals')).toHaveCount(0);
 
   const history = page.getByTestId('bwx-history-wrap');
   await expect(history).not.toHaveAttribute('open', /.*/);

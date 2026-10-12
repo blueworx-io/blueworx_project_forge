@@ -77,7 +77,7 @@ test('the approvals belong to the reviewer, and an administrator may stand in', 
   // An administrator answers the technical approval for them.
   const atAudit = await Forge.walkTo(admin.api, atDocs, ['technical-audit'], { seats: crew.seats });
   const after = await admin.api.get(`/work-items/${atAudit.id}`);
-  expect(after.readiness['design-process'].all.map((row) => row.id)).toEqual(['G-TECHNICAL-AUDIT-7', 'G-TECHNICAL-AUDIT-8']);
+  expect(after.readiness['design-process'].all.map((row) => row.id)).toEqual(['G-TECHNICAL-AUDIT-8']);
   expect(audit).not.toContain('G-TECHNICAL-AUDIT-1');
   const stoodIn = await admin.api.post(`/work-items/${atAudit.id}/gate`, { requirement: 'G-TECHNICAL-AUDIT-8', value: 'approved', evidence: '' });
   expect(stoodIn.status(), await stoodIn.text()).toBe(200);

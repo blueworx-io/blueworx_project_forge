@@ -153,9 +153,10 @@ final class WorkGatesTest extends TestCase {
 		$result = Gates::evaluate( 'G-DOCUMENTATION', $item, array() );
 		$ids    = array_column( $result['unmet'], 'id' );
 
-		$this->assertContains( 'G-DOCUMENTATION-3', $ids );
-		$this->assertContains( 'G-DOCUMENTATION-5', $ids );
 		$this->assertContains( 'G-DOCUMENTATION-9', $ids );
+		// Not covered and Completed when are no longer asked (#493, #494).
+		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-3' ) );
+		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-5' ) );
 		// Reference material and dependencies are optional (2026-09-19).
 		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-8' ) );
 		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-6' ) );
@@ -388,11 +389,17 @@ final class WorkGatesTest extends TestCase {
 	 * does.
 	 */
 	public function test_a_recorded_completion_satisfies_a_record_requirement(): void {
-		$records = array( 'G-TECHNICAL-AUDIT-7' => array( 'actor' => 3 ) );
-		$result  = Gates::evaluate( 'G-TECHNICAL-AUDIT', $this->item( array( 'stage' => 'technical-audit' ) ), $records );
+		$records = array( 'G-DESIGN-2' => array( 'actor' => 3 ) );
+		$result  = Gates::evaluate( 'G-DESIGN', $this->item( array( 'stage' => 'design-process', 'designer_id' => 'usr_d' ) ), $records );
 
-		$this->assertNotContains( 'G-TECHNICAL-AUDIT-7', array_column( $result['unmet'], 'id' ) );
-		$this->assertContains( 'G-TECHNICAL-AUDIT-8', array_column( $result['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-DESIGN-2', array_column( $result['unmet'], 'id' ) );
+		$this->assertContains( 'G-DESIGN-3', array_column( $result['unmet'], 'id' ) );
+
+		// Technical Audit asks only for the approval (#495).
+		$audit = Gates::evaluate( 'G-TECHNICAL-AUDIT', $this->item( array( 'stage' => 'technical-audit' ) ), array() );
+
+		$this->assertSame( array( 'G-TECHNICAL-AUDIT-8' ), array_column( $audit['unmet'], 'id' ) );
+		$this->assertNull( Gates::requirement( 'G-TECHNICAL-AUDIT-7' ) );
 		$result = Gates::evaluate( 'G-UP-NEXT', $this->item(), array() );
 		$this->assertContains( 'G-UP-NEXT-4', array_column( $result['unmet'], 'id' ) );
 

@@ -145,19 +145,17 @@ final class Fields {
 	 * @var array<string, string>
 	 */
 	public const REQUIRED_FROM = array(
-		'title'               => 'future-idea',
-		'problem'             => 'future-idea',
-		'commercial_class'    => 'triage',
-		'primary_user_id'     => 'triage',
-		'reviewer_id'         => 'triage',
-		'deliverer_id'        => 'up-next',
-		'non_goals'           => 'documentation-period',
-		'acceptance_criteria' => 'documentation-period',
-		'design_url'          => 'design-process',
-		'planned_start'       => 'up-next',
-		'planned_due'         => 'up-next',
-		'priority'            => 'up-next',
-		'test_description'    => 'in-development',
+		'title'            => 'future-idea',
+		'problem'          => 'future-idea',
+		'commercial_class' => 'triage',
+		'primary_user_id'  => 'triage',
+		'reviewer_id'      => 'triage',
+		'deliverer_id'     => 'up-next',
+		'design_url'       => 'design-process',
+		'planned_start'    => 'up-next',
+		'planned_due'      => 'up-next',
+		'priority'         => 'up-next',
+		'test_description' => 'in-development',
 	);
 
 	/**

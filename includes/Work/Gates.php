@@ -201,21 +201,19 @@ final class Gates {
 			),
 			'G-DOCUMENTATION'   => array(
 				self::field( 'G-DOCUMENTATION-1', 'Item description', 'text', array( 'problem' ), 'Write the item description.' ),
-				self::field( 'G-DOCUMENTATION-3', 'Not covered', 'text', array( 'non_goals' ), 'Write what this deliberately does not cover.' ),
-				self::field( 'G-DOCUMENTATION-5', 'Completed when', 'checklist', array( 'acceptance_criteria' ), 'Write when this counts as completed.' ),
+				// Not covered and Completed when are not asked (#493, #494); ids stay as they were.
 				self::pick( 'G-DOCUMENTATION-7', 'Affected sites and data', self::AFFECTED, 'Choose which sites this affects.' ),
 				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as the reviewer.', self::REV ),
 			),
 
 			/*
 			 * Technical Audit is the reviewer signing off the documentation
-			 * (2026-09-19). The write-in assessments it used to ask for went;
-			 * the risks and the approval stay. Dependencies are connected from
-			 * the task itself, so no stage asks about them until Completed
-			 * needs them done.
+			 * (2026-09-19). The write-in assessments it used to ask for went,
+			 * and the risks check with them (#495); the approval stays.
+			 * Dependencies are connected from the task itself, so no stage
+			 * asks about them until Completed needs them done.
 			 */
 			'G-TECHNICAL-AUDIT' => array(
-				self::done( 'G-TECHNICAL-AUDIT-7', 'Risks', 'Mark the technical risks as listed.' ),
 				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit, as the reviewer.', self::REV ),
 			),
 			'G-DESIGN'          => array(
