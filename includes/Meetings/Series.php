@@ -150,6 +150,33 @@ final class Series {
 	}
 
 	/**
+	 * Deletes an ended series and every trace of it (#488): its meetings and
+	 * their history. Ending comes first, so the hours its meetings held are
+	 * already given back; the hour ledger is left alone, so what the client
+	 * was charged for meetings that happened stays charged.
+	 *
+	 * @param string $id The series.
+	 * @return bool False when it is not there or still running.
+	 */
+	public static function delete( string $id ): bool {
+		global $wpdb;
+
+		$series = self::get( $id );
+
+		if ( null === $series || self::ENDED !== (string) $series['state'] ) {
+			return false;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own tables.
+		$wpdb->delete( Schema::meeting_events_table(), array( 'series_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::meeting_occurrences_table(), array( 'series_id' => $id ), array( '%s' ) );
+		$deleted = $wpdb->delete( Schema::meeting_series_table(), array( 'id' => $id ), array( '%s' ) );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return 1 === $deleted;
+	}
+
+	/**
 	 * One series.
 	 *
 	 * @param string $id The series.
