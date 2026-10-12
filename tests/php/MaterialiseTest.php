@@ -147,4 +147,31 @@ final class MaterialiseTest extends TestCase {
 		self::assertSame( 'usr_c', $copies[0]['deliverer_id'] );
 		self::assertSame( array(), $copies[0]['assignees'] );
 	}
+
+	/*
+	 * #491. Somebody on leave gets no task for that day, and the day is not
+	 * made up later: there is nothing to tick off when they are back.
+	 */
+	public function test_nobody_on_leave_gets_a_copy(): void {
+		$source = array_merge(
+			$this->source(),
+			array(
+				'assignees'  => array( 'usr_x', 'usr_y' ),
+				'hours_each' => 0.5,
+			)
+		);
+		$away   = static fn( string $person, string $date ): bool => 'usr_x' === $person && '2026-09-14' === $date;
+
+		$copies = Materialise::copies( $source, '2026-09-14', $away );
+
+		self::assertCount( 1, $copies );
+		self::assertSame( array( 'usr_y' ), $copies[0]['assignees'] );
+		self::assertCount( 2, Materialise::copies( $source, '2026-09-15', $away ), 'back the next day' );
+	}
+
+	public function test_a_day_everybody_is_away_makes_nothing(): void {
+		$away = static fn(): bool => true;
+
+		self::assertSame( array(), Materialise::copies( $this->source(), '2026-09-14', $away ), 'the primary seat is on leave' );
+	}
 }

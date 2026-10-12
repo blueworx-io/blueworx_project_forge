@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Recurring;
 
+use Blueworx\Forge\Capacity\Unavailability;
 use Blueworx\Forge\Commerce\SureCart\Sync;
 use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Work\Items;
@@ -113,7 +114,11 @@ final class Materialise {
 				// the occurrence remembers the first copy.
 				$first = '';
 
-				foreach ( self::copies( $source, $date ) as $values ) {
+				// #491. A schedule skips anybody on leave. A subscription's
+				// check-in comes once per renewal, so it is never skipped.
+				$away = Sources::SUBSCRIPTION === (string) $source['kind'] ? null : array( self::class, 'on_leave' );
+
+				foreach ( self::copies( $source, $date, $away ) as $values ) {
 					$item = Items::create(
 						(string) $source['client_site_id'],
 						(string) $source['client_id'],
@@ -183,13 +188,28 @@ final class Materialise {
 	 * (2026-09-24), so each does and ticks off their own. A source with nobody
 	 * on it still makes one. Pure, so the shape can be tested.
 	 *
+	 * Nobody on leave that day gets one (#491), and the day is not made up
+	 * later, so there is nothing to tick off when they are back.
+	 *
 	 * @param array<string, mixed> $source The source.
 	 * @param string               $date   YYYY-MM-DD.
+	 * @param callable|null        $away   Whether a person id is away on a
+	 *                                     date; nobody is when null.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function copies( array $source, string $date ): array {
+	public static function copies( array $source, string $date, ?callable $away = null ): array {
 		$values = self::values( $source, $date );
-		$people = (array) $values['assignees'];
+		$people = array_values( array_map( 'strval', (array) $values['assignees'] ) );
+
+		if ( null !== $away && array() !== $people ) {
+			$people = array_values( array_filter( $people, static fn( string $person ): bool => ! $away( $person, $date ) ) );
+
+			if ( array() === $people ) {
+				return array();
+			}
+
+			$values['assignees'] = $people;
+		}
 
 		if ( count( $people ) <= 1 ) {
 			return array( $values );
@@ -199,6 +219,17 @@ final class Materialise {
 			static fn( string $person ): array => array_merge( $values, array( 'assignees' => array( $person ) ) ),
 			array_values( array_map( 'strval', $people ) )
 		);
+	}
+
+	/**
+	 * Whether somebody has time off recorded on a day (#491).
+	 *
+	 * @param string $person The person.
+	 * @param string $date   YYYY-MM-DD.
+	 * @return bool
+	 */
+	public static function on_leave( string $person, string $date ): bool {
+		return array() !== Unavailability::days( $person, $date, $date );
 	}
 
 	/**

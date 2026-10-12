@@ -18,6 +18,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Recurring;
 
+use Blueworx\Forge\Capacity\Unavailability;
+
 /**
  * The projected load of running schedules.
  */
@@ -39,10 +41,23 @@ final class Load {
 			return array();
 		}
 
-		$out = array();
+		$out     = array();
+		$sources = Sources::running();
+		$people  = array();
 
-		foreach ( Sources::running() as $source ) {
-			$out = array_merge( $out, self::allocations( $source, $start, $to ) );
+		foreach ( $sources as $source ) {
+			$people = array_merge( $people, array_map( 'strval', (array) ( $source['assignees'] ?? array() ) ) );
+		}
+
+		// #491. Nobody gets a task on a day they are away, so it costs nothing.
+		$away = array();
+
+		foreach ( Unavailability::for_people( array_values( array_unique( $people ) ), $start, $to ) as $user_id => $records ) {
+			$away[ $user_id ] = Unavailability::expand( $records, $start, $to );
+		}
+
+		foreach ( $sources as $source ) {
+			$out = array_merge( $out, self::allocations( $source, $start, $to, $away ) );
 		}
 
 		return $out;
@@ -52,12 +67,13 @@ final class Load {
 	 * One schedule's commitments over a window. Pure, so the shape can be
 	 * tested.
 	 *
-	 * @param array<string, mixed> $source A hydrated source.
-	 * @param string               $from   YYYY-MM-DD, inclusive.
-	 * @param string               $to     YYYY-MM-DD, inclusive.
+	 * @param array<string, mixed>                 $source A hydrated source.
+	 * @param string                               $from   YYYY-MM-DD, inclusive.
+	 * @param string                               $to     YYYY-MM-DD, inclusive.
+	 * @param array<string, array<string, string>> $away   Per person, the dates they are away.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function allocations( array $source, string $from, string $to ): array {
+	public static function allocations( array $source, string $from, string $to, array $away = array() ): array {
 		$each      = round( (float) ( $source['hours_each'] ?? 0 ), 2 );
 		$assignees = (array) ( $source['assignees'] ?? array() );
 		$since     = max( $from, (string) ( $source['starts_on'] ?? '' ) );
@@ -70,6 +86,10 @@ final class Load {
 
 		foreach ( Rule::due_between( (array) $source['rule'], $since, $to, (string) ( $source['ends_on'] ?? '' ) ) as $date ) {
 			foreach ( $assignees as $who ) {
+				if ( isset( $away[ (string) $who ][ $date ] ) ) {
+					continue;
+				}
+
 				$out[] = array(
 					'item_id'        => (string) $source['id'] . ':' . $date,
 					'title'          => (string) $source['title'],
