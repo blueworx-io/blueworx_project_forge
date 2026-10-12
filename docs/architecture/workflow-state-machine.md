@@ -161,23 +161,22 @@ nothing requires it.
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
 | 1 | Item description | Text, required | No | ANY |
-| 3 | Not covered | Text, required | No | ANY |
-| 5 | Completed when | Text, required | No | ANY |
 | 7 | Affected sites and data | Pick | No | ANY |
 | 9 | Documentation approval | Approval record | No | REV — the item's reviewer or their AUTH-4 substitute; an administrator may act for anyone |
 
 Reference material, links (up to ten) and images (stored in the media
-library) are optional fields of the task, not requirements.
+library) are optional fields of the task, not requirements. Not covered (3)
+and Completed when (5) went on 2026-10-12 (#493, #494); text already written
+in them stays stored but is no longer shown.
 
 ### G-TECHNICAL-AUDIT — Technical Audit → Design Process
 
 The reviewer signing off the documentation. The write-in assessments
 (architecture, data and sync, security and privacy, test approach, estimate
-range) went on 2026-09-19.
+range) went on 2026-09-19, and the Risks check (7) on 2026-10-12 (#495).
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
-| 7 | Risks | Checklist record | No | ANY |
 | 8 | Technical approval | Approval record | No | REV |
 
 ### G-DESIGN — Design Process → Up Next

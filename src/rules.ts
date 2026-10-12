@@ -39,11 +39,11 @@ export const RULES: RuleSection[] = [
         why: 'A bug has to be understood and shown to be real before anyone plans a fix.',
       },
       {
-        what: 'To leave Documentation Period a task needs its description, what it deliberately does not cover, when it counts as completed, which sites it affects, and the reviewer\'s documentation approval.',
-        why: 'Everyone agrees what is being built, and what isn\'t, before the work is planned.',
+        what: 'To leave Documentation Period a task needs its description, which sites it affects, and the reviewer\'s documentation approval.',
+        why: 'Everyone agrees what is being built before the work is planned.',
       },
       {
-        what: 'To leave Technical Audit the risks must be marked as listed and the reviewer must give technical approval.',
+        what: 'To leave Technical Audit the reviewer must give technical approval.',
         why: 'It is the reviewer\'s sign-off that the documented approach is sound.',
       },
       {

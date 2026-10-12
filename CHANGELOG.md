@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.167.0] - 2026-10-12
+
+### Removed
+
+- Tasks no longer have a "Not covered" or "Completed when" box, and neither is needed to leave Documentation Period. Anything already written in them is kept but no longer shown.
+- Technical Audit no longer asks for the risks to be marked as listed; it only needs the reviewer's technical approval.
+
 ## [2.166.0] - 2026-10-12
 
 ### Changed

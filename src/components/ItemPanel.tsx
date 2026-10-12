@@ -57,7 +57,6 @@ interface DependencyRow {
 const EDITABLE = [
   { field: 'title', label: 'Title', lines: 1 },
   { field: 'problem', label: 'Item description', lines: 3 },
-  { field: 'acceptance_criteria', label: 'Completed when', lines: 3 },
 ] as const;
 
 /** How many lines a checklist holds, as the server bounds it. */
@@ -69,7 +68,6 @@ const CHECKLIST_ROWS = 10;
  * material is optional and the design link arrives at Design Process.
  */
 const DEFINITION_BOXES = [
-  { field: 'non_goals', label: 'Not covered', shown: 'documentation-period', lines: 3 },
   { field: 'references', label: 'Reference material', shown: 'documentation-period', lines: 3 },
   { field: 'design_url', label: 'Design link', shown: 'design-process', lines: 1 },
 ] as const;
@@ -173,7 +171,6 @@ const NEEDED_FROM: Record< string, string > = {
   deliverer_id: 'up-next',
   planned_start: 'up-next',
   planned_due: 'up-next',
-  non_goals: 'documentation-period',
 };
 
 /**
