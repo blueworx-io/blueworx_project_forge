@@ -8,6 +8,7 @@ import { RequestPanel } from './RequestPanel';
 import { Screen } from './States';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
+import { workingDaysBetween } from '../waiting.mjs';
 
 /**
  * The studio's request review queue (#131).
@@ -458,12 +459,13 @@ function kindOf( type: string ): string {
  *
  * Shown for everything, answered or not. An answered request counts to its
  * answer and stops there (#419): "answered after two days" stays two days, so
- * the column never makes a quick reply look slow.
+ * the column never makes a quick reply look slow. Working days only (#496):
+ * a weekend never adds to it.
  */
 function waited( one: Submission ): string {
   const answered = 0 < ( one.decided_at ?? 0 );
   const until = answered ? one.decided_at : Date.now() / 1000;
-  const days = Math.floor( ( until - one.created_at ) / 86400 );
+  const days = workingDaysBetween( one.created_at, until );
 
   if ( 0 >= days ) {
     return answered ? 'same day' : 'today';

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.168.0] - 2026-10-12
+
+### Changed
+
+- Waiting time on client requests counts working days only. A request sent on Friday and still open on Monday has waited 1 day, not 3.
+
 ## [2.167.0] - 2026-10-12
 
 ### Removed
