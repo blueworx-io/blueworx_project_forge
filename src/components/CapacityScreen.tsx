@@ -464,8 +464,10 @@ function Drilldown( {
   onClose: () => void;
   onOpenItem: ( itemId: string ) => void;
 } ) {
-  const todo = drilldown.allocations.filter( ( allocation ) => 'completed' !== allocation.status );
+  const todo = drilldown.allocations.filter( ( allocation ) => 'committed' === allocation.status );
   const done = drilldown.allocations.filter( ( allocation ) => 'completed' === allocation.status );
+  // #497. Work the client is reviewing: nobody here is carrying it.
+  const withClient = drilldown.allocations.filter( ( allocation ) => 'with-client' === allocation.status );
 
   /*
    * Only real absences. A day off in somebody's normal week is not time off,
@@ -511,6 +513,9 @@ function Drilldown( {
 
         <WorkList title="Still to do" testId="bwx-capacity-todo" allocations={ todo } onOpenItem={ onOpenItem } />
         <WorkList title="Done" testId="bwx-capacity-done" allocations={ done } onOpenItem={ onOpenItem } />
+        { 0 < withClient.length && (
+          <WorkList title="With the client" testId="bwx-capacity-with-client" allocations={ withClient } onOpenItem={ onOpenItem } />
+        ) }
 
         { 0 < away.length && (
           <div className="bwx-field">

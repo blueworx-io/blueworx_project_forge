@@ -161,10 +161,11 @@ final class Commitments {
 			 * #384. Finished work is counted beside what is still to do rather
 			 * than inside it, so "hours" and "by_day" keep meaning what they
 			 * always meant. Anything without a status — a meeting, a schedule's
-			 * day ahead — is still to do.
+			 * day ahead — is still to do. Work with the client is counted as
+			 * finished work is (#497): nobody in the studio is carrying it.
 			 */
 			$status = (string) ( $allocation['status'] ?? Allocations::TO_DO );
-			$done   = Allocations::DONE === $status;
+			$done   = in_array( $status, array( Allocations::DONE, Allocations::WITH_CLIENT ), true );
 			$series = $done ? 'completed_by_day' : 'by_day';
 			$total  = $done ? 'completed' : 'hours';
 

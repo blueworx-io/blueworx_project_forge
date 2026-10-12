@@ -260,4 +260,36 @@ final class CapacityAllocationsTest extends TestCase {
 
 		$this->assertSame( array( '2026-09-08', '2026-09-09' ), array_keys( $spread ) );
 	}
+
+	/*
+	 * #497. While the client reviews it, the studio is not carrying the work:
+	 * the doer's hours are time used, and delivery is still to do.
+	 */
+	public function test_work_with_the_client_is_not_carried_by_the_studio(): void {
+		$allocations = Allocations::from_item(
+			$this->item(
+				array(
+					'stage'          => 'in-review',
+					'reviewer_id'    => 'client',
+					'hours_review'   => 0.0,
+					'deliverer_id'   => 'usr_c',
+					'hours_delivery' => 1.0,
+				)
+			)
+		);
+
+		$this->assertSame( array( 'primary' => Allocations::WITH_CLIENT, 'delivery' => Allocations::TO_DO ), array_column( $allocations, 'status', 'role' ) );
+	}
+
+	public function test_a_studio_review_is_still_carried(): void {
+		$allocations = Allocations::from_item( $this->item( array( 'stage' => 'in-review' ) ) );
+
+		$this->assertSame( array( Allocations::TO_DO ), array_values( array_unique( array_column( $allocations, 'status' ) ) ) );
+	}
+
+	public function test_work_sent_back_by_the_client_is_carried_again(): void {
+		$allocations = Allocations::from_item( $this->item( array( 'stage' => 'in-development', 'reviewer_id' => 'client', 'hours_review' => 0.0 ) ) );
+
+		$this->assertSame( array( Allocations::TO_DO ), array_values( array_unique( array_column( $allocations, 'status' ) ) ) );
+	}
 }

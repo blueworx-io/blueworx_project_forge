@@ -251,7 +251,7 @@ export interface CapacityAllocation {
   from: string;
   to: string;
   /** Still to do, or finished (#384). */
-  status: 'committed' | 'completed';
+  status: 'committed' | 'completed' | 'with-client';
   /** The hours on each day of the window asked about. */
   by_day: Record< string, number >;
 }
