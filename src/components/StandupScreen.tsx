@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { SECTIONS, cardDetail, cardTitle, cardsFor, inOrder, keyOf, ruleTone, ruleWord, toSettleFor } from '../standup';
+import { SECTIONS, cardDetail, cardTitle, cardsFor, inOrder, keyOf, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
 import { PRIORITY_TONE } from '../priority';
 import { Tag } from '../kit';
 import { waitingOn } from '../turn';
@@ -508,6 +508,10 @@ function Card( {
 } ) {
   const detail = cardDetail( card );
   const isWork = 'work_item' === card.subject_type;
+  // #490. Whose it is, by the name the Client picker uses; a dash for no one client.
+  const { label } = useClientChoice();
+  const site = siteOf( card );
+  const client = '' === site ? '' : label( site );
   const priority = String( card.detail?.priority ?? '' );
   // #420. Who it waits on, for our own people: the names only come to them.
   const names = card.detail?.seat_names as Record< string, string > | undefined;
@@ -541,6 +545,10 @@ function Card( {
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
+
+      <span className="bwx-standup-client" data-testid="bwx-standup-client">
+        { '' === client ? '—' : client }
+      </span>
 
       { /* #483. Its priority, in a column of its own beside who it waits on; only work has one. */ }
       { isWork && (
