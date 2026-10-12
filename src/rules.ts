@@ -461,6 +461,10 @@ export const RULES: RuleSection[] = [
         why: 'Answering a request is our job, not the client answering themselves.',
       },
       {
+        what: 'A request\'s waiting time counts working days only, up to its answer: weekends never add to it, and one sent at the weekend starts counting on Monday.',
+        why: 'A request sent on Friday and answered on Monday was answered the next working day.',
+      },
+      {
         what: 'Turning a request into work makes a new task on the same client, or links it to an existing task there, starting at Future Idea or Triage; no parent task is asked for.',
         why: 'Work always lands with the client who asked, and doesn\'t need a bigger project around it.',
       },
