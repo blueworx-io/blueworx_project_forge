@@ -293,6 +293,43 @@ test('ending the series releases what its meetings were holding and stops genera
   expect((await hourLedger(api, site.id)).balance).toBe(GRANTED - 2);
 });
 
+// #488. Once ended, an administrator can delete a series: every meeting it
+// had goes, and only the hours already charged stay.
+test('a running series cannot be deleted, and only an administrator can delete', async ({ browser, baseURL }) => {
+  const running = (await (await api.post(`/client-sites/${site.id}/meetings/series`, weekly(host, first, { title: `Still running ${RUN_ID}` }))).json()).series
+    .find((one) => one.title === `Still running ${RUN_ID}`);
+
+  const refused = await api.del(`/client-sites/${site.id}/meetings/series/${running.id}`);
+  expect(refused.status()).toBe(400);
+  expect((await refused.json()).code).toBe('bwx_forge_meeting_not_ended');
+
+  const other = await signedIn(browser, baseURL, host.login, PASSWORD);
+  const staff = await other.api.del(`/client-sites/${site.id}/meetings/series/${series.id}`);
+  expect(staff.status()).toBe(403);
+  await other.context.close();
+
+  const ended = await api.post(`/client-sites/${site.id}/meetings/series/${running.id}/end`, { record_version: running.record_version });
+  expect(ended.status(), await ended.text()).toBe(200);
+  expect((await api.del(`/client-sites/${site.id}/meetings/series/${running.id}`)).status()).toBe(200);
+});
+
+test('deleting an ended series removes every meeting it had, and the hours charged stay charged', async () => {
+  const wrote = await api.del(`/client-sites/${site.id}/meetings/series/${series.id}`);
+  expect(wrote.status(), await wrote.text()).toBe(200);
+
+  const answer = await wrote.json();
+  expect(answer.series.find((one) => one.id === series.id)).toBeUndefined();
+  expect(answer.meetings.filter((one) => one.series_id === series.id)).toHaveLength(0);
+
+  const everywhere = await api.get('/meetings');
+  expect(JSON.stringify(everywhere)).not.toContain(series.id);
+
+  // The meeting that was held is still paid for.
+  expect((await hourLedger(api, site.id)).balance).toBe(GRANTED - 2);
+
+  expect((await api.del(`/client-sites/${site.id}/meetings/series/${series.id}`)).status(), 'and it is gone').toBe(404);
+});
+
 test('a replayed add under one retry key makes one series, not two', async () => {
   const replayed = (await makeSite(api, 'Replayed', `${RUN_ID}-r`)).site;
   const headers = { ...api.headers, 'Idempotency-Key': `meetings-${RUN_ID}` };

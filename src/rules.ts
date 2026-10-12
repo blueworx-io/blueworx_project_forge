@@ -319,6 +319,10 @@ export const RULES: RuleSection[] = [
         why: 'Coming meetings should match the arrangement without undoing changes somebody made by hand.',
       },
       {
+        what: 'Once a standing meeting has been ended, an administrator can delete it after a warning; every meeting it had, past and future, goes from capacity, calendars, the standup and reports, but hours the client was charged for held meetings stay charged.',
+        why: 'A meeting set up by mistake shouldn\'t linger, but what a client paid for can\'t be undone.',
+      },
+      {
         what: 'The daily standup is worked out fresh from what is true right now, and nothing is flagged or cleared by hand.',
         why: 'An item leaves the standup the moment its problem is fixed, and can\'t be hidden without fixing it.',
       },

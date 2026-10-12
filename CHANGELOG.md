@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.170.0] - 2026-10-12
+
+### Added
+
+- Administrators can delete a standing meeting once it has been ended. A warning explains what goes first. Every past and future meeting in it is removed, but hours the client was charged for held meetings stay charged.
+
 ## [2.169.0] - 2026-10-12
 
 ### Changed

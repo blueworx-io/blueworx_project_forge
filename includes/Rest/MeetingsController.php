@@ -88,6 +88,7 @@ final class MeetingsController {
 			array( 'POST', '/series', 'add_series' ),
 			array( 'POST', '/series/(?P<series_id>[A-Za-z0-9_\-]+)', 'edit_series' ),
 			array( 'POST', '/series/(?P<series_id>[A-Za-z0-9_\-]+)/end', 'end_series' ),
+			array( 'DELETE', '/series/(?P<series_id>[A-Za-z0-9_\-]+)', 'delete_series' ),
 			array( 'POST', $slot . '/move', 'move' ),
 			array( 'POST', $slot . '/settle', 'settle' ),
 		);
@@ -392,6 +393,39 @@ final class MeetingsController {
 		}
 
 		if ( ! Series::end( (string) $series['id'], (int) $sent ) ) {
+			return self::refused();
+		}
+
+		return rest_ensure_response( self::answer( $site, self::past_page( $request ) ) );
+	}
+
+	/**
+	 * Deletes an ended series and every meeting it had (#488).
+	 *
+	 * Only once ended, so its held hours are already given back. Hours charged
+	 * for meetings that happened stay charged.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function delete_series( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$series = self::series_on_site( (string) $request['series_id'], (string) $site['id'] );
+
+		if ( null === $series ) {
+			return self::unknown_series();
+		}
+
+		if ( Series::ENDED !== (string) $series['state'] ) {
+			return Errors::rest( 'meeting_not_ended', __( 'End the meeting before deleting it.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( ! Series::delete( (string) $series['id'] ) ) {
 			return self::refused();
 		}
 

@@ -127,7 +127,7 @@ function byWeek( meetings: Meeting[] ): Array< { monday: string; rows: MeetingRo
   return weeks.sort( ( a, b ) => a.monday.localeCompare( b.monday ) );
 }
 
-type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | null;
+type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | { kind: 'delete'; series: MeetingSeries } | null;
 
 export function MeetingsScreen() {
   // The client is the top bar's (#402): All is every client's list, one site is that site.
@@ -364,7 +364,7 @@ export function MeetingsScreen() {
               ) : (
                 <div className="bwx-meetings-cards">
                   { answer.series.map( ( one ) => (
-                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } editable={ admin } onEdit={ () => setOpened( { kind: 'edit', series: one } ) } onEnd={ () => void end( one ) } />
+                    <SeriesCard key={ one.id } series={ one } people={ answer.people } busy={ busy } editable={ admin } onEdit={ () => setOpened( { kind: 'edit', series: one } ) } onEnd={ () => void end( one ) } onDelete={ () => setOpened( { kind: 'delete', series: one } ) } />
                   ) ) }
                 </div>
               ) }
@@ -431,6 +431,7 @@ export function MeetingsScreen() {
           { opened && 'edit' === opened.kind && <SeriesForm siteId={ siteId } people={ answer.people } series={ opened.series } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'move' === opened.kind && <MoveForm siteId={ siteId } meeting={ opened.meeting } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'settle' === opened.kind && <SettleForm siteId={ siteId } meeting={ opened.meeting } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
+          { opened && 'delete' === opened.kind && <DeleteSeries siteId={ siteId } series={ opened.series } onClose={ () => setOpened( null ) } onDeleted={ landed } /> }
         </>
       ) }
     </div>
@@ -479,7 +480,7 @@ function AllClientsList( { answer, onPick }: { answer: AllClientsMeetingsAnswer;
 }
 
 /** One standing meeting: what, how often, when, who hosts, what each costs, and whether it still runs. */
-function SeriesCard( { series, people, busy, editable, onEdit, onEnd }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; editable: boolean; onEdit: () => void; onEnd: () => void } ) {
+function SeriesCard( { series, people, busy, editable, onEdit, onEnd, onDelete }: { series: MeetingSeries; people: MeetingsAnswer[ 'people' ]; busy: boolean; editable: boolean; onEdit: () => void; onEnd: () => void; onDelete: () => void } ) {
   const running = 'active' === series.state;
   const span = '' === series.ends_on ? `from ${ series.starts_on }` : `${ series.starts_on } to ${ series.ends_on }`;
   const others = ( series.attendee_ids ?? [] ).map( ( id ) => people.find( ( one ) => one.id === id )?.display_name ?? id );
@@ -498,6 +499,14 @@ function SeriesCard( { series, people, busy, editable, onEdit, onEnd }: { series
               </Button>
               <Button size="sm" variant="ghost" data-testid="bwx-meetings-series-end" aria-label={ `End ${ series.title }` } disabled={ busy } onClick={ onEnd }>
                 End
+              </Button>
+            </span>
+          ) }
+          { /* #488. Once ended, it can be deleted for good. */ }
+          { ! running && editable && (
+            <span className="bwx-moves">
+              <Button size="sm" variant="ghost" data-testid="bwx-meetings-series-delete" aria-label={ `Delete ${ series.title }` } disabled={ busy } onClick={ onDelete }>
+                Delete
               </Button>
             </span>
           ) }
@@ -669,6 +678,61 @@ function SeriesForm( { siteId, people, series, onClose, onSaved }: { siteId: str
 }
 
 /** Moving one meeting to another day. Only that meeting changes; the rule is untouched. */
+/**
+ * Deleting an ended series, after saying what goes (#488): every meeting it
+ * had, past and future, and their history. Hours charged stay charged.
+ */
+function DeleteSeries( { siteId, series, onClose, onDeleted }: { siteId: string; series: MeetingSeries; onClose: () => void; onDeleted: Saved } ) {
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+
+  async function remove() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      onDeleted(
+        await api< MeetingsAnswer >( `/client-sites/${ siteId }/meetings/series/${ series.id }`, { method: 'DELETE' } ),
+        `${ series.title } deleted, with every meeting it had.`
+      );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That meeting could not be deleted.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Modal
+      title={ `Delete ${ series.title }?` }
+      description="This can't be undone."
+      testId="bwx-meetings-delete-form"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button variant="danger" data-testid="bwx-meetings-delete-confirm" disabled={ busy } onClick={ () => void remove() }>
+            Delete for good
+          </Button>
+          <Button variant="ghost" data-testid="bwx-meetings-delete-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-meetings-delete-notice" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <p>
+        Every meeting in this series goes, past and future, along with its history. It will no longer appear in capacity, calendars, the
+        standup or reports. Hours the client was charged for meetings that were held stay charged.
+      </p>
+    </Modal>
+  );
+}
+
 function MoveForm( { siteId, meeting, onClose, onSaved }: { siteId: string; meeting: Meeting; onClose: () => void; onSaved: Saved } ) {
   const [ on, setOn ] = useState( meeting.on );
   const [ notice, setNotice ] = useState( '' );

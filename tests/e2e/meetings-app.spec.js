@@ -295,3 +295,26 @@ test('picking All Clients lists standing meetings across every site, with no wee
   await expect(page.getByTestId('bwx-client-choice')).toHaveValue(another.site.id, { timeout: 30_000 });
   await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 30_000 });
 });
+
+// #488. An ended series can be deleted, after a warning that says what goes.
+test('an ended series can be deleted, after a warning, and is gone', async ({ page }) => {
+  await onSite(page);
+
+  const card = page.getByTestId('bwx-meetings-series');
+  await expect(card).toHaveAttribute('data-state', 'ended');
+
+  await card.getByTestId('bwx-meetings-series-delete').click();
+  const dialog = page.getByTestId('bwx-meetings-delete-form');
+  await expect(dialog).toContainText('past and future');
+  await expect(dialog).toContainText('stay charged');
+
+  // Cancelling keeps it.
+  await dialog.getByTestId('bwx-meetings-delete-cancel').click();
+  await expect(card).toHaveCount(1);
+
+  await card.getByTestId('bwx-meetings-series-delete').click();
+  await page.getByTestId('bwx-meetings-delete-confirm').click();
+
+  await expect(page.getByTestId('bwx-meetings-notice')).toContainText('deleted');
+  await expect(page.getByTestId('bwx-meetings-series')).toHaveCount(0);
+});
