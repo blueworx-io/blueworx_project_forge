@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.165.0] - 2026-10-12
+
+### Changed
+
+- Unfinished work on days that have passed, including overdue work, now counts against today's capacity for everyone on it.
+
 ## [2.164.0] - 2026-10-12
 
 ### Added

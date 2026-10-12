@@ -16,8 +16,8 @@ const PERSON = `overbooked${STAMP}`;
 // A fixed week in the future, with hours on all seven days, so the arithmetic
 // is the same whichever day the suite runs on. One working week at 8 hours a
 // day is 56 hours available across the seven; the job asks for 90.
-const FROM = '2026-10-05';
-const TO = '2026-10-09';
+const FROM = '2027-10-04';
+const TO = '2027-10-08';
 const TOO_MANY_HOURS = 90;
 
 test('work with no room behind it is refused by name, and goes ahead for a reason', async ({

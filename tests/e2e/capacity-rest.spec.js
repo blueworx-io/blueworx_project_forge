@@ -13,8 +13,19 @@ const PERSON = `capacity${STAMP}`;
 
 // A fixed window in the future, and hours set on all seven days, so the
 // arithmetic is the same whichever day the suite happens to run.
-const FROM = '2026-09-07';
-const TO = '2026-09-11';
+const FROM = '2027-09-06';
+const TO = '2027-09-10';
+
+// A date counted from today, as this machine's clock reads it: work still to
+// do on a past day lands on today (#487), and finished work counts only up to
+// today, so those specs need the real date rather than a fixed one.
+function dateFrom(offset = 0) {
+  const at = new Date(Date.now() + offset * 86400000);
+  const pad = (value) => String(value).padStart(2, '0');
+
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+}
+const TODAY = dateFrom();
 
 test('a person on two clients shows one combined commitment', async ({ browser, baseURL }) => {
   // Longer than the suite default, and not because anything here is slow: the
@@ -122,15 +133,15 @@ test('finished work keeps its hours on its day', async ({ browser, baseURL }) =>
         primary_user_id: person.id,
         reviewer_id: reviewer.id,
         deliverer_id: deliverer.id,
-        planned_start: FROM,
-        planned_due: FROM,
+        planned_start: TODAY,
+        planned_due: TODAY,
         hours_primary: 3,
       },
     }
   );
 
   const dayOf = async () => {
-    const grid = await api.get(`/capacity?from=${FROM}&to=${FROM}&by=days`);
+    const grid = await api.get(`/capacity?from=${TODAY}&to=${TODAY}&by=days`);
 
     return grid.people.find((entry) => entry.user_id === person.id).periods[0];
   };
@@ -154,12 +165,12 @@ test('finished work keeps its hours on its day', async ({ browser, baseURL }) =>
   expect(after.committed + after.completed, 'the day total is unchanged').toBe(before.committed + before.completed);
   expect(after.remaining).toBe(before.remaining);
 
-  const drill = await api.get(`/capacity/person/${person.id}?from=${FROM}&to=${FROM}`);
+  const drill = await api.get(`/capacity/person/${person.id}?from=${TODAY}&to=${TODAY}`);
   const mine = drill.allocations.filter((entry) => entry.item_id === item.id);
 
   expect(mine).toHaveLength(1);
   expect(mine[0].status).toBe('completed');
-  expect(drill.completed_by_day[FROM]).toBe(3);
+  expect(drill.completed_by_day[TODAY]).toBe(3);
   expect(drill.position.completed).toBe(3);
 
   await context.close();
@@ -186,4 +197,48 @@ test('a signed-out caller gets nothing', async ({ request }) => {
   const response = await request.get(`/wp-json/blueworx-forge/v1/capacity?from=${FROM}&to=${TO}`);
 
   expect([401, 403]).toContain(response.status());
+});
+
+// #487. Unfinished work on days that have gone is still to do, so its hours
+// land on today — even when it was due before the window being read.
+test('overdue work counts against today', async ({ browser, baseURL }) => {
+  test.setTimeout(240_000);
+
+
+  const { context, api } = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await makeSite(api, 'Capacity late', RUN_ID);
+
+  await onSupport({ context, api }, where.site.id, 400);
+
+  const person = await makePerson(api, where.client.id, 'staff', `late${STAMP}`);
+  const reviewer = await makePerson(api, where.client.id, 'staff', `latereviewer${STAMP}`);
+  const deliverer = await makePerson(api, where.client.id, 'staff', `latedeliverer${STAMP}`);
+
+  await setHours(api, person.id, 8);
+
+  const created = await makeItem(api, where.site.id, { title: `Late work ${RUN_ID}` });
+  expect(created.status(), await created.text()).toBe(200);
+
+  await walkTo(
+    api,
+    (await created.json()).item,
+    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    {
+      seats: {
+        primary_user_id: person.id,
+        reviewer_id: reviewer.id,
+        deliverer_id: deliverer.id,
+        planned_start: dateFrom(-4),
+        planned_due: dateFrom(-3),
+        hours_primary: 5,
+      },
+    }
+  );
+
+  const grid = await api.get(`/capacity?from=${TODAY}&to=${TODAY}&by=days`);
+  const day = grid.people.find((entry) => entry.user_id === person.id).periods[0];
+
+  expect(day.committed, 'all five hours, on today').toBe(5);
+
+  await context.close();
 });
