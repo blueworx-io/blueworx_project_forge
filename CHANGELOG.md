@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.169.0] - 2026-10-12
+
+### Changed
+
+- While the client is reviewing a task, it no longer counts against the staff member's capacity. Time already spent stays as used, delivery stays booked, and the hours come back if the client sends it back. Capacity lists it as "With the client".
+
 ## [2.168.0] - 2026-10-12
 
 ### Changed

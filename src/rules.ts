@@ -369,6 +369,10 @@ export const RULES: RuleSection[] = [
         why: 'A day that was used shouldn\'t look free, but time given back should.',
       },
       {
+        what: 'While the client is reviewing a task, its hours count as used up to today, like finished work, and nobody carries the rest; delivery hours stay booked, and if the client sends it back the hours count again.',
+        why: 'The work is in the client\'s hands, so nobody here should look busy with it.',
+      },
+      {
         what: 'Standing meetings and the days ahead of recurring tasks count too, and capacity always adds up every client, whichever client is picked.',
         why: 'A person can\'t look free for one client while they are busy for another.',
       },

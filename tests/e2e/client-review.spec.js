@@ -400,3 +400,31 @@ test('sent back before Up Next, the client stays the reviewer and the task still
   const renamed = await edit(now.item, { title: `Back to design, renamed ${RUN_ID}`, reviewer_id: 'client' });
   expect(renamed.status(), await renamed.text()).toBe(200);
 });
+
+// #497. While the client reviews it, nobody in the studio is carrying the
+// work; sent back, it is theirs again.
+test('work with the client frees the doer\'s time, and sending it back returns it', async () => {
+  const item = await inClientReview('Off our plate');
+
+  const mine = async () => {
+    const drill = await admin.api.get(`/capacity/person/${primary.id}?from=${FROM}&to=${TO}`);
+
+    return drill.allocations.find((entry) => entry.item_id === item.id);
+  };
+  const ahead = (entry) => Object.values(entry.by_day).reduce((sum, hours) => sum + hours, 0);
+
+  const waiting = await mine();
+  expect(waiting.status).toBe('with-client');
+  expect(ahead(waiting), 'no hours on the days ahead').toBe(0);
+
+  const back = await admin.api.post(`/work-items/${item.id}/client-review`, {
+    decision: 'send_back',
+    note: `Not quite ${RUN_ID}`,
+    record_version: item.record_version,
+  });
+  expect(back.status(), await back.text()).toBe(200);
+
+  const returned = await mine();
+  expect(returned.status).toBe('committed');
+  expect(ahead(returned), 'all four hours are theirs again').toBe(4);
+});

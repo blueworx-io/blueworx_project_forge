@@ -233,4 +233,20 @@ final class CapacityCommitmentsTest extends TestCase {
 
 		$this->assertSame( array( '2026-09-07' => 2.0 ), $gathered['usr_a']['by_day'] );
 	}
+
+	/*
+	 * #497. Work with the client keeps the days that have been as used, like
+	 * finished work, and leaves the days ahead free.
+	 */
+	public function test_work_with_the_client_is_time_used_up_to_today(): void {
+		$waiting           = $this->allocation( 'usr_a', 6.0, 'cli_1' );
+		$waiting['to']     = '2026-09-09';
+		$waiting['status'] = 'with-client';
+
+		$gathered = Commitments::gather( array( $waiting ), array( 'usr_a' => $this->three_days() ), '2026-09-08' );
+
+		$this->assertSame( array(), $gathered['usr_a']['by_day'], 'nothing still to do' );
+		$this->assertSame( array( '2026-09-07' => 2.0, '2026-09-08' => 2.0 ), $gathered['usr_a']['completed_by_day'] );
+		$this->assertSame( 'with-client', $gathered['usr_a']['allocations'][0]['status'] );
+	}
 }

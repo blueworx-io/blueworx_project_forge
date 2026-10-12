@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Capacity;
 
+use Blueworx\Forge\Work\ClientReviewer;
 use Blueworx\Forge\Work\Stages;
 
 /**
@@ -86,6 +87,12 @@ final class Allocations {
 	public const DONE = 'completed';
 
 	/**
+	 * An allocation's status: the client is reviewing it (#497). Its time so
+	 * far is used, as with finished work, and nobody is carrying the rest.
+	 */
+	public const WITH_CLIENT = 'with-client';
+
+	/**
 	 * Each seat: the hours column, whose seat it is, and who may be covering.
 	 *
 	 * @var array<string, array<int, string>>
@@ -139,7 +146,22 @@ final class Allocations {
 			return array();
 		}
 
-		return self::seats_of( $item );
+		$allocations = self::seats_of( $item );
+
+		/*
+		 * #497. While the client reviews it, nobody in the studio is carrying
+		 * the work: its time so far is used, like finished work. Delivering it
+		 * after approval is still to do.
+		 */
+		if ( 'in-review' === (string) ( $item['stage'] ?? '' ) && ClientReviewer::is( $item ) ) {
+			foreach ( $allocations as $index => $allocation ) {
+				if ( self::DELIVERY !== $allocation['role'] ) {
+					$allocations[ $index ]['status'] = self::WITH_CLIENT;
+				}
+			}
+		}
+
+		return $allocations;
 	}
 
 	/**
