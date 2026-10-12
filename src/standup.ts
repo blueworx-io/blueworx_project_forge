@@ -156,7 +156,7 @@ export function cardTitle( card: StandupCard ): string {
 }
 
 /** The site a card is about, or '' when it belongs to no one client (#402). */
-function siteOf( card: StandupCard ): string {
+export function siteOf( card: StandupCard ): string {
   const detail = card.detail ?? {};
 
   return String( detail.client_site_id ?? ( 'client_site' === card.subject_type ? detail.about ?? '' : '' ) );

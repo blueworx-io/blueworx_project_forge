@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.164.0] - 2026-10-12
+
+### Added
+
+- The daily standup shows each row's client, in a new column before Priority.
+
 ## [2.163.0] - 2026-10-05
 
 ### Changed

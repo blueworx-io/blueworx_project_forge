@@ -3135,11 +3135,11 @@ td[ data-band='over' ] {
 .bwx-standup-card {
   display: grid;
   /* Who it waits on has a column of its own (#420), so the names line up. */
-  grid-template-columns: 150px minmax( 0, 1fr ) 90px 200px auto;
+  grid-template-columns: 150px minmax( 0, 1fr ) 160px 90px 200px auto;
   grid-template-areas:
-    'head title priority waiting actions'
-    'head detail priority waiting actions'
-    'head gate gate gate actions';
+    'head title client priority waiting actions'
+    'head detail client priority waiting actions'
+    'head gate gate gate gate actions';
   column-gap: 16px;
   row-gap: 2px;
   align-items: start;
@@ -3165,6 +3165,12 @@ td[ data-band='over' ] {
 /* A tag stays on one line (Luke, 2026-09-26). */
 .bwx-standup-card-head .bwx-chip {
   white-space: nowrap;
+}
+.bwx-standup-client {
+  grid-area: client;
+  font-size: var( --text-small );
+  color: var( --ink-500 );
+  overflow-wrap: anywhere;
 }
 .bwx-standup-priority {
   grid-area: priority;
@@ -3228,6 +3234,7 @@ td[ data-band='over' ] {
       'head'
       'title'
       'detail'
+      'client'
       'priority'
       'waiting'
       'gate'
