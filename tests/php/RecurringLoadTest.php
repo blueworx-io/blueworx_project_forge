@@ -61,4 +61,16 @@ final class RecurringLoadTest extends TestCase {
 
 		self::assertSame( array( '2026-09-23', '2026-09-24', '2026-09-25' ), array_values( array_unique( array_column( $out, 'from' ) ) ) );
 	}
+
+	// #491. No task is made on a day somebody is on leave, so it costs them nothing.
+	public function test_a_day_on_leave_costs_nothing(): void {
+		$away = array( 'usr_a' => array( '2026-09-22' => 'leave' ) );
+		$out  = Load::allocations( $this->source(), '2026-09-21', '2026-09-23', $away );
+
+		self::assertCount( 5, $out );
+		self::assertSame(
+			array( '2026-09-21', '2026-09-23' ),
+			array_values( array_column( array_filter( $out, static fn( array $one ): bool => 'usr_a' === $one['user_id'] ), 'from' ) )
+		);
+	}
 }

@@ -257,6 +257,10 @@ export const RULES: RuleSection[] = [
         why: 'A chore is due because of the date, not because anyone planned it.',
       },
       {
+        what: 'Nobody gets a copy on a day they have time off recorded, and missed days are not made up when they return; a subscription\'s renewal check-in is still made.',
+        why: 'Nobody should come back from leave to a pile of chores to tick off, but a renewal only comes once.',
+      },
+      {
         what: 'A recurring task has no checklist, reviewer or deliverer: each person\'s one tick finishes their own copy and sends it straight to Released.',
         why: 'A chore has nothing to review or deliver; doing it is the whole job.',
       },
