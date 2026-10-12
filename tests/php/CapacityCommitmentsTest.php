@@ -160,4 +160,77 @@ final class CapacityCommitmentsTest extends TestCase {
 		$this->assertArrayNotHasKey( 'usr_z', $gathered );
 		$this->assertSame( 0.0, $gathered['usr_a']['hours'] );
 	}
+
+	/**
+	 * Three working days, 7 to 9 September.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function three_days(): array {
+		$days = $this->days();
+
+		$days[] = array(
+			'date'       => '2026-09-09',
+			'hours'      => 8.0,
+			'base_hours' => 8.0,
+			'reason'     => '',
+		);
+
+		return $days;
+	}
+
+	/*
+	 * #487. Work still to do on days that have gone is still to do, so its
+	 * hours move onto today rather than staying on the past.
+	 */
+	public function test_unfinished_hours_on_past_days_move_to_today(): void {
+		$open           = $this->allocation( 'usr_a', 6.0, 'cli_1' );
+		$open['to']     = '2026-09-09';
+		$open['status'] = 'committed';
+
+		$gathered = Commitments::gather( array( $open ), array( 'usr_a' => $this->three_days() ), '2026-09-08' );
+
+		$this->assertSame( array( '2026-09-08' => 4.0, '2026-09-09' => 2.0 ), $gathered['usr_a']['by_day'] );
+		$this->assertSame( 6.0, $gathered['usr_a']['hours'], 'nothing is lost' );
+	}
+
+	public function test_overdue_work_lands_wholly_on_today(): void {
+		$open           = $this->allocation( 'usr_a', 6.0, 'cli_1' );
+		$open['status'] = 'committed';
+
+		$gathered = Commitments::gather( array( $open ), array( 'usr_a' => $this->three_days() ), '2026-09-09' );
+
+		$this->assertSame( array( '2026-09-09' => 6.0 ), $gathered['usr_a']['by_day'] );
+		$this->assertSame( array( '2026-09-09' => 6.0 ), $gathered['usr_a']['allocations'][0]['by_day'] );
+	}
+
+	public function test_work_due_before_the_window_still_lands_on_today(): void {
+		$open           = $this->allocation( 'usr_a', 6.0, 'cli_1' );
+		$open['from']   = '2026-09-01';
+		$open['to']     = '2026-09-02';
+		$open['status'] = 'committed';
+
+		$gathered = Commitments::gather( array( $open ), array( 'usr_a' => $this->three_days() ), '2026-09-08' );
+
+		$this->assertSame( array( '2026-09-08' => 6.0 ), $gathered['usr_a']['by_day'] );
+	}
+
+	public function test_a_window_already_past_loses_the_unfinished_hours_to_today(): void {
+		$open           = $this->allocation( 'usr_a', 6.0, 'cli_1' );
+		$open['status'] = 'committed';
+
+		$gathered = Commitments::gather( array( $open ), array( 'usr_a' => $this->days() ), '2026-09-20' );
+
+		$this->assertSame( array(), $gathered['usr_a']['by_day'], 'they sit on today, outside this window' );
+		$this->assertSame( 0.0, $gathered['usr_a']['hours'] );
+	}
+
+	public function test_a_past_meeting_stays_on_its_day(): void {
+		$meeting = $this->allocation( 'usr_a', 2.0, 'cli_1' );
+		$meeting['to'] = '2026-09-07';
+
+		$gathered = Commitments::gather( array( $meeting ), array( 'usr_a' => $this->three_days() ), '2026-09-09' );
+
+		$this->assertSame( array( '2026-09-07' => 2.0 ), $gathered['usr_a']['by_day'] );
+	}
 }

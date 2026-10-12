@@ -357,6 +357,10 @@ export const RULES: RuleSection[] = [
         why: 'The hours still exist and somebody still owes them, so they are never allowed to vanish.',
       },
       {
+        what: 'Unfinished work\'s hours on days that have passed, including all of an overdue task\'s, move onto today for everyone on it, and count as still to do until the task is finished.',
+        why: 'The work still has to be done, so today should show it rather than a day that has gone.',
+      },
+      {
         what: 'Finished work stays on the days it was planned for up to today, shown in its own colour, while planned days after an early finish become free again.',
         why: 'A day that was used shouldn\'t look free, but time given back should.',
       },

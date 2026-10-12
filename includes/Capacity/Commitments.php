@@ -64,6 +64,19 @@ final class Commitments {
 		$values[] = $to;
 		$values[] = $from;
 
+		/*
+		 * #487. Work still open but due before the window lands on today, so
+		 * a window holding today reads it too. Finished work never moves.
+		 */
+		$today = ( new \DateTimeImmutable( 'now', wp_timezone() ) )->format( 'Y-m-d' );
+		$late  = '';
+
+		if ( $from <= $today && $today <= $to ) {
+			$open   = array_merge( Allocations::COMMITTING, array( Stages::BLOCKED ) );
+			$late   = ' OR stage IN (' . implode( ', ', array_fill( 0, count( $open ), '%s' ) ) . ')';
+			$values = array_merge( $values, $open );
+		}
+
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name and stage list are this class's own literals; the placeholders are counted above.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
@@ -74,7 +87,7 @@ final class Commitments {
 				AND planned_start <> ''
 				AND planned_due <> ''
 				AND planned_start <= %s
-				AND planned_due >= %s",
+				AND ( planned_due >= %s{$late} )",
 				$values
 			),
 			ARRAY_A
@@ -170,6 +183,15 @@ final class Commitments {
 				);
 			}
 
+			/*
+			 * #487. Work still to do on days that have gone is still to do, so
+			 * those hours land on today. Only work carries a status of its own;
+			 * a meeting on a past day happened or it did not.
+			 */
+			if ( Allocations::TO_DO === ( $allocation['status'] ?? '' ) ) {
+				$spread = self::onto_today( $spread, $days_by_user[ $user_id ], $today );
+			}
+
 			foreach ( $spread as $date => $hours ) {
 				$out[ $user_id ][ $series ][ $date ] = round( ( $out[ $user_id ][ $series ][ $date ] ?? 0.0 ) + $hours, 2 );
 			}
@@ -190,6 +212,38 @@ final class Commitments {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Unfinished hours on past days, moved onto today (#487).
+	 *
+	 * Forge cannot tell how much of a task is done, so all of it counts as
+	 * still to do until it is finished. When today is outside the window
+	 * being read, the hours are on a day this window does not show.
+	 *
+	 * @param array<string, float>             $spread Date to hours.
+	 * @param array<int, array<string, mixed>> $days   Availability::by_day for the person.
+	 * @param string                           $today  YYYY-MM-DD.
+	 * @return array<string, float>
+	 */
+	private static function onto_today( array $spread, array $days, string $today ): array {
+		$late = 0.0;
+
+		foreach ( $spread as $date => $hours ) {
+			if ( (string) $date < $today ) {
+				$late += $hours;
+				unset( $spread[ $date ] );
+			}
+		}
+
+		$dates = array_map( static fn( array $day ): string => (string) ( $day['date'] ?? '' ), $days );
+
+		if ( $late > 0 && in_array( $today, $dates, true ) ) {
+			$spread[ $today ] = round( ( $spread[ $today ] ?? 0.0 ) + $late, 2 );
+			ksort( $spread );
+		}
+
+		return $spread;
 	}
 
 	/**

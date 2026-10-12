@@ -109,9 +109,10 @@ final class Impact {
 	 * @param array<string, array<int, array<string, mixed>>> $days_by_user Availability::by_day per person.
 	 * @param string                                          $from         YYYY-MM-DD, inclusive.
 	 * @param string                                          $to           YYYY-MM-DD, inclusive.
+	 * @param string                                          $today        YYYY-MM-DD; the site's today when empty.
 	 * @return array{over: array<int, array<string, mixed>>, window: array{from: string, to: string}}
 	 */
-	public static function assess( array $proposed, array $existing, array $days_by_user, string $from, string $to ): array {
+	public static function assess( array $proposed, array $existing, array $days_by_user, string $from, string $to, string $today = '' ): array {
 		if ( array() === $proposed || '' === $from || '' === $to ) {
 			// No seats filled, or no dates to weigh them over. Both are their
 			// own unmet requirement at Up Next, with their own message.
@@ -134,7 +135,7 @@ final class Impact {
 			)
 		);
 
-		$committed = Commitments::gather( array_merge( $others, $proposed ), $days_by_user );
+		$committed = Commitments::gather( array_merge( $others, $proposed ), $days_by_user, $today );
 		$weeks     = Periods::weeks( $from, $to );
 		$over      = array();
 		$seen      = array();

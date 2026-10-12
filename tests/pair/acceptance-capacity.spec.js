@@ -20,8 +20,8 @@ const PERSON = `paircapacity${STAMP}`;
 
 // A fixed window in the future, so the arithmetic is the same whichever day the
 // suite runs on.
-const FROM = '2026-09-07';
-const TO = '2026-09-11';
+const FROM = '2027-09-06';
+const TO = '2027-09-10';
 
 const TO_UP_NEXT = [
   'triage',

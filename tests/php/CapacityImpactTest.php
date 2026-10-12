@@ -103,7 +103,8 @@ final class CapacityImpactTest extends TestCase {
 				'usr_b' => $this->days( '2026-09-07', 5 ),
 			),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertSame( array(), $impact['over'] );
@@ -133,6 +134,7 @@ final class CapacityImpactTest extends TestCase {
 				'usr_b' => $this->days( '2026-09-07', 5 ),
 			),
 			'2026-09-07',
+			'2026-09-11',
 			'2026-09-11'
 		);
 
@@ -150,7 +152,8 @@ final class CapacityImpactTest extends TestCase {
 				'usr_b' => $this->days( '2026-09-07', 5 ),
 			),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertFalse( Impact::clear( $impact ) );
@@ -195,7 +198,8 @@ final class CapacityImpactTest extends TestCase {
 			Allocations::proposed( $already ),
 			array( 'usr_a' => $this->days( '2026-09-07', 12 ) ),
 			'2026-09-07',
-			'2026-09-18'
+			'2026-09-18',
+			'2026-09-07'
 		);
 
 		$this->assertFalse( Impact::clear( $impact ) );
@@ -221,7 +225,8 @@ final class CapacityImpactTest extends TestCase {
 				'usr_b' => $blank,
 			),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertTrue( Impact::clear( $impact ) );
@@ -246,7 +251,8 @@ final class CapacityImpactTest extends TestCase {
 			Allocations::proposed( $item ),
 			array( 'usr_a' => $this->days( '2026-09-07', 5 ) ),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertTrue( Impact::clear( $impact ) );
@@ -274,7 +280,8 @@ final class CapacityImpactTest extends TestCase {
 			Allocations::proposed( $theirs ),
 			array( 'usr_a' => $this->days( '2026-09-07', 5 ) ),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertFalse( Impact::clear( $impact ) );
@@ -298,7 +305,8 @@ final class CapacityImpactTest extends TestCase {
 				'usr_c' => $this->days( '2026-09-07', 5 ),
 			),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertSame( 'usr_c', $impact['over'][0]['user_id'] );
@@ -319,7 +327,8 @@ final class CapacityImpactTest extends TestCase {
 			array(),
 			array( 'usr_a' => $this->days( '2026-09-07', 5 ) ),
 			'2026-09-07',
-			'2026-09-11'
+			'2026-09-11',
+			'2026-09-07'
 		);
 
 		$this->assertCount( 1, $impact['over'] );
