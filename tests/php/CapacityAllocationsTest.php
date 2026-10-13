@@ -26,6 +26,22 @@ final class CapacityAllocationsTest extends TestCase {
 	 * @param array<string, mixed> $values Overrides.
 	 * @return array<string, mixed>
 	 */
+	/**
+	 * Ten hours over the working week, as a recurring chore's allocation is:
+	 * the one kind still spread across days (#513).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function across_the_week(): array {
+		return array(
+			'user_id' => 'usr_a',
+			'role'    => 'assignee',
+			'hours'   => 10.0,
+			'from'    => '2026-09-07',
+			'to'      => '2026-09-11',
+		);
+	}
+
 	private function item( array $values = array() ): array {
 		return array_merge(
 			array(
@@ -199,8 +215,76 @@ final class CapacityAllocationsTest extends TestCase {
 		$this->assertSame( array(), Allocations::from_item( $undated ) );
 	}
 
-	public function test_hours_spread_evenly_across_working_days(): void {
+	/*
+	 * #513. Every assignment is done in a day: each person's hours sit on
+	 * their own date, and nowhere else.
+	 */
+	public function test_each_seat_sits_on_its_own_date(): void {
+		$allocations = Allocations::from_item(
+			$this->item(
+				array(
+					'designer_id'    => 'usr_d',
+					'hours_designer' => 2.0,
+					'deliverer_id'   => 'usr_c',
+					'hours_delivery' => 1.0,
+					'design_target'  => '2026-09-07',
+					'planned_due'    => '2026-09-08',
+					'review_target'  => '2026-09-09',
+					'release_target' => '2026-09-10',
+				)
+			)
+		);
+
+		$days = array();
+
+		foreach ( $allocations as $allocation ) {
+			$this->assertSame( $allocation['from'], $allocation['to'], $allocation['role'] . ' is one day' );
+			$days[ $allocation['role'] ] = $allocation['from'];
+		}
+
+		$this->assertSame(
+			array(
+				Allocations::PRIMARY  => '2026-09-08',
+				Allocations::DESIGN   => '2026-09-07',
+				Allocations::REVIEW   => '2026-09-09',
+				Allocations::DELIVERY => '2026-09-10',
+			),
+			$days
+		);
+	}
+
+	public function test_a_seat_with_no_date_of_its_own_sits_on_deliver_by(): void {
+		$allocations = Allocations::from_item( $this->item() );
+
+		foreach ( $allocations as $allocation ) {
+			$this->assertSame( '2026-09-11', $allocation['from'] );
+			$this->assertSame( '2026-09-11', $allocation['to'] );
+		}
+	}
+
+	public function test_a_seat_with_hours_all_lands_on_its_day(): void {
 		$allocation = Allocations::from_item( $this->item() )[0];
+
+		$this->assertSame( array( '2026-09-11' => 10.0 ), Allocations::spread( $allocation, $this->week() ) );
+	}
+
+	public function test_a_recurring_chore_keeps_its_window(): void {
+		$allocations = Allocations::from_item(
+			$this->item(
+				array(
+					'assignees'  => '["usr_a"]',
+					'hours_each' => 1.0,
+				)
+			)
+		);
+
+		$this->assertSame( 'assignee', $allocations[0]['role'] );
+		$this->assertSame( '2026-09-07', $allocations[0]['from'] );
+		$this->assertSame( '2026-09-11', $allocations[0]['to'] );
+	}
+
+	public function test_hours_spread_evenly_across_working_days(): void {
+		$allocation = $this->across_the_week();
 
 		$spread = Allocations::spread( $allocation, $this->week() );
 
@@ -209,7 +293,7 @@ final class CapacityAllocationsTest extends TestCase {
 	}
 
 	public function test_a_day_off_carries_none_of_it(): void {
-		$allocation = Allocations::from_item( $this->item() )[0];
+		$allocation = $this->across_the_week();
 
 		$spread = Allocations::spread( $allocation, $this->week( array( '2026-09-09' => 0.0 ) ) );
 
@@ -219,7 +303,7 @@ final class CapacityAllocationsTest extends TestCase {
 	}
 
 	public function test_hours_that_do_not_divide_still_add_up(): void {
-		$allocation = Allocations::from_item( $this->item( array( 'hours_primary' => 10.0 ) ) )[0];
+		$allocation = $this->across_the_week();
 
 		$spread = Allocations::spread( $allocation, $this->week( array( '2026-09-11' => 0.0 ) ) );
 
@@ -227,7 +311,7 @@ final class CapacityAllocationsTest extends TestCase {
 	}
 
 	public function test_a_window_with_no_working_days_keeps_its_hours(): void {
-		$allocation = Allocations::from_item( $this->item() )[0];
+		$allocation = $this->across_the_week();
 
 		$spread = Allocations::spread(
 			$allocation,
@@ -247,14 +331,13 @@ final class CapacityAllocationsTest extends TestCase {
 	}
 
 	public function test_days_outside_the_window_carry_nothing(): void {
-		$allocation = Allocations::from_item(
-			$this->item(
-				array(
-					'planned_start' => '2026-09-08',
-					'planned_due'   => '2026-09-09',
-				)
+		$allocation = array_merge(
+			$this->across_the_week(),
+			array(
+				'from' => '2026-09-08',
+				'to'   => '2026-09-09',
 			)
-		)[0];
+		);
 
 		$spread = Allocations::spread( $allocation, $this->week() );
 

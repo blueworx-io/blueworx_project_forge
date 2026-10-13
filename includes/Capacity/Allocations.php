@@ -93,15 +93,16 @@ final class Allocations {
 	public const WITH_CLIENT = 'with-client';
 
 	/**
-	 * Each seat: the hours column, whose seat it is, and who may be covering.
+	 * Each seat: the hours column, whose seat it is, who may be covering, and
+	 * the date its hours sit on (#513).
 	 *
 	 * @var array<string, array<int, string>>
 	 */
 	private const SEATS = array(
-		self::PRIMARY  => array( 'hours_primary', 'primary_user_id', '' ),
-		self::DESIGN   => array( 'hours_designer', 'designer_id', '' ),
-		self::REVIEW   => array( 'hours_review', 'reviewer_id', 'reviewer_substitute_id' ),
-		self::DELIVERY => array( 'hours_delivery', 'deliverer_id', 'deliverer_substitute_id' ),
+		self::PRIMARY  => array( 'hours_primary', 'primary_user_id', '', 'planned_due' ),
+		self::DESIGN   => array( 'hours_designer', 'designer_id', '', 'design_target' ),
+		self::REVIEW   => array( 'hours_review', 'reviewer_id', 'reviewer_substitute_id', 'review_target' ),
+		self::DELIVERY => array( 'hours_delivery', 'deliverer_id', 'deliverer_substitute_id', 'release_target' ),
 	);
 
 	/**
@@ -269,6 +270,14 @@ final class Allocations {
 				continue;
 			}
 
+			/*
+			 * #513. Every assignment is done in a day, so a seat's hours sit
+			 * on its own date — or on Deliver by, the end of the item's
+			 * window, when that seat has none.
+			 */
+			$own = (string) ( $item[ $columns[3] ] ?? '' );
+			$day = '' !== $own ? $own : $window[1];
+
 			$out[] = array(
 				'item_id'        => (string) ( $item['id'] ?? '' ),
 				'title'          => (string) ( $item['title'] ?? '' ),
@@ -286,8 +295,8 @@ final class Allocations {
 				 */
 				'covering'       => '' !== $cover ? $seat : '',
 				'hours'          => $hours,
-				'from'           => $window[0],
-				'to'             => $window[1],
+				'from'           => $day,
+				'to'             => $day,
 				'status'         => $status,
 			);
 		}
