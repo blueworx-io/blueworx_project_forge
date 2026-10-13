@@ -58,7 +58,11 @@ final class Items {
 			self::defaults(),
 			// #468. A new task can start with the client reviewing: no review
 			// hours and no stand-in, as on an edit.
-			ClientReviewer::settle( RoleHours::seed( self::writable( $values ) ) ),
+			// #513. The start, from the earliest date, unless a chore names its own.
+			StartDate::settle(
+				ClientReviewer::settle( RoleHours::seed( self::writable( $values ) ) ),
+				array( 'assignees' => (array) ( $values['assignees'] ?? array() ) )
+			),
 			$confirmed ? array(
 				'client_confirmed_at' => $now,
 				'client_confirmed_by' => $author,
@@ -278,6 +282,9 @@ final class Items {
 
 		// #391. With the client reviewing, no review hours and no stand-in.
 		$changes = ClientReviewer::settle( RoleHours::seed( self::writable( $values ), $current ), $current );
+
+		// #513. The start follows the earliest date.
+		$changes = StartDate::settle( $changes, $current );
 
 		if ( array() === $changes ) {
 			// Nothing to write. Returning the row rather than a failure: an edit
