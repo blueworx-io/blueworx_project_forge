@@ -32,11 +32,12 @@ final class Layout {
 
 	/**
 	 * Every date an item can carry, and what each one means on a calendar.
+	 * Not the start (#513): the studio sets it from the earliest date, so it
+	 * would only ever repeat one of these.
 	 *
 	 * @var array<string, string>
 	 */
 	public const KINDS = array(
-		'planned_start'  => 'starts',
 		'planned_due'    => 'due',
 		'review_target'  => 'review',
 		'release_target' => 'release',
