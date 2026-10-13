@@ -113,21 +113,23 @@ const CONFIRMATION_STAYS = 5000;
  *
  * Green confirms, yellow warns, red says something failed (2026-09-19). With
  * `onClose` it carries a close button, and a green one — which asks nothing
- * of the reader — closes itself after five seconds. Yellow and red stay until
- * they are closed: they are telling somebody what to do next.
+ * of the reader — closes itself after five seconds, unless it `stays`. Yellow
+ * and red stay until they are closed: they are telling somebody what to do next.
  */
 export function Notice( {
   said,
   testId,
   onClose,
+  stays = false,
   children,
 }: {
   said: Said;
   testId?: string;
   onClose?: () => void;
+  stays?: boolean;
   children?: ReactNode;
 } ) {
-  const confirms = 'ok' === said.tone && '' !== said.text && Boolean( onClose );
+  const confirms = 'ok' === said.tone && '' !== said.text && Boolean( onClose ) && ! stays;
 
   useEffect( () => {
     if ( ! confirms ) {

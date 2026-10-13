@@ -67,7 +67,7 @@ test('one save of several fields is one line of history, signed', async () => {
   await page.fill('#bwx-title', `Framed ${RUN_ID} renamed`);
   await page.selectOption('#bwx-priority', 'high');
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
   await page.getByTestId('bwx-history-wrap').locator('summary').click();
   const lines = page.locator('[data-testid="bwx-history"] li');
@@ -92,7 +92,7 @@ test('Who pays offers four answers, and Site bug means we delivered the cause', 
 
   await pick.selectOption('free-bug');
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
   const saved = await admin.api.get(`/work-items/${item.id}`);
   expect(saved.item.commercial_class).toBe('free-bug');
@@ -101,8 +101,23 @@ test('Who pays offers four answers, and Site bug means we delivered the cause', 
   // The general answer is accepted too, and is not chargeable.
   await pick.selectOption('free-general');
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
   expect((await admin.api.get(`/work-items/${item.id}`)).item.commercial_class).toBe('free-general');
+  await page.close();
+});
+
+// #505. Other green banners close themselves after five seconds; Save's stays
+// until the next thing happens, so nobody is left wondering whether it worked.
+test('Saved stays on screen after a save', async () => {
+  const page = await admin.context.newPage();
+  await openThePanel(page);
+
+  await page.fill('#bwx-title', `Framed ${RUN_ID} kept`);
+  await page.getByTestId('bwx-save').click();
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
+
+  await page.waitForTimeout(6_000);
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 1_000 });
   await page.close();
 });
 

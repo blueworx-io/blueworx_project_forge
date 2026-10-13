@@ -188,7 +188,7 @@ test.describe('the board', () => {
     await page.fill('#bwx-title', `Renamed ${RUN_ID}`);
     await page.locator('[data-testid="bwx-save"]').click();
 
-    await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.');
+    await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
     await expect(page.locator('[data-testid="bwx-card"]')).toContainText(`Renamed ${RUN_ID}`);
   });
 

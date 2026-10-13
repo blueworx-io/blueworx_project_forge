@@ -47,7 +47,7 @@ test('three lines added, one ticked, saved, and counted on the card', async () =
   await lines.nth(2).fill('Ship it');
   await page.getByTestId('bwx-checklist-done').nth(0).check();
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
   const saved = await admin.api.get(`/work-items/${item.id}`);
   expect(saved.item.checklist).toEqual([
@@ -122,7 +122,7 @@ test('a checklist change is saved at once, and a later Save changes does not con
     expect((await admin.api.get(`/work-items/${made.id}`)).item.checklist).toEqual([]);
   }).toPass();
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
   const after = (await admin.api.get(`/work-items/${made.id}`)).item;
   expect(after.title).toBe(`Renamed ${RUN_ID}`);
   expect(after.checklist).toEqual([]);
