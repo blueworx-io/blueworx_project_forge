@@ -90,6 +90,54 @@ test( 'the four views reconcile, and each opens the item', async ( { browser, ba
   await admin.context.close();
 } );
 
+// #507. Urgent work is Today whatever its date, at the top, and only for the
+// person whose turn it is.
+test( 'an urgent task due next month is at the top of Today, for whoever’s turn it is', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { client, site } = await Forge.makeSite( admin.api, `Urgent Co ${ RUN }`, `${ RUN }u` );
+  const owner = await Forge.makePerson( admin.api, client.id, 'staff', `uown${ RUN }` );
+  const checker = await Forge.makePerson( admin.api, client.id, 'staff', `uchk${ RUN }` );
+
+  const make = async ( title, patch ) => {
+    const made = await Forge.makeItem( admin.api, site.id, { title } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+    const item = ( await made.json() ).item;
+    const edited = await admin.api.patch( `/work-items/${ item.id }`, { ...patch, record_version: item.record_version } );
+    expect( edited.status(), await edited.text() ).toBe( 200 );
+  };
+  await make( `Due today ${ RUN }`, { primary_user_id: owner.id, planned_due: on( 0 ) } );
+  await make( `Urgent later ${ RUN }`, { primary_user_id: owner.id, reviewer_id: checker.id, priority: 'urgent', planned_due: on( 30 ) } );
+  await make( `Urgent undated ${ RUN }`, { primary_user_id: owner.id, priority: 'urgent' } );
+
+  const look = async ( person ) => {
+    const me = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
+    const page = await me.context.newPage();
+    await page.goto( '/blueworx-forge/#screen=mytasks' );
+    const table = page.getByTestId( 'bwx-mytasks-table' );
+    await expect( table ).toBeVisible( { timeout: 60_000 } );
+    return { me, page, table };
+  };
+
+  // The owner's turn: both urgent ones in Today, above what is merely due today.
+  const owned = await look( owner );
+  const rows = owned.table.locator( 'tbody tr' );
+  await expect( rows ).toHaveCount( 3 );
+  await expect( rows.nth( 0 ) ).toContainText( 'Urgent' );
+  await expect( rows.nth( 1 ) ).toContainText( 'Urgent' );
+  await expect( rows.nth( 2 ) ).toContainText( `Due today ${ RUN }` );
+  await owned.me.context.close();
+
+  // Not yet the checker's, so not on their list at all.
+  const checking = await look( checker );
+  await checking.table.getByRole( 'button', { name: /^Everything/ } ).click();
+  await expect( checking.table ).not.toContainText( `Urgent later ${ RUN }` );
+  await checking.me.context.close();
+
+  await admin.context.close();
+} );
+
 // #386: Today's diary moved here from the standup, and shows only what is
 // the signed-in person's — a chore named for somebody else is none of theirs.
 test( 'two people with chores today each see only their own in their diary', async ( { browser, baseURL } ) => {

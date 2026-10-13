@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.171.0] - 2026-10-13
+
+### Changed
+
+- Urgent tasks now always show in Today on My tasks, at the top, for whoever's turn it is, whatever their due date.
+
 ## [2.170.1] - 2026-10-13
 
 ### Fixed

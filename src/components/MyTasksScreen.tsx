@@ -11,7 +11,7 @@ import { useClientChoice } from '../ClientChoice';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
 import { ALL_SITES } from '../sites';
-import { listed, mineFor, viewOf } from '../mytasks';
+import { isUrgent, listed, mineFor, viewOf } from '../mytasks';
 import { PRIORITY_TONE, priorityRank } from '../priority';
 import type { Mine, Role, Site, View } from '../mytasks';
 
@@ -125,8 +125,8 @@ export function MyTasksScreen() {
       .filter( ( one ) => 'all' === view || viewOf( one ) === view )
       .filter( ( one ) => ! role || ROLE_LABEL[ one.role ] === role )
       .filter( ( one ) => ! needle || `${ one.item.id } ${ one.item.title } ${ one.site.client_name }`.toLowerCase().includes( needle ) )
-      // By date, then priority on the same day (#483).
-      .sort( ( a, b ) => ( a.due ?? 9999 ) - ( b.due ?? 9999 ) || priorityRank( a.item.priority ) - priorityRank( b.item.priority ) );
+      // Urgent first (#507), then by date, then priority on the same day (#483).
+      .sort( ( a, b ) => Number( isUrgent( b ) ) - Number( isUrgent( a ) ) || ( a.due ?? 9999 ) - ( b.due ?? 9999 ) || priorityRank( a.item.priority ) - priorityRank( b.item.priority ) );
   }, [ ours, view, role, search ] );
 
   const views: SavedView[] = [
