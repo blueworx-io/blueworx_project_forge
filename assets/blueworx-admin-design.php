@@ -184,4 +184,4 @@ if ( ! function_exists( 'blueworx_admin_design_register' ) ) {
 }
 
 // Every copy announces itself, guard or no guard — see above.
-blueworx_admin_design_register( '1.2.0', __FILE__ );
+blueworx_admin_design_register( '1.3.0', __FILE__ );

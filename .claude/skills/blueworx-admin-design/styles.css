@@ -838,8 +838,16 @@ body.wp-admin.folded .bw-savebar{left:36px}
    sharing the class, the header the column needs to be readable is invisible. */
 .bw-table thead th.bw-table__actions{opacity:1}
 /* A table narrower than its content scrolls inside its own card rather than
-   pushing its last column out past the edge of the page. */
-.bw-tablescroll{overflow-x:auto}
+   pushing its last column out past the edge of the page. It is positioned so
+   that anything absolutely placed inside it — WordPress's .screen-reader-text,
+   say — stays inside the scroll too; placed against the page instead, it sits
+   at the table's far edge and stretches the whole screen sideways. */
+.bw-tablescroll{overflow-x:auto;position:relative}
+/* A column a plugin adds to one of WordPress's own list tables (the products
+   list, say) takes a key beginning "bw-", which WordPress turns into a
+   .column-bw-… class. Those tables are fixed-layout: a column that names no
+   width gets only what the others leave, which can be nothing at all. */
+.wp-list-table th[class*="column-bw-"]{width:10em}
 .bw-table__check{width:36px;padding-right:0}
 .bw-table__check input{accent-color:var(--bw-brand);width:16px;height:16px;margin:0}
 /* Rows that fall into named groups — an estimate's phases, say. The group

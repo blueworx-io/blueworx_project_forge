@@ -218,6 +218,12 @@ as it is reads `.bw-compare__same` "No change" — never a blank. A record's det
 `.bw-compare__detail-body` held at the left. Under 782px nothing is pinned. See
 `components/data/data-compare.card.html`.
 
+A column a plugin adds to one of WordPress's own list tables (through
+`manage_edit-{post_type}_columns`) takes a key beginning `bw-`, such as `bw-last-updated`.
+WordPress's list tables are fixed-layout, so a column that names no width gets only what
+the others leave; the design system gives every `column-bw-…` column 10em. Its cell is a
+`.bw-admin` wrapper holding `.bw-table__primary` and `.bw-table__sub` lines.
+
 ### Which control for which job
 
 | Job | Use |
