@@ -43,8 +43,12 @@ export function daysUntil( date: string ): number | null {
   return Math.round( ( at - today ) / DAY );
 }
 
+export function isUrgent( one: Mine ): boolean {
+  return 'urgent' === one.item.priority;
+}
+
 /**
- * By date alone: Today is due today or late and nothing else (Luke,
+ * By date, except that urgent work is always Today (#507): Today is due today or late and nothing else (Luke,
  * 2026-09-30, #481). Blocked or in review no longer puts a row in Today on
  * its own, and undated work is Further out.
  */
@@ -52,6 +56,8 @@ export function viewOf( one: Mine ): Slot {
   // Released or ticked off is done, and not listed. Completed but late
   // is still to ship, so it sorts by date like the rest (Luke, 2026-09-26).
   if ( 'released' === one.item.stage || one.ticked ) return 'done';
+  // Urgent is Today whatever its date (#507) — but a reminder still waits for its first day.
+  if ( isUrgent( one ) && ! one.reminder ) return 'today';
   // A reminder is Today from its first day until it is ticked (2026-09-25).
   const days = one.reminder && null !== one.starts ? one.starts : one.due;
   if ( null === days ) return 'later';
