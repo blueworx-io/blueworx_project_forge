@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
 
 // #483. My tasks and the standup show each task's priority, and both lists
-// run by due date first, then priority: urgent, high, normal, low, none.
+// run by due date first, then priority: urgent, high, normal, low, none —
+// except that My tasks puts urgent work first of all (#507).
 
 const RUN = `prio${ Date.now() }`;
 const DAY = 86400000;
@@ -20,7 +21,7 @@ async function item( api, siteId, title, patch ) {
   return ( await edited.json() ).item;
 }
 
-test( 'My tasks has a Priority column and runs by date, then priority', async ( { browser, baseURL } ) => {
+test( 'My tasks has a Priority column and runs urgent first, then by date, then priority', async ( { browser, baseURL } ) => {
   test.setTimeout( 240_000 );
 
   const admin = await Forge.signedIn( browser, baseURL, ADMIN_USER, ADMIN_PASS );
@@ -44,12 +45,12 @@ test( 'My tasks has a Priority column and runs by date, then priority', async ( 
 
   const rows = table.locator( 'tbody tr' );
   await expect( rows ).toHaveCount( 4 );
-  await expect( rows.nth( 0 ) ).toContainText( `Late low ${ RUN }` );
-  await expect( rows.nth( 1 ) ).toContainText( `Today urgent ${ RUN }` );
+  await expect( rows.nth( 0 ) ).toContainText( `Today urgent ${ RUN }` );
+  await expect( rows.nth( 1 ) ).toContainText( `Late low ${ RUN }` );
   await expect( rows.nth( 2 ) ).toContainText( `Today low ${ RUN }` );
   await expect( rows.nth( 3 ) ).toContainText( `Today none ${ RUN }` );
 
-  await expect( rows.nth( 1 ).getByTestId( 'bwx-mytasks-priority' ) ).toHaveText( /urgent/i );
+  await expect( rows.nth( 0 ).getByTestId( 'bwx-mytasks-priority' ) ).toHaveText( /urgent/i );
   await expect( rows.nth( 3 ).getByTestId( 'bwx-mytasks-priority' ) ).toHaveText( '—' );
 
   await page.close();
