@@ -160,7 +160,7 @@ function opens( allocation: CapacityAllocation ): boolean {
   return 'meeting' !== allocation.role && ! allocation.item_id.includes( ':' ) && '' !== allocation.item_id;
 }
 
-export function CapacityScreen() {
+export function CapacityScreen( { person = '' }: { person?: string } ) {
   const [ by, setBy ] = useState< CapacityBy >( 'days' );
   const [ range, setRange ] = useState( () => defaultRange( 'days' ) );
   const [ data, setData ] = useState< CapacityResponse | undefined >();
@@ -189,6 +189,15 @@ export function CapacityScreen() {
   }, [ load ] );
 
   useLiveReload( load );
+
+  // #508. Landing from the standup's Over hours opens that person's fortnight.
+  useEffect( () => {
+    if ( '' !== person ) {
+      void openCell( person, range.from, range.to );
+    }
+    // Once, on landing: the person is only ever the one the link named.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [] );
 
   /*
    * Changing the dates is what starts a read, so it is what says the screen is

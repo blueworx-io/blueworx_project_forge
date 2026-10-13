@@ -570,7 +570,7 @@ export function App() {
         { 'mytasks' === screen && <MyTasksScreen key={ generation } /> }
         { 'work' === screen && <WorkScreen key={ generation } view={ view } onViewChange={ setView } newWorkAsked={ newWorkAsked } onNewWorkOpened={ newWorkOpened } openItem={ landing.item } /> }
         { 'requests' === screen && <QueueScreen key={ generation } /> }
-        { 'capacity' === screen && <CapacityScreen key={ generation } /> }
+        { 'capacity' === screen && <CapacityScreen key={ generation } person={ landing.person } /> }
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
         { 'standup' === screen && <StandupScreen key={ generation } /> }
         { 'reports' === screen && <ReportsScreen key={ generation } /> }

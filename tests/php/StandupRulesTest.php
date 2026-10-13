@@ -619,6 +619,30 @@ final class StandupRulesTest extends TestCase {
 		$this->assertSame( 'Sam', $card['detail']['display_name'] );
 	}
 
+	/* #508. The card says which days are over and what fills them. */
+	public function test_the_days_over_go_on_the_card(): void {
+		$days = array(
+			array(
+				'date'      => '2026-10-13',
+				'used'      => 8.25,
+				'available' => 7.0,
+				'tasks'     => array(
+					array(
+						'item_id' => 'wrk_big',
+						'title'   => 'Big job',
+						'hours'   => 8.25,
+					),
+				),
+			),
+		);
+
+		$card = Rules::for_capacity(
+			array( 'user_id' => 'usr_one', 'display_name' => 'Sam', 'band' => 'over', 'days' => $days )
+		);
+
+		$this->assertSame( $days, $card['detail']['days'] );
+	}
+
 	public function test_somebody_merely_busy_is_not(): void {
 		/*
 		 * Tight is a planning signal and belongs on the capacity screen. A daily

@@ -331,6 +331,10 @@ export const RULES: RuleSection[] = [
         why: 'One screen should answer what needs attention today.',
       },
       {
+        what: 'Over hours on the standup flags anyone with a day in the next seven that is over their hours, however little, using the same day-by-day figures as Capacity. It names each day, the tasks filling it, and links to their capacity.',
+        why: 'A warning is only useful if it says where the problem is and matches what Capacity shows.',
+      },
+      {
         what: 'My tasks and Daily standup show a count in the sidebar: the number on My tasks\' Today tab, and the standup\'s items plus meetings to settle, for the client picked at the top. Nothing shows at zero.',
         why: 'You can see what waits for you without opening each screen.',
       },
