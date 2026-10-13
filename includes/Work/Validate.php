@@ -392,8 +392,9 @@ final class Validate {
 	}
 
 	/**
-	 * The dates, checked against each other (2026-09-19): start, due, review
-	 * by and release by may not run backwards. Checked over the item as it
+	 * The dates, checked against each other (2026-09-19): design by, deliver
+	 * by, review by and release by may not run backwards (#513; the start is
+	 * Forge's own and not held to it). Checked over the item as it
 	 * would be after the edit, so a single date sent on its own is held
 	 * against the ones already there.
 	 *
@@ -402,8 +403,8 @@ final class Validate {
 	 */
 	public static function dates_in_order( array $after ): array {
 		$labels = array(
-			'planned_start'  => 'the start',
-			'planned_due'    => 'the due date',
+			'design_target'  => 'design by',
+			'planned_due'    => 'deliver by',
 			'review_target'  => 'review by',
 			'release_target' => 'release by',
 		);
@@ -413,7 +414,11 @@ final class Validate {
 		foreach ( Fields::DATE_ORDER as $field ) {
 			$date = (string) ( $after[ $field ] ?? '' );
 
-			if ( '' === $date ) {
+			// A Design by left behind with no designer is cleared on save, so
+			// it is held against nothing.
+			$designless = 'design_target' === $field && array_key_exists( 'designer_id', $after ) && '' === (string) $after['designer_id'];
+
+			if ( '' === $date || $designless ) {
 				continue;
 			}
 
@@ -486,7 +491,7 @@ final class Validate {
 	 * @param array<string, string> $errors Errors, by reference.
 	 */
 	private static function planning_fields( array $input, array &$values, array &$errors ): void {
-		foreach ( array( 'planned_start', 'planned_due', 'review_target', 'release_target' ) as $field ) {
+		foreach ( array( 'design_target', 'planned_start', 'planned_due', 'review_target', 'release_target' ) as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
 				continue;
 			}

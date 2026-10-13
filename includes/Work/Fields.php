@@ -105,6 +105,7 @@ final class Fields {
 	 * clothes.
 	 */
 	public const PLANNING = array(
+		'design_target',
 		'planned_start',
 		'planned_due',
 		'review_target',
@@ -113,11 +114,12 @@ final class Fields {
 	);
 
 	/**
-	 * The dates, in the order they have to keep (2026-09-19): work starts,
-	 * is due, is reviewed by, is released by. Any may be empty; the set ones
-	 * may not run backwards.
+	 * The dates, one per person and in the order they have to keep (#513):
+	 * designed by, delivered by, reviewed by, released by. Any may be empty;
+	 * the set ones may not run backwards. The start is not among them: Forge
+	 * sets it from the earliest (Work\StartDate).
 	 */
-	public const DATE_ORDER = array( 'planned_start', 'planned_due', 'review_target', 'release_target' );
+	public const DATE_ORDER = array( 'design_target', 'planned_due', 'review_target', 'release_target' );
 
 	/**
 	 * The commercial group. Set at Triage; COMM-5 decides free-bug from whether
@@ -152,7 +154,6 @@ final class Fields {
 		'reviewer_id'      => 'triage',
 		'deliverer_id'     => 'up-next',
 		'design_url'       => 'design-process',
-		'planned_start'    => 'up-next',
 		'planned_due'      => 'up-next',
 		'priority'         => 'up-next',
 		'test_description' => 'in-development',

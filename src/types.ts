@@ -92,6 +92,8 @@ export interface WorkItem {
   archived: boolean;
   review_attempt: number;
   priority: string;
+  /** #513. When the designer's part is due; Forge sets planned_start from the earliest date. */
+  design_target?: string;
   planned_start: string;
   planned_due: string;
 

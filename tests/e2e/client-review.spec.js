@@ -247,7 +247,9 @@ test('the panel offers the client as reviewer at any stage, and records their an
   const readyPage = await panelFor(ready, 'Panel ready');
   await expect(readyPage.getByTestId('bwx-reviewer-client')).toBeEnabled();
   await readyPage.locator('#bwx-reviewer_id').selectOption('client');
-  await expect(readyPage.getByTestId('bwx-client-no-hours')).toBeVisible();
+  // #512. Its hours drop-down is a greyed-out 0 hours.
+  await expect(readyPage.locator('#bwx-hours_review')).toBeDisabled();
+  await expect(readyPage.locator('#bwx-hours_review option:checked')).toHaveText('0 hours');
   await readyPage.getByTestId('bwx-save').click();
   await expect.poll(async () => (await detail(ready.id)).item.reviewer_id, { timeout: 30_000 }).toBe('client');
   await readyPage.close();

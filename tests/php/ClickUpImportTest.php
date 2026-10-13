@@ -60,8 +60,11 @@ final class ClickUpImportTest extends TestCase {
 		self::assertSame( 'high', $values['priority'] );
 		self::assertSame( 'usr_luke', $values['primary_user_id'] );
 		self::assertSame( 'usr_ross', $values['reviewer_id'] );
-		self::assertSame( '2026-09-14', $values['planned_start'] );
-		self::assertSame( '2026-09-25', $values['planned_due'] );
+		// #513. ClickUp's due date becomes every person's date, and the start;
+		// Luke adjusts them in Forge as needed.
+		foreach ( array( 'planned_start', 'design_target', 'planned_due', 'review_target', 'release_target' ) as $field ) {
+			self::assertSame( '2026-09-25', $values[ $field ], $field );
+		}
 		self::assertSame( 6.0, $values['hours_primary'] );
 		self::assertArrayNotHasKey( 'stage', $values, 'the stage is placed, not written' );
 	}

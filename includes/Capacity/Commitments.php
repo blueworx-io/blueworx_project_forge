@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Capacity;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Meetings\Load;
 use Blueworx\Forge\Recurring\Load as RecurringLoad;
+use Blueworx\Forge\Work\Fields;
 use Blueworx\Forge\Work\Stages;
 
 /**
@@ -57,12 +58,18 @@ final class Commitments {
 
 		/*
 		 * An item overlaps the window when it starts before the window ends and
-		 * ends after the window starts. Written this way round so a job that
-		 * spans the whole period is included rather than missed for starting
-		 * before it.
+		 * ends after the window starts — or, since each seat now sits on its
+		 * own day (#513), when any of its four dates falls inside it. Review
+		 * and release dates run past the due date, so the first test alone
+		 * would miss them.
 		 */
 		$values[] = $to;
 		$values[] = $from;
+
+		foreach ( Fields::DATE_ORDER as $field ) {
+			$values[] = $from;
+			$values[] = $to;
+		}
 
 		/*
 		 * #487. Work still open but due before the window lands on today, so
@@ -86,8 +93,13 @@ final class Commitments {
 				AND stage IN ({$slots})
 				AND planned_start <> ''
 				AND planned_due <> ''
-				AND planned_start <= %s
-				AND ( planned_due >= %s{$late} )",
+				AND (
+					( planned_start <= %s AND planned_due >= %s )
+					OR design_target BETWEEN %s AND %s
+					OR planned_due BETWEEN %s AND %s
+					OR review_target BETWEEN %s AND %s
+					OR release_target BETWEEN %s AND %s{$late}
+				)",
 				$values
 			),
 			ARRAY_A

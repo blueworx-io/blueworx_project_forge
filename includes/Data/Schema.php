@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 39;
+	public const VERSION = 40;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -731,6 +731,7 @@ final class Schema {
 	commercial_class varchar(20) NOT NULL DEFAULT 'unclassified',
 	delivered_by_forge tinyint(1) NOT NULL DEFAULT 0,
 	priority varchar(20) NOT NULL DEFAULT '',
+	design_target varchar(10) NOT NULL DEFAULT '',
 	planned_start varchar(10) NOT NULL DEFAULT '',
 	planned_due varchar(10) NOT NULL DEFAULT '',
 	review_target varchar(10) NOT NULL DEFAULT '',
@@ -1676,6 +1677,12 @@ final class Schema {
 			// #419. Once: requests answered before the answer's time was kept.
 			if ( null !== $installed && $installed < 37 ) {
 				\Blueworx\Forge\Work\Submissions::backfill_decided_at();
+			}
+
+			// #513. Once, on the step that adds Design by: work brought in
+			// from ClickUp takes its due date as every person's date.
+			if ( null !== $installed && $installed < 40 ) {
+				\Blueworx\Forge\Work\ClickUpImport::spread_dates();
 			}
 
 			update_option( self::OPTION, self::VERSION );

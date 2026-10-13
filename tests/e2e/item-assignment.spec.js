@@ -97,7 +97,7 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
   await page.selectOption('#bwx-hours_review', '1');
   await page.selectOption('#bwx-deliverer_id', people.deliverer.id);
   await page.selectOption('#bwx-hours_delivery', '1');
-  await page.fill('#bwx-planned_start', '2026-10-05');
+  // #513. Deliver by is the date asked for; Forge sets the start itself.
   await page.fill('#bwx-planned_due', '2026-10-09');
   // And the design link Design Process wants before it lets go (2026-09-19).
   await page.fill('#bwx-design_url', 'https://example.test/design');
@@ -182,8 +182,9 @@ test('the Designer sits after Doing the work, and can be named and cleared', asy
   const labels = page.locator('.bwx-seat > .bwx-field:first-child > label');
   await expect(labels.nth(0)).toContainText('Doing the work');
   await expect(labels.nth(1)).toContainText('Designer');
-  // With no designer there is no hours box beside it (#421).
-  await expect(page.locator('#bwx-hours_designer')).toHaveCount(0);
+  // With no designer its hours are a greyed-out 0 (#512).
+  await expect(page.locator('#bwx-hours_designer')).toBeDisabled();
+  await expect(page.locator('#bwx-hours_designer option:checked')).toHaveText('0 hours');
 
   // Nobody in the seat means no design is needed (2026-09-27).
   await expect(page.locator('#bwx-designer_id option[value=""]')).toHaveText('No design required');
@@ -200,7 +201,7 @@ test('the Designer sits after Doing the work, and can be named and cleared', asy
 
   // Cleared, the hours go with them.
   await page.selectOption('#bwx-designer_id', '');
-  await expect(page.locator('#bwx-hours_designer')).toHaveCount(0);
+  await expect(page.locator('#bwx-hours_designer')).toBeDisabled();
   await page.locator('[data-testid="bwx-save"]').click();
   await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
   const cleared = (await admin.api.get(`/work-items/${item.id}`)).item;

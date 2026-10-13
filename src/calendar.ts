@@ -11,11 +11,11 @@ import type { WorkItem } from './types';
 const DAY = 86400000;
 
 /** Which of an item's dates an entry is. */
-export type DateKind = 'starts' | 'due' | 'review' | 'release';
+export type DateKind = 'design' | 'due' | 'review' | 'release';
 
 export const KIND_LABEL: Record< DateKind, string > = {
-  starts: 'Starts',
-  due: 'Due',
+  design: 'Design by',
+  due: 'Deliver by',
   review: 'Review',
   release: 'Release',
 };
@@ -71,7 +71,8 @@ export function entriesFor( items: WorkItem[] ): Entry[] {
     }
 
     const dates: Array< [ DateKind, string ] > = [
-      [ 'starts', item.planned_start ],
+      // No designer, no Design by (#513), as in the task panel.
+      [ 'design', item.designer_id ? item.design_target ?? '' : '' ],
       [ 'due', item.planned_due ],
       [ 'review', item.review_target ?? '' ],
       [ 'release', item.release_target ?? '' ],
@@ -89,7 +90,7 @@ export function entriesFor( items: WorkItem[] ): Entry[] {
 
 /** The entries of one day, in a fixed order so a day never reshuffles itself. */
 export function byDay( entries: Entry[] ): Record< string, Entry[] > {
-  const order: DateKind[] = [ 'starts', 'review', 'release', 'due' ];
+  const order: DateKind[] = [ 'design', 'review', 'release', 'due' ];
   const days: Record< string, Entry[] > = {};
 
   for ( const entry of entries ) {

@@ -838,8 +838,16 @@ body.wp-admin.folded .bw-savebar{left:36px}
    sharing the class, the header the column needs to be readable is invisible. */
 .bw-table thead th.bw-table__actions{opacity:1}
 /* A table narrower than its content scrolls inside its own card rather than
-   pushing its last column out past the edge of the page. */
-.bw-tablescroll{overflow-x:auto}
+   pushing its last column out past the edge of the page. It is positioned so
+   that anything absolutely placed inside it — WordPress's .screen-reader-text,
+   say — stays inside the scroll too; placed against the page instead, it sits
+   at the table's far edge and stretches the whole screen sideways. */
+.bw-tablescroll{overflow-x:auto;position:relative}
+/* A column a plugin adds to one of WordPress's own list tables (the products
+   list, say) takes a key beginning "bw-", which WordPress turns into a
+   .column-bw-… class. Those tables are fixed-layout: a column that names no
+   width gets only what the others leave, which can be nothing at all. */
+.wp-list-table th[class*="column-bw-"]{width:10em}
 .bw-table__check{width:36px;padding-right:0}
 .bw-table__check input{accent-color:var(--bw-brand);width:16px;height:16px;margin:0}
 /* Rows that fall into named groups — an estimate's phases, say. The group
@@ -987,6 +995,40 @@ body.wp-admin.folded .bw-savebar{left:36px}
   .bw-calendar__day::after{content:attr(data-weekday);order:-1;flex:none;width:var(--bw-space-11);font-size:var(--bw-size-xs);letter-spacing:var(--bw-track-label);text-transform:uppercase;color:var(--bw-text-muted);font-weight:var(--bw-weight-semibold);line-height:var(--bw-calendar-mark)}
   .bw-calendar__daynum{flex:none}
   .bw-calendar__entries{flex:1 1 auto;margin-top:0}
+}
+
+/* Compare — records down the side, one column per field, each cell saying what
+   the field was and what it becomes. A .bw-table that grows as wide as its
+   columns inside a .bw-tablescroll; the record's own columns are --pin, held at
+   the left while the fields scroll past, and the last of them is --edge. Every
+   cell says something: a field that stays as it is reads "No change" rather
+   than sitting blank, so a gap never has to be guessed at. A record's detail
+   (what a source sent, say) is a --detail row under it, its body pinned to the
+   left so it stays in view however far the fields have scrolled. */
+.bw-compare{--bw-compare-pin:240px;width:max-content;min-width:100%}
+.bw-compare thead th,.bw-compare tbody td{vertical-align:top}
+/* Each record's name heads its row, so it is a th: it takes a cell's look, not a header's. */
+.bw-compare tbody th{padding:14px var(--bw-space-7);border-bottom:1px solid var(--bw-border);text-align:left;vertical-align:top;font-weight:var(--bw-weight-regular);color:var(--bw-text-body)}
+.bw-compare tbody tr:hover th{background:var(--bw-surface-sunken)}
+.bw-compare__field{min-width:150px}
+/* A table as wide as its content ignores a column's max-width, so the values carry it. */
+.bw-compare__new,.bw-compare__old{max-width:260px}
+.bw-compare__pin{position:sticky;left:0;z-index:1;background:var(--bw-surface-card);width:var(--bw-compare-pin);min-width:var(--bw-compare-pin);max-width:var(--bw-compare-pin)}
+.bw-compare__pin+.bw-compare__pin{left:var(--bw-compare-pin);width:auto;min-width:0;max-width:none}
+.bw-compare thead .bw-compare__pin{z-index:2;background:var(--bw-surface-sunken)}
+.bw-compare__pin--edge{box-shadow:inset -1px 0 0 var(--bw-border)}
+.bw-compare__new{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:var(--bw-text-heading);overflow-wrap:anywhere}
+.bw-compare__old{display:block;margin-top:var(--bw-space-1);font-size:var(--bw-size-sm);color:var(--bw-text-muted);text-decoration:line-through;overflow-wrap:anywhere}
+.bw-compare__was{display:block;margin-top:var(--bw-space-1);font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-compare__same{font-size:var(--bw-size-sm);color:var(--bw-text-muted)}
+.bw-compare__detail>td{background:var(--bw-surface-sunken)}
+.bw-table tbody tr.bw-compare__detail:hover td{background:var(--bw-surface-sunken)}
+.bw-compare__detail-body{position:sticky;left:var(--bw-space-7);max-width:880px}
+.bw-compare__detail-body pre{margin:0;max-height:420px;overflow:auto;padding:var(--bw-space-5);border:1px solid var(--bw-border);border-radius:var(--bw-radius-md);background:var(--bw-surface-card);font-family:var(--bw-font-mono);font-size:var(--bw-size-code);white-space:pre-wrap;overflow-wrap:anywhere}
+/* A phone has no room to hold two columns still; under 782px they scroll too. */
+@media (max-width:782px){
+  .bw-compare__pin,.bw-compare__pin+.bw-compare__pin{position:static;width:auto;min-width:0;max-width:none}
+  .bw-compare__detail-body{position:static}
 }
 
 /* Preview — a page of the site in a device frame, beside the fields that

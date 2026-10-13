@@ -234,9 +234,10 @@ final class Gates {
 				self::field( 'G-UP-NEXT-2', 'Reviewer assigned', 'reference', array( 'reviewer_id' ), 'Assign a Reviewer, who must be somebody other than the Primary User unless they hold Principal.' ),
 				self::field( 'G-UP-NEXT-3', 'Deliverer assigned', 'reference', array( 'deliverer_id' ), 'Assign the Deliverer.' ),
 				self::auto( 'G-UP-NEXT-4', 'Planned hours per role', 'numeric', 'hours', 'Enter planned hours for Primary User, Reviewer and Deliverer.' ),
-				self::field( 'G-UP-NEXT-5', 'Planned start and due date', 'date', array( 'planned_start', 'planned_due' ), 'Set a planned start and a planned due date.' ),
+				// #513. Forge sets the start itself; the doer's date is what is asked for.
+				self::field( 'G-UP-NEXT-5', 'Deliver by date', 'date', array( 'planned_due' ), 'Set a deliver by date.' ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
-				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of the planned dates, unless the over-allocation is given a reason.' ),
+				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of their dates, unless the over-allocation is given a reason.' ),
 				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
 			'G-IN-DEVELOPMENT'  => array(

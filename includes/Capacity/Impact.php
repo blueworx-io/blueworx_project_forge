@@ -60,8 +60,10 @@ final class Impact {
 			return self::nothing();
 		}
 
-		$from = (string) $proposed[0]['from'];
-		$to   = (string) $proposed[0]['to'];
+		// #513. Each seat sits on its own day, so the window runs from the
+		// earliest of them to the latest.
+		$from = (string) min( array_column( $proposed, 'from' ) );
+		$to   = (string) max( array_column( $proposed, 'to' ) );
 
 		$user_ids = array_values( array_unique( array_column( $proposed, 'user_id' ) ) );
 

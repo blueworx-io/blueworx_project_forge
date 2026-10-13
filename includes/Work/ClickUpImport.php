@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Work;
 
+use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Tenancy\Studio;
 use Blueworx\Forge\Tenancy\Users;
 
@@ -127,6 +128,10 @@ final class ClickUpImport {
 	 * @return array<string, mixed>
 	 */
 	public static function values( array $row, array $people ): array {
+		// #513. ClickUp has one date. It becomes every person's date and the
+		// start, to be adjusted in Forge.
+		$due = (string) ( $row['planned_due'] ?? '' );
+
 		return array(
 			'title'           => (string) $row['title'],
 			'level'           => Levels::FEATURE,
@@ -136,10 +141,37 @@ final class ClickUpImport {
 			'priority'        => (string) ( $row['priority'] ?? 'normal' ),
 			'primary_user_id' => $people[ (string) ( $row['primary'] ?? '' ) ] ?? '',
 			'reviewer_id'     => $people[ (string) ( $row['reviewer'] ?? '' ) ] ?? '',
-			'planned_start'   => (string) ( $row['planned_start'] ?? '' ),
-			'planned_due'     => (string) ( $row['planned_due'] ?? '' ),
+			'planned_start'   => $due,
+			'design_target'   => $due,
+			'planned_due'     => $due,
+			'review_target'   => $due,
+			'release_target'  => $due,
 			'hours_primary'   => (float) ( $row['hours_primary'] ?? 0 ),
 		);
+	}
+
+	/**
+	 * Once (#513): work already brought in from ClickUp gets its due date as
+	 * every person's date and as its start, as a new import would. Dates
+	 * somebody has already set are kept. Told apart by the ClickUp link the
+	 * import wrote into its references.
+	 */
+	public static function spread_dates(): void {
+		global $wpdb;
+
+		$table = Schema::work_items_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The table name is this plugin's own literal, and there is nothing to interpolate.
+		$wpdb->query(
+			"UPDATE {$table}
+			SET design_target = CASE WHEN design_target = '' THEN planned_due ELSE design_target END,
+				review_target = CASE WHEN review_target = '' THEN planned_due ELSE review_target END,
+				release_target = CASE WHEN release_target = '' THEN planned_due ELSE release_target END,
+				planned_start = planned_due
+			WHERE planned_due <> ''
+			AND references_text LIKE '%app.clickup.com/t/%'"
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/**

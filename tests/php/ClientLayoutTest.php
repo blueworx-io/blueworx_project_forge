@@ -168,7 +168,9 @@ final class ClientLayoutTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'starts' ), array_column( $entries['2026-09-01'], 'kind' ) );
+		// #513. The start is Forge's own, set from the earliest date, so it is
+		// not a date of its own on the calendar.
+		$this->assertArrayNotHasKey( '2026-09-01', $entries );
 		$this->assertSame( array( 'due' ), array_column( $entries['2026-09-10'], 'kind' ) );
 		$this->assertSame( array( 'release' ), array_column( $entries['2026-09-12'], 'kind' ) );
 	}

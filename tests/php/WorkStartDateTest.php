@@ -1,0 +1,118 @@
+<?php
+/**
+ * A task's start, set by Forge from its dates.
+ *
+ * @package Blueworx\Forge
+ */
+
+declare( strict_types = 1 );
+
+use Blueworx\Forge\Work\StartDate;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * #513. Nobody enters a start any more: it is the earliest of the four dates,
+ * kept so the Gantt and the client timelines still have somewhere to begin.
+ */
+final class WorkStartDateTest extends TestCase {
+
+	public function test_the_start_is_the_earliest_date(): void {
+		$settled = StartDate::settle(
+			array(
+				'design_target' => '2026-10-14',
+				'planned_due'   => '2026-10-16',
+			)
+		);
+
+		$this->assertSame( '2026-10-14', $settled['planned_start'] );
+	}
+
+	public function test_a_date_already_on_the_task_counts(): void {
+		$settled = StartDate::settle(
+			array( 'planned_due' => '2026-10-16' ),
+			array( 'design_target' => '2026-10-13' )
+		);
+
+		$this->assertSame( '2026-10-13', $settled['planned_start'] );
+	}
+
+	public function test_deliver_by_alone_is_the_start(): void {
+		$this->assertSame( '2026-10-16', StartDate::settle( array( 'planned_due' => '2026-10-16' ) )['planned_start'] );
+	}
+
+	public function test_a_start_given_outright_is_kept(): void {
+		$settled = StartDate::settle(
+			array(
+				'planned_start' => '2026-10-01',
+				'planned_due'   => '2026-10-16',
+			)
+		);
+
+		$this->assertSame( '2026-10-01', $settled['planned_start'] );
+	}
+
+	public function test_a_recurring_chore_keeps_its_own_start(): void {
+		$changes = array( 'planned_due' => '2026-10-16' );
+
+		$this->assertSame( $changes, StartDate::settle( $changes, array( 'assignees' => array( 'usr_one' ) ) ) );
+		$this->assertSame( $changes, StartDate::settle( $changes, array( 'assignees' => '["usr_one"]' ) ) );
+	}
+
+	/*
+	 * The panel sends every date on every save. A save that changes none of
+	 * them leaves the start alone, so an older task's start is only moved by
+	 * somebody actually changing a date.
+	 */
+	public function test_dates_sent_unchanged_leave_the_start_alone(): void {
+		$current = array(
+			'planned_start' => '2026-10-01',
+			'planned_due'   => '2026-10-20',
+		);
+		$changes = array(
+			'title'       => 'Renamed',
+			'planned_due' => '2026-10-20',
+		);
+
+		$this->assertArrayNotHasKey( 'planned_start', StartDate::settle( $changes, $current ) );
+	}
+
+	/* No design needed, no Design by: the date goes with the designer. */
+	public function test_no_designer_clears_design_by(): void {
+		$settled = StartDate::settle(
+			array( 'designer_id' => '' ),
+			array(
+				'designer_id'   => 'usr_d',
+				'design_target' => '2026-10-10',
+				'planned_due'   => '2026-10-20',
+			)
+		);
+
+		$this->assertSame( '', $settled['design_target'] );
+		$this->assertSame( '2026-10-20', $settled['planned_start'] );
+	}
+
+	/* Every date cleared: no dates at all, the start included. */
+	public function test_clearing_every_date_clears_the_start(): void {
+		$settled = StartDate::settle(
+			array(
+				'design_target'  => '',
+				'planned_due'    => '',
+				'review_target'  => '',
+				'release_target' => '',
+			),
+			array(
+				'planned_start' => '2026-10-14',
+				'design_target' => '2026-10-14',
+				'planned_due'   => '2026-10-16',
+			)
+		);
+
+		$this->assertSame( '', $settled['planned_start'] );
+	}
+
+	public function test_an_edit_without_dates_is_left_alone(): void {
+		$changes = array( 'title' => 'Renamed' );
+
+		$this->assertSame( $changes, StartDate::settle( $changes, array( 'planned_due' => '2026-10-16' ) ) );
+	}
+}

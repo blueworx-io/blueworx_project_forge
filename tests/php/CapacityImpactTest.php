@@ -166,18 +166,17 @@ final class CapacityImpactTest extends TestCase {
 	public function test_comfortable_overall_and_impossible_in_one_week_is_over_booked(): void {
 		/*
 		 * CAP-E2, and the case the whole decision turns on. Two working weeks,
-		 * 80 hours available. A fortnight's job of 40 hours spreads evenly, 20
-		 * a week. Something else already takes 30 hours, all of it in the first
-		 * week.
+		 * 80 hours available. Since #513 every seat sits on its own day: this
+		 * job puts 15 hours on Friday of the first week, and something else
+		 * already puts 30 on its Thursday.
 		 *
-		 * Across the job: 70 committed against 80 available, comfortable, let
-		 * it through. Week by week: the first week is 50 against 40, and
-		 * somebody has a fortnight of work and no time to start it in.
+		 * Across the fortnight: 45 committed against 80 available, comfortable.
+		 * Week by week: the first week is 45 against 40, over by five.
 		 */
 		$mine = $this->item(
 			array(
-				'planned_due'   => '2026-09-18',
-				'hours_primary' => 40.0,
+				'planned_due'   => '2026-09-11',
+				'hours_primary' => 15.0,
 				'hours_review'  => 0.0,
 			)
 		);
@@ -187,7 +186,7 @@ final class CapacityImpactTest extends TestCase {
 				'id'            => 'wrk_two',
 				'stage'         => 'up-next',
 				'planned_start' => '2026-09-07',
-				'planned_due'   => '2026-09-11',
+				'planned_due'   => '2026-09-10',
 				'hours_primary' => 30.0,
 				'hours_review'  => 0.0,
 			)
@@ -205,7 +204,7 @@ final class CapacityImpactTest extends TestCase {
 		$this->assertFalse( Impact::clear( $impact ) );
 		$this->assertCount( 1, $impact['over'], 'Only the first week is over.' );
 		$this->assertSame( '2026-09-07', $impact['over'][0]['week_from'] );
-		$this->assertSame( 10.0, $impact['over'][0]['excess'] );
+		$this->assertSame( 5.0, $impact['over'][0]['excess'] );
 	}
 
 	public function test_a_person_nobody_has_set_up_is_not_over_booked(): void {

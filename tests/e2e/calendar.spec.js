@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makeItem } from './helpers/forge.js';
+import { signedIn, makeSite, makeItem, makePerson } from './helpers/forge.js';
 import { signIn } from '../helpers/sign-in.js';
 
 // The calendar view (#121). Four kinds of date live on a work item — when it
@@ -55,10 +55,13 @@ test.describe( 'the calendar', () => {
     };
 
     // One item carrying all four dates, each on a different day, so each kind
-    // can be found on a day of its own.
+    // can be found on a day of its own. Design by only counts with a designer
+    // (#513).
+    const designer = await makePerson( admin.api, client.id, 'staff', `cal${ RUN }` );
     const full = await make( {
       title: `${ RUN } full dates`,
-      planned_start: on( 0 ),
+      designer_id: designer.id,
+      design_target: on( 0 ),
       planned_due: on( 1 ),
       review_target: on( 2 ),
       release_target: on( 3 ),
@@ -68,8 +71,8 @@ test.describe( 'the calendar', () => {
     // rather than about two different ones.
     const twice = await make( {
       title: `${ RUN } twice over`,
-      planned_start: on( 4 ),
-      planned_due: on( 5 ),
+      planned_due: on( 4 ),
+      review_target: on( 5 ),
     } );
 
     // No dates. It is on the board and it is not on the calendar, and that is
@@ -117,7 +120,7 @@ test.describe( 'the calendar', () => {
     await openCalendar( page );
 
     for ( const [ kind, date ] of [
-      [ 'starts', on( 0 ) ],
+      [ 'design', on( 0 ) ],
       [ 'due', on( 1 ) ],
       [ 'review', on( 2 ) ],
       [ 'release', on( 3 ) ],
