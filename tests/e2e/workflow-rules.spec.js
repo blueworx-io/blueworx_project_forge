@@ -235,7 +235,8 @@ test('work with something outstanding is on the standup from the day it is captu
 // #409. The Designer decides whether a task goes through Design.
 // #511. Design follows Up Next.
 const TO_DESIGN = ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process'];
-const designRows = (detail) => detail.readiness['in-development'].all.map((row) => row.id).filter((id) => id.startsWith('G-DESIGN'));
+// The design checks themselves; G-DESIGN-9 is the start-of-work hours check (#511).
+const designRows = (detail) => detail.readiness['in-development'].all.map((row) => row.id).filter((id) => id.startsWith('G-DESIGN') && 'G-DESIGN-9' !== id);
 
 test('with no Designer a task passes Design with no design checks', async () => {
   test.slow();

@@ -47,7 +47,7 @@ export const RULES: RuleSection[] = [
         why: 'It is the reviewer\'s sign-off that the documented approach is sound.',
       },
       {
-        what: 'To leave Design Process a task with a designer needs its responsive states and its empty, loading, error and no-access states marked done, plus the reviewer\'s design approval; a task with no designer is asked for nothing here, and a design link is always optional.',
+        what: 'To leave Design Process a task with a designer needs its responsive states and its empty, loading, error and no-access states marked done, plus the reviewer\'s design approval; a task with no designer is asked for none of that, and a design link is always optional. Leaving Design starts the work, so either way the client must still be on a package they can spend from.',
         why: 'Not every task has a design, so only tasks with a designer go through the design checks.',
       },
       {
@@ -409,7 +409,7 @@ export const RULES: RuleSection[] = [
         why: 'The balance shows what is committed as well as what has been used.',
       },
       {
-        what: 'Paid work can\'t enter Up Next unless the client has enough hours left, and can\'t leave Up Next unless they are also on a package they can spend from; work can never take a balance below zero.',
+        what: 'Paid work can\'t enter Up Next unless the client has enough hours left, and can\'t leave Up Next, or start, unless they are also on a package they can spend from; work can never take a balance below zero.',
         why: 'We don\'t commit to work a client hasn\'t got the hours for.',
       },
       {

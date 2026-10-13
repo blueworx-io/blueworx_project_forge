@@ -221,6 +221,9 @@ final class Gates {
 				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),
 				self::done( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'Mark all four states as done.' ),
 				self::approval( 'G-DESIGN-5', 'Design approval', 'Approve the design, as the reviewer.', self::REV ),
+				// #511. Leaving Design starts the work, so whether the client can
+				// still spend is asked again here: a package can lapse in Design.
+				self::system( 'G-DESIGN-9', 'Support-hours check', 'support_hours', 'The site still has to be on a package it can spend from when the work starts.' ),
 			),
 			'G-UP-NEXT'         => array(
 
@@ -381,15 +384,15 @@ final class Gates {
 		 */
 		$no_designer = '' === (string) ( $item['designer_id'] ?? '' );
 
-		if ( 'G-DESIGN' === $gate && ( $no_designer || isset( $records[ self::DESIGN_NOT_APPLICABLE ] ) ) ) {
-			return array(
-				'unmet'  => array(),
-				'checks' => array(),
-				'all'    => array(),
-			);
-		}
+		// #511. The design checks go; the system checks stay, because leaving
+		// Design is when the work starts.
+		$design_skipped = 'G-DESIGN' === $gate && ( $no_designer || isset( $records[ self::DESIGN_NOT_APPLICABLE ] ) );
 
 		foreach ( self::requirements( $gate ) as $requirement ) {
+			if ( $design_skipped && self::BY_SYSTEM !== $requirement['by'] ) {
+				continue;
+			}
+
 			if ( self::BY_SYSTEM === $requirement['by'] ) {
 				$passed   = self::check( (string) $requirement['check'], $item, $records, $context );
 				$checks[] = array(
