@@ -139,9 +139,11 @@ const CLASSES = [
 
 const PRIORITIES = [ 'low', 'normal', 'high', 'urgent' ] as const;
 
+// #513. One date per person, in the order they come. Forge sets the start
+// itself from the earliest, so nobody is asked for it.
 const DATES = [
-  { field: 'planned_start', label: 'Starts', needed: 'up-next' },
-  { field: 'planned_due', label: 'Due', needed: 'up-next' },
+  { field: 'design_target', label: 'Design by', needed: '' },
+  { field: 'planned_due', label: 'Deliver by', needed: 'up-next' },
   { field: 'review_target', label: 'Review by', needed: '' },
   { field: 'release_target', label: 'Release by', needed: '' },
 ] as const;
@@ -172,7 +174,6 @@ const NEEDED_FROM: Record< string, string > = {
   primary_user_id: 'future-idea',
   reviewer_id: 'future-idea',
   deliverer_id: 'up-next',
-  planned_start: 'up-next',
   planned_due: 'up-next',
 };
 
@@ -1018,7 +1019,9 @@ export function ItemPanel( {
    * it, so nobody has to know which card the answer lives on.
    */
   const reveal = ( field: string ) => {
-    const section = ( ASSIGNMENT as readonly string[] ).includes( field )
+    const section = DATES.some( ( date ) => date.field === field )
+      ? 'dates'
+      : ( ASSIGNMENT as readonly string[] ).includes( field )
       ? 'assign'
       : [ 'test_description', 'test_steps' ].includes( field )
         ? 'testing'
@@ -2208,7 +2211,7 @@ export function ItemPanel( {
              */ }
             { staff && ! ended && ! chore && (
               <div className="bwx-assign" data-testid="bwx-assign" data-collapsed={ isFolded( 'assign' ) ? 'true' : 'false' }>
-                { head( 'assign', 'Who and when' ) }
+                { head( 'assign', 'Who and hours' ) }
 
                 <div className="bwx-pair">
                   <div className="bwx-field">
@@ -2275,8 +2278,17 @@ export function ItemPanel( {
                   </div>
                 ) ) }
 
+              </div>
+            ) }
+
+            { /* #513. The dates in a section of their own, one per person. */ }
+            { staff && ! ended && ! chore && (
+              <div className="bwx-assign" data-testid="bwx-dates" data-collapsed={ isFolded( 'dates' ) ? 'true' : 'false' }>
+                { head( 'dates', 'Dates' ) }
+
                 <div className="bwx-pair">
-                  { DATES.map( ( date ) => (
+                  { /* No design needed, no Design by. */ }
+                  { DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( draft.designer_id ?? '' ) ).map( ( date ) => (
                     <div className="bwx-field" key={ date.field }>
                       { naming( date.field, date.label ) }
                       <input
@@ -2485,8 +2497,9 @@ const FIELD_LABELS: Record< string, string > = {
   hours_primary: 'hours',
   hours_review: 'review hours',
   hours_delivery: 'delivery hours',
+  design_target: 'design by',
   planned_start: 'start',
-  planned_due: 'due',
+  planned_due: 'deliver by',
   review_target: 'review by',
   release_target: 'release by',
   design_url: 'design link',

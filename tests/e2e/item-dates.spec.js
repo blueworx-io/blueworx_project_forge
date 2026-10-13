@@ -1,0 +1,58 @@
+import { test, expect } from '@playwright/test';
+import * as Forge from './helpers/forge.js';
+
+// #513. A task's dates have their own section, one per person: Design by,
+// Deliver by, Review by, Release by. Design by goes when no design is needed,
+// and Forge sets the start itself from the earliest of them.
+
+const RUN = `dates${ Date.now() }`;
+const DAY = 86400000;
+const on = ( offset ) => new Date( Date.now() + offset * DAY ).toISOString().slice( 0, 10 );
+
+test( 'the dates sit in their own section, one per person', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { client, site } = await Forge.makeSite( admin.api, `Dates Co ${ RUN }`, RUN );
+  const person = await Forge.makePerson( admin.api, client.id, 'staff', `dp${ RUN }` );
+  const made = await Forge.makeItem( admin.api, site.id, { title: `Dated ${ RUN }` } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  const item = ( await made.json() ).item;
+  const edited = await admin.api.patch( `/work-items/${ item.id }`, { designer_id: person.id, record_version: item.record_version } );
+  expect( edited.status(), await edited.text() ).toBe( 200 );
+
+  const page = await admin.context.newPage();
+  await page.goto( `/blueworx-forge/#item=${ item.id }` );
+  const panel = page.getByTestId( 'bwx-panel' );
+  await expect( panel ).toContainText( `Dated ${ RUN }`, { timeout: 60_000 } );
+
+  const dates = panel.getByTestId( 'bwx-dates' );
+  await expect( dates ).toBeVisible();
+  for ( const label of [ 'Design by', 'Deliver by', 'Review by', 'Release by' ] ) {
+    await expect( dates.getByLabel( label ) ).toBeVisible();
+  }
+  await expect( panel.getByLabel( 'Starts' ) ).toHaveCount( 0 );
+  await expect( panel.getByLabel( 'Due' ) ).toHaveCount( 0 );
+
+  // Who and hours holds no dates any more.
+  const assign = panel.getByTestId( 'bwx-assign' );
+  await expect( assign.getByTestId( 'bwx-section-assign' ) ).toHaveText( 'Who and hours' );
+  await expect( assign.locator( 'input[type="date"]' ) ).toHaveCount( 0 );
+
+  await dates.getByLabel( 'Design by' ).fill( on( 2 ) );
+  await dates.getByLabel( 'Deliver by' ).fill( on( 3 ) );
+  await page.getByTestId( 'bwx-save' ).click();
+  await expect( page.getByTestId( 'bwx-panel-notice' ) ).toHaveText( 'Saved.', { timeout: 30_000 } );
+
+  const saved = ( await admin.api.get( `/work-items/${ item.id }` ) ).item;
+  expect( saved.design_target ).toBe( on( 2 ) );
+  expect( saved.planned_due ).toBe( on( 3 ) );
+  expect( saved.planned_start, 'Forge sets the start from the earliest date' ).toBe( on( 2 ) );
+
+  // No design needed: no Design by.
+  await page.locator( '#bwx-designer_id' ).selectOption( '' );
+  await expect( dates.getByLabel( 'Design by' ) ).toHaveCount( 0 );
+  await expect( dates.getByLabel( 'Deliver by' ) ).toBeVisible();
+
+  await admin.context.close();
+} );

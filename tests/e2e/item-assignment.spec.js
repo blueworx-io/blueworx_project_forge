@@ -97,7 +97,7 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
   await page.selectOption('#bwx-hours_review', '1');
   await page.selectOption('#bwx-deliverer_id', people.deliverer.id);
   await page.selectOption('#bwx-hours_delivery', '1');
-  await page.fill('#bwx-planned_start', '2026-10-05');
+  // #513. Deliver by is the date asked for; Forge sets the start itself.
   await page.fill('#bwx-planned_due', '2026-10-09');
   // And the design link Design Process wants before it lets go (2026-09-19).
   await page.fill('#bwx-design_url', 'https://example.test/design');

@@ -58,7 +58,7 @@ test.describe( 'the calendar', () => {
     // can be found on a day of its own.
     const full = await make( {
       title: `${ RUN } full dates`,
-      planned_start: on( 0 ),
+      design_target: on( 0 ),
       planned_due: on( 1 ),
       review_target: on( 2 ),
       release_target: on( 3 ),
@@ -68,7 +68,7 @@ test.describe( 'the calendar', () => {
     // rather than about two different ones.
     const twice = await make( {
       title: `${ RUN } twice over`,
-      planned_start: on( 4 ),
+      design_target: on( 4 ),
       planned_due: on( 5 ),
     } );
 
@@ -117,7 +117,7 @@ test.describe( 'the calendar', () => {
     await openCalendar( page );
 
     for ( const [ kind, date ] of [
-      [ 'starts', on( 0 ) ],
+      [ 'design', on( 0 ) ],
       [ 'due', on( 1 ) ],
       [ 'review', on( 2 ) ],
       [ 'release', on( 3 ) ],
