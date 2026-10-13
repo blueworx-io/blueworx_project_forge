@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 39;
+	public const VERSION = 40;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -731,6 +731,7 @@ final class Schema {
 	commercial_class varchar(20) NOT NULL DEFAULT 'unclassified',
 	delivered_by_forge tinyint(1) NOT NULL DEFAULT 0,
 	priority varchar(20) NOT NULL DEFAULT '',
+	design_target varchar(10) NOT NULL DEFAULT '',
 	planned_start varchar(10) NOT NULL DEFAULT '',
 	planned_due varchar(10) NOT NULL DEFAULT '',
 	review_target varchar(10) NOT NULL DEFAULT '',
