@@ -88,11 +88,12 @@ test('the approvals belong to the reviewer, and an administrator may stand in', 
 test('the dates keep their order, whichever one is sent', async () => {
   const item = await fresh(`Dates ${RUN_ID}`);
 
-  const backwards = await patch(item, { planned_start: '2026-09-10', planned_due: '2026-09-05' });
+  // #513. Deliver by, review by, release by; the start is Forge's own.
+  const backwards = await patch(item, { planned_due: '2026-09-10', review_target: '2026-09-05' });
   expect(backwards.status()).toBe(400);
-  expect((await backwards.json()).data.fields.planned_due).toContain('before');
+  expect((await backwards.json()).data.fields.review_target).toContain('before');
 
-  expect((await patch(item, { planned_start: '2026-09-10', planned_due: '2026-09-20' })).status()).toBe(200);
+  expect((await patch(item, { planned_due: '2026-09-10', review_target: '2026-09-20' })).status()).toBe(200);
 
   // A single date is held against the ones already there.
   const early = await patch(item, { release_target: '2026-09-15' });
@@ -101,7 +102,7 @@ test('the dates keep their order, whichever one is sent', async () => {
 
   // The same day is fine, and so is the past.
   expect((await patch(item, { review_target: '2026-09-20', release_target: '2026-09-20' })).status()).toBe(200);
-  expect((await patch(item, { planned_start: '2020-01-01' })).status()).toBe(200);
+  expect((await patch(item, { planned_due: '2020-01-01' })).status()).toBe(200);
 });
 
 test('leaving In Development takes a finished checklist, and neither how to test, evidence nor hours still to do', async ({ browser, baseURL }) => {

@@ -54,5 +54,13 @@ test( 'the dates sit in their own section, one per person', async ( { browser, b
   await expect( dates.getByLabel( 'Design by' ) ).toHaveCount( 0 );
   await expect( dates.getByLabel( 'Deliver by' ) ).toBeVisible();
 
+  // And it goes on save: no Design by left behind to trip the order check.
+  await dates.getByLabel( 'Deliver by' ).fill( on( 1 ) );
+  await page.getByTestId( 'bwx-save' ).click();
+  await expect( page.getByTestId( 'bwx-panel-notice' ) ).toHaveText( 'Saved.', { timeout: 30_000 } );
+  const cleared = ( await admin.api.get( `/work-items/${ item.id }` ) ).item;
+  expect( cleared.design_target ).toBe( '' );
+  expect( cleared.planned_start ).toBe( on( 1 ) );
+
   await admin.context.close();
 } );

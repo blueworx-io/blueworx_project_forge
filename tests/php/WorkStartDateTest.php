@@ -58,6 +58,39 @@ final class WorkStartDateTest extends TestCase {
 		$this->assertSame( $changes, StartDate::settle( $changes, array( 'assignees' => '["usr_one"]' ) ) );
 	}
 
+	/*
+	 * The panel sends every date on every save. A save that changes none of
+	 * them leaves the start alone, so an older task's start is only moved by
+	 * somebody actually changing a date.
+	 */
+	public function test_dates_sent_unchanged_leave_the_start_alone(): void {
+		$current = array(
+			'planned_start' => '2026-10-01',
+			'planned_due'   => '2026-10-20',
+		);
+		$changes = array(
+			'title'       => 'Renamed',
+			'planned_due' => '2026-10-20',
+		);
+
+		$this->assertArrayNotHasKey( 'planned_start', StartDate::settle( $changes, $current ) );
+	}
+
+	/* No design needed, no Design by: the date goes with the designer. */
+	public function test_no_designer_clears_design_by(): void {
+		$settled = StartDate::settle(
+			array( 'designer_id' => '' ),
+			array(
+				'designer_id'   => 'usr_d',
+				'design_target' => '2026-10-10',
+				'planned_due'   => '2026-10-20',
+			)
+		);
+
+		$this->assertSame( '', $settled['design_target'] );
+		$this->assertSame( '2026-10-20', $settled['planned_start'] );
+	}
+
 	public function test_an_edit_without_dates_is_left_alone(): void {
 		$changes = array( 'title' => 'Renamed' );
 

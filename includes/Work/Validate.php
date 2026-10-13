@@ -414,7 +414,11 @@ final class Validate {
 		foreach ( Fields::DATE_ORDER as $field ) {
 			$date = (string) ( $after[ $field ] ?? '' );
 
-			if ( '' === $date ) {
+			// A Design by left behind with no designer is cleared on save, so
+			// it is held against nothing.
+			$designless = 'design_target' === $field && array_key_exists( 'designer_id', $after ) && '' === (string) $after['designer_id'];
+
+			if ( '' === $date || $designless ) {
 				continue;
 			}
 

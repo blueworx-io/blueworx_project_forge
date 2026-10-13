@@ -41,6 +41,20 @@ final class WorkDatesOrderTest extends TestCase {
 		$this->assertSame( array( 'planned_due' => 'Deliver by cannot be before design by.' ), $errors );
 	}
 
+	/* A Design by left behind with no designer is not held against anything. */
+	public function test_design_by_without_a_designer_is_ignored(): void {
+		$this->assertSame(
+			array(),
+			Validate::dates_in_order(
+				array(
+					'designer_id'   => '',
+					'design_target' => '2026-10-20',
+					'planned_due'   => '2026-10-15',
+				)
+			)
+		);
+	}
+
 	public function test_the_start_is_not_held_to_the_order(): void {
 		$this->assertSame(
 			array(),

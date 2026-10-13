@@ -526,7 +526,8 @@ test('an edit made against a version that has moved is refused', async ({ browse
   await context.close();
 });
 
-test('a due date before its start is refused', async ({ browser, baseURL }) => {
+// #513. The start is Forge's own now; the people's dates keep their order.
+test('a release date before its deliver by date is refused', async ({ browser, baseURL }) => {
   const { context, nonce } = await signedInContext(browser, baseURL);
   const site = await makeSite(context.request, nonce, 'Dates Co');
 
@@ -534,8 +535,8 @@ test('a due date before its start is refused', async ({ browser, baseURL }) => {
     title: `Backwards dates ${RUN_ID}`,
     level: 'feature',
     work_type: 'task',
-    planned_start: '2026-09-10',
-    planned_due: '2026-09-01',
+    planned_due: '2026-09-10',
+    release_target: '2026-09-01',
   });
 
   expect(refused.status()).toBe(400);

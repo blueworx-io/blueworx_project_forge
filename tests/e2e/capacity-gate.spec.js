@@ -141,7 +141,9 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
         deliverer_id: deliverer.id,
         planned_start: FROM,
         planned_due: TO,
-        hours_primary: 10,
+        // #513. A day's work, all of it on Deliver by: five hours is the most
+        // any assignment takes, and it fits an eight-hour day.
+        hours_primary: 5,
       },
     }
   );

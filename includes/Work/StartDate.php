@@ -27,7 +27,12 @@ final class StartDate {
 	 * @return array<string, mixed>
 	 */
 	public static function settle( array $changes, array $current = array() ): array {
-		if ( array_key_exists( 'planned_start', $changes ) || array() === array_intersect_key( $changes, array_flip( Fields::DATE_ORDER ) ) ) {
+		// No design needed, no Design by: the date goes with the designer.
+		if ( array_key_exists( 'designer_id', $changes ) && '' === (string) $changes['designer_id'] ) {
+			$changes['design_target'] = '';
+		}
+
+		if ( array_key_exists( 'planned_start', $changes ) || ! self::moved( $changes, $current ) ) {
 			return $changes;
 		}
 
@@ -53,5 +58,23 @@ final class StartDate {
 		}
 
 		return $changes;
+	}
+
+	/**
+	 * Whether the edit changes any of the dates. The panel sends them all on
+	 * every save, so being sent is not the same as being changed.
+	 *
+	 * @param array<string, mixed> $changes The columns being written.
+	 * @param array<string, mixed> $current The task as it stands.
+	 * @return bool
+	 */
+	private static function moved( array $changes, array $current ): bool {
+		foreach ( Fields::DATE_ORDER as $field ) {
+			if ( array_key_exists( $field, $changes ) && (string) $changes[ $field ] !== (string) ( $current[ $field ] ?? '' ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

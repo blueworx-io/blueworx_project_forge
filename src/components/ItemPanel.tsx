@@ -1092,7 +1092,8 @@ export function ItemPanel( {
               // The client's review takes nobody's hours.
               ...( reviewing && CLIENT === event.target.value ? { hours_review: '' } : {} ),
               // No design required is no design time (#421).
-              ...( 'designer_id' === field && '' === event.target.value ? { hours_designer: '0' } : {} ),
+              // and no Design by (#513).
+              ...( 'designer_id' === field && '' === event.target.value ? { hours_designer: '0', design_target: '' } : {} ),
             } )
           }
         >
