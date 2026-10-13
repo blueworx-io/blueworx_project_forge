@@ -99,6 +99,13 @@ body {
   max-width: 340px;
 }
 
+/* #512. A seat that takes nobody's time: its 0 hours, greyed out. */
+.bwx-select:disabled {
+  color: var( --ink-500 );
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .bwx-textarea {
   width: 100%;
   min-height: 84px;

@@ -20,7 +20,7 @@ import { phaseOf } from '../phases';
 import { waitingOn } from '../turn';
 import { useLiveReload } from '../live';
 import { HoursSelect } from '../hours';
-import { RichText } from '../kit';
+import { RichText, Select } from '../kit';
 import type { SiteOption } from '../sites';
 import { Inline, NOTHING_SAID, Notice, Screen } from './States';
 import type { Said, SaidTone } from './States';
@@ -2258,12 +2258,21 @@ export function ItemPanel( {
                 { 0 === ( item.assignees?.length ?? 0 ) && SEATS.map( ( seat ) => (
                   <div className="bwx-seat" key={ seat.field }>
                     { pick( seat.field, seat.label ) }
-                    { 'hours_designer' === seat.hours && ! draft.designer_id ? null : 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ? (
+                    { /*
+                       #512. No design needed, or the client reviewing, takes
+                       nobody's time: the same drop-down, fixed at 0 hours.
+                     */ }
+                    { ( 'hours_designer' === seat.hours && ! draft.designer_id ) || ( 'hours_review' === seat.hours && CLIENT === draft.reviewer_id ) ? (
                       <div className="bwx-field">
-                        <span className="bwx-eyebrow">Hours</span>
-                        <p className="bwx-hint" data-testid="bwx-client-no-hours">
-                          None. The client&rsquo;s review takes nobody&rsquo;s time.
-                        </p>
+                        { naming( seat.hours, 'Hours' ) }
+                        <Select
+                          id={ `bwx-${ seat.hours }` }
+                          className="bwx-select"
+                          data-testid="bwx-no-hours"
+                          value="0"
+                          options={ [ { value: '0', label: '0 hours' } ] }
+                          disabled
+                        />
                       </div>
                     ) : (
                       <div className="bwx-field">
