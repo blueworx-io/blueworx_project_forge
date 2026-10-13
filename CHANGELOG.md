@@ -14,6 +14,10 @@ commits and pull requests.
 
 - Design Process now comes after Up Next: a task is planned, checked for room and booked before design starts, then goes from Design Process into In Development. Work in Design counts in Capacity and keeps the client's hours held. Tasks already on the board stay where they are.
 
+### Fixed
+
+- A choice picked in a task's panel but not yet saved is no longer cleared when the task refreshes in the background.
+
 ## [2.173.0] - 2026-10-13
 
 ### Changed
