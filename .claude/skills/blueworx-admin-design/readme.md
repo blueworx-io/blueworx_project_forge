@@ -194,7 +194,7 @@ Styling lives in `.css` files beside each group (`core.css`, `forms.css` + `form
 that cannot ship React can use the classes alone: `.bw-btn.bw-btn--primary`, `.bw-card`,
 `.bw-table`, `.bw-formrow`, and so on.
 
-Two patterns exist only as classes, because they are read rather than operated and every
+Three patterns exist only as classes, because they are read rather than operated and every
 screen that shows one is PHP: `.bw-schedule`, a gantt with the controls taken off, and
 `.bw-calendar`, a month grid. The calendar is a `table` with `.bw-calendar__day` cells,
 each holding a `.bw-calendar__daynum` and a `.bw-calendar__entries` list; a day outside the
@@ -204,6 +204,19 @@ modifier on the entry. Every day cell carries its short weekday name in `data-we
 with nothing on it is also `--empty`: under 782px the grid becomes a list of the days that have
 something on them, and those are what it reads. Its `.bw-calendar__nav` is two ghost buttons around a
 `.bw-calendar__month` heading. See `components/data/data-calendar.card.html`.
+
+`.bw-compare` is the third: records down the side and one column per field, for reading
+what a change does to many records at once (an import's results, say). It goes on a
+`.bw-table` inside a `.bw-tablescroll` and grows as wide as its columns. The record's own
+cells are `.bw-compare__pin` and stay at the left while the fields scroll; the first is the
+row's `th scope="row"`, and the last pinned cell is also `--edge`. Field headers are
+`.bw-compare__field`. Every cell says something: a changed field is a `.bw-compare__new`
+value (clamped to two lines, so put the full text in its `title`) over the old one as
+`.bw-compare__old`, struck through, or `.bw-compare__was` ("was empty"); a field that stays
+as it is reads `.bw-compare__same` "No change" — never a blank. A record's detail goes in a
+`.bw-compare__detail` row under it, toggled by a ghost button in the pinned cell, its
+`.bw-compare__detail-body` held at the left. Under 782px nothing is pinned. See
+`components/data/data-compare.card.html`.
 
 ### Which control for which job
 
@@ -226,6 +239,7 @@ something on them, and those are what it reads. Its `.bw-calendar__nav` is two g
 | Derived figures that stay put while tabs change | `SummaryStrip` |
 | Phases against a week or date scale | `Gantt` |
 | Dates on the month they fall in | `.bw-calendar` (classes only) |
+| What a change does to many records, field by field | `.bw-compare` (classes only) |
 
 ### Intentional additions
 

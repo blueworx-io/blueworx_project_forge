@@ -1,0 +1,75 @@
+<!-- @dsCard group="Components" viewport="1000x460" name="Data — compare" subtitle="Records down the side, a column per field, each cell what it was and what it becomes" -->
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Data — compare</title><link rel="stylesheet" href="../../styles.css">
+<script type="module" src="../../assets/icons/lucide-icons.js"></script>
+<style>body{margin:0;background:var(--bw-surface-page)}.pad{padding:20px}</style></head>
+<body class="bw-admin">
+<div class="pad">
+<section class="bw-card bw-card--flush">
+  <div class="bw-tablescroll">
+    <table class="bw-table bw-compare">
+      <thead>
+        <tr>
+          <th scope="col" class="bw-compare__pin">Product</th>
+          <th scope="col" class="bw-compare__pin bw-compare__pin--edge">Result</th>
+          <th scope="col" class="bw-compare__field">Regular price</th>
+          <th scope="col" class="bw-compare__field">Product Depth (mm)</th>
+          <th scope="col" class="bw-compare__field">Pack Size</th>
+          <th scope="col" class="bw-compare__field">Bullet 2</th>
+          <th scope="col" class="bw-compare__field">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row" class="bw-compare__pin">
+            <span class="bw-table__primary">1 Gang Kinetic Push Switch Matt White IP65</span>
+            <span class="bw-table__sub">CUL-40031-65</span>
+            <button type="button" class="bw-btn bw-btn--ghost bw-btn--sm" aria-expanded="true" aria-controls="raw-1">Raw <i class="bw-icon" data-lucide="chevron-up" aria-hidden="true"></i></button>
+          </th>
+          <td class="bw-compare__pin bw-compare__pin--edge"><span class="bw-badge bw-badge--info">Updated</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+          <td><span class="bw-compare__new">15</span><span class="bw-compare__was">was empty</span></td>
+          <td><span class="bw-compare__new">40</span><span class="bw-compare__was">was empty</span></td>
+          <td><span class="bw-compare__new">New wording</span><span class="bw-compare__old">Old wording</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+        </tr>
+        <tr class="bw-compare__detail" id="raw-1">
+          <td colspan="7"><div class="bw-compare__detail-body"><pre>{
+  "Id": 9867218,
+  "SKU": "CUL-40031-65",
+  "Price": 24.11
+}</pre></div></td>
+        </tr>
+        <tr>
+          <th scope="row" class="bw-compare__pin">
+            <span class="bw-table__primary">2 Gang Kinetic Push Switch Matt White IP65</span>
+            <span class="bw-table__sub">CUL-40032-65</span>
+            <button type="button" class="bw-btn bw-btn--ghost bw-btn--sm" aria-expanded="false" aria-controls="raw-2">Raw <i class="bw-icon" data-lucide="chevron-down" aria-hidden="true"></i></button>
+          </th>
+          <td class="bw-compare__pin bw-compare__pin--edge"><span class="bw-badge bw-badge--info">Updated</span></td>
+          <td><span class="bw-compare__new">24.11</span><span class="bw-compare__old">21.00</span></td>
+          <td><span class="bw-compare__new">15</span><span class="bw-compare__was">was empty</span></td>
+          <td><span class="bw-compare__new">40</span><span class="bw-compare__was">was empty</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+          <td><span class="bw-compare__new" title="The 2 Gang Kinetic Push Switch in Matt White offers a wireless, hassle-free way to control two lights, with an IP65 rating for bathrooms and outdoors.">The 2 Gang Kinetic Push Switch in Matt White offers a wireless, hassle-free way to control two lights, with an IP65 rating for bathrooms and outdoors.</span><span class="bw-compare__was">was empty</span></td>
+        </tr>
+        <tr class="bw-compare__detail" id="raw-2" hidden>
+          <td colspan="7"><div class="bw-compare__detail-body"><pre>{}</pre></div></td>
+        </tr>
+        <tr>
+          <th scope="row" class="bw-compare__pin">
+            <span class="bw-table__primary">Archived Lamp</span>
+            <span class="bw-table__sub">TEST-1003</span>
+          </th>
+          <td class="bw-compare__pin bw-compare__pin--edge"><span class="bw-badge bw-badge--warning">Hidden</span><span class="bw-table__sub">Archived in ePim</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+          <td><span class="bw-compare__same">No change</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+</div>
+</body></html>
