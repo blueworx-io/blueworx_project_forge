@@ -75,6 +75,9 @@ const DEFINITION_BOXES = [
 /** The plain text fields the draft holds beside the editable ones. */
 const TEXT_FIELDS = [ 'test_description' ] as const;
 
+/** What Save says. It stays until the next thing happens rather than closing itself (#505). */
+const SAVED = 'Saved.';
+
 /** The pick whose item choice is what End it → duplicate uses. */
 const DUPLICATE_PICK = 'G-TRIAGE-6';
 
@@ -683,7 +686,7 @@ export function ItemPanel( {
       await saveAnswers();
       await load();
       onChanged();
-      setNotice( 'Saved.', 'ok' );
+      setNotice( SAVED, 'ok' );
     } catch ( error ) {
       setNotice( refusal( error ) );
     } finally {
@@ -1339,6 +1342,7 @@ export function ItemPanel( {
           <Notice
             said={ banner }
             testId="bwx-panel-notice"
+            stays={ SAVED === notice }
             onClose={ () => {
               setSaid( NOTHING_SAID );
               setUnmet( [] );

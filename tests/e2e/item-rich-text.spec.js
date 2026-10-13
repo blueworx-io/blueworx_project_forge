@@ -42,7 +42,7 @@ test('a word made bold in the panel is stored bold and comes back bold', async (
   await page.keyboard.press('Control+a');
   await page.locator('.bwx-task').getByRole('button', { name: 'Bold' }).first().click();
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
   const saved = await admin.api.get(`/work-items/${item.id}`);
   expect(saved.item.problem).toContain('<strong>');

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.170.1] - 2026-10-13
+
+### Fixed
+
+- After saving a task, "Saved." now stays on screen until the next thing you do, instead of disappearing before you can read it.
+
 ## [2.170.0] - 2026-10-12
 
 ### Added
