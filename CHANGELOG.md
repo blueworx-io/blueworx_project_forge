@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.172.0] - 2026-10-13
+
+### Changed
+
+- A task's dates now have their own section: Design by (only when there is a designer), Deliver by, Review by and Release by. Starts and Due are gone; Forge sets the start itself.
+- Capacity puts each person's hours on their own date, all on that day, instead of spreading them across the task's dates.
+
 ## [2.171.1] - 2026-10-13
 
 ### Fixed

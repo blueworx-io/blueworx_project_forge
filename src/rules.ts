@@ -51,7 +51,7 @@ export const RULES: RuleSection[] = [
         why: 'Not every task has a design, so only tasks with a designer go through the design checks.',
       },
       {
-        what: 'To start work (leave Up Next) a task needs the doer, reviewer and deliverer named, hours for each of them, a start and a due date, a priority, room in everyone\'s week, and enough of the client\'s support hours.',
+        what: 'To start work (leave Up Next) a task needs the doer, reviewer and deliverer named, hours for each of them, a deliver by date, a priority, room in everyone\'s week, and enough of the client\'s support hours.',
         why: 'Work only starts once it is fully planned, staffed and paid for.',
       },
       {
@@ -63,8 +63,12 @@ export const RULES: RuleSection[] = [
         why: 'A tick or a new line is too easy to lose by closing the task.',
       },
       {
-        what: 'A task\'s dates must stay in order (start, then due, then review by, then release by), though any of them may be in the past.',
+        what: 'A task\'s dates must stay in order (design by, then deliver by, then review by, then release by), though any of them may be in the past. Design by only shows when the task has a designer.',
         why: 'Dates that run backwards make the plan and the timeline meaningless.',
+      },
+      {
+        what: 'Each person on a task has their own date, and all their hours on it land on that day in Capacity: design on Design by, the work on Deliver by, the review on Review by, delivery on Release by. A person with no date of their own lands on Deliver by. Forge sets the task\'s start itself from the earliest date.',
+        why: 'Every assignment is at most five hours and done in a single day, so spreading hours across days showed load where there was none.',
       },
       {
         what: 'A task with work beneath it takes its progress and dates from that work, and can only reach Released once everything beneath it is Completed; cancelled, rejected and duplicate work beneath it doesn\'t count.',
@@ -361,7 +365,7 @@ export const RULES: RuleSection[] = [
     title: 'Capacity and hours',
     rules: [
       {
-        what: 'A task counts against its people\'s time from Up Next until it is finished, spread evenly over the working days between its start and due dates.',
+        what: 'A task counts against its people\'s time from Up Next until it is finished, each person\'s hours on their own date. A recurring task\'s hours are spread evenly over the working days it covers.',
         why: 'Ideas that may never be built shouldn\'t make anyone look busy.',
       },
       {
