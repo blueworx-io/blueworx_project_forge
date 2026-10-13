@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.174.0] - 2026-10-13
+
+### Changed
+
+- Design Process now comes after Up Next: a task is planned, checked for room and booked before design starts, then goes from Design Process into In Development. Work in Design counts in Capacity and keeps the client's hours held. Tasks already on the board stay where they are.
+
 ## [2.173.0] - 2026-10-13
 
 ### Changed

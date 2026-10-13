@@ -110,7 +110,7 @@ final class WorkReturnsTest extends TestCase {
 		$this->assertFalse( Returns::allowed( $item, 'completed' ) );
 		$this->assertFalse( Returns::allowed( $item, 'bug-tracking' ) );
 		$this->assertSame(
-			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development' ),
+			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development' ),
 			Returns::targets( $item )
 		);
 	}

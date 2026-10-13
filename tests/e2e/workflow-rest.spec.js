@@ -191,7 +191,7 @@ test('work goes back to any earlier stage, and only with a reason', async ({
   });
   expect(override.status(), await override.text()).toBe(200);
   const jumped = await api.get(`/work-items/${skipped.id}`);
-  expect(jumped.returns).toEqual(['future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process']);
+  expect(jumped.returns).toEqual(['future-idea', 'triage', 'documentation-period', 'technical-audit']);
 
   const sent = await api.post(`/work-items/${item.id}/return`, {
     to: 'triage',
@@ -230,8 +230,8 @@ test('a failed review keeps the review attempt that failed', async ({ browser, b
       'triage',
       'documentation-period',
       'technical-audit',
-      'design-process',
       'up-next',
+      'design-process',
       'in-development',
       'in-review',
     ],
@@ -283,8 +283,8 @@ test('a review that sends work back has to say what was wrong', async ({ browser
       'triage',
       'documentation-period',
       'technical-audit',
-      'design-process',
       'up-next',
+      'design-process',
       'in-development',
       'in-review',
     ],

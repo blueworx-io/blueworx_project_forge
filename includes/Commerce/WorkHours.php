@@ -137,7 +137,8 @@ final class WorkHours {
 			return 0.0;
 		}
 
-		return self::RESERVES_AT === self::effective_stage( $item ) ? self::planned( $item ) : 0.0;
+		// #511. Design follows Up Next, and the hours stay held through it.
+		return in_array( self::effective_stage( $item ), array( self::RESERVES_AT, 'design-process' ), true ) ? self::planned( $item ) : 0.0;
 	}
 
 	/**

@@ -19,15 +19,16 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-const UP_TO_DESIGN = [
+// #511. Parked at Technical Audit: Design now follows Up Next and, like
+// the rest of delivery, is off the list until it is due.
+const UP_TO_AUDIT = [
   'triage',
   'documentation-period',
   'technical-audit',
-  'design-process',
 ];
 
 /**
- * A piece of work parked at Design Process, which is where the day's list
+ * A piece of work parked at Technical Audit, which is where the day's list
  * can say something useful about it.
  *
  * Since 2026-09-19 work is on the list from the day it is captured, so any
@@ -50,7 +51,7 @@ async function withSomethingOutstanding(browser, baseURL) {
 
   expect(made.status(), await made.text()).toBe(200);
 
-  const item = await Forge.walkTo(admin.api, (await made.json()).item, UP_TO_DESIGN, {
+  const item = await Forge.walkTo(admin.api, (await made.json()).item, UP_TO_AUDIT, {
     seats: { ...crew.seats, designer_id: crew.seats.primary_user_id },
   });
 

@@ -72,9 +72,10 @@ export const STAGE_LABELS: Record< string, string > = {
   'bug-tracking': 'Bug Tracking',
   'documentation-period': 'Documentation Period',
   'technical-audit': 'Technical Audit',
-  'design-process': 'Design Process',
   blocked: 'Blocked',
   'up-next': 'Up Next',
+  // #511. Design after Up Next.
+  'design-process': 'Design Process',
   'in-development': 'In Development',
   'in-review': 'In Review',
   completed: 'Completed',

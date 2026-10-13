@@ -71,20 +71,21 @@ final class Transitions {
 			),
 		),
 		'technical-audit'      => array(
-			'design-process' => array(
+			'up-next' => array(
 				'gate'      => 'G-TECHNICAL-AUDIT',
 				'work_type' => null,
 			),
 		),
-		'design-process'       => array(
-			'up-next' => array(
-				'gate'      => 'G-DESIGN',
+		// #511. Up Next, then Design: everything planned and booked first.
+		'up-next'              => array(
+			'design-process' => array(
+				'gate'      => 'G-UP-NEXT',
 				'work_type' => null,
 			),
 		),
-		'up-next'              => array(
+		'design-process'       => array(
 			'in-development' => array(
-				'gate'      => 'G-UP-NEXT',
+				'gate'      => 'G-DESIGN',
 				'work_type' => null,
 			),
 		),

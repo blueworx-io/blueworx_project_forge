@@ -115,7 +115,7 @@ test('only the assigned Reviewer approves, and a substitute is recorded as one',
   item = await Forge.walkTo(
     api,
     item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development', 'in-review'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development', 'in-review'],
     { seats: {
       primary_user_id: stranger.user.id,
       reviewer_id: reviewer.user.id,
@@ -181,7 +181,7 @@ test('a substitute may stand in, and the changelog says it was a substitute', as
   item = await Forge.walkTo(
     api,
     item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development', 'in-review'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development', 'in-review'],
     { seats: {
       primary_user_id: standin.user.id,
       reviewer_id: away.user.id,
@@ -249,7 +249,7 @@ test('reopening starts a new cycle and keeps the completion it came from', async
   item = await Forge.walkTo(
     api,
     item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'],
     { seats: crew.seats },
   );
 

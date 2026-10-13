@@ -32,9 +32,9 @@ it is Completed.
 | 3 | Bug Tracking | Conditional | Capture and validate a bug before specification. Entered only from Triage, only when Triage classifies the item as a bug (WF-1). |
 | 4 | Documentation Period | Linear | Create the approved definition of work. |
 | 5 | Technical Audit | Linear | Confirm feasibility, approach and technical risk. |
-| 6 | Design Process | Linear | Define the required user experience and states. |
-| 7 | Blocked | Exception | Pause active work without hiding responsibility. Enterable from any active stage; stores and restores the prior stage (WF-1). |
-| 8 | Up Next (Assign Hours) | Linear | Commit ready work to the delivery queue. |
+| 6 | Blocked | Exception | Pause active work without hiding responsibility. Enterable from any active stage; stores and restores the prior stage (WF-1). |
+| 7 | Up Next (Assign Hours) | Linear | Commit ready work to the delivery queue. |
+| 8 | Design Process | Linear | Define the required user experience and states. Follows Up Next since #511, so work is planned and booked first. |
 | 9 | In Development | Linear | Complete the defined work. |
 | 10 | In Review | Linear | Independently confirm the work is acceptable. |
 | 11 | Completed | Linear | Mark approved work ready for delivery. |
@@ -71,9 +71,9 @@ Every row commits atomically with its gate records and a changelog entry.
 | Triage | Documentation Period | Staff | Triage Approver | G-TRIAGE, work type ≠ Bug |
 | Bug Tracking | Documentation Period | Staff | Triage Approver | G-BUG-TRACKING |
 | Documentation Period | Technical Audit | Staff | Documentation Approver | G-DOCUMENTATION |
-| Technical Audit | Design Process | Staff | Technical Approver | G-TECHNICAL-AUDIT |
-| Design Process | Up Next | Staff | Design Approver | G-DESIGN |
-| Up Next | In Development | Staff | — | G-UP-NEXT |
+| Technical Audit | Up Next | Staff | Technical Approver | G-TECHNICAL-AUDIT |
+| Up Next | Design Process | Staff | — | G-UP-NEXT |
+| Design Process | In Development | Staff | Design Approver | G-DESIGN |
 | In Development | In Review | Primary User | — | G-IN-DEVELOPMENT |
 | In Review | Completed | Reviewer or authorised substitute (AUTH-3, AUTH-4) | — | G-IN-REVIEW |
 | Completed | Released | Deliverer or authorised substitute | — | G-COMPLETED |
@@ -169,7 +169,7 @@ library) are optional fields of the task, not requirements. Not covered (3)
 and Completed when (5) went on 2026-10-12 (#493, #494); text already written
 in them stays stored but is no longer shown.
 
-### G-TECHNICAL-AUDIT — Technical Audit → Design Process
+### G-TECHNICAL-AUDIT — Technical Audit → Up Next
 
 The reviewer signing off the documentation. The write-in assessments
 (architecture, data and sync, security and privacy, test approach, estimate
@@ -179,7 +179,7 @@ range) went on 2026-09-19, and the Risks check (7) on 2026-10-12 (#495).
 |---|---|---|---|---|
 | 8 | Technical approval | Approval record | No | REV |
 
-### G-DESIGN — Design Process → Up Next
+### G-DESIGN — Design Process → In Development
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|
@@ -189,7 +189,7 @@ range) went on 2026-09-19, and the Risks check (7) on 2026-10-12 (#495).
 | 5 | Design approval | Approval record | No | REV |
 | — | **Or** an approved Not Applicable decision for non-UI work | Approval record with reason | No | REV |
 
-### G-UP-NEXT — Up Next → In Development
+### G-UP-NEXT — Up Next → Design Process
 
 | # | Requirement | Type | Evidence | Who |
 |---|---|---|---|---|

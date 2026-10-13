@@ -60,6 +60,8 @@ final class Allocations {
 	 */
 	public const COMMITTING = array(
 		'up-next',
+		// #511. Design comes after Up Next, so it is booked work too.
+		'design-process',
 		'in-development',
 		'in-review',
 	);

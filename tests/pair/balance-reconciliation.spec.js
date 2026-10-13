@@ -17,7 +17,7 @@ import * as Forge from '../e2e/helpers/forge.js';
 
 const RUN = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const GRANTED = 200;
-const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'];
+const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'up-next'];
 
 test.beforeAll(requireEnvironment);
 
@@ -83,15 +83,22 @@ test('the two interfaces agree at every step of a piece of work', async ({ brows
   expect(both.studio).toBe(GRANTED - 13);
 
   // Started: the reservation becomes spend, and the balance does not move.
-  const ready = await Forge.satisfy(pair.studio, planned, 'in-development');
+  // #511. Out of Up Next into Design, then on into development.
+  let started;
+  let current = planned;
 
-  const started = await pair.studio.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
-    record_version: ready.record_version,
-    capacity_reason: 'Nobody has a pattern on this test instance.',
-  });
+  for (const to of ['design-process', 'in-development']) {
+    const ready = await Forge.satisfy(pair.studio, current, to);
 
-  expect(started.status(), await started.text()).toBe(200);
+    started = await pair.studio.post(`/work-items/${ready.id}/transition`, {
+      to,
+      record_version: ready.record_version,
+      capacity_reason: 'Nobody has a pattern on this test instance.',
+    });
+
+    expect(started.status(), await started.text()).toBe(200);
+    current = (await started.json()).item;
+  }
 
   both = await bothSides(pair, signed);
 

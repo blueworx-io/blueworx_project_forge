@@ -103,6 +103,12 @@ test.describe('the board', () => {
     await expect(columns.first()).toHaveAttribute('data-stage', 'future-idea');
     await expect(columns.last()).toHaveAttribute('data-stage', 'released');
 
+    // #511. Up Next, then Design Process, then In Development: work is planned
+    // and booked before design starts.
+    const order = await columns.evaluateAll((all) => all.map((one) => one.getAttribute('data-stage')));
+    expect(order.indexOf('design-process')).toBe(order.indexOf('up-next') + 1);
+    expect(order.indexOf('in-development')).toBe(order.indexOf('design-process') + 1);
+
     // Blocked and Bug Tracking are stages but not columns: one is somewhere an
     // item goes from wherever it is, the other only exists for bugs.
     await expect(page.locator('[data-stage="blocked"][data-testid="bwx-column"]')).toHaveCount(0);

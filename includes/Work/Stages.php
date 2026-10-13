@@ -90,9 +90,10 @@ final class Stages {
 		'bug-tracking',
 		'documentation-period',
 		'technical-audit',
-		'design-process',
 		'blocked',
 		'up-next',
+		// #511. Design after Up Next: planned and booked before design starts.
+		'design-process',
 		'in-development',
 		'in-review',
 		'completed',

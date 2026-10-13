@@ -51,7 +51,7 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   const parked = await walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
     {
       seats: {
         primary_user_id: person.id,
@@ -65,10 +65,10 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   );
 
   // Everything else the gate wants, so the only thing left is the capacity.
-  const ready = await satisfy(api, parked, 'in-development');
+  const ready = await satisfy(api, parked, 'design-process');
 
   const refused = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
+    to: 'design-process',
     record_version: ready.record_version,
   });
 
@@ -89,13 +89,13 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
 
   // CAP-4: it does not hard block. It costs a reason.
   const anyway = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
+    to: 'design-process',
     record_version: ready.record_version,
     capacity_reason: 'The client has agreed the overtime for this release.',
   });
 
   expect(anyway.status(), await anyway.text()).toBe(200);
-  expect((await anyway.json()).item.stage).toBe('in-development');
+  expect((await anyway.json()).item.stage).toBe('design-process');
 
   const after = await api.get(`/work-items/${ready.id}`);
 
@@ -133,7 +133,7 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
   const parked = await walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
     {
       seats: {
         primary_user_id: person.id,
@@ -148,10 +148,10 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
     }
   );
 
-  const ready = await satisfy(api, parked, 'in-development');
+  const ready = await satisfy(api, parked, 'design-process');
 
   const moved = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
+    to: 'design-process',
     record_version: ready.record_version,
   });
 

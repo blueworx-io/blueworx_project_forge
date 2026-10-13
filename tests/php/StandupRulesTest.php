@@ -168,7 +168,7 @@ final class StandupRulesTest extends TestCase {
 	}
 
 	public function test_work_in_delivery_is_off_the_standup_until_it_is_due(): void {
-		foreach ( array( 'up-next', 'in-development', 'in-review', 'completed' ) as $stage ) {
+		foreach ( array( 'up-next', 'design-process', 'in-development', 'in-review', 'completed' ) as $stage ) {
 			$this->assertSame( array(), Rules::for_item( $this->busy_delivery( $stage ), self::TODAY ), "{$stage}, no date" );
 			$this->assertSame( array(), Rules::for_item( $this->busy_delivery( $stage, array( 'planned_due' => '2026-03-11' ) ), self::TODAY ), "{$stage}, due tomorrow" );
 		}
@@ -196,7 +196,8 @@ final class StandupRulesTest extends TestCase {
 	}
 
 	public function test_work_before_up_next_is_on_the_standup_undated(): void {
-		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'design-process' ) as $stage ) {
+		// #511. Design is after Up Next now, so it is delivery, not before it.
+		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'technical-audit' ) as $stage ) {
 			$this->assertContains( Rules::RETURNED, $this->rules( Rules::for_item( $this->busy_delivery( $stage ), self::TODAY ) ), $stage );
 		}
 	}

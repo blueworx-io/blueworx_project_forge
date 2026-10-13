@@ -375,7 +375,7 @@ test('a task with the client reviewing from the start walks all the way to revie
   const walked = await Forge.walkTo(
     admin.api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development', 'in-review'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development', 'in-review'],
     { seats: { primary_user_id: primary.id, deliverer_id: deliverer.id, planned_start: FROM, planned_due: TO } },
   );
 
@@ -387,15 +387,16 @@ test('sent back before Up Next, the client stays the reviewer and the task still
   // #468. The client can review at any stage, so going back keeps them.
   const item = await inClientReview('Back to design');
 
+  // #511. Technical Audit is the stage before Up Next now.
   const back = await admin.api.post(`/work-items/${item.id}/return`, {
-    to: 'design-process',
+    to: 'technical-audit',
     reason: 'The brief changed.',
     record_version: item.record_version,
   });
   expect(back.status(), await back.text()).toBe(200);
 
   const now = await detail(item.id);
-  expect(now.item.stage).toBe('design-process');
+  expect(now.item.stage).toBe('technical-audit');
   expect(now.item.reviewer_id).toBe('client');
   expect(now.history.find((one) => 'edited' === one.action && 'reviewer_id' === one.field && '' === one.new_value)).toBeUndefined();
 
