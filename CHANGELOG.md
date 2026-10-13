@@ -14,6 +14,7 @@ commits and pull requests.
 
 - A task's dates now have their own section: Design by (only when there is a designer), Deliver by, Review by and Release by. Starts and Due are gone; Forge sets the start itself.
 - Capacity puts each person's hours on their own date, all on that day, instead of spreading them across the task's dates.
+- Work brought in from ClickUp takes its due date as all four dates, ready to adjust. Clearing every date on a task leaves it with no dates at all.
 
 ## [2.171.1] - 2026-10-13
 

@@ -1679,6 +1679,12 @@ final class Schema {
 				\Blueworx\Forge\Work\Submissions::backfill_decided_at();
 			}
 
+			// #513. Once, on the step that adds Design by: work brought in
+			// from ClickUp takes its due date as every person's date.
+			if ( null !== $installed && $installed < 40 ) {
+				\Blueworx\Forge\Work\ClickUpImport::spread_dates();
+			}
+
 			update_option( self::OPTION, self::VERSION );
 		}
 	}

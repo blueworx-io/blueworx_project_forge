@@ -53,9 +53,8 @@ final class StartDate {
 			}
 		}
 
-		if ( array() !== $dates ) {
-			$changes['planned_start'] = min( $dates );
-		}
+		// Every date cleared is no dates at all, the start included.
+		$changes['planned_start'] = array() === $dates ? '' : min( $dates );
 
 		return $changes;
 	}
@@ -70,7 +69,7 @@ final class StartDate {
 	 */
 	private static function moved( array $changes, array $current ): bool {
 		foreach ( Fields::DATE_ORDER as $field ) {
-			if ( array_key_exists( $field, $changes ) && (string) $changes[ $field ] !== (string) ( $current[ $field ] ?? '' ) ) {
+			if ( array_key_exists( $field, $changes ) && (string) ( $current[ $field ] ?? '' ) !== (string) $changes[ $field ] ) {
 				return true;
 			}
 		}

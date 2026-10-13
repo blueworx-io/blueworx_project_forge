@@ -67,7 +67,7 @@ export const RULES: RuleSection[] = [
         why: 'Dates that run backwards make the plan and the timeline meaningless.',
       },
       {
-        what: 'Each person on a task has their own date, and all their hours on it land on that day in Capacity: design on Design by, the work on Deliver by, the review on Review by, delivery on Release by. A person with no date of their own lands on Deliver by. Forge sets the task\'s start itself from the earliest date.',
+        what: 'Each person on a task has their own date, and all their hours on it land on that day in Capacity: design on Design by, the work on Deliver by, the review on Review by, delivery on Release by. A person with no date of their own lands on Deliver by. Forge sets the task\'s start itself from the earliest date, and clearing every date leaves none.',
         why: 'Every assignment is at most five hours and done in a single day, so spreading hours across days showed load where there was none.',
       },
       {

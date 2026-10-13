@@ -71,7 +71,8 @@ export function entriesFor( items: WorkItem[] ): Entry[] {
     }
 
     const dates: Array< [ DateKind, string ] > = [
-      [ 'design', item.design_target ?? '' ],
+      // No designer, no Design by (#513), as in the task panel.
+      [ 'design', item.designer_id ? item.design_target ?? '' : '' ],
       [ 'due', item.planned_due ],
       [ 'review', item.review_target ?? '' ],
       [ 'release', item.release_target ?? '' ],

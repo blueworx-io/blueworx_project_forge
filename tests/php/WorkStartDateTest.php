@@ -91,6 +91,25 @@ final class WorkStartDateTest extends TestCase {
 		$this->assertSame( '2026-10-20', $settled['planned_start'] );
 	}
 
+	/* Every date cleared: no dates at all, the start included. */
+	public function test_clearing_every_date_clears_the_start(): void {
+		$settled = StartDate::settle(
+			array(
+				'design_target'  => '',
+				'planned_due'    => '',
+				'review_target'  => '',
+				'release_target' => '',
+			),
+			array(
+				'planned_start' => '2026-10-14',
+				'design_target' => '2026-10-14',
+				'planned_due'   => '2026-10-16',
+			)
+		);
+
+		$this->assertSame( '', $settled['planned_start'] );
+	}
+
 	public function test_an_edit_without_dates_is_left_alone(): void {
 		$changes = array( 'title' => 'Renamed' );
 
