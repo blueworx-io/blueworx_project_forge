@@ -17,7 +17,7 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const STAMP = RUN_ID.replace('-', '');
 
-const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'];
+const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'up-next'];
 
 // A fixed week in the future, so the arithmetic is the same whichever day the
 // suite runs on.
@@ -87,10 +87,10 @@ test('the gate answers hours and capacity separately, and reports both', async (
     seats: planFor(people, 90),
   });
 
-  const ready = await Forge.satisfy(api, planned, 'in-development');
+  const ready = await Forge.satisfy(api, planned, 'design-process');
 
   const refused = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
+    to: 'design-process',
     record_version: ready.record_version,
   });
 
@@ -139,11 +139,11 @@ test('a free bug passes the hours check on a site with no package at all', async
   const planned = await Forge.walkTo(
     api,
     (await reclassified.json()).item,
-    ['bug-tracking', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['bug-tracking', 'documentation-period', 'technical-audit', 'up-next'],
     { seats: planFor(people, 10) }
   );
 
-  const readiness = (await api.get(`/work-items/${planned.id}`)).readiness['in-development'];
+  const readiness = (await api.get(`/work-items/${planned.id}`)).readiness['design-process'];
   const answers = Object.fromEntries(readiness.checks.map((check) => [check.id, check.result]));
 
   expect(answers['G-UP-NEXT-9'], 'a free bug is not refused for hours').toBe('pass');
@@ -175,10 +175,10 @@ test('a lapsed site cannot spend the hours it still has', async ({ browser, base
   expect(position.may_use_hours).toBe(false);
   expect(Number(position.balance)).not.toBe(0);
 
-  const ready = await Forge.satisfy(api, planned, 'in-development');
+  const ready = await Forge.satisfy(api, planned, 'design-process');
 
   const refused = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
+    to: 'design-process',
     record_version: ready.record_version,
     capacity_reason: 'Nobody has a pattern on this test instance.',
   });

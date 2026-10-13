@@ -23,7 +23,7 @@ export const RULES: RuleSection[] = [
     title: 'The task journey',
     rules: [
       {
-        what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Technical Audit, Design Process, Up Next, In Development, In Review, Completed, Released.',
+        what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Technical Audit, Up Next, Design Process, In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts.',
         why: 'No stage can be jumped, because jumping one would skip the checks that stage is there for.',
       },
       {
@@ -47,11 +47,11 @@ export const RULES: RuleSection[] = [
         why: 'It is the reviewer\'s sign-off that the documented approach is sound.',
       },
       {
-        what: 'To leave Design Process a task with a designer needs its responsive states and its empty, loading, error and no-access states marked done, plus the reviewer\'s design approval; a task with no designer is asked for nothing here, and a design link is always optional.',
+        what: 'To leave Design Process a task with a designer needs its responsive states and its empty, loading, error and no-access states marked done, plus the reviewer\'s design approval; a task with no designer is asked for none of that, and a design link is always optional. Leaving Design starts the work, so either way the client must still be on a package they can spend from.',
         why: 'Not every task has a design, so only tasks with a designer go through the design checks.',
       },
       {
-        what: 'To start work (leave Up Next) a task needs the doer, reviewer and deliverer named, hours for each of them, a deliver by date, a priority, room in everyone\'s week, and enough of the client\'s support hours.',
+        what: 'To leave Up Next (into Design Process) a task needs the doer, reviewer and deliverer named, hours for each of them, a deliver by date, a priority, room in everyone\'s week, and enough of the client\'s support hours.',
         why: 'Work only starts once it is fully planned, staffed and paid for.',
       },
       {
@@ -409,7 +409,7 @@ export const RULES: RuleSection[] = [
         why: 'The balance shows what is committed as well as what has been used.',
       },
       {
-        what: 'Paid work can\'t enter Up Next unless the client has enough hours left, and can\'t start unless they are also on a package they can spend from; work can never take a balance below zero.',
+        what: 'Paid work can\'t enter Up Next unless the client has enough hours left, and can\'t leave Up Next, or start, unless they are also on a package they can spend from; work can never take a balance below zero.',
         why: 'We don\'t commit to work a client hasn\'t got the hours for.',
       },
       {

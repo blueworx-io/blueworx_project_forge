@@ -515,7 +515,7 @@ final class Rules {
 	 *
 	 * @var array<int, string>
 	 */
-	private const IN_DELIVERY = array( 'up-next', 'in-development', 'in-review', 'completed' );
+	private const IN_DELIVERY = array( 'up-next', 'design-process', 'in-development', 'in-review', 'completed' );
 
 	/**
 	 * Rules that already account for why an item is not moving (#251).

@@ -121,7 +121,7 @@ test('a day shows what is done beside what is still to do, and every task opens'
     return Forge.walkTo(
       api,
       (await created.json()).item,
-      ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development'],
+      ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'],
       {
         seats: {
           primary_user_id: person.id,

@@ -154,6 +154,18 @@ final class WorkHoursTest extends TestCase {
 		$this->assertSame( array( array( Entries::WORK_RESERVATION, 13.0 ) ), $this->pairs( $plan ) );
 	}
 
+	/* #511. Design comes after Up Next, and the hours stay held through it. */
+	public function test_design_after_up_next_keeps_the_hours_held(): void {
+		$item = $this->item( array( 'stage' => 'design-process' ) );
+
+		$this->assertSame( 13.0, WorkHours::holds( $item ) );
+		$this->assertFalse( WorkHours::started( $item ) );
+
+		$reserved = array( $this->entry( Entries::WORK_RESERVATION, 13.0 ) );
+
+		$this->assertSame( array(), WorkHours::plan( $item, $reserved ), 'moving into Design releases nothing' );
+	}
+
 	public function test_asking_again_at_up_next_plans_nothing(): void {
 		/*
 		 * The property that makes this safe to run on every move rather than on

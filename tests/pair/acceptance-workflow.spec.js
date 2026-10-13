@@ -26,8 +26,8 @@ const TO_REVIEW = [
   'triage',
   'documentation-period',
   'technical-audit',
-  'design-process',
   'up-next',
+  'design-process',
   'in-development',
   'in-review',
 ];

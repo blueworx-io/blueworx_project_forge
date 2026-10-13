@@ -384,6 +384,27 @@ final class WorkGatesTest extends TestCase {
 		$this->assertNotContains( 'G-TRIAGE-8', array_column( $classified['unmet'], 'id' ) );
 	}
 
+	/*
+	 * #511. Design comes after Up Next, so starting work is the move out of
+	 * Design. Whether the client can still spend is asked again there, with or
+	 * without a designer: a package can lapse while the work is in Design.
+	 */
+	public function test_starting_work_asks_again_whether_the_client_can_spend(): void {
+		$item    = $this->item( array( 'stage' => 'design-process' ) );
+		$lapsed  = array( 'support_hours' => array( 'sufficient' => false ) );
+		$payable = array( 'support_hours' => array( 'sufficient' => true ) );
+
+		$refused = Gates::evaluate( 'G-DESIGN', $item, array(), $lapsed );
+		$this->assertSame( array( 'G-DESIGN-9' ), array_column( $refused['unmet'], 'id' ) );
+
+		$this->assertSame( array(), Gates::evaluate( 'G-DESIGN', $item, array(), $payable )['unmet'] );
+
+		// With a designer, the design checks are still asked as well.
+		$designed = Gates::evaluate( 'G-DESIGN', $this->item( array( 'stage' => 'design-process', 'designer_id' => 'usr_d' ) ), array(), $lapsed );
+		$this->assertContains( 'G-DESIGN-9', array_column( $designed['unmet'], 'id' ) );
+		$this->assertContains( 'G-DESIGN-5', array_column( $designed['unmet'], 'id' ) );
+	}
+
 	/**
 	 * A recorded completion satisfies a record requirement, and nothing else
 	 * does.
@@ -464,9 +485,10 @@ final class WorkGatesTest extends TestCase {
 		foreach ( array( array(), array( 'designer_id' => '' ) ) as $over ) {
 			$result = Gates::evaluate( 'G-DESIGN', $this->item( array( 'stage' => 'design-process' ) + $over ), array() );
 
+			// Nothing for a person to do; only the start-of-work hours check (#511).
 			$this->assertSame( array(), $result['unmet'] );
-			$this->assertSame( array(), $result['all'] );
-			$this->assertSame( array(), $result['checks'] );
+			$this->assertSame( array( 'G-DESIGN-9' ), array_column( $result['checks'], 'id' ) );
+			$this->assertSame( array(), array_values( array_diff( array_column( $result['all'], 'id' ), array( 'G-DESIGN-9' ) ) ) );
 		}
 	}
 

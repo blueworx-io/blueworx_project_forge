@@ -66,17 +66,23 @@ function ofWork(entries) {
  * this spec about hours instead of about availability.
  */
 async function start(api, item) {
-  const ready = await Forge.satisfy(api, item, 'in-development');
+  // #511. Out of Up Next into Design, then on into development.
+  let current = item;
 
-  const moved = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'in-development',
-    record_version: ready.record_version,
-    capacity_reason: 'Nobody has a pattern on this test instance.',
-  });
+  for (const to of ['design-process', 'in-development']) {
+    const ready = await Forge.satisfy(api, current, to);
 
-  expect(moved.status(), await moved.text()).toBe(200);
+    const moved = await api.post(`/work-items/${ready.id}/transition`, {
+      to,
+      record_version: ready.record_version,
+      capacity_reason: 'Nobody has a pattern on this test instance.',
+    });
 
-  return (await moved.json()).item;
+    expect(moved.status(), await moved.text()).toBe(200);
+    current = (await moved.json()).item;
+  }
+
+  return current;
 }
 
 test('planning work reserves its hours, and starting it turns them into spend', async ({
@@ -91,7 +97,7 @@ test('planning work reserves its hours, and starting it turns them into spend', 
   const planned = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -133,7 +139,7 @@ test('cancelling planned work gives every hour back', async ({ browser, baseURL 
   const planned = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -170,7 +176,7 @@ test('re-planning appends the difference rather than the new total', async ({
   const planned = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -216,7 +222,7 @@ test('a free bug never touches the ledger', async ({ browser, baseURL }) => {
   const planned = await Forge.walkTo(
     api,
     (await reclassified.json()).item,
-    ['bug-tracking', 'documentation-period', 'technical-audit', 'design-process', 'up-next'],
+    ['bug-tracking', 'documentation-period', 'technical-audit', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -243,7 +249,7 @@ test('work the site cannot pay for does not move, and leaves nothing behind', as
   const ready = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'design-process'],
+    ['triage', 'documentation-period', 'technical-audit'],
     { seats: planFor(people) }
   );
 
@@ -263,6 +269,6 @@ test('work the site cannot pay for does not move, and leaves nothing behind', as
    */
   const unmoved = await api.get(`/work-items/${filled.id}`);
 
-  expect(unmoved.item.stage).toBe('design-process');
+  expect(unmoved.item.stage).toBe('technical-audit');
   expect((await Forge.hourLedger(admin, site.id)).entries).toEqual([]);
 });

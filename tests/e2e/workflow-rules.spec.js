@@ -77,7 +77,7 @@ test('the approvals belong to the reviewer, and an administrator may stand in', 
   // An administrator answers the technical approval for them.
   const atAudit = await Forge.walkTo(admin.api, atDocs, ['technical-audit'], { seats: crew.seats });
   const after = await admin.api.get(`/work-items/${atAudit.id}`);
-  expect(after.readiness['design-process'].all.map((row) => row.id)).toEqual(['G-TECHNICAL-AUDIT-8']);
+  expect(after.readiness['up-next'].all.map((row) => row.id)).toEqual(['G-TECHNICAL-AUDIT-8']);
   expect(audit).not.toContain('G-TECHNICAL-AUDIT-1');
   const stoodIn = await admin.api.post(`/work-items/${atAudit.id}/gate`, { requirement: 'G-TECHNICAL-AUDIT-8', value: 'approved', evidence: '' });
   expect(stoodIn.status(), await stoodIn.text()).toBe(200);
@@ -110,7 +110,7 @@ test('leaving In Development takes a finished checklist, and neither how to test
 
   const crew = await Forge.team(admin.api, browser, baseURL, client.id);
   const item = await fresh(`Finish it ${RUN_ID}`);
-  const path = ['triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development'];
+  const path = ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'];
   const developing = await Forge.walkTo(admin.api, item, path, { seats: crew.seats });
 
   await patch(developing, { checklist: [{ text: 'Wire it up', done: false }] });
@@ -233,8 +233,10 @@ test('work with something outstanding is on the standup from the day it is captu
 });
 
 // #409. The Designer decides whether a task goes through Design.
-const TO_DESIGN = ['triage', 'documentation-period', 'technical-audit', 'design-process'];
-const designRows = (detail) => detail.readiness['up-next'].all.map((row) => row.id).filter((id) => id.startsWith('G-DESIGN'));
+// #511. Design follows Up Next.
+const TO_DESIGN = ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process'];
+// The design checks themselves; G-DESIGN-9 is the start-of-work hours check (#511).
+const designRows = (detail) => detail.readiness['in-development'].all.map((row) => row.id).filter((id) => id.startsWith('G-DESIGN') && 'G-DESIGN-9' !== id);
 
 test('with no Designer a task passes Design with no design checks', async () => {
   test.slow();
@@ -244,9 +246,9 @@ test('with no Designer a task passes Design with no design checks', async () => 
 
   const detail = await admin.api.get(`/work-items/${atDesign.id}`);
   expect(designRows(detail)).toEqual([]);
-  expect(detail.readiness['up-next'].unmet).toEqual([]);
+  expect(detail.readiness['in-development'].unmet).toEqual([]);
 
-  const moved = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'up-next', record_version: atDesign.record_version });
+  const moved = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'in-development', record_version: atDesign.record_version });
   expect(moved.status(), await moved.text()).toBe(200);
 });
 
@@ -263,7 +265,7 @@ test('with a Designer a task waits at Design for its checks, and clearing the De
   expect(detail.item.designer_id).toBe(designer);
   expect(designRows(detail)).toContain('G-DESIGN-5');
 
-  const refused = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'up-next', record_version: detail.item.record_version });
+  const refused = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'in-development', record_version: detail.item.record_version });
   expect(refused.status()).toBe(409);
   expect((await refused.json()).unmet.map((row) => row.id)).toContain('G-DESIGN-5');
 
@@ -272,7 +274,7 @@ test('with a Designer a task waits at Design for its checks, and clearing the De
   const cleared = await admin.api.get(`/work-items/${atDesign.id}`);
   expect(designRows(cleared)).toEqual([]);
 
-  const moved = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'up-next', record_version: cleared.item.record_version });
+  const moved = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'in-development', record_version: cleared.item.record_version });
   expect(moved.status(), await moved.text()).toBe(200);
 });
 
@@ -283,7 +285,7 @@ test('a task with a Designer moves on once its design checks are done', async ()
   const designer = (await Forge.seatsFor(admin.api, atDesign)).primary_user_id;
   expect((await patch(atDesign, { designer_id: designer })).status()).toBe(200);
 
-  const done = await Forge.walkTo(admin.api, atDesign, ['up-next']);
-  expect(done.stage).toBe('up-next');
+  const done = await Forge.walkTo(admin.api, atDesign, ['in-development']);
+  expect(done.stage).toBe('in-development');
   expect(done.designer_id).toBe(designer);
 });

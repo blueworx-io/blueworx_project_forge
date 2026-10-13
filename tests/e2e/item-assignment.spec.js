@@ -18,7 +18,8 @@ const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-const TO_DESIGN = ['triage', 'documentation-period', 'technical-audit', 'design-process'];
+// #511. Up Next follows Technical Audit; Design comes after it.
+const TO_AUDIT = ['triage', 'documentation-period', 'technical-audit'];
 
 /** A site with hours, a team, and one piece of work standing at a given stage. */
 async function withWork(browser, baseURL, stages) {
@@ -87,7 +88,7 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
 }) => {
   test.setTimeout(600_000);
 
-  const { admin, site, people, item } = await withWork(browser, baseURL, TO_DESIGN);
+  const { admin, site, people, item } = await withWork(browser, baseURL, TO_AUDIT);
   const page = await openTheItem(admin, site.id);
 
   // Everything Up Next wants, filled in on the screen it is asked for on.
@@ -99,8 +100,6 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
   await page.selectOption('#bwx-hours_delivery', '1');
   // #513. Deliver by is the date asked for; Forge sets the start itself.
   await page.fill('#bwx-planned_due', '2026-10-09');
-  // And the design link Design Process wants before it lets go (2026-09-19).
-  await page.fill('#bwx-design_url', 'https://example.test/design');
   await page.locator('[data-testid="bwx-save"]').click();
 
   await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });

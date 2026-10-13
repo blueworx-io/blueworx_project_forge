@@ -22,7 +22,6 @@ const TO_UP_NEXT = [
   'triage',
   'documentation-period',
   'technical-audit',
-  'design-process',
   'up-next',
 ];
 
@@ -108,14 +107,20 @@ test.describe('the commercial acceptance criteria', () => {
 
     // Spent on starting, and the balance does not move again — the reservation
     // became the spend rather than being charged on top of it.
-    const ready = await Forge.satisfy(pair.studio, planned, 'in-development');
-    const started = await pair.studio.post(`/work-items/${ready.id}/transition`, {
-      to: 'in-development',
-      record_version: ready.record_version,
-      capacity_reason: 'Nobody has a pattern on this test instance.',
-    });
+    // #511. Out of Up Next into Design, then on into development.
+    let current = planned;
 
-    expect(started.status(), await started.text()).toBe(200);
+    for (const to of ['design-process', 'in-development']) {
+      const ready = await Forge.satisfy(pair.studio, current, to);
+      const started = await pair.studio.post(`/work-items/${ready.id}/transition`, {
+        to,
+        record_version: ready.record_version,
+        capacity_reason: 'Nobody has a pattern on this test instance.',
+      });
+
+      expect(started.status(), await started.text()).toBe(200);
+      current = (await started.json()).item;
+    }
     expect((await Forge.hourLedger(pair.studio, pair.site.id)).balance).toBe(GRANTED - 13);
 
     // And a second piece of work, cancelled while still planned, gives back
@@ -230,7 +235,7 @@ test.describe('the commercial acceptance criteria', () => {
     const ready = await Forge.walkTo(
       pair.studio,
       item,
-      ['triage', 'documentation-period', 'technical-audit', 'design-process'],
+      ['triage', 'documentation-period', 'technical-audit'],
       {}
     );
 
@@ -242,7 +247,7 @@ test.describe('the commercial acceptance criteria', () => {
     });
 
     expect(refused.status(), 'refused at the API').toBe(409);
-    expect((await pair.studio.get(`/work-items/${planned.id}`)).item.stage).toBe('design-process');
+    expect((await pair.studio.get(`/work-items/${planned.id}`)).item.stage).toBe('technical-audit');
 
     // And the doors that matter stay open.
     const signed = asClientSite(request, pair.issued);

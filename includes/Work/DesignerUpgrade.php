@@ -23,6 +23,16 @@ use Blueworx\Forge\Data\Schema;
 final class DesignerUpgrade {
 
 	/**
+	 * The stages up to and including Design, in the order this upgrade was
+	 * written for. Spelled out rather than read from Stages::ALL, because
+	 * #511 moved Design after Up Next and a site taking both upgrades at once
+	 * must still pick by the order #409 meant.
+	 *
+	 * @var array<int, string>
+	 */
+	private const UP_TO_DESIGN = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'technical-audit', 'design-process' );
+
+	/**
 	 * Rows written per UPDATE, so a large site batches rather than issuing one
 	 * statement per task.
 	 */
@@ -40,8 +50,7 @@ final class DesignerUpgrade {
 		// Only open work not yet past Design can be a candidate at all; picks()
 		// still checks stage, primary and cycle precisely, this just keeps the
 		// row set small on a large table.
-		$design = Stages::position( 'design-process' );
-		$stages = array_merge( array_slice( Stages::ALL, 0, $design + 1 ), array( 'blocked' ) );
+		$stages = array_merge( self::UP_TO_DESIGN, array( 'blocked' ) );
 		$slots  = implode( ', ', array_fill( 0, count( $stages ), '%s' ) );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Own tables; names cannot be placeholders; the stage placeholders are counted above.
@@ -113,19 +122,17 @@ final class DesignerUpgrade {
 			$skipped[ (string) $record['item_id'] . ':' . (int) $record['cycle'] ] = true;
 		}
 
-		$design = Stages::position( 'design-process' );
-		$picks  = array();
+		$picks = array();
 
 		foreach ( $rows as $row ) {
 			$stage   = 'blocked' === (string) $row['stage'] ? (string) $row['prior_stage'] : (string) $row['stage'];
 			$primary = (string) $row['primary_user_id'];
-			$at      = Stages::position( $stage );
 
 			if ( '' === $primary || '' !== (string) $row['designer_id'] || ! empty( $row['archived'] ) || '' !== (string) $row['terminal_outcome'] ) {
 				continue;
 			}
 
-			if ( $at < 0 || $at > $design || isset( $skipped[ (string) $row['id'] . ':' . (int) $row['cycle'] ] ) ) {
+			if ( ! in_array( $stage, self::UP_TO_DESIGN, true ) || isset( $skipped[ (string) $row['id'] . ':' . (int) $row['cycle'] ] ) ) {
 				continue;
 			}
 

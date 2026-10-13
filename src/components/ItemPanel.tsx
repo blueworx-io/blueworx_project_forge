@@ -524,7 +524,10 @@ export function ItemPanel( {
   // next change. load() replaces the draft, and a field emptying under a
   // person's cursor is worse than a panel a minute behind.
   useLiveReload( () => {
-    if ( ! detail || JSON.stringify( draft ) === JSON.stringify( asDraft( detail.item ) ) ) {
+    // A pick or a box not yet saved is an edit too: load() would clear it.
+    const unsaved = 0 < Object.keys( picks ).length || 0 < Object.keys( boxes ).length;
+
+    if ( ! detail || ( ! unsaved && JSON.stringify( draft ) === JSON.stringify( asDraft( detail.item ) ) ) ) {
       void load();
     }
   } );

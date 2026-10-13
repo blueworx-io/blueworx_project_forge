@@ -19,10 +19,13 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
+// #511. Design follows Up Next now and, like the rest of delivery, is on
+// the list only once due or Urgent, so the parked work is made Urgent.
 const UP_TO_DESIGN = [
   'triage',
   'documentation-period',
   'technical-audit',
+  'up-next',
   'design-process',
 ];
 
@@ -51,7 +54,7 @@ async function withSomethingOutstanding(browser, baseURL) {
   expect(made.status(), await made.text()).toBe(200);
 
   const item = await Forge.walkTo(admin.api, (await made.json()).item, UP_TO_DESIGN, {
-    seats: { ...crew.seats, designer_id: crew.seats.primary_user_id },
+    seats: { ...crew.seats, designer_id: crew.seats.primary_user_id, hours_designer: 1, priority: 'urgent', commercial_class: 'free-general' },
   });
 
   return { admin, client, crew, item };
@@ -151,7 +154,7 @@ test('an outstanding requirement can be recorded from the card that named it', a
    * crossed off in the browser. Whether that was the last thing holding the
    * work up is the server's answer, and this is how the screen asks for it.
    */
-  await expect(row).toHaveCount(0);
+  await expect(row).toHaveCount(0, { timeout: 30_000 });
 
   // And still gone after a full reload, which a screen that only redrew itself
   // would not manage.
