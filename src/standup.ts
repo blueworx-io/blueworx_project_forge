@@ -1,6 +1,7 @@
 import type { StandupCard, StandupList } from './types';
 import { ALL_SITES } from './sites';
 import { priorityRank } from './priority';
+import { durationLabel } from './duration.mjs';
 
 /**
  * The words and the shape of the day's list (#170).
@@ -95,6 +96,31 @@ export function inOrder( cards: StandupCard[] ): StandupCard[] {
   );
 }
 
+/** One day somebody is over (#508), and the tasks that fill it. */
+export interface OverDay {
+  date: string;
+  used: number;
+  available: number;
+  tasks: Array< { item_id: string; title: string; hours: number } >;
+}
+
+/** The days an Over hours card is about; none for any other card. */
+export function overDays( card: StandupCard ): OverDay[] {
+  const days = card.detail?.days;
+
+  return 'over-committed' === card.rule && Array.isArray( days ) ? ( days as OverDay[] ) : [];
+}
+
+/** "Tue 13 Oct", for a YYYY-MM-DD date. */
+export function dayLabel( date: string ): string {
+  return new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' } ).replace( ',', '' );
+}
+
+/** "Tue 13 Oct: 8h 15m of 7h", the same figures as the capacity grid's cell. */
+export function overDayText( day: OverDay ): string {
+  return `${ dayLabel( day.date ) }: ${ durationLabel( day.used ) } of ${ durationLabel( day.available ) }`;
+}
+
 /** A card's own identity, so one can be told from another in a list. */
 export function keyOf( card: StandupCard ): string {
   return `${ card.rule }:${ card.subject_id }`;
@@ -134,7 +160,16 @@ export function cardDetail( card: StandupCard ): string {
       // #391. "The client" when the client reviews; a person is not named here.
       return '' === said( 'waiting_on_name' ) ? '' : `Waiting on ${ said( 'waiting_on_name' ).toLowerCase() }`;
     case 'over-committed':
-      return `${ said( 'committed' ) } hours committed of ${ said( 'available' ) }`;
+    {
+      // #508. The first day over in the next seven, as the capacity grid
+      // shows it; the rest are under Show.
+      const days = overDays( card );
+
+      if ( 0 === days.length ) return '';
+      const more = days.length - 1;
+
+      return 0 === more ? overDayText( days[ 0 ] ) : `${ overDayText( days[ 0 ] ) }, and ${ more } more day${ 1 === more ? '' : 's' }`;
+    }
     case 'needs-intervention':
       // A site says what is wrong in words; the code is for machines (2026-09-27).
       if ( 'client_site' === said( 'subject_type' ) ) return said( 'detail' );

@@ -3212,6 +3212,39 @@ td[ data-band='over' ] {
 .bwx-standup-show:focus-visible {
   text-decoration: underline;
 }
+/* #508. The days somebody is over, under Show, where the gate list sits. */
+.bwx-standup-over {
+  grid-area: gate;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var( --text-small );
+}
+.bwx-standup-over-when {
+  margin: 0 0 4px;
+  color: var( --ink-900 );
+  font-weight: var( --weight-medium );
+}
+.bwx-standup-over ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bwx-standup-over li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  color: var( --ink-500 );
+}
+.bwx-standup-over .bwx-standup-show {
+  margin-left: 0;
+  text-align: left;
+}
 .bwx-standup-card [ data-testid='bwx-gate' ] {
   grid-area: gate;
   margin-top: 8px;

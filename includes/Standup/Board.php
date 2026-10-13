@@ -9,7 +9,6 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Standup;
 
-use Blueworx\Forge\Capacity\Periods;
 use Blueworx\Forge\Capacity\Position;
 use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Onboarding\Steps;
@@ -168,10 +167,14 @@ final class Board {
 	}
 
 	/**
-	 * Who is over their hours this week.
+	 * Who is over their hours on any day in the next seven (#508).
 	 *
-	 * This week only. Somebody over-committed next month is a planning problem
-	 * and belongs on the capacity screen; a daily list is about today.
+	 * Seven days only. Somebody over-committed next month is a planning problem
+	 * and belongs on the capacity screen; a daily list is about this week.
+	 *
+	 * Read over the capacity grid's own default fortnight and checked day by
+	 * day, so each day reads exactly as its cell on that screen. Reading only
+	 * the days checked would pile a long task's hours onto those few days.
 	 *
 	 * Not scoped by reach, and it is worth saying why: capacity is counted
 	 * across every client by definition (#138), and a person committed on one
@@ -182,29 +185,28 @@ final class Board {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private static function capacity( string $today ): array {
-		$week   = Periods::weeks( $today, $today );
-		$from   = (string) ( $week[0]['from'] ?? $today );
-		$to     = (string) ( $week[0]['to'] ?? $today );
+		$start  = new \DateTimeImmutable( $today );
+		$to     = $start->modify( '+13 days' )->format( 'Y-m-d' );
+		$until  = $start->modify( '+6 days' )->format( 'Y-m-d' );
 		$people = Users::all( 'active' );
 
-		$positions = Position::for_people( array_column( $people, 'id' ), $from, $to );
+		$by_person = Position::over_days( array_column( $people, 'id' ), $today, $to, $until );
 		$over      = array();
 
 		foreach ( $people as $person ) {
-			$id       = (string) $person['id'];
-			$position = $positions[ $id ] ?? array();
+			$id   = (string) $person['id'];
+			$days = $by_person[ $id ] ?? array();
 
-			if ( array() === $position ) {
+			if ( array() === $days ) {
 				continue;
 			}
 
-			$over[] = array_merge(
-				$position,
-				array(
-					'user_id'      => $id,
-					'display_name' => (string) $person['display_name'],
-					'from'         => $from,
-				)
+			$over[] = array(
+				'user_id'      => $id,
+				'display_name' => (string) $person['display_name'],
+				'band'         => Position::OVER,
+				'from'         => $today,
+				'days'         => $days,
 			);
 		}
 

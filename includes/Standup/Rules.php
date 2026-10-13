@@ -495,6 +495,8 @@ final class Rules {
 				'committed'    => (float) ( $position['committed'] ?? 0 ) + (float) ( $position['completed'] ?? 0 ),
 				'available'    => (float) ( $position['available'] ?? 0 ),
 				'from'         => (string) ( $position['from'] ?? '' ),
+				// #508. Each day over, and the tasks that fill it.
+				'days'         => (array) ( $position['days'] ?? array() ),
 			)
 		);
 	}

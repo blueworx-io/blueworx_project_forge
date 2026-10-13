@@ -184,4 +184,101 @@ final class CapacityPositionTest extends TestCase {
 		$this->assertCount( 1, $weeks );
 		$this->assertSame( '2026-09-09', $weeks[0]['to'] );
 	}
+
+	/*
+	 * #508. The standup's Over hours names each day that is over, by the same
+	 * day-by-day figures the capacity grid draws, and the tasks that fill it.
+	 */
+	public function test_each_day_over_is_named_with_the_tasks_that_fill_it(): void {
+		$days = array(
+			array(
+				'date'   => '2026-10-13',
+				'hours'  => 7.0,
+				'reason' => '',
+			),
+			array(
+				'date'   => '2026-10-14',
+				'hours'  => 7.0,
+				'reason' => '',
+			),
+			array(
+				'date'   => '2026-10-18',
+				'hours'  => 0.0,
+				'reason' => 'weekend',
+			),
+			array(
+				'date'   => '2026-10-21',
+				'hours'  => 7.0,
+				'reason' => '',
+			),
+		);
+
+		$gathered = array(
+			'by_day'           => array(
+				'2026-10-13' => 6.0,
+				'2026-10-14' => 4.0,
+				'2026-10-18' => 0.17,
+				'2026-10-21' => 9.0,
+			),
+			'completed_by_day' => array( '2026-10-13' => 2.25 ),
+			'allocations'      => array(
+				array(
+					'item_id' => 'wrk_big',
+					'title'   => 'Big job',
+					'by_day'  => array(
+						'2026-10-13' => 4.0,
+						'2026-10-14' => 4.0,
+						'2026-10-21' => 9.0,
+					),
+				),
+				array(
+					'item_id' => 'wrk_small',
+					'title'   => 'Small job',
+					'by_day'  => array( '2026-10-13' => 2.0 ),
+				),
+				array(
+					'item_id' => 'wrk_done',
+					'title'   => 'Done job',
+					'by_day'  => array( '2026-10-13' => 2.25 ),
+				),
+				array(
+					'item_id' => 'mtg_sunday',
+					'title'   => 'Sunday call',
+					'by_day'  => array( '2026-10-18' => 0.17 ),
+				),
+			),
+		);
+
+		$over = Position::days_over( $days, $gathered, '2026-10-13', '2026-10-19' );
+
+		// Not the 14th, which has room; not the 21st, which is past the week.
+		$this->assertSame( array( '2026-10-13', '2026-10-18' ), array_column( $over, 'date' ) );
+
+		$this->assertSame( 8.25, $over[0]['used'] );
+		$this->assertSame( 7.0, $over[0]['available'] );
+		$this->assertSame(
+			array(
+				array(
+					'item_id' => 'wrk_big',
+					'title'   => 'Big job',
+					'hours'   => 4.0,
+				),
+				array(
+					'item_id' => 'wrk_done',
+					'title'   => 'Done job',
+					'hours'   => 2.25,
+				),
+				array(
+					'item_id' => 'wrk_small',
+					'title'   => 'Small job',
+					'hours'   => 2.0,
+				),
+			),
+			$over[0]['tasks']
+		);
+
+		// Any work on a day off is over, however little.
+		$this->assertSame( 0.17, $over[1]['used'] );
+		$this->assertSame( 0.0, $over[1]['available'] );
+	}
 }

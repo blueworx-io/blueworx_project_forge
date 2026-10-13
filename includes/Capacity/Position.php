@@ -168,6 +168,90 @@ final class Position {
 	}
 
 	/**
+	 * Each person's days that are over, with the tasks that fill them (#508).
+	 *
+	 * Read over $from to $to, the same window the capacity grid reads by
+	 * default, so a task's hours spread across the same days and a day here
+	 * reads exactly as its cell there. Only days up to $until are checked.
+	 *
+	 * @param array<int, string> $user_ids The people.
+	 * @param string             $from     YYYY-MM-DD, inclusive.
+	 * @param string             $to       YYYY-MM-DD, inclusive: the window read.
+	 * @param string             $until    YYYY-MM-DD, inclusive: the last day checked.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function over_days( array $user_ids, string $from, string $to, string $until ): array {
+		$read = self::read( $user_ids, $from, $to );
+		$out  = array();
+
+		foreach ( $user_ids as $user_id ) {
+			$out[ $user_id ] = self::days_over(
+				$read['days'][ $user_id ] ?? array(),
+				$read['committed'][ $user_id ] ?? array(),
+				$from,
+				$until
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * One person's days that are over, from what is already in hand.
+	 *
+	 * Any day used past its hours is over, however little — work landing on
+	 * a day off included. Each names its tasks, the biggest share first.
+	 *
+	 * @param array<int, array<string, mixed>> $days     Availability::by_day for the person.
+	 * @param array<string, mixed>             $gathered The person's Commitments::gather() answer.
+	 * @param string                           $from     YYYY-MM-DD, inclusive.
+	 * @param string                           $until    YYYY-MM-DD, inclusive.
+	 * @return array<int, array{date: string, used: float, available: float, tasks: array<int, array{item_id: string, title: string, hours: float}>}>
+	 */
+	public static function days_over( array $days, array $gathered, string $from, string $until ): array {
+		$over = array();
+
+		foreach ( $days as $day ) {
+			$date = (string) ( $day['date'] ?? '' );
+
+			if ( $date < $from || $date > $until ) {
+				continue;
+			}
+
+			$position = self::over( array( $day ), $gathered['by_day'] ?? array(), $date, $date, $gathered['completed_by_day'] ?? array() );
+
+			if ( self::OVER !== $position['band'] ) {
+				continue;
+			}
+
+			$tasks = array();
+
+			foreach ( $gathered['allocations'] ?? array() as $allocation ) {
+				$hours = round( (float) ( $allocation['by_day'][ $date ] ?? 0 ), 2 );
+
+				if ( $hours > 0 ) {
+					$tasks[] = array(
+						'item_id' => (string) ( $allocation['item_id'] ?? '' ),
+						'title'   => (string) ( $allocation['title'] ?? '' ),
+						'hours'   => $hours,
+					);
+				}
+			}
+
+			usort( $tasks, static fn( array $a, array $b ): int => $b['hours'] <=> $a['hours'] );
+
+			$over[] = array(
+				'date'      => $date,
+				'used'      => round( $position['committed'] + $position['completed'], 2 ),
+				'available' => $position['available'],
+				'tasks'     => $tasks,
+			);
+		}
+
+		return $over;
+	}
+
+	/**
 	 * The whole grid: a position per person per column, and one for the range.
 	 *
 	 * One place rather than a loop in the controller, because the loop is where

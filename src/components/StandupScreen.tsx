@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { SECTIONS, cardDetail, cardTitle, cardsFor, inOrder, keyOf, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
+import { SECTIONS, cardDetail, cardTitle, cardsFor, inOrder, keyOf, overDayText, overDays, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
+import { durationLabel } from '../duration.mjs';
 import { PRIORITY_TONE } from '../priority';
 import { Tag } from '../kit';
 import { waitingOn } from '../turn';
@@ -525,6 +526,8 @@ function Card( {
     waiting = waitingOn( { stage: String( card.detail?.stage ?? '' ), prior_stage: String( card.detail?.prior_stage ?? '' ), ...( card.detail?.seats as Seated ) }, names );
   }
   const unmet = Array.isArray( card.detail?.unmet ) ? ( card.detail.unmet as Requirement[] ) : [];
+  // #508. The days somebody is over, each with the tasks that fill it.
+  const over = overDays( card );
   // The outstanding list starts folded (Luke, 2026-09-20): the card says how
   // many, and Show opens them. A page of every requirement on every item was
   // a page nobody read.
@@ -566,7 +569,7 @@ function Card( {
       { '' !== detail && (
         <span className="bwx-standup-card-detail">
           { detail }
-          { 0 < unmet.length && (
+          { ( 0 < unmet.length || 0 < over.length ) && (
             <button
               type="button"
               className="bwx-standup-show"
@@ -596,6 +599,44 @@ function Card( {
             onComplete( card.subject_id, requirement, value, evidence )
           }
         />
+      ) }
+
+      { shown && 0 < over.length && (
+        <div className="bwx-standup-over" data-testid="bwx-standup-over-days">
+          { over.map( ( day ) => (
+            <div key={ day.date } className="bwx-standup-over-day">
+              <p className="bwx-standup-over-when">{ overDayText( day ) }</p>
+              <ul>
+                { day.tasks.map( ( task, at ) => (
+                  <li key={ `${ task.item_id }:${ at }` }>
+                    { /* Work opens in the panel; a meeting has nothing to open here. */ }
+                    { task.item_id.startsWith( 'wrk_' ) ? (
+                      <button type="button" className="bwx-standup-show" onClick={ () => onOpen( task.item_id ) }>
+                        { task.title }
+                      </button>
+                    ) : (
+                      <span>{ task.title }</span>
+                    ) }
+                    <span className="bwx-mono">{ durationLabel( task.hours ) }</span>
+                  </li>
+                ) ) }
+              </ul>
+            </div>
+          ) ) }
+          <a
+            className="bwx-standup-show"
+            data-testid="bwx-standup-capacity"
+            href={ `${ window.location.pathname }${ window.location.search }#screen=capacity&person=${ card.subject_id }` }
+            onClick={ ( event ) => {
+              // The app reads a link's screen once, on load.
+              event.preventDefault();
+              window.location.hash = `screen=capacity&person=${ card.subject_id }`;
+              window.location.reload();
+            } }
+          >
+            See their capacity
+          </a>
+        </div>
       ) }
 
       { /* Hide beside Open, both in the card's top right corner (2026-09-19). */ }
