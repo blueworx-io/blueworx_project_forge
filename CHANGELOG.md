@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.182.0] - 2026-10-14
+
+### Changed
+
+- A task's date pickers won't offer a day earlier than the date before it (Design by first, or Deliver by when no design is needed), and a date left behind when an earlier one moves past it is flagged under the field straight away, not only on Save.
+
 ## [2.181.0] - 2026-10-14
 
 ### Added

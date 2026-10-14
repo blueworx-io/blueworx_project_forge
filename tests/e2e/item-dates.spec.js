@@ -64,3 +64,54 @@ test( 'the dates sit in their own section, one per person', async ( { browser, b
 
   await admin.context.close();
 } );
+
+// #522. The pickers refuse days before the date that comes first, and a date
+// left behind when an earlier one moves past it is flagged on the spot.
+test( 'the date pickers keep the dates in order, and say so when they fall out of it', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { client, site } = await Forge.makeSite( admin.api, `Order Co ${ RUN }`, RUN );
+  const person = await Forge.makePerson( admin.api, client.id, 'staff', `op${ RUN }` );
+  const made = await Forge.makeItem( admin.api, site.id, { title: `Ordered ${ RUN }` } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  const item = ( await made.json() ).item;
+  const edited = await admin.api.patch( `/work-items/${ item.id }`, { designer_id: person.id, record_version: item.record_version } );
+  expect( edited.status(), await edited.text() ).toBe( 200 );
+
+  const page = await admin.context.newPage();
+  await page.goto( `/blueworx-forge/#item=${ item.id }` );
+  const panel = page.getByTestId( 'bwx-panel' );
+  await expect( panel ).toContainText( `Ordered ${ RUN }`, { timeout: 60_000 } );
+  const dates = panel.getByTestId( 'bwx-dates' );
+
+  // Design by is the earliest: nothing before it. The rest cannot be earlier than it.
+  await dates.getByLabel( 'Design by' ).fill( on( 2 ) );
+  await expect( dates.getByLabel( 'Design by' ) ).not.toHaveAttribute( 'min', /./ );
+  for ( const label of [ 'Deliver by', 'Review by', 'Release by' ] ) {
+    await expect( dates.getByLabel( label ) ).toHaveAttribute( 'min', on( 2 ) );
+  }
+
+  // In order: no complaint.
+  await dates.getByLabel( 'Deliver by' ).fill( on( 3 ) );
+  await dates.getByLabel( 'Review by' ).fill( on( 4 ) );
+  await expect( dates.getByLabel( 'Review by' ) ).toHaveAttribute( 'min', on( 3 ) );
+  await expect( panel.getByTestId( 'bwx-date-order' ) ).toHaveCount( 0 );
+
+  // Deliver by moved past Review by: Review by is told, straight away.
+  await dates.getByLabel( 'Deliver by' ).fill( on( 6 ) );
+  const flagged = panel.getByTestId( 'bwx-date-order' );
+  await expect( flagged ).toHaveCount( 1 );
+  await expect( flagged ).toHaveAttribute( 'data-field', 'review_target' );
+  await expect( flagged ).toHaveText( 'Review by cannot be before deliver by.' );
+  await expect( dates.getByLabel( 'Review by' ) ).toHaveAttribute( 'aria-invalid', 'true' );
+  await dates.getByLabel( 'Review by' ).fill( on( 7 ) );
+  await expect( flagged ).toHaveCount( 0 );
+
+  // No design: Deliver by is the earliest and holds nothing back.
+  await page.locator( '#bwx-designer_id' ).selectOption( '' );
+  await expect( dates.getByLabel( 'Deliver by' ) ).not.toHaveAttribute( 'min', /./ );
+  await expect( dates.getByLabel( 'Review by' ) ).toHaveAttribute( 'min', on( 6 ) );
+
+  await admin.context.close();
+} );

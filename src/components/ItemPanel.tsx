@@ -1255,11 +1255,33 @@ export function ItemPanel( {
    * set. The server refuses dates out of order; this stops the picker
    * offering them.
    */
-  const earliestFor = ( field: string ): string | undefined => {
+  /** The latest of the dates before this one in the order, where any is set. */
+  const latestBefore = ( field: string ): ( typeof DATES )[ number ] | null => {
     const before = DATES.slice( 0, DATES.findIndex( ( date ) => date.field === field ) );
-    const set = before.map( ( date ) => draft[ date.field ] ?? '' ).filter( ( value ) => '' !== value );
+    const set = before.filter( ( date ) => '' !== ( draft[ date.field ] ?? '' ) );
 
-    return 0 < set.length ? set.sort().at( -1 ) : undefined;
+    return 0 < set.length ? set.sort( ( a, b ) => ( draft[ a.field ] ?? '' ).localeCompare( draft[ b.field ] ?? '' ) ).at( -1 ) ?? null : null;
+  };
+
+  const earliestFor = ( field: string ): string | undefined => {
+    const latest = latestBefore( field );
+
+    return null === latest ? undefined : draft[ latest.field ];
+  };
+
+  /**
+   * #522. A date that has fallen behind the one before it — moving an earlier
+   * date past a later one — is said so on the spot, not only on Save.
+   */
+  const outOfOrder = ( field: string ): string => {
+    const own = draft[ field ] ?? '';
+    const latest = latestBefore( field );
+
+    if ( '' === own || null === latest || own >= ( draft[ latest.field ] ?? '' ) ) {
+      return '';
+    }
+
+    return `${ DATES.find( ( date ) => date.field === field )?.label ?? field } cannot be before ${ latest.label.toLowerCase() }.`;
   };
 
   return (
@@ -2317,10 +2339,16 @@ export function ItemPanel( {
                         type="date"
                         min={ earliestFor( date.field ) }
                         value={ draft[ date.field ] ?? '' }
+                        aria-invalid={ '' !== outOfOrder( date.field ) ? 'true' : undefined }
                         onChange={ ( event ) =>
                           setDraft( { ...draft, [ date.field ]: event.target.value } )
                         }
                       />
+                      { '' !== outOfOrder( date.field ) && (
+                        <p className="bwx-hint bwx-date-order" role="alert" data-testid="bwx-date-order" data-field={ date.field }>
+                          { outOfOrder( date.field ) }
+                        </p>
+                      ) }
                     </div>
                   ) ) }
                 </div>

@@ -4350,3 +4350,8 @@ select.bwx-select {
   font-weight: var( --weight-medium );
   color: var( --color-ink );
 }
+
+/* #522. A date out of order says so under its field. */
+.bwx-date-order {
+  color: var( --phase-exception-ink );
+}
