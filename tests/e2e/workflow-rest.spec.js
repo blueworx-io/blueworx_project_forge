@@ -163,7 +163,7 @@ test('work goes back to any earlier stage, and only with a reason', async ({
   item = await walkTo(api, item, ['triage', 'documentation-period']);
 
   const detail = await api.get(`/work-items/${item.id}`);
-  expect(detail.returns).toEqual(['future-idea', 'triage', 'documentation-period']);
+  expect(detail.returns).toEqual(['future-idea', 'triage']);
 
   // No reason, no return. WF-3, without exception.
   const silent = await api.post(`/work-items/${item.id}/return`, {

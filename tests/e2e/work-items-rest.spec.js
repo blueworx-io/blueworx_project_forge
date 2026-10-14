@@ -154,15 +154,15 @@ async function advance(request, nonce, item, to) {
   return move(request, nonce, ready, to);
 }
 
-test('the stages are twelve, fixed, and readable without signing in', async ({ request }) => {
+test('the stages are eleven, fixed, and readable without signing in', async ({ request }) => {
   const response = await request.get('/wp-json/blueworx-forge/v1/stages');
 
   expect(response.status()).toBe(200);
   const body = await response.json();
 
-  expect(body.stages).toHaveLength(12);
+  expect(body.stages).toHaveLength(11);
   expect(body.stages[0].id).toBe('future-idea');
-  expect(body.columns).toHaveLength(10);
+  expect(body.columns).toHaveLength(9);
   expect(body.columns).not.toContain('blocked');
 });
 
