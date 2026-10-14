@@ -185,3 +185,56 @@ test('a day shows what is done beside what is still to do, and every task opens'
 
   await context.close();
 });
+
+// #519. A meeting in the day panel reads like a task: title on top, hours
+// underneath, both against the left edge.
+test('a meeting in the day panel is laid out like the work around it', async ({ browser, baseURL }) => {
+  test.setTimeout(300_000);
+
+  const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const STAMP = RUN_ID.replace('-', '');
+  const today = localToday();
+  const { context, api } = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await Forge.makeSite(api, 'Capacity meeting', RUN_ID);
+
+  await Forge.onSupport({ context, api }, where.site.id, 400);
+
+  const person = await Forge.makePerson(api, where.client.id, 'staff', `meet${STAMP}`);
+  await Forge.setHours(api, person.id, 8);
+
+  const title = `Weekly catch-up ${RUN_ID}`;
+  const series = await api.post(`/client-sites/${where.site.id}/meetings/series`, {
+    title,
+    frequency: 'weekly',
+    starts_on: today,
+    ends_on: '',
+    time_of_day: '10:00',
+    duration_mins: 30,
+    timezone: 'Europe/London',
+    host_user_id: person.id,
+    attendees: 'The client team',
+    planned_hours: 0.5,
+  });
+  expect(series.status(), await series.text()).toBe(200);
+
+  const page = await context.newPage();
+
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-capacity').click();
+  await expect(page.getByTestId('bwx-capacity-grid')).toBeVisible({ timeout: 30_000 });
+
+  await page.getByTestId(`bwx-capacity-cell-${person.id}-${today}`).click();
+
+  const entry = page.getByTestId('bwx-capacity-drilldown').getByTestId('bwx-capacity-todo').locator('li', { hasText: title });
+
+  await expect(entry).toHaveCount(1);
+  await expect(entry).toContainText('Meeting, 30 min');
+
+  const name = await entry.locator('strong').boundingBox();
+  const hours = await entry.getByText('Meeting, 30 min').boundingBox();
+
+  expect(Math.round(hours.x)).toBe(Math.round(name.x));
+  expect(hours.y).toBeGreaterThan(name.y);
+
+  await context.close();
+});
