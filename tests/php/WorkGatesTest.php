@@ -209,6 +209,34 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
+	 * #547. Leaving Up Next wants every person's date: Deliver by, Review by,
+	 * Release by, and Design by only when somebody designs.
+	 */
+	public function test_up_next_needs_every_date_and_design_by_only_with_a_designer(): void {
+		$dated = array(
+			'planned_due'    => '2026-10-20',
+			'review_target'  => '2026-10-21',
+			'release_target' => '2026-10-22',
+		);
+
+		$undated = array_column( Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'planned_due' => '2026-10-20' ) ), array() )['unmet'], 'id' );
+		$this->assertContains( 'G-UP-NEXT-10', $undated );
+		$this->assertContains( 'G-UP-NEXT-11', $undated );
+		$this->assertNotContains( 'G-UP-NEXT-12', $undated, 'No designer, no Design by' );
+
+		$plain = array_column( Gates::evaluate( 'G-UP-NEXT', $this->item( $dated ), array() )['all'], 'id' );
+		$this->assertNotContains( 'G-UP-NEXT-12', $plain, 'The row is not even shown without a designer' );
+
+		$designed = array_column( Gates::evaluate( 'G-UP-NEXT', $this->item( $dated + array( 'designer_id' => 'usr_d' ) ), array() )['unmet'], 'id' );
+		$this->assertContains( 'G-UP-NEXT-12', $designed );
+		$this->assertNotContains( 'G-UP-NEXT-10', $designed );
+		$this->assertNotContains( 'G-UP-NEXT-11', $designed );
+
+		$complete = array_column( Gates::evaluate( 'G-UP-NEXT', $this->item( $dated + array( 'designer_id' => 'usr_d', 'design_target' => '2026-10-19' ) ), array() )['unmet'], 'id' );
+		$this->assertNotContains( 'G-UP-NEXT-12', $complete );
+	}
+
+	/**
 	 * Leaving In Development (2026-09-19, 2026-09-24): the test steps are
 	 * optional, hours still to do is gone, and the completion checklist is the
 	 * checklist itself.

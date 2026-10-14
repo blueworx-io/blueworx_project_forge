@@ -40,6 +40,9 @@ final class CapacityGateTest extends TestCase {
 				'deliverer_id'    => 'usr_c',
 				'planned_start'   => '2026-09-07',
 				'planned_due'     => '2026-09-11',
+				// #547. Every person's date.
+				'review_target'   => '2026-09-14',
+				'release_target'  => '2026-09-15',
 				'priority'        => 'high',
 				// The hours item is met by the three seats' hours (2026-09-18).
 				'hours_primary'   => 2.0,

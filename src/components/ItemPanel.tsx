@@ -141,11 +141,12 @@ const PRIORITIES = [ 'low', 'normal', 'high', 'urgent' ] as const;
 
 // #513. One date per person, in the order they come. Forge sets the start
 // itself from the earliest, so nobody is asked for it.
+// #547. All of them before the work leaves Up Next.
 const DATES = [
-  { field: 'design_target', label: 'Design by', needed: '' },
+  { field: 'design_target', label: 'Design by', needed: 'up-next' },
   { field: 'planned_due', label: 'Deliver by', needed: 'up-next' },
-  { field: 'review_target', label: 'Review by', needed: '' },
-  { field: 'release_target', label: 'Release by', needed: '' },
+  { field: 'review_target', label: 'Review by', needed: 'up-next' },
+  { field: 'release_target', label: 'Release by', needed: 'up-next' },
 ] as const;
 
 /**
@@ -175,6 +176,11 @@ const NEEDED_FROM: Record< string, string > = {
   reviewer_id: 'future-idea',
   deliverer_id: 'up-next',
   planned_due: 'up-next',
+  // #547. Every person's date before the work is booked; Design by only
+  // shows when there is a designer, so it is only ever flagged then.
+  design_target: 'up-next',
+  review_target: 'up-next',
+  release_target: 'up-next',
   // #550. The reviewer needs something to go on.
   test_description: 'in-development',
 };

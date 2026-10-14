@@ -231,6 +231,11 @@ final class Gates {
 				// #513. Forge sets the start itself; the doer's date is what is asked for.
 				self::field( 'G-UP-NEXT-5', 'Deliver by date', 'date', array( 'planned_due' ), 'Set a deliver by date.' ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
+				// #547. Every person's date before the work is booked. Design by
+				// only when there is a designer: with no design there is no date.
+				self::field( 'G-UP-NEXT-10', 'Review by date', 'date', array( 'review_target' ), 'Set a review by date.' ),
+				self::field( 'G-UP-NEXT-11', 'Release by date', 'date', array( 'release_target' ), 'Set a release by date.' ),
+				self::with_designer( self::field( 'G-UP-NEXT-12', 'Design by date', 'date', array( 'design_target' ), 'Set a design by date.' ) ),
 				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of their dates, unless the over-allocation is given a reason.' ),
 				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
@@ -382,6 +387,11 @@ final class Gates {
 
 		foreach ( self::requirements( $gate ) as $requirement ) {
 			if ( $design_skipped && self::BY_SYSTEM !== $requirement['by'] ) {
+				continue;
+			}
+
+			// #547. A row only a designed task has: no designer, no row.
+			if ( $no_designer && ! empty( $requirement['designer'] ) ) {
 				continue;
 			}
 
@@ -869,6 +879,19 @@ final class Gates {
 	private static function evidence( string $id, string $label, string $satisfied_by, string $who = self::ANY ): array {
 		$requirement             = self::auto( $id, $label, 'attachment', 'evidence', $satisfied_by, $who );
 		$requirement['evidence'] = true;
+
+		return $requirement;
+	}
+
+	/**
+	 * A requirement only a task with a designer has (#547). Read by
+	 * evaluate(), which leaves the row out altogether when nobody designs.
+	 *
+	 * @param array<string, mixed> $requirement Requirement.
+	 * @return array<string, mixed>
+	 */
+	private static function with_designer( array $requirement ): array {
+		$requirement['designer'] = true;
 
 		return $requirement;
 	}

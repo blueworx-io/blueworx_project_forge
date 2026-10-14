@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.187.0] - 2026-10-14
+
+### Changed
+
+- A task can't leave Up Next until its Deliver by, Review by and Release by dates are set, plus Design by when it has a designer. The card's check and the task panel name whichever dates are missing.
+
 ## [2.186.0] - 2026-10-14
 
 ### Changed
