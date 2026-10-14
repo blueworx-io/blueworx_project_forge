@@ -105,8 +105,13 @@ test('a lead can be given a contact, becomes an opportunity, then a client with 
   expect(client.legal_name).toBe(`Signing Ltd ${RUN_ID}`);
   expect(client.staff_all).toBe(true);
 
+  // Left as All staff it would join every person made after it, on this
+  // reused instance, to a client they never chose. Chosen staff from here.
+  const narrowed = await admin.api.patch(`/clients/${client.id}`, { staff_all: false, record_version: client.record_version });
+  expect(narrowed.status(), await narrowed.text()).toBe(200);
+
   // And the lead routes no longer know it, so a client cannot be moved from here.
-  const refused = await admin.api.patch(`/leads/${lead.id}`, { status: 'lead-archived', record_version: client.record_version });
+  const refused = await admin.api.patch(`/leads/${lead.id}`, { status: 'lead-archived', record_version: (await narrowed.json()).client.record_version });
   expect(refused.status()).toBe(404);
 });
 
