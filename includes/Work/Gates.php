@@ -92,14 +92,6 @@ final class Gates {
 	);
 
 	/**
-	 * How far it reaches (G-DOCUMENTATION-7).
-	 */
-	public const AFFECTED = array(
-		'this-site'     => 'This site only',
-		'several-sites' => 'More than one site',
-	);
-
-	/**
 	 * Who may mark a requirement complete. The legend from the specification.
 	 */
 	public const ANY    = 'ANY';
@@ -201,8 +193,7 @@ final class Gates {
 			),
 			'G-DOCUMENTATION'   => array(
 				self::field( 'G-DOCUMENTATION-1', 'Item description', 'text', array( 'problem' ), 'Write the item description.' ),
-				// Not covered and Completed when are not asked (#493, #494); ids stay as they were.
-				self::pick( 'G-DOCUMENTATION-7', 'Affected sites and data', self::AFFECTED, 'Choose which sites this affects.' ),
+				// Not covered, Completed when and Affected sites are not asked (#493, #494, #545); ids stay as they were.
 				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as the reviewer.', self::REV ),
 			),
 
