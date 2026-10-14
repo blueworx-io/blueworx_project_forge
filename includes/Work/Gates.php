@@ -153,13 +153,13 @@ final class Gates {
 		}
 
 		$gates = array(
-			'G-CREATE'          => array(
+			'G-CREATE'         => array(
 				self::field( 'G-CREATE-1', 'Title', 'text', array( 'title' ), 'Give the work a title.' ),
 				self::field( 'G-CREATE-2', 'Site scope', 'reference', array( 'client_site_id' ), 'Choose the client site this work belongs to.' ),
 				self::field( 'G-CREATE-3', 'Work type', 'enum', array( 'work_type' ), 'Choose Feature, Bug, Feedback or Task.' ),
 				self::system( 'G-CREATE-4', 'Creator and source', 'creator', 'Recorded when the item is created.' ),
 			),
-			'G-FUTURE-IDEA'     => array(
+			'G-FUTURE-IDEA'    => array(
 				self::field( 'G-FUTURE-IDEA-1', 'Item description', 'text', array( 'problem' ), 'Describe the problem or opportunity this addresses.' ),
 				self::field( 'G-FUTURE-IDEA-2', 'Site confirmed', 'reference', array( 'client_site_id' ), 'The task has a site.' ),
 				self::pick( 'G-FUTURE-IDEA-3', 'Source', self::SOURCES, 'Choose where this came from.' ),
@@ -173,7 +173,7 @@ final class Gates {
 				// is the right one.
 				self::field( 'G-FUTURE-IDEA-7', 'Client confirmed', 'reference', array( 'client_confirmed_at' ), 'Confirm the client, or change it, before triage.' ),
 			),
-			'G-TRIAGE'          => array(
+			'G-TRIAGE'         => array(
 				self::field( 'G-TRIAGE-1', 'Work type confirmed', 'enum', array( 'work_type' ), 'Confirm the work type.', self::APR ),
 				self::field( 'G-TRIAGE-2', 'Site confirmed', 'reference', array( 'client_site_id' ), 'The task has a site.', self::APR ),
 				self::field( 'G-TRIAGE-4', 'Priority', 'enum', array( 'priority' ), 'Set a priority.' ),
@@ -181,7 +181,7 @@ final class Gates {
 				self::pick( 'G-TRIAGE-7', 'Triage outcome', self::TRIAGE_OUTCOMES, 'Choose the triage outcome.', self::APR ),
 				self::classification( 'G-TRIAGE-8', 'Who pays', 'Choose who pays for this.', self::APR ),
 			),
-			'G-BUG-TRACKING'    => array(
+			'G-BUG-TRACKING'   => array(
 				self::pick( 'G-BUG-TRACKING-1', 'Bug classification', self::BUG_CLASSES, 'Choose how the bug is classified.' ),
 				self::box( 'G-BUG-TRACKING-2', 'Expected versus actual result', 'text', 'Fill in what was expected and what actually happened.' ),
 				self::box( 'G-BUG-TRACKING-3', 'Reproduction steps', 'text', 'Fill in the steps that reproduce it.' ),
@@ -191,7 +191,7 @@ final class Gates {
 				self::box( 'G-BUG-TRACKING-7', 'Initial diagnosis', 'text', 'Fill in an initial diagnosis.' ),
 				self::classification( 'G-BUG-TRACKING-8', 'Delivered by Forge', 'Choose who pays: a site bug is one Forge delivered.', self::APR ),
 			),
-			'G-DOCUMENTATION'   => array(
+			'G-DOCUMENTATION'  => array(
 				self::field( 'G-DOCUMENTATION-1', 'Item description', 'text', array( 'problem' ), 'Write the item description.' ),
 				// Not covered, Completed when and Affected sites are not asked (#493, #494, #545); ids stay as they were.
 				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as the reviewer.', self::REV ),
@@ -203,7 +203,7 @@ final class Gates {
 			 * from the task itself, so no stage asks about them until Completed
 			 * needs them done.
 			 */
-			'G-DESIGN'          => array(
+			'G-DESIGN'         => array(
 				// The design link is optional (2026-09-24): not every item has one.
 				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),
 				self::done( 'G-DESIGN-3', 'Empty, loading, error and permission-denied states', 'Mark all four states as done.' ),
@@ -212,7 +212,7 @@ final class Gates {
 				// still spend is asked again here: a package can lapse in Design.
 				self::system( 'G-DESIGN-9', 'Support-hours check', 'support_hours', 'The site still has to be on a package it can spend from when the work starts.' ),
 			),
-			'G-UP-NEXT'         => array(
+			'G-UP-NEXT'        => array(
 
 				/*
 				 * The three seats are fields rather than records, because #112
@@ -235,7 +235,7 @@ final class Gates {
 				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of their dates, unless the over-allocation is given a reason.' ),
 				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
-			'G-IN-DEVELOPMENT'  => array(
+			'G-IN-DEVELOPMENT' => array(
 				// The checklist is the completion checklist (2026-09-19): every
 				// line ticked, or no list at all, and nobody marks it by hand.
 				self::auto( 'G-IN-DEVELOPMENT-1', 'Checklist complete', 'checklist', 'checklist', 'Tick every line of the checklist.', self::PU ),
@@ -243,28 +243,28 @@ final class Gates {
 				self::field( 'G-IN-DEVELOPMENT-2', 'How to test it', 'text', array( 'test_description' ), 'Write how to test it, so the reviewer has something to go on.', self::PU ),
 				self::system( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'submission', 'Recorded by the move itself.' ),
 			),
-			'G-IN-REVIEW'       => array(
+			'G-IN-REVIEW'      => array(
 				self::done( 'G-IN-REVIEW-1', 'Review checklist', 'Mark the review checklist as done.', self::REV ),
 				self::done( 'G-IN-REVIEW-2', 'Every acceptance criterion confirmed', 'Tick every line of the checklist, or mark this Done.', self::REV, 'checklist' ),
 				self::auto( 'G-IN-REVIEW-3', 'All feedback resolved', 'checklist', 'feedback', 'Answer every open question from the client, or return the item.', self::REV ),
 				self::approval( 'G-IN-REVIEW-4', 'Review approval', 'Approve the review as the assigned Reviewer or an authorised substitute.', self::REV ),
 				self::box( 'G-IN-REVIEW-5', 'Post-review hours adjustment', 'number', 'Fill in the post-review hours adjustment (0 for none).', self::REV ),
 			),
-			'G-COMPLETED'       => array(
+			'G-COMPLETED'      => array(
 				self::system( 'G-COMPLETED-1', 'Review approval preserved', 'review_approval', 'The review approval from this cycle has to still be on the item.' ),
 				// How, where and when it goes are not asked (#418), nor release notes (2026-10-05); ids stay as they were.
 				self::done( 'G-COMPLETED-5', 'Delivery checklist', 'Mark the delivery checklist as done.', self::DEL ),
 				self::auto( 'G-COMPLETED-6', 'Dependencies ready', 'reference', 'dependencies_ready', 'Everything this waits on has to reach Completed first.', self::DEL ),
 				self::system( 'G-COMPLETED-8', 'Every child item Completed', 'children_completed', 'Every item beneath this one has to reach Completed first.' ),
 			),
-			'G-BLOCKED-ENTRY'   => array(
+			'G-BLOCKED-ENTRY'  => array(
 				// Who owns the blocker is the one answer blocking needs
 				// (2026-09-24). What is blocking it, what it waits on and a target
 				// date are optional, and there is no next action.
 				self::pick( 'G-BLOCKED-ENTRY-2', 'Who owns the blocker', array( 'client' => 'The client' ), 'Choose who owns the blocker.', self::ANY, 'people' ),
 				self::system( 'G-BLOCKED-ENTRY-6', 'Prior stage stored', 'prior_stage', 'Recorded by the move itself.' ),
 			),
-			'G-BLOCKED-EXIT'    => array(
+			'G-BLOCKED-EXIT'   => array(
 				self::box( 'G-BLOCKED-EXIT-1', 'Resolution note', 'text', 'Say how the blocker was resolved.' ),
 				self::system( 'G-BLOCKED-EXIT-2', 'Return to the stored prior stage', 'prior_stage', 'Enforced by the move: there is no target to choose.' ),
 				self::system( 'G-BLOCKED-EXIT-3', 'Elapsed blocked time retained', 'blocked_elapsed', 'Recorded by the move itself.' ),
