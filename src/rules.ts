@@ -63,7 +63,7 @@ export const RULES: RuleSection[] = [
         why: 'A tick or a new line is too easy to lose by closing the task.',
       },
       {
-        what: 'A task\'s dates must stay in order (design by, then deliver by, then review by, then release by), though any of them may be in the past. Design by only shows when the task has a designer.',
+        what: 'A task\'s dates must stay in order (design by, then deliver by, then review by, then release by), though any of them may be in the past. Design by only shows when the task has a designer. The pickers don\'t offer a day earlier than the date before it, and a date left out of order is flagged under its field straight away as well as on Save.',
         why: 'Dates that run backwards make the plan and the timeline meaningless.',
       },
       {
