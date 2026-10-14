@@ -64,11 +64,11 @@ const CHECKLIST_ROWS = 10;
 
 /**
  * The definition boxes, shown once the item has reached the stage that
- * wants them or when they hold something. Since 2026-09-19 reference
- * material is optional and the design link arrives at Design Process.
+ * wants them or when they hold something. The design link arrives at
+ * Design Process. Reference material went (#523): the reference links
+ * list does its job, and what was already written stays in the database.
  */
 const DEFINITION_BOXES = [
-  { field: 'references', label: 'Reference material', shown: 'documentation-period', lines: 3 },
   { field: 'design_url', label: 'Design link', shown: 'design-process', lines: 1 },
 ] as const;
 
