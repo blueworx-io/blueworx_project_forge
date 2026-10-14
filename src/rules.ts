@@ -385,6 +385,10 @@ export const RULES: RuleSection[] = [
         why: 'The work is in the client\'s hands, so nobody here should look busy with it.',
       },
       {
+        what: 'Opening a day or week on the capacity screen lists only the hours booked inside it, so what is listed adds up to the figure it opened from.',
+        why: 'A panel that listed work booked on other days would never agree with the cell behind it.',
+      },
+      {
         what: 'Standing meetings and the days ahead of recurring tasks count too, and capacity always adds up every client, whichever client is picked.',
         why: 'A person can\'t look free for one client while they are busy for another.',
       },
