@@ -96,7 +96,7 @@ test.describe('the board', () => {
     await page.waitForSelector('[data-testid="bwx-board"]');
 
     const columns = page.locator('[data-testid="bwx-column"]');
-    await expect(columns).toHaveCount(10);
+    await expect(columns).toHaveCount(9);
 
     // The first column is where new work lands, and the last is the end of the
     // road. Both are fixed by the state machine, not by this screen.
@@ -198,7 +198,7 @@ test.describe('the board', () => {
   });
 
   test('a site with no work says so, and still shows what happens to work', async ({ page }) => {
-    // #125. An empty board is drawn — the ten columns are the answer to "what
+    // #125. An empty board is drawn — the nine columns are the answer to "what
     // happens to work here" — with the emptiness said out loud above it rather
     // than left to be inferred.
     const { siteId, itemId } = await seed(page, 'Empty');
@@ -239,7 +239,7 @@ test.describe('the board', () => {
 
     // Empty, not denied. The two are told apart deliberately.
     await expect(state).not.toHaveAttribute('data-state', 'denied');
-    await expect(page.locator('[data-testid="bwx-column"]')).toHaveCount(10);
+    await expect(page.locator('[data-testid="bwx-column"]')).toHaveCount(9);
   });
 
   test('somebody without access is told that, not shown an empty board', async ({ page }) => {
