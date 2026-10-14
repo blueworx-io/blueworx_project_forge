@@ -511,6 +511,18 @@ export const RULES: RuleSection[] = [
     title: 'Who can do what',
     rules: [
       {
+        what: 'A lead is a business we are talking to, kept on the Leads page under Clients. Only administrators add, edit, move or archive leads. A lead moves Lead → Opportunity → Client, or into the archive, from where it can be restored.',
+        why: 'Prospects need somewhere to live before they are clients, without anyone mistaking them for one.',
+      },
+      {
+        what: 'A lead or opportunity never appears anywhere a client does: not in client lists or pickers, work, support, meetings, onboarding, people, the standup, sales or sync health. It can be given a contact, but no staff, sites or meetings until it is a client.',
+        why: 'Nothing can be planned or billed against a business that has not signed.',
+      },
+      {
+        what: '"Make client" turns an opportunity into a normal client with every detail kept and All staff turned on, and it leaves the Leads page. Only an opportunity can be made a client.',
+        why: 'The same record becomes the client, so nothing is typed twice, and a new client is workable at once.',
+      },
+      {
         what: 'Only administrators and Forge: Managers can open Forge; our existing staff were given the Manager role automatically.',
         why: 'Forge holds every client\'s work, so only our own people get in.',
       },

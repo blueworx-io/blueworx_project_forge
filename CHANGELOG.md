@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.183.0] - 2026-10-14
+
+### Added
+
+- A Leads page under Clients, for businesses we are talking to. A lead holds the same details as a client, can be given a contact, and moves Lead → Opportunity → Client; "Make client" turns an opportunity into a normal client with everything kept. A lead that does not sign is archived, and can be restored. Leads never appear anywhere a client does.
+
 ## [2.182.0] - 2026-10-14
 
 ### Changed

@@ -32,6 +32,57 @@ final class Clients {
 	public const PREFIX = 'cli';
 
 	/**
+	 * A business we are talking to, not yet a client (#492).
+	 */
+	public const LEAD = 'lead';
+
+	/**
+	 * A lead that has become a real prospect (#492).
+	 */
+	public const OPPORTUNITY = 'opportunity';
+
+	/**
+	 * A lead that did not sign (#492). Kept, and can be brought back.
+	 */
+	public const LEAD_ARCHIVED = 'lead-archived';
+
+	/**
+	 * The statuses that make a row a lead rather than a client (#492). A row
+	 * in any of these is never a client: {@see self::all()} leaves them out,
+	 * so every list and picker built on it does too.
+	 */
+	public const LEAD_STATUSES = array( self::LEAD, self::OPPORTUNITY, self::LEAD_ARCHIVED );
+
+	/**
+	 * Whether a row is a lead rather than a client (#492).
+	 *
+	 * @param array<string, mixed> $client A hydrated row.
+	 * @return bool
+	 */
+	public static function is_lead( array $client ): bool {
+		return in_array( (string) ( $client['status'] ?? '' ), self::LEAD_STATUSES, true );
+	}
+
+	/**
+	 * Every lead (#492): the ones in play, or the archived ones.
+	 *
+	 * @param bool $archived True for the archive.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function leads( bool $archived = false ): array {
+		global $wpdb;
+
+		$table    = Schema::clients_table();
+		$statuses = $archived ? array( self::LEAD_ARCHIVED ) : array( self::LEAD, self::OPPORTUNITY );
+		$slots    = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the placeholders are built and counted above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status IN ({$slots}) ORDER BY created_at DESC", $statuses ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * Stores a new client.
 	 *
 	 * @param array<string, mixed> $values Validated values.
@@ -98,8 +149,12 @@ final class Clients {
 		$table = Schema::clients_table();
 
 		if ( null === $status ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-			$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC", ARRAY_A );
+			// #492. Every client, whatever its status — and a lead is not a
+			// client, so it is left out here and nowhere has to remember to.
+			$slots = implode( ', ', array_fill( 0, count( self::LEAD_STATUSES ), '%s' ) );
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the placeholders are built and counted above.
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status NOT IN ({$slots}) ORDER BY created_at DESC", self::LEAD_STATUSES ), ARRAY_A );
 		} else {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE status = %s ORDER BY created_at DESC", $status ), ARRAY_A );
