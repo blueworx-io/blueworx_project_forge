@@ -35,7 +35,8 @@ export function responsible( item: Seated ): Seat | null {
   const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
 
   if ( 'released' === stage ) return null;
-  // #391. While the client reviews, the owner keeps it, marked as waiting.
+  // #391. While the client reviews, the owner keeps it, marked as waiting —
+  // for the standup and the panel. My tasks leaves it out altogether (#517).
   if ( 'in-review' === stage && CLIENT_REVIEWER === item.reviewer_id ) return 'primary';
   if ( 'in-review' === stage ) return 'reviewer';
   if ( 'completed' === stage ) return 'deliverer';

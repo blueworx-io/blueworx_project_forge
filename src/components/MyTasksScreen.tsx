@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import type { Stage, WorkItem } from '../types';
-import { CLIENT_REVIEWER } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
@@ -150,11 +149,6 @@ export function MyTasksScreen() {
               { r.item.title }
             </button>
             { 'blocked' === r.item.stage && <Tag tone="danger">Blocked</Tag> }
-            { 'in-review' === r.item.stage && CLIENT_REVIEWER === r.item.reviewer_id && (
-              <span data-testid="bwx-mytasks-client-reviewing">
-                <Tag tone="info">Waiting on the client</Tag>
-              </span>
-            ) }
             { /* How many have done a chore, beside its title. It is ticked off
                   from inside the task, never from the list (2026-09-27). */ }
             { 'assignee' === r.role && (

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.178.0] - 2026-10-14
+
+### Changed
+
+- A task the client is reviewing no longer sits in anyone's My tasks or its counts. It stays on the Daily standup, and returns to the doer's list once it leaves the client.
+
 ## [2.177.0] - 2026-10-14
 
 ### Changed

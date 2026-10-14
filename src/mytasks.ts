@@ -1,5 +1,6 @@
 import type { ClientSite, WorkItem } from './types';
 import { ALL_SITES } from './sites';
+import { CLIENT_REVIEWER } from './types';
 // A task is on somebody's list only while it is theirs to act on, and only once.
 import { responsible } from './turn';
 import { todayIso } from './calendar';
@@ -86,6 +87,11 @@ export function mineFor( person: { id: string }, siteList: Site[], items: WorkIt
       }
       continue;
     }
+
+    // #517. While the client reviews it, it is in nobody's hands here: it
+    // stays on the standup, and comes back to a person's list once it
+    // leaves the client.
+    if ( 'in-review' === item.stage && CLIENT_REVIEWER === item.reviewer_id ) continue;
 
     // Otherwise one row, for whoever's stage it is (2026-09-24).
     const seat = responsible( item );
