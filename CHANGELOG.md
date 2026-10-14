@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.176.1] - 2026-10-14
+
+### Fixed
+
+- A card due today no longer shows as a day late. "-1d" only appears from the day after the due date, and My Tasks counts days from the same today.
+
 ## [2.176.0] - 2026-10-14
 
 ### Removed

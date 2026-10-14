@@ -2,6 +2,7 @@ import { CircleCheck, CircleX } from 'lucide-react';
 import type { WorkItem } from '../types';
 import { CLIENT_REVIEWER } from '../types';
 import { phaseOf } from '../phases';
+import { todayIso } from '../calendar';
 import { PRIORITY_TONE } from '../priority';
 import { Avatar, Tag } from '../kit';
 
@@ -27,7 +28,9 @@ function due( item: WorkItem ): { text: string; late: boolean } {
   if ( ! date ) return { text: '—', late: false };
   const finished = 'completed' === item.stage || 'released' === item.stage;
   const at = new Date( `${ date }T00:00:00Z` );
-  const days = Math.floor( ( at.getTime() - Date.now() ) / DAY );
+  // #527. Whole days from today, not hours from this moment: due today is
+  // not late, and -1d means yesterday.
+  const days = Math.round( ( at.getTime() - new Date( `${ todayIso() }T00:00:00Z` ).getTime() ) / DAY );
   if ( ! finished && days < 0 ) return { text: `${ days }d`, late: true };
   return { text: at.toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' } ), late: false };
 }

@@ -2,6 +2,7 @@ import type { ClientSite, WorkItem } from './types';
 import { ALL_SITES } from './sites';
 // A task is on somebody's list only while it is theirs to act on, and only once.
 import { responsible } from './turn';
+import { todayIso } from './calendar';
 
 /*
  * What is on one person's My tasks list, and which tab each row sits under.
@@ -39,7 +40,8 @@ export function daysUntil( date: string ): number | null {
   if ( ! date ) return null;
   const at = new Date( `${ date }T00:00:00Z` ).getTime();
   if ( isNaN( at ) ) return null;
-  const today = new Date( new Date().toISOString().slice( 0, 10 ) + 'T00:00:00Z' ).getTime();
+  // The browser's own today (#527): UTC's is a different day for part of the evening.
+  const today = new Date( `${ todayIso() }T00:00:00Z` ).getTime();
   return Math.round( ( at - today ) / DAY );
 }
 
