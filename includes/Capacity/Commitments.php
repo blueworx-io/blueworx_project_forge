@@ -205,6 +205,22 @@ final class Commitments {
 				$spread = self::onto_today( $spread, $days_by_user[ $user_id ], $today );
 			}
 
+			/*
+			 * #521. Only the days this window shows. An item is read when any
+			 * of its dates falls in the window, and a seat's hours sit on that
+			 * seat's own day (#513) — which can be a day outside it. The grid
+			 * only ever sums the days it draws, so the panel behind a day has
+			 * to count the same days, or the two disagree.
+			 */
+			$shown = self::within( $spread, $days_by_user[ $user_id ] );
+
+			// Every day of it is outside this window: it is not listed here at all.
+			if ( array() === $shown && array() !== $spread ) {
+				continue;
+			}
+
+			$spread = $shown;
+
 			foreach ( $spread as $date => $hours ) {
 				$out[ $user_id ][ $series ][ $date ] = round( ( $out[ $user_id ][ $series ][ $date ] ?? 0.0 ) + $hours, 2 );
 			}
@@ -225,6 +241,30 @@ final class Commitments {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * The hours on the days a window shows, and no others (#521).
+	 *
+	 * @param array<string, float>             $spread Date to hours.
+	 * @param array<int, array<string, mixed>> $days   Availability::by_day for the person.
+	 * @return array<string, float>
+	 */
+	private static function within( array $spread, array $days ): array {
+		$dates = array_map( static fn( array $day ): string => (string) ( $day['date'] ?? '' ), $days );
+
+		if ( array() === $dates ) {
+			return $spread;
+		}
+
+		$first = min( $dates );
+		$last  = max( $dates );
+
+		return array_filter(
+			$spread,
+			static fn( $date ): bool => (string) $date >= $first && (string) $date <= $last,
+			ARRAY_FILTER_USE_KEY
+		);
 	}
 
 	/**

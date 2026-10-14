@@ -225,6 +225,35 @@ final class CapacityCommitmentsTest extends TestCase {
 		$this->assertSame( 0.0, $gathered['usr_a']['hours'] );
 	}
 
+	/*
+	 * #521. Only the days the window shows count. A seat's hours sit on its
+	 * own day, which can be outside the window the item was read for.
+	 */
+	public function test_work_dated_after_the_window_counts_for_none_of_it(): void {
+		$ahead           = $this->allocation( 'usr_a', 2.0, 'cli_1' );
+		$ahead['from']   = '2026-09-09';
+		$ahead['to']     = '2026-09-09';
+		$ahead['status'] = 'committed';
+
+		$gathered = Commitments::gather( array( $ahead ), array( 'usr_a' => $this->days() ), '2026-09-07' );
+
+		$this->assertSame( array(), $gathered['usr_a']['by_day'] );
+		$this->assertSame( 0.0, $gathered['usr_a']['hours'] );
+		$this->assertSame( array(), $gathered['usr_a']['allocations'], 'the panel lists nothing for it either' );
+	}
+
+	public function test_finished_work_before_the_window_counts_for_none_of_it(): void {
+		$done           = $this->allocation( 'usr_a', 2.0, 'cli_1' );
+		$done['from']   = '2026-09-01';
+		$done['to']     = '2026-09-01';
+		$done['status'] = 'completed';
+
+		$gathered = Commitments::gather( array( $done ), array( 'usr_a' => $this->days() ), '2026-09-08' );
+
+		$this->assertSame( array(), $gathered['usr_a']['completed_by_day'] );
+		$this->assertSame( 0.0, $gathered['usr_a']['completed'] );
+	}
+
 	public function test_a_past_meeting_stays_on_its_day(): void {
 		$meeting = $this->allocation( 'usr_a', 2.0, 'cli_1' );
 		$meeting['to'] = '2026-09-07';

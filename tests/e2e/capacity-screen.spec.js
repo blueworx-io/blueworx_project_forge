@@ -238,3 +238,73 @@ test('a meeting in the day panel is laid out like the work around it', async ({ 
 
   await context.close();
 });
+
+// #521. The panel behind a day lists only the hours booked on that day, so it
+// adds up to the cell it opened from.
+test('the day panel lists only that day, and adds up to its cell', async ({ browser, baseURL }) => {
+  test.setTimeout(300_000);
+
+  const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const STAMP = RUN_ID.replace('-', '');
+  const today = localToday();
+  const tomorrow = (() => {
+    const at = new Date(`${today}T12:00:00Z`);
+    at.setUTCDate(at.getUTCDate() + 1);
+    return at.toISOString().slice(0, 10);
+  })();
+  const { context, api } = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await Forge.makeSite(api, 'Capacity window', RUN_ID);
+
+  await Forge.onSupport({ context, api }, where.site.id, 400);
+
+  const person = await Forge.makePerson(api, where.client.id, 'staff', `win${STAMP}`);
+  const reviewer = await Forge.makePerson(api, where.client.id, 'staff', `winreviewer${STAMP}`);
+  const deliverer = await Forge.makePerson(api, where.client.id, 'staff', `windeliverer${STAMP}`);
+
+  await Forge.setHours(api, person.id, 8);
+
+  // Starts today, delivered tomorrow: the doer's two hours sit on tomorrow.
+  const created = await Forge.makeItem(api, where.site.id, { title: `Tomorrow's ${RUN_ID}` });
+  expect(created.status(), await created.text()).toBe(200);
+  await Forge.walkTo(
+    api,
+    (await created.json()).item,
+    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'],
+    {
+      seats: {
+        primary_user_id: person.id,
+        reviewer_id: reviewer.id,
+        deliverer_id: deliverer.id,
+        planned_start: today,
+        planned_due: tomorrow,
+        hours_primary: 2,
+      },
+    }
+  );
+
+  const page = await context.newPage();
+
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-capacity').click();
+  await expect(page.getByTestId('bwx-capacity-grid')).toBeVisible({ timeout: 30_000 });
+
+  const panel = page.getByTestId('bwx-capacity-drilldown');
+  const todo = panel.getByTestId('bwx-capacity-todo');
+
+  // Today: not there, and the panel's total is the cell's.
+  await page.getByTestId(`bwx-capacity-cell-${person.id}-${today}`).click();
+  await expect(panel).toBeVisible();
+  await expect(todo).not.toContainText(`Tomorrow's ${RUN_ID}`);
+  await expect(todo).toContainText('Still to do 0h');
+  await panel.getByRole('button', { name: 'Close' }).first().click();
+  await expect(panel).toBeHidden();
+
+  // Tomorrow: there, with its two hours, and the cell says the same.
+  await page.getByTestId(`bwx-capacity-cell-${person.id}-${tomorrow}`).click();
+  await expect(panel).toBeVisible();
+  await expect(todo).toContainText(`Tomorrow's ${RUN_ID}`);
+  await expect(todo).toContainText('Still to do 2h');
+  await expect(page.getByTestId(`bwx-capacity-cell-${person.id}-${tomorrow}`)).toContainText('2h');
+
+  await context.close();
+});
