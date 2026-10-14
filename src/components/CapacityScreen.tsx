@@ -42,7 +42,7 @@ import { Screen } from './States';
  * the question is who has room now. By the week, eight weeks from the Monday
  * of this one: the shape of the quarter.
  */
-function defaultRange( by: CapacityBy ): { from: string; to: string } {
+export function defaultRange( by: CapacityBy ): { from: string; to: string } {
   const today = new Date();
 
   if ( 'days' === by ) {

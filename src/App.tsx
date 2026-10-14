@@ -15,6 +15,7 @@ import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { LeadsScreen } from './components/LeadsScreen';
+import { Warmer } from './components/Warmer';
 import { PeopleScreen } from './components/PeopleScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { RecurringScreen } from './components/RecurringScreen';
@@ -437,6 +438,7 @@ export function App() {
 
   return (
     <ClientChoiceProvider landing={ landing.site }>
+    <Warmer admin={ admin } />
     <div className="fs-shell" data-testid="bwx-forge-ready">
       <nav className="fs-rail" aria-label="Screens" id="bwx-menu" ref={ railRef } data-open={ menuOpen ? 'true' : undefined } data-motion={ motion ? 'true' : undefined } onKeyDown={ onMenuKey }>
         <div className="fs-rail-brand">
