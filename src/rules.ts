@@ -51,7 +51,7 @@ export const RULES: RuleSection[] = [
         why: 'Not every task has a design, so only tasks with a designer go through the design checks.',
       },
       {
-        what: 'To leave Up Next (into Design Process) a task needs the doer, reviewer and deliverer named, hours for each of them, a deliver by date, a priority, room in everyone\'s week, and enough of the client\'s support hours.',
+        what: 'To leave Up Next (into Design Process) a task needs the doer, reviewer and deliverer named, hours for each of them, its Deliver by, Review by and Release by dates (and Design by when it has a designer), a priority, room in everyone\'s week, and enough of the client\'s support hours.',
         why: 'Work only starts once it is fully planned, staffed and paid for.',
       },
       {

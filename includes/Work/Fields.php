@@ -155,6 +155,10 @@ final class Fields {
 		'deliverer_id'     => 'up-next',
 		'design_url'       => 'design-process',
 		'planned_due'      => 'up-next',
+		// #547. Every person's date; Design by only counts with a designer.
+		'design_target'    => 'up-next',
+		'review_target'    => 'up-next',
+		'release_target'   => 'up-next',
 		'priority'         => 'up-next',
 		'test_description' => 'in-development',
 	);

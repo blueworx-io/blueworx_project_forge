@@ -172,6 +172,13 @@ export async function satisfy(api, item, to, seats = {}) {
           continue;
         }
 
+        // #547. The other dates keep their order around Deliver by, whatever
+        // a spec set it to: design the day before, review and release after.
+        if (DATE_FIELDS.includes(field)) {
+          patch[field] = dateAround(patch.planned_due ?? detail.item.planned_due ?? answerFor('planned_due'), field);
+          continue;
+        }
+
         patch[field] = answerFor(field);
       }
       continue;
@@ -238,6 +245,19 @@ export async function satisfy(api, item, to, seats = {}) {
 }
 
 const SEAT_FIELDS = ['primary_user_id', 'reviewer_id', 'deliverer_id'];
+
+/** The three dates that sit around Deliver by (#547). */
+const DATE_FIELDS = ['design_target', 'review_target', 'release_target'];
+
+/** A date a day or two either side of Deliver by, in the order the dates keep. */
+export function dateAround(due, field) {
+  const offset = { design_target: -1, review_target: 1, release_target: 2 }[field] ?? 0;
+  const day = new Date(`${due || '2026-09-30'}T00:00:00Z`);
+
+  day.setUTCDate(day.getUTCDate() + offset);
+
+  return day.toISOString().slice(0, 10);
+}
 
 /** Confirms an item's client (#390), as the Confirm button on the task does. */
 export async function confirmClient(api, item) {

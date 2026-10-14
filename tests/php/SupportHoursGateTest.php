@@ -178,6 +178,8 @@ final class SupportHoursGateTest extends TestCase {
 					'deliverer_id'    => 'usr_c',
 					'planned_start'   => '2026-10-05',
 					'planned_due'     => '2026-10-09',
+					'review_target'   => '2026-10-12',
+					'release_target'  => '2026-10-13',
 					'priority'        => 'normal',
 				)
 			),
@@ -256,6 +258,8 @@ final class SupportHoursGateTest extends TestCase {
 					'deliverer_id'    => 'usr_c',
 					'planned_start'   => '2026-10-05',
 					'planned_due'     => '2026-10-09',
+					'review_target'   => '2026-10-12',
+					'release_target'  => '2026-10-13',
 					'priority'        => 'normal',
 				)
 			),
