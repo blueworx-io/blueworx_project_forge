@@ -121,6 +121,24 @@ final class WorkTransitionsTest extends TestCase {
 	}
 
 	/**
+	 * #548. The second fork. With a designer, Up Next goes to Design; with
+	 * nobody designing, straight to In Development through the same gate.
+	 */
+	public function test_up_next_skips_design_with_no_designer(): void {
+		$this->assertSame( array( 'design-process' ), Transitions::next_from( 'up-next', 'feature', true ) );
+		$this->assertSame( array( 'in-development' ), Transitions::next_from( 'up-next', 'feature', false ) );
+
+		$this->assertTrue( Transitions::allowed( 'up-next', 'in-development', 'feature', false ) );
+		$this->assertFalse( Transitions::allowed( 'up-next', 'design-process', 'feature', false ) );
+		$this->assertFalse( Transitions::allowed( 'up-next', 'in-development', 'feature', true ) );
+		$this->assertSame( 'G-UP-NEXT', Transitions::gate_for( 'up-next', 'in-development' ) );
+
+		$this->assertTrue( Transitions::designed( array( 'designer_id' => 'usr_d' ) ) );
+		$this->assertFalse( Transitions::designed( array( 'designer_id' => '' ) ) );
+		$this->assertFalse( Transitions::designed( array() ) );
+	}
+
+	/**
 	 * Every allowed move names the gate it has to satisfy. The gates themselves
 	 * arrive with #105; what matters now is that no move is left without one,
 	 * because that is how a gate gets quietly skipped later.

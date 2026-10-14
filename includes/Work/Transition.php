@@ -91,12 +91,13 @@ final class Transition {
 			return $refusal;
 		}
 
-		if ( ! Transitions::allowed( $from, $to, (string) $item['work_type'] ) ) {
+		if ( ! Transitions::allowed( $from, $to, (string) $item['work_type'], Transitions::designed( $item ) ) ) {
 			/*
 			 * One refusal for every reason a forward move is not available:
 			 * skipping stages, moving backwards, entering Bug Tracking with
-			 * something that is not a bug. The response says what is available
-			 * instead, which is what a board needs to draw the next step.
+			 * something that is not a bug, Design with nobody designing. The
+			 * response says what is available instead, which is what a board
+			 * needs to draw the next step.
 			 */
 			return new WP_Error(
 				'bwx_forge_transition_not_allowed',
@@ -105,7 +106,7 @@ final class Transition {
 					'status'    => 409,
 					'from'      => $from,
 					'attempted' => $to,
-					'available' => Transitions::next_from( $from, (string) $item['work_type'] ),
+					'available' => Transitions::next_from( $from, (string) $item['work_type'], Transitions::designed( $item ) ),
 				)
 			);
 		}
@@ -948,7 +949,7 @@ final class Transition {
 	 * @return array{to: string, ready: bool, missing: array<int, string>}|null Null when there is no next stage.
 	 */
 	public static function next_step( array $item, array $children, array $records ): ?array {
-		$next = Transitions::next_from( (string) $item['stage'], (string) $item['work_type'] );
+		$next = Transitions::next_from( (string) $item['stage'], (string) $item['work_type'], Transitions::designed( $item ) );
 
 		if ( 1 !== count( $next ) ) {
 			return null;

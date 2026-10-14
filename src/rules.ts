@@ -23,8 +23,8 @@ export const RULES: RuleSection[] = [
     title: 'The task journey',
     rules: [
       {
-        what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Technical Audit, Up Next, Design Process, In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts.',
-        why: 'No stage can be jumped, because jumping one would skip the checks that stage is there for.',
+        what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Technical Audit, Up Next, Design Process (only with a designer), In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts; a task with no designer goes straight from Up Next to In Development.',
+        why: 'No stage can be jumped, because jumping one would skip the checks that stage is there for; Design Process is only a stop for tasks that have a design.',
       },
       {
         what: 'To leave Future Idea a task needs a description, where it came from, someone doing the work, a different person reviewing it, and its client confirmed.',
@@ -51,7 +51,7 @@ export const RULES: RuleSection[] = [
         why: 'Not every task has a design, so only tasks with a designer go through the design checks.',
       },
       {
-        what: 'To leave Up Next (into Design Process) a task needs the doer, reviewer and deliverer named, hours for each of them, its Deliver by, Review by and Release by dates (and Design by when it has a designer), a priority, room in everyone\'s week, and enough of the client\'s support hours.',
+        what: 'To leave Up Next (into Design Process with a designer, or straight into In Development without one) a task needs the doer, reviewer and deliverer named, hours for each of them, its Deliver by, Review by and Release by dates (and Design by when it has a designer), a priority, room in everyone\'s week, and enough of the client\'s support hours.',
         why: 'Work only starts once it is fully planned, staffed and paid for.',
       },
       {

@@ -43,7 +43,8 @@ async function parked(title, extra = {}) {
   return (await edited.json()).item;
 }
 
-const tryMove = (item) => admin.api.post(`/work-items/${item.id}/transition`, { to: 'design-process', record_version: item.record_version });
+// #548. Out of Up Next: into Design with a designer, straight to In Development without.
+const tryMove = (item) => admin.api.post(`/work-items/${item.id}/transition`, { to: item.designer_id ? 'design-process' : 'in-development', record_version: item.record_version });
 
 test('with no designer, Deliver by alone is refused and the three dates let it go', async () => {
   test.slow();

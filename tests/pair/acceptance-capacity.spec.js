@@ -153,10 +153,10 @@ test.describe('the capacity acceptance criteria', () => {
 
     // Everything else the gate wants, so the only thing left to fail on is the
     // capacity.
-    const ready = await Forge.satisfy(pair.studio, parked, 'design-process');
+    const ready = await Forge.satisfy(pair.studio, parked, 'in-development');
 
     const refused = await pair.studio.post(`/work-items/${ready.id}/transition`, {
-      to: 'design-process',
+      to: 'in-development',
       record_version: ready.record_version,
     });
 
@@ -171,7 +171,7 @@ test.describe('the capacity acceptance criteria', () => {
 
     // It does not hard block. It costs a reason (CAP-4).
     const anyway = await pair.studio.post(`/work-items/${ready.id}/transition`, {
-      to: 'design-process',
+      to: 'in-development',
       record_version: ready.record_version,
       capacity_reason: 'The client has agreed the overtime for this release.',
     });
@@ -180,7 +180,7 @@ test.describe('the capacity acceptance criteria', () => {
 
     const after = await pair.studio.get(`/work-items/${ready.id}`);
 
-    expect(after.item.stage).toBe('design-process');
+    expect(after.item.stage).toBe('in-development');
     expect(after.item.capacity_override_used, 'the item says it was over-booked').toBe(true);
     expect(after.item.capacity_override_reason).toContain('agreed the overtime');
 

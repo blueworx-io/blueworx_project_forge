@@ -239,28 +239,29 @@ const TO_DESIGN = ['triage', 'documentation-period', 'technical-audit', 'up-next
 // The design checks themselves; G-DESIGN-9 is the start-of-work hours check (#511).
 const designRows = (detail) => detail.readiness['in-development'].all.map((row) => row.id).filter((id) => id.startsWith('G-DESIGN') && 'G-DESIGN-9' !== id);
 
-test('with no Designer a task passes Design with no design checks', async () => {
+test('with no Designer a task skips Design altogether (#548)', async () => {
   test.slow();
 
-  const atDesign = await Forge.walkTo(admin.api, await fresh(`No designer ${RUN_ID}`), TO_DESIGN);
-  expect(atDesign.designer_id).toBe('');
+  // The walker steps past Design for a task nobody designs, so this lands at Up Next.
+  const atUpNext = await Forge.walkTo(admin.api, await fresh(`No designer ${RUN_ID}`), TO_DESIGN);
+  expect(atUpNext.designer_id).toBe('');
+  expect(atUpNext.stage).toBe('up-next');
 
-  const detail = await admin.api.get(`/work-items/${atDesign.id}`);
+  const detail = await admin.api.get(`/work-items/${atUpNext.id}`);
+  expect(detail.available).toEqual(['in-development']);
   expect(designRows(detail)).toEqual([]);
-  expect(detail.readiness['in-development'].unmet).toEqual([]);
 
-  const moved = await admin.api.post(`/work-items/${atDesign.id}/transition`, { to: 'in-development', record_version: atDesign.record_version });
-  expect(moved.status(), await moved.text()).toBe(200);
+  const moved = await Forge.walkTo(admin.api, atUpNext, ['in-development']);
+  expect(moved.stage).toBe('in-development');
 });
 
 test('with a Designer a task waits at Design for its checks, and clearing the Designer lets it go', async () => {
   test.slow();
 
-  const atDesign = await Forge.walkTo(admin.api, await fresh(`Designer ${RUN_ID}`), TO_DESIGN);
-  const designer = (await Forge.seatsFor(admin.api, atDesign)).primary_user_id;
-
-  const named = await patch(atDesign, { designer_id: designer });
-  expect(named.status(), await named.text()).toBe(200);
+  const made = await fresh(`Designer ${RUN_ID}`);
+  const designer = (await Forge.seatsFor(admin.api, made)).primary_user_id;
+  const atDesign = await Forge.walkTo(admin.api, made, TO_DESIGN, { seats: { designer_id: designer } });
+  expect(atDesign.stage).toBe('design-process');
 
   const detail = await admin.api.get(`/work-items/${atDesign.id}`);
   expect(detail.item.designer_id).toBe(designer);
@@ -282,9 +283,10 @@ test('with a Designer a task waits at Design for its checks, and clearing the De
 test('a task with a Designer moves on once its design checks are done', async () => {
   test.slow();
 
-  const atDesign = await Forge.walkTo(admin.api, await fresh(`Designed ${RUN_ID}`), TO_DESIGN);
-  const designer = (await Forge.seatsFor(admin.api, atDesign)).primary_user_id;
-  expect((await patch(atDesign, { designer_id: designer })).status()).toBe(200);
+  const made = await fresh(`Designed ${RUN_ID}`);
+  const designer = (await Forge.seatsFor(admin.api, made)).primary_user_id;
+  const atDesign = await Forge.walkTo(admin.api, made, TO_DESIGN, { seats: { designer_id: designer } });
+  expect(atDesign.stage).toBe('design-process');
 
   const done = await Forge.walkTo(admin.api, atDesign, ['in-development']);
   expect(done.stage).toBe('in-development');

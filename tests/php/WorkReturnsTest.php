@@ -102,7 +102,7 @@ final class WorkReturnsTest extends TestCase {
 			)
 		);
 
-		$item = $this->item( 'in-review' );
+		$item = $this->item( 'in-review' ) + array( 'designer_id' => 'usr_d' );
 
 		$this->assertTrue( Returns::allowed( $item, 'future-idea' ) );
 		$this->assertTrue( Returns::allowed( $item, 'design-process' ) );
@@ -111,6 +111,21 @@ final class WorkReturnsTest extends TestCase {
 		$this->assertFalse( Returns::allowed( $item, 'bug-tracking' ) );
 		$this->assertSame(
 			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development' ),
+			Returns::targets( $item )
+		);
+	}
+
+	/**
+	 * #548. With nobody designing, Design is not a stop going forwards, so it
+	 * is not somewhere to send the work back to either: In Development goes
+	 * back to Up Next.
+	 */
+	public function test_design_is_not_a_return_target_without_a_designer(): void {
+		$item = $this->item( 'in-development' );
+
+		$this->assertFalse( Returns::allowed( $item, 'design-process' ) );
+		$this->assertSame(
+			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'up-next' ),
 			Returns::targets( $item )
 		);
 	}

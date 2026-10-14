@@ -87,10 +87,10 @@ test('the gate answers hours and capacity separately, and reports both', async (
     seats: planFor(people, 90),
   });
 
-  const ready = await Forge.satisfy(api, planned, 'design-process');
+  const ready = await Forge.satisfy(api, planned, 'in-development');
 
   const refused = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'design-process',
+    to: 'in-development',
     record_version: ready.record_version,
   });
 
@@ -143,7 +143,7 @@ test('a free bug passes the hours check on a site with no package at all', async
     { seats: planFor(people, 10) }
   );
 
-  const readiness = (await api.get(`/work-items/${planned.id}`)).readiness['design-process'];
+  const readiness = (await api.get(`/work-items/${planned.id}`)).readiness['in-development'];
   const answers = Object.fromEntries(readiness.checks.map((check) => [check.id, check.result]));
 
   expect(answers['G-UP-NEXT-9'], 'a free bug is not refused for hours').toBe('pass');
@@ -175,10 +175,10 @@ test('a lapsed site cannot spend the hours it still has', async ({ browser, base
   expect(position.may_use_hours).toBe(false);
   expect(Number(position.balance)).not.toBe(0);
 
-  const ready = await Forge.satisfy(api, planned, 'design-process');
+  const ready = await Forge.satisfy(api, planned, 'in-development');
 
   const refused = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'design-process',
+    to: 'in-development',
     record_version: ready.record_version,
     capacity_reason: 'Nobody has a pattern on this test instance.',
   });

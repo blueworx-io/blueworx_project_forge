@@ -65,10 +65,10 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   );
 
   // Everything else the gate wants, so the only thing left is the capacity.
-  const ready = await satisfy(api, parked, 'design-process');
+  const ready = await satisfy(api, parked, 'in-development');
 
   const refused = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'design-process',
+    to: 'in-development',
     record_version: ready.record_version,
   });
 
@@ -89,13 +89,13 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
 
   // CAP-4: it does not hard block. It costs a reason.
   const anyway = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'design-process',
+    to: 'in-development',
     record_version: ready.record_version,
     capacity_reason: 'The client has agreed the overtime for this release.',
   });
 
   expect(anyway.status(), await anyway.text()).toBe(200);
-  expect((await anyway.json()).item.stage).toBe('design-process');
+  expect((await anyway.json()).item.stage).toBe('in-development');
 
   const after = await api.get(`/work-items/${ready.id}`);
 
@@ -148,10 +148,10 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
     }
   );
 
-  const ready = await satisfy(api, parked, 'design-process');
+  const ready = await satisfy(api, parked, 'in-development');
 
   const moved = await api.post(`/work-items/${ready.id}/transition`, {
-    to: 'design-process',
+    to: 'in-development',
     record_version: ready.record_version,
   });
 

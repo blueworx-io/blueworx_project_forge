@@ -87,7 +87,7 @@ test('the two interfaces agree at every step of a piece of work', async ({ brows
   let started;
   let current = planned;
 
-  for (const to of ['design-process', 'in-development']) {
+  for (const to of (current.designer_id ? ['design-process', 'in-development'] : ['in-development'])) {
     const ready = await Forge.satisfy(pair.studio, current, to);
 
     started = await pair.studio.post(`/work-items/${ready.id}/transition`, {
