@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.192.0] - 2026-10-14
+
+### Changed
+
+- In the Capacity day panel, the "Still to do", "Done" and "With the client" headers now stand out from the tasks beneath them: small caps on a rule, with the section's hours on the right.
+
 ## [2.191.0] - 2026-10-14
 
 ### Changed
