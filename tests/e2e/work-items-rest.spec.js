@@ -591,7 +591,8 @@ test('an item walks the whole path to Released', async ({ browser, baseURL }) =>
   // One move per stage, plus the creation. Counted by action rather than by the
   // length of the history, which since #99 also holds an entry for every field
   // filled in on the way.
-  expect(shown.history.filter((event) => 'moved' === event.action)).toHaveLength(path.length);
+  // #548. A task with no designer steps past Design, so that stage is no move.
+  expect(shown.history.filter((event) => 'moved' === event.action)).toHaveLength(path.filter((stage) => 'design-process' !== stage).length);
   expect(shown.history.filter((event) => 'created' === event.action)).toHaveLength(1);
 
   await crew.close();
