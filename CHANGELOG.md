@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.175.0] - 2026-10-14
+
+### Changed
+
+- Settings shows a cog icon in the menu and on its page header.
+
 ## [2.174.0] - 2026-10-13
 
 ### Changed

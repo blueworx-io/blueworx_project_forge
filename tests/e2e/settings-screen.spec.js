@@ -30,3 +30,20 @@ test('an administrator reads the rules under Insight, and jumps to a section', a
 
   await admin.context.close();
 });
+
+// #529. Settings is a cog, in the menu and on its page, not a scroll.
+test('Settings carries a cog icon in the menu and on its header', async ({ browser, baseURL }) => {
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await expect(page.getByTestId('bwx-forge-ready')).toBeVisible({ timeout: 15_000 });
+
+  const entry = page.getByTestId('bwx-screen-settings');
+  await expect(entry.locator('svg.lucide-settings')).toHaveCount(1);
+
+  await entry.click();
+  await expect(page.getByTestId('bwx-settings')).toBeVisible();
+  await expect(page.locator('.fk-tile svg.lucide-settings')).toHaveCount(1);
+
+  await admin.context.close();
+});

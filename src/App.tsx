@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, ScrollText, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -85,7 +85,7 @@ const RAIL: Entry[] = [
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports', admin: true },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions', admin: true },
   { key: 'packages', label: 'Packages', icon: Receipt, testId: 'bwx-screen-packages', admin: true },
-  { key: 'settings', label: 'Settings', icon: ScrollText, testId: 'bwx-screen-settings', admin: true },
+  { key: 'settings', label: 'Settings', icon: Settings, testId: 'bwx-screen-settings', admin: true },
 ];
 
 /** The screens only an administrator opens (#406). A Manager is refused them by the server too. */
@@ -233,7 +233,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   subscriptions: { crumbs: [ 'Insight', 'Subscriptions' ], eyebrow: 'What renews, and when', tile: CreditCard, hue: 'slate' },
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
-  settings: { crumbs: [ 'Insight', 'Settings' ], eyebrow: 'How Forge behaves, and why', tile: ScrollText, hue: 'slate' },
+  settings: { crumbs: [ 'Insight', 'Settings' ], eyebrow: 'How Forge behaves, and why', tile: Settings, hue: 'slate' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
