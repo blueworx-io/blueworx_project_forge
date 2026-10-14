@@ -2073,6 +2073,14 @@ body {
   background: var( --color-haze );
 }
 
+.bwx-capacity-task[data-static] {
+  cursor: default;
+}
+
+.bwx-capacity-task[data-static]:hover {
+  background: none;
+}
+
 .bwx-capacity-task:focus-visible {
   outline: 2px solid var( --brand-600 );
   outline-offset: 1px;

@@ -580,11 +580,12 @@ function WorkList( {
                     <span>{ detail }</span>
                   </button>
                 ) : (
-                  <>
+                  // #519. A meeting or a schedule's day ahead cannot be opened,
+                  // but it is laid out like everything else: title, then hours.
+                  <span className="bwx-capacity-task" data-static="true">
                     <strong>{ allocation.title }</strong>
-                    <br />
-                    { detail }
-                  </>
+                    <span>{ detail }</span>
+                  </span>
                 ) }
               </li>
             );
