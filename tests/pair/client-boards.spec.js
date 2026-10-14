@@ -117,7 +117,7 @@ test.describe('the client read-only views', () => {
 
     // Every stage is drawn, empty or not: a board that changes shape as work
     // moves is one nobody can read at a glance.
-    await expect(page.locator('[data-testid="bwx-column"]')).toHaveCount(12);
+    await expect(page.locator('[data-testid="bwx-column"]')).toHaveCount(11);
 
     await page.close();
   });

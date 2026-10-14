@@ -161,7 +161,7 @@ export function App() {
         </header>
 
         { /* The one scroller (#407): the banner and header above stay put, and this is the only thing that scrolls, and stops at its own edges. */ }
-        <div className="fc-scroll">
+        <div className="fc-scroll" tabIndex={ 0 } aria-label="Page content">
         <main className="fc-main">
           <SectionTitle sub={ current.sub }>{ current.title }</SectionTitle>
           { 'dashboard' === screen && data ? (
