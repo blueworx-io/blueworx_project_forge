@@ -1,5 +1,120 @@
-import type { SavedView, WorkFilters } from '../types';
+import { useEffect, useId, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import type { Person, SavedView, WorkFilters } from '../types';
 import { alphabetical } from '../alphabetical.mjs';
+import { everybody } from './ItemPanel';
+
+/**
+ * Who the work is narrowed to (#524): all staff, one person, or several.
+ *
+ * A person is on a task when they hold any seat on it, stand in for one, or
+ * are assigned a recurring task — the server decides that, this only says
+ * who. Only the studio's own people are offered.
+ */
+function StaffFilter( { picked, onChange }: { picked: string[]; onChange: ( people: string[] ) => void } ) {
+  const [ people, setPeople ] = useState< Person[] >( [] );
+  const [ open, setOpen ] = useState( false );
+  const wrap = useRef< HTMLSpanElement >( null );
+  const menuId = useId();
+
+  useEffect( () => {
+    let live = true;
+
+    void everybody().then( ( roster ) => {
+      if ( live ) setPeople( alphabetical( roster, 'display_name' ) );
+    } );
+
+    return () => {
+      live = false;
+    };
+  }, [] );
+
+  useEffect( () => {
+    if ( ! open ) return;
+    const away = ( event: MouseEvent ) => {
+      if ( wrap.current && ! wrap.current.contains( event.target as Node ) ) setOpen( false );
+    };
+    const key = ( event: KeyboardEvent ) => {
+      if ( 'Escape' === event.key ) setOpen( false );
+    };
+    document.addEventListener( 'mousedown', away );
+    document.addEventListener( 'keydown', key );
+    return () => {
+      document.removeEventListener( 'mousedown', away );
+      document.removeEventListener( 'keydown', key );
+    };
+  }, [ open ] );
+
+  const names = new Map( people.map( ( person ) => [ person.id, person.display_name ] ) );
+  const chosen = picked.filter( ( id ) => names.has( id ) );
+  const value = 0 === picked.length ? 'All staff' : 1 === chosen.length ? names.get( chosen[ 0 ] ) ?? '1 person' : `${ picked.length } people`;
+
+  const toggle = ( id: string ) => {
+    const next = new Set( picked );
+
+    if ( next.has( id ) ) {
+      next.delete( id );
+    } else {
+      next.add( id );
+    }
+
+    onChange( [ ...next ] );
+  };
+
+  return (
+    <span className="fk-filter" ref={ wrap }>
+      <button
+        type="button"
+        className="fk-filter-btn"
+        data-testid="bwx-filter-staff"
+        data-set={ 0 < picked.length ? 'true' : undefined }
+        aria-haspopup="listbox"
+        aria-expanded={ open }
+        aria-controls={ menuId }
+        onClick={ () => setOpen( ! open ) }
+      >
+        <span className="fk-filter-label">Staff</span>
+        <span className="fk-filter-value">{ value }</span>
+        <ChevronDown size={ 12 } strokeWidth={ 2 } aria-hidden="true" />
+      </button>
+      { open && (
+        <ul className="fk-menu bwx-staff-menu" id={ menuId } role="listbox" aria-label="Staff" aria-multiselectable="true" data-testid="bwx-filter-staff-menu">
+          <li role="none">
+            <button
+              type="button"
+              role="option"
+              className="fk-menu-item"
+              data-testid="bwx-filter-staff-all"
+              aria-checked={ 0 === picked.length }
+              aria-selected={ 0 === picked.length }
+              onClick={ () => {
+                onChange( [] );
+                setOpen( false );
+              } }
+            >
+              All staff
+            </button>
+          </li>
+          { people.map( ( person ) => (
+            <li key={ person.id } role="none">
+              <button
+                type="button"
+                role="option"
+                className="fk-menu-item"
+                data-testid={ `bwx-filter-staff-${ person.id }` }
+                aria-checked={ picked.includes( person.id ) }
+                aria-selected={ picked.includes( person.id ) }
+                onClick={ () => toggle( person.id ) }
+              >
+                { person.display_name }
+              </button>
+            </li>
+          ) ) }
+        </ul>
+      ) }
+    </span>
+  );
+}
 
 /**
  * The filter bar every view sits under (#123).
@@ -80,6 +195,21 @@ export function Filters( {
         <option value="feedback">Feedback</option>
         <option value="task">Tasks</option>
       </select>
+
+      <StaffFilter
+        picked={ filters.person ?? [] }
+        onChange={ ( people ) => {
+          const next = { ...filters };
+
+          if ( 0 === people.length ) {
+            delete next.person;
+          } else {
+            next.person = people;
+          }
+
+          onChange( next );
+        } }
+      />
 
       <span className="bwx-header-spacer" />
 

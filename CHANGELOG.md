@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.181.0] - 2026-10-14
+
+### Added
+
+- A Staff filter on Kanban, Gantt and Calendar: all staff, one person or several. A task shows when any picked person does, designs, reviews or delivers it, stands in for someone on it, or is assigned it as a recurring task. The choice carries between the views and can be kept in a saved view.
+
 ## [2.180.2] - 2026-10-14
 
 ### Fixed
