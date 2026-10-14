@@ -570,7 +570,6 @@ test('an item walks the whole path to Released', async ({ browser, baseURL }) =>
   const path = [
     'triage',
     'documentation-period',
-    'technical-audit',
     'up-next',
     'design-process',
     'in-development',

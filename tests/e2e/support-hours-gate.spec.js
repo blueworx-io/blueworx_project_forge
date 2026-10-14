@@ -17,7 +17,7 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const STAMP = RUN_ID.replace('-', '');
 
-const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'up-next'];
+const TO_UP_NEXT = ['triage', 'documentation-period', 'up-next'];
 
 // A fixed week in the future, so the arithmetic is the same whichever day the
 // suite runs on.
@@ -139,7 +139,7 @@ test('a free bug passes the hours check on a site with no package at all', async
   const planned = await Forge.walkTo(
     api,
     (await reclassified.json()).item,
-    ['bug-tracking', 'documentation-period', 'technical-audit', 'up-next'],
+    ['bug-tracking', 'documentation-period', 'up-next'],
     { seats: planFor(people, 10) }
   );
 

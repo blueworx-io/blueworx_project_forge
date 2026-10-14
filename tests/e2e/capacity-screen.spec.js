@@ -121,7 +121,7 @@ test('a day shows what is done beside what is still to do, and every task opens'
     return Forge.walkTo(
       api,
       (await created.json()).item,
-      ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'],
+      ['triage', 'documentation-period', 'up-next', 'design-process', 'in-development'],
       {
         seats: {
           primary_user_id: person.id,
@@ -269,7 +269,7 @@ test('the day panel lists only that day, and adds up to its cell', async ({ brow
   await Forge.walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'],
+    ['triage', 'documentation-period', 'up-next', 'design-process', 'in-development'],
     {
       seats: {
         primary_user_id: person.id,

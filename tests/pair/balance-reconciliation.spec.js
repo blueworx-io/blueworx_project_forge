@@ -17,7 +17,7 @@ import * as Forge from '../e2e/helpers/forge.js';
 
 const RUN = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const GRANTED = 200;
-const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'up-next'];
+const TO_UP_NEXT = ['triage', 'documentation-period', 'up-next'];
 
 test.beforeAll(requireEnvironment);
 

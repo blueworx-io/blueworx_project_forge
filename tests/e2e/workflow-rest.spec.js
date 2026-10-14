@@ -160,7 +160,7 @@ test('work goes back to any earlier stage, and only with a reason', async ({
   const site = await makeSite(api, 'Return Co');
 
   let item = await makeItem(api, site.id, { title: `Goes back ${RUN_ID}` });
-  item = await walkTo(api, item, ['triage', 'documentation-period', 'technical-audit']);
+  item = await walkTo(api, item, ['triage', 'documentation-period']);
 
   const detail = await api.get(`/work-items/${item.id}`);
   expect(detail.returns).toEqual(['future-idea', 'triage', 'documentation-period']);
@@ -191,7 +191,7 @@ test('work goes back to any earlier stage, and only with a reason', async ({
   });
   expect(override.status(), await override.text()).toBe(200);
   const jumped = await api.get(`/work-items/${skipped.id}`);
-  expect(jumped.returns).toEqual(['future-idea', 'triage', 'documentation-period', 'technical-audit']);
+  expect(jumped.returns).toEqual(['future-idea', 'triage', 'documentation-period']);
 
   const sent = await api.post(`/work-items/${item.id}/return`, {
     to: 'triage',
@@ -229,7 +229,6 @@ test('a failed review keeps the review attempt that failed', async ({ browser, b
     [
       'triage',
       'documentation-period',
-      'technical-audit',
       'up-next',
       'design-process',
       'in-development',
@@ -282,7 +281,6 @@ test('a review that sends work back has to say what was wrong', async ({ browser
     [
       'triage',
       'documentation-period',
-      'technical-audit',
       'up-next',
       'design-process',
       'in-development',
@@ -334,7 +332,7 @@ test('blocked work keeps its place and comes back to exactly it', async ({ brows
 
   // A blocked item is not sent forward, and not sent back either.
   const forward = await api.post(`/work-items/${item.id}/transition`, {
-    to: 'technical-audit',
+    to: 'up-next',
     record_version: paused.record_version,
   });
   expect(forward.status()).toBe(409);

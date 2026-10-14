@@ -97,7 +97,7 @@ test('planning work reserves its hours, and starting it turns them into spend', 
   const planned = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+    ['triage', 'documentation-period', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -139,7 +139,7 @@ test('cancelling planned work gives every hour back', async ({ browser, baseURL 
   const planned = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+    ['triage', 'documentation-period', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -176,7 +176,7 @@ test('re-planning appends the difference rather than the new total', async ({
   const planned = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+    ['triage', 'documentation-period', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -222,7 +222,7 @@ test('a free bug never touches the ledger', async ({ browser, baseURL }) => {
   const planned = await Forge.walkTo(
     api,
     (await reclassified.json()).item,
-    ['bug-tracking', 'documentation-period', 'technical-audit', 'up-next'],
+    ['bug-tracking', 'documentation-period', 'up-next'],
     { seats: planFor(people) }
   );
 
@@ -249,7 +249,7 @@ test('work the site cannot pay for does not move, and leaves nothing behind', as
   const ready = await Forge.walkTo(
     api,
     (await item.json()).item,
-    ['triage', 'documentation-period', 'technical-audit'],
+    ['triage', 'documentation-period'],
     { seats: planFor(people) }
   );
 
@@ -269,6 +269,6 @@ test('work the site cannot pay for does not move, and leaves nothing behind', as
    */
   const unmoved = await api.get(`/work-items/${filled.id}`);
 
-  expect(unmoved.item.stage).toBe('technical-audit');
+  expect(unmoved.item.stage).toBe('documentation-period');
   expect((await Forge.hourLedger(admin, site.id)).entries).toEqual([]);
 });

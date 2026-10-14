@@ -252,15 +252,15 @@ final class WorkGatesTest extends TestCase {
 	/**
 	 * The approvals belong to the reviewer (2026-09-19).
 	 */
-	public function test_the_three_approvals_are_the_reviewers(): void {
-		foreach ( array( 'G-DOCUMENTATION-9', 'G-TECHNICAL-AUDIT-8', 'G-DESIGN-5' ) as $id ) {
+	public function test_the_approvals_are_the_reviewers(): void {
+		foreach ( array( 'G-DOCUMENTATION-9', 'G-DESIGN-5' ) as $id ) {
 			$this->assertSame( Gates::REV, Gates::requirement( $id )['who'], $id );
 		}
 	}
 
 	/**
 	 * Captured to Triage wants the two people (2026-09-19); the write-ins at
-	 * Technical Audit, the parent question and the accessibility tick are gone.
+	 * Technical Audit (the whole stage, #546), the parent question and the accessibility tick are gone.
 	 */
 	public function test_what_went_and_what_arrived(): void {
 		$idea = array_column( Gates::requirements( 'G-FUTURE-IDEA' ), 'id' );
@@ -270,7 +270,7 @@ final class WorkGatesTest extends TestCase {
 		$this->assertSame( array( 'primary_user_id' ), Gates::requirement( 'G-FUTURE-IDEA-5' )['fields'] );
 		$this->assertSame( array( 'reviewer_id' ), Gates::requirement( 'G-FUTURE-IDEA-6' )['fields'] );
 
-		foreach ( array( 'G-TRIAGE-3', 'G-TECHNICAL-AUDIT-1', 'G-TECHNICAL-AUDIT-2', 'G-TECHNICAL-AUDIT-3', 'G-TECHNICAL-AUDIT-4', 'G-TECHNICAL-AUDIT-5', 'G-TECHNICAL-AUDIT-6', 'G-DESIGN-4', 'G-UP-NEXT-7' ) as $gone ) {
+		foreach ( array( 'G-TRIAGE-3', 'G-TECHNICAL-AUDIT-8', 'G-TECHNICAL-AUDIT-1', 'G-TECHNICAL-AUDIT-2', 'G-TECHNICAL-AUDIT-3', 'G-TECHNICAL-AUDIT-4', 'G-TECHNICAL-AUDIT-5', 'G-TECHNICAL-AUDIT-6', 'G-DESIGN-4', 'G-UP-NEXT-7' ) as $gone ) {
 			$this->assertNull( Gates::requirement( $gone ), $gone );
 		}
 
@@ -458,11 +458,7 @@ final class WorkGatesTest extends TestCase {
 		$this->assertNotContains( 'G-DESIGN-2', array_column( $result['unmet'], 'id' ) );
 		$this->assertContains( 'G-DESIGN-3', array_column( $result['unmet'], 'id' ) );
 
-		// Technical Audit asks only for the approval (#495).
-		$audit = Gates::evaluate( 'G-TECHNICAL-AUDIT', $this->item( array( 'stage' => 'technical-audit' ) ), array() );
 
-		$this->assertSame( array( 'G-TECHNICAL-AUDIT-8' ), array_column( $audit['unmet'], 'id' ) );
-		$this->assertNull( Gates::requirement( 'G-TECHNICAL-AUDIT-7' ) );
 		$result = Gates::evaluate( 'G-UP-NEXT', $this->item(), array() );
 		$this->assertContains( 'G-UP-NEXT-4', array_column( $result['unmet'], 'id' ) );
 

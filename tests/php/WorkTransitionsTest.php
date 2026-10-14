@@ -31,8 +31,7 @@ final class WorkTransitionsTest extends TestCase {
 			'triage to bug tracking'    => array( 'triage', 'bug-tracking', 'bug' ),
 			'triage to documentation'   => array( 'triage', 'documentation-period', 'feature' ),
 			'bug tracking to docs'      => array( 'bug-tracking', 'documentation-period', 'bug' ),
-			'docs to technical audit'   => array( 'documentation-period', 'technical-audit', 'feature' ),
-			'audit to up next'          => array( 'technical-audit', 'up-next', 'feature' ),
+			'docs to up next'           => array( 'documentation-period', 'up-next', 'feature' ),
 			'up next to design'         => array( 'up-next', 'design-process', 'feature' ),
 			'design to development'     => array( 'design-process', 'in-development', 'feature' ),
 			'development to review'     => array( 'in-development', 'in-review', 'feature' ),
@@ -89,7 +88,7 @@ final class WorkTransitionsTest extends TestCase {
 	 */
 	public function test_a_bug_rejoins_the_ordinary_path(): void {
 		$this->assertTrue( Transitions::allowed( 'bug-tracking', 'documentation-period', 'bug' ) );
-		$this->assertTrue( Transitions::allowed( 'documentation-period', 'technical-audit', 'bug' ) );
+		$this->assertTrue( Transitions::allowed( 'documentation-period', 'up-next', 'bug' ) );
 	}
 
 	/**

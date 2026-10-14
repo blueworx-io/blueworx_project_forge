@@ -8,7 +8,7 @@ import * as Forge from './helpers/forge.js';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
-const TO_UP_NEXT = ['triage', 'documentation-period', 'technical-audit', 'up-next'];
+const TO_UP_NEXT = ['triage', 'documentation-period', 'up-next'];
 
 let admin;
 let client;

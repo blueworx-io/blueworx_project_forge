@@ -198,15 +198,11 @@ final class Gates {
 			),
 
 			/*
-			 * Technical Audit is the reviewer signing off the documentation
-			 * (2026-09-19). The write-in assessments it used to ask for went,
-			 * and the risks check with them (#495); the approval stays.
-			 * Dependencies are connected from the task itself, so no stage
-			 * asks about them until Completed needs them done.
+			 * Technical Audit went with #546: the stage, and the technical
+			 * approval that was its one requirement. Dependencies are connected
+			 * from the task itself, so no stage asks about them until Completed
+			 * needs them done.
 			 */
-			'G-TECHNICAL-AUDIT' => array(
-				self::approval( 'G-TECHNICAL-AUDIT-8', 'Technical approval', 'Approve the audit, as the reviewer.', self::REV ),
-			),
 			'G-DESIGN'          => array(
 				// The design link is optional (2026-09-24): not every item has one.
 				self::done( 'G-DESIGN-2', 'Responsive states', 'Mark the responsive states as done.' ),

@@ -25,7 +25,6 @@ const RUN = `acc${Date.now()}`;
 const TO_REVIEW = [
   'triage',
   'documentation-period',
-  'technical-audit',
   'up-next',
   'design-process',
   'in-development',
@@ -255,7 +254,7 @@ test.describe('the workflow acceptance criteria', () => {
 
     // Blocked work does not go forward while it waits.
     const forward = await pair.studio.post(`/work-items/${item.id}/transition`, {
-      to: 'technical-audit',
+      to: 'up-next',
       record_version: paused.record_version,
     });
 

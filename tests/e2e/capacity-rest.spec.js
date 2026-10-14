@@ -71,7 +71,7 @@ test('a person on two clients shows one combined commitment', async ({ browser, 
     await walkTo(
       api,
       (await created.json()).item,
-      ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+      ['triage', 'documentation-period', 'up-next'],
       {
         seats: {
           primary_user_id: person.id,
@@ -127,7 +127,7 @@ test('finished work keeps its hours on its day', async ({ browser, baseURL }) =>
   const item = await walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'],
+    ['triage', 'documentation-period', 'up-next', 'design-process', 'in-development'],
     {
       seats: {
         primary_user_id: person.id,
@@ -222,7 +222,7 @@ test('overdue work counts against today', async ({ browser, baseURL }) => {
   await walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+    ['triage', 'documentation-period', 'up-next'],
     {
       seats: {
         primary_user_id: person.id,

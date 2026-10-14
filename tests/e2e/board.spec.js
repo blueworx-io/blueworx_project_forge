@@ -120,7 +120,6 @@ test.describe('the board', () => {
 
     const head = (stage) => page.locator(`[data-testid="bwx-column"][data-stage="${ stage }"] .bwx-column-head`);
     await expect(head('design-process')).toHaveAttribute('data-phase', 'pipeline');
-    await expect(head('technical-audit')).toHaveAttribute('data-phase', 'gate');
 
     // Design Process, Up Next, In Development and In Review make one band.
     await expect(page.locator('.bwx-phase', { hasText: 'In delivery' })).toHaveCount(1);

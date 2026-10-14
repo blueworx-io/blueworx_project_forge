@@ -34,7 +34,6 @@ const SYNC = '/wp-admin/admin.php?page=blueworx-forge-sync';
 const TO_RELEASE = [
   'triage',
   'documentation-period',
-  'technical-audit',
   'up-next',
   'design-process',
   'in-development',

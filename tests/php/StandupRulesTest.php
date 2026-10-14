@@ -197,7 +197,7 @@ final class StandupRulesTest extends TestCase {
 
 	public function test_work_before_up_next_is_on_the_standup_undated(): void {
 		// #511. Design is after Up Next now, so it is delivery, not before it.
-		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'technical-audit' ) as $stage ) {
+		foreach ( array( 'future-idea', 'triage', 'documentation-period' ) as $stage ) {
 			$this->assertContains( Rules::RETURNED, $this->rules( Rules::for_item( $this->busy_delivery( $stage ), self::TODAY ) ), $stage );
 		}
 	}
@@ -372,7 +372,7 @@ final class StandupRulesTest extends TestCase {
 		// Since 2026-09-19 work is on the standup from the day it is captured
 		// until it is released: a task waiting on its documentation is one
 		// the team talks about in the morning.
-		$open = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'technical-audit', 'design-process', 'up-next', 'in-development' );
+		$open = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period', 'design-process', 'up-next', 'in-development' );
 
 		foreach ( $open as $stage ) {
 			$cards = Rules::for_item(

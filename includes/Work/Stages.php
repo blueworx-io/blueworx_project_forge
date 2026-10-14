@@ -1,6 +1,6 @@
 <?php
 /**
- * The twelve stages.
+ * The eleven stages.
  *
  * @package Blueworx\Forge
  */
@@ -14,7 +14,7 @@ namespace Blueworx\Forge\Work;
  *
  * **There is no way to change this set, and that is the feature.** No add, no
  * rename, no reorder, no delete, no filter, no admin screen, no REST route.
- * Everything else in the product is written against these twelve: the gates
+ * Everything else in the product is written against these eleven: the gates
  * name them, the transition table maps them, the board draws a column per
  * stage, and every report groups by them. A stage set somebody can edit is one
  * that can disagree with the code reading it, and the failure shows up as work
@@ -22,7 +22,7 @@ namespace Blueworx\Forge\Work;
  *
  * Not even a filter. A filterable list is an editable list with extra steps.
  *
- * Two of the twelve are not ordinary (WF-1). Bug Tracking is **conditional** —
+ * Two of the eleven are not ordinary (WF-1). Bug Tracking is **conditional** —
  * entered only from Triage and only for a bug. Blocked is an **exception** —
  * enterable from any active stage, storing where it came from so it can be
  * restored. The kinds live here beside the list, because every later rule
@@ -82,14 +82,14 @@ final class Stages {
 	public const RELEASED = 'released';
 
 	/**
-	 * The twelve, in the order the state machine gives them.
+	 * The eleven, in the order the state machine gives them.
 	 */
 	public const ALL = array(
 		'future-idea',
 		'triage',
 		'bug-tracking',
 		'documentation-period',
-		'technical-audit',
+		// #546. Technical Audit went: Documentation Period moves on to Up Next.
 		'blocked',
 		'up-next',
 		// #511. Design after Up Next: planned and booked before design starts.
@@ -101,7 +101,7 @@ final class Stages {
 	);
 
 	/**
-	 * Which of the twelve are not ordinary. Everything absent from here is
+	 * Which of the eleven are not ordinary. Everything absent from here is
 	 * linear, so a new stage cannot be quietly added as an exception.
 	 */
 	private const KINDS = array(
@@ -148,7 +148,7 @@ final class Stages {
 	/**
 	 * The stages a board shows as columns.
 	 *
-	 * Not all twelve: Blocked is somewhere an item goes *from* a column rather
+	 * Not all eleven: Blocked is somewhere an item goes *from* a column rather
 	 * than a column of its own, and Bug Tracking only exists for bugs. Both are
 	 * shown on the item, not as a place work queues up.
 	 *
@@ -205,7 +205,7 @@ final class Stages {
 
 	/**
 	 * The stages an item of this work type may occupy, in order. What a board
-	 * draws for one item, as against the twelve it draws in general.
+	 * draws for one item, as against the eleven it draws in general.
 	 *
 	 * @param string $work_type The item's work type.
 	 * @return array<int, string>
@@ -251,8 +251,6 @@ final class Stages {
 				return __( 'Bug tracking', 'blueworx-forge' );
 			case 'documentation-period':
 				return __( 'Documentation period', 'blueworx-forge' );
-			case 'technical-audit':
-				return __( 'Technical audit', 'blueworx-forge' );
 			case 'design-process':
 				return __( 'Design process', 'blueworx-forge' );
 			case 'blocked':

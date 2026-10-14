@@ -24,14 +24,13 @@ final class WorkStagesTest extends TestCase {
 	/**
 	 * The twelve, in the order the state machine gives them.
 	 */
-	public function test_there_are_twelve_stages_in_order(): void {
+	public function test_there_are_eleven_stages_in_order(): void {
 		$this->assertSame(
 			array(
 				'future-idea',
 				'triage',
 				'bug-tracking',
 				'documentation-period',
-				'technical-audit',
 				'blocked',
 				'up-next',
 				'design-process',
@@ -118,6 +117,6 @@ final class WorkStagesTest extends TestCase {
 		$this->assertNotContains( 'blocked', Stages::linear() );
 		$this->assertNotContains( 'bug-tracking', Stages::linear() );
 		$this->assertContains( 'triage', Stages::linear() );
-		$this->assertCount( 10, Stages::linear() );
+		$this->assertCount( 9, Stages::linear() );
 	}
 }

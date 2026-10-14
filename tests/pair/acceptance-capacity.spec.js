@@ -26,7 +26,6 @@ const TO = '2027-09-10';
 const TO_UP_NEXT = [
   'triage',
   'documentation-period',
-  'technical-audit',
   'up-next',
 ];
 

@@ -19,7 +19,6 @@ const PHASE_OF: Record< string, Phase > = {
   triage: 'gate',
   'bug-tracking': 'gate',
   'documentation-period': 'gate',
-  'technical-audit': 'gate',
   'design-process': 'pipeline',
   blocked: 'exception',
   'up-next': 'pipeline',
