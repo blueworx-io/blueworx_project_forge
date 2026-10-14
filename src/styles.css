@@ -1834,14 +1834,12 @@ body {
   gap: 16px;
   align-content: start;
 }
-.bwx-rules-jump {
-  display: flex;
+/* #528. The topics as tabs: eleven of them, so they wrap rather than scroll. */
+.bwx-rules-tabs {
   flex-wrap: wrap;
-  gap: 8px 16px;
-  font-size: var( --text-small );
-}
-.bwx-rules-jump a {
-  color: var( --brand-600 );
+  gap: 4px 20px;
+  margin-top: 0;
+  border-bottom: 1px solid var( --border-hairline );
 }
 .bwx-rules-section {
   scroll-margin-top: 16px;

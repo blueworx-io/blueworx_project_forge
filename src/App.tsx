@@ -289,6 +289,8 @@ export function App() {
     const screen = /(?:^|[#&])screen=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
     const person = /(?:^|[#&])person=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
     const site = /(?:^|[#&])site=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    // #528. A link to one rules topic opens Settings on that tab.
+    const rules = /(?:^|[#&])rules=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
 
     if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
@@ -297,7 +299,7 @@ export function App() {
     // A Manager landing on an administrator's screen opens the board instead.
     const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) );
 
-    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site };
+    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
@@ -579,7 +581,7 @@ export function App() {
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
-        { 'settings' === screen && <SettingsScreen key={ generation } /> }
+        { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }
