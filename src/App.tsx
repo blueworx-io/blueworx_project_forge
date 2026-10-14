@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -14,6 +14,7 @@ import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
 import { SettingsScreen } from './components/SettingsScreen';
+import { LeadsScreen } from './components/LeadsScreen';
 import { PeopleScreen } from './components/PeopleScreen';
 import { QueueScreen } from './components/QueueScreen';
 import { RecurringScreen } from './components/RecurringScreen';
@@ -74,6 +75,7 @@ const RAIL: Entry[] = [
   { key: 'reminders', label: 'Reminders', icon: Bell, testId: 'bwx-screen-reminders' },
   { group: 'Clients' },
   { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
+  { key: 'leads', label: 'Leads', icon: Handshake, testId: 'bwx-screen-leads', admin: true },
   { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
   { key: 'meetings', label: 'Meetings', icon: CalendarClock, testId: 'bwx-screen-meetings' },
   { key: 'onboarding', label: 'Onboarding board', icon: FileCheck2, testId: 'bwx-screen-onboarding' },
@@ -198,6 +200,7 @@ const TITLES: Record< ScreenName, string > = {
   settings: 'Settings',
   people: 'People',
   clients: 'Clients',
+  leads: 'Leads',
   support: 'Support',
   meetings: 'Meetings',
   profile: 'Your profile',
@@ -236,6 +239,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   settings: { crumbs: [ 'Insight', 'Settings' ], eyebrow: 'How Forge behaves, and why', tile: Settings, hue: 'slate' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
+  leads: { crumbs: [ 'Clients', 'Leads' ], eyebrow: 'Who we are talking to', tile: Handshake, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
   meetings: { crumbs: [ 'Clients', 'Meetings' ], eyebrow: 'Standing meetings, and the next twelve weeks of them', tile: CalendarClock, hue: 'rose' },
   profile: { crumbs: [ 'You', 'Profile' ], eyebrow: 'Your Slack, working week and time off', tile: CircleUser, hue: 'violet' },
@@ -584,6 +588,7 @@ export function App() {
         { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } /> }
+        { 'leads' === screen && <LeadsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }
         { 'meetings' === screen && <MeetingsScreen key={ generation } /> }
         { 'profile' === screen && <ProfileScreen key={ generation } /> }

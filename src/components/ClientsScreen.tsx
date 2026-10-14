@@ -791,7 +791,7 @@ function DeleteClient( { client, onClose, onDeleted }: { client: ClientRecord; o
 }
 
 /** Who on our side looks after this client: one of the active people, or nobody. */
-function ContactForm( { client, onClose, onSaved }: { client: ClientRecord; onClose: () => void; onSaved: ( contact: ClientContact ) => void } ) {
+export function ContactForm( { client, onClose, onSaved }: { client: ClientRecord; onClose: () => void; onSaved: ( contact: ClientContact ) => void } ) {
   const [ people, setPeople ] = useState< Person[] | null >( null );
   const [ picked, setPicked ] = useState( client.contact.needs_reassignment ? '' : client.contact.contact?.id ?? '' );
   const [ notice, setNotice ] = useState( '' );
