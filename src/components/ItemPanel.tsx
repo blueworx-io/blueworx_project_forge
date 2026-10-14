@@ -175,6 +175,8 @@ const NEEDED_FROM: Record< string, string > = {
   reviewer_id: 'future-idea',
   deliverer_id: 'up-next',
   planned_due: 'up-next',
+  // #550. The reviewer needs something to go on.
+  test_description: 'in-development',
 };
 
 /**

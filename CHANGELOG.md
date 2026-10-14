@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.186.0] - 2026-10-14
+
+### Changed
+
+- A task can't move from In Development to In Review until "How to test it" has something in it. The card's check and the task panel say so while it is empty. Test steps stay optional.
+
 ## [2.185.0] - 2026-10-14
 
 ### Removed

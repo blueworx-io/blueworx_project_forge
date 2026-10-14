@@ -192,19 +192,30 @@ final class WorkGatesTest extends TestCase {
 		$item    = $this->item( array( 'stage' => 'in-development', 'test_description' => 'Open it.' ) );
 		$without = Gates::evaluate( 'G-IN-DEVELOPMENT', $item, array() );
 
-		$this->assertNull( Gates::requirement( 'G-IN-DEVELOPMENT-2' ) );
 		$this->assertSame( array(), $without['unmet'], 'How to test is written, the checklist is empty: nothing left' );
 	}
 
 	/**
-	 * Leaving In Development (2026-09-19, 2026-09-24): how to test is optional,
-	 * hours still to do is gone, and the completion checklist is the
+	 * #550. How to test it has to be written before review. An empty
+	 * paragraph is empty, and the row is the doer's.
+	 */
+	public function test_in_development_needs_how_to_test_it(): void {
+		$empty = $this->item( array( 'stage' => 'in-development', 'test_description' => '<p></p>' ) );
+		$ids   = array_column( Gates::evaluate( 'G-IN-DEVELOPMENT', $empty, array() )['unmet'], 'id' );
+
+		$this->assertSame( array( 'G-IN-DEVELOPMENT-2' ), $ids );
+		$this->assertSame( Gates::PU, Gates::requirement( 'G-IN-DEVELOPMENT-2' )['who'] );
+		$this->assertSame( array( 'test_description' ), Gates::requirement( 'G-IN-DEVELOPMENT-2' )['fields'] );
+	}
+
+	/**
+	 * Leaving In Development (2026-09-19, 2026-09-24): the test steps are
+	 * optional, hours still to do is gone, and the completion checklist is the
 	 * checklist itself.
 	 */
-	public function test_in_development_asks_nothing_about_how_to_test_or_hours(): void {
+	public function test_in_development_asks_nothing_about_test_steps_or_hours(): void {
 		$ids = array_column( Gates::requirements( 'G-IN-DEVELOPMENT' ), 'id' );
 
-		// How to test is optional (2026-09-24).
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-3', $ids );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-4', $ids );
 		$this->assertNotContains( 'G-IN-DEVELOPMENT-5', $ids );

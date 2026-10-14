@@ -55,8 +55,8 @@ export const RULES: RuleSection[] = [
         why: 'Work only starts once it is fully planned, staffed and paid for.',
       },
       {
-        what: 'To go to In Review every line of the task\'s checklist must be ticked; a task with no checklist goes straight through, and \'How to test\' is optional.',
-        why: 'The checklist is the doer\'s own list of what done means.',
+        what: 'To go to In Review every line of the task\'s checklist must be ticked, and \'How to test it\' must be written; a task with no checklist goes straight through, and the test steps are optional.',
+        why: 'The checklist is the doer\'s own list of what done means, and the reviewer needs to know how to test it.',
       },
       {
         what: 'A task\'s checklist saves as soon as it changes, without Save changes; every other edit in the task panel still waits for Save changes.',
