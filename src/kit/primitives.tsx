@@ -71,7 +71,6 @@ export const STAGE_LABELS: Record< string, string > = {
   triage: 'Triage',
   'bug-tracking': 'Bug Tracking',
   'documentation-period': 'Documentation Period',
-  'technical-audit': 'Technical Audit',
   blocked: 'Blocked',
   'up-next': 'Up Next',
   // #511. Design after Up Next.

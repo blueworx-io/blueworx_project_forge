@@ -24,7 +24,6 @@ const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const UP_TO_DESIGN = [
   'triage',
   'documentation-period',
-  'technical-audit',
   'up-next',
   'design-process',
 ];

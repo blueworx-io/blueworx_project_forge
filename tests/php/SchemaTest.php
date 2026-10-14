@@ -440,7 +440,7 @@ final class SchemaTest extends TestCase {
 		$GLOBALS['bwx_forge_test_designer_rows']    = array(
 			array(
 				'id'               => 'wrk_open',
-				'stage'            => 'technical-audit',
+				'stage'            => 'documentation-period',
 				'prior_stage'      => '',
 				'primary_user_id'  => 'usr_p',
 				'designer_id'      => '',

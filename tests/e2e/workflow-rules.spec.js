@@ -57,10 +57,10 @@ test('the approvals belong to the reviewer, and an administrator may stand in', 
   const item = await fresh(`Reviewer signs ${RUN_ID}`);
   const atDocs = await Forge.walkTo(admin.api, item, ['triage', 'documentation-period'], { seats: crew.seats });
 
-  // The audit is two rows now: risks, and the reviewer's approval.
+  // #546. Documentation Period goes straight to Up Next: the description and the reviewer's approval.
   const detail = await admin.api.get(`/work-items/${atDocs.id}`);
-  const audit = detail.readiness['technical-audit'].all.map((row) => row.id);
-  expect(detail.readiness['technical-audit'].all.find((row) => 'G-DOCUMENTATION-9' === row.id).who).toBe('REV');
+  expect(detail.available).toEqual(['up-next']);
+  expect(detail.readiness['up-next'].all.find((row) => 'G-DOCUMENTATION-9' === row.id).who).toBe('REV');
 
   // The person doing the work is refused; the reviewer is not.
   const asPrimary = await Forge.signedIn(browser, baseURL, crew.primary.login, Forge.PASSWORD);
@@ -74,12 +74,12 @@ test('the approvals belong to the reviewer, and an administrator may stand in', 
   expect(approved.status(), await approved.text()).toBe(200);
   await asReviewer.context.close();
 
-  // An administrator answers the technical approval for them.
-  const atAudit = await Forge.walkTo(admin.api, atDocs, ['technical-audit'], { seats: crew.seats });
-  const after = await admin.api.get(`/work-items/${atAudit.id}`);
-  expect(after.readiness['up-next'].all.map((row) => row.id)).toEqual(['G-TECHNICAL-AUDIT-8']);
-  expect(audit).not.toContain('G-TECHNICAL-AUDIT-1');
-  const stoodIn = await admin.api.post(`/work-items/${atAudit.id}/gate`, { requirement: 'G-TECHNICAL-AUDIT-8', value: 'approved', evidence: '' });
+  // An administrator may stand in for the reviewer's design approval.
+  const designer = crew.primary.id;
+  const atDesign = await Forge.walkTo(admin.api, atDocs, ['up-next', 'design-process'], { seats: { ...crew.seats, designer_id: designer } });
+  const after = await admin.api.get(`/work-items/${atDesign.id}`);
+  expect(after.readiness['in-development'].all.find((row) => 'G-DESIGN-5' === row.id).who).toBe('REV');
+  const stoodIn = await admin.api.post(`/work-items/${atDesign.id}/gate`, { requirement: 'G-DESIGN-5', value: 'approved', evidence: '' });
   expect(stoodIn.status(), await stoodIn.text()).toBe(200);
 
   await crew.close();
@@ -110,7 +110,7 @@ test('leaving In Development takes a finished checklist and how to test it, and 
 
   const crew = await Forge.team(admin.api, browser, baseURL, client.id);
   const item = await fresh(`Finish it ${RUN_ID}`);
-  const path = ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'];
+  const path = ['triage', 'documentation-period', 'up-next', 'design-process', 'in-development'];
   const developing = await Forge.walkTo(admin.api, item, path, { seats: crew.seats });
 
   await patch(developing, { checklist: [{ text: 'Wire it up', done: false }], test_description: '' });
@@ -235,7 +235,7 @@ test('work with something outstanding is on the standup from the day it is captu
 
 // #409. The Designer decides whether a task goes through Design.
 // #511. Design follows Up Next.
-const TO_DESIGN = ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process'];
+const TO_DESIGN = ['triage', 'documentation-period', 'up-next', 'design-process'];
 // The design checks themselves; G-DESIGN-9 is the start-of-work hours check (#511).
 const designRows = (detail) => detail.readiness['in-development'].all.map((row) => row.id).filter((id) => id.startsWith('G-DESIGN') && 'G-DESIGN-9' !== id);
 

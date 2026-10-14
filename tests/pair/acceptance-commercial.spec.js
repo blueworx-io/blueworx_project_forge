@@ -21,7 +21,6 @@ const GRANTED = 200;
 const TO_UP_NEXT = [
   'triage',
   'documentation-period',
-  'technical-audit',
   'up-next',
 ];
 
@@ -235,7 +234,7 @@ test.describe('the commercial acceptance criteria', () => {
     const ready = await Forge.walkTo(
       pair.studio,
       item,
-      ['triage', 'documentation-period', 'technical-audit'],
+      ['triage', 'documentation-period'],
       {}
     );
 
@@ -247,7 +246,7 @@ test.describe('the commercial acceptance criteria', () => {
     });
 
     expect(refused.status(), 'refused at the API').toBe(409);
-    expect((await pair.studio.get(`/work-items/${planned.id}`)).item.stage).toBe('technical-audit');
+    expect((await pair.studio.get(`/work-items/${planned.id}`)).item.stage).toBe('documentation-period');
 
     // And the doors that matter stay open.
     const signed = asClientSite(request, pair.issued);

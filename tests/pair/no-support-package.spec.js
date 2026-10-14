@@ -37,7 +37,7 @@ test('a client with no package is refused chargeable work at the API', async ({ 
   const ready = await Forge.walkTo(
     pair.studio,
     item,
-    ['triage', 'documentation-period', 'technical-audit'],
+    ['triage', 'documentation-period'],
     {}
   );
 
@@ -63,7 +63,7 @@ test('a client with no package is refused chargeable work at the API', async ({ 
   // client with no package to pay for it, is the state this must never leave.
   const unmoved = await pair.studio.get(`/work-items/${planned.id}`);
 
-  expect(unmoved.item.stage).toBe('technical-audit');
+  expect(unmoved.item.stage).toBe('documentation-period');
 
   await pair.close();
 });

@@ -91,7 +91,6 @@ const STAGE_WORD: Record< string, string > = {
   triage: 'Triage',
   'bug-tracking': 'Bug Tracking',
   'documentation-period': 'Documentation',
-  'technical-audit': 'Technical Audit',
   'design-process': 'Design',
   blocked: 'Blocked',
   'up-next': 'Up Next',

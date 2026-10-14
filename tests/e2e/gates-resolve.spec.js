@@ -133,7 +133,7 @@ test('the planned hours item is met by the three seat hours alone', async ({ bro
   const crew = await Forge.team(admin.api, browser, baseURL, client.id);
   const title = `Hours ${RUN_ID}`;
   const made = (await (await Forge.makeItem(admin.api, site.id, { title })).json()).item;
-  const item = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'technical-audit', 'up-next']);
+  const item = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'up-next']);
 
   // G-UP-NEXT is what Up Next has to satisfy to leave, so it is the gate before In development.
   const before = (await admin.api.get(`/work-items/${item.id}`)).readiness['in-development'].all.find((row) => 'G-UP-NEXT-4' === row.id);

@@ -64,15 +64,10 @@ final class Transitions {
 				'work_type' => null,
 			),
 		),
+		// #546. Technical Audit is gone: Documentation Period moves on to Up Next.
 		'documentation-period' => array(
-			'technical-audit' => array(
-				'gate'      => 'G-DOCUMENTATION',
-				'work_type' => null,
-			),
-		),
-		'technical-audit'      => array(
 			'up-next' => array(
-				'gate'      => 'G-TECHNICAL-AUDIT',
+				'gate'      => 'G-DOCUMENTATION',
 				'work_type' => null,
 			),
 		),

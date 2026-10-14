@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.189.0] - 2026-10-14
+
+### Removed
+
+- The Technical Audit stage. A task now goes straight from Documentation Period to Up Next with its description and the documentation approval; the technical approval went with the stage. Tasks that were sitting in Technical Audit move to Up Next once when the update installs, with a line in their history saying so.
+
 ## [2.188.0] - 2026-10-14
 
 ### Changed

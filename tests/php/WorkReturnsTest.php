@@ -81,11 +81,11 @@ final class WorkReturnsTest extends TestCase {
 				array( '', 'future-idea' ),
 				array( 'future-idea', 'triage' ),
 				array( 'triage', 'documentation-period' ),
-				array( 'documentation-period', 'technical-audit' ),
+				array( 'documentation-period', 'up-next' ),
 			)
 		);
 
-		$targets = Returns::targets( $this->item( 'technical-audit' ) );
+		$targets = Returns::targets( $this->item( 'up-next' ) );
 
 		$this->assertSame( array( 'future-idea', 'triage', 'documentation-period' ), $targets );
 	}
@@ -110,7 +110,7 @@ final class WorkReturnsTest extends TestCase {
 		$this->assertFalse( Returns::allowed( $item, 'completed' ) );
 		$this->assertFalse( Returns::allowed( $item, 'bug-tracking' ) );
 		$this->assertSame(
-			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development' ),
+			array( 'future-idea', 'triage', 'documentation-period', 'up-next', 'design-process', 'in-development' ),
 			Returns::targets( $item )
 		);
 	}
@@ -125,7 +125,7 @@ final class WorkReturnsTest extends TestCase {
 
 		$this->assertFalse( Returns::allowed( $item, 'design-process' ) );
 		$this->assertSame(
-			array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'up-next' ),
+			array( 'future-idea', 'triage', 'documentation-period', 'up-next' ),
 			Returns::targets( $item )
 		);
 	}
@@ -200,13 +200,13 @@ final class WorkReturnsTest extends TestCase {
 	 */
 	public function test_the_cycle_does_not_matter(): void {
 		$history = array_merge(
-			$this->history( array( array( 'documentation-period', 'technical-audit' ) ), 1 ),
+			$this->history( array( array( 'documentation-period', 'up-next' ) ), 1 ),
 			$this->history( array( array( '', 'documentation-period' ) ), 2 )
 		);
 
 		$item = array(
 			'id'        => 'wrk_1',
-			'stage'     => 'technical-audit',
+			'stage'     => 'up-next',
 			'work_type' => 'feature',
 			'cycle'     => 2,
 		);

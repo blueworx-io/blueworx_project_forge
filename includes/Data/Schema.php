@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 40;
+	public const VERSION = 41;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1683,6 +1683,12 @@ final class Schema {
 			// from ClickUp takes its due date as every person's date.
 			if ( null !== $installed && $installed < 40 ) {
 				\Blueworx\Forge\Work\ClickUpImport::spread_dates();
+			}
+
+			// #546. Once: work sitting in Technical Audit moves on to Up Next,
+			// with a line in its history saying so.
+			if ( null !== $installed && $installed < 41 ) {
+				\Blueworx\Forge\Work\TechnicalAuditUpgrade::run();
 			}
 
 			update_option( self::OPTION, self::VERSION );

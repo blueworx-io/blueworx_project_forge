@@ -48,7 +48,7 @@ const ROWS: Row[] = [
   { id: 'FRG-2712', title: 'DNS delegation for staging subdomain', client: 'Northgate', stage: 'blocked', hours: 3, due: '09 Aug 2026' },
   { id: 'FRG-2688', title: 'Consent copy review with compliance', client: 'Verity Health', stage: 'in-review', hours: 6, due: '18 Aug 2026' },
   { id: 'FRG-2650', title: 'Migrate legacy redirect inventory', client: 'Halden Cove', stage: 'completed', hours: 5, due: '15 Aug 2026' },
-  { id: 'FRG-2601', title: 'Accessibility audit remediation pass', client: 'Verity Health', stage: 'technical-audit', hours: 10, due: '26 Aug 2026' },
+  { id: 'FRG-2601', title: 'Accessibility audit remediation pass', client: 'Verity Health', stage: 'documentation-period', hours: 10, due: '26 Aug 2026' },
 ];
 
 function Section( { id, title, children }: { id: string; title: string; children: ReactNode } ) {

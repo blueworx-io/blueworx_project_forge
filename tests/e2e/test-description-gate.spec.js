@@ -28,7 +28,7 @@ test('How to test it has to be written before a task goes to review', async ({ b
   const crew = await Forge.team(admin.api, browser, baseURL, client.id);
   const title = `Untested ${RUN_ID}`;
   const made = (await (await Forge.makeItem(admin.api, site.id, { title })).json()).item;
-  const developing = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'], { seats: crew.seats });
+  const developing = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'up-next', 'design-process', 'in-development'], { seats: crew.seats });
 
   // Refused with the box empty, and the reason names it.
   const refused = await admin.api.post(`/work-items/${developing.id}/transition`, { to: 'in-review', record_version: developing.record_version });

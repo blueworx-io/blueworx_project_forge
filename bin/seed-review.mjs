@@ -130,12 +130,12 @@ await item(harbour.sites[0].id, { title: 'New booking page' });
 const bug = await item(harbour.sites[0].id, { title: 'Contact form drops the phone number', work_type: 'bug' });
 await walkTo(api, bug, ['triage', 'bug-tracking']);
 const planned = await item(harbour.sites[0].id, { title: 'Refresh the homepage hero' });
-await walkTo(api, planned, ['triage', 'documentation-period', 'technical-audit', 'up-next'], seats(alice, ben, chloe, serverToday, iso(plus(5))));
+await walkTo(api, planned, ['triage', 'documentation-period', 'up-next'], seats(alice, ben, chloe, serverToday, iso(plus(5))));
 await item(northwind.sites[0].id, { title: 'Checkout redesign' });
 
 // One in development with a checklist and how to test it, for the review card.
 const building = await item(harbour.sites[0].id, { title: 'Speed up the gallery page' });
-await walkTo(api, building, ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'], seats(ben, luke, chloe, iso(plus(-2)), iso(plus(-1))));
+await walkTo(api, building, ['triage', 'documentation-period', 'up-next', 'design-process', 'in-development'], seats(ben, luke, chloe, iso(plus(-2)), iso(plus(-1))));
 const current = (await api.get(`/work-items/${building.id}`)).item;
 await ok(api.patch(`/work-items/${building.id}`, {
   record_version: current.record_version,
@@ -147,7 +147,7 @@ await ok(api.patch(`/work-items/${building.id}`, {
 
 const mine = await item(northwind.sites[0].id, { title: 'Newsletter signup block' });
 // Northwind's package is the smaller one, and its meetings have first call on it.
-await walkTo(api, mine, ['triage', 'documentation-period', 'technical-audit', 'up-next'], seats(luke, chloe, alice, serverToday, iso(plus(3)), [2, 0.5, 0.5]));
+await walkTo(api, mine, ['triage', 'documentation-period', 'up-next'], seats(luke, chloe, alice, serverToday, iso(plus(3)), [2, 0.5, 0.5]));
 console.log('work done');
 
 // Recurring chores, and diary dates.

@@ -18,8 +18,8 @@ const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
-// #511. Up Next follows Technical Audit; Design comes after it.
-const TO_AUDIT = ['triage', 'documentation-period', 'technical-audit'];
+// #546. Up Next follows Documentation Period; Design comes after it.
+const TO_AUDIT = ['triage', 'documentation-period'];
 
 /** A site with hours, a team, and one piece of work standing at a given stage. */
 async function withWork(browser, baseURL, stages) {

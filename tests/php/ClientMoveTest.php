@@ -38,7 +38,7 @@ final class ClientMoveTest extends TestCase {
 	 * Before In Development, a task on its own may move.
 	 */
 	public function test_work_that_has_not_started_may_move(): void {
-		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'technical-audit', 'design-process', 'up-next' ) as $stage ) {
+		foreach ( array( 'future-idea', 'triage', 'documentation-period', 'design-process', 'up-next' ) as $stage ) {
 			$this->assertNull( ClientMove::refusal( $this->item( $stage ), false ), $stage );
 		}
 	}

@@ -51,7 +51,7 @@ test('work with no room behind it is refused by name, and goes ahead for a reaso
   const parked = await walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+    ['triage', 'documentation-period', 'up-next'],
     {
       seats: {
         primary_user_id: person.id,
@@ -133,7 +133,7 @@ test('work that fits is not refused', async ({ browser, baseURL }) => {
   const parked = await walkTo(
     api,
     (await created.json()).item,
-    ['triage', 'documentation-period', 'technical-audit', 'up-next'],
+    ['triage', 'documentation-period', 'up-next'],
     {
       seats: {
         primary_user_id: person.id,

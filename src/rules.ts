@@ -23,7 +23,7 @@ export const RULES: RuleSection[] = [
     title: 'The task journey',
     rules: [
       {
-        what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Technical Audit, Up Next, Design Process (only with a designer), In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts; a task with no designer goes straight from Up Next to In Development.',
+        what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Up Next, Design Process (only with a designer), In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts; a task with no designer goes straight from Up Next to In Development.',
         why: 'No stage can be jumped, because jumping one would skip the checks that stage is there for; Design Process is only a stop for tasks that have a design.',
       },
       {
@@ -41,10 +41,6 @@ export const RULES: RuleSection[] = [
       {
         what: 'To leave Documentation Period a task needs its description and the reviewer\'s documentation approval.',
         why: 'Everyone agrees what is being built before the work is planned.',
-      },
-      {
-        what: 'To leave Technical Audit the reviewer must give technical approval.',
-        why: 'It is the reviewer\'s sign-off that the documented approach is sound.',
       },
       {
         what: 'To leave Design Process a task with a designer needs its responsive states and its empty, loading, error and no-access states marked done, plus the reviewer\'s design approval; a task with no designer is asked for none of that, and a design link is always optional. Leaving Design starts the work, so either way the client must still be on a package they can spend from.',
@@ -555,7 +551,7 @@ export const RULES: RuleSection[] = [
         why: 'A review only counts if someone else looked, except for people who genuinely work alone.',
       },
       {
-        what: 'The documentation, technical and design approvals belong to the task\'s reviewer, not to the designer or anyone else.',
+        what: 'The documentation and design approvals belong to the task\'s reviewer, not to the designer or anyone else.',
         why: 'One person signs off the work from start to finish.',
       },
       {
@@ -567,7 +563,7 @@ export const RULES: RuleSection[] = [
         why: 'The sign-off has to be genuinely the client\'s, even when they give it by email or phone.',
       },
       {
-        what: 'With the client as reviewer, an administrator gives the documentation, technical and design approvals for them; staff can\'t.',
+        what: 'With the client as reviewer, an administrator gives the documentation and design approvals for them; staff can\'t.',
         why: 'The client only signs off at review, and the earlier checks still need someone accountable to give them.',
       },
       {

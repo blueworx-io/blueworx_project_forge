@@ -350,7 +350,7 @@ final class WorkHoursTest extends TestCase {
 
 	public function test_blocking_work_that_had_not_reached_up_next_reserves_nothing(): void {
 		$plan = WorkHours::plan(
-			$this->item( array( 'stage' => Stages::BLOCKED, 'prior_stage' => 'technical-audit' ) ),
+			$this->item( array( 'stage' => Stages::BLOCKED, 'prior_stage' => 'documentation-period' ) ),
 			array()
 		);
 
