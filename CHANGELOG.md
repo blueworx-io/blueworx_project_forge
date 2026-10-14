@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.180.0] - 2026-10-14
+
+### Changed
+
+- The Settings rules page shows one topic at a time: the topics along the top are tabs, opening on The task journey, and a link can open straight to a topic.
+
 ## [2.179.0] - 2026-10-14
 
 ### Changed
