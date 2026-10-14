@@ -105,7 +105,7 @@ test('the dates keep their order, whichever one is sent', async () => {
   expect((await patch(item, { planned_due: '2020-01-01' })).status()).toBe(200);
 });
 
-test('leaving In Development takes a finished checklist, and neither how to test, evidence nor hours still to do', async ({ browser, baseURL }) => {
+test('leaving In Development takes a finished checklist and how to test it, and neither evidence nor hours still to do', async ({ browser, baseURL }) => {
   test.slow();
 
   const crew = await Forge.team(admin.api, browser, baseURL, client.id);
@@ -113,19 +113,20 @@ test('leaving In Development takes a finished checklist, and neither how to test
   const path = ['triage', 'documentation-period', 'technical-audit', 'up-next', 'design-process', 'in-development'];
   const developing = await Forge.walkTo(admin.api, item, path, { seats: crew.seats });
 
-  await patch(developing, { checklist: [{ text: 'Wire it up', done: false }] });
+  await patch(developing, { checklist: [{ text: 'Wire it up', done: false }], test_description: '' });
   const before = await admin.api.get(`/work-items/${developing.id}`);
   const ids = before.readiness['in-review'].unmet.map((row) => row.id);
   expect(ids).toContain('G-IN-DEVELOPMENT-1');
-  // How to test and work evidence are not asked for (2026-09-24).
+  // How to test it is needed (#550); work evidence is not asked for (2026-09-24).
+  expect(ids).toContain('G-IN-DEVELOPMENT-2');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-3');
-  expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-2');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-4');
   expect(before.readiness['in-review'].all.map((row) => row.id)).not.toContain('G-IN-DEVELOPMENT-5');
   expect(before.item.remaining_estimate).toBeUndefined();
 
   await patch(developing, {
     checklist: [{ text: 'Wire it up', done: true }],
+    test_description: '<p>Open the page and press the button.</p>',
     test_steps: [{ text: 'Open the page', done: false }, { text: 'Press the button', done: false }],
   });
 
