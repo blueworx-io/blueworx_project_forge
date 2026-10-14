@@ -147,6 +147,11 @@ export async function api< T >(
     inFlight.clear();
     clear();
 
+    // Whoever keeps the session warm (#489) hears that everything was forgotten.
+    for ( const listener of written ) {
+      listener();
+    }
+
     return payload;
   }
 
@@ -191,6 +196,18 @@ const inFlight = new Map< string, Promise< unknown > >();
 
 /** How many changes have been made this session; a read remembers the count it set off at. */
 let writes = 0;
+
+/** Who hears that a change was made and every kept answer forgotten. */
+const written = new Set< () => void >();
+
+/** Hears every change made through api(), until the returned function is called. */
+export function onWritten( listener: () => void ): () => void {
+  written.add( listener );
+
+  return () => {
+    written.delete( listener );
+  };
+}
 
 /** When the most recent answer arrived from the server, or 0 before any has. */
 export function refreshedAt(): number {

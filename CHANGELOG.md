@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.184.0] - 2026-10-14
+
+### Changed
+
+- After sign-in, Forge quietly reads what every screen needs, one request at a time, so the first visit to a screen or the first look at a client on the board is as quick as the second. After a change it reads again in the background. The "All clients" board and My tasks now share one read instead of asking twice.
+
 ## [2.183.0] - 2026-10-14
 
 ### Added

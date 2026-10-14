@@ -192,10 +192,13 @@ export function WorkScreen( {
        * one answer contains, so there is no second place that could decide what
        * a filter means and disagree.
        */
+      // With nothing filtered, the same path My tasks reads, so the two share
+      // one kept answer instead of asking twice (#489).
+      const query = asQuery( applied );
       const loaded = await api< { items: WorkItem[] } >(
         ALL_SITES === id
-          ? `/work-items-all?${ asQuery( applied ).replace( /^&/, '' ) }`
-          : `/work-items?client_site_id=${ encodeURIComponent( id ) }${ asQuery( applied ) }`
+          ? `/work-items-all${ query.replace( /^&/, '?' ) }`
+          : `/work-items?client_site_id=${ encodeURIComponent( id ) }${ query }`
       );
 
       if ( latest.current !== asked ) {
