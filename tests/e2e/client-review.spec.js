@@ -420,6 +420,14 @@ test('work with the client frees the doer\'s time, and sending it back returns i
   expect(waiting.status).toBe('with-client');
   expect(ahead(waiting), 'no hours on the days ahead').toBe(0);
 
+  // #518. Nor is delivering it booked against the deliverer until the client approves.
+  const shipping = async () => {
+    const drill = await admin.api.get(`/capacity/person/${deliverer.id}?from=${FROM}&to=${TO}`);
+
+    return drill.allocations.find((entry) => entry.item_id === item.id);
+  };
+  expect(await shipping(), 'delivery is not booked while the client has it').toBeUndefined();
+
   const back = await admin.api.post(`/work-items/${item.id}/client-review`, {
     decision: 'send_back',
     note: `Not quite ${RUN_ID}`,
@@ -430,4 +438,8 @@ test('work with the client frees the doer\'s time, and sending it back returns i
   const returned = await mine();
   expect(returned.status).toBe('committed');
   expect(ahead(returned), 'all four hours are theirs again').toBe(4);
+
+  const shippingAgain = await shipping();
+  expect(shippingAgain?.status, 'and delivery is booked again').toBe('committed');
+  expect(ahead(shippingAgain)).toBeGreaterThan(0);
 });

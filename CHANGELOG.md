@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.179.0] - 2026-10-14
+
+### Changed
+
+- A task the client is reviewing no longer books its delivery time against anyone. The deliverer's hours are booked once the client approves it.
+
 ## [2.178.0] - 2026-10-14
 
 ### Changed
