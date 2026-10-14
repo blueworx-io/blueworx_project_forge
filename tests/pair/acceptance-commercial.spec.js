@@ -110,7 +110,7 @@ test.describe('the commercial acceptance criteria', () => {
     // #511. Out of Up Next into Design, then on into development.
     let current = planned;
 
-    for (const to of ['design-process', 'in-development']) {
+    for (const to of (current.designer_id ? ['design-process', 'in-development'] : ['in-development'])) {
       const ready = await Forge.satisfy(pair.studio, current, to);
       const started = await pair.studio.post(`/work-items/${ready.id}/transition`, {
         to,

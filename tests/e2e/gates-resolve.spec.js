@@ -136,7 +136,7 @@ test('the planned hours item is met by the three seat hours alone', async ({ bro
   const item = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'technical-audit', 'up-next']);
 
   // G-UP-NEXT is what Up Next has to satisfy to leave, so it is the gate before In development.
-  const before = (await admin.api.get(`/work-items/${item.id}`)).readiness['design-process'].all.find((row) => 'G-UP-NEXT-4' === row.id);
+  const before = (await admin.api.get(`/work-items/${item.id}`)).readiness['in-development'].all.find((row) => 'G-UP-NEXT-4' === row.id);
 
   expect(before.met).toBe(false);
 
@@ -152,7 +152,7 @@ test('the planned hours item is met by the three seat hours alone', async ({ bro
 
   const after = await admin.api.get(`/work-items/${item.id}`);
 
-  expect(after.readiness['design-process'].all.find((row) => 'G-UP-NEXT-4' === row.id).met).toBe(true);
+  expect(after.readiness['in-development'].all.find((row) => 'G-UP-NEXT-4' === row.id).met).toBe(true);
   expect(after.records['G-UP-NEXT-4']).toBeUndefined();
 
   // And the panel shows the tick, with no control on the row.

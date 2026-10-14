@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.188.0] - 2026-10-14
+
+### Changed
+
+- A task with no designer now goes straight from Up Next to In Development; Design Process is only a stop for tasks that have a designer. The room-in-the-week and support-hours checks still run on that move, and sending such a task back from In Development offers Up Next, not Design Process.
+
 ## [2.187.0] - 2026-10-14
 
 ### Changed

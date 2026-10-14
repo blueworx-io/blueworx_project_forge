@@ -208,7 +208,10 @@ export async function satisfy(api, item, to, seats = {}) {
     }
 
     if ('auto' === requirement.by && 'G-UP-NEXT-4' === requirement.id) {
-      for (const field of ['hours_primary', 'hours_review', 'hours_delivery']) {
+      // A designer's hours too, when there is one (#421).
+      const hours = ['hours_primary', 'hours_review', 'hours_delivery', ...(patch.designer_id ?? detail.item.designer_id ? ['hours_designer'] : [])];
+
+      for (const field of hours) {
         if (undefined === patch[field]) {
           patch[field] = 1;
         }
@@ -315,6 +318,12 @@ export async function walkTo(api, item, stages, { seats = {}, as = {} } = {}) {
   let current = item;
 
   for (const stage of stages) {
+    // #548. With nobody designing, Design is not a stop: a path that names
+    // it walks straight past, the way the product does.
+    if ('design-process' === stage && !(seats.designer_id ?? current.designer_id)) {
+      continue;
+    }
+
     current = await satisfy(api, current, stage, seats);
 
     const caller = as[stage] ?? api;

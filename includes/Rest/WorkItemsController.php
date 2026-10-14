@@ -755,7 +755,7 @@ final class WorkItemsController {
 		 */
 		$readiness = array();
 
-		foreach ( Transitions::next_from( $item['stage'], $item['work_type'] ) as $to ) {
+		foreach ( Transitions::next_from( $item['stage'], $item['work_type'], Transitions::designed( $item ) ) as $to ) {
 			$readiness[ $to ] = Transition::readiness( $item, $to, $children );
 		}
 
@@ -2520,7 +2520,7 @@ final class WorkItemsController {
 			array(
 				'ok'        => true,
 				'item'      => $moved,
-				'available' => Transitions::next_from( $moved['stage'], $moved['work_type'] ),
+				'available' => Transitions::next_from( $moved['stage'], $moved['work_type'], Transitions::designed( $moved ) ),
 				'returns'   => Returns::targets( $moved ),
 				'outcomes'  => Outcomes::available_for( $moved ),
 			)

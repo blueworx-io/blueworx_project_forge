@@ -77,10 +77,18 @@ final class Transitions {
 			),
 		),
 		// #511. Up Next, then Design: everything planned and booked first.
+		// #548. The second fork: with nobody designing, Design is not a stop,
+		// and the work starts straight from Up Next through the same gate.
 		'up-next'              => array(
 			'design-process' => array(
 				'gate'      => 'G-UP-NEXT',
 				'work_type' => null,
+				'designer'  => true,
+			),
+			'in-development' => array(
+				'gate'      => 'G-UP-NEXT',
+				'work_type' => null,
+				'designer'  => false,
 			),
 		),
 		'design-process'       => array(
@@ -118,12 +126,14 @@ final class Transitions {
 	/**
 	 * Whether a forward move is allowed for an item of this work type.
 	 *
-	 * @param string $from      Stage moving from.
-	 * @param string $to        Stage moving to.
-	 * @param string $work_type The item's work type.
+	 * @param string $from         Stage moving from.
+	 * @param string $to           Stage moving to.
+	 * @param string $work_type    The item's work type.
+	 * @param bool   $has_designer Whether somebody designs it (#548): decides
+	 *                             the fork at Up Next.
 	 * @return bool
 	 */
-	public static function allowed( string $from, string $to, string $work_type ): bool {
+	public static function allowed( string $from, string $to, string $work_type, bool $has_designer = true ): bool {
 		if ( ! Stages::exists( $from ) || ! Stages::exists( $to ) ) {
 			return false;
 		}
@@ -134,29 +144,51 @@ final class Transitions {
 			return false;
 		}
 
-		return self::type_matches( $move['work_type'], $work_type );
+		return self::type_matches( $move['work_type'], $work_type ) && self::designer_matches( $move, $has_designer );
 	}
 
 	/**
 	 * Where an item of this work type may go next.
 	 *
 	 * The board asks this rather than working it out from the stage order, so
-	 * the fork at Triage is answered in one place.
+	 * the forks at Triage and Up Next are answered in one place.
 	 *
-	 * @param string $from      Stage moving from.
-	 * @param string $work_type The item's work type.
+	 * @param string $from         Stage moving from.
+	 * @param string $work_type    The item's work type.
+	 * @param bool   $has_designer Whether somebody designs it (#548).
 	 * @return array<int, string>
 	 */
-	public static function next_from( string $from, string $work_type ): array {
+	public static function next_from( string $from, string $work_type, bool $has_designer = true ): array {
 		$next = array();
 
 		foreach ( self::FORWARD[ $from ] ?? array() as $to => $move ) {
-			if ( self::type_matches( $move['work_type'], $work_type ) ) {
+			if ( self::type_matches( $move['work_type'], $work_type ) && self::designer_matches( $move, $has_designer ) ) {
 				$next[] = $to;
 			}
 		}
 
 		return $next;
+	}
+
+	/**
+	 * Whether an item has the designer a move asks about (#548).
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return bool
+	 */
+	public static function designed( array $item ): bool {
+		return '' !== (string) ( $item['designer_id'] ?? '' );
+	}
+
+	/**
+	 * Whether a move's designer condition is met. Most moves have none.
+	 *
+	 * @param array<string, mixed> $move         The table entry.
+	 * @param bool                 $has_designer Whether somebody designs it.
+	 * @return bool
+	 */
+	private static function designer_matches( array $move, bool $has_designer ): bool {
+		return ! array_key_exists( 'designer', $move ) || (bool) $move['designer'] === $has_designer;
 	}
 
 	/**

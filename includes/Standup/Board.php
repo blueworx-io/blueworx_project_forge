@@ -139,7 +139,7 @@ final class Board {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private static function unmet( array $item, array $records ): array {
-		$next = Transitions::next_from( (string) $item['stage'], (string) $item['work_type'] );
+		$next = Transitions::next_from( (string) $item['stage'], (string) $item['work_type'], Transitions::designed( $item ) );
 
 		if ( 1 !== count( $next ) ) {
 			return array();

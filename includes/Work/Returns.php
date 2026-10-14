@@ -119,6 +119,12 @@ final class Returns {
 				continue;
 			}
 
+			// #548. With nobody designing, Design is not a stop going forwards,
+			// so it is not somewhere to send the work back to either.
+			if ( 'design-process' === $stage && ! Transitions::designed( $item ) ) {
+				continue;
+			}
+
 			$targets[] = $stage;
 		}
 

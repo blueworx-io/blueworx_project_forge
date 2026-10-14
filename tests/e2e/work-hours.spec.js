@@ -69,7 +69,7 @@ async function start(api, item) {
   // #511. Out of Up Next into Design, then on into development.
   let current = item;
 
-  for (const to of ['design-process', 'in-development']) {
+  for (const to of (current.designer_id ? ['design-process', 'in-development'] : ['in-development'])) {
     const ready = await Forge.satisfy(api, current, to);
 
     const moved = await api.post(`/work-items/${ready.id}/transition`, {
