@@ -364,6 +364,9 @@ export function ItemPanel( {
   /** Whether the refusal we are showing includes somebody having no room. */
   const overBooked = unmet.some( ( requirement ) => 0 < ( requirement.over?.length ?? 0 ) );
   const [ blocker, setBlocker ] = useState< Record< string, string > >( {} );
+
+  /** #544. What a refused auto-save said, by field, shown under it. */
+  const [ fieldErrors, setFieldErrors ] = useState< Record< string, string > >( {} );
   const [ checklist, setChecklist ] = useState< ChecklistRow[] >( [] );
 
   /** Review and testing (2026-09-19): the steps beside how to test. */
@@ -602,29 +605,117 @@ export function ItemPanel( {
    * #451. A checklist change is written as soon as it is made, on its own:
    * nothing else in the panel goes with it, and the held version moves on so
    * a later Save changes does not meet a conflict. A refusal says so and the
-   * rows stay as they are, for Save changes to try again.
+   * rows stay as they are, for Save changes to try again. #544: the test
+   * steps the same way.
    */
-  function saveChecklist( rows: ChecklistRow[] ) {
+  function saveLines( field: 'checklist' | 'test_steps', rows: ChecklistRow[] ) {
     queue.current = queue.current.then( async () => {
       const current = latest.current;
-      const change = linesChange( 'checklist', rows, current );
+      const change = linesChange( field, rows, current );
 
-      if ( ! current || ! change.checklist ) {
+      if ( ! current || ! change[ field ] ) {
         return;
       }
 
       try {
         const answer = await api< { item: WorkItem } >( `/work-items/${ itemId }`, {
           method: 'PATCH',
-          body: { checklist: change.checklist, record_version: current.item.record_version },
+          body: { [ field ]: change[ field ], record_version: current.item.record_version },
         } );
 
-        latest.current = { ...current, item: { ...current.item, checklist: answer.item.checklist, record_version: answer.item.record_version } };
+        latest.current = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
         setDetail( latest.current );
         onChanged();
-        setNotice( 'Checklist saved.', 'ok' );
+        setNotice( SAVED, 'ok' );
       } catch ( error ) {
-        setNotice( `The checklist was not saved. ${ refusal( error ) }` );
+        setNotice( `${ 'checklist' === field ? 'The checklist was' : 'The test steps were' } not saved. ${ refusal( error ) }` );
+      }
+    } );
+  }
+
+  const saveChecklist = ( rows: ChecklistRow[] ) => saveLines( 'checklist', rows );
+
+  /**
+   * #544. A pick, a date or an hours choice is written the moment it is
+   * made, on its own, quoting the version the last write left. What came
+   * back is read again so the before-items agree with it; the rest of the
+   * draft (anything typed) is left exactly as it was, for Save changes.
+   *
+   * A refusal is shown under the field, and the field goes back to what is
+   * saved rather than holding a value the server would not take.
+   */
+  function saveNow( patch: Record< string, string > ) {
+    const fields = Object.keys( patch );
+
+    queue.current = queue.current.then( async () => {
+      const current = latest.current;
+
+      if ( ! current ) {
+        return;
+      }
+
+      const saved = asDraft( current.item );
+      const changed = Object.fromEntries( fields.filter( ( field ) => patch[ field ] !== saved[ field ] ).map( ( field ) => [ field, patch[ field ] ] ) );
+
+      if ( 0 === Object.keys( changed ).length ) {
+        return;
+      }
+
+      try {
+        await api( `/work-items/${ itemId }`, {
+          method: 'PATCH',
+          body: { ...changed, record_version: current.item.record_version },
+        } );
+
+        const loaded = await api< Detail >( `/work-items/${ itemId }` );
+        const now = asDraft( loaded.item );
+
+        latest.current = loaded;
+        setDetail( loaded );
+        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( fields.map( ( field ) => [ field, now[ field ] ] ) ) } ) );
+        setFieldErrors( ( held ) => Object.fromEntries( Object.entries( held ).filter( ( [ field ] ) => ! fields.includes( field ) ) ) );
+        onChanged();
+        setNotice( SAVED, 'ok' );
+      } catch ( error ) {
+        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( fields.map( ( field ) => [ field, saved[ field ] ] ) ) } ) );
+        setFieldErrors( ( held ) => ( { ...held, [ fields[ 0 ] ]: refusal( error ) } ) );
+      }
+    } );
+  }
+
+  /** A draft change that is also saved at once (#544). */
+  const saveDraft = ( patch: Record< string, string > ) => {
+    setDraft( ( held ) => ( { ...held, ...patch } ) );
+    saveNow( patch );
+  };
+
+  /** What a refused auto-save said about a field, under it. */
+  const fieldError = ( field: string ) =>
+    fieldErrors[ field ] ? (
+      <p className="bwx-hint bwx-field-error" role="alert" data-testid="bwx-field-error" data-field={ field }>
+        { fieldErrors[ field ] }
+      </p>
+    ) : null;
+
+  /**
+   * #544. A pick on a before-row is recorded the moment it is made, and the
+   * task read again so the row shows it. The draft is left alone.
+   */
+  function recordPick( id: string, value: string ) {
+    queue.current = queue.current.then( async () => {
+      try {
+        await api( `/work-items/${ itemId }/gate`, { method: 'POST', body: { requirement: id, value, evidence: '' } } );
+
+        const loaded = await api< Detail >( `/work-items/${ itemId }` );
+
+        latest.current = loaded;
+        setDetail( loaded );
+        setPicks( ( held ) => Object.fromEntries( Object.entries( held ).filter( ( [ one ] ) => one !== id ) ) );
+        onChanged();
+        setNotice( SAVED, 'ok' );
+      } catch ( error ) {
+        setPicks( ( held ) => Object.fromEntries( Object.entries( held ).filter( ( [ one ] ) => one !== id ) ) );
+        setNotice( messageFor( error, 'That could not be recorded.' ) );
       }
     } );
   }
@@ -707,9 +798,9 @@ export function ItemPanel( {
   }
 
   /**
-   * A pick changing. Most are held until Save changes; two hand over: a
-   * triage outcome other than Proceed opens End it with that outcome, and a
-   * duplicate found is what End it → duplicate will use.
+   * A pick changing. #544: recorded the moment it is made. Two also hand
+   * over: a triage outcome other than Proceed opens End it with that
+   * outcome, and a duplicate found is what End it → duplicate will use.
    */
   function choose( id: string, value: string ) {
     if ( TRIAGE_OUTCOME_PICK === id && '' !== value && 'proceed' !== value ) {
@@ -724,6 +815,10 @@ export function ItemPanel( {
     }
 
     setPicks( { ...picks, [ id ]: value } );
+
+    if ( '' !== value ) {
+      recordPick( id, value );
+    }
   }
 
   /** Every row the next stages want, once each. */
@@ -1097,8 +1192,8 @@ export function ItemPanel( {
           className="bwx-select"
           value={ current }
           onChange={ ( event ) =>
-            setDraft( {
-              ...draft,
+            // #544. Saved as soon as it is picked, with what goes with it.
+            saveDraft( {
               [ field ]: event.target.value,
               // The client's review takes nobody's hours.
               ...( reviewing && CLIENT === event.target.value ? { hours_review: '' } : {} ),
@@ -1125,6 +1220,7 @@ export function ItemPanel( {
             </option>
           ) ) }
         </select>
+        { fieldError( field ) }
       </div>
     );
   };
@@ -2141,7 +2237,7 @@ export function ItemPanel( {
                     onChange={ ( html ) => setDraft( { ...draft, test_description: html } ) }
                   />
                 </div>
-                <LineList name="Test steps" testId="bwx-test-steps" rows={ testSteps } onChange={ setTestSteps } />
+                <LineList name="Test steps" testId="bwx-test-steps" rows={ testSteps } onChange={ setTestSteps } onCommit={ ( rows ) => saveLines( 'test_steps', rows ) } />
               </div>
             ) }
 
@@ -2244,9 +2340,7 @@ export function ItemPanel( {
                       id="bwx-commercial_class"
                       className="bwx-select"
                       value={ draft.commercial_class ?? '' }
-                      onChange={ ( event ) =>
-                        setDraft( { ...draft, commercial_class: event.target.value } )
-                      }
+                      onChange={ ( event ) => saveDraft( { commercial_class: event.target.value } ) }
                     >
                       { CLASSES.map( ( option ) => (
                         <option key={ option.value } value={ option.value }>
@@ -2254,6 +2348,7 @@ export function ItemPanel( {
                         </option>
                       ) ) }
                     </select>
+                    { fieldError( 'commercial_class' ) }
                   </div>
 
                   <div className="bwx-field">
@@ -2262,7 +2357,7 @@ export function ItemPanel( {
                       id="bwx-priority"
                       className="bwx-select"
                       value={ draft.priority ?? '' }
-                      onChange={ ( event ) => setDraft( { ...draft, priority: event.target.value } ) }
+                      onChange={ ( event ) => saveDraft( { priority: event.target.value } ) }
                     >
                       <option value="">Not set</option>
                       { PRIORITIES.map( ( value ) => (
@@ -2271,6 +2366,7 @@ export function ItemPanel( {
                         </option>
                       ) ) }
                     </select>
+                    { fieldError( 'priority' ) }
                   </div>
                 </div>
               </div>
@@ -2310,8 +2406,9 @@ export function ItemPanel( {
                           id={ `bwx-${ seat.hours }` }
                           className="bwx-select"
                           value={ draft[ seat.hours ] ?? '' }
-                          onChange={ ( value ) => setDraft( { ...draft, [ seat.hours ]: value } ) }
+                          onChange={ ( value ) => saveDraft( { [ seat.hours ]: value } ) }
                         />
+                        { fieldError( seat.hours ) }
                       </div>
                     ) }
                   </div>
@@ -2337,15 +2434,18 @@ export function ItemPanel( {
                         min={ earliestFor( date.field ) }
                         value={ draft[ date.field ] ?? '' }
                         aria-invalid={ '' !== outOfOrder( date.field ) ? 'true' : undefined }
-                        onChange={ ( event ) =>
-                          setDraft( { ...draft, [ date.field ]: event.target.value } )
-                        }
+                        // #544. A date picked is saved at once. A date being
+                        // retyped reads as empty part-way, so a clearing waits
+                        // for the field to be left rather than saving mid-edit.
+                        onChange={ ( event ) => ( '' === event.target.value ? setDraft( { ...draft, [ date.field ]: '' } ) : saveDraft( { [ date.field ]: event.target.value } ) ) }
+                        onBlur={ ( event ) => saveNow( { [ date.field ]: event.target.value } ) }
                       />
                       { '' !== outOfOrder( date.field ) && (
                         <p className="bwx-hint bwx-date-order" role="alert" data-testid="bwx-date-order" data-field={ date.field }>
                           { outOfOrder( date.field ) }
                         </p>
                       ) }
+                      { fieldError( date.field ) }
                     </div>
                   ) ) }
                 </div>

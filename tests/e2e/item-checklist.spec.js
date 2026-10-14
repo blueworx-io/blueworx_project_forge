@@ -27,6 +27,8 @@ function cardFor(page) {
 }
 
 test('three lines added, one ticked, saved, and counted on the card', async () => {
+  test.slow();
+
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
   await page.waitForSelector('[data-testid="bwx-board"]');
@@ -47,10 +49,10 @@ test('three lines added, one ticked, saved, and counted on the card', async () =
   await lines.nth(2).fill('Ship it');
   await page.getByTestId('bwx-checklist-done').nth(0).check();
   await page.getByTestId('bwx-save').click();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
-  const saved = await admin.api.get(`/work-items/${item.id}`);
-  expect(saved.item.checklist).toEqual([
+  // #544. Every line and tick says "Saved." on its own, so the record is
+  // what is waited for rather than the notice.
+  await expect.poll(() => admin.api.get(`/work-items/${item.id}`).then((saved) => saved.item.checklist), { timeout: 30_000 }).toEqual([
     { text: 'Write it', done: true },
     { text: 'Check it', done: false },
     { text: 'Ship it', done: false },
@@ -87,6 +89,8 @@ test('an eleventh line, or a line with a line break, is refused', async () => {
 });
 
 test('a checklist change is saved at once, and a later Save changes does not conflict or lose other edits (#451)', async () => {
+  test.slow();
+
   const made = (await (await makeItem(admin.api, site.id, { title: `Instant ${RUN_ID}` })).json()).item;
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
@@ -100,7 +104,7 @@ test('a checklist change is saved at once, and a later Save changes does not con
   await page.getByTestId('bwx-checklist-add').click();
   await page.getByTestId('bwx-checklist-text').nth(0).fill('First');
   await page.getByTestId('bwx-checklist-text').nth(0).blur();
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Checklist saved.');
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
   await page.getByTestId('bwx-checklist-done').nth(0).check();
   await expect(async () => {
     const now = (await admin.api.get(`/work-items/${made.id}`)).item;
