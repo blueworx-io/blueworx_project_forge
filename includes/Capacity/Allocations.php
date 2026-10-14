@@ -154,14 +154,23 @@ final class Allocations {
 		/*
 		 * #497. While the client reviews it, nobody in the studio is carrying
 		 * the work: its time so far is used, like finished work. Delivering it
-		 * after approval is still to do.
+		 * is not booked until the client approves (#518): until then it is
+		 * not studio work, and booking it would show the deliverer busier
+		 * than they are.
 		 */
 		if ( 'in-review' === (string) ( $item['stage'] ?? '' ) && ClientReviewer::is( $item ) ) {
-			foreach ( $allocations as $index => $allocation ) {
-				if ( self::DELIVERY !== $allocation['role'] ) {
-					$allocations[ $index ]['status'] = self::WITH_CLIENT;
+			$kept = array();
+
+			foreach ( $allocations as $allocation ) {
+				if ( self::DELIVERY === $allocation['role'] ) {
+					continue;
 				}
+
+				$allocation['status'] = self::WITH_CLIENT;
+				$kept[]               = $allocation;
 			}
+
+			$allocations = $kept;
 		}
 
 		return $allocations;

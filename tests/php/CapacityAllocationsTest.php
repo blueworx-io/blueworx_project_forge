@@ -346,7 +346,8 @@ final class CapacityAllocationsTest extends TestCase {
 
 	/*
 	 * #497. While the client reviews it, the studio is not carrying the work:
-	 * the doer's hours are time used, and delivery is still to do.
+	 * the doer's hours are time used, and delivery is not booked at all
+	 * until the client approves (#518).
 	 */
 	public function test_work_with_the_client_is_not_carried_by_the_studio(): void {
 		$allocations = Allocations::from_item(
@@ -361,7 +362,7 @@ final class CapacityAllocationsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'primary' => Allocations::WITH_CLIENT, 'delivery' => Allocations::TO_DO ), array_column( $allocations, 'status', 'role' ) );
+		$this->assertSame( array( 'primary' => Allocations::WITH_CLIENT ), array_column( $allocations, 'status', 'role' ) );
 	}
 
 	public function test_a_studio_review_is_still_carried(): void {
