@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.185.0] - 2026-10-14
+
+### Removed
+
+- Documentation Period no longer asks "Affected sites and data". A task leaves the stage with its description and the reviewer's approval; anything already answered on older tasks is kept.
+
 ## [2.184.0] - 2026-10-14
 
 ### Changed

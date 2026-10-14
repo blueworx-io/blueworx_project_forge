@@ -160,6 +160,9 @@ final class WorkGatesTest extends TestCase {
 		// Reference material and dependencies are optional (2026-09-19).
 		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-8' ) );
 		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-6' ) );
+		// Affected sites and data is not asked either (#545): the description and the approval are the gate.
+		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-7' ) );
+		$this->assertSame( array( 'G-DOCUMENTATION-1', 'G-DOCUMENTATION-9' ), array_column( Gates::requirements( 'G-DOCUMENTATION' ), 'id' ) );
 		$this->assertNotContains( 'G-DOCUMENTATION-1', $ids, 'The problem statement was filled in' );
 
 		// The Scope and Requirements checks went with their boxes (2026-09-18).
