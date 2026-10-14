@@ -69,6 +69,11 @@ final class Filters {
 	private const SEATS = array( 'primary_user_id', 'designer_id', 'reviewer_id', 'deliverer_id' );
 
 	/**
+	 * The seats somebody can be standing in for (#524).
+	 */
+	private const STAND_INS = array( 'reviewer_substitute_id', 'deliverer_substitute_id' );
+
+	/**
 	 * What a saved view is allowed to hold.
 	 */
 	public const VIEW_KEYS = array( 'name', 'filters', 'grouping' );
@@ -254,6 +259,26 @@ final class Filters {
 	private static function holds_a_seat( array $item, array $people ): bool {
 		foreach ( self::SEATS as $seat ) {
 			if ( in_array( (string) ( $item[ $seat ] ?? '' ), $people, true ) ) {
+				return true;
+			}
+		}
+
+		/*
+		 * #524. Somebody standing in for a seat has that seat's work, and a
+		 * recurring task's people are its assignees rather than seats: both
+		 * are that person's work, so both are theirs when filtered.
+		 */
+		foreach ( self::STAND_INS as $seat ) {
+			if ( in_array( (string) ( $item[ $seat ] ?? '' ), $people, true ) ) {
+				return true;
+			}
+		}
+
+		$assignees = $item['assignees'] ?? array();
+		$assignees = is_string( $assignees ) ? (array) json_decode( $assignees, true ) : (array) $assignees;
+
+		foreach ( $assignees as $assignee ) {
+			if ( in_array( (string) $assignee, $people, true ) ) {
 				return true;
 			}
 		}

@@ -185,6 +185,33 @@ final class WorkFiltersTest extends TestCase {
 	}
 
 	/**
+	 * #524. Standing in for a seat, or being assigned a recurring task, is
+	 * that person's work too; and two people match either of them.
+	 */
+	public function test_the_person_filter_sees_stand_ins_and_assignees(): void {
+		$items = array(
+			$this->item( array( 'reviewer_substitute_id' => 'usr_ana' ) ),
+			$this->item(
+				array(
+					'id'        => 'wrk_two',
+					'assignees' => array( 'usr_bo' ),
+				)
+			),
+			$this->item(
+				array(
+					'id'        => 'wrk_three',
+					'assignees' => '["usr_cy"]',
+				)
+			),
+			$this->item( array( 'id' => 'wrk_four' ) ),
+		);
+
+		$this->assertCount( 1, Filters::apply( $items, array( 'person' => array( 'usr_ana' ) ) ) );
+		$this->assertCount( 1, Filters::apply( $items, array( 'person' => array( 'usr_cy' ) ) ) );
+		$this->assertCount( 2, Filters::apply( $items, array( 'person' => array( 'usr_ana', 'usr_bo' ) ) ) );
+	}
+
+	/**
 	 * Searching looks at what somebody would have typed: the title and the
 	 * problem. Not every field — a search that matches an id somebody pasted
 	 * into a note is a search nobody can predict.
