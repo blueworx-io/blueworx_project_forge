@@ -667,7 +667,7 @@ export function ItemPanel( {
           body: { ...changed, record_version: current.item.record_version },
         } );
 
-        const loaded = await api< Detail >( `/work-items/${ itemId }` );
+        const loaded = await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } );
         const now = asDraft( loaded.item );
 
         latest.current = loaded;
@@ -706,7 +706,7 @@ export function ItemPanel( {
       try {
         await api( `/work-items/${ itemId }/gate`, { method: 'POST', body: { requirement: id, value, evidence: '' } } );
 
-        const loaded = await api< Detail >( `/work-items/${ itemId }` );
+        const loaded = await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } );
 
         latest.current = loaded;
         setDetail( loaded );
