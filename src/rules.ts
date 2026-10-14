@@ -199,7 +199,7 @@ export const RULES: RuleSection[] = [
     title: 'Going back and reopening',
     rules: [
       {
-        what: 'A task can be sent back to any earlier stage, including stages it skipped and including from Completed or Released, but always with a reason.',
+        what: 'A task can be sent back to any earlier stage, including stages it skipped and including from Completed or Released, but always with feedback: one text box saying what needs to change, which the history, the standup and the person it goes back to all see. A send-back with nothing written is refused.',
         why: 'Work that goes backwards without a written reason leaves nobody able to explain it later.',
       },
       {

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.190.0] - 2026-10-14
+
+### Changed
+
+- Sending a task back asks for one thing: where it goes back to, and a Feedback box. What you write there is what the history, the standup and the person it goes back to see. A send-back with nothing written is refused.
+
 ## [2.189.0] - 2026-10-14
 
 ### Removed

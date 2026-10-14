@@ -1707,34 +1707,23 @@ export function ItemPanel( {
                     ) ) }
                   </select>
                 </div>
+                { /* #549. One box: the feedback is the reason, and the review feedback, and what the history shows. */ }
                 <div className="bwx-field">
-                  <label htmlFor="bwx-return-reason">Why</label>
-                  <input
-                    id="bwx-return-reason"
-                    className="bwx-input"
-                    data-testid="bwx-return-reason"
-                    value={ back.reason }
-                    onChange={ ( event ) => setBack( { ...back, reason: event.target.value } ) }
+                  <label htmlFor="bwx-return-feedback">Feedback</label>
+                  <textarea
+                    id="bwx-return-feedback"
+                    className="bwx-textarea"
+                    data-testid="bwx-return-feedback"
+                    value={ back.feedback }
+                    onChange={ ( event ) => setBack( { ...back, feedback: event.target.value, reason: event.target.value } ) }
                   />
                 </div>
-                { 'in-review' === item.stage && 'in-development' === back.to && (
-                  <div className="bwx-field">
-                    <label htmlFor="bwx-return-feedback">Review feedback</label>
-                    <textarea
-                      id="bwx-return-feedback"
-                      className="bwx-textarea"
-                      data-testid="bwx-return-feedback"
-                      value={ back.feedback }
-                      onChange={ ( event ) => setBack( { ...back, feedback: event.target.value } ) }
-                    />
-                  </div>
-                ) }
                 <div className="bwx-moves bwx-form-foot">
                   <button
                     type="button"
                     className="bwx-button"
                     data-testid="bwx-return"
-                    disabled={ busy || '' === back.to }
+                    disabled={ busy || '' === back.to || '' === back.feedback.trim() }
                     onClick={ () => void act( '/return', back, `Sent back to ${ label( back.to ) }.` ) }
                   >
                     Send back
