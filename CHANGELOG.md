@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.177.0] - 2026-10-14
+
+### Changed
+
+- Who pays for it and Priority now sit in their own "Billing and priority" section on a task, above Who and hours, which holds only the people and their hours.
+
 ## [2.176.1] - 2026-10-14
 
 ### Fixed

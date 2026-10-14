@@ -2213,9 +2213,10 @@ export function ItemPanel( {
                 its hours were set when the recurring task was, it is free, and
                 nothing about it is released.
              */ }
+            { /* #525. Who pays and the priority, in a section of their own above the people. */ }
             { staff && ! ended && ! chore && (
-              <div className="bwx-assign" data-testid="bwx-assign" data-collapsed={ isFolded( 'assign' ) ? 'true' : 'false' }>
-                { head( 'assign', 'Who and hours' ) }
+              <div className="bwx-assign" data-testid="bwx-billing" data-collapsed={ isFolded( 'billing' ) ? 'true' : 'false' }>
+                { head( 'billing', 'Billing and priority' ) }
 
                 <div className="bwx-pair">
                   <div className="bwx-field">
@@ -2253,6 +2254,12 @@ export function ItemPanel( {
                     </select>
                   </div>
                 </div>
+              </div>
+            ) }
+
+            { staff && ! ended && ! chore && (
+              <div className="bwx-assign" data-testid="bwx-assign" data-collapsed={ isFolded( 'assign' ) ? 'true' : 'false' }>
+                { head( 'assign', 'Who and hours' ) }
 
                 { 0 === ( item.assignees?.length ?? 0 ) && null !== siteStaff && 0 === siteStaff.length && (
                   <p className="bwx-hint" data-testid="bwx-seats-empty">Nobody on this client can be assigned yet</p>
