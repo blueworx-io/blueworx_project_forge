@@ -60,19 +60,26 @@ test('the footer holds Delete and Save, and history stays folded until opened', 
   await page.close();
 });
 
-test('one save of several fields is one line of history, signed', async () => {
+test('a pick saves on its own and typed text with Save changes, each one signed line of history', async () => {
+  test.slow();
+
   const page = await admin.context.newPage();
   await openThePanel(page);
 
+  // #544. The priority saves the moment it is picked; the title waits.
   await page.fill('#bwx-title', `Framed ${RUN_ID} renamed`);
   await page.selectOption('#bwx-priority', 'high');
-  await page.getByTestId('bwx-save').click();
   await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
   await page.getByTestId('bwx-history-wrap').locator('summary').click();
   const lines = page.locator('[data-testid="bwx-history"] li');
-  await expect(lines).toHaveCount(2);
-  await expect(lines.last()).toContainText('Edited title, priority');
+  await expect(lines).toHaveCount(2, { timeout: 30_000 });
+  await expect(lines.last()).toContainText('Edited priority');
+  await expect(lines.last()).not.toContainText('title');
+
+  await page.getByTestId('bwx-save').click();
+  await expect(lines).toHaveCount(3, { timeout: 30_000 });
+  await expect(lines.last()).toContainText('Edited title');
   await expect(lines.last().getByTestId('bwx-history-who')).toHaveText('admin');
   await page.close();
 });
