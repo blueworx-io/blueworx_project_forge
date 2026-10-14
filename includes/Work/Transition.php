@@ -960,6 +960,23 @@ final class Transition {
 			self::onboarding_unmet( $item, $to )
 		);
 
+		/*
+		 * #526. A recurring task's copy has its people and hours already, and
+		 * one tick finishes it: its assignees stand in every seat, so the
+		 * only thing that can hold it up is somebody's capacity.
+		 */
+		$assignees = $item['assignees'] ?? array();
+		$assignees = is_string( $assignees ) ? (array) json_decode( $assignees, true ) : (array) $assignees;
+
+		if ( array() !== $assignees ) {
+			$unmet = array_values(
+				array_filter(
+					$unmet,
+					static fn( array $one ): bool => 'capacity' === (string) ( $one['check'] ?? '' )
+				)
+			);
+		}
+
 		return array(
 			'to'      => $to,
 			'ready'   => array() === $unmet,

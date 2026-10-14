@@ -265,7 +265,7 @@ export const RULES: RuleSection[] = [
         why: 'Nobody should come back from leave to a pile of chores to tick off, but a renewal only comes once.',
       },
       {
-        what: 'A recurring task has no checklist, reviewer or deliverer: each person\'s one tick finishes their own copy and sends it straight to Released.',
+        what: 'A recurring task has no checklist, reviewer or deliverer: each person\'s one tick finishes their own copy and sends it straight to Released. On the board, a copy\'s card shows the people assigned, and its check is green unless one of them is over capacity.',
         why: 'A chore has nothing to review or deliver; doing it is the whole job.',
       },
       {
