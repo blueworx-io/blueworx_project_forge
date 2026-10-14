@@ -71,7 +71,11 @@ export function Card( {
   // The Designer (#409) only when there is one and it isn't also the person
   // doing the work, so most cards keep three and nobody's avatar repeats.
   const hasDesigner = item.designer_id && item.designer_id !== item.primary_user_id;
-  const seats = [ item.primary_user_id, ...( hasDesigner ? [ item.designer_id ] : [] ), item.reviewer_id, item.deliverer_id ];
+  // #526. A recurring task's copy names its people instead of seats: each of
+  // them is every role, so the card shows them.
+  const seats = 0 < ( item.assignees?.length ?? 0 )
+    ? item.assignees
+    : [ item.primary_user_id, ...( hasDesigner ? [ item.designer_id ] : [] ), item.reviewer_id, item.deliverer_id ];
 
   return (
     <button

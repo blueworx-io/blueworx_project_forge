@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.180.1] - 2026-10-14
+
+### Fixed
+
+- A recurring task's card on the board shows the people assigned instead of three empty seats, and its check is green unless someone is over capacity.
+
 ## [2.180.0] - 2026-10-14
 
 ### Changed
