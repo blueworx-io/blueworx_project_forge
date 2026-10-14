@@ -174,7 +174,7 @@ final class Transition {
 		if ( '' === $reason ) {
 			return new WP_Error(
 				'bwx_forge_reason_required',
-				__( 'Work only goes backwards with a reason.', 'blueworx-forge' ),
+				__( 'Say what needs to change before sending it back.', 'blueworx-forge' ),
 				array( 'status' => 400 )
 			);
 		}
