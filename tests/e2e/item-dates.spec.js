@@ -39,28 +39,22 @@ test( 'the dates sit in their own section, one per person', async ( { browser, b
   await expect( assign.getByTestId( 'bwx-section-assign' ) ).toHaveText( 'Who and hours' );
   await expect( assign.locator( 'input[type="date"]' ) ).toHaveCount( 0 );
 
+  // #544. Each date saves as it is picked, so the record is what is waited for.
+  const read = () => admin.api.get( `/work-items/${ item.id }` ).then( ( answer ) => answer.item );
+
   await dates.getByLabel( 'Design by' ).fill( on( 2 ) );
   await dates.getByLabel( 'Deliver by' ).fill( on( 3 ) );
-  await page.getByTestId( 'bwx-save' ).click();
-  await expect( page.getByTestId( 'bwx-panel-notice' ) ).toHaveText( 'Saved.', { timeout: 30_000 } );
+  await expect.poll( () => read().then( ( saved ) => [ saved.design_target, saved.planned_due, saved.planned_start ] ), { timeout: 30_000 } ).toEqual( [ on( 2 ), on( 3 ), on( 2 ) ] );
 
-  const saved = ( await admin.api.get( `/work-items/${ item.id }` ) ).item;
-  expect( saved.design_target ).toBe( on( 2 ) );
-  expect( saved.planned_due ).toBe( on( 3 ) );
-  expect( saved.planned_start, 'Forge sets the start from the earliest date' ).toBe( on( 2 ) );
-
-  // No design needed: no Design by.
+  // No design needed: no Design by, and it goes with the designer so no
+  // Design by is left behind to trip the order check.
   await page.locator( '#bwx-designer_id' ).selectOption( '' );
   await expect( dates.getByLabel( 'Design by' ) ).toHaveCount( 0 );
   await expect( dates.getByLabel( 'Deliver by' ) ).toBeVisible();
+  await expect.poll( () => read().then( ( cleared ) => cleared.design_target ), { timeout: 30_000 } ).toBe( '' );
 
-  // And it goes on save: no Design by left behind to trip the order check.
   await dates.getByLabel( 'Deliver by' ).fill( on( 1 ) );
-  await page.getByTestId( 'bwx-save' ).click();
-  await expect( page.getByTestId( 'bwx-panel-notice' ) ).toHaveText( 'Saved.', { timeout: 30_000 } );
-  const cleared = ( await admin.api.get( `/work-items/${ item.id }` ) ).item;
-  expect( cleared.design_target ).toBe( '' );
-  expect( cleared.planned_start ).toBe( on( 1 ) );
+  await expect.poll( () => read().then( ( cleared ) => [ cleared.design_target, cleared.planned_start ] ), { timeout: 30_000 } ).toEqual( [ '', on( 1 ) ] );
 
   await admin.context.close();
 } );

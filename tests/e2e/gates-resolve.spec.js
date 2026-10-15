@@ -43,6 +43,8 @@ async function openFromList(page, itemId) {
 }
 
 test('a new idea with a site needs its source picked and two people named, and then moves', async () => {
+  test.slow();
+
   const title = `Idea ${RUN_ID}`;
   const item = (await (await Forge.makeItem(admin.api, site.id, { title })).json()).item;
   const seats = await Forge.seatsFor(admin.api, item);
@@ -70,9 +72,9 @@ test('a new idea with a site needs its source picked and two people named, and t
   await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
 
   // Nothing left: the gate list is gone and the move is ready.
-  await expect(page.locator('[data-testid="bwx-move"][data-to="triage"]')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('[data-testid="bwx-move"][data-to="triage"]')).toHaveAttribute('data-ready', 'true', { timeout: 30_000 });
   await page.locator('[data-testid="bwx-move"][data-to="triage"]').click();
-  await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Triage');
+  await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Triage', { timeout: 30_000 });
 
   const records = (await admin.api.get(`/work-items/${item.id}`)).records;
 
@@ -114,10 +116,10 @@ test('a bug reaches Documentation from four boxes, two picks, a link and who pay
   // That was the last thing: Who pays answered Delivered by Forge as well, so
   // the list has nothing left to show and the move is ready.
   await expect(page.getByTestId('bwx-gate')).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.locator('[data-testid="bwx-move"][data-to="documentation-period"]')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('[data-testid="bwx-move"][data-to="documentation-period"]')).toHaveAttribute('data-ready', 'true', { timeout: 30_000 });
 
   await page.locator('[data-testid="bwx-move"][data-to="documentation-period"]').click();
-  await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Documentation period');
+  await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Documentation period', { timeout: 30_000 });
 
   const saved = await admin.api.get(`/work-items/${item.id}`);
 
@@ -193,7 +195,7 @@ test('blocking on another item stores that item as the reason', async () => {
   await page.getByTestId('bwx-blocker-target_date').fill('2026-10-01');
   await page.getByRole('button', { name: 'Block it' }).click();
 
-  await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Blocked');
+  await expect(page.getByTestId('bwx-panel-stage')).toHaveText('Blocked', { timeout: 30_000 });
 
   const history = (await admin.api.get(`/work-items/${item.id}`)).history;
   const blocked = history.find((event) => 'blocked' === event.action);

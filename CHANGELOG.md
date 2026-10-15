@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.191.0] - 2026-10-14
+
+### Changed
+
+- In the task panel, drop-downs (who pays, priority, people, hours), dates, before-item picks and the test steps now save as soon as they change, like the checklist already did, with the same quiet "Saved.". Typed text still waits for Save changes. A refused auto-save says why under the field and keeps the saved value.
+
 ## [2.190.0] - 2026-10-14
 
 ### Changed

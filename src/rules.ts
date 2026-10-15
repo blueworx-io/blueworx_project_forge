@@ -55,8 +55,8 @@ export const RULES: RuleSection[] = [
         why: 'The checklist is the doer\'s own list of what done means, and the reviewer needs to know how to test it.',
       },
       {
-        what: 'A task\'s checklist saves as soon as it changes, without Save changes; every other edit in the task panel still waits for Save changes.',
-        why: 'A tick or a new line is too easy to lose by closing the task.',
+        what: 'In the task panel every drop-down (who pays, priority, people, hours), every date, every before-item pick, and the checklist and test steps save as soon as they change, with the same quiet "Saved." the button shows. Typed text (title, description, how to test it, comments) still waits for Save changes. A refused auto-save says why under the field and keeps the saved value.',
+        why: 'A pick, a date or a tick is too easy to lose by closing the task, while a half-typed sentence should not be sent mid-word.',
       },
       {
         what: 'A task\'s dates must stay in order (design by, then deliver by, then review by, then release by), though any of them may be in the past. Design by only shows when the task has a designer. The pickers don\'t offer a day earlier than the date before it, and a date left out of order is flagged under its field straight away as well as on Save.',

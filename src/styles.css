@@ -4355,3 +4355,9 @@ select.bwx-select {
 .bwx-date-order {
   color: var( --phase-exception-ink );
 }
+
+/* #544. What a refused auto-save said, under the field it was about. */
+.bwx-field-error {
+  margin: 4px 0 0;
+  color: var( --phase-exception-ink );
+}

@@ -192,20 +192,14 @@ test('the Designer sits after Doing the work, and can be named and cleared', asy
   // Named, the designer is given hours like everybody else.
   await page.selectOption('#bwx-designer_id', people.primary.id);
   await page.selectOption('#bwx-hours_designer', '1');
-  await page.locator('[data-testid="bwx-save"]').click();
-  await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
-  const named = (await admin.api.get(`/work-items/${item.id}`)).item;
-  expect(named.designer_id).toBe(people.primary.id);
-  expect(named.hours_designer).toBe(1);
+  // #544. Picks save on their own, so the record is what is waited for.
+  const read = () => admin.api.get(`/work-items/${item.id}`).then((answer) => answer.item);
+  await expect.poll(() => read().then((now) => [now.designer_id, now.hours_designer]), { timeout: 30_000 }).toEqual([people.primary.id, 1]);
 
   // Cleared, the hours go with them.
   await page.selectOption('#bwx-designer_id', '');
   await expect(page.locator('#bwx-hours_designer')).toBeDisabled();
-  await page.locator('[data-testid="bwx-save"]').click();
-  await expect(page.locator('[data-testid="bwx-panel-notice"]')).toHaveText('Saved.', { timeout: 30_000 });
-  const cleared = (await admin.api.get(`/work-items/${item.id}`)).item;
-  expect(cleared.designer_id).toBe('');
-  expect(cleared.hours_designer).toBe(0);
+  await expect.poll(() => read().then((now) => [now.designer_id, now.hours_designer]), { timeout: 30_000 }).toEqual(['', 0]);
 
   await page.close();
   await people.close();
