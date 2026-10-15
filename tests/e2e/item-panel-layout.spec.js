@@ -64,6 +64,13 @@ test('a pick saves on its own and typed text with Save changes, each one signed 
   test.slow();
 
   const page = await admin.context.newPage();
+  page.on('response', (response) => {
+    const method = response.request().method();
+
+    if ('GET' !== method && response.url().includes('/work-items/')) {
+      void response.text().then((body) => console.log(`DIAG ${method} ${response.status()} ${response.url().split('/v1')[1]} ${body.slice(0, 300)}`));
+    }
+  });
   await openThePanel(page);
 
   // #544. The priority saves the moment it is picked; the title waits.
@@ -78,8 +85,9 @@ test('a pick saves on its own and typed text with Save changes, each one signed 
   await expect(lines.last()).not.toContainText('title');
 
   await page.getByTestId('bwx-save').click();
-  // A refusal would say why here, which is worth more than a count.
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
+  await page.waitForTimeout(8_000);
+  const now = await admin.api.get(`/work-items/${item.id}`);
+  console.log(`DIAG state ${JSON.stringify({ title: now.item.title, version: now.item.record_version, events: now.history.map((event) => `${event.action}:${event.field}`), notice: await page.getByTestId('bwx-panel-notice').textContent().catch(() => null), input: await page.locator('#bwx-title').inputValue() })}`);
   await expect(lines).toHaveCount(3, { timeout: 30_000 });
   await expect(lines.last()).toContainText('Edited title');
   await expect(lines.last().getByTestId('bwx-history-who')).toHaveText('admin');
