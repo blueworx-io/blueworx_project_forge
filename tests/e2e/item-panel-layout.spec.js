@@ -78,6 +78,8 @@ test('a pick saves on its own and typed text with Save changes, each one signed 
   await expect(lines.last()).not.toContainText('title');
 
   await page.getByTestId('bwx-save').click();
+  // A refusal would say why here, which is worth more than a count.
+  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
   await expect(lines).toHaveCount(3, { timeout: 30_000 });
   await expect(lines.last()).toContainText('Edited title');
   await expect(lines.last().getByTestId('bwx-history-who')).toHaveText('admin');
