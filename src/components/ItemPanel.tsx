@@ -441,9 +441,22 @@ export function ItemPanel( {
   async function load() {
     try {
       const loaded = await api< Detail >( `/work-items/${ itemId }` );
+      // What was on screen when this read started, so a field somebody typed
+      // in while it was on its way is kept rather than emptied under them
+      // (#544): only fields left as they were take the fresh value.
+      const before = latest.current ? asDraft( latest.current.item ) : null;
+
       setDetail( loaded );
       setLoadState( 'ready' );
-      setDraft( asDraft( loaded.item ) );
+      setDraft( ( held ) => {
+        const fresh = asDraft( loaded.item );
+
+        if ( null === before ) {
+          return fresh;
+        }
+
+        return { ...fresh, ...Object.fromEntries( Object.entries( held ).filter( ( [ field, value ] ) => value !== before[ field ] ) ) };
+      } );
       setChecklist( loaded.item.checklist ?? [] );
       setTestSteps( loaded.item.test_steps ?? [] );
       setLinks( loaded.item.links ?? [] );
