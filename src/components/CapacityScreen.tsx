@@ -561,9 +561,12 @@ function WorkList( {
   const total = allocations.reduce( ( sum, allocation ) => sum + hoursIn( allocation ), 0 );
 
   return (
-    <section className="bwx-field" data-testid={ testId }>
-      <h3 className="bwx-capacity-section">
-        { title } <span className="bwx-capacity-of">{ durationLabel( total ) }</span>
+    <section className="bwx-field bwx-capacity-group" data-testid={ testId }>
+      { /* #520. A header that reads as a header: small caps on a rule, the total on the right. */ }
+      <h3 className="bwx-capacity-section" data-testid={ `${ testId }-head` }>
+        <span className="bwx-capacity-section-name">{ title }</span>
+        { ' ' }
+        <span className="bwx-capacity-of bwx-mono">{ durationLabel( total ) }</span>
       </h3>
       { 0 === allocations.length ? (
         <p className="bwx-list-empty">Nothing in this period.</p>

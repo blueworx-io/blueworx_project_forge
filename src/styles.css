@@ -2047,10 +2047,29 @@ body {
   margin-inline-start: 10px;
 }
 
+/* #520. The day panel's section headers read as headers: an eyebrow on a
+   rule, well clear of the entries beneath, with the total on the right. */
 .bwx-capacity-section {
-  margin: 0;
-  font-size: var( --text-small );
-  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 8px;
+  padding-block-end: 6px;
+  border-block-end: 1px solid var( --border-strong );
+  font-size: var( --text-caption );
+  line-height: var( --leading-caption );
+  letter-spacing: var( --tracking-caption );
+  text-transform: uppercase;
+  font-weight: var( --font-weight-label );
+  color: var( --color-steel );
+}
+
+.bwx-capacity-group:first-of-type .bwx-capacity-section {
+  margin-block-start: 8px;
+}
+
+.bwx-capacity-section-name {
   color: var( --text-primary );
 }
 
