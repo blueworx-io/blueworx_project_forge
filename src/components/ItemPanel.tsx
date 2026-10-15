@@ -441,6 +441,14 @@ export function ItemPanel( {
   async function load() {
     try {
       const loaded = await api< Detail >( `/work-items/${ itemId }` );
+
+      // A read that set off before a write landed is older than what is
+      // held: taking it would roll the version back and refuse the next
+      // save as stale (#544). The newer record stays.
+      if ( latest.current && loaded.item.record_version < latest.current.item.record_version ) {
+        return;
+      }
+
       // What was on screen when this read started, so a field somebody typed
       // in while it was on its way is kept rather than emptied under them
       // (#544): only fields left as they were take the fresh value.
