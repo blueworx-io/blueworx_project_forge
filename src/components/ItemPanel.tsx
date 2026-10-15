@@ -438,9 +438,10 @@ export function ItemPanel( {
   const label = ( id: string ) => stages.find( ( stage ) => stage.id === id )?.label ?? id;
   const staff = 'staff' === detail?.scope;
 
-  async function load() {
+  async function load( fresh = false ) {
     try {
-      const loaded = await api< Detail >( `/work-items/${ itemId }` );
+      // After a write the kept answer is behind: read past it (#544).
+      const loaded = await api< Detail >( `/work-items/${ itemId }`, fresh ? { cache: 'fresh' } : {} );
 
       // A read that set off before a write landed is older than what is
       // held: taking it would roll the version back and refuse the next
@@ -584,7 +585,7 @@ export function ItemPanel( {
         method: 'POST',
         body: { ...body, record_version: detail.item.record_version },
       } );
-      await load();
+      await load( true );
       onChanged();
       setShowing( '' );
       setOverrun( { to: '', reason: '' } );
@@ -808,7 +809,7 @@ export function ItemPanel( {
       }
 
       await saveAnswers();
-      await load();
+      await load( true );
       onChanged();
       setNotice( SAVED, 'ok' );
     } catch ( error ) {
@@ -916,7 +917,7 @@ export function ItemPanel( {
         method: 'POST',
         body: { requirement: requirement.id, value, evidence },
       } );
-      await load();
+      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That could not be recorded.' ) );
     } finally {
@@ -944,7 +945,7 @@ export function ItemPanel( {
       } );
       setMoving( null );
       setTakenOff( answer.taken_off.map( ( person ) => person.name || 'Somebody' ) );
-      await load();
+      await load( true );
       onChanged();
       setNotice( 'Moved to the new client.', 'ok' );
     } catch ( error ) {
@@ -964,7 +965,7 @@ export function ItemPanel( {
 
     try {
       await api( `/work-items/${ itemId }/dependencies`, { method: 'POST', body: { depends_on_id: id } } );
-      await load();
+      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That could not be connected.' ) );
     } finally {
@@ -981,7 +982,7 @@ export function ItemPanel( {
         await api( `/work-items/${ itemId }/dependencies/${ row.dependency_id }`, { method: 'DELETE' } );
       }
 
-      await load();
+      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That could not be disconnected.' ) );
     } finally {
@@ -1006,7 +1007,7 @@ export function ItemPanel( {
         await api( `/work-items/${ itemId }/images`, { method: 'POST', body: form } );
       }
 
-      await load();
+      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That image could not be added.' ) );
     } finally {
@@ -1019,7 +1020,7 @@ export function ItemPanel( {
 
     try {
       await api( `/work-items/${ itemId }/images/${ id }`, { method: 'DELETE' } );
-      await load();
+      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That image could not be removed.' ) );
     } finally {
@@ -1033,7 +1034,7 @@ export function ItemPanel( {
 
     try {
       await api( `/work-items/${ itemId }/tick`, { method: 'POST', body: { user_id: who, done } } );
-      await load();
+      await load( true );
       onChanged();
     } catch ( error ) {
       setNotice( messageFor( error, 'That could not be ticked.' ) );
@@ -1060,7 +1061,7 @@ export function ItemPanel( {
         },
       } );
       setComment( { body: '', url: '', visibility: comment.visibility, asking: false } );
-      await load();
+      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That comment could not be saved.' ) );
     } finally {
