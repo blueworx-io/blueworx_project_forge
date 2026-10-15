@@ -565,6 +565,7 @@ function WorkList( {
       { /* #520. A header that reads as a header: small caps on a rule, the total on the right. */ }
       <h3 className="bwx-capacity-section" data-testid={ `${ testId }-head` }>
         <span className="bwx-capacity-section-name">{ title }</span>
+        { ' ' }
         <span className="bwx-capacity-of bwx-mono">{ durationLabel( total ) }</span>
       </h3>
       { 0 === allocations.length ? (
