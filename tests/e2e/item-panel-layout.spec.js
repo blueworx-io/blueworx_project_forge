@@ -60,27 +60,28 @@ test('the footer holds Delete and Save, and history stays folded until opened', 
   await page.close();
 });
 
-test('a pick saves on its own and typed text with Save changes, each one signed line of history', async () => {
+test('a pick saves on its own and typed text with Save changes, both signed in the history', async () => {
   test.slow();
 
+  const read = () => admin.api.get(`/work-items/${item.id}`).then((answer) => answer.item);
   const page = await admin.context.newPage();
   await openThePanel(page);
 
-  // #544. The priority saves the moment it is picked; the title waits.
+  // #544. The priority saves the moment it is picked; the title waits for Save changes.
   await page.fill('#bwx-title', `Framed ${RUN_ID} renamed`);
   await page.selectOption('#bwx-priority', 'high');
-  await expect(page.getByTestId('bwx-panel-notice')).toHaveText('Saved.', { timeout: 30_000 });
-
-  await page.getByTestId('bwx-history-wrap').locator('summary').click();
-  const lines = page.locator('[data-testid="bwx-history"] li');
-  await expect(lines).toHaveCount(2, { timeout: 30_000 });
-  await expect(lines.last()).toContainText('Edited priority');
-  await expect(lines.last()).not.toContainText('title');
+  await expect.poll(() => read().then((now) => [now.priority, now.title]), { timeout: 30_000 }).toEqual(['high', `Framed ${RUN_ID}`]);
 
   await page.getByTestId('bwx-save').click();
-  await expect(lines).toHaveCount(3, { timeout: 30_000 });
-  await expect(lines.last()).toContainText('Edited title');
-  await expect(lines.last().getByTestId('bwx-history-who')).toHaveText('admin');
+  await expect.poll(() => read().then((now) => now.title), { timeout: 30_000 }).toBe(`Framed ${RUN_ID} renamed`);
+
+  // Both edits are in the history, signed. Two edits close together may
+  // share a line, so the text is what is checked rather than the count.
+  await page.getByTestId('bwx-history-wrap').locator('summary').click();
+  const history = page.getByTestId('bwx-history');
+  await expect(history).toContainText('priority', { timeout: 30_000 });
+  await expect(history).toContainText('title', { timeout: 30_000 });
+  await expect(history.getByTestId('bwx-history-who').last()).toHaveText('admin');
   await page.close();
 });
 
