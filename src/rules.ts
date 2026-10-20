@@ -27,6 +27,18 @@ export const RULES: RuleSection[] = [
         why: 'People plan and talk about releases by week, so the weeks are there without opening the release.',
       },
       {
+        what: 'Projects, releases and features nest inside each other, and bugs, tasks and feedback can sit under any of them or on their own. Bugs, tasks and feedback never have anything under them, and a level can only be changed if it still fits what it sits under and what sits under it.',
+        why: 'A client\'s work reads as projects made of releases, and the order of the levels keeps anything from ending up inside itself.',
+      },
+      {
+        what: 'A project or release\'s own hours are the work on it as a whole, such as planning it, the release review and delivering it. They are counted once, like any other item\'s hours, and never as a total of the work inside it.',
+        why: 'The work inside already carries its own hours, so adding them up again would count the same time twice.',
+      },
+      {
+        what: 'A project doesn\'t need Deliver by, Review by, Release by or Design by dates to leave Up Next. Its dates come from its releases, and a project with no dated releases reads Ongoing.',
+        why: 'A project can run for as long as its releases do, so its dates are worked out rather than typed in.',
+      },
+      {
         what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',
         why: 'So you can point a colleague at the exact piece of work instead of describing where to find it.',
       },

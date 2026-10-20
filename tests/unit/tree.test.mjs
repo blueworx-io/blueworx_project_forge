@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // #561. One tree of projects, releases and features, read the same way by the
 // client profile, the project page and the release page.
 
-import { buildTree, summary, topLevel } from '../../src/tree.mjs';
+import { beneath, buildTree, mayHold, summary, topLevel } from '../../src/tree.mjs';
 
 const item = (id, parent_id, work_type, extra = {}) => ({
   id,
@@ -98,4 +98,23 @@ test('counts on the item win once the server sends them', () => {
   const root = item('r', '', 'feature', { children_total: 4, children_finished: 1 });
 
   assert.deepEqual(summary(buildTree([root], 'r')), { total: 4, finished: 1, start: '', due: '', ongoing: true });
+});
+
+test('#562: bugs, tasks and feedback hold nothing and sit under anything; the rest go by level', () => {
+  const at = (level, work_type = 'feature') => ({ level, work_type });
+
+  assert.equal(mayHold(at('project'), at('milestone')), true);
+  assert.equal(mayHold(at('feature'), at('feature')), false);
+  assert.equal(mayHold(at('sub-feature'), at('sub-feature', 'bug')), true);
+  for (const type of ['bug', 'task', 'feedback']) {
+    assert.equal(mayHold(at('project', type), at('sub-feature')), false);
+    assert.equal(mayHold(at('project', type), at('sub-feature', 'bug')), false);
+  }
+});
+
+test('#562: everything beneath an item, however deep', () => {
+  const items = [item('p', '', 'feature'), item('r', 'p', 'feature'), item('f', 'r', 'feature'), item('b', 'f', 'bug'), item('x', '', 'task')];
+
+  assert.deepEqual([...beneath(items, 'p')].sort(), ['b', 'f', 'r']);
+  assert.deepEqual([...beneath(items, 'x')], []);
 });

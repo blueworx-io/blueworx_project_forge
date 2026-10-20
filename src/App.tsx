@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -9,6 +9,7 @@ import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { ClientsScreen } from './components/ClientsScreen';
 import { ClientProfileScreen } from './components/ClientProfileScreen';
+import { ProjectScreen } from './components/ProjectScreen';
 import { MeetingsScreen } from './components/MeetingsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
@@ -203,6 +204,7 @@ const TITLES: Record< ScreenName, string > = {
   people: 'People',
   clients: 'Clients',
   client: 'Client',
+  project: 'Project',
   leads: 'Leads',
   support: 'Support',
   meetings: 'Meetings',
@@ -243,6 +245,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   client: { crumbs: [ 'Clients', 'Client' ], eyebrow: 'Their details, sites and projects', tile: Building2, hue: 'teal' },
+  project: { crumbs: [ 'Clients', 'Project' ], eyebrow: 'Its releases, and the work in each', tile: FolderKanban, hue: 'teal' },
   leads: { crumbs: [ 'Clients', 'Leads' ], eyebrow: 'Who we are talking to', tile: Handshake, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
   meetings: { crumbs: [ 'Clients', 'Meetings' ], eyebrow: 'Standing meetings, and the next twelve weeks of them', tile: CalendarClock, hue: 'rose' },
@@ -301,20 +304,24 @@ export function App() {
     const rules = /(?:^|[#&])rules=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
     // #561. A link to one client's profile.
     const client = /(?:^|[#&])client=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    // #562. A link to one project's page.
+    const project = /(?:^|[#&])project=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
 
     if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
     // A Manager landing on an administrator's screen opens the board instead.
-    const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) ) && ( 'client' !== screen || '' !== client );
+    const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) ) && ( 'client' !== screen || '' !== client ) && ( 'project' !== screen || '' !== project );
 
-    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules, client };
+    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules, client, project };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
   // #561. Which client the profile screen shows.
   const [ clientId, setClientId ] = useState( landing.client );
+  // #562. Which project the project screen shows.
+  const [ projectId, setProjectId ] = useState( landing.project );
   /*
    * "New task" asks the board to open its add form; the board says when it
    * has, and the ask is over (#452). A count kept for good would be re-read
@@ -404,7 +411,8 @@ export function App() {
   const shut = compact && menuOpen ? { inert: '' } : {};
 
   const go = ( key: ScreenName, next?: ViewName, id?: string ) => {
-    if ( undefined !== id ) setClientId( id );
+    if ( undefined !== id && 'project' === key ) setProjectId( id );
+    else if ( undefined !== id ) setClientId( id );
     setScreen( key );
     if ( next ) setView( next );
     if ( menuOpen ) closeMenu();
@@ -438,8 +446,8 @@ export function App() {
   const rail = railFor( admin );
 
   const isCurrent = ( entry: Entry ): boolean => {
-    // A client's profile is reached from Clients, so Clients stays lit.
-    if ( ! ( 'key' in entry ) || entry.key !== ( 'client' === screen ? 'clients' : screen ) ) return false;
+    // A client's profile and its projects are reached from Clients, so Clients stays lit.
+    if ( ! ( 'key' in entry ) || entry.key !== ( 'client' === screen || 'project' === screen ? 'clients' : screen ) ) return false;
     if ( 'work' !== entry.key ) return true;
     // The list is a way of reading the board, so the Kanban entry stands for both.
     return entry.view === view || ( 'board' === entry.view && 'list' === view );
@@ -599,7 +607,10 @@ export function App() {
         { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } onOpen={ ( id ) => go( 'client', undefined, id ) } /> }
-        { 'client' === screen && <ClientProfileScreen key={ generation } clientId={ clientId } onBack={ () => go( 'clients' ) } /> }
+        { 'client' === screen && <ClientProfileScreen key={ generation } clientId={ clientId } onBack={ () => go( 'clients' ) } onOpenProject={ ( id ) => go( 'project', undefined, id ) } /> }
+        { 'project' === screen && (
+          <ProjectScreen key={ generation } projectId={ projectId } onBack={ ( id ) => ( id ? go( 'client', undefined, id ) : go( 'clients' ) ) } />
+        ) }
         { 'leads' === screen && <LeadsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }
         { 'meetings' === screen && <MeetingsScreen key={ generation } /> }

@@ -8,6 +8,54 @@
 /** Work that hangs off a feature and is never a parent itself. */
 export const LEAF_TYPES = ['bug', 'task', 'feedback'];
 
+/** The levels, highest first: Levels::ALL. */
+export const LEVEL_ORDER = ['project', 'milestone', 'feature', 'sub-feature'];
+
+/**
+ * #562. Whether one item may sit under another, as the server decides it: a
+ * bug, task or feedback item holds nothing and may sit under any level;
+ * everything else sits under a higher level only.
+ *
+ * @param {{ level: string, work_type: string }} parent The proposed parent.
+ * @param {{ level: string, work_type: string }} child The item to place.
+ * @returns {boolean}
+ */
+export function mayHold(parent, child) {
+  if (LEAF_TYPES.includes(parent.work_type)) return false;
+  if (LEAF_TYPES.includes(child.work_type)) return true;
+
+  const above = LEVEL_ORDER.indexOf(parent.level);
+  const below = LEVEL_ORDER.indexOf(child.level);
+
+  return -1 !== above && -1 !== below && above < below;
+}
+
+/**
+ * The ids of everything beneath an item, however deep: none of them may
+ * become its parent.
+ *
+ * @param {object[]} items Every item on the site.
+ * @param {string} rootId The item.
+ * @returns {Set<string>}
+ */
+export function beneath(items, rootId) {
+  const found = new Set();
+  const queue = [rootId];
+
+  while (queue.length) {
+    const id = queue.shift();
+
+    for (const one of items) {
+      if (one.parent_id === id && !found.has(one.id) && one.id !== rootId) {
+        found.add(one.id);
+        queue.push(one.id);
+      }
+    }
+  }
+
+  return found;
+}
+
 const byStartThenTitle = (a, b) => {
   const start = String(a.planned_start || '').localeCompare(String(b.planned_start || ''));
 

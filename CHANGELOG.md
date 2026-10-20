@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.196.0] - 2026-10-20
+
+### Added
+
+- A client's page lists their projects, and "+ Add project" starts one. Each project has its own page showing its dates, progress and releases, and you can add releases, features, bugs, tasks and feedback right where they belong.
+- An item's panel has a "Sits under" choice, so existing work can be moved under a project, release or feature.
+
+### Changed
+
+- Bugs, tasks and feedback can sit under anything, even a sub-feature, but nothing can sit under them.
+- Changing an item's level is now checked against what it sits under and what sits under it.
+- Projects no longer need dates to leave Up Next; their dates come from their releases.
+
 ## [2.195.0] - 2026-10-20
 
 ### Added

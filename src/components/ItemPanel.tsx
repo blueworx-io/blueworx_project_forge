@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { alphabetical } from '../alphabetical.mjs';
 import { CopyLink } from './CopyLink';
+import { SitsUnder } from './SitsUnder';
 import type { ReactNode } from 'react';
 import type {
   ChecklistRow,
@@ -1589,6 +1590,18 @@ export function ItemPanel( {
         { detail && item && (
           <>
             { staff && clientBox() }
+
+            { /* #562. Where it sits, saved as soon as it is picked (#544). */ }
+            { staff && (
+              <SitsUnder
+                item={ item }
+                siteItems={ siteItems }
+                onChanged={ () => {
+                  void load( true );
+                  onChanged();
+                } }
+              />
+            ) }
 
             { blocked && (
               <div>

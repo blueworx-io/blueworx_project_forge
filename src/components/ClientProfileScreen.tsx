@@ -1,21 +1,37 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import type { ClientRecord, ClientSiteRecord } from '../types';
+import type { ClientRecord, ClientSiteRecord, WorkItem } from '../types';
 import { api, isDenied } from '../api';
 import { useLiveReload } from '../live';
-import { Button, Panel, Tag } from '../kit';
+import { buildTree, summary, topLevel } from '../tree.mjs';
+import { Button, Panel, Select, StageChip, Tag } from '../kit';
+import { NewWork } from './NewWork';
 import { contactLabel } from './ClientsScreen';
 import { Screen } from './States';
 
+/** 3 Nov 2026, from a Y-m-d date, without the timezone moving the day. */
+const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } );
+
 /**
  * One client's page (#561): who they are, who looks after them, their sites,
- * and the projects under them. The projects fill in with the project pages;
- * until then the section says so.
+ * and the projects under them (#562), each opening its own page.
  */
-export function ClientProfileScreen( { clientId, onBack }: { clientId: string; onBack: () => void } ) {
+export function ClientProfileScreen( {
+  clientId,
+  onBack,
+  onOpenProject = () => undefined,
+}: {
+  clientId: string;
+  onBack: () => void;
+  onOpenProject?: ( projectId: string ) => void;
+} ) {
   const [ client, setClient ] = useState< ClientRecord | null >( null );
   const [ sites, setSites ] = useState< ClientSiteRecord[] >( [] );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'missing' | 'denied' | 'error' >( 'loading' );
+  // #562. Every item on the client's sites, for the projects and their progress.
+  const [ work, setWork ] = useState< WorkItem[] >( [] );
+  const [ projectSite, setProjectSite ] = useState( '' );
+  const [ adding, setAdding ] = useState( '' );
 
   async function load() {
     try {
@@ -26,8 +42,13 @@ export function ClientProfileScreen( { clientId, onBack }: { clientId: string; o
       ] );
       const found = all.clients.find( ( one ) => one.id === clientId ) ?? null;
 
+      const lists = await Promise.all(
+        theirs.sites.map( ( site ) => api< { items: WorkItem[] } >( `/work-items?client_site_id=${ site.id }` ).then( ( answer ) => answer.items ).catch( () => [] as WorkItem[] ) )
+      );
+
       setClient( found );
       setSites( theirs.sites );
+      setWork( lists.flat().filter( ( one ) => ! one.archived ) );
       setState( found ? 'ready' : 'missing' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
@@ -41,6 +62,10 @@ export function ClientProfileScreen( { clientId, onBack }: { clientId: string; o
   }, [ clientId ] );
 
   useLiveReload( () => load() );
+
+  const active = sites.filter( ( site ) => 'active' === site.status );
+  const chosenSite = active.some( ( site ) => site.id === projectSite ) ? projectSite : active[ 0 ]?.id ?? '';
+  const projects = topLevel( work, 'project' );
 
   return (
     <div className="bwx-client-profile" data-testid="bwx-client-profile">
@@ -73,12 +98,58 @@ export function ClientProfileScreen( { clientId, onBack }: { clientId: string; o
             ) }
           </Panel>
 
-          <Panel title="Projects">
+          <Panel
+            title="Projects"
+            right={
+              0 < active.length && (
+                <span className="bwx-moves">
+                  { 1 < active.length && (
+                    <Select
+                      aria-label="Site for the new project"
+                      data-testid="bwx-client-project-site"
+                      value={ chosenSite }
+                      options={ active.map( ( site ) => ( { value: site.id, label: site.name } ) ) }
+                      onChange={ ( event ) => setProjectSite( event.target.value ) }
+                    />
+                  ) }
+                  <Button size="sm" data-testid="bwx-client-add-project" onClick={ () => setAdding( chosenSite ) }>
+                    + Add project
+                  </Button>
+                </span>
+              )
+            }
+          >
             <div data-testid="bwx-client-projects">
-              <p className="bwx-hint">No projects yet.</p>
+              { 0 === projects.length ? (
+                <p className="bwx-hint">No projects yet.</p>
+              ) : (
+                <ul className="bwx-client-project-list">
+                  { projects.map( ( project ) => {
+                    const node = buildTree( work, project.id );
+                    const { total, finished, start, due, ongoing } = summary( node );
+                    const where = 1 < sites.length ? sites.find( ( site ) => site.id === project.client_site_id )?.name ?? '' : '';
+
+                    return (
+                      <li key={ project.id }>
+                        <button type="button" className="bwx-client-project bwx-project-open" data-testid="bwx-client-project" data-item={ project.id } onClick={ () => onOpenProject( project.id ) }>
+                          <span style={ { flex: '1 1 12rem' } }>{ project.title }</span>
+                          <span className="bwx-progress-figures">
+                            { [ where, ongoing ? 'Ongoing' : start ? `${ day( start ) } – ${ day( due ) }` : `Until ${ day( due ) }`, 0 === total ? 'No work yet' : `${ finished } of ${ total } done` ].filter( Boolean ).join( ' · ' ) }
+                          </span>
+                          <StageChip stage={ project.stage } dense />
+                        </button>
+                      </li>
+                    );
+                  } ) }
+                </ul>
+              ) }
             </div>
           </Panel>
         </>
+      ) }
+
+      { '' !== adding && (
+        <NewWork clientSiteId={ adding } preset={ { level: 'project', workType: 'feature' } } onClose={ () => setAdding( '' ) } onCreated={ () => void load() } />
       ) }
     </div>
   );
