@@ -160,12 +160,14 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
   );
 
   /**
-   * #564. A release in review: what the review raised, how many are done, and
-   * a way to raise more. Each fix is an ordinary bug or feedback item under
-   * the release, marked as raised in its review.
+   * #564. A release's review: what it raised and how many are done, and while
+   * the release is in review, a way to raise more. Each fix is an ordinary bug
+   * or feedback item under the release, marked as raised in its review, so the
+   * box stays once the review is over: it is the only place the fixes are drawn.
    */
   const reviewBox = ( node: Node ) => {
     const { total, finished } = reviewProgress( node );
+    const reviewing = 'in-review' === node.item.stage;
     const raise = ( workType: 'bug' | 'feedback' ) => addUnder( { level: 'sub-feature', parentId: node.item.id, workType, reviewOf: node.item.id } );
 
     return (
@@ -174,9 +176,13 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
           Release review
         </h3>
         <p className="bwx-release-review-count" data-testid="bwx-release-review-count">
-          { 0 === total
+          { 0 === node.review.length
             ? 'Nothing raised yet. Anything raised here has to be completed before this can be released.'
-            : `${ finished } of ${ total } done before this can be released` }
+            : 0 === total
+              ? 'Nothing left to do: everything raised here was ended.'
+              : reviewing
+                ? `${ finished } of ${ total } done before this can be released`
+                : `${ finished } of ${ total } done` }
         </p>
         { 0 < node.review.length && (
           <ul className="bwx-release-review-list">
@@ -199,14 +205,16 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
             } ) }
           </ul>
         ) }
-        <div className="bwx-project-adds">
-          <Button size="sm" variant="ghost" data-testid="bwx-release-raise" data-type="bug" onClick={ () => raise( 'bug' ) }>
-            + Raise a bug
-          </Button>
-          <Button size="sm" variant="ghost" data-testid="bwx-release-raise" data-type="feedback" onClick={ () => raise( 'feedback' ) }>
-            + Raise feedback
-          </Button>
-        </div>
+        { reviewing && (
+          <div className="bwx-project-adds">
+            <Button size="sm" variant="ghost" data-testid="bwx-release-raise" data-type="bug" onClick={ () => raise( 'bug' ) }>
+              + Raise a bug
+            </Button>
+            <Button size="sm" variant="ghost" data-testid="bwx-release-raise" data-type="feedback" onClick={ () => raise( 'feedback' ) }>
+              + Raise feedback
+            </Button>
+          </div>
+        ) }
       </section>
     );
   };
@@ -298,7 +306,7 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
                       </div>
                       { expanded && (
                         <div className="bwx-project-inside">
-                          { 'in-review' === node.item.stage && reviewBox( node ) }
+                          { ( 'in-review' === node.item.stage || 0 < node.review.length ) && reviewBox( node ) }
                           { beneath( node ) }
                         </div>
                       ) }

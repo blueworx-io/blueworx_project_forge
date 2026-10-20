@@ -61,7 +61,7 @@ async function approve(team, release) {
 
 test('raising a fix in review blocks approval until it is completed', async ({ browser, baseURL }) => {
   // A feature, a release and a bug walked through every gate, one server thread.
-  test.setTimeout(1_200_000);
+  test.setTimeout(600_000);
 
   const team = await Forge.team(admin.api, browser, baseURL, client.id);
   const { project, release, feature } = await aRelease('Reviewed');
@@ -112,6 +112,19 @@ test('raising a fix in review blocks approval until it is completed', async ({ b
   expect(approved.status(), await approved.text()).toBe(200);
   expect((await approved.json()).item.stage).toBe('completed');
 
+  // Past review, the fix is still shown with the release, without the raise buttons.
+  const after = await admin.context.newPage();
+
+  await after.goto(`/blueworx-forge/#screen=project&project=${project.id}`);
+  const done = after.getByTestId('bwx-project-release').filter({ hasText: release.title });
+  await expect(done).toBeVisible({ timeout: 30_000 });
+  await done.getByTestId('bwx-project-toggle').click();
+  const kept = done.getByTestId('bwx-release-review');
+  await expect(kept.getByTestId('bwx-release-fix').filter({ hasText: bugTitle })).toBeVisible(SLOW);
+  await expect(kept.getByTestId('bwx-release-review-count')).toHaveText('1 of 1 done');
+  await expect(kept.getByTestId('bwx-release-raise')).toHaveCount(0);
+
+  await after.close();
   await team.close();
 });
 
@@ -148,6 +161,28 @@ test('only bugs and feedback, only while in review', async ({ browser, baseURL }
   const body = await task.json();
   expect(body.code).toBe('bwx_forge_invalid_review_fix');
   expect(body.message).toBe("Only bugs and feedback can be raised in a release's review, while it is in review.");
+
+  // The fix must sit straight under the release it names…
+  const elsewhere = await Forge.makeItem(admin.api, site.id, {
+    title: `Under the feature ${RUN_ID}`,
+    level: 'sub-feature',
+    work_type: 'bug',
+    parent_id: feature.id,
+    review_of: release.id,
+  });
+  expect(elsewhere.status()).toBe(400);
+  expect((await elsewhere.json()).code).toBe('bwx_forge_invalid_review_fix');
+
+  // …and that parent has to be a release.
+  const notRelease = await Forge.makeItem(admin.api, site.id, {
+    title: `Not a release ${RUN_ID}`,
+    level: 'sub-feature',
+    work_type: 'bug',
+    parent_id: feature.id,
+    review_of: feature.id,
+  });
+  expect(notRelease.status()).toBe(400);
+  expect((await notRelease.json()).code).toBe('bwx_forge_invalid_review_fix');
 
   await team.close();
 });
