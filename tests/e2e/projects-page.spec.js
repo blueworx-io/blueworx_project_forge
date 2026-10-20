@@ -115,6 +115,10 @@ test('completed projects sit behind the Completed switch', async ({ browser, bas
   const current = await Forge.walkTo(admin.api, project, [...THROUGH_REVIEW, 'released'], { seats: team.seats, as: team.as });
   expect(current.stage).toBe('released');
 
+  const dropped = await made(one.site, { title: `Dropped ${RUN_ID}`, level: 'project' });
+  const ended = await admin.api.post(`/work-items/${dropped.id}/outcome`, { outcome: 'cancelled', reason: 'Not needed.', record_version: dropped.record_version });
+  expect(ended.status(), await ended.text()).toBe(200);
+
   const open = await made(one.site, { title: `Still going ${RUN_ID}`, level: 'project' });
 
   const page = await admin.context.newPage();
@@ -125,9 +129,11 @@ test('completed projects sit behind the Completed switch', async ({ browser, bas
   await expect(page.getByTestId('bwx-projects-active')).toHaveAttribute('aria-pressed', 'true');
   await expect(rowFor(page, open.title)).toBeVisible(SLOW);
   await expect(rowFor(page, project.title)).toHaveCount(0);
+  await expect(rowFor(page, dropped.title)).toHaveCount(0);
 
   await page.getByTestId('bwx-projects-completed').click();
   await expect(rowFor(page, project.title)).toBeVisible(SLOW);
+  await expect(rowFor(page, dropped.title)).toBeVisible();
   await expect(rowFor(page, open.title)).toHaveCount(0);
 
   await page.getByTestId('bwx-projects-active').click();

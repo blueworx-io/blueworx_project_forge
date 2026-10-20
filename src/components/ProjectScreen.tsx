@@ -37,7 +37,7 @@ const featureLevel = ( level: string ) => ( 'milestone' === level ? 'feature' : 
 const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } );
 
 /** "N of M done", or that there is nothing yet, never 0% of nothing. */
-function Progress( { node }: { node: Node } ) {
+export function Progress( { node }: { node: Node } ) {
   const { total, finished } = summary( node );
 
   if ( 0 === total ) {

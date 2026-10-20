@@ -2230,7 +2230,6 @@ td[ data-band='over' ] {
   border-radius: 999px;
 }
 
-.bwx-projects-progress { display: flex; flex-direction: column; gap: 4px; min-width: 6rem; }
 .bwx-progress-figures {
   font-family: var( --font-mono );
   font-size: var( --text-caption );

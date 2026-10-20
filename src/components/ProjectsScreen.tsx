@@ -8,6 +8,7 @@ import { ALL_SITES } from '../sites';
 import { summary } from '../tree.mjs';
 import { Button, DataView, EmptyState, Panel, StageChip } from '../kit';
 import type { Column } from '../kit';
+import { Progress } from './ProjectScreen';
 import { Screen } from './States';
 
 /** 3 Nov 2026, from a Y-m-d date, without the timezone moving the day. */
@@ -15,6 +16,9 @@ const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateSt
 
 /** The numbers a project row shows, from the item alone: its releases carry them already. */
 const figures = ( project: WorkItem ) => summary( { item: project, parts: [], attached: [] } );
+
+/** Released, or closed without being released (cancelled and the like); a deferred project is still to come. */
+const finished = ( one: WorkItem ) => 'released' === one.stage || ( '' !== one.terminal_outcome && 'deferred' !== one.terminal_outcome );
 
 /** Every project across the studio's clients (#563): where each is, and how far along. */
 export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => void } ) {
@@ -37,13 +41,12 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
   useEffect( () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [] );
 
   useLiveReload( () => load() );
 
   const ofSite = projects.filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
-  const shown = ofSite.filter( ( one ) => completed === ( 'released' === one.stage ) );
+  const shown = ofSite.filter( ( one ) => completed === finished( one ) );
 
   const columns: Column< WorkItem >[] = [
     {
@@ -81,20 +84,7 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
       width: 220,
       sortBy: ( project ) => project.progress ?? 0,
       render: ( project ) => {
-        const { total, finished } = figures( project );
-
-        if ( 0 === total ) {
-          return <span className="bwx-hint">No work yet</span>;
-        }
-
-        return (
-          <span className="bwx-projects-progress">
-            <span className="fk-meter-track" role="progressbar" aria-valuemin={ 0 } aria-valuemax={ total } aria-valuenow={ finished } aria-label={ `${ finished } of ${ total } done` }>
-              <span className="fk-meter-used" style={ { width: `${ Math.round( ( finished / total ) * 100 ) }%` } } />
-            </span>
-            <span className="bwx-progress-figures">{ `${ finished } of ${ total } done` }</span>
-          </span>
-        );
+        return <Progress node={ { item: project, parts: [], attached: [] } } />;
       },
     },
   ];
@@ -126,7 +116,7 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
             rows={ shown }
             fixed
             onRowClick={ ( project ) => onOpen( project.id ) }
-            empty={ <EmptyState icon={ FolderKanban } dense title={ completed ? 'No completed projects' : 'No projects yet' } body={ completed ? 'A project appears here once it is released.' : "Add one from a client's page." } /> }
+            empty={ <EmptyState icon={ FolderKanban } dense title={ completed ? 'No completed projects' : 'No projects yet' } body={ completed ? 'A project appears here once it is released or closed.' : "Add one from a client's page." } /> }
             footer={ `${ shown.length } ${ 1 === shown.length ? 'project' : 'projects' }` }
             testId="bwx-projects-list"
           />

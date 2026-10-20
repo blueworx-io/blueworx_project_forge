@@ -31,7 +31,7 @@ export const RULES: RuleSection[] = [
         why: 'A client\'s work reads as projects made of releases, and the order of the levels keeps anything from ending up inside itself.',
       },
       {
-        what: 'The Projects page lists every project, the active ones first and the released ones behind Completed. Its dates and progress come from the releases inside, and a project with none reads Ongoing and No work yet.',
+        what: 'The Projects page lists every project, the active ones first and the released or closed ones behind Completed. Its dates and progress come from the releases inside, and a project with none reads Ongoing and No work yet.',
         why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
       },
       {
