@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.192.1] - 2026-10-20
+
+### Fixed
+
+- Capacity no longer shows your hours as still to do once you have handed the work on. When a task goes into review, the hours of the person who did it count as done on the day they were planned for, instead of sitting on today as overdue while somebody else reviews it. The designer's hours count as done once the build starts. Sending the work back puts them back on the to-do list.
+
 ## [2.192.0] - 2026-10-14
 
 ### Changed
