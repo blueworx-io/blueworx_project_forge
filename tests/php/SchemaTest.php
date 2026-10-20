@@ -212,6 +212,17 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
+	 * #564. A bug or feedback item raised in a release's review names that
+	 * release, so the review box can tell it apart from other work under it.
+	 */
+	public function test_work_can_say_which_release_review_raised_it(): void {
+		$items = Schema::definitions()[ Schema::work_items_table() ];
+
+		$this->assertStringContainsString( "review_of varchar(32) NOT NULL DEFAULT ''", $items );
+		$this->assertGreaterThanOrEqual( 42, Schema::VERSION );
+	}
+
+	/**
 	 * A site row names its client, and that column is indexed: every scoped
 	 * query in Milestone 2 and after reaches a site through its client.
 	 */

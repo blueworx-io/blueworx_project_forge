@@ -57,7 +57,7 @@ final class Derived {
 	 * Held as a list so the test that proves none of them is writable can walk
 	 * it, rather than naming them again and drifting.
 	 */
-	public const NAMES = array( 'progress', 'derived_state', 'derived_start', 'derived_due' );
+	public const NAMES = array( 'progress', 'derived_state', 'derived_start', 'derived_due', 'children_total', 'children_finished' );
 
 	/**
 	 * The stage from which a child counts as under way. Anything before it is
@@ -155,14 +155,68 @@ final class Derived {
 	 * @return array<string, mixed>
 	 */
 	public static function fields( array $children ): array {
-		$derived = self::from( $children );
+		$derived  = self::from( $children );
+		$counted  = self::counted( $children );
+		$finished = 0;
+
+		foreach ( $counted as $child ) {
+			if ( self::is_finished( (string) ( $child['stage'] ?? '' ) ) ) {
+				++$finished;
+			}
+		}
 
 		return array(
-			'progress'      => $derived['progress'],
-			'derived_state' => $derived['state'],
-			'derived_start' => $derived['start'],
-			'derived_due'   => $derived['due'],
+			'progress'          => $derived['progress'],
+			'derived_state'     => $derived['state'],
+			'derived_start'     => $derived['start'],
+			'derived_due'       => $derived['due'],
+			// #562. What "N of M done" reads, so a page need not fetch the children.
+			'children_total'    => count( $counted ),
+			'children_finished' => $finished,
 		);
+	}
+
+	/**
+	 * Every item in a list, with what its children make it merged in (#565).
+	 *
+	 * The children are found in `$family`, one pass over it, rather than a
+	 * query per parent. It defaults to the items themselves; the studio's board
+	 * passes the whole site instead, so filtering the board to one column does
+	 * not change what a card says about itself.
+	 *
+	 * @param array<int, array<string, mixed>>      $items  The items to fill in.
+	 * @param array<int, array<string, mixed>>|null $family Where their children
+	 *                                                      are looked for.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function across( array $items, ?array $family = null ): array {
+		$children = self::children_of( $family ?? $items );
+
+		foreach ( $items as $index => $item ) {
+			$items[ $index ] = array_merge( $item, self::fields( $children[ (string) ( $item['id'] ?? '' ) ] ?? array() ) );
+		}
+
+		return $items;
+	}
+
+	/**
+	 * A list's items grouped under the id of their parent.
+	 *
+	 * @param array<int, array<string, mixed>> $items Every item to group.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function children_of( array $items ): array {
+		$children = array();
+
+		foreach ( $items as $candidate ) {
+			$parent = (string) ( $candidate['parent_id'] ?? '' );
+
+			if ( '' !== $parent ) {
+				$children[ $parent ][] = $candidate;
+			}
+		}
+
+		return $children;
 	}
 
 	/**

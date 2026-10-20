@@ -237,6 +237,27 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
+	 * #562. A project takes its dates from its releases, so leaving Up Next
+	 * asks it for none. A feature with no dates is still held.
+	 */
+	public function test_a_project_leaves_up_next_without_dates(): void {
+		$project = Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'level' => 'project', 'designer_id' => 'usr_d' ) ), array() );
+		$ids     = array_column( $project['all'], 'id' );
+
+		foreach ( array( 'G-UP-NEXT-5', 'G-UP-NEXT-10', 'G-UP-NEXT-11', 'G-UP-NEXT-12' ) as $id ) {
+			$this->assertNotContains( $id, $ids, "{$id} should not be asked of a project" );
+		}
+
+		$this->assertContains( 'G-UP-NEXT-1', $ids, 'A project still needs its seats' );
+
+		$feature = array_column( Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'level' => 'feature' ) ), array() )['unmet'], 'id' );
+
+		foreach ( array( 'G-UP-NEXT-5', 'G-UP-NEXT-10', 'G-UP-NEXT-11' ) as $id ) {
+			$this->assertContains( $id, $feature );
+		}
+	}
+
+	/**
 	 * Leaving In Development (2026-09-19, 2026-09-24): the test steps are
 	 * optional, hours still to do is gone, and the completion checklist is the
 	 * checklist itself.
@@ -547,6 +568,125 @@ final class WorkGatesTest extends TestCase {
 
 		$this->assertContains( 'G-COMPLETED-8', array_column( $open['unmet'], 'id' ) );
 		$this->assertNotContains( 'G-COMPLETED-8', array_column( $done['unmet'], 'id' ) );
+	}
+
+	/**
+	 * #564. A release goes into review once every feature in it is Completed.
+	 * Bugs, tasks and feedback under it don't hold it.
+	 */
+	public function test_a_release_goes_to_review_only_once_its_features_are_completed(): void {
+		$release = $this->item(
+			array(
+				'id'               => 'wrk_r',
+				'level'            => 'milestone',
+				'stage'            => 'in-development',
+				'test_description' => 'Try it.',
+			)
+		);
+
+		$feature = array(
+			'id'        => 'wrk_f',
+			'level'     => 'feature',
+			'work_type' => 'feature',
+			'review_of' => '',
+		);
+		$bug     = array(
+			'id'        => 'wrk_b',
+			'level'     => 'sub-feature',
+			'work_type' => 'bug',
+			'stage'     => 'triage',
+			'review_of' => '',
+		);
+
+		$open = Gates::evaluate( 'G-IN-DEVELOPMENT', $release, array(), array( 'children' => array( $feature + array( 'stage' => 'in-development' ), $bug ) ) );
+		$done = Gates::evaluate( 'G-IN-DEVELOPMENT', $release, array(), array( 'children' => array( $feature + array( 'stage' => 'completed' ), $bug ) ) );
+
+		$this->assertContains( 'G-IN-DEVELOPMENT-8', array_column( $open['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-8', array_column( $done['unmet'], 'id' ), 'a bug under the release does not hold it' );
+		$this->assertContains( 'Every feature Completed', array_column( $done['checks'], 'label' ) );
+	}
+
+	/**
+	 * #564. A release's review can't pass while a fix raised in it is open.
+	 */
+	public function test_a_release_review_waits_for_its_fixes(): void {
+		$release = $this->item(
+			array(
+				'id'    => 'wrk_r',
+				'level' => 'milestone',
+				'stage' => 'in-review',
+			)
+		);
+
+		$fix = array(
+			'id'        => 'wrk_x',
+			'level'     => 'sub-feature',
+			'work_type' => 'bug',
+			'review_of' => 'wrk_r',
+		);
+
+		$open = Gates::evaluate( 'G-IN-REVIEW', $release, array(), array( 'children' => array( $fix + array( 'stage' => 'in-development' ) ) ) );
+		$done = Gates::evaluate( 'G-IN-REVIEW', $release, array(), array( 'children' => array( $fix + array( 'stage' => 'completed' ) ) ) );
+		$none = Gates::evaluate( 'G-IN-REVIEW', $release, array(), array( 'children' => array() ) );
+
+		$this->assertContains( 'G-IN-REVIEW-6', array_column( $open['unmet'], 'id' ) );
+		$this->assertContains( 'Review fixes completed', array_column( $open['unmet'], 'label' ) );
+		$this->assertNotContains( 'G-IN-REVIEW-6', array_column( $done['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-REVIEW-6', array_column( $none['unmet'], 'id' ), 'no fixes is nothing to wait for' );
+	}
+
+	/**
+	 * #564. A fix that was cancelled, archived or moved to another release
+	 * stops holding the review open.
+	 */
+	public function test_a_cancelled_or_moved_fix_does_not_hold_the_review(): void {
+		$release = $this->item(
+			array(
+				'id'    => 'wrk_r',
+				'level' => 'milestone',
+				'stage' => 'in-review',
+			)
+		);
+
+		$fix = array(
+			'id'        => 'wrk_x',
+			'level'     => 'sub-feature',
+			'work_type' => 'bug',
+			'stage'     => 'in-development',
+			'review_of' => 'wrk_r',
+		);
+
+		$cancelled = Gates::evaluate( 'G-IN-REVIEW', $release, array(), array( 'children' => array( array_merge( $fix, array( 'terminal_outcome' => 'cancelled' ) ) ) ) );
+		$archived  = Gates::evaluate( 'G-IN-REVIEW', $release, array(), array( 'children' => array( array_merge( $fix, array( 'archived' => true ) ) ) ) );
+		$moved     = Gates::evaluate( 'G-IN-REVIEW', $release, array(), array( 'children' => array( array_merge( $fix, array( 'review_of' => 'wrk_other' ) ) ) ) );
+
+		$this->assertNotContains( 'G-IN-REVIEW-6', array_column( $cancelled['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-REVIEW-6', array_column( $archived['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-IN-REVIEW-6', array_column( $moved['unmet'], 'id' ) );
+	}
+
+	/**
+	 * #564. Only a release is asked either release review row.
+	 */
+	public function test_review_rows_apply_to_releases_only(): void {
+		$feature  = $this->item( array( 'level' => 'feature' ) );
+		$children = array(
+			'children' => array(
+				array(
+					'id'        => 'wrk_c',
+					'level'     => 'sub-feature',
+					'work_type' => 'feature',
+					'stage'     => 'in-development',
+					'review_of' => 'wrk_1',
+				),
+			),
+		);
+
+		$development = Gates::evaluate( 'G-IN-DEVELOPMENT', $feature, array(), $children );
+		$review      = Gates::evaluate( 'G-IN-REVIEW', $feature, array(), $children );
+
+		$this->assertNotContains( 'G-IN-DEVELOPMENT-8', array_column( $development['checks'], 'id' ) );
+		$this->assertNotContains( 'G-IN-REVIEW-6', array_column( $review['checks'], 'id' ) );
 	}
 
 	/**

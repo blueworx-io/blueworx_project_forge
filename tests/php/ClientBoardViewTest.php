@@ -41,6 +41,12 @@ final class ClientBoardViewTest extends TestCase {
 		'release_target',
 		'people',
 		'awaiting_review',
+		'progress',
+		'derived_start',
+		'derived_due',
+		'children_total',
+		'children_finished',
+		'ended',
 	);
 
 	/**
@@ -151,6 +157,53 @@ final class ClientBoardViewTest extends TestCase {
 
 		$this->assertSame( 'In development', $item['stage_label'] );
 	}
+
+	/**
+	 * #565. A client reads a project's progress and dates, but not which of its
+	 * bugs and feedback came from a release review: to the client those are
+	 * ordinary work under the release.
+	 */
+	public function test_client_view_publishes_progress_but_not_review_of(): void {
+		$item = ClientView::item(
+			$this->row(
+				array(
+					'progress'          => 50,
+					'derived_state'     => 'in-progress',
+					'derived_start'     => '2026-09-01',
+					'derived_due'       => '2026-09-30',
+					'children_total'    => 4,
+					'children_finished' => 2,
+					'review_of'         => 'wrk_9',
+				)
+			),
+			$this->lookup()
+		);
+
+		$this->assertSame( 50, $item['progress'] );
+		$this->assertSame( '2026-09-01', $item['derived_start'] );
+		$this->assertSame( '2026-09-30', $item['derived_due'] );
+		$this->assertSame( 4, $item['children_total'] );
+		$this->assertSame( 2, $item['children_finished'] );
+		$this->assertArrayNotHasKey( 'review_of', $item );
+	}
+
+	/**
+	 * #565. A client can tell work that ended without being done from work
+	 * still open, but not how it ended: that it was cancelled, rejected or
+	 * deferred is ours to explain.
+	 */
+	public function test_client_view_says_work_ended_but_not_how(): void {
+		$ended = ClientView::item( $this->row( array( 'terminal_outcome' => 'cancelled' ) ), $this->lookup() );
+		$open  = ClientView::item( $this->row( array( 'terminal_outcome' => '' ) ), $this->lookup() );
+		$bare  = ClientView::item( $this->row(), $this->lookup() );
+
+		$this->assertTrue( $ended['ended'] );
+		$this->assertFalse( $open['ended'] );
+		$this->assertFalse( $bare['ended'] );
+		$this->assertArrayNotHasKey( 'terminal_outcome', $ended );
+		$this->assertArrayNotHasKey( 'terminal_outcome', $open );
+	}
+
 	// -----------------------------------------------------------------------
 	// The people on a card.
 	// -----------------------------------------------------------------------

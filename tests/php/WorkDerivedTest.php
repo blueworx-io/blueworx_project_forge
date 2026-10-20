@@ -269,6 +269,60 @@ final class WorkDerivedTest extends TestCase {
 	// -----------------------------------------------------------------------
 
 	/**
+	 * #562. The counts a project page reads progress from: only the children
+	 * that still count, and how many of those are done.
+	 */
+	public function test_fields_count_total_and_finished_children(): void {
+		$fields = Derived::fields(
+			array(
+				$this->child( 'completed' ),
+				$this->child( 'triage', array( 'terminal_outcome' => 'cancelled' ) ),
+			)
+		);
+
+		$this->assertSame( 1, $fields['children_total'] );
+		$this->assertSame( 1, $fields['children_finished'] );
+		$this->assertContains( 'children_total', Derived::NAMES );
+		$this->assertContains( 'children_finished', Derived::NAMES );
+	}
+
+	/**
+	 * #565. A whole list at once: each item gains what its children make it,
+	 * read from the same list.
+	 */
+	public function test_across_fills_in_each_item_from_its_children_in_the_list(): void {
+		$items = Derived::across(
+			array(
+				array( 'id' => 'wrk_p', 'parent_id' => '', 'stage' => 'triage' ),
+				$this->child( 'completed', array( 'id' => 'wrk_a', 'parent_id' => 'wrk_p', 'planned_start' => '2026-09-01', 'planned_due' => '2026-09-10' ) ),
+				$this->child( 'triage', array( 'id' => 'wrk_b', 'parent_id' => 'wrk_p', 'planned_due' => '2026-09-20' ) ),
+			)
+		);
+
+		$this->assertSame( 50, $items[0]['progress'] );
+		$this->assertSame( 2, $items[0]['children_total'] );
+		$this->assertSame( 1, $items[0]['children_finished'] );
+		$this->assertSame( '2026-09-01', $items[0]['derived_start'] );
+		$this->assertSame( '2026-09-20', $items[0]['derived_due'] );
+		$this->assertSame( 0, $items[1]['children_total'] );
+		$this->assertSame( Derived::EMPTY_PARENT, $items[1]['derived_state'] );
+	}
+
+	/**
+	 * #565. The children can be read from a wider list than the items being
+	 * returned, so filtering a board does not change what a card says.
+	 */
+	public function test_across_can_read_children_from_a_wider_list(): void {
+		$parent = array( 'id' => 'wrk_p', 'parent_id' => '', 'stage' => 'triage' );
+		$child  = $this->child( 'completed', array( 'id' => 'wrk_a', 'parent_id' => 'wrk_p' ) );
+		$items  = Derived::across( array( $parent ), array( $parent, $child ) );
+
+		$this->assertCount( 1, $items );
+		$this->assertSame( 100, $items[0]['progress'] );
+		$this->assertSame( 1, $items[0]['children_total'] );
+	}
+
+	/**
 	 * The derived names are not writable fields. This is the "no direct edit
 	 * path" half of #101, and it is checked here rather than trusted: a field
 	 * added to the writable list later would otherwise let somebody set the
@@ -280,5 +334,43 @@ final class WorkDerivedTest extends TestCase {
 		foreach ( Derived::NAMES as $name ) {
 			$this->assertNotContains( $name, $writable, sprintf( '%s can be written by hand', $name ) );
 		}
+	}
+
+	/**
+	 * #564. Which release review raised a fix is named when the fix is added,
+	 * and an edit can neither set it nor change it: a PATCH naming it is left
+	 * alone rather than written.
+	 */
+	public function test_an_edit_cannot_set_or_change_review_of(): void {
+		$this->assertNotContains( 'review_of', \Blueworx\Forge\Work\Fields::writable() );
+
+		$set = \Blueworx\Forge\Work\Validate::item( array( 'review_of' => 'wrk_9' ), true );
+
+		$this->assertSame( array(), $set['errors'] );
+		$this->assertArrayNotHasKey( 'review_of', $set['values'] );
+
+		$changed = \Blueworx\Forge\Work\Validate::item(
+			array(
+				'title'     => 'Wrong total',
+				'review_of' => '',
+			),
+			true
+		);
+
+		$this->assertSame( 'Wrong total', $changed['values']['title'] );
+		$this->assertArrayNotHasKey( 'review_of', $changed['values'] );
+
+		// Adding the work is the one time it is read.
+		$added = \Blueworx\Forge\Work\Validate::item(
+			array(
+				'title'     => 'Wrong total',
+				'level'     => 'sub-feature',
+				'work_type' => 'bug',
+				'review_of' => 'wrk_9',
+			),
+			false
+		);
+
+		$this->assertSame( 'wrk_9', $added['values']['review_of'] );
 	}
 }

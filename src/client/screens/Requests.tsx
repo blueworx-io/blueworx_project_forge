@@ -333,7 +333,7 @@ export function Requests() {
             <h3 className="fc-h3">What happens next</h3>
             <p className="fc-body">
               We read it, then either accept it, decline it, or come back with a question. Anything we accept becomes a
-              task under a project, feature or milestone — and what you sent stays exactly as you wrote it. If your hours
+              task under a project, release or feature — and what you sent stays exactly as you wrote it. If your hours
               have run out, accepted work can still start but cannot be scheduled until there are hours to cover it.
               Confirmed bugs go to Bug Tracking first, where we pin down how to repeat them before anything is built.
             </p>

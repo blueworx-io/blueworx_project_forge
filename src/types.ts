@@ -5,6 +5,8 @@ export interface ForgeData {
   canEdit: boolean;
   canManage: boolean;
   siteUrl: string;
+  /** The app page's address, for links that open an item (#559). */
+  appUrl?: string;
   /** The WordPress admin, for the screens that still live there. */
   adminUrl?: string;
   /** The signed-in WordPress user, and the Forge person behind it (#309). */
@@ -57,6 +59,8 @@ export interface WorkItem {
   client_name?: string;
   site_name?: string;
   parent_id: string;
+  /** #564. The release whose review raised it, or '' for any other work. */
+  review_of?: string;
   level: string;
   level_label: string;
   work_type: string;
@@ -148,6 +152,9 @@ export interface WorkItem {
   derived_state?: 'empty' | 'not-started' | 'in-progress' | 'completed';
   derived_start?: string;
   derived_due?: string;
+  /** #562. The children that still count, and how many of them are done. */
+  children_total?: number;
+  children_finished?: number;
 
   /*
    * The ids this waits on (#120). Sent with every item in a list rather than
@@ -196,7 +203,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'leads' | 'support' | 'meetings' | 'profile' | 'settings';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'client' | 'projects' | 'project' | 'leads' | 'support' | 'meetings' | 'profile' | 'settings';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';

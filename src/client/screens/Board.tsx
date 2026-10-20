@@ -238,7 +238,7 @@ function KeyDates( { board }: { board: BoardView } ) {
     { key: 'when', label: 'Date', mono: true, render: ( row ) => day( row.when ), width: 120 },
     { key: 'item', label: 'Item', mono: true, render: ( row ) => <a href={ `#board/${ row.item.id }` } className="fc-link">{ row.item.id }</a>, sortBy: ( row ) => row.item.id, width: 160 },
     { key: 'title', label: 'Work', render: ( row ) => row.item.title, sortBy: ( row ) => row.item.title, wrap: true },
-    { key: 'what', label: 'Milestone' },
+    { key: 'what', label: 'Release' },
     { key: 'stage', label: 'Stage', render: ( row ) => <StageChip stage={ row.item.stage } dense />, sortBy: ( row ) => row.item.stage_label },
   ];
 

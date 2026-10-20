@@ -5,16 +5,34 @@ import { Aside, RichText } from '../kit';
 
 const LEVELS = [
   { id: 'project', label: 'Project' },
-  { id: 'milestone', label: 'Milestone' },
+  { id: 'milestone', label: 'Release' },
   { id: 'feature', label: 'Feature' },
   { id: 'sub-feature', label: 'Sub-feature' },
 ];
 
 const TYPES = [
+  // #562. Only ever preset, for projects, releases and features: the free
+  // choice below stays bugs, feedback and tasks (2026-09-18).
+  { id: 'feature', label: 'Feature' },
   { id: 'bug', label: 'Bug' },
   { id: 'feedback', label: 'Feedback' },
   { id: 'task', label: 'Task' },
 ];
+
+/** What the free choice of type offers. */
+const CHOOSABLE = TYPES.filter( ( option ) => 'feature' !== option.id );
+
+/**
+ * #562. Work added from inside something: its level and, when given, its type
+ * are fixed, and it is put under its parent. `reviewOf` names the release
+ * whose review raised it (#564).
+ */
+export interface NewWorkPreset {
+  level?: string;
+  parentId?: string;
+  workType?: string;
+  reviewOf?: string;
+}
 
 /**
  * Adding work.
@@ -29,12 +47,14 @@ export function NewWork( {
   sites = [],
   onClose,
   onCreated,
+  preset,
 }: {
   clientSiteId: string;
   /** Every site there is, so the form can ask which client this is for. */
   sites?: SiteOption[];
   onClose: () => void;
   onCreated: () => void;
+  preset?: NewWorkPreset;
 } ) {
   // The board's site when it is on one; otherwise the studio's own, then whatever is first.
   const [ siteId, setSiteId ] = useState( () =>
@@ -42,8 +62,13 @@ export function NewWork( {
   );
   const [ title, setTitle ] = useState( '' );
   const [ problem, setProblem ] = useState( '' );
-  const [ level, setLevel ] = useState( 'feature' );
-  const [ workType, setWorkType ] = useState( 'task' );
+  const [ level, setLevel ] = useState( preset?.level ?? 'feature' );
+  const [ workType, setWorkType ] = useState( preset?.workType ?? 'task' );
+  // A release has dates of its own (#562); its weeks are read from them.
+  const dated = 'milestone' === preset?.level;
+  const [ start, setStart ] = useState( '' );
+  const [ due, setDue ] = useState( '' );
+  const fixed = ( list: Array< { id: string; label: string } >, id: string ) => list.find( ( option ) => option.id === id )?.label ?? id;
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
 
@@ -60,6 +85,10 @@ export function NewWork( {
           problem,
           level,
           work_type: workType,
+          ...( preset?.parentId ? { parent_id: preset.parentId } : {} ),
+          ...( preset?.reviewOf ? { review_of: preset.reviewOf } : {} ),
+          ...( dated && '' !== start ? { planned_start: start } : {} ),
+          ...( dated && '' !== due ? { planned_due: due } : {} ),
         },
       } );
       onCreated();
@@ -136,6 +165,25 @@ export function NewWork( {
           <RichText id="bwx-new-problem" testId="bwx-new-problem" label="Item description" value={ problem } onChange={ setProblem } />
         </div>
 
+        { dated && (
+          <div className="bwx-pair">
+            <div className="bwx-field">
+              <label htmlFor="bwx-new-start">Starts</label>
+              <input id="bwx-new-start" type="date" className="bwx-input" data-testid="bwx-new-start" value={ start } onChange={ ( event ) => setStart( event.target.value ) } />
+            </div>
+            <div className="bwx-field">
+              <label htmlFor="bwx-new-due">Ends</label>
+              <input id="bwx-new-due" type="date" className="bwx-input" data-testid="bwx-new-due" value={ due } min={ start || undefined } onChange={ ( event ) => setDue( event.target.value ) } />
+            </div>
+          </div>
+        ) }
+
+        { preset?.level ? (
+          <div className="bwx-field">
+            <label htmlFor="bwx-new-level">Level</label>
+            <input id="bwx-new-level" className="bwx-input" readOnly data-testid="bwx-new-level-fixed" value={ fixed( LEVELS, level ) } />
+          </div>
+        ) : (
         <div className="bwx-field">
           <label htmlFor="bwx-new-level">Level</label>
           <select
@@ -151,22 +199,31 @@ export function NewWork( {
             ) ) }
           </select>
         </div>
+        ) }
 
+        { preset?.workType ? (
+          <div className="bwx-field">
+            <label htmlFor="bwx-new-type">Type</label>
+            <input id="bwx-new-type" className="bwx-input" readOnly data-testid="bwx-new-type-fixed" value={ fixed( TYPES, workType ) } />
+          </div>
+        ) : (
         <div className="bwx-field">
           <label htmlFor="bwx-new-type">Type</label>
           <select
             id="bwx-new-type"
             className="bwx-select"
+            data-testid="bwx-new-type"
             value={ workType }
             onChange={ ( event ) => setWorkType( event.target.value ) }
           >
-            { TYPES.map( ( option ) => (
+            { CHOOSABLE.map( ( option ) => (
               <option key={ option.id } value={ option.id }>
                 { option.label }
               </option>
             ) ) }
           </select>
         </div>
+        ) }
 
     </Aside>
   );

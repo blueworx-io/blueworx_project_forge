@@ -8,6 +8,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.199.0] - 2026-10-20
+
+### Added
+
+- Clients have a Projects page in their workspace. It lists their projects with dates and how far along each is, and opening one shows its releases, the weeks each runs and the work in it. It is read only, and any piece of work opens the same record as on Your work.
+
+### Fixed
+
+- The Projects page's Releases column counts only releases, not every piece of work under a project.
+- Cancelled, deferred and other ended work is tagged Ended on a project's page, a client's page and the client's Projects, so it is clear why it isn't in the count beside it.
+- A project's page says Projects at the top, and Back returns to wherever you opened it from: the Projects page or the client's page.
+- The Settings page now says that a project's own hours only reach capacity once it has a Deliver by date.
+- The client's Key dates table heads its date column Release instead of Milestone.
+- "Link copied" clears after a few seconds, so copying again is announced again.
+
+## [2.198.0] - 2026-10-20
+
+### Added
+
+- A release in review shows a release review box on its project page. The reviewer can raise bugs and feedback straight into it, and it shows how many are done before the release can go out.
+- A release's review can't be approved until everything raised in it is Completed.
+
+### Changed
+
+- A release can only go into review once every feature in it is Completed. A feature can still be released on its own before its release is.
+
+## [2.197.0] - 2026-10-20
+
+### Added
+
+- A Projects page under Clients lists every project across your clients, with its dates, how many releases it has and how far along it is. It follows the client picker at the top, and Completed shows the ones that have been released or closed. Click a project to open it.
+
+### Changed
+
+- A project's page now lights Projects in the menu instead of Clients.
+
+## [2.196.0] - 2026-10-20
+
+### Added
+
+- A client's page lists their projects, and "+ Add project" starts one. Each project has its own page showing its dates, progress and releases, and you can add releases, features, bugs, tasks and feedback right where they belong.
+- An item's panel has a "Sits under" choice, so existing work can be moved under a project, release or feature.
+
+### Changed
+
+- Bugs, tasks and feedback can sit under anything, even a sub-feature, but nothing can sit under them.
+- Changing an item's level is now checked against what it sits under and what sits under it.
+- Projects no longer need dates to leave Up Next; their dates come from their releases.
+
+## [2.195.0] - 2026-10-20
+
+### Added
+
+- Each client has a page of its own, opened with "Open profile" on Clients. It shows their contact and sites, with room for their projects.
+
+## [2.194.0] - 2026-10-20
+
+### Changed
+
+- Milestones are now called releases, and show their weeks on the board and in the list.
+
+## [2.193.0] - 2026-10-20
+
+### Added
+
+- Every item has a Copy link button beside Close. It copies a link that opens that item, and shows the link to copy by hand if your browser will not let it copy.
+
 ## [2.192.1] - 2026-10-20
 
 ### Fixed

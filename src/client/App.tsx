@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { CalendarCheck, Columns3, Inbox, LayoutDashboard, Receipt, X } from 'lucide-react';
+import { CalendarCheck, Columns3, FolderKanban, Inbox, LayoutDashboard, Receipt, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card, EmptyState, SectionTitle, Tag, ToastProvider } from '../kit';
 import { clientData } from './data';
 import { api } from './api';
 import { Dashboard } from './screens/Dashboard';
 import { Board } from './screens/Board';
+import { Projects } from './screens/Projects';
 import { Requests } from './screens/Requests';
 import { Sales } from './screens/Sales';
 import { Onboarding } from './screens/Onboarding';
@@ -19,7 +20,7 @@ import { Onboarding } from './screens/Onboarding';
  * works, without asking WordPress for a route it does not have.
  */
 
-type ScreenName = 'dashboard' | 'board' | 'requests' | 'sales' | 'onboarding';
+type ScreenName = 'dashboard' | 'board' | 'projects' | 'requests' | 'sales' | 'onboarding';
 
 interface Screen {
   id: ScreenName;
@@ -43,6 +44,13 @@ const SCREENS: Screen[] = [
     title: 'Your work',
     sub: 'Your work, in the stage it is really in. You can read everything and open any card — moving work between stages is our job.',
     icon: Columns3,
+  },
+  {
+    id: 'projects',
+    label: 'Projects',
+    title: 'Projects',
+    sub: 'Your work grouped into projects and releases, with their dates and how far along each one is. Open any piece of work to read it or comment.',
+    icon: FolderKanban,
   },
   {
     id: 'requests',
@@ -168,6 +176,8 @@ export function App() {
             <Dashboard />
           ) : 'board' === screen && data ? (
             <Board item={ route.sub } />
+          ) : 'projects' === screen && data ? (
+            <Projects project={ route.sub } />
           ) : 'requests' === screen && data ? (
             <Requests />
           ) : 'sales' === screen && data ? (

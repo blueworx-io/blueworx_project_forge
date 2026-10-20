@@ -10,7 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 /**
- * WORK-1: Project, Milestone, Feature, Sub-Feature, as a field on one entity
+ * WORK-1: Project, Milestone (read as Release), Feature, Sub-Feature, as a field on one entity
  * rather than as four entities.
  *
  * One rule holds the shape together, and it lives here: a parent is always a
@@ -92,6 +92,31 @@ final class Levels {
 	}
 
 	/**
+	 * #562. Whether one item may sit under another, reading the type for bugs,
+	 * tasks and feedback and the level for everything else.
+	 *
+	 * A bug, task or feedback item never holds work, so it may sit under any
+	 * level without making a loop. Everything else keeps the rank rule.
+	 *
+	 * @param string $parent_level The proposed parent's level.
+	 * @param string $parent_type  The proposed parent's work type.
+	 * @param string $child_level  The child's level.
+	 * @param string $child_type   The child's work type.
+	 * @return bool
+	 */
+	public static function may_hold( string $parent_level, string $parent_type, string $child_level, string $child_type ): bool {
+		if ( Types::is_leaf( $parent_type ) ) {
+			return false;
+		}
+
+		if ( Types::is_leaf( $child_type ) ) {
+			return true;
+		}
+
+		return self::may_parent( $parent_level, $child_level );
+	}
+
+	/**
 	 * How a level reads to a human.
 	 *
 	 * @param string $level Level.
@@ -102,7 +127,7 @@ final class Levels {
 			case self::PROJECT:
 				return __( 'Project', 'blueworx-forge' );
 			case self::MILESTONE:
-				return __( 'Milestone', 'blueworx-forge' );
+				return __( 'Release', 'blueworx-forge' );
 			case self::FEATURE:
 				return __( 'Feature', 'blueworx-forge' );
 			case self::SUB_FEATURE:

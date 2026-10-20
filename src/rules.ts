@@ -23,6 +23,34 @@ export const RULES: RuleSection[] = [
     title: 'The task journey',
     rules: [
       {
+        what: 'Milestones are called releases, and a release shows the weeks it runs, such as Weeks 27 → 30, on the board and in the list.',
+        why: 'People plan and talk about releases by week, so the weeks are there without opening the release.',
+      },
+      {
+        what: 'Projects, releases and features nest inside each other, and bugs, tasks and feedback can sit under any of them or on their own. Bugs, tasks and feedback never have anything under them, and a level can only be changed if it still fits what it sits under and what sits under it.',
+        why: 'A client\'s work reads as projects made of releases, and the order of the levels keeps anything from ending up inside itself.',
+      },
+      {
+        what: 'The Projects page lists every project, the active ones first and the released or closed ones behind Completed. Its dates and progress come from the releases inside, its Releases count is only the releases in it, and a project with none reads Ongoing and No work yet.',
+        why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
+      },
+      {
+        what: 'A project or release\'s own hours are the work on it as a whole, such as planning it, the release review and delivering it. They are counted once, like any other item\'s hours, and never as a total of the work inside it. A project\'s own hours only reach capacity once it has a Deliver by date; until then they sit on no one\'s week.',
+        why: 'The work inside already carries its own hours, so adding them up again would count the same time twice.',
+      },
+      {
+        what: 'A project doesn\'t need Deliver by, Review by, Release by or Design by dates to leave Up Next. Its dates come from its releases, and a project with no dated releases reads Ongoing.',
+        why: 'A project can run for as long as its releases do, so its dates are worked out rather than typed in.',
+      },
+      {
+        what: 'Work that ended without being done, such as cancelled or deferred work, still shows on a project\'s page, a client\'s page and the client\'s Projects, tagged Ended, and is left out of the progress beside it. Clients see the tag, but not how it ended.',
+        why: 'So a count like 2 of 2 done next to a third piece of work makes sense, and nobody waits on work that has stopped.',
+      },
+      {
+        what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',
+        why: 'So you can point a colleague at the exact piece of work instead of describing where to find it.',
+      },
+      {
         what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Up Next, Design Process (only with a designer), In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts; a task with no designer goes straight from Up Next to In Development.',
         why: 'No stage can be jumped, because jumping one would skip the checks that stage is there for; Design Process is only a stop for tasks that have a design.',
       },
@@ -137,6 +165,18 @@ export const RULES: RuleSection[] = [
       {
         what: 'Sending work back from review to In Development needs a reason and a note of what was wrong, and starts a fresh review in which the earlier review\'s ticks no longer count.',
         why: 'Each review judges the work as it now is, while the earlier attempt stays in the history.',
+      },
+      {
+        what: 'A release can only go into review once every feature in it has reached Completed. Bugs, tasks and feedback under it don\'t hold it back, and a feature can be released on its own before its release is.',
+        why: 'The release review looks at the release as a whole, so it comes after each feature has had its own review.',
+      },
+      {
+        what: 'While a release is in review, its reviewer can raise bugs and feedback straight into it from the release review box on the project page. Only bugs and feedback can be raised there, and only while the release is in review. They are ordinary items with their own people and hours, and they count toward the release\'s progress.',
+        why: 'Problems found when looking at the release as a whole belong to that release, and the box keeps them apart from other work under it.',
+      },
+      {
+        what: 'A release\'s review can\'t be approved until everything raised in it has reached Completed. Anything raised there that is cancelled, archived or moved to another release stops holding it.',
+        why: 'A release shouldn\'t go out with problems its own review found still open.',
       },
       {
         what: 'Only the named deliverer, or their stand-in, can release a Completed task.',
@@ -499,6 +539,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'Client accounts never move tasks by any route; the one exception is approving or sending back a task they are reviewing.',
         why: 'Where work is in its journey is our decision, and that line is a security boundary rather than a preference.',
+      },
+      {
+        what: 'Clients see their own projects and releases, read only, on Projects in their workspace: each one\'s dates, how far along it is, and the work in it. Bugs and feedback raised in a release review show to them as ordinary work in that release.',
+        why: 'The client sees the same picture of their work that we plan it by, and never another client\'s.',
       },
     ],
   },

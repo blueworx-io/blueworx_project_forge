@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
 import { ClientsScreen } from './components/ClientsScreen';
+import { ClientProfileScreen } from './components/ClientProfileScreen';
+import { ProjectScreen } from './components/ProjectScreen';
+import { ProjectsScreen } from './components/ProjectsScreen';
 import { MeetingsScreen } from './components/MeetingsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
@@ -76,6 +79,7 @@ const RAIL: Entry[] = [
   { key: 'reminders', label: 'Reminders', icon: Bell, testId: 'bwx-screen-reminders' },
   { group: 'Clients' },
   { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
+  { key: 'projects', label: 'Projects', icon: FolderKanban, testId: 'bwx-screen-projects' },
   { key: 'leads', label: 'Leads', icon: Handshake, testId: 'bwx-screen-leads', admin: true },
   { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
   { key: 'meetings', label: 'Meetings', icon: CalendarClock, testId: 'bwx-screen-meetings' },
@@ -201,6 +205,9 @@ const TITLES: Record< ScreenName, string > = {
   settings: 'Settings',
   people: 'People',
   clients: 'Clients',
+  client: 'Client',
+  projects: 'Projects',
+  project: 'Project',
   leads: 'Leads',
   support: 'Support',
   meetings: 'Meetings',
@@ -240,6 +247,9 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   settings: { crumbs: [ 'Insight', 'Settings' ], eyebrow: 'How Forge behaves, and why', tile: Settings, hue: 'slate' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
+  client: { crumbs: [ 'Clients', 'Client' ], eyebrow: 'Their details, sites and projects', tile: Building2, hue: 'teal' },
+  projects: { crumbs: [ 'Clients', 'Projects' ], eyebrow: 'Every project, and how far along it is', tile: FolderKanban, hue: 'teal' },
+  project: { crumbs: [ 'Projects', 'Project' ], eyebrow: 'Its releases, and the work in each', tile: FolderKanban, hue: 'teal' },
   leads: { crumbs: [ 'Clients', 'Leads' ], eyebrow: 'Who we are talking to', tile: Handshake, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
   meetings: { crumbs: [ 'Clients', 'Meetings' ], eyebrow: 'Standing meetings, and the next twelve weeks of them', tile: CalendarClock, hue: 'rose' },
@@ -296,18 +306,29 @@ export function App() {
     const site = /(?:^|[#&])site=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
     // #528. A link to one rules topic opens Settings on that tab.
     const rules = /(?:^|[#&])rules=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
+    // #561. A link to one client's profile.
+    const client = /(?:^|[#&])client=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    // #562. A link to one project's page.
+    const project = /(?:^|[#&])project=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
 
     if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
     }
 
     // A Manager landing on an administrator's screen opens the board instead.
-    const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) );
+    const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) ) && ( 'client' !== screen || '' !== client ) && ( 'project' !== screen || '' !== project );
 
-    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules };
+    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules, client, project };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
+  // #561. Which client the profile screen shows.
+  const [ clientId, setClientId ] = useState( landing.client );
+  // #562. Which project the project screen shows.
+  const [ projectId, setProjectId ] = useState( landing.project );
+  // Where the project page was opened from, so Back returns there. A link
+  // straight to a project has no such place and goes back to Projects.
+  const [ projectFrom, setProjectFrom ] = useState< 'projects' | 'client' >( 'projects' );
   /*
    * "New task" asks the board to open its add form; the board says when it
    * has, and the ask is over (#452). A count kept for good would be re-read
@@ -396,7 +417,9 @@ export function App() {
   // reach (#443): not tabbable, and not found by a screen reader's cursor.
   const shut = compact && menuOpen ? { inert: '' } : {};
 
-  const go = ( key: ScreenName, next?: ViewName ) => {
+  const go = ( key: ScreenName, next?: ViewName, id?: string ) => {
+    if ( undefined !== id && 'project' === key ) setProjectId( id );
+    else if ( undefined !== id ) setClientId( id );
     setScreen( key );
     if ( next ) setView( next );
     if ( menuOpen ) closeMenu();
@@ -430,7 +453,8 @@ export function App() {
   const rail = railFor( admin );
 
   const isCurrent = ( entry: Entry ): boolean => {
-    if ( ! ( 'key' in entry ) || entry.key !== screen ) return false;
+    // A client's profile is reached from Clients, and a project's page from Projects, so those stay lit.
+    if ( ! ( 'key' in entry ) || entry.key !== ( 'client' === screen ? 'clients' : 'project' === screen ? 'projects' : screen ) ) return false;
     if ( 'work' !== entry.key ) return true;
     // The list is a way of reading the board, so the Kanban entry stands for both.
     return entry.view === view || ( 'board' === entry.view && 'list' === view );
@@ -589,7 +613,35 @@ export function App() {
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
         { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
-        { 'clients' === screen && <ClientsScreen key={ generation } /> }
+        { 'clients' === screen && <ClientsScreen key={ generation } onOpen={ ( id ) => go( 'client', undefined, id ) } /> }
+        { 'projects' === screen && (
+          <ProjectsScreen
+            key={ generation }
+            onOpen={ ( id ) => {
+              setProjectFrom( 'projects' );
+              go( 'project', undefined, id );
+            } }
+          />
+        ) }
+        { 'client' === screen && (
+          <ClientProfileScreen
+            key={ generation }
+            clientId={ clientId }
+            onBack={ () => go( 'clients' ) }
+            onOpenProject={ ( id ) => {
+              setProjectFrom( 'client' );
+              go( 'project', undefined, id );
+            } }
+          />
+        ) }
+        { 'project' === screen && (
+          <ProjectScreen
+            key={ generation }
+            projectId={ projectId }
+            backTo={ projectFrom }
+            onBack={ ( id ) => ( 'client' === projectFrom && id ? go( 'client', undefined, id ) : go( 'projects' ) ) }
+          />
+        ) }
         { 'leads' === screen && <LeadsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }
         { 'meetings' === screen && <MeetingsScreen key={ generation } /> }

@@ -1108,3 +1108,175 @@ p.fc-muted + p.fc-muted,
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Projects (#565) ---- */
+
+.fc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+}
+
+.fc-projects {
+  overflow: hidden;
+}
+.fc-projects-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fc-projects-row {
+  display: grid;
+  grid-template-columns: minmax( 0, 1fr ) minmax( 180px, 280px );
+  gap: 16px;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.fc-projects-row:last-child {
+  border-bottom: 0;
+}
+.fc-projects-what {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fc-tree-title,
+.fc-release-title {
+  color: var( --ink-900 );
+  font-size: var( --text-small );
+  font-weight: var( --weight-medium );
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.fc-release-title {
+  font-size: 15px;
+}
+.fc-tree-title:hover,
+.fc-release-title:hover {
+  color: var( --accent-signal );
+  text-decoration: underline;
+}
+.fc-tree-title:focus-visible,
+.fc-release-title:focus-visible {
+  outline: none;
+  border-radius: var( --radius-xs );
+  box-shadow: var( --focus-ring );
+}
+
+.fc-tree-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+}
+.fc-tree-progress .fc-progress-track {
+  height: 6px;
+}
+.fc-tree-progress-figures {
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  white-space: nowrap;
+}
+
+.fc-project-span {
+  margin-bottom: 12px;
+}
+
+.fc-releases {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fc-releases-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: var( --weight-medium );
+}
+
+/* A release reads down a rail in the colour of the stage it is at, the same
+   rail the board's cards carry, so the two screens say the same thing. */
+.fc-release {
+  overflow: hidden;
+}
+.fc-release-inner {
+  position: relative;
+  padding: 16px 20px 16px 24px;
+}
+.fc-release-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var( --border-hairline );
+}
+.fc-release-inner[data-phase='idea'] .fc-release-rail { background: var( --phase-idea ); }
+.fc-release-inner[data-phase='gate'] .fc-release-rail { background: var( --phase-gate ); }
+.fc-release-inner[data-phase='pipeline'] .fc-release-rail { background: var( --phase-pipeline ); }
+.fc-release-inner[data-phase='done'] .fc-release-rail { background: var( --phase-done ); }
+.fc-release-inner[data-phase='exception'] .fc-release-rail { background: var( --phase-exception ); }
+
+.fc-release-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.fc-release-weeks {
+  flex-basis: 100%;
+  font-size: var( --text-micro );
+  color: var( --ink-700 );
+}
+.fc-release-head .fc-tree-progress {
+  margin-left: auto;
+}
+
+.fc-tree {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fc-tree .fc-tree {
+  margin: 2px 0 4px 14px;
+  padding-left: 12px;
+  border-left: 1px solid var( --border-hairline );
+}
+.fc-tree-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 0;
+}
+.fc-tree-row .fc-tree-progress {
+  margin-left: auto;
+}
+.fc-tree-line {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.fc-tree-kind {
+  min-width: 72px;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
+
+@media ( max-width: 700px ) {
+  .fc-projects-row {
+    grid-template-columns: 1fr;
+  }
+  .fc-release-head .fc-tree-progress,
+  .fc-tree-row .fc-tree-progress {
+    margin-left: 0;
+  }
+}
