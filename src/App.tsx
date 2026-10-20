@@ -10,6 +10,7 @@ import { CapacityScreen } from './components/CapacityScreen';
 import { ClientsScreen } from './components/ClientsScreen';
 import { ClientProfileScreen } from './components/ClientProfileScreen';
 import { ProjectScreen } from './components/ProjectScreen';
+import { ProjectsScreen } from './components/ProjectsScreen';
 import { MeetingsScreen } from './components/MeetingsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { MyTasksScreen } from './components/MyTasksScreen';
@@ -78,6 +79,7 @@ const RAIL: Entry[] = [
   { key: 'reminders', label: 'Reminders', icon: Bell, testId: 'bwx-screen-reminders' },
   { group: 'Clients' },
   { key: 'clients', label: 'Clients', icon: Building2, testId: 'bwx-screen-clients' },
+  { key: 'projects', label: 'Projects', icon: FolderKanban, testId: 'bwx-screen-projects' },
   { key: 'leads', label: 'Leads', icon: Handshake, testId: 'bwx-screen-leads', admin: true },
   { key: 'support', label: 'Support', icon: LifeBuoy, testId: 'bwx-screen-support' },
   { key: 'meetings', label: 'Meetings', icon: CalendarClock, testId: 'bwx-screen-meetings' },
@@ -204,6 +206,7 @@ const TITLES: Record< ScreenName, string > = {
   people: 'People',
   clients: 'Clients',
   client: 'Client',
+  projects: 'Projects',
   project: 'Project',
   leads: 'Leads',
   support: 'Support',
@@ -245,6 +248,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   client: { crumbs: [ 'Clients', 'Client' ], eyebrow: 'Their details, sites and projects', tile: Building2, hue: 'teal' },
+  projects: { crumbs: [ 'Clients', 'Projects' ], eyebrow: 'Every project, and how far along it is', tile: FolderKanban, hue: 'teal' },
   project: { crumbs: [ 'Clients', 'Project' ], eyebrow: 'Its releases, and the work in each', tile: FolderKanban, hue: 'teal' },
   leads: { crumbs: [ 'Clients', 'Leads' ], eyebrow: 'Who we are talking to', tile: Handshake, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
@@ -446,8 +450,8 @@ export function App() {
   const rail = railFor( admin );
 
   const isCurrent = ( entry: Entry ): boolean => {
-    // A client's profile and its projects are reached from Clients, so Clients stays lit.
-    if ( ! ( 'key' in entry ) || entry.key !== ( 'client' === screen || 'project' === screen ? 'clients' : screen ) ) return false;
+    // A client's profile is reached from Clients, and a project's page from Projects, so those stay lit.
+    if ( ! ( 'key' in entry ) || entry.key !== ( 'client' === screen ? 'clients' : 'project' === screen ? 'projects' : screen ) ) return false;
     if ( 'work' !== entry.key ) return true;
     // The list is a way of reading the board, so the Kanban entry stands for both.
     return entry.view === view || ( 'board' === entry.view && 'list' === view );
@@ -607,6 +611,7 @@ export function App() {
         { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } onOpen={ ( id ) => go( 'client', undefined, id ) } /> }
+        { 'projects' === screen && <ProjectsScreen key={ generation } onOpen={ ( id ) => go( 'project', undefined, id ) } /> }
         { 'client' === screen && <ClientProfileScreen key={ generation } clientId={ clientId } onBack={ () => go( 'clients' ) } onOpenProject={ ( id ) => go( 'project', undefined, id ) } /> }
         { 'project' === screen && (
           <ProjectScreen key={ generation } projectId={ projectId } onBack={ ( id ) => ( id ? go( 'client', undefined, id ) : go( 'clients' ) ) } />

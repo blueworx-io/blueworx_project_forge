@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.197.0] - 2026-10-20
+
+### Added
+
+- A Projects page under Clients lists every project across your clients, with its dates, how many releases it has and how far along it is. It follows the client picker at the top, and Completed shows the ones that have been released. Click a project to open it.
+
+### Changed
+
+- A project's page now lights Projects in the menu instead of Clients.
+
 ## [2.196.0] - 2026-10-20
 
 ### Added
