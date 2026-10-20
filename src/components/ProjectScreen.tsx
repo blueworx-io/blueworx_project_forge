@@ -6,7 +6,7 @@ import { useLiveReload } from '../live';
 import type { SiteOption } from '../sites';
 import { buildTree, isDone, reviewProgress, summary } from '../tree.mjs';
 import { itemWeeks } from '../weeks.mjs';
-import { Button, Panel, StageChip } from '../kit';
+import { Button, Panel, StageChip, Tag } from '../kit';
 import { CopyLink } from './CopyLink';
 import { ItemPanel } from './ItemPanel';
 import { NewWork, type NewWorkPreset } from './NewWork';
@@ -38,6 +38,9 @@ const featureLevel = ( level: string ) => ( 'milestone' === level ? 'feature' : 
 /** 3 Nov 2026, from a Y-m-d date, without the timezone moving the day. */
 const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } );
 
+/** Work that ended without being done (cancelled, deferred and the like): still listed, but in no count. */
+export const Ended = ( { item }: { item: WorkItem } ) => ( item.terminal_outcome ? <Tag tone="neutral">Ended</Tag> : null );
+
 /** "N of M done", or that there is nothing yet, never 0% of nothing. */
 export function Progress( { node }: { node: Node } ) {
   const { total, finished } = summary( node );
@@ -60,7 +63,16 @@ export function Progress( { node }: { node: Node } ) {
  * #562. One project: its dates and progress, and its releases with the work in
  * each. Everything is added from where it belongs, and any row opens its panel.
  */
-export function ProjectScreen( { projectId, onBack }: { projectId: string; onBack: ( clientId?: string ) => void } ) {
+export function ProjectScreen( {
+  projectId,
+  backTo = 'projects',
+  onBack,
+}: {
+  projectId: string;
+  /** Where Back goes: the Projects page, or the client's page it was opened from. */
+  backTo?: 'projects' | 'client';
+  onBack: ( clientId?: string ) => void;
+} ) {
   const [ items, setItems ] = useState< WorkItem[] >( [] );
   const [ site, setSite ] = useState< SiteOption | null >( null );
   const [ stages, setStages ] = useState< Stage[] >( [] );
@@ -155,6 +167,7 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
         <span className="bwx-project-kind">{ kindOf( one ) }</span>
         { title( one ) }
         <StageChip stage={ one.stage } dense />
+        <Ended item={ one } />
       </div>
     </li>
   );
@@ -226,6 +239,7 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
         <span className="bwx-project-kind">{ kindOf( node.item ) }</span>
         { title( node.item ) }
         <StageChip stage={ node.item.stage } dense />
+        <Ended item={ node.item } />
         { 0 < node.parts.length + node.attached.length && <Progress node={ node } /> }
       </div>
       { beneath( node ) }
@@ -249,7 +263,7 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
     <div className="bwx-project" data-testid="bwx-project">
       <div className="bwx-moves">
         <Button size="sm" variant="ghost" data-testid="bwx-project-back" onClick={ () => onBack( site?.client_id ) }>
-          <ArrowLeft size={ 14 } aria-hidden="true" /> { site?.client_name ? `Back to ${ site.client_name }` : 'Back' }
+          <ArrowLeft size={ 14 } aria-hidden="true" /> { 'projects' === backTo ? 'All projects' : site?.client_name ? `Back to ${ site.client_name }` : 'Back' }
         </Button>
       </div>
 
@@ -302,6 +316,7 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
                         { title( node.item ) }
                         <span className="bwx-progress-figures" data-testid="bwx-project-weeks">{ weeks || 'No dates yet' }</span>
                         <StageChip stage={ node.item.stage } dense />
+                        <Ended item={ node.item } />
                         <Progress node={ node } />
                       </div>
                       { expanded && (

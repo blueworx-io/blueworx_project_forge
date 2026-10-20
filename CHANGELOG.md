@@ -14,6 +14,15 @@ commits and pull requests.
 
 - Clients have a Projects page in their workspace. It lists their projects with dates and how far along each is, and opening one shows its releases, the weeks each runs and the work in it. It is read only, and any piece of work opens the same record as on Your work.
 
+### Fixed
+
+- The Projects page's Releases column counts only releases, not every piece of work under a project.
+- Cancelled, deferred and other ended work is tagged Ended on a project's page, a client's page and the client's Projects, so it is clear why it isn't in the count beside it.
+- A project's page says Projects at the top, and Back returns to wherever you opened it from: the Projects page or the client's page.
+- The Settings page now says that a project's own hours only reach capacity once it has a Deliver by date.
+- The client's Key dates table heads its date column Release instead of Milestone.
+- "Link copied" clears after a few seconds, so copying again is announced again.
+
 ## [2.198.0] - 2026-10-20
 
 ### Added
@@ -29,7 +38,7 @@ commits and pull requests.
 
 ### Added
 
-- A Projects page under Clients lists every project across your clients, with its dates, how many releases it has and how far along it is. It follows the client picker at the top, and Completed shows the ones that have been released. Click a project to open it.
+- A Projects page under Clients lists every project across your clients, with its dates, how many releases it has and how far along it is. It follows the client picker at the top, and Completed shows the ones that have been released or closed. Click a project to open it.
 
 ### Changed
 

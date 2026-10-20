@@ -1,5 +1,5 @@
 import { ArrowLeft, CloudOff, FolderKanban } from 'lucide-react';
-import { Button, Card, EmptyState, StageChip } from '../../kit';
+import { Button, Card, EmptyState, StageChip, Tag } from '../../kit';
 import { api, day } from '../api';
 import type { WorkItem } from '../api';
 import { phaseOf } from '../../phases';
@@ -35,6 +35,9 @@ const KIND: Record< string, string > = {
 
 /** What an item is, as a person reads it: its type for a leaf, else its level. */
 const kindOf = ( one: WorkItem ) => KIND[ 'feature' === one.work_type ? one.level : one.work_type ] ?? one.level_label;
+
+/** Work that ended without being done: still listed, but in no count. */
+const Ended = ( { item }: { item: WorkItem } ) => ( item.ended ? <Tag tone="neutral">Ended</Tag> : null );
 
 /** Work hanging off an item: its own, and anything its review raised. */
 const leaves = ( node: Node ) => [ ...node.attached, ...node.review ];
@@ -77,6 +80,7 @@ function Line( { item }: { item: WorkItem } ) {
         { item.title }
       </a>
       <StageChip stage={ item.stage } dense />
+      <Ended item={ item } />
     </span>
   );
 }
@@ -135,9 +139,12 @@ function ProjectList( { items }: { items: WorkItem[] } ) {
           return (
             <li key={ project.id } className="fc-projects-row" data-testid="bwx-client-project-row" data-item={ project.id }>
               <span className="fc-projects-what">
-                <a className="fc-tree-title" href={ `#projects/${ project.id }` }>
-                  { project.title }
-                </a>
+                <span className="fc-tree-line">
+                  <a className="fc-tree-title" href={ `#projects/${ project.id }` }>
+                    { project.title }
+                  </a>
+                  <Ended item={ project } />
+                </span>
                 <span className="fc-muted">
                   { span( node ) }
                   { 0 < releases && `, ${ releases } ${ 1 === releases ? 'release' : 'releases' }` }
@@ -182,6 +189,7 @@ function Project( { items, id }: { items: WorkItem[]; id: string } ) {
         <div className="fc-card-head">
           <h3>{ tree.item.title }</h3>
           <StageChip stage={ tree.item.stage } dense />
+          <Ended item={ tree.item } />
         </div>
         <p className="fc-muted fc-project-span">{ span( tree ) }</p>
         <Progress node={ tree } />
@@ -208,6 +216,7 @@ function Project( { items, id }: { items: WorkItem[]; id: string } ) {
                     { node.item.title }
                   </a>
                   <StageChip stage={ node.item.stage } dense />
+                  <Ended item={ node.item } />
                   <Progress node={ node } />
                 </div>
                 <Beneath node={ node } />

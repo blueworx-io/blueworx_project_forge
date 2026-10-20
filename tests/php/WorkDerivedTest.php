@@ -335,4 +335,42 @@ final class WorkDerivedTest extends TestCase {
 			$this->assertNotContains( $name, $writable, sprintf( '%s can be written by hand', $name ) );
 		}
 	}
+
+	/**
+	 * #564. Which release review raised a fix is named when the fix is added,
+	 * and an edit can neither set it nor change it: a PATCH naming it is left
+	 * alone rather than written.
+	 */
+	public function test_an_edit_cannot_set_or_change_review_of(): void {
+		$this->assertNotContains( 'review_of', \Blueworx\Forge\Work\Fields::writable() );
+
+		$set = \Blueworx\Forge\Work\Validate::item( array( 'review_of' => 'wrk_9' ), true );
+
+		$this->assertSame( array(), $set['errors'] );
+		$this->assertArrayNotHasKey( 'review_of', $set['values'] );
+
+		$changed = \Blueworx\Forge\Work\Validate::item(
+			array(
+				'title'     => 'Wrong total',
+				'review_of' => '',
+			),
+			true
+		);
+
+		$this->assertSame( 'Wrong total', $changed['values']['title'] );
+		$this->assertArrayNotHasKey( 'review_of', $changed['values'] );
+
+		// Adding the work is the one time it is read.
+		$added = \Blueworx\Forge\Work\Validate::item(
+			array(
+				'title'     => 'Wrong total',
+				'level'     => 'sub-feature',
+				'work_type' => 'bug',
+				'review_of' => 'wrk_9',
+			),
+			false
+		);
+
+		$this->assertSame( 'wrk_9', $added['values']['review_of'] );
+	}
 }

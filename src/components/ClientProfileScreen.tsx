@@ -6,6 +6,7 @@ import { useLiveReload } from '../live';
 import { buildTree, summary, topLevel } from '../tree.mjs';
 import { Button, Panel, Select, StageChip, Tag } from '../kit';
 import { NewWork } from './NewWork';
+import { Ended } from './ProjectScreen';
 import { contactLabel } from './ClientsScreen';
 import { Screen } from './States';
 
@@ -137,6 +138,7 @@ export function ClientProfileScreen( {
                             { [ where, ongoing ? 'Ongoing' : start ? `${ day( start ) } – ${ day( due ) }` : `Until ${ day( due ) }`, 0 === total ? 'No work yet' : `${ finished } of ${ total } done` ].filter( Boolean ).join( ' · ' ) }
                           </span>
                           <StageChip stage={ project.stage } dense />
+                          <Ended item={ project } />
                         </button>
                       </li>
                     );

@@ -24,14 +24,24 @@ const finished = ( one: WorkItem ) => 'released' === one.stage || ( '' !== one.t
 export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => void } ) {
   const { siteId, label } = useClientChoice();
   const [ projects, setProjects ] = useState< WorkItem[] >( [] );
+  // How many releases sit directly under each project, by its id: a bug or task
+  // under a project is work in it, not a release.
+  const [ releases, setReleases ] = useState< Map< string, number > >( () => new Map() );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
   const [ completed, setCompleted ] = useState( false );
 
   async function load() {
     try {
-      const answer = await api< { items: WorkItem[] } >( '/work-items-all?level[]=project' );
+      const answer = await api< { items: WorkItem[] } >( '/work-items-all?level[]=project&level[]=milestone' );
+      const kept = answer.items.filter( ( one ) => ! one.archived );
+      const counts = new Map< string, number >();
 
-      setProjects( answer.items.filter( ( one ) => 'project' === one.level && ! one.archived ) );
+      for ( const one of kept ) {
+        if ( 'milestone' === one.level && '' !== one.parent_id ) counts.set( one.parent_id, ( counts.get( one.parent_id ) ?? 0 ) + 1 );
+      }
+
+      setProjects( kept.filter( ( one ) => 'project' === one.level ) );
+      setReleases( counts );
       setState( 'ready' );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
@@ -77,7 +87,7 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
         return start ? `${ day( start ) } – ${ day( due ) }` : `Until ${ day( due ) }`;
       },
     },
-    { key: 'releases', label: 'Releases', width: 100, align: 'right', mono: true, sortBy: ( project ) => project.children_total ?? 0, render: ( project ) => project.children_total ?? 0 },
+    { key: 'releases', label: 'Releases', width: 100, align: 'right', mono: true, sortBy: ( project ) => releases.get( project.id ) ?? 0, render: ( project ) => releases.get( project.id ) ?? 0 },
     {
       key: 'progress',
       label: 'Progress',

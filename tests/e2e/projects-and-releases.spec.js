@@ -174,6 +174,46 @@ test('a bug holds nothing, and can sit under a sub-feature', async () => {
   expect((await under.json()).message).toBe("Bugs, tasks and feedback can't have work beneath them.");
 });
 
+/** Ends an item without it being done. */
+async function cancel(item) {
+  const answer = await admin.api.post(`/work-items/${item.id}/outcome`, { outcome: 'cancelled', reason: 'Not needed.', record_version: item.record_version });
+
+  expect(answer.status(), await answer.text()).toBe(200);
+}
+
+test('ended work is tagged Ended, and Back returns to the client', async () => {
+  const live = await made({ title: `Live project ${RUN_ID}`, level: 'project' });
+  const dropped = await made({ title: `Dropped project ${RUN_ID}`, level: 'project' });
+  const release = await made({ title: `Tagged release ${RUN_ID}`, level: 'milestone', parent_id: live.id });
+  const open = await made({ title: `Open bug ${RUN_ID}`, level: 'sub-feature', work_type: 'bug', parent_id: release.id });
+  const gone = await made({ title: `Cancelled bug ${RUN_ID}`, level: 'sub-feature', work_type: 'bug', parent_id: release.id });
+  await cancel(dropped);
+  await cancel(gone);
+
+  const page = await admin.context.newPage();
+
+  await page.goto(`/blueworx-forge/#screen=client&client=${client.id}`);
+  const listed = (title) => page.getByTestId('bwx-client-project').filter({ hasText: title });
+  await expect(listed(dropped.title)).toContainText('Ended', { timeout: 30_000 });
+  await expect(listed(live.title)).not.toContainText('Ended');
+
+  await listed(live.title).click();
+  const row = page.getByTestId('bwx-project-release').filter({ hasText: release.title });
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByTestId('bwx-project-toggle').click();
+
+  const node = (one) => row.locator(`[data-testid="bwx-project-node"][data-item="${one.id}"]`);
+  await expect(node(gone)).toContainText('Ended', SLOW);
+  await expect(node(open)).not.toContainText('Ended');
+
+  // Opened from the client's page, Back goes there.
+  await expect(page.getByTestId('bwx-project-back')).toContainText(client.display_name);
+  await page.getByTestId('bwx-project-back').click();
+  await expect(page.getByTestId('bwx-client-profile')).toContainText(client.display_name, SLOW);
+
+  await page.close();
+});
+
 test('moves an existing task under a release from its panel', async () => {
   const project = await made({ title: `Moving ${RUN_ID}`, level: 'project' });
   const release = await made({ title: `Landing ${RUN_ID}`, level: 'milestone', parent_id: project.id });

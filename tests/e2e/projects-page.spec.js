@@ -73,8 +73,46 @@ test('opens a project from its row', async () => {
   await rowFor(page, project.title).click();
 
   await expect(page.getByTestId('bwx-project')).toContainText(project.title, { timeout: 30_000 });
-  // The project's page lights Projects, not Clients.
+  // The project's page lights Projects, not Clients, and says so in its breadcrumb.
   await expect(page.getByTestId('bwx-screen-projects')).toHaveAttribute('aria-current', 'page');
+  const crumbs = page.getByRole('navigation', { name: 'Where this is' });
+  await expect(crumbs).toContainText('Projects');
+  await expect(crumbs).not.toContainText('Clients');
+
+  // Back returns to the Projects page it was opened from.
+  await page.getByTestId('bwx-project-back').click();
+  await expect(rowFor(page, project.title)).toBeVisible(SLOW);
+
+  await page.selectOption('[data-testid="bwx-client-choice"]', 'all');
+  await page.close();
+});
+
+test('a link straight to a project goes Back to Projects', async () => {
+  const project = await made(one.site, { title: `Linked ${RUN_ID}`, level: 'project' });
+  const page = await admin.context.newPage();
+
+  await page.goto(`/blueworx-forge/#screen=project&project=${project.id}`);
+  await expect(page.getByTestId('bwx-project')).toContainText(project.title, { timeout: 30_000 });
+
+  await page.getByTestId('bwx-project-back').click();
+  await expect(page.getByTestId('bwx-projects-list')).toBeVisible(SLOW);
+
+  await page.close();
+});
+
+test('Releases counts releases, not other work under the project', async () => {
+  const project = await made(one.site, { title: `Counted ${RUN_ID}`, level: 'project' });
+  await made(one.site, { title: `Only release ${RUN_ID}`, level: 'milestone', parent_id: project.id });
+  await made(one.site, { title: `Loose bug ${RUN_ID}`, level: 'sub-feature', work_type: 'bug', parent_id: project.id });
+
+  const page = await admin.context.newPage();
+
+  await openPage(page);
+  await page.selectOption('[data-testid="bwx-client-choice"]', one.site.id);
+
+  const row = rowFor(page, project.title);
+  await expect(row).toBeVisible(SLOW);
+  await expect(row.locator('td[data-label="Releases"]')).toHaveText('1');
 
   await page.selectOption('[data-testid="bwx-client-choice"]', 'all');
   await page.close();

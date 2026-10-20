@@ -31,16 +31,20 @@ export const RULES: RuleSection[] = [
         why: 'A client\'s work reads as projects made of releases, and the order of the levels keeps anything from ending up inside itself.',
       },
       {
-        what: 'The Projects page lists every project, the active ones first and the released or closed ones behind Completed. Its dates and progress come from the releases inside, and a project with none reads Ongoing and No work yet.',
+        what: 'The Projects page lists every project, the active ones first and the released or closed ones behind Completed. Its dates and progress come from the releases inside, its Releases count is only the releases in it, and a project with none reads Ongoing and No work yet.',
         why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
       },
       {
-        what: 'A project or release\'s own hours are the work on it as a whole, such as planning it, the release review and delivering it. They are counted once, like any other item\'s hours, and never as a total of the work inside it.',
+        what: 'A project or release\'s own hours are the work on it as a whole, such as planning it, the release review and delivering it. They are counted once, like any other item\'s hours, and never as a total of the work inside it. A project\'s own hours only reach capacity once it has a Deliver by date; until then they sit on no one\'s week.',
         why: 'The work inside already carries its own hours, so adding them up again would count the same time twice.',
       },
       {
         what: 'A project doesn\'t need Deliver by, Review by, Release by or Design by dates to leave Up Next. Its dates come from its releases, and a project with no dated releases reads Ongoing.',
         why: 'A project can run for as long as its releases do, so its dates are worked out rather than typed in.',
+      },
+      {
+        what: 'Work that ended without being done, such as cancelled or deferred work, still shows on a project\'s page, a client\'s page and the client\'s Projects, tagged Ended, and is left out of the progress beside it. Clients see the tag, but not how it ended.',
+        why: 'So a count like 2 of 2 done next to a third piece of work makes sense, and nobody waits on work that has stopped.',
       },
       {
         what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',

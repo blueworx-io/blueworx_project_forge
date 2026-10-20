@@ -27,3 +27,9 @@ test('releaseWeeks uses whichever single date is set', () => {
 test('releaseWeeks is empty with no dates', () => {
   assert.equal(releaseWeeks('', ''), '');
 });
+
+test('releaseWeeks treats a malformed date as no date, never Week NaN', () => {
+  assert.equal(isoWeek('not-a-date'), 0);
+  assert.equal(releaseWeeks('not-a-date', 'garbage'), '');
+  assert.equal(releaseWeeks('not-a-date', '2026-07-21'), 'Week 30');
+});

@@ -36,6 +36,11 @@ test('copies a link that opens the item', async () => {
   expect(link).toMatch(new RegExp(`#item=${item.id}$`));
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
 
+  // The message clears after a few seconds, so copying again says so again.
+  await expect(page.getByTestId('bwx-copy-link-done')).toHaveText('', { timeout: 10_000 });
+  await button.click();
+  await expect(page.getByTestId('bwx-copy-link-done')).toHaveText('Link copied');
+
   const other = await admin.context.newPage();
   await other.goto(link);
   await expect(other.getByTestId('bwx-panel')).toContainText(item.title, { timeout: 60_000 });

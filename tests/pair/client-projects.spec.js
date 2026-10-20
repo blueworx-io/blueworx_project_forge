@@ -37,6 +37,14 @@ test( 'a client sees their projects and releases', async ( { browser } ) => {
     work_type: 'bug',
     parent_id: release.id,
   } );
+  const dropped = await makeItem( pair.studio, pair.site.id, {
+    title: `Dropped idea ${ RUN }`,
+    level: 'sub-feature',
+    work_type: 'feature',
+    parent_id: release.id,
+  } );
+  const ended = await pair.studio.post( `/work-items/${ dropped.id }/outcome`, { outcome: 'cancelled', reason: 'Not needed.', record_version: dropped.record_version } );
+  expect( ended.status(), await ended.text() ).toBe( 200 );
 
   // What reaches the client site carries progress, and never which fixes a
   // release review raised.
@@ -48,6 +56,11 @@ test( 'a client sees their projects and releases', async ( { browser } ) => {
   expect( sent.derived_start ).toBe( '2026-07-01' );
   expect( sent.derived_due ).toBe( '2026-07-24' );
   for ( const one of board.items ) expect( one ).not.toHaveProperty( 'review_of' );
+
+  // That work ended is sent, and never how it ended.
+  expect( board.items.find( ( one ) => one.id === dropped.id ).ended ).toBe( true );
+  expect( board.items.find( ( one ) => one.id === bug.id ).ended ).toBe( false );
+  for ( const one of board.items ) expect( one ).not.toHaveProperty( 'terminal_outcome' );
 
   const page = await pair.clientSite.context.newPage();
   await page.goto( '/forge/#projects' );
@@ -72,6 +85,11 @@ test( 'a client sees their projects and releases', async ( { browser } ) => {
   await expect( shown.getByTestId( 'bwx-client-release-weeks' ) ).toHaveText( 'Weeks 27 → 30' );
   await expect( shown ).toContainText( feature.title );
   await expect( shown ).toContainText( bug.title );
+
+  // Ended work is still listed, tagged so, and left out of the count.
+  const entry = ( one ) => shown.locator( `[data-testid="bwx-client-project-item"][data-item="${ one.id }"]` );
+  await expect( entry( dropped ) ).toContainText( 'Ended' );
+  await expect( entry( bug ) ).not.toContainText( 'Ended' );
 
   // Nothing here changes anything: no buttons to add or move work.
   await expect( one.getByRole( 'button', { name: /add|move|raise/i } ) ).toHaveCount( 0 );

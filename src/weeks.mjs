@@ -8,11 +8,13 @@
  * The ISO-8601 week of a date.
  *
  * @param {string} date A Y-m-d date.
- * @returns {number} The week, 1 to 53.
+ * @returns {number} The week, 1 to 53, or 0 for a date that isn't one.
  */
 export function isoWeek(date) {
-  const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+  const [y, m, d] = String(date).slice(0, 10).split('-').map(Number);
   const day = new Date(Date.UTC(y, m - 1, d));
+
+  if (Number.isNaN(day.getTime())) return 0;
   // Move to the Thursday of this week; its year is the ISO year.
   day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7));
   const yearStart = Date.UTC(day.getUTCFullYear(), 0, 1);

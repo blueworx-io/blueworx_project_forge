@@ -65,6 +65,8 @@ export interface WorkItem {
   derived_due?: string;
   children_total?: number;
   children_finished?: number;
+  /** #565. It ended without being done, so no count includes it; an older studio sends nothing. */
+  ended?: boolean;
 }
 
 export interface BoardView {

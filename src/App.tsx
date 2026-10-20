@@ -249,7 +249,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   client: { crumbs: [ 'Clients', 'Client' ], eyebrow: 'Their details, sites and projects', tile: Building2, hue: 'teal' },
   projects: { crumbs: [ 'Clients', 'Projects' ], eyebrow: 'Every project, and how far along it is', tile: FolderKanban, hue: 'teal' },
-  project: { crumbs: [ 'Clients', 'Project' ], eyebrow: 'Its releases, and the work in each', tile: FolderKanban, hue: 'teal' },
+  project: { crumbs: [ 'Projects', 'Project' ], eyebrow: 'Its releases, and the work in each', tile: FolderKanban, hue: 'teal' },
   leads: { crumbs: [ 'Clients', 'Leads' ], eyebrow: 'Who we are talking to', tile: Handshake, hue: 'teal' },
   support: { crumbs: [ 'Clients', 'Support' ], eyebrow: 'What each site is on, and the hours it has', tile: LifeBuoy, hue: 'amber' },
   meetings: { crumbs: [ 'Clients', 'Meetings' ], eyebrow: 'Standing meetings, and the next twelve weeks of them', tile: CalendarClock, hue: 'rose' },
@@ -326,6 +326,9 @@ export function App() {
   const [ clientId, setClientId ] = useState( landing.client );
   // #562. Which project the project screen shows.
   const [ projectId, setProjectId ] = useState( landing.project );
+  // Where the project page was opened from, so Back returns there. A link
+  // straight to a project has no such place and goes back to Projects.
+  const [ projectFrom, setProjectFrom ] = useState< 'projects' | 'client' >( 'projects' );
   /*
    * "New task" asks the board to open its add form; the board says when it
    * has, and the ask is over (#452). A count kept for good would be re-read
@@ -611,10 +614,33 @@ export function App() {
         { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } onOpen={ ( id ) => go( 'client', undefined, id ) } /> }
-        { 'projects' === screen && <ProjectsScreen key={ generation } onOpen={ ( id ) => go( 'project', undefined, id ) } /> }
-        { 'client' === screen && <ClientProfileScreen key={ generation } clientId={ clientId } onBack={ () => go( 'clients' ) } onOpenProject={ ( id ) => go( 'project', undefined, id ) } /> }
+        { 'projects' === screen && (
+          <ProjectsScreen
+            key={ generation }
+            onOpen={ ( id ) => {
+              setProjectFrom( 'projects' );
+              go( 'project', undefined, id );
+            } }
+          />
+        ) }
+        { 'client' === screen && (
+          <ClientProfileScreen
+            key={ generation }
+            clientId={ clientId }
+            onBack={ () => go( 'clients' ) }
+            onOpenProject={ ( id ) => {
+              setProjectFrom( 'client' );
+              go( 'project', undefined, id );
+            } }
+          />
+        ) }
         { 'project' === screen && (
-          <ProjectScreen key={ generation } projectId={ projectId } onBack={ ( id ) => ( id ? go( 'client', undefined, id ) : go( 'clients' ) ) } />
+          <ProjectScreen
+            key={ generation }
+            projectId={ projectId }
+            backTo={ projectFrom }
+            onBack={ ( id ) => ( 'client' === projectFrom && id ? go( 'client', undefined, id ) : go( 'projects' ) ) }
+          />
         ) }
         { 'leads' === screen && <LeadsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }

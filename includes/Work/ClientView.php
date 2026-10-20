@@ -110,6 +110,11 @@ final class ClientView {
 			'derived_due'       => (string) ( $row['derived_due'] ?? '' ),
 			'children_total'    => (int) ( $row['children_total'] ?? 0 ),
 			'children_finished' => (int) ( $row['children_finished'] ?? 0 ),
+
+			// #565. Whether it ended without being done, as Derived::counted()
+			// decides it, so a client can see why it is left out of a count.
+			// How it ended (cancelled, rejected, deferred) is ours to explain.
+			'ended'             => '' !== (string) ( $row['terminal_outcome'] ?? '' ),
 		);
 	}
 

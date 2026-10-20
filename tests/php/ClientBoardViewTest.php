@@ -46,6 +46,7 @@ final class ClientBoardViewTest extends TestCase {
 		'derived_due',
 		'children_total',
 		'children_finished',
+		'ended',
 	);
 
 	/**
@@ -185,6 +186,24 @@ final class ClientBoardViewTest extends TestCase {
 		$this->assertSame( 2, $item['children_finished'] );
 		$this->assertArrayNotHasKey( 'review_of', $item );
 	}
+
+	/**
+	 * #565. A client can tell work that ended without being done from work
+	 * still open, but not how it ended: that it was cancelled, rejected or
+	 * deferred is ours to explain.
+	 */
+	public function test_client_view_says_work_ended_but_not_how(): void {
+		$ended = ClientView::item( $this->row( array( 'terminal_outcome' => 'cancelled' ) ), $this->lookup() );
+		$open  = ClientView::item( $this->row( array( 'terminal_outcome' => '' ) ), $this->lookup() );
+		$bare  = ClientView::item( $this->row(), $this->lookup() );
+
+		$this->assertTrue( $ended['ended'] );
+		$this->assertFalse( $open['ended'] );
+		$this->assertFalse( $bare['ended'] );
+		$this->assertArrayNotHasKey( 'terminal_outcome', $ended );
+		$this->assertArrayNotHasKey( 'terminal_outcome', $open );
+	}
+
 	// -----------------------------------------------------------------------
 	// The people on a card.
 	// -----------------------------------------------------------------------
