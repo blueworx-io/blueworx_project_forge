@@ -454,6 +454,11 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.bwx-card-weeks {
+  display: block;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+}
 .bwx-card-client {
   display: block;
   margin-bottom: 4px;

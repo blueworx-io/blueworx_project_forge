@@ -1,5 +1,6 @@
 import type { WorkItem } from '../types';
 import { phaseOf } from '../phases';
+import { itemWeeks } from '../weeks.mjs';
 
 /**
  * The same work, as rows.
@@ -63,6 +64,9 @@ export function ListView( {
                     <span className="bwx-eyebrow">{ item.work_type_label }</span>
                   ) }
                   <span className="bwx-eyebrow">{ item.level_label }</span>
+                  { 'milestone' === item.level && '' !== itemWeeks( item ) && (
+                    <span className="bwx-eyebrow" data-testid="bwx-release-weeks">{ itemWeeks( item ) }</span>
+                  ) }
                 </span>
               </td>
               <td>{ item.stage_label }</td>

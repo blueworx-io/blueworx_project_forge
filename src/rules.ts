@@ -23,6 +23,10 @@ export const RULES: RuleSection[] = [
     title: 'The task journey',
     rules: [
       {
+        what: 'Milestones are called releases, and a release shows the weeks it runs, such as Weeks 27 → 30, on the board and in the list.',
+        why: 'People plan and talk about releases by week, so the weeks are there without opening the release.',
+      },
+      {
         what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',
         why: 'So you can point a colleague at the exact piece of work instead of describing where to find it.',
       },

@@ -3,6 +3,7 @@ import type { WorkItem } from '../types';
 import { CLIENT_REVIEWER } from '../types';
 import { phaseOf } from '../phases';
 import { todayIso } from '../calendar';
+import { itemWeeks } from '../weeks.mjs';
 import { PRIORITY_TONE } from '../priority';
 import { Avatar, Tag } from '../kit';
 
@@ -116,6 +117,9 @@ export function Card( {
       <span className="bwx-card-row">
         <span className="bwx-card-level">{ item.level_label }</span>
       </span>
+      { 'milestone' === item.level && '' !== itemWeeks( item ) && (
+        <span className="bwx-card-weeks" data-testid="bwx-release-weeks">{ itemWeeks( item ) }</span>
+      ) }
 
       <p className="bwx-card-title">{ item.title }</p>
 

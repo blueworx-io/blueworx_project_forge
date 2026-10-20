@@ -256,7 +256,7 @@ export function Gallery() {
             crumbs={ [ 'Delivery', 'Kanban', 'FRG-2841' ] }
             eyebrow="Task"
             title="Rebuild member area authentication"
-            description="Northgate · Milestone · Launch v1"
+            description="Northgate · Release · Launch v1"
             tile={ Columns3 }
             actions={ <Button>Request transition</Button> }
             meta={

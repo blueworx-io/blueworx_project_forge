@@ -103,4 +103,11 @@ final class WorkHierarchyTest extends TestCase {
 			$this->assertNotSame( '', Types::label( $type ) );
 		}
 	}
+
+	/**
+	 * People read Release; the stored level stays milestone.
+	 */
+	public function test_a_milestone_reads_as_a_release(): void {
+		$this->assertSame( 'Release', Levels::label( Levels::MILESTONE ) );
+	}
 }

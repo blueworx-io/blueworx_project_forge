@@ -5,7 +5,7 @@ import { Aside, RichText } from '../kit';
 
 const LEVELS = [
   { id: 'project', label: 'Project' },
-  { id: 'milestone', label: 'Milestone' },
+  { id: 'milestone', label: 'Release' },
   { id: 'feature', label: 'Feature' },
   { id: 'sub-feature', label: 'Sub-feature' },
 ];

@@ -10,7 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Work;
 
 /**
- * WORK-1: Project, Milestone, Feature, Sub-Feature, as a field on one entity
+ * WORK-1: Project, Milestone (read as Release), Feature, Sub-Feature, as a field on one entity
  * rather than as four entities.
  *
  * One rule holds the shape together, and it lives here: a parent is always a
@@ -102,7 +102,7 @@ final class Levels {
 			case self::PROJECT:
 				return __( 'Project', 'blueworx-forge' );
 			case self::MILESTONE:
-				return __( 'Milestone', 'blueworx-forge' );
+				return __( 'Release', 'blueworx-forge' );
 			case self::FEATURE:
 				return __( 'Feature', 'blueworx-forge' );
 			case self::SUB_FEATURE:

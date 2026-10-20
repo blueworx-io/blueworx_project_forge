@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.194.0] - 2026-10-20
+
+### Changed
+
+- Milestones are now called releases, and show their weeks on the board and in the list.
+
 ## [2.193.0] - 2026-10-20
 
 ### Added
