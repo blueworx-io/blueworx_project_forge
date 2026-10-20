@@ -95,6 +95,20 @@ final class Allocations {
 	public const WITH_CLIENT = 'with-client';
 
 	/**
+	 * The stage from which a seat's own part is done, while the item is still
+	 * open. The doer has handed over once it is In Review, and the designer
+	 * once the build starts; the reviewer and deliverer are done when the item
+	 * is (FINISHED). Without this, a doer's hours stayed to do until somebody
+	 * else approved the work, and landed on today as overdue (#487).
+	 *
+	 * @var array<string, string>
+	 */
+	private const PART_DONE_FROM = array(
+		self::DESIGN  => 'in-development',
+		self::PRIMARY => 'in-review',
+	);
+
+	/**
 	 * Each seat: the hours column, whose seat it is, who may be covering, and
 	 * the date its hours sit on (#513).
 	 *
@@ -171,6 +185,18 @@ final class Allocations {
 			}
 
 			$allocations = $kept;
+		}
+
+		// Blocked work keeps the stage it stopped at, as counts() reads it.
+		$stage = (string) ( $item['stage'] ?? '' );
+		$stage = Stages::BLOCKED === $stage ? (string) ( $item['prior_stage'] ?? '' ) : $stage;
+
+		foreach ( $allocations as $index => $allocation ) {
+			$from = self::PART_DONE_FROM[ $allocation['role'] ] ?? '';
+
+			if ( '' !== $from && self::TO_DO === $allocation['status'] && Stages::position( $stage ) >= Stages::position( $from ) ) {
+				$allocations[ $index ]['status'] = self::DONE;
+			}
 		}
 
 		return $allocations;
