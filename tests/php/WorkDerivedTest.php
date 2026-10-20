@@ -269,6 +269,24 @@ final class WorkDerivedTest extends TestCase {
 	// -----------------------------------------------------------------------
 
 	/**
+	 * #562. The counts a project page reads progress from: only the children
+	 * that still count, and how many of those are done.
+	 */
+	public function test_fields_count_total_and_finished_children(): void {
+		$fields = Derived::fields(
+			array(
+				$this->child( 'completed' ),
+				$this->child( 'triage', array( 'terminal_outcome' => 'cancelled' ) ),
+			)
+		);
+
+		$this->assertSame( 1, $fields['children_total'] );
+		$this->assertSame( 1, $fields['children_finished'] );
+		$this->assertContains( 'children_total', Derived::NAMES );
+		$this->assertContains( 'children_finished', Derived::NAMES );
+	}
+
+	/**
 	 * The derived names are not writable fields. This is the "no direct edit
 	 * path" half of #101, and it is checked here rather than trusted: a field
 	 * added to the writable list later would otherwise let somebody set the

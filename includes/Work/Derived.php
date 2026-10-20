@@ -57,7 +57,7 @@ final class Derived {
 	 * Held as a list so the test that proves none of them is writable can walk
 	 * it, rather than naming them again and drifting.
 	 */
-	public const NAMES = array( 'progress', 'derived_state', 'derived_start', 'derived_due' );
+	public const NAMES = array( 'progress', 'derived_state', 'derived_start', 'derived_due', 'children_total', 'children_finished' );
 
 	/**
 	 * The stage from which a child counts as under way. Anything before it is
@@ -155,13 +155,24 @@ final class Derived {
 	 * @return array<string, mixed>
 	 */
 	public static function fields( array $children ): array {
-		$derived = self::from( $children );
+		$derived  = self::from( $children );
+		$counted  = self::counted( $children );
+		$finished = 0;
+
+		foreach ( $counted as $child ) {
+			if ( self::is_finished( (string) ( $child['stage'] ?? '' ) ) ) {
+				++$finished;
+			}
+		}
 
 		return array(
-			'progress'      => $derived['progress'],
-			'derived_state' => $derived['state'],
-			'derived_start' => $derived['start'],
-			'derived_due'   => $derived['due'],
+			'progress'          => $derived['progress'],
+			'derived_state'     => $derived['state'],
+			'derived_start'     => $derived['start'],
+			'derived_due'       => $derived['due'],
+			// #562. What "N of M done" reads, so a page need not fetch the children.
+			'children_total'    => count( $counted ),
+			'children_finished' => $finished,
 		);
 	}
 

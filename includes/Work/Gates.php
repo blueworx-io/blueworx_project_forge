@@ -225,13 +225,15 @@ final class Gates {
 				self::field( 'G-UP-NEXT-3', 'Deliverer assigned', 'reference', array( 'deliverer_id' ), 'Assign the Deliverer.' ),
 				self::auto( 'G-UP-NEXT-4', 'Planned hours per role', 'numeric', 'hours', 'Enter planned hours for Primary User, Reviewer and Deliverer.' ),
 				// #513. Forge sets the start itself; the doer's date is what is asked for.
-				self::field( 'G-UP-NEXT-5', 'Deliver by date', 'date', array( 'planned_due' ), 'Set a deliver by date.' ),
+				// #562. A project takes its dates from its releases, so no date
+				// row is asked of one.
+				self::not_for_projects( self::field( 'G-UP-NEXT-5', 'Deliver by date', 'date', array( 'planned_due' ), 'Set a deliver by date.' ) ),
 				self::field( 'G-UP-NEXT-6', 'Priority confirmed', 'enum', array( 'priority' ), 'Confirm the priority.' ),
 				// #547. Every person's date before the work is booked. Design by
 				// only when there is a designer: with no design there is no date.
-				self::field( 'G-UP-NEXT-10', 'Review by date', 'date', array( 'review_target' ), 'Set a review by date.' ),
-				self::field( 'G-UP-NEXT-11', 'Release by date', 'date', array( 'release_target' ), 'Set a release by date.' ),
-				self::with_designer( self::field( 'G-UP-NEXT-12', 'Design by date', 'date', array( 'design_target' ), 'Set a design by date.' ) ),
+				self::not_for_projects( self::field( 'G-UP-NEXT-10', 'Review by date', 'date', array( 'review_target' ), 'Set a review by date.' ) ),
+				self::not_for_projects( self::field( 'G-UP-NEXT-11', 'Release by date', 'date', array( 'release_target' ), 'Set a release by date.' ) ),
+				self::not_for_projects( self::with_designer( self::field( 'G-UP-NEXT-12', 'Design by date', 'date', array( 'design_target' ), 'Set a design by date.' ) ) ),
 				self::system( 'G-UP-NEXT-8', 'Capacity check', 'capacity', 'Nobody in a seat may be over-booked in any week of their dates, unless the over-allocation is given a reason.' ),
 				self::system( 'G-UP-NEXT-9', 'Support-hours check', 'support_hours', 'The site has to be on a package it can spend from, with enough hours left for the work as planned.' ),
 			),
@@ -376,6 +378,7 @@ final class Gates {
 		 * time, so naming or clearing one counts from then on.
 		 */
 		$no_designer = '' === (string) ( $item['designer_id'] ?? '' );
+		$is_project  = Levels::PROJECT === (string) ( $item['level'] ?? '' );
 
 		// #511. The design checks go; the system checks stay, because leaving
 		// Design is when the work starts.
@@ -388,6 +391,11 @@ final class Gates {
 
 			// #547. A row only a designed task has: no designer, no row.
 			if ( $no_designer && ! empty( $requirement['designer'] ) ) {
+				continue;
+			}
+
+			// #562. A row a project is never asked: its dates come from its releases.
+			if ( $is_project && ! empty( $requirement['not_for_projects'] ) ) {
 				continue;
 			}
 
@@ -888,6 +896,19 @@ final class Gates {
 	 */
 	private static function with_designer( array $requirement ): array {
 		$requirement['designer'] = true;
+
+		return $requirement;
+	}
+
+	/**
+	 * A requirement a project is never asked (#562): a project's dates come
+	 * from its releases. Read by evaluate(), which leaves the row out for one.
+	 *
+	 * @param array<string, mixed> $requirement Requirement.
+	 * @return array<string, mixed>
+	 */
+	private static function not_for_projects( array $requirement ): array {
+		$requirement['not_for_projects'] = true;
 
 		return $requirement;
 	}

@@ -51,6 +51,26 @@ final class Types {
 	);
 
 	/**
+	 * #562. The kinds that never have work beneath them, and so may sit under
+	 * any level, the lowest included.
+	 */
+	public const LEAVES = array(
+		self::BUG,
+		self::FEEDBACK,
+		self::TASK,
+	);
+
+	/**
+	 * Whether a work type is one that never has work beneath it.
+	 *
+	 * @param string $type Work type.
+	 * @return bool
+	 */
+	public static function is_leaf( string $type ): bool {
+		return in_array( $type, self::LEAVES, true );
+	}
+
+	/**
 	 * Whether a string is a work type at all.
 	 *
 	 * @param string $type Candidate.

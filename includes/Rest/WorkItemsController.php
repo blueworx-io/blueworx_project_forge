@@ -34,12 +34,14 @@ use Blueworx\Forge\Work\Filters;
 use Blueworx\Forge\Work\GateRecords;
 use Blueworx\Forge\Work\Gates;
 use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Levels;
 use Blueworx\Forge\Work\Outcomes;
 use Blueworx\Forge\Work\Returns;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
 use Blueworx\Forge\Work\Transition;
 use Blueworx\Forge\Work\Transitions;
+use Blueworx\Forge\Work\Types;
 use Blueworx\Forge\Work\Validate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -1371,7 +1373,7 @@ final class WorkItemsController {
 			);
 		}
 
-		$parent_error = self::parent_error( (string) $checked['values']['parent_id'], (string) $checked['values']['level'], $site['id'] );
+		$parent_error = self::parent_error( (string) $checked['values']['parent_id'], (string) $checked['values']['level'], $site['id'], '', (string) $checked['values']['work_type'] );
 
 		if ( null !== $parent_error ) {
 			return $parent_error;
@@ -1467,14 +1469,10 @@ final class WorkItemsController {
 			);
 		}
 
-		if ( array_key_exists( 'parent_id', $checked['values'] ) ) {
-			$level = (string) ( $checked['values']['level'] ?? $item['level'] );
+		$hierarchy_error = self::hierarchy_error( $item, $checked['values'] );
 
-			$parent_error = self::parent_error( (string) $checked['values']['parent_id'], $level, (string) $item['client_site_id'], (string) $item['id'] );
-
-			if ( null !== $parent_error ) {
-				return $parent_error;
-			}
+		if ( null !== $hierarchy_error ) {
+			return $hierarchy_error;
 		}
 
 		/*
@@ -2528,16 +2526,71 @@ final class WorkItemsController {
 	}
 
 	/**
-	 * Refuses a parent that does not exist, sits on another site, or is not a
-	 * higher level than the child.
+	 * #562. Re-checks where an item sits when an edit moves it or reshapes it.
+	 *
+	 * A new parent is checked as it always was. A changed level or work type is
+	 * checked against the parent it already has, and against the work beneath
+	 * it, so a feature cannot be renamed a project under its own release, and
+	 * a feature with sub-features cannot become a bug. Rows nobody touches are
+	 * left as they are.
+	 *
+	 * @param array<string, mixed> $item   The item as stored.
+	 * @param array<string, mixed> $values The validated edit.
+	 * @return \WP_Error|null Null when there is nothing to refuse.
+	 */
+	private static function hierarchy_error( array $item, array $values ) {
+		$parent_sent = array_key_exists( 'parent_id', $values );
+		$level       = (string) ( $values['level'] ?? $item['level'] );
+		$type        = (string) ( $values['work_type'] ?? $item['work_type'] );
+		$reshaped    = $level !== (string) $item['level'] || $type !== (string) $item['work_type'];
+
+		if ( ! $parent_sent && ! $reshaped ) {
+			return null;
+		}
+
+		$parent_id = $parent_sent ? (string) $values['parent_id'] : (string) $item['parent_id'];
+		$error     = self::parent_error( $parent_id, $level, (string) $item['client_site_id'], (string) $item['id'], $type );
+
+		if ( null !== $error || ! $reshaped ) {
+			return $error;
+		}
+
+		foreach ( Items::children( (string) $item['id'] ) as $child ) {
+			if ( Levels::may_hold( $level, $type, (string) $child['level'], (string) $child['work_type'] ) ) {
+				continue;
+			}
+
+			if ( Types::is_leaf( $type ) ) {
+				return Errors::rest( 'invalid_work_type', __( "Bugs, tasks and feedback can't have work beneath them.", 'blueworx-forge' ), 400 );
+			}
+
+			return Errors::rest(
+				'invalid_level',
+				__( 'Work beneath this has to stay a lower level than it.', 'blueworx-forge' ),
+				400,
+				array(
+					'level'       => $level,
+					'child_level' => $child['level'],
+				)
+			);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Refuses a parent that does not exist, sits on another site, is a bug,
+	 * task or feedback item, sits beneath the child, or is not a higher level
+	 * than the child.
 	 *
 	 * @param string $parent_id      The proposed parent, or '' for none.
 	 * @param string $level          The child's level.
 	 * @param string $client_site_id The site the child belongs to.
 	 * @param string $child_id       The child's own id, when it has one.
+	 * @param string $work_type      The child's work type.
 	 * @return \WP_Error|null Null when there is nothing to refuse.
 	 */
-	private static function parent_error( string $parent_id, string $level, string $client_site_id, string $child_id = '' ) {
+	private static function parent_error( string $parent_id, string $level, string $client_site_id, string $child_id = '', string $work_type = '' ) {
 		if ( '' === $parent_id ) {
 			return null;
 		}
@@ -2559,7 +2612,30 @@ final class WorkItemsController {
 			return Errors::rest( 'unknown_parent', __( 'There is no such parent item.', 'blueworx-forge' ), 404 );
 		}
 
-		if ( ! \Blueworx\Forge\Work\Levels::may_parent( (string) $parent['level'], $level ) ) {
+		// #562. A bug, task or feedback item never holds work.
+		if ( Types::is_leaf( (string) $parent['work_type'] ) ) {
+			return Errors::rest( 'invalid_parent', __( "Bugs, tasks and feedback can't have work beneath them.", 'blueworx-forge' ), 400 );
+		}
+
+		/*
+		 * #562. A bug, task or feedback item skips the level rule, so the rank
+		 * no longer proves there is no loop on its own. Walking up from the
+		 * parent does: the child must not be found above itself. Bounded, so a
+		 * loop already in the data cannot hang the request.
+		 */
+		if ( '' !== $child_id ) {
+			$above = $parent;
+
+			for ( $hops = 0; null !== $above && '' !== (string) $above['parent_id'] && $hops < 64; $hops++ ) {
+				if ( (string) $above['parent_id'] === $child_id ) {
+					return Errors::rest( 'invalid_parent', __( 'Work cannot sit under work beneath it.', 'blueworx-forge' ), 400 );
+				}
+
+				$above = Items::get( (string) $above['parent_id'] );
+			}
+		}
+
+		if ( ! Types::is_leaf( $work_type ) && ! Levels::may_parent( (string) $parent['level'], $level ) ) {
 			return Errors::rest(
 				'invalid_parent',
 				__( 'A parent has to be a higher level than the work beneath it.', 'blueworx-forge' ),

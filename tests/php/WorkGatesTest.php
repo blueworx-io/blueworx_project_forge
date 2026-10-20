@@ -237,6 +237,27 @@ final class WorkGatesTest extends TestCase {
 	}
 
 	/**
+	 * #562. A project takes its dates from its releases, so leaving Up Next
+	 * asks it for none. A feature with no dates is still held.
+	 */
+	public function test_a_project_leaves_up_next_without_dates(): void {
+		$project = Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'level' => 'project', 'designer_id' => 'usr_d' ) ), array() );
+		$ids     = array_column( $project['all'], 'id' );
+
+		foreach ( array( 'G-UP-NEXT-5', 'G-UP-NEXT-10', 'G-UP-NEXT-11', 'G-UP-NEXT-12' ) as $id ) {
+			$this->assertNotContains( $id, $ids, "{$id} should not be asked of a project" );
+		}
+
+		$this->assertContains( 'G-UP-NEXT-1', $ids, 'A project still needs its seats' );
+
+		$feature = array_column( Gates::evaluate( 'G-UP-NEXT', $this->item( array( 'level' => 'feature' ) ), array() )['unmet'], 'id' );
+
+		foreach ( array( 'G-UP-NEXT-5', 'G-UP-NEXT-10', 'G-UP-NEXT-11' ) as $id ) {
+			$this->assertContains( $id, $feature );
+		}
+	}
+
+	/**
 	 * Leaving In Development (2026-09-19, 2026-09-24): the test steps are
 	 * optional, hours still to do is gone, and the completion checklist is the
 	 * checklist itself.

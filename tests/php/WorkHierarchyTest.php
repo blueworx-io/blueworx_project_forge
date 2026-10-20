@@ -82,13 +82,36 @@ final class WorkHierarchyTest extends TestCase {
 	}
 
 	/**
-	 * The parent rule says nothing about work type. A Bug under a Project is
-	 * allowed, and so is a Bug under nothing at all.
+	 * A Bug under a Project is allowed, and so is a Bug under nothing at all.
 	 */
 	public function test_work_type_does_not_constrain_where_something_hangs(): void {
 		foreach ( Types::ALL as $type ) {
-			$this->assertTrue( Levels::may_parent( 'project', 'feature' ), "{$type} should be able to hang under a project" );
+			$this->assertTrue( Levels::may_hold( 'project', 'feature', 'feature', $type ), "{$type} should be able to hang under a project" );
 		}
+	}
+
+	/**
+	 * #562. Bugs, tasks and feedback never have work beneath them, whatever
+	 * their level says. That is what lets them sit anywhere without a loop.
+	 */
+	public function test_a_bug_task_or_feedback_cannot_be_a_parent(): void {
+		foreach ( array( 'bug', 'task', 'feedback' ) as $type ) {
+			$this->assertTrue( Types::is_leaf( $type ) );
+			$this->assertFalse( Levels::may_hold( 'project', $type, 'sub-feature', 'feature' ), "a {$type} should not hold a sub-feature" );
+			$this->assertFalse( Levels::may_hold( 'project', $type, 'sub-feature', 'bug' ), "a {$type} should not hold a bug" );
+		}
+
+		$this->assertFalse( Types::is_leaf( 'feature' ) );
+	}
+
+	/**
+	 * #562. A bug, task or feedback item skips the level rule, so it may sit
+	 * under the lowest rung. Everything else still obeys it.
+	 */
+	public function test_a_bug_can_sit_under_a_sub_feature(): void {
+		$this->assertTrue( Levels::may_hold( 'sub-feature', 'feature', 'sub-feature', 'bug' ) );
+		$this->assertTrue( Levels::may_hold( 'sub-feature', 'feature', 'project', 'task' ) );
+		$this->assertFalse( Levels::may_hold( 'sub-feature', 'feature', 'sub-feature', 'feature' ) );
 	}
 
 	/**
