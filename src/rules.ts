@@ -23,6 +23,10 @@ export const RULES: RuleSection[] = [
     title: 'The task journey',
     rules: [
       {
+        what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',
+        why: 'So you can point a colleague at the exact piece of work instead of describing where to find it.',
+      },
+      {
         what: 'Every task starts as a Future Idea and moves forward one stage at a time: Future Idea, Triage, Bug Tracking (bugs only), Documentation Period, Up Next, Design Process (only with a designer), In Development, In Review, Completed, Released. Design comes after Up Next, so a task is planned and booked before design starts; a task with no designer goes straight from Up Next to In Development.',
         why: 'No stage can be jumped, because jumping one would skip the checks that stage is there for; Design Process is only a stop for tasks that have a design.',
       },

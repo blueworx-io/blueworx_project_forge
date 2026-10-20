@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { alphabetical } from '../alphabetical.mjs';
+import { CopyLink } from './CopyLink';
 import type { ReactNode } from 'react';
 import type {
   ChecklistRow,
@@ -1457,6 +1458,7 @@ export function ItemPanel( {
               ) }
             </div>
           </div>
+          { item && <CopyLink itemId={ item.id } /> }
           <button
             type="button"
             className="bwx-icon-button"

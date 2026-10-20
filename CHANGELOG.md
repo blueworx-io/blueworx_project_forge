@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.193.0] - 2026-10-20
+
+### Added
+
+- Every item has a Copy link button beside Close. It copies a link that opens that item, and shows the link to copy by hand if your browser will not let it copy.
+
 ## [2.192.0] - 2026-10-14
 
 ### Changed

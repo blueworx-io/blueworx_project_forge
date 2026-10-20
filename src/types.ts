@@ -5,6 +5,8 @@ export interface ForgeData {
   canEdit: boolean;
   canManage: boolean;
   siteUrl: string;
+  /** The app page's address, for links that open an item (#559). */
+  appUrl?: string;
   /** The WordPress admin, for the screens that still live there. */
   adminUrl?: string;
   /** The signed-in WordPress user, and the Forge person behind it (#309). */

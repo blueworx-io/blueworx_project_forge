@@ -197,6 +197,7 @@ final class Frontend {
 			'canEdit'       => current_user_can( 'edit_posts' ),
 			'canManage'     => current_user_can( 'manage_options' ),
 			'siteUrl'       => get_site_url(),
+			'appUrl'        => $this->app_page_url(),
 			'adminUrl'      => admin_url(),
 			'currentUserId' => get_current_user_id(),
 			'person'        => null === $person ? null : array(
