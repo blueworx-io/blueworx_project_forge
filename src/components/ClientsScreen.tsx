@@ -105,7 +105,7 @@ type Opened =
   | { kind: 'edit-site'; site: string }
   | { kind: 'key'; site: string };
 
-export function ClientsScreen() {
+export function ClientsScreen( { onOpen }: { onOpen?: ( clientId: string ) => void } ) {
   // #406. A Manager reads their clients here and changes nothing.
   const admin = forgeData()?.canManage ?? false;
   const [ clients, setClients ] = useState< ClientRecord[] >( [] );
@@ -412,8 +412,15 @@ export function ClientsScreen() {
                   </>
                 }
                 flush
-                right={ admin && (
+                right={
                   <div className="bwx-moves">
+                    { onOpen && (
+                      <Button size="sm" variant="ghost" data-testid="bwx-clients-open-profile" onClick={ () => onOpen( selected.id ) }>
+                        Open profile
+                      </Button>
+                    ) }
+                    { admin && (
+                    <>
                     <Button size="sm" variant="ghost" data-testid="bwx-clients-edit" disabled={ busy } onClick={ () => setOpened( { kind: 'edit' } ) }>
                       Edit
                     </Button>
@@ -437,8 +444,10 @@ export function ClientsScreen() {
                         Delete
                       </Button>
                     ) }
+                    </>
+                    ) }
                   </div>
-                ) }
+                }
               >
                 <p className="bwx-hint bwx-panel-lead" data-testid="bwx-clients-selected-detail">
                   { selected.is_studio ? (
