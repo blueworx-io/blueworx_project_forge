@@ -150,6 +150,16 @@ test('changing level is checked against parent and children', async () => {
   expect(dropped.status()).toBe(400);
   expect((await dropped.json()).code).toBe('bwx_forge_invalid_level');
 
+  // Nor become a bug while it holds work: bugs hold nothing.
+  const leaf = await admin.api.patch(`/work-items/${release.id}`, { work_type: 'bug', record_version: release.record_version });
+  expect(leaf.status()).toBe(400);
+  expect((await leaf.json()).code).toBe('bwx_forge_invalid_work_type');
+
+  // Nor move under its own feature.
+  const looped = await admin.api.patch(`/work-items/${release.id}`, { parent_id: feature.id, record_version: release.record_version });
+  expect(looped.status()).toBe(400);
+  expect((await looped.json()).message).toBe('Work cannot sit under work beneath it.');
+
   // A level that still fits is fine.
   const fine = await admin.api.patch(`/work-items/${feature.id}`, { level: 'sub-feature', record_version: feature.record_version });
   expect(fine.status(), await fine.text()).toBe(200);

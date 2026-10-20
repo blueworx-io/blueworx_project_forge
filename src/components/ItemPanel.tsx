@@ -707,6 +707,38 @@ export function ItemPanel( {
     } );
   }
 
+  /**
+   * #562. What the item sits under, written through the same queue as every
+   * other auto-save (#544), quoting the version the last write left, then read
+   * again fresh. Not through saveNow: the parent is not part of the draft. A
+   * refusal is thrown, for the picker to show under itself; the queue goes on.
+   */
+  function saveParent( parentId: string ): Promise< void > {
+    const run = queue.current.then( async () => {
+      const current = latest.current;
+
+      if ( ! current || current.item.parent_id === parentId ) {
+        return;
+      }
+
+      await api( `/work-items/${ itemId }`, {
+        method: 'PATCH',
+        body: { parent_id: parentId, record_version: current.item.record_version },
+      } );
+
+      const loaded = await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } );
+
+      latest.current = loaded;
+      setDetail( loaded );
+      onChanged();
+      setNotice( SAVED, 'ok' );
+    } );
+
+    queue.current = run.catch( () => undefined );
+
+    return run;
+  }
+
   /** A draft change that is also saved at once (#544). */
   const saveDraft = ( patch: Record< string, string > ) => {
     setDraft( ( held ) => ( { ...held, ...patch } ) );
@@ -1593,14 +1625,7 @@ export function ItemPanel( {
 
             { /* #562. Where it sits, saved as soon as it is picked (#544). */ }
             { staff && (
-              <SitsUnder
-                item={ item }
-                siteItems={ siteItems }
-                onChanged={ () => {
-                  void load( true );
-                  onChanged();
-                } }
-              />
+              <SitsUnder item={ item } siteItems={ siteItems } save={ saveParent } />
             ) }
 
             { blocked && (

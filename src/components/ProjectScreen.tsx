@@ -199,7 +199,7 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
       { tree && project && when && (
         <>
           <Panel
-            title={ project.title }
+            title={ title( project ) }
             right={
               <span className="bwx-moves">
                 <CopyLink itemId={ project.id } />

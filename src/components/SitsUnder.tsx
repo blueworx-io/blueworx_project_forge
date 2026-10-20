@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { WorkItem } from '../types';
-import { api, messageFor } from '../api';
+import { messageFor } from '../api';
 import { beneath, mayHold } from '../tree.mjs';
 import { Select } from '../kit';
 
@@ -21,17 +21,19 @@ const kindOf = ( one: WorkItem ) => KIND[ 'feature' === one.work_type ? one.leve
  * #562. What an item sits under, chosen from its panel and saved the moment it
  * is picked (#544). Offers only what the server would take: nothing beneath
  * the item itself, no bug, task or feedback, and a higher level unless the
- * item is a bug, task or feedback.
+ * item is a bug, task or feedback. The panel does the writing, through its
+ * own save queue, so this never quotes a version of its own.
  */
 export function SitsUnder( {
   item,
   siteItems,
-  onChanged,
+  save,
 }: {
   item: WorkItem;
   /** The site's other open items. */
   siteItems: WorkItem[];
-  onChanged: () => void;
+  /** Writes the new parent; rejects with the refusal when it is not taken. */
+  save: ( parentId: string ) => Promise< void >;
 } ) {
   const [ value, setValue ] = useState( item.parent_id );
   const [ error, setError ] = useState( '' );
@@ -57,11 +59,7 @@ export function SitsUnder( {
     setError( '' );
 
     try {
-      await api( `/work-items/${ item.id }`, {
-        method: 'PATCH',
-        body: { parent_id: next, record_version: item.record_version },
-      } );
-      onChanged();
+      await save( next );
     } catch ( failure ) {
       setValue( was );
       setError( messageFor( failure, 'That could not be moved.' ) );
