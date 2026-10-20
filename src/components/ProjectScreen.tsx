@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle } from 'lucide-react';
 import type { Stage, WorkItem } from '../types';
 import { api, ApiError, isDenied } from '../api';
 import { useLiveReload } from '../live';
 import type { SiteOption } from '../sites';
-import { buildTree, summary } from '../tree.mjs';
+import { buildTree, isDone, reviewProgress, summary } from '../tree.mjs';
 import { itemWeeks } from '../weeks.mjs';
 import { Button, Panel, StageChip } from '../kit';
 import { CopyLink } from './CopyLink';
@@ -16,6 +16,8 @@ interface Node {
   item: WorkItem;
   parts: Node[];
   attached: WorkItem[];
+  /** #564. What this item's own review raised. */
+  review: WorkItem[];
 }
 
 const KIND: Record< string, string > = {
@@ -157,6 +159,58 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
     </li>
   );
 
+  /**
+   * #564. A release in review: what the review raised, how many are done, and
+   * a way to raise more. Each fix is an ordinary bug or feedback item under
+   * the release, marked as raised in its review.
+   */
+  const reviewBox = ( node: Node ) => {
+    const { total, finished } = reviewProgress( node );
+    const raise = ( workType: 'bug' | 'feedback' ) => addUnder( { level: 'sub-feature', parentId: node.item.id, workType, reviewOf: node.item.id } );
+
+    return (
+      <section className="bwx-release-review" data-testid="bwx-release-review" aria-labelledby={ `bwx-review-${ node.item.id }` }>
+        <h3 className="bwx-release-review-title" id={ `bwx-review-${ node.item.id }` }>
+          Release review
+        </h3>
+        <p className="bwx-release-review-count" data-testid="bwx-release-review-count">
+          { 0 === total
+            ? 'Nothing raised yet. Anything raised here has to be completed before this can be released.'
+            : `${ finished } of ${ total } done before this can be released` }
+        </p>
+        { 0 < node.review.length && (
+          <ul className="bwx-release-review-list">
+            { node.review.map( ( one ) => {
+              const done = isDone( one );
+              const ended = Boolean( one.terminal_outcome ) || Boolean( one.archived );
+
+              return (
+                <li key={ one.id } className="bwx-project-line" data-testid="bwx-release-fix" data-item={ one.id } data-done={ done ? 'true' : undefined }>
+                  { done ? (
+                    <CheckCircle2 size={ 16 } className="bwx-release-fix-mark" data-done="true" role="img" aria-label="Done" />
+                  ) : (
+                    <Circle size={ 16 } className="bwx-release-fix-mark" role="img" aria-label={ ended ? 'Ended, not counted' : 'Not done yet' } />
+                  ) }
+                  <span className="bwx-project-kind">{ kindOf( one ) }</span>
+                  { title( one ) }
+                  <StageChip stage={ one.stage } dense />
+                </li>
+              );
+            } ) }
+          </ul>
+        ) }
+        <div className="bwx-project-adds">
+          <Button size="sm" variant="ghost" data-testid="bwx-release-raise" data-type="bug" onClick={ () => raise( 'bug' ) }>
+            + Raise a bug
+          </Button>
+          <Button size="sm" variant="ghost" data-testid="bwx-release-raise" data-type="feedback" onClick={ () => raise( 'feedback' ) }>
+            + Raise feedback
+          </Button>
+        </div>
+      </section>
+    );
+  };
+
   /** A feature or sub-feature, with what is under it. */
   const branch = ( node: Node ) => (
     <li key={ node.item.id } className="bwx-project-node" data-testid="bwx-project-node" data-item={ node.item.id }>
@@ -242,7 +296,12 @@ export function ProjectScreen( { projectId, onBack }: { projectId: string; onBac
                         <StageChip stage={ node.item.stage } dense />
                         <Progress node={ node } />
                       </div>
-                      { expanded && <div className="bwx-project-inside">{ beneath( node ) }</div> }
+                      { expanded && (
+                        <div className="bwx-project-inside">
+                          { 'in-review' === node.item.stage && reviewBox( node ) }
+                          { beneath( node ) }
+                        </div>
+                      ) }
                     </li>
                   );
                 } ) }

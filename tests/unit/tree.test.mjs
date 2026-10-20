@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // #561. One tree of projects, releases and features, read the same way by the
 // client profile, the project page and the release page.
 
-import { beneath, buildTree, mayHold, summary, topLevel } from '../../src/tree.mjs';
+import { beneath, buildTree, mayHold, reviewProgress, summary, topLevel } from '../../src/tree.mjs';
 
 const item = (id, parent_id, work_type, extra = {}) => ({
   id,
@@ -117,4 +117,36 @@ test('#562: everything beneath an item, however deep', () => {
 
   assert.deepEqual([...beneath(items, 'p')].sort(), ['b', 'f', 'r']);
   assert.deepEqual([...beneath(items, 'x')], []);
+});
+
+test('#564: review fixes are kept apart and counted', () => {
+  const items = [
+    item('r', '', 'feature', { level: 'milestone', stage: 'in-review' }),
+    item('f', 'r', 'feature', { stage: 'completed' }),
+    item('b', 'r', 'bug'),
+    item('fix', 'r', 'bug', { review_of: 'r', stage: 'completed' }),
+    item('elsewhere', 'r', 'feedback', { review_of: 'other' }),
+  ];
+  const tree = buildTree(items, 'r');
+
+  assert.equal(tree.review.length, 1);
+  assert.equal(tree.review[0].id, 'fix');
+  assert.deepEqual(tree.attached.map((one) => one.id), ['b', 'elsewhere'], 'a fix is not also attached');
+
+  const counts = summary(tree);
+
+  assert.equal(counts.total, 4);
+  assert.equal(counts.finished, 2);
+});
+
+test('#564: a cancelled fix does not hold the review', () => {
+  const items = [
+    item('r', '', 'feature', { level: 'milestone' }),
+    item('a', 'r', 'bug', { review_of: 'r', stage: 'completed' }),
+    item('b', 'r', 'feedback', { review_of: 'r', stage: 'in-development' }),
+    item('c', 'r', 'bug', { review_of: 'r', terminal_outcome: 'cancelled' }),
+  ];
+
+  assert.deepEqual(reviewProgress(buildTree(items, 'r')), { total: 2, finished: 1 });
+  assert.deepEqual(reviewProgress(buildTree([item('x', '', 'feature')], 'x')), { total: 0, finished: 0 });
 });

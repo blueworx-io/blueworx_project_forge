@@ -153,6 +153,13 @@ final class Validate {
 			$values['parent_id'] = '';
 		}
 
+		// #564. Which release's review raised it. Named when the work is
+		// added and never edited afterwards, so an edit that mentions it is
+		// left alone rather than written.
+		if ( ! $partial ) {
+			$values['review_of'] = trim( (string) ( $input['review_of'] ?? '' ) );
+		}
+
 		self::seats( $input, $values, $errors );
 		self::text_fields( $input, $values, $errors );
 

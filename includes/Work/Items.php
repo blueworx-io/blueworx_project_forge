@@ -73,6 +73,11 @@ final class Items {
 				// afterwards: which arrangement this task came from, who does
 				// it, and the hours each of them spends.
 				'recurring_id'   => (string) ( $values['recurring_id'] ?? '' ),
+				// #564. Likewise named only at creation: the release whose
+				// review this was raised in. Moving it elsewhere leaves it
+				// naming a release it no longer sits under, which is what
+				// stops it holding that review.
+				'review_of'      => (string) ( $values['review_of'] ?? '' ),
 				'assignees'      => (string) wp_json_encode( array_values( array_map( 'strval', (array) ( $values['assignees'] ?? array() ) ) ) ),
 				'hours_each'     => (string) (float) ( $values['hours_each'] ?? 0 ),
 				'client_site_id' => $client_site_id,
@@ -682,6 +687,7 @@ final class Items {
 	private static function defaults(): array {
 		return array(
 			'parent_id'                => '',
+			'review_of'                => '',
 			'level'                    => Levels::SUB_FEATURE,
 			'work_type'                => Types::TASK,
 			'title'                    => '',
@@ -751,6 +757,8 @@ final class Items {
 			'client_site_id'           => (string) $row['client_site_id'],
 			'client_id'                => (string) $row['client_id'],
 			'parent_id'                => (string) $row['parent_id'],
+			// #564. The release whose review raised it, or '' for any other work.
+			'review_of'                => (string) ( $row['review_of'] ?? '' ),
 			'level'                    => (string) $row['level'],
 			'level_label'              => Levels::label( (string) $row['level'] ),
 			'work_type'                => (string) $row['work_type'],

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.198.0] - 2026-10-20
+
+### Added
+
+- A release in review shows a release review box on its project page. The reviewer can raise bugs and feedback straight into it, and it shows how many are done before the release can go out.
+- A release's review can't be approved until everything raised in it is Completed.
+
+### Changed
+
+- A release can only go into review once every feature in it is Completed. A feature can still be released on its own before its release is.
+
 ## [2.197.0] - 2026-10-20
 
 ### Added

@@ -67,11 +67,15 @@ const byStartThenTitle = (a, b) => {
  *
  * @param {object[]} items Every item the screen holds.
  * @param {string} rootId The item to start from.
- * @returns {{ item: object, parts: object[], attached: object[] }} The tree.
+ * @returns {{ item: object, parts: object[], attached: object[], review: object[] }} The tree.
  */
 export function buildTree(items, rootId) {
   const item = items.find((one) => one.id === rootId);
-  const children = items.filter((one) => one.parent_id === rootId && one.id !== rootId);
+  const all = items.filter((one) => one.parent_id === rootId && one.id !== rootId);
+  // #564. What this item's own review raised, kept apart from other work under it.
+  const raised = (one) => '' !== String(one.review_of || '') && one.review_of === rootId;
+  const children = all.filter((one) => !raised(one));
+  const byCreated = (a, b) => Number(a.created_at || 0) - Number(b.created_at || 0);
 
   return {
     item,
@@ -79,7 +83,8 @@ export function buildTree(items, rootId) {
       .filter((one) => !LEAF_TYPES.includes(one.work_type))
       .sort(byStartThenTitle)
       .map((one) => buildTree(items, one.id)),
-    attached: children.filter((one) => LEAF_TYPES.includes(one.work_type)).sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0)),
+    attached: children.filter((one) => LEAF_TYPES.includes(one.work_type)).sort(byCreated),
+    review: all.filter(raised).sort(byCreated),
   };
 }
 
@@ -100,15 +105,32 @@ const counted = (one) => !one.terminal_outcome && !one.archived;
 /**
  * How far along a node is, and over what dates.
  *
- * @param {{ item: object, parts: object[], attached: object[] }} node A tree node.
+ * @param {{ item: object, parts: object[], attached: object[], review?: object[] }} node A tree node.
  * @returns {{ total: number, finished: number, start: string, due: string, ongoing: boolean }} Progress.
  */
 export function summary(node) {
   const item = node.item || {};
-  const kids = [...node.parts.map((part) => part.item), ...node.attached].filter(counted);
+  // #564. What a release's review raised counts toward its progress.
+  const kids = [...node.parts.map((part) => part.item), ...node.attached, ...(node.review || [])].filter(counted);
   const total = Number.isFinite(item.children_total) ? item.children_total : kids.length;
   const finished = Number.isFinite(item.children_finished) ? item.children_finished : kids.filter((one) => ['completed', 'released'].includes(one.stage)).length;
   const due = item.planned_due || item.derived_due || '';
 
   return { total, finished, start: item.planned_start || item.derived_start || '', due, ongoing: !due };
+}
+
+/** Whether an item has reached Completed or beyond. */
+export const isDone = (one) => ['completed', 'released'].includes(one.stage);
+
+/**
+ * #564. How many of a release's review fixes are done, counted the way the
+ * server's G-IN-REVIEW-6 counts them: cancelled and archived fixes don't hold it.
+ *
+ * @param {{ review?: object[] }} node A tree node.
+ * @returns {{ total: number, finished: number }} The fixes.
+ */
+export function reviewProgress(node) {
+  const fixes = (node.review || []).filter(counted);
+
+  return { total: fixes.length, finished: fixes.filter(isDone).length };
 }

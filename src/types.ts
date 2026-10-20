@@ -59,6 +59,8 @@ export interface WorkItem {
   client_name?: string;
   site_name?: string;
   parent_id: string;
+  /** #564. The release whose review raised it, or '' for any other work. */
+  review_of?: string;
   level: string;
   level_label: string;
   work_type: string;

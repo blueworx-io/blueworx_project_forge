@@ -1379,6 +1379,12 @@ final class WorkItemsController {
 			return $parent_error;
 		}
 
+		$review_error = self::review_fix_error( $checked['values'] );
+
+		if ( null !== $review_error ) {
+			return $review_error;
+		}
+
 		$item = Items::create( $site['id'], (string) $site['client_id'], $checked['values'], get_current_user_id() );
 
 		if ( null === $item ) {
@@ -2576,6 +2582,35 @@ final class WorkItemsController {
 		}
 
 		return null;
+	}
+
+	/**
+	 * #564. Refuses a review fix raised anywhere but a release that is in
+	 * review, or that is not a bug or feedback. The parent itself has already
+	 * been checked by parent_error(), so it exists and sits on this site.
+	 *
+	 * @param array<string, mixed> $values The validated new item.
+	 * @return \WP_Error|null Null when there is nothing to refuse.
+	 */
+	private static function review_fix_error( array $values ) {
+		$review_of = (string) ( $values['review_of'] ?? '' );
+
+		if ( '' === $review_of ) {
+			return null;
+		}
+
+		$parent = $review_of === (string) $values['parent_id'] ? Items::get( $review_of ) : null;
+
+		$allowed = null !== $parent
+			&& Levels::MILESTONE === (string) $parent['level']
+			&& 'in-review' === (string) $parent['stage']
+			&& in_array( (string) $values['work_type'], array( Types::BUG, Types::FEEDBACK ), true );
+
+		if ( $allowed ) {
+			return null;
+		}
+
+		return Errors::rest( 'invalid_review_fix', __( "Only bugs and feedback can be raised in a release's review, while it is in review.", 'blueworx-forge' ), 400 );
 	}
 
 	/**

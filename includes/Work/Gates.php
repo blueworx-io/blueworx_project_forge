@@ -244,6 +244,9 @@ final class Gates {
 				// #550. How to test it is needed before review; the test steps stay optional. No work evidence (2026-09-24).
 				self::field( 'G-IN-DEVELOPMENT-2', 'How to test it', 'text', array( 'test_description' ), 'Write how to test it, so the reviewer has something to go on.', self::PU ),
 				self::system( 'G-IN-DEVELOPMENT-6', 'Submitted to Reviewer', 'submission', 'Recorded by the move itself.' ),
+				// #564. A release is reviewed as a whole once every feature in
+				// it is done; bugs, tasks and feedback under it don't hold it.
+				self::releases_only( self::system( 'G-IN-DEVELOPMENT-8', 'Every feature Completed', 'parts_completed', 'Every feature in this release has to reach Completed first.' ) ),
 			),
 			'G-IN-REVIEW'      => array(
 				self::done( 'G-IN-REVIEW-1', 'Review checklist', 'Mark the review checklist as done.', self::REV ),
@@ -251,6 +254,8 @@ final class Gates {
 				self::auto( 'G-IN-REVIEW-3', 'All feedback resolved', 'checklist', 'feedback', 'Answer every open question from the client, or return the item.', self::REV ),
 				self::approval( 'G-IN-REVIEW-4', 'Review approval', 'Approve the review as the assigned Reviewer or an authorised substitute.', self::REV ),
 				self::box( 'G-IN-REVIEW-5', 'Post-review hours adjustment', 'number', 'Fill in the post-review hours adjustment (0 for none).', self::REV ),
+				// #564. Every bug and feedback item raised in the release's review.
+				self::releases_only( self::system( 'G-IN-REVIEW-6', 'Review fixes completed', 'review_fixes_completed', 'Every bug and feedback item raised in this review has to reach Completed first.' ) ),
 			),
 			'G-COMPLETED'      => array(
 				self::system( 'G-COMPLETED-1', 'Review approval preserved', 'review_approval', 'The review approval from this cycle has to still be on the item.' ),
@@ -379,6 +384,7 @@ final class Gates {
 		 */
 		$no_designer = '' === (string) ( $item['designer_id'] ?? '' );
 		$is_project  = Levels::PROJECT === (string) ( $item['level'] ?? '' );
+		$is_release  = Levels::MILESTONE === (string) ( $item['level'] ?? '' );
 
 		// #511. The design checks go; the system checks stay, because leaving
 		// Design is when the work starts.
@@ -396,6 +402,11 @@ final class Gates {
 
 			// #562. A row a project is never asked: its dates come from its releases.
 			if ( $is_project && ! empty( $requirement['not_for_projects'] ) ) {
+				continue;
+			}
+
+			// #564. A row only a release is asked: its own review.
+			if ( ! $is_release && ! empty( $requirement['releases_only'] ) ) {
 				continue;
 			}
 
@@ -624,6 +635,30 @@ final class Gates {
 				 * held open forever by a child somebody deliberately stopped.
 				 */
 				return Derived::may_complete( (array) ( $context['children'] ?? array() ) );
+
+			case 'parts_completed':
+				/*
+				 * #564. The same rule, over the release's features only: not
+				 * its bugs, tasks and feedback, and not what its own review
+				 * raised, which comes after the features by definition.
+				 */
+				return Derived::may_complete(
+					array_filter(
+						(array) ( $context['children'] ?? array() ),
+						static fn( array $child ): bool => ! Types::is_leaf( (string) ( $child['work_type'] ?? '' ) )
+							&& ! self::raised_in_review_of( $child, $item )
+					)
+				);
+
+			case 'review_fixes_completed':
+				// #564. The same rule again, over what this review raised.
+				// None at all passes: a clean review has nothing to wait for.
+				return Derived::may_complete(
+					array_filter(
+						(array) ( $context['children'] ?? array() ),
+						static fn( array $child ): bool => self::raised_in_review_of( $child, $item )
+					)
+				);
 
 			case 'capacity':
 				/*
@@ -911,6 +946,33 @@ final class Gates {
 		$requirement['not_for_projects'] = true;
 
 		return $requirement;
+	}
+
+	/**
+	 * A requirement only a release is asked (#564): its own review. Read by
+	 * evaluate(), which leaves the row out for anything else.
+	 *
+	 * @param array<string, mixed> $requirement Requirement.
+	 * @return array<string, mixed>
+	 */
+	private static function releases_only( array $requirement ): array {
+		$requirement['releases_only'] = true;
+
+		return $requirement;
+	}
+
+	/**
+	 * Whether a child was raised in this item's review (#564). A fix moved to
+	 * another release still names the first, so it never holds the second.
+	 *
+	 * @param array<string, mixed> $child The child.
+	 * @param array<string, mixed> $item  The release.
+	 * @return bool
+	 */
+	private static function raised_in_review_of( array $child, array $item ): bool {
+		$review_of = (string) ( $child['review_of'] ?? '' );
+
+		return '' !== $review_of && (string) ( $item['id'] ?? '' ) === $review_of;
 	}
 
 	/**

@@ -163,6 +163,18 @@ export const RULES: RuleSection[] = [
         why: 'Each review judges the work as it now is, while the earlier attempt stays in the history.',
       },
       {
+        what: 'A release can only go into review once every feature in it has reached Completed. Bugs, tasks and feedback under it don\'t hold it back, and a feature can be released on its own before its release is.',
+        why: 'The release review looks at the release as a whole, so it comes after each feature has had its own review.',
+      },
+      {
+        what: 'While a release is in review, its reviewer can raise bugs and feedback straight into it from the release review box on the project page. Only bugs and feedback can be raised there, and only while the release is in review. They are ordinary items with their own people and hours, and they count toward the release\'s progress.',
+        why: 'Problems found when looking at the release as a whole belong to that release, and the box keeps them apart from other work under it.',
+      },
+      {
+        what: 'A release\'s review can\'t be approved until everything raised in it has reached Completed. Anything raised there that is cancelled, archived or moved to another release stops holding it.',
+        why: 'A release shouldn\'t go out with problems its own review found still open.',
+      },
+      {
         what: 'Only the named deliverer, or their stand-in, can release a Completed task.',
         why: 'Releasing is a deliberate act by the person responsible for delivering the work.',
       },

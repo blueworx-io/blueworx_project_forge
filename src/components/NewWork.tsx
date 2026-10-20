@@ -24,8 +24,8 @@ const CHOOSABLE = TYPES.filter( ( option ) => 'feature' !== option.id );
 
 /**
  * #562. Work added from inside something: its level and, when given, its type
- * are fixed, and it is put under its parent. `reviewOf` is held for the
- * release review (#564) and not sent yet.
+ * are fixed, and it is put under its parent. `reviewOf` names the release
+ * whose review raised it (#564).
  */
 export interface NewWorkPreset {
   level?: string;
@@ -86,6 +86,7 @@ export function NewWork( {
           level,
           work_type: workType,
           ...( preset?.parentId ? { parent_id: preset.parentId } : {} ),
+          ...( preset?.reviewOf ? { review_of: preset.reviewOf } : {} ),
           ...( dated && '' !== start ? { planned_start: start } : {} ),
           ...( dated && '' !== due ? { planned_due: due } : {} ),
         },
