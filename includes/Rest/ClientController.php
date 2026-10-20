@@ -31,6 +31,7 @@ use Blueworx\Forge\Sites\SecurityLog;
 use Blueworx\Forge\Work\ClientView;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Contributions;
+use Blueworx\Forge\Work\Derived;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
@@ -858,7 +859,9 @@ final class ClientController {
 			return $integration;
 		}
 
-		$rows = Items::for_site( (string) $integration['client_site_id'] );
+		// #565. Progress and dates for the client's projects and releases. Read
+		// from the same unarchived rows: archived children never count anyway.
+		$rows = Derived::across( Items::for_site( (string) $integration['client_site_id'] ) );
 
 		return rest_ensure_response(
 			array(

@@ -83,24 +83,33 @@ final class ClientView {
 		 * of it, drifting the first time we renamed anything.
 		 */
 		return array(
-			'id'              => (string) ( $row['id'] ?? '' ),
-			'parent_id'       => (string) ( $row['parent_id'] ?? '' ),
-			'title'           => (string) ( $row['title'] ?? '' ),
-			'stage'           => (string) ( $row['stage'] ?? '' ),
-			'stage_label'     => Stages::label( (string) ( $row['stage'] ?? '' ) ),
-			'level'           => (string) ( $row['level'] ?? '' ),
-			'level_label'     => Levels::label( (string) ( $row['level'] ?? '' ) ),
-			'work_type'       => (string) ( $row['work_type'] ?? '' ),
-			'work_type_label' => Types::label( (string) ( $row['work_type'] ?? '' ) ),
-			'planned_start'   => (string) ( $row['planned_start'] ?? '' ),
-			'planned_due'     => (string) ( $row['planned_due'] ?? '' ),
-			'review_target'   => (string) ( $row['review_target'] ?? '' ),
-			'release_target'  => (string) ( $row['release_target'] ?? '' ),
-			'people'          => self::people( $row, $lookup ),
+			'id'                => (string) ( $row['id'] ?? '' ),
+			'parent_id'         => (string) ( $row['parent_id'] ?? '' ),
+			'title'             => (string) ( $row['title'] ?? '' ),
+			'stage'             => (string) ( $row['stage'] ?? '' ),
+			'stage_label'       => Stages::label( (string) ( $row['stage'] ?? '' ) ),
+			'level'             => (string) ( $row['level'] ?? '' ),
+			'level_label'       => Levels::label( (string) ( $row['level'] ?? '' ) ),
+			'work_type'         => (string) ( $row['work_type'] ?? '' ),
+			'work_type_label'   => Types::label( (string) ( $row['work_type'] ?? '' ) ),
+			'planned_start'     => (string) ( $row['planned_start'] ?? '' ),
+			'planned_due'       => (string) ( $row['planned_due'] ?? '' ),
+			'review_target'     => (string) ( $row['review_target'] ?? '' ),
+			'release_target'    => (string) ( $row['release_target'] ?? '' ),
+			'people'            => self::people( $row, $lookup ),
 
 			// #391. Whether this is waiting on the client to approve it or
 			// send it back.
-			'awaiting_review' => ClientReviewer::awaiting( $row ),
+			'awaiting_review'   => ClientReviewer::awaiting( $row ),
+
+			// #565. How far along a project or release is, and over what dates,
+			// as Derived works it out. Which fixes a release review raised
+			// (review_of) is left out: to a client they are ordinary work.
+			'progress'          => (int) ( $row['progress'] ?? 0 ),
+			'derived_start'     => (string) ( $row['derived_start'] ?? '' ),
+			'derived_due'       => (string) ( $row['derived_due'] ?? '' ),
+			'children_total'    => (int) ( $row['children_total'] ?? 0 ),
+			'children_finished' => (int) ( $row['children_finished'] ?? 0 ),
 		);
 	}
 

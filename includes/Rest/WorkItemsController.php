@@ -657,15 +657,8 @@ final class WorkItemsController {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private static function derive_across( string $site_id, array $items ): array {
-		$children = array();
-
-		foreach ( Items::for_site( $site_id, array( 'include_archived' => true ) ) as $candidate ) {
-			$parent = (string) $candidate['parent_id'];
-
-			if ( '' !== $parent ) {
-				$children[ $parent ][] = $candidate;
-			}
-		}
+		$family   = Items::for_site( $site_id, array( 'include_archived' => true ) );
+		$children = Derived::children_of( $family );
 
 		/*
 		 * What each item waits on, for the whole site in one read (#120). The
@@ -681,12 +674,15 @@ final class WorkItemsController {
 		$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
 		$records = GateRecords::for_items( $open );
 
+		// #565. What each item's children make it, the same way the client board
+		// is filled in.
+		$items = Derived::across( $items, $family );
+
 		foreach ( $items as $index => $item ) {
 			$id = (string) $item['id'];
 
 			$items[ $index ] = array_merge(
 				$item,
-				Derived::fields( $children[ $id ] ?? array() ),
 				array(
 					'waits_on'  => $waits[ $id ] ?? array(),
 					'next_step' => empty( $item['archived'] ) ? Transition::next_step( $item, $children[ $id ] ?? array(), $records[ $id ] ?? array() ) : null,

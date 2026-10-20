@@ -177,6 +177,49 @@ final class Derived {
 	}
 
 	/**
+	 * Every item in a list, with what its children make it merged in (#565).
+	 *
+	 * The children are found in `$family`, one pass over it, rather than a
+	 * query per parent. It defaults to the items themselves; the studio's board
+	 * passes the whole site instead, so filtering the board to one column does
+	 * not change what a card says about itself.
+	 *
+	 * @param array<int, array<string, mixed>>      $items  The items to fill in.
+	 * @param array<int, array<string, mixed>>|null $family Where their children
+	 *                                                      are looked for.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function across( array $items, ?array $family = null ): array {
+		$children = self::children_of( $family ?? $items );
+
+		foreach ( $items as $index => $item ) {
+			$items[ $index ] = array_merge( $item, self::fields( $children[ (string) ( $item['id'] ?? '' ) ] ?? array() ) );
+		}
+
+		return $items;
+	}
+
+	/**
+	 * A list's items grouped under the id of their parent.
+	 *
+	 * @param array<int, array<string, mixed>> $items Every item to group.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function children_of( array $items ): array {
+		$children = array();
+
+		foreach ( $items as $candidate ) {
+			$parent = (string) ( $candidate['parent_id'] ?? '' );
+
+			if ( '' !== $parent ) {
+				$children[ $parent ][] = $candidate;
+			}
+		}
+
+		return $children;
+	}
+
+	/**
 	 * The children that still count.
 	 *
 	 * @param array<int, array<string, mixed>> $children Every child.
