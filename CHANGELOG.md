@@ -75,6 +75,12 @@ commits and pull requests.
 
 - Every item has a Copy link button beside Close. It copies a link that opens that item, and shows the link to copy by hand if your browser will not let it copy.
 
+## [2.192.1] - 2026-10-20
+
+### Fixed
+
+- Capacity no longer shows your hours as still to do once you have handed the work on. When a task goes into review, the hours of the person who did it count as done on the day they were planned for, instead of sitting on today as overdue while somebody else reviews it. The designer's hours count as done once the build starts. Sending the work back puts them back on the to-do list.
+
 ## [2.192.0] - 2026-10-14
 
 ### Changed

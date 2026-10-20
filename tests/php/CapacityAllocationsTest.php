@@ -368,7 +368,64 @@ final class CapacityAllocationsTest extends TestCase {
 	public function test_a_studio_review_is_still_carried(): void {
 		$allocations = Allocations::from_item( $this->item( array( 'stage' => 'in-review' ) ) );
 
-		$this->assertSame( array( Allocations::TO_DO ), array_values( array_unique( array_column( $allocations, 'status' ) ) ) );
+		$this->assertSame( Allocations::TO_DO, array_column( $allocations, 'status', 'role' )[ Allocations::REVIEW ] );
+	}
+
+	/*
+	 * A person's part is done once the work has moved past it: the doer's at
+	 * In Review, the designer's once the build starts. Until the whole item
+	 * is finished their hours would otherwise sit as still to do, and land on
+	 * today as overdue, for work only somebody else can move on.
+	 */
+	public function test_the_doers_part_is_done_once_it_is_in_review(): void {
+		$allocations = Allocations::from_item( $this->item( array( 'stage' => 'in-review' ) ) );
+
+		$this->assertSame(
+			array(
+				Allocations::PRIMARY => Allocations::DONE,
+				Allocations::REVIEW  => Allocations::TO_DO,
+			),
+			array_column( $allocations, 'status', 'role' )
+		);
+	}
+
+	public function test_the_designers_part_is_done_once_the_build_starts(): void {
+		$designed = array(
+			'designer_id'    => 'usr_d',
+			'hours_designer' => 3.0,
+		);
+
+		$designing = Allocations::from_item( $this->item( $designed + array( 'stage' => 'design-process' ) ) );
+		$building  = Allocations::from_item( $this->item( $designed + array( 'stage' => 'in-development' ) ) );
+
+		$this->assertSame( Allocations::TO_DO, array_column( $designing, 'status', 'role' )[ Allocations::DESIGN ] );
+		$this->assertSame(
+			array(
+				Allocations::PRIMARY => Allocations::TO_DO,
+				Allocations::DESIGN  => Allocations::DONE,
+				Allocations::REVIEW  => Allocations::TO_DO,
+			),
+			array_column( $building, 'status', 'role' )
+		);
+	}
+
+	public function test_blocked_in_review_keeps_the_doers_part_done(): void {
+		$allocations = Allocations::from_item(
+			$this->item(
+				array(
+					'stage'       => 'blocked',
+					'prior_stage' => 'in-review',
+				)
+			)
+		);
+
+		$this->assertSame( Allocations::DONE, array_column( $allocations, 'status', 'role' )[ Allocations::PRIMARY ] );
+	}
+
+	public function test_work_sent_back_from_review_is_the_doers_again(): void {
+		$allocations = Allocations::from_item( $this->item( array( 'stage' => 'in-development' ) ) );
+
+		$this->assertSame( Allocations::TO_DO, array_column( $allocations, 'status', 'role' )[ Allocations::PRIMARY ] );
 	}
 
 	public function test_work_sent_back_by_the_client_is_carried_again(): void {
