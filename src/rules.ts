@@ -536,6 +536,10 @@ export const RULES: RuleSection[] = [
         what: 'Client accounts never move tasks by any route; the one exception is approving or sending back a task they are reviewing.',
         why: 'Where work is in its journey is our decision, and that line is a security boundary rather than a preference.',
       },
+      {
+        what: 'Clients see their own projects and releases, read only, on Projects in their workspace: each one\'s dates, how far along it is, and the work in it. Bugs and feedback raised in a release review show to them as ordinary work in that release.',
+        why: 'The client sees the same picture of their work that we plan it by, and never another client\'s.',
+      },
     ],
   },
   {

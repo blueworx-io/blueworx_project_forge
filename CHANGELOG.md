@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.199.0] - 2026-10-20
+
+### Added
+
+- Clients have a Projects page in their workspace. It lists their projects with dates and how far along each is, and opening one shows its releases, the weeks each runs and the work in it. It is read only, and any piece of work opens the same record as on Your work.
+
 ## [2.198.0] - 2026-10-20
 
 ### Added

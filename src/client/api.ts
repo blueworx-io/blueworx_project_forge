@@ -59,6 +59,12 @@ export interface WorkItem {
   people: { primary: Person[]; reviewer: Person[]; deliverer: Person[] };
   /** The studio has asked this client to review it (#391); an older studio sends nothing. */
   awaiting_review?: boolean;
+  /** #565. What the work beneath it adds up to; an older studio sends none of these. */
+  progress?: number;
+  derived_start?: string;
+  derived_due?: string;
+  children_total?: number;
+  children_finished?: number;
 }
 
 export interface BoardView {
