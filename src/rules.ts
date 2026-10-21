@@ -363,6 +363,10 @@ export const RULES: RuleSection[] = [
         why: 'The person who was there is the one who knows what happened.',
       },
       {
+        what: 'A meeting marked held counts as done in capacity, and a held meeting or one nobody came to leaves Today\'s diary on My tasks; the calendar still shows it.',
+        why: 'Once it has happened it is not still to do, but the calendar is a record of what took place.',
+      },
+      {
         what: 'Changing a standing meeting\'s length or time updates its coming meetings; changing its day, how often it runs or bringing its end date forward replaces them and gives back their hours; meetings already moved or dealt with stay as they are, and a rename changes nothing else.',
         why: 'Coming meetings should match the arrangement without undoing changes somebody made by hand.',
       },

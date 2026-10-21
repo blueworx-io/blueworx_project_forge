@@ -366,3 +366,63 @@ test( 'overdue work is under Today, and released work is under none of the dated
   await me.context.close();
   await admin.context.close();
 } );
+
+// #601: a meeting marked held leaves Today's diary, and its time is counted
+// as done in capacity rather than still to do.
+test( 'a held meeting leaves Today’s diary and counts as done', async ( { browser, baseURL } ) => {
+  test.slow();
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { client, site } = await Forge.makeSite( admin.api, `Held Co ${ RUN }`, `${ RUN }h` );
+  await Forge.onSupport( admin, site.id, 100 );
+  const today = ( await admin.api.get( '/standup' ) ).today;
+  const host = await Forge.makePerson( admin.api, client.id, 'staff', `host${ RUN }` );
+  const title = `Catch-up ${ RUN }`;
+
+  const made = await admin.api.post( `/client-sites/${ site.id }/meetings/series`, {
+    title,
+    frequency: 'weekly',
+    starts_on: today,
+    ends_on: '',
+    time_of_day: '09:00',
+    duration_mins: 30,
+    timezone: 'Europe/London',
+    host_user_id: host.id,
+    attendees: 'The client',
+    planned_hours: 0.5,
+  } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  const series = ( await made.json() ).added;
+
+  const asHost = await Forge.signedIn( browser, baseURL, host.login, Forge.PASSWORD );
+  const page = await asHost.context.newPage();
+  await page.goto( '/blueworx-forge/#screen=mytasks' );
+  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( title );
+
+  const held = await admin.api.post( `/client-sites/${ site.id }/meetings/${ series.id }/${ today }/settle`, { status: 'held' } );
+  expect( held.status(), await held.text() ).toBe( 200 );
+
+  const meetingToday = async () => {
+    const answer = await admin.api.get( `/capacity/person/${ host.id }?from=${ today }&to=${ today }` );
+
+    return answer.allocations.filter( ( one ) => one.title === title );
+  };
+
+  expect( ( await meetingToday() ).map( ( one ) => one.status ) ).toEqual( [ 'completed' ] );
+
+  const feed = await admin.api.get( `/calendar?from=${ today }&to=${ today }` );
+  expect( feed.entries.find( ( entry ) => 'meeting' === entry.kind && entry.title === title )?.done ).toBe( true );
+
+  // A fresh load, so the diary is read again.
+  await page.goto( 'about:blank' );
+  await page.goto( '/blueworx-forge/#screen=mytasks' );
+  // Other specs leave dates for everyone today, so the diary need not be
+  // empty; only this meeting has to have gone from it.
+  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( title );
+
+  await page.close();
+  await asHost.context.close();
+  await admin.context.close();
+} );

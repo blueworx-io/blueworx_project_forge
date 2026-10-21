@@ -68,11 +68,12 @@ export function MyTasksScreen() {
     () => diary.entries.filter( ( entry ) => 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ),
     [ diary.entries, me ]
   );
-  // A finished chore or reminder leaves Today's diary; a meeting, date or
-  // renewal stays regardless (#412). The calendar screen still shows a done
-  // one — it is a record — so this filter is Today's diary alone.
+  // A finished chore or reminder leaves Today's diary (#412), and so does a
+  // meeting once it has happened (#601); a date or renewal stays regardless.
+  // The calendar screen still shows a done one — it is a record — so this
+  // filter is Today's diary alone.
   const openDiary = useMemo(
-    () => myDiary.filter( ( entry ) => ! ( ( 'recurring' === entry.kind || 'reminder' === entry.kind ) && entry.done ) ),
+    () => myDiary.filter( ( entry ) => ! ( ( 'recurring' === entry.kind || 'reminder' === entry.kind || 'meeting' === entry.kind ) && entry.done ) ),
     [ myDiary ]
   );
 
