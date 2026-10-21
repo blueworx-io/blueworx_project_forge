@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 44;
+	public const VERSION = 48;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1691,6 +1691,12 @@ final class Schema {
 			// with a line in its history saying so.
 			if ( null !== $installed && $installed < 41 ) {
 				\Blueworx\Forge\Work\TechnicalAuditUpgrade::run();
+			}
+
+			// #568. Once: work sent back after it started, still holding the
+			// hours it already spent, gives them back.
+			if ( null !== $installed && $installed < 48 ) {
+				\Blueworx\Forge\Commerce\SettleReservations::run();
 			}
 
 			update_option( self::OPTION, self::VERSION );

@@ -151,6 +151,34 @@ const DATES = [
   { field: 'release_target', label: 'Release by', needed: 'up-next' },
 ] as const;
 
+/** #567. The dates a draft shows: Design by only when there is a designer. */
+function shownDates( held: Record< string, string > ): Record< string, string > {
+  return Object.fromEntries(
+    DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( held.designer_id ?? '' ) ).map( ( date ) => [ date.field, held[ date.field ] ?? '' ] )
+  );
+}
+
+/** #567. Whether every date set is no earlier than the ones set before it. */
+function datesInOrder( dates: Record< string, string > ): boolean {
+  let latest = '';
+
+  for ( const { field } of DATES ) {
+    const own = dates[ field ] ?? '';
+
+    if ( '' === own ) {
+      continue;
+    }
+
+    if ( own < latest ) {
+      return false;
+    }
+
+    latest = own;
+  }
+
+  return true;
+}
+
 /**
  * Everything this section writes, and every field the draft therefore holds.
  *
@@ -626,6 +654,54 @@ export function ItemPanel( {
   const queue = useRef< Promise< void > >( Promise.resolve() );
   // How many list changes are waiting behind the one being written (#566).
   const waitingLines = useRef( 0 );
+  // Whether a list write is still owed a fresh read of the gate (#566).
+  const readOwed = useRef( false );
+
+  // #567. Dates typed and not saved yet, with the task they were typed on.
+  const pendingDates = useRef< { id: string; dates: Record< string, string > } | null >( null );
+  const flushDates = useRef( (): void => undefined );
+
+  /*
+   * #567. Dates still waiting when the panel closes or moves to another task
+   * — Escape, back, a route change, a reload that swaps the item — are saved
+   * then, if they are in order, so leaving never loses them. Written against
+   * the task they were typed on, through the same queue as every other
+   * auto-save; the panel may be gone, so nothing on screen is touched.
+   */
+  useEffect( () => {
+    flushDates.current = () => {
+      const held = pendingDates.current;
+
+      pendingDates.current = null;
+
+      if ( ! held || ! datesInOrder( held.dates ) ) {
+        return;
+      }
+
+      queue.current = queue.current.then( async () => {
+        const current = held.id === latest.current?.item.id
+          ? latest.current
+          : await api< Detail >( `/work-items/${ held.id }`, { cache: 'fresh' } ).catch( () => null );
+
+        if ( ! current ) {
+          return;
+        }
+
+        const saved = asDraft( current.item );
+        const changed = Object.fromEntries( Object.entries( held.dates ).filter( ( [ field, value ] ) => value !== saved[ field ] ) );
+
+        if ( 0 === Object.keys( changed ).length ) {
+          return;
+        }
+
+        await api( `/work-items/${ held.id }`, { method: 'PATCH', body: { ...changed, record_version: current.item.record_version } } )
+          .then( () => onChanged() )
+          .catch( () => undefined );
+      } );
+    };
+  } );
+
+  useEffect( () => () => flushDates.current(), [ itemId ] );
 
   /**
    * #451. A checklist change is written as soon as it is made, on its own:
@@ -649,24 +725,35 @@ export function ItemPanel( {
       const current = latest.current;
       const change = linesChange( field, rows, current );
 
-      if ( ! current || ! change[ field ] ) {
-        return;
+      if ( current && change[ field ] ) {
+        try {
+          const answer = await api< { item: WorkItem } >( `/work-items/${ itemId }`, {
+            method: 'PATCH',
+            body: { [ field ]: change[ field ], record_version: current.item.record_version },
+          } );
+
+          latest.current = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
+          setDetail( latest.current );
+          readOwed.current = true;
+          onChanged();
+          setNotice( SAVED, 'ok' );
+        } catch ( error ) {
+          setNotice( `${ 'checklist' === field ? 'The checklist was' : 'The test steps were' } not saved. ${ refusal( error ) }` );
+        }
       }
 
-      try {
-        const answer = await api< { item: WorkItem } >( `/work-items/${ itemId }`, {
-          method: 'PATCH',
-          body: { [ field ]: change[ field ], record_version: current.item.record_version },
-        } );
-        const saved = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
+      // Whatever this one did — wrote, found nothing to write, or was
+      // refused — the last of the run reads the gate if any write is owed it.
+      if ( 0 === waitingLines.current && readOwed.current ) {
+        readOwed.current = false;
 
-        // Saved either way: a read that fails keeps what the write answered.
-        latest.current = 0 < waitingLines.current ? saved : await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } ).catch( () => saved );
-        setDetail( latest.current );
-        onChanged();
-        setNotice( SAVED, 'ok' );
-      } catch ( error ) {
-        setNotice( `${ 'checklist' === field ? 'The checklist was' : 'The test steps were' } not saved. ${ refusal( error ) }` );
+        // A read that fails keeps what the writes answered.
+        const fresh = await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } ).catch( () => null );
+
+        if ( fresh ) {
+          latest.current = fresh;
+          setDetail( fresh );
+        }
       }
     } );
   }
@@ -1519,13 +1606,14 @@ export function ItemPanel( {
    * the same way.
    */
   const saveDates = () => {
-    const shown = DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( draft.designer_id ?? '' ) ).map( ( date ) => date.field );
+    const dates = shownDates( draft );
 
-    if ( shown.some( ( field ) => '' !== outOfOrder( field ) ) ) {
+    if ( ! datesInOrder( dates ) ) {
       return;
     }
 
-    saveNow( Object.fromEntries( shown.map( ( field ) => [ field, draft[ field ] ?? '' ] ) ) );
+    pendingDates.current = null;
+    saveNow( dates );
   };
 
   return (
@@ -2656,7 +2744,12 @@ export function ItemPanel( {
                         min={ earliestFor( date.field ) }
                         value={ draft[ date.field ] ?? '' }
                         aria-invalid={ '' !== outOfOrder( date.field ) ? 'true' : undefined }
-                        onChange={ ( event ) => setDraft( { ...draft, [ date.field ]: event.target.value } ) }
+                        onChange={ ( event ) => {
+                          const next = { ...draft, [ date.field ]: event.target.value };
+
+                          setDraft( next );
+                          pendingDates.current = { id: itemId, dates: shownDates( next ) };
+                        } }
                       />
                       { '' !== outOfOrder( date.field ) && (
                         <p className="bwx-hint bwx-date-order" role="alert" data-testid="bwx-date-order" data-field={ date.field }>

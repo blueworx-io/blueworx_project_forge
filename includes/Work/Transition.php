@@ -1515,7 +1515,8 @@ final class Transition {
 				__( 'That move needs more support hours than the site has left.', 'blueworx-forge' ),
 				array(
 					'status'  => 409,
-					'needed'  => WorkHours::planned( $item ),
+					// #568. What the move asked for: the hours not spent yet.
+					'needed'  => round( max( 0.0, WorkHours::planned( $moved_item ?? $item ) - WorkHours::position( Ledger::for_source( WorkHours::SOURCE, (string) $item['id'] ) )['used'] ), 2 ),
 					'balance' => Ledger::balance( (string) $item['client_site_id'] ),
 				)
 			);

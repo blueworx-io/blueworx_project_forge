@@ -163,3 +163,30 @@ test( 'several dates can be moved into a new order without any snapping back', a
 
   await admin.context.close();
 } );
+
+// #567. Dates typed and left by closing the panel are kept: Escape closes it
+// with focus still in a date, and the date is saved anyway.
+test( 'a date typed and then closed with Escape is saved', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { site } = await Forge.makeSite( admin.api, `Escape Co ${ RUN }`, RUN );
+  const made = await Forge.makeItem( admin.api, site.id, { title: `Escaped ${ RUN }` } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  const item = ( await made.json() ).item;
+
+  const page = await admin.context.newPage();
+  await page.goto( `/blueworx-forge/#item=${ item.id }` );
+  const panel = page.getByTestId( 'bwx-panel' );
+  await expect( panel ).toContainText( `Escaped ${ RUN }`, { timeout: 60_000 } );
+
+  const deliver = panel.getByTestId( 'bwx-dates' ).getByLabel( 'Deliver by' );
+  await deliver.fill( on( 5 ) );
+  await expect( deliver ).toBeFocused();
+  await page.keyboard.press( 'Escape' );
+  await expect( panel ).toHaveCount( 0 );
+
+  await expect.poll( () => admin.api.get( `/work-items/${ item.id }` ).then( ( answer ) => answer.item.planned_due ), { timeout: 30_000 } ).toBe( on( 5 ) );
+
+  await admin.context.close();
+} );
