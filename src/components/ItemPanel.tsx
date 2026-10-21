@@ -1057,6 +1057,16 @@ export function ItemPanel( {
       return;
     }
 
+    if ( chosen.some( ( file ) => file.size > 15 * 1024 * 1024 ) ) {
+      setNotice( 'A document can be at most 15 MB.' );
+      return;
+    }
+
+    if ( chosen.length > CHECKLIST_ROWS - ( item.documents ?? [] ).length ) {
+      setNotice( `A task holds at most ${ CHECKLIST_ROWS } documents.` );
+      return;
+    }
+
     setBusy( true );
 
     try {
@@ -1065,11 +1075,11 @@ export function ItemPanel( {
         form.append( 'document', file, file.name );
         await api( `/work-items/${ itemId }/documents`, { method: 'POST', body: form } );
       }
-
-      await load( true );
     } catch ( error ) {
       setNotice( messageFor( error, 'That document could not be added.' ) );
     } finally {
+      // Show whatever did go up, even when a later file was refused.
+      await load( true );
       setBusy( false );
     }
   }
@@ -2193,7 +2203,21 @@ export function ItemPanel( {
                     </ul>
                   ) }
                   { ( item.documents ?? [] ).length < CHECKLIST_ROWS && (
-                    <label className="bwx-drop" data-testid="bwx-document-drop">
+                    <label
+                      className="bwx-drop"
+                      data-testid="bwx-document-drop"
+                      data-over={ dropping ? 'true' : 'false' }
+                      onDragOver={ ( event ) => {
+                        event.preventDefault();
+                        setDropping( true );
+                      } }
+                      onDragLeave={ () => setDropping( false ) }
+                      onDrop={ ( event ) => {
+                        event.preventDefault();
+                        setDropping( false );
+                        void addDocuments( event.dataTransfer.files );
+                      } }
+                    >
                       <input
                         type="file"
                         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv"
@@ -2209,7 +2233,7 @@ export function ItemPanel( {
                           event.target.value = '';
                         } }
                       />
-                      <span>Choose documents (PDF, Office, text or CSV).</span>
+                      <span>Drop documents here, or choose some (PDF, Office, text or CSV).</span>
                     </label>
                   ) }
                 </div>

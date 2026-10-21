@@ -4176,8 +4176,24 @@ td[ data-band='over' ] {
   background: var( --brand-050, var( --surface-sunken ) );
   border-color: var( --brand-600 );
 }
+/* Hidden from sight but still reachable by keyboard and read aloud. */
 .bwx-drop input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect( 0, 0, 0, 0 );
+  white-space: nowrap;
+  border: 0;
+}
+.bwx-drop {
+  position: relative;
+}
+.bwx-drop:focus-within {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
 }
 
 /* A switch on a card's head, with what it means beside it. */

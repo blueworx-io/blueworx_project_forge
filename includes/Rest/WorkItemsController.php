@@ -1110,6 +1110,11 @@ final class WorkItemsController {
 		$files = $request->get_file_params();
 
 		if ( empty( $files['document'] ) ) {
+			// A file past the host's post_max_size arrives as nothing at all.
+			if ( empty( $files ) && (int) $request->get_header( 'content_length' ) > 0 ) {
+				return Errors::rest( 'document_too_big', __( 'A document can be at most 15 MB.', 'blueworx-forge' ), 400 );
+			}
+
 			return Errors::rest( 'no_document', __( 'Choose a document to add.', 'blueworx-forge' ), 400 );
 		}
 
@@ -1128,10 +1133,16 @@ final class WorkItemsController {
 		$attachment_id = media_handle_upload(
 			'document',
 			0,
-			array(),
+			array( 'post_status' => 'private' ),
 			array(
-				'test_form' => false,
-				'mimes'     => self::document_mimes(),
+				'test_form'                => false,
+				'mimes'                    => self::document_mimes(),
+				// The stored name is random, so the file's address cannot be guessed
+				// from what it was called. The original name is kept for display.
+				'unique_filename_callback' => static function ( $dir, $name, $ext ) {
+					unset( $dir, $name );
+					return bin2hex( random_bytes( 12 ) ) . $ext;
+				},
 			)
 		);
 
@@ -1139,7 +1150,17 @@ final class WorkItemsController {
 			return Errors::rest( 'upload_failed', $attachment_id->get_error_message(), 400 );
 		}
 
-		$documents   = (array) $item['documents'];
+		// Read again just before writing, so a document added a moment ago by
+		// someone else is kept rather than overwritten.
+		$fresh = Items::get( (string) $item['id'] );
+
+		if ( null === $fresh || count( (array) $fresh['documents'] ) >= Fields::LINK_ROWS ) {
+			wp_delete_attachment( (int) $attachment_id, true );
+
+			return Errors::rest( 'too_many_documents', __( 'An item holds at most ten documents.', 'blueworx-forge' ), 400 );
+		}
+
+		$documents   = (array) $fresh['documents'];
 		$documents[] = array(
 			'id'   => (int) $attachment_id,
 			'url'  => (string) wp_get_attachment_url( (int) $attachment_id ),
@@ -1148,10 +1169,16 @@ final class WorkItemsController {
 
 		$updated = Items::set_documents( (string) $item['id'], $documents );
 
+		if ( null === $updated ) {
+			wp_delete_attachment( (int) $attachment_id, true );
+
+			return Errors::rest( 'upload_failed', __( 'That document could not be saved.', 'blueworx-forge' ), 500 );
+		}
+
 		return rest_ensure_response(
 			array(
 				'ok'   => true,
-				'item' => null === $updated ? $item : $updated,
+				'item' => $updated,
 			)
 		);
 	}

@@ -212,7 +212,6 @@ test('documents upload to a task, open from it, and come off again; unsafe files
   const anon = await admin.context.browser().newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
   const refused = await anon.request.post(route, { multipart: { document: { name: 'a.txt', mimeType: 'text/plain', buffer: Buffer.from('hi') } } });
   expect([401, 403]).toContain(refused.status());
-  await anon.close();
 
   const uploaded = await send('Brief notes.txt', 'application/octet-stream', Buffer.from('Notes for the task'));
   expect(uploaded.status(), await uploaded.text()).toBe(200);
@@ -220,6 +219,11 @@ test('documents upload to a task, open from it, and come off again; unsafe files
   expect(withDoc.documents).toHaveLength(1);
   expect(withDoc.documents[0].name).toBe('Brief notes.txt');
   expect(withDoc.images).toEqual([]);
+
+  // Kept private: not in the public media list, and stored under a name that is not the file's own.
+  expect(withDoc.documents[0].url).not.toContain('Brief');
+  const publicMedia = await anon.request.get('/wp-json/wp/v2/media?per_page=100');
+  expect(JSON.stringify(await publicMedia.json())).not.toContain(withDoc.documents[0].url);
 
   const opened = await admin.api.request.get(withDoc.documents[0].url);
   expect(opened.status()).toBe(200);
@@ -246,6 +250,7 @@ test('documents upload to a task, open from it, and come off again; unsafe files
   expect((await admin.api.request.get(withDoc.documents[0].url)).status()).toBe(404);
 
   await page.close();
+  await anon.close();
 });
 
 test('a before-row takes you to its field, and a checklist counts what is ticked', async () => {
