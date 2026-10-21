@@ -6,6 +6,7 @@ import { useLiveReload } from '../live';
 import { Aside, DataView, EmptyState, RichText } from '../kit';
 import type { Column } from '../kit';
 import { everybody, ItemPanel } from './ItemPanel';
+import { HoursSelect, hourLabel } from '../hours';
 import { Screen } from './States';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
@@ -39,6 +40,8 @@ interface Draft {
   assignees: string[];
   starts_on: string;
   ends_on: string;
+  /** Each person's time (#573), as the hours list stores it; '' for none. */
+  hours_each: string;
 }
 
 function today(): string {
@@ -48,7 +51,7 @@ function today(): string {
 }
 
 function blank( site = '' ): Draft {
-  return { title: '', description: '', category: 'general', client_site_id: site, assignees: [], starts_on: today(), ends_on: '' };
+  return { title: '', description: '', category: 'general', client_site_id: site, assignees: [], starts_on: today(), ends_on: '', hours_each: '' };
 }
 
 /** A title without its type in front: "General: Catch up" reads "Catch up". */
@@ -75,6 +78,7 @@ function fromReminder( reminder: Reminder ): Draft {
     assignees: reminder.assignees,
     starts_on: reminder.starts_on,
     ends_on: reminder.ends_on,
+    hours_each: 0 < reminder.hours_each ? String( reminder.hours_each ) : '',
   };
 }
 
@@ -89,9 +93,14 @@ function when( reminder: Reminder ): string {
   return '' === reminder.ends_on || reminder.ends_on === reminder.starts_on ? day( reminder.starts_on ) : `${ day( reminder.starts_on ) } – ${ day( reminder.ends_on ) }`;
 }
 
-/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. */
+/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. A copy turned into a task is not done, so a converted reminder stays listed (#574). */
 function isCompleted( reminder: Reminder ): boolean {
   return reminder.copies.every( ( copy ) => copy.done );
+}
+
+/** Somebody still has it to do, so there is something to turn into a task (#574). */
+function hasOpen( reminder: Reminder ): boolean {
+  return reminder.copies.some( ( copy ) => ! copy.done && '' === copy.converted_to );
 }
 
 function siteLabel( site: Site ): string {
@@ -163,6 +172,26 @@ export function RemindersScreen() {
     }
   }
 
+  // #574. One task for everyone still to do it; the reminder carries on.
+  async function convert( reminder: Reminder ) {
+    if ( ! window.confirm( `Turn "${ reminder.title }" into a task? Everyone who hasn't ticked it yet moves onto one task with the same title, client and time. The reminder itself stays.` ) ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      const answer = await api< { item: { id: string } } >( `/reminders/${ reminder.id }/convert`, { method: 'POST' } );
+      await load();
+      setOpened( answer.item.id );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That did not work.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   const columns: Column< Reminder >[] = [
     {
       key: 'title',
@@ -183,19 +212,41 @@ export function RemindersScreen() {
     { key: 'client', label: 'Client', width: 200, sortBy: ( r ) => client( r.client_site_id ), render: ( r ) => client( r.client_site_id ) },
     { key: 'who', label: 'Who', width: 200, wrap: true, render: ( r ) => r.assignees.map( name ).join( ', ' ) },
     { key: 'when', label: 'When', width: 150, sortBy: ( r ) => r.starts_on, render: ( r ) => when( r ) },
+    { key: 'time', label: 'Time each', width: 110, sortBy: ( r ) => r.hours_each, render: ( r ) => ( 0 < r.hours_each ? hourLabel( r.hours_each ) : '—' ) },
     {
       key: 'done',
       label: 'Done',
-      width: 110,
-      render: ( r ) => `${ r.copies.filter( ( copy ) => copy.done ).length } of ${ r.copies.length } done`,
+      width: 170,
+      render: ( r ) => {
+        const task = r.copies.find( ( copy ) => '' !== copy.converted_to )?.converted_to ?? '';
+
+        return (
+          <>
+            { `${ r.copies.filter( ( copy ) => copy.done ).length } of ${ r.copies.length } done` }
+            { '' !== task && (
+              <>
+                { ' · ' }
+                <button type="button" className="bwx-row-open" data-testid="bwx-reminder-converted" onClick={ () => setOpened( task ) }>
+                  Converted to task
+                </button>
+              </>
+            ) }
+          </>
+        );
+      },
     },
     {
       key: 'actions',
       label: '',
-      width: 170,
+      width: 260,
       render: ( r ) =>
         r.can_edit ? (
           <span className="bwx-recurring-actions">
+            { hasOpen( r ) && (
+              <button type="button" className="bwx-button" data-variant="quiet" data-testid="bwx-reminder-convert" disabled={ busy } onClick={ () => void convert( r ) }>
+                Convert to task
+              </button>
+            ) }
             <button type="button" className="bwx-button" data-variant="quiet" data-testid="bwx-reminder-edit" disabled={ busy } onClick={ () => setEditing( r ) }>
               Edit
             </button>
@@ -308,6 +359,7 @@ function ReminderForm( {
       assignees: draft.assignees,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on,
+      hours_each: draft.hours_each,
     };
 
     try {
@@ -398,6 +450,12 @@ function ReminderForm( {
           <label htmlFor="bwx-reminder-ends">Until (optional)</label>
           <input id="bwx-reminder-ends" className="bwx-input" type="date" data-testid="bwx-reminder-ends" min={ draft.starts_on } value={ draft.ends_on } onChange={ ( event ) => set( 'ends_on', event.target.value ) } />
         </span>
+      </div>
+
+      <div className="bwx-field">
+        <label htmlFor="bwx-reminder-hours">Time each (optional)</label>
+        <HoursSelect id="bwx-reminder-hours" testId="bwx-reminder-hours" value={ draft.hours_each } onChange={ ( value ) => set( 'hours_each', value ) } />
+        <span className="bwx-hint">Everyone on it gets the full time, on its first day, in Capacity.</span>
       </div>
 
       <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-reminder-people">

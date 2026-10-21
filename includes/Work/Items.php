@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Work;
 
+use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Tenancy\Ids;
@@ -570,6 +571,78 @@ final class Items {
 	}
 
 	/**
+	 * Replaces the documents on an item. Written by the upload route, never
+	 * by an edit; each is an attachment in the media library, like an image.
+	 *
+	 * @param string                                                $id        Item id.
+	 * @param array<int, array{id: int, url: string, name: string}> $documents The list.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_documents( string $id, array $documents ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'documents'  => (string) wp_json_encode( array_values( $documents ) ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
+	 * Sets the hours each assignee spends (#573). Written only when a
+	 * reminder's time changes and its copies follow, never by an edit to the
+	 * item itself: the hours are the reminder's, as the people are.
+	 *
+	 * Not versioned, as a tick is not: the reminder's own sync is the only
+	 * writer, and it has just read the row.
+	 *
+	 * @param string $id    Item id.
+	 * @param float  $hours Hours each.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_hours_each( string $id, float $hours ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'hours_each' => (string) round( max( 0.0, $hours ), 2 ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
+	 * Narrows who a task is for (#574). Written only when a reminder is
+	 * turned into a task and one person's copy would not close: they stay on
+	 * the reminder, so they come off the task, and their time is not counted
+	 * on both.
+	 *
+	 * @param string             $id     Item id.
+	 * @param array<int, string> $people Person ids.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_assignees( string $id, array $people ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'assignees'  => (string) wp_json_encode( array_values( array_map( 'strval', $people ) ) ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
 	 * A stored list of ids.
 	 *
 	 * @param string $stored JSON, or nothing.
@@ -702,6 +775,7 @@ final class Items {
 			'test_steps'               => '[]',
 			'links'                    => '[]',
 			'images'                   => '[]',
+			'documents'                => '[]',
 			'checklist'                => '[]',
 			'assignees'                => '[]',
 			'ticks'                    => '{}',
@@ -775,6 +849,7 @@ final class Items {
 			'test_steps'               => self::checklist( (string) ( $row['test_steps'] ?? '' ) ),
 			'links'                    => self::links( (string) ( $row['links'] ?? '' ) ),
 			'images'                   => self::images( (string) ( $row['images'] ?? '' ) ),
+			'documents'                => self::images( (string) ( $row['documents'] ?? '' ) ),
 			'checklist'                => self::checklist( (string) ( $row['checklist'] ?? '' ) ),
 			'stage'                    => (string) $row['stage'],
 			'stage_label'              => Stages::label( (string) $row['stage'] ),
@@ -892,6 +967,98 @@ final class Items {
 		$walk( $root );
 
 		return $order;
+	}
+
+	/**
+	 * Removes one project or release for good, keeping everything under it (#590).
+	 *
+	 * What sat directly under it moves up to its own parent, or is left with no
+	 * parent when it had none, so no work is lost; each moved item gets a history
+	 * entry saying so, and an item raised in the deleted release's review stops
+	 * pointing at it. Its comments, history, gate records and dependencies go with
+	 * it, as they do in {@see self::delete()}. Any support hours it was still
+	 * holding are given back in the same step (usage stays: that time was worked).
+	 * All of it happens in one transaction.
+	 *
+	 * @param string $id    The item.
+	 * @param int    $actor Who is deleting it.
+	 * @return bool Whether it was removed.
+	 */
+	public static function delete_keeping_children( string $id, int $actor = 0 ): bool {
+		global $wpdb;
+
+		$item = self::get( $id );
+
+		if ( null === $item ) {
+			return false;
+		}
+
+		$table = Schema::work_items_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own tables; the table name cannot be a placeholder.
+		$wpdb->query( 'START TRANSACTION' );
+
+		// Hours still reserved go back to the client's balance. Nothing is left for
+		// a later reconcile to do it once the item is gone.
+		$done = WorkLedger::release_all( $item, $actor );
+
+		$wpdb->delete( Schema::dependencies_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::dependencies_table(), array( 'depends_on_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::work_events_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::comments_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $id ), array( '%s' ), array( '%s' ) );
+
+		// The children move last, read again here so one added a moment ago is not
+		// left pointing at a parent that no longer exists.
+		if ( $done ) {
+			foreach ( self::children( $id ) as $child ) {
+				$moved = $wpdb->update(
+					$table,
+					array(
+						'parent_id'      => (string) $item['parent_id'],
+						'review_of'      => '',
+						'updated_at'     => bwx_forge_now(),
+						'record_version' => (int) $child['record_version'] + 1,
+					),
+					array( 'id' => (string) $child['id'] ),
+					array( '%s', '%s', '%s', '%d' ),
+					array( '%s' )
+				);
+
+				$done = false !== $moved && Events::append(
+					array(
+						'item_id'        => (string) $child['id'],
+						'client_site_id' => (string) $child['client_site_id'],
+						'action'         => Events::EDITED,
+						'from_stage'     => (string) $child['stage'],
+						'to_stage'       => (string) $child['stage'],
+						'cycle'          => (int) $child['cycle'],
+						'attempt'        => (int) $child['review_attempt'],
+						'actor'          => $actor,
+						'field'          => 'parent_id',
+						'previous_value' => $id,
+						'new_value'      => (string) $item['parent_id'],
+						'reason'         => __( 'The project or release it sat under was deleted.', 'blueworx-forge' ),
+					)
+				);
+
+				if ( ! $done ) {
+					break;
+				}
+			}
+		}
+
+		$removed = $done && false !== $wpdb->delete( $table, array( 'id' => $id ), array( '%s' ) );
+
+		if ( $removed ) {
+			$wpdb->query( 'COMMIT' );
+		} else {
+			$wpdb->query( 'ROLLBACK' );
+		}
+		// phpcs:enable
+
+		return $removed;
 	}
 
 	/**

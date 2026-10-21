@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { signedIn, makeSite, makeItem } from './helpers/forge.js';
+import * as Forge from './helpers/forge.js';
+
+const { signedIn, makeSite, makeItem } = Forge;
 
 // A task's checklist: up to ten one-line items, ticked in the panel, saved
 // at once (#451), and counted on the board card.
@@ -9,12 +11,13 @@ const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
 
 let admin;
+let client;
 let site;
 let item;
 
 test.beforeAll(async ({ browser, baseURL }) => {
   admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
-  ({ site } = await makeSite(admin.api, 'Checklist Co', RUN_ID));
+  ({ client, site } = await makeSite(admin.api, 'Checklist Co', RUN_ID));
   item = (await (await makeItem(admin.api, site.id, { title: `Ticked ${RUN_ID}` })).json()).item;
 });
 
@@ -151,4 +154,34 @@ test('a checklist change that cannot be saved says so (#451)', async () => {
   await expect(page.getByTestId('bwx-panel-notice')).toContainText('The checklist was not saved');
   await expect(page.getByTestId('bwx-checklist-text').nth(0)).toHaveValue('Lost');
   await page.close();
+});
+
+test('ticking the checklist turns its row in the gate green at once, without a reload (#566)', async ({ browser, baseURL }) => {
+  test.slow();
+
+  await Forge.onSupport(admin, site.id, 200);
+  const crew = await Forge.team(admin.api, browser, baseURL, client.id);
+  const made = (await (await makeItem(admin.api, site.id, { title: `Gate goes green ${RUN_ID}` })).json()).item;
+  const developing = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'up-next', 'in-development'], { seats: crew.seats });
+  const listed = await admin.api.patch(`/work-items/${developing.id}`, {
+    checklist: [{ text: 'Wire it up', done: false }],
+    record_version: developing.record_version,
+  });
+  expect(listed.status(), await listed.text()).toBe(200);
+
+  const page = await admin.context.newPage();
+  await page.goto(`/blueworx-forge/#item=${developing.id}`);
+  const row = page.getByTestId('bwx-gate').locator('li[data-requirement="G-IN-DEVELOPMENT-1"]');
+  await expect(row).toHaveAttribute('data-met', 'false', { timeout: 60_000 });
+
+  // The tick saves on its own, and the gate says so straight away.
+  await page.getByTestId('bwx-checklist-done').nth(0).check();
+  await expect(row).toHaveAttribute('data-met', 'true', { timeout: 30_000 });
+
+  // Unticking puts it back, again without a reload.
+  await page.getByTestId('bwx-checklist-done').nth(0).uncheck();
+  await expect(row).toHaveAttribute('data-met', 'false', { timeout: 30_000 });
+
+  await page.close();
+  await crew.close();
 });

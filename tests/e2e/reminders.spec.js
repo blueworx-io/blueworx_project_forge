@@ -438,3 +438,226 @@ test('a reminder everybody has ticked leaves the list until "Show completed" is 
   await expect(rows.filter({ hasText: finished })).toHaveCount(0);
   await page.close();
 });
+
+// #573. A reminder's time: everyone on it carries the full time, on its first day.
+async function hoursByDay(api, personId, from, to, itemIds) {
+  const answer = await api.get(`/capacity/person/${personId}?from=${from}&to=${to}`);
+  const byDay = {};
+  for (const one of answer.allocations.filter((allocation) => itemIds.includes(allocation.item_id))) {
+    for (const [date, hours] of Object.entries(one.by_day)) {
+      byDay[date] = (byDay[date] ?? 0) + hours;
+    }
+  }
+  return byDay;
+}
+
+test('a 30-minute reminder for two people adds 30 minutes to each of them on its day', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindTime', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const one = await Forge.makePerson(admin.api, client.id, 'staff', 'remtimea');
+  const two = await Forge.makePerson(admin.api, client.id, 'staff', 'remtimeb');
+  await Forge.setHours(admin.api, one.id, 8);
+  await Forge.setHours(admin.api, two.id, 8);
+  const title = `Check the ads ${RUN_ID}`;
+
+  // Added on its page, with a time picked.
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/#screen=reminders');
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId('bwx-reminders-add').click();
+  await page.getByTestId('bwx-reminder-title').fill(title);
+  await page.getByTestId('bwx-reminder-client').selectOption(site.id);
+  await page.getByTestId(`bwx-reminder-person-${one.id}`).check();
+  await page.getByTestId(`bwx-reminder-person-${two.id}`).check();
+  await page.getByTestId('bwx-reminder-starts').fill(plus(today, 1));
+  await page.getByTestId('bwx-reminder-ends').fill(plus(today, 3));
+  await page.getByLabel('Time each (optional)').selectOption({ label: '30 min' });
+  await page.getByTestId('bwx-reminder-save').click();
+
+  const row = page.getByTestId('bwx-reminders-table').locator('tbody tr', { hasText: title });
+  await expect(row).toHaveCount(1, { timeout: 30_000 });
+  await expect(row).toContainText('30 min');
+  await page.close();
+
+  const reminder = (await admin.api.get('/reminders')).reminders.find((r) => r.client_site_id === site.id);
+  expect(reminder.hours_each).toBe(0.5);
+  const copies = reminder.copies.map((copy) => copy.item_id);
+  expect(copies).toHaveLength(2);
+
+  // Each of them carries the full 30 minutes, all on the first day.
+  for (const person of [one, two]) {
+    expect(await hoursByDay(admin.api, person.id, today, plus(today, 6), copies)).toEqual({ [plus(today, 1)]: 0.5 });
+  }
+
+  // A new time reaches the copies; no time at all counts as nothing.
+  const longer = await admin.api.patch(`/reminders/${reminder.id}`, { hours_each: '1', record_version: reminder.record_version });
+  expect(longer.status(), await longer.text()).toBe(200);
+  expect(await hoursByDay(admin.api, one.id, today, plus(today, 6), copies)).toEqual({ [plus(today, 1)]: 1 });
+
+  const none = await admin.api.patch(`/reminders/${reminder.id}`, { hours_each: '', record_version: (await longer.json()).reminder.record_version });
+  expect(none.status(), await none.text()).toBe(200);
+  expect(await hoursByDay(admin.api, two.id, today, plus(today, 6), copies)).toEqual({});
+
+  const tooLong = await admin.api.post('/reminders', { client_site_id: site.id, title: `Too long ${RUN_ID}`, assignees: [one.id], starts_on: today, hours_each: 6 });
+  expect(tooLong.status()).toBe(400);
+  expect((await tooLong.json()).data.fields.hours_each).toBe('Pick a time from the list.');
+});
+
+// #574. Convert to task: one occurrence becomes a task, and the reminder carries on.
+test('converting a reminder makes a task with its title, client, people and time, and the reminder stays', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindConvert', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const one = await Forge.makePerson(admin.api, client.id, 'staff', 'remconva');
+  const two = await Forge.makePerson(admin.api, client.id, 'staff', 'remconvb');
+  const three = await Forge.makePerson(admin.api, client.id, 'staff', 'remconvc');
+  await Forge.setHours(admin.api, two.id, 8);
+  const title = `General: Plan the launch ${RUN_ID}`;
+
+  const made = await admin.api.post('/reminders', {
+    client_site_id: site.id,
+    title,
+    assignees: [one.id, two.id, three.id],
+    starts_on: plus(today, 1),
+    hours_each: 1,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+  const copyOf = (person) => reminder.copies.find((copy) => copy.person === person.id).item_id;
+
+  // Person one has already done theirs.
+  const asOne = await Forge.signedIn(browser, baseURL, one.login, Forge.PASSWORD);
+  expect((await asOne.api.post(`/work-items/${copyOf(one)}/tick`, { done: true })).status()).toBe(200);
+
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/#screen=reminders');
+  await expect(page.getByTestId('bwx-reminders')).toBeVisible({ timeout: 60_000 });
+  const row = page.getByTestId('bwx-reminders-table').locator('tbody tr', { hasText: title });
+  await expect(row).toHaveCount(1, { timeout: 30_000 });
+  page.once('dialog', (dialog) => dialog.accept());
+  await row.getByTestId('bwx-reminder-convert').click();
+
+  // The new task opens; the reminder stays listed, marked as converted, with nothing left to convert.
+  await expect(page.getByTestId('bwx-panel')).toContainText(title, { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  await expect(row.getByTestId('bwx-reminder-converted')).toBeVisible({ timeout: 30_000 });
+  await expect(row.getByTestId('bwx-reminder-convert')).toHaveCount(0);
+  await page.close();
+
+  const work = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items;
+  const tasks = work.filter((item) => item.title === title && '' === (item.recurring_id ?? ''));
+  expect(tasks, 'one task of its own').toHaveLength(1);
+  const task = tasks[0];
+  expect(task.client_site_id).toBe(site.id);
+  expect([...task.assignees].sort()).toEqual([two.id, three.id].sort());
+  expect(task.hours_each).toBe(1);
+  expect(task.stage).toBe('up-next');
+  expect(task.planned_due).toBe(plus(today, 1));
+
+  // The open copies closed into it; the ticked one is as it was.
+  for (const person of [two, three]) {
+    const copy = (await admin.api.get(`/work-items/${copyOf(person)}`)).item;
+    expect(copy.terminal_outcome).toBe('cancelled');
+    expect(copy.duplicate_of).toBe(task.id);
+  }
+  expect((await admin.api.get(`/work-items/${copyOf(one)}`)).item.terminal_outcome).toBe('');
+
+  // The time is counted once, on the task.
+  expect(await hoursByDay(admin.api, two.id, today, plus(today, 6), [task.id, ...reminder.copies.map((copy) => copy.item_id)])).toEqual({ [plus(today, 1)]: 1 });
+
+  // The reminder carries on, and says where the converted copies went.
+  const kept = (await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id);
+  expect(kept).toBeTruthy();
+  expect(kept.copies.find((copy) => copy.person === one.id).done).toBe(true);
+  for (const person of [two, three]) {
+    const copy = kept.copies.find((each) => each.person === person.id);
+    expect(copy.done).toBe(false);
+    expect(copy.converted_to).toBe(task.id);
+  }
+
+  // The calendar leaves the converted copies out: only person one's, done.
+  const feed = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
+  const entry = feed.entries.find((each) => 'reminder' === each.kind && each.title === title);
+  expect(entry.people).toEqual([one.id]);
+  expect(entry.detail).toBe('General · Done');
+
+  // An archived converted copy never comes back on an edit.
+  const closed = (await admin.api.get(`/work-items/${copyOf(three)}`)).item;
+  expect((await admin.api.post(`/work-items/${closed.id}/archive`, { record_version: closed.record_version })).status()).toBe(200);
+  const renamed = await admin.api.patch(`/reminders/${reminder.id}`, { title: `${title} again`, record_version: kept.record_version });
+  expect(renamed.status(), await renamed.text()).toBe(200);
+  const after = (await renamed.json()).reminder;
+  expect(after.copies.filter((copy) => copy.person === three.id)).toHaveLength(0);
+  expect(after.copies.some((copy) => !copy.done && '' === copy.converted_to)).toBe(false);
+
+  // Nothing is left to convert.
+  const again = await admin.api.post(`/reminders/${reminder.id}/convert`, {});
+  expect(again.status()).toBe(409);
+});
+
+test('a reminder with a blocked copy is not converted, and nothing changes', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindBlocked', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const one = await Forge.makePerson(admin.api, client.id, 'staff', 'remblocka');
+  const two = await Forge.makePerson(admin.api, client.id, 'staff', 'remblockb');
+  const title = `General: Waiting on the client ${RUN_ID}`;
+
+  const made = await admin.api.post('/reminders', { client_site_id: site.id, title, assignees: [one.id, two.id], starts_on: plus(today, 1), hours_each: 0.5 });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+  const stuckId = reminder.copies.find((copy) => copy.person === two.id).item_id;
+  const freeId = reminder.copies.find((copy) => copy.person === one.id).item_id;
+
+  const stuck = (await admin.api.get(`/work-items/${stuckId}`)).item;
+  const blocked = await admin.api.post(`/work-items/${stuckId}/block`, { owner: 'The client', record_version: stuck.record_version });
+  expect(blocked.status(), await blocked.text()).toBe(200);
+
+  const refused = await admin.api.post(`/reminders/${reminder.id}/convert`, {});
+  expect(refused.status()).toBe(409);
+  const answer = await refused.json();
+  expect(answer.code).toContain('copy_not_closable');
+  expect(answer.message).toContain('Nothing was changed');
+
+  // No task, and both copies exactly as they were.
+  const work = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items;
+  expect(work.filter((item) => item.title === title && '' === (item.recurring_id ?? ''))).toHaveLength(0);
+  const free = (await admin.api.get(`/work-items/${freeId}`)).item;
+  expect(free.terminal_outcome).toBe('');
+  expect(Object.keys(free.ticks)).toEqual([]);
+  const still = (await admin.api.get(`/work-items/${stuckId}`)).item;
+  expect(still.stage).toBe('blocked');
+  expect(Object.keys(still.ticks)).toEqual([]);
+});
+
+test('only the author or an administrator converts a reminder', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindConvAuth', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const author = await Forge.makePerson(admin.api, client.id, 'staff', 'remconvauthor');
+  const other = await Forge.makePerson(admin.api, client.id, 'staff', 'remconvother');
+
+  const asAuthor = await Forge.signedIn(browser, baseURL, author.login, Forge.PASSWORD);
+  const made = await asAuthor.api.post('/reminders', { client_site_id: site.id, title: `Theirs to convert ${RUN_ID}`, assignees: [other.id], starts_on: today });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+
+  const asOther = await Forge.signedIn(browser, baseURL, other.login, Forge.PASSWORD);
+  const refused = await asOther.api.post(`/reminders/${reminder.id}/convert`, {});
+  expect(refused.status()).toBe(403);
+  const copy = (await admin.api.get(`/work-items/${reminder.copies[0].item_id}`)).item;
+  expect(copy.terminal_outcome).toBe('');
+
+  const converted = await asAuthor.api.post(`/reminders/${reminder.id}/convert`, {});
+  expect(converted.status(), await converted.text()).toBe(200);
+});
+

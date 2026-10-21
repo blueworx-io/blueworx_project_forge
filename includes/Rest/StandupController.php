@@ -16,6 +16,7 @@ use Blueworx\Forge\Standup\Rules;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Comments;
+use WP_REST_Request;
 use WP_REST_Response;
 
 /**
@@ -49,6 +50,14 @@ final class StandupController {
 				'methods'             => 'GET',
 				'callback'            => array( self::class, 'index' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'args'                => array(
+					'view' => array(
+						'type'              => 'string',
+						'default'           => 'today',
+						'enum'              => array( 'today', 'tomorrow', 'week' ),
+						'sanitize_callback' => 'sanitize_key',
+					),
+				),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_LIST,
 					'reason' => 'The day\'s list spans clients by design (#169): it is what one person has to deal with today, across everything they hold. It names no record, and Standup\Board scopes every part of it by reach before any rule is evaluated.',
@@ -106,9 +115,10 @@ final class StandupController {
 	 * job (#170), done over an answer that is already scoped, so a filter here
 	 * could only ever hide work somebody is meant to see.
 	 *
+	 * @param WP_REST_Request $request The request; `view` is today, tomorrow or week (#572).
 	 * @return WP_REST_Response
 	 */
-	public static function index(): WP_REST_Response {
+	public static function index( WP_REST_Request $request ): WP_REST_Response {
 		$reach = Boundary::current();
 
 		if ( Reach::is_nothing( $reach ) ) {
@@ -127,7 +137,22 @@ final class StandupController {
 		Materialise::maybe();
 
 		$today = gmdate( 'Y-m-d', bwx_forge_now() );
-		$cards = self::with_seat_names( Board::for_reach( $reach, $today ) );
+		$view  = (string) $request->get_param( 'view' );
+		$day   = gmdate( 'Y-m-d', bwx_forge_now() + DAY_IN_SECONDS );
+		$week  = gmdate( 'Y-m-d', bwx_forge_now() + 6 * DAY_IN_SECONDS );
+
+		// #572. Tomorrow reads the list as it will stand tomorrow morning; the
+		// next seven days count everything due from today through the sixth day on.
+		if ( 'tomorrow' === $view ) {
+			$cards = Board::for_reach( $reach, $today, $day, $day );
+		} elseif ( 'week' === $view ) {
+			$cards = Board::for_reach( $reach, $today, $today, $week );
+		} else {
+			$view  = 'today';
+			$cards = Board::for_reach( $reach, $today );
+		}
+
+		$cards = self::with_seat_names( $cards );
 
 		return rest_ensure_response(
 			array(
@@ -141,6 +166,7 @@ final class StandupController {
 				 * it was given.
 				 */
 				'today'     => $today,
+				'view'      => $view,
 				'generated' => bwx_forge_now(),
 				'rules'     => Rules::ALL,
 				'cards'     => $cards,

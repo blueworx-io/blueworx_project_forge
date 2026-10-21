@@ -151,6 +151,34 @@ const DATES = [
   { field: 'release_target', label: 'Release by', needed: 'up-next' },
 ] as const;
 
+/** #567. The dates a draft shows: Design by only when there is a designer. */
+function shownDates( held: Record< string, string > ): Record< string, string > {
+  return Object.fromEntries(
+    DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( held.designer_id ?? '' ) ).map( ( date ) => [ date.field, held[ date.field ] ?? '' ] )
+  );
+}
+
+/** #567. Whether every date set is no earlier than the ones set before it. */
+function datesInOrder( dates: Record< string, string > ): boolean {
+  let latest = '';
+
+  for ( const { field } of DATES ) {
+    const own = dates[ field ] ?? '';
+
+    if ( '' === own ) {
+      continue;
+    }
+
+    if ( own < latest ) {
+      return false;
+    }
+
+    latest = own;
+  }
+
+  return true;
+}
+
 /**
  * Everything this section writes, and every field the draft therefore holds.
  *
@@ -624,6 +652,56 @@ export function ItemPanel( {
     latest.current = detail;
   }, [ detail ] );
   const queue = useRef< Promise< void > >( Promise.resolve() );
+  // How many list changes are waiting behind the one being written (#566).
+  const waitingLines = useRef( 0 );
+  // Whether a list write is still owed a fresh read of the gate (#566).
+  const readOwed = useRef( false );
+
+  // #567. Dates typed and not saved yet, with the task they were typed on.
+  const pendingDates = useRef< { id: string; dates: Record< string, string > } | null >( null );
+  const flushDates = useRef( (): void => undefined );
+
+  /*
+   * #567. Dates still waiting when the panel closes or moves to another task
+   * — Escape, back, a route change, a reload that swaps the item — are saved
+   * then, if they are in order, so leaving never loses them. Written against
+   * the task they were typed on, through the same queue as every other
+   * auto-save; the panel may be gone, so nothing on screen is touched.
+   */
+  useEffect( () => {
+    flushDates.current = () => {
+      const held = pendingDates.current;
+
+      pendingDates.current = null;
+
+      if ( ! held || ! datesInOrder( held.dates ) ) {
+        return;
+      }
+
+      queue.current = queue.current.then( async () => {
+        const current = held.id === latest.current?.item.id
+          ? latest.current
+          : await api< Detail >( `/work-items/${ held.id }`, { cache: 'fresh' } ).catch( () => null );
+
+        if ( ! current ) {
+          return;
+        }
+
+        const saved = asDraft( current.item );
+        const changed = Object.fromEntries( Object.entries( held.dates ).filter( ( [ field, value ] ) => value !== saved[ field ] ) );
+
+        if ( 0 === Object.keys( changed ).length ) {
+          return;
+        }
+
+        await api( `/work-items/${ held.id }`, { method: 'PATCH', body: { ...changed, record_version: current.item.record_version } } )
+          .then( () => onChanged() )
+          .catch( () => undefined );
+      } );
+    };
+  } );
+
+  useEffect( () => () => flushDates.current(), [ itemId ] );
 
   /**
    * #451. A checklist change is written as soon as it is made, on its own:
@@ -631,28 +709,51 @@ export function ItemPanel( {
    * a later Save changes does not meet a conflict. A refusal says so and the
    * rows stay as they are, for Save changes to try again. #544: the test
    * steps the same way.
+   *
+   * #566. The task is then read again, as every other auto-save does: the
+   * gates are worked out from the list, so a tick that finishes it has to
+   * reach "Checklist complete" too. Only the record is replaced — the rows
+   * on screen are left as they are, so a line being typed is not touched.
+   * Read once, after the last of a quick run of changes, not after each.
    */
   function saveLines( field: 'checklist' | 'test_steps', rows: ChecklistRow[] ) {
+    waitingLines.current += 1;
+
     queue.current = queue.current.then( async () => {
+      waitingLines.current -= 1;
+
       const current = latest.current;
       const change = linesChange( field, rows, current );
 
-      if ( ! current || ! change[ field ] ) {
-        return;
+      if ( current && change[ field ] ) {
+        try {
+          const answer = await api< { item: WorkItem } >( `/work-items/${ itemId }`, {
+            method: 'PATCH',
+            body: { [ field ]: change[ field ], record_version: current.item.record_version },
+          } );
+
+          latest.current = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
+          setDetail( latest.current );
+          readOwed.current = true;
+          onChanged();
+          setNotice( SAVED, 'ok' );
+        } catch ( error ) {
+          setNotice( `${ 'checklist' === field ? 'The checklist was' : 'The test steps were' } not saved. ${ refusal( error ) }` );
+        }
       }
 
-      try {
-        const answer = await api< { item: WorkItem } >( `/work-items/${ itemId }`, {
-          method: 'PATCH',
-          body: { [ field ]: change[ field ], record_version: current.item.record_version },
-        } );
+      // Whatever this one did — wrote, found nothing to write, or was
+      // refused — the last of the run reads the gate if any write is owed it.
+      if ( 0 === waitingLines.current && readOwed.current ) {
+        readOwed.current = false;
 
-        latest.current = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
-        setDetail( latest.current );
-        onChanged();
-        setNotice( SAVED, 'ok' );
-      } catch ( error ) {
-        setNotice( `${ 'checklist' === field ? 'The checklist was' : 'The test steps were' } not saved. ${ refusal( error ) }` );
+        // A read that fails keeps what the writes answered.
+        const fresh = await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } ).catch( () => null );
+
+        if ( fresh ) {
+          latest.current = fresh;
+          setDetail( fresh );
+        }
       }
     } );
   }
@@ -670,6 +771,9 @@ export function ItemPanel( {
    */
   function saveNow( patch: Record< string, string > ) {
     const fields = Object.keys( patch );
+    // #567. Only the fields still holding what was sent take the answer: one
+    // changed again while this was on its way keeps the newer value.
+    const untouched = ( held: Record< string, string > ) => fields.filter( ( field ) => held[ field ] === patch[ field ] );
 
     queue.current = queue.current.then( async () => {
       const current = latest.current;
@@ -696,13 +800,14 @@ export function ItemPanel( {
 
         latest.current = loaded;
         setDetail( loaded );
-        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( fields.map( ( field ) => [ field, now[ field ] ] ) ) } ) );
+        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( untouched( held ).map( ( field ) => [ field, now[ field ] ] ) ) } ) );
         setFieldErrors( ( held ) => Object.fromEntries( Object.entries( held ).filter( ( [ field ] ) => ! fields.includes( field ) ) ) );
         onChanged();
         setNotice( SAVED, 'ok' );
       } catch ( error ) {
-        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( fields.map( ( field ) => [ field, saved[ field ] ] ) ) } ) );
-        setFieldErrors( ( held ) => ( { ...held, [ fields[ 0 ] ]: refusal( error ) } ) );
+        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( untouched( held ).map( ( field ) => [ field, saved[ field ] ] ) ) } ) );
+        // Under the first field that changed: several are sent together (#567).
+        setFieldErrors( ( held ) => ( { ...held, [ Object.keys( changed )[ 0 ] ]: refusal( error ) } ) );
       }
     } );
   }
@@ -1049,6 +1154,54 @@ export function ItemPanel( {
     }
   }
 
+  /** Adds chosen documents, one upload each (#569). */
+  async function addDocuments( files: FileList | File[] ) {
+    const chosen = Array.from( files );
+
+    if ( 0 === chosen.length ) {
+      return;
+    }
+
+    if ( chosen.some( ( file ) => file.size > 15 * 1024 * 1024 ) ) {
+      setNotice( 'A document can be at most 15 MB.' );
+      return;
+    }
+
+    if ( chosen.length > CHECKLIST_ROWS - ( item.documents ?? [] ).length ) {
+      setNotice( `A task holds at most ${ CHECKLIST_ROWS } documents.` );
+      return;
+    }
+
+    setBusy( true );
+
+    try {
+      for ( const file of chosen ) {
+        const form = new FormData();
+        form.append( 'document', file, file.name );
+        await api( `/work-items/${ itemId }/documents`, { method: 'POST', body: form } );
+      }
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That document could not be added.' ) );
+    } finally {
+      // Show whatever did go up, even when a later file was refused.
+      await load( true );
+      setBusy( false );
+    }
+  }
+
+  async function removeDocument( id: number ) {
+    setBusy( true );
+
+    try {
+      await api( `/work-items/${ itemId }/documents/${ id }`, { method: 'DELETE' } );
+      await load( true );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That document could not be removed.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   async function removeImage( id: number ) {
     setBusy( true );
 
@@ -1115,6 +1268,8 @@ export function ItemPanel( {
   const myId = forgeData()?.person?.id ?? '';
   const choreTicker = undone.includes( myId ) ? myId : forgeData()?.canManage ? undone[ 0 ] ?? '' : '';
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
+  // A project or release is archived from its own page, not from here (#590).
+  const archivable = Boolean( detail?.can_archive ) && ! [ 'project', 'milestone' ].includes( item?.level ?? '' );
   // #391. In review with the client: only the client, or an admin for them, decides.
   const clientReviewing = undefined !== item && CLIENT === item.reviewer_id && 'in-review' === item.stage && ! ended;
   const lines = detail ? historyLines( detail.history, label ) : [];
@@ -1444,6 +1599,23 @@ export function ItemPanel( {
     return `${ DATES.find( ( date ) => date.field === field )?.label ?? field } cannot be before ${ latest.label.toLowerCase() }.`;
   };
 
+  /**
+   * #567. Every date on show, saved in one write once focus has left the
+   * dates — and only when they are in order. Out of order they stay as
+   * typed, flagged, for the person to finish; Save changes would be refused
+   * the same way.
+   */
+  const saveDates = () => {
+    const dates = shownDates( draft );
+
+    if ( ! datesInOrder( dates ) ) {
+      return;
+    }
+
+    pendingDates.current = null;
+    saveNow( dates );
+  };
+
   return (
     <div
       className="bwx-panel-scrim"
@@ -1691,7 +1863,7 @@ export function ItemPanel( {
                 forward on the right, the other directions on the left. Each
                 button appears only when it applies.
              */ }
-            { ( ! ended || detail.can_archive ) && (
+            { ( ! ended || archivable ) && (
               <div className="bwx-actions" data-testid="bwx-actions" data-collapsed={ isFolded( 'actions' ) ? 'true' : 'false' }>
                 { head( 'actions', 'Actions' ) }
                 <div className="bwx-action-row">
@@ -1755,7 +1927,7 @@ export function ItemPanel( {
                       </button>
                     </>
                   ) }
-                  { detail.can_archive && (
+                  { archivable && (
                     <button
                       type="button"
                       className="bwx-button"
@@ -2126,7 +2298,70 @@ export function ItemPanel( {
                 with everything else; an image goes up as soon as it is
                 dropped, because a file is not a draft.
              */ }
-            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < links.length ) && (
+            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < links.length || 0 < item.images.length || 0 < ( item.documents ?? [] ).length ) && (
+              <section className="bwx-attachments" data-testid="bwx-attachments" aria-labelledby="bwx-attachments-title">
+                <h3 id="bwx-attachments-title" className="bwx-attachments-title">Attachments</h3>
+
+                { /* Documents (#569): uploaded to the media library, opened from here. */ }
+                <div className="bwx-field" data-testid="bwx-documents">
+                  <span className="bwx-checklist-head">
+                    <span>Documents</span>
+                    { 0 < ( item.documents ?? [] ).length && <span className="bwx-mono">{ `${ ( item.documents ?? [] ).length } of ${ CHECKLIST_ROWS }` }</span> }
+                  </span>
+                  { 0 < ( item.documents ?? [] ).length && (
+                    <ul className="bwx-document-list">
+                      { ( item.documents ?? [] ).map( ( doc ) => (
+                        <li key={ doc.id } data-testid="bwx-document">
+                          <a href={ doc.url } target="_blank" rel="noreferrer noopener">{ doc.name || 'Document' }</a>
+                          <button
+                            type="button"
+                            className="bwx-icon-button"
+                            aria-label={ `Remove ${ doc.name || 'document' }` }
+                            disabled={ busy }
+                            onClick={ () => void removeDocument( doc.id ) }
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      ) ) }
+                    </ul>
+                  ) }
+                  { ( item.documents ?? [] ).length < CHECKLIST_ROWS && (
+                    <label
+                      className="bwx-drop"
+                      data-testid="bwx-document-drop"
+                      data-over={ dropping ? 'true' : 'false' }
+                      onDragOver={ ( event ) => {
+                        event.preventDefault();
+                        setDropping( true );
+                      } }
+                      onDragLeave={ () => setDropping( false ) }
+                      onDrop={ ( event ) => {
+                        event.preventDefault();
+                        setDropping( false );
+                        void addDocuments( event.dataTransfer.files );
+                      } }
+                    >
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv"
+                        multiple
+                        data-testid="bwx-document-input"
+                        aria-label="Add documents"
+                        disabled={ busy }
+                        onChange={ ( event ) => {
+                          if ( event.target.files ) {
+                            void addDocuments( event.target.files );
+                          }
+
+                          event.target.value = '';
+                        } }
+                      />
+                      <span>Drop documents here, or choose some (PDF, Office, text or CSV).</span>
+                    </label>
+                  ) }
+                </div>
+
               <div className="bwx-field bwx-links" data-testid="bwx-links">
                 <span className="bwx-checklist-head">
                   <span>Links</span>
@@ -2176,9 +2411,7 @@ export function ItemPanel( {
                   </div>
                 ) }
               </div>
-            ) }
 
-            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < item.images.length ) && (
               <div className="bwx-field" data-testid="bwx-images">
                 <span className="bwx-checklist-head">
                   <span>Images</span>
@@ -2238,6 +2471,7 @@ export function ItemPanel( {
                   </label>
                 ) }
               </div>
+              </section>
             ) }
 
             { /*
@@ -2484,7 +2718,21 @@ export function ItemPanel( {
               <div className="bwx-assign" data-testid="bwx-dates" data-collapsed={ isFolded( 'dates' ) ? 'true' : 'false' }>
                 { head( 'dates', 'Dates' ) }
 
-                <div className="bwx-pair">
+                { /*
+                    #567. The dates are saved together once focus leaves
+                    them, not one by one: moving all of them takes several
+                    changes, and a date out of order part-way is not a
+                    mistake yet. Left out of order, they stay as typed with
+                    the reason under them, and nothing is sent.
+                 */ }
+                <div
+                  className="bwx-pair"
+                  onBlur={ ( event ) => {
+                    if ( ! event.currentTarget.contains( event.relatedTarget as Node | null ) ) {
+                      saveDates();
+                    }
+                  } }
+                >
                   { /* No design needed, no Design by. */ }
                   { DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( draft.designer_id ?? '' ) ).map( ( date ) => (
                     <div className="bwx-field" key={ date.field }>
@@ -2496,11 +2744,12 @@ export function ItemPanel( {
                         min={ earliestFor( date.field ) }
                         value={ draft[ date.field ] ?? '' }
                         aria-invalid={ '' !== outOfOrder( date.field ) ? 'true' : undefined }
-                        // #544. A date picked is saved at once. A date being
-                        // retyped reads as empty part-way, so a clearing waits
-                        // for the field to be left rather than saving mid-edit.
-                        onChange={ ( event ) => ( '' === event.target.value ? setDraft( { ...draft, [ date.field ]: '' } ) : saveDraft( { [ date.field ]: event.target.value } ) ) }
-                        onBlur={ ( event ) => saveNow( { [ date.field ]: event.target.value } ) }
+                        onChange={ ( event ) => {
+                          const next = { ...draft, [ date.field ]: event.target.value };
+
+                          setDraft( next );
+                          pendingDates.current = { id: itemId, dates: shownDates( next ) };
+                        } }
                       />
                       { '' !== outOfOrder( date.field ) && (
                         <p className="bwx-hint bwx-date-order" role="alert" data-testid="bwx-date-order" data-field={ date.field }>
@@ -2658,7 +2907,7 @@ export function ItemPanel( {
         </div>
 
         <footer className="bwx-panel-foot" data-testid="bwx-panel-foot">
-          { detail && forgeData()?.canManage ? (
+          { detail && forgeData()?.canManage && ! [ 'project', 'milestone' ].includes( detail.item.level ) ? (
             <button
               type="button"
               className="bwx-button"
@@ -2784,6 +3033,8 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       return `Ended as ${ event.outcome }`;
     case 'archived':
       return 'Archived';
+    case 'restored':
+      return 'Restored';
     case 'placed':
       // A recurring task or a renewal reminder, put straight where it is
       // worked from. The reason beside it says which and for what day.

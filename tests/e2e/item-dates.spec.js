@@ -39,11 +39,13 @@ test( 'the dates sit in their own section, one per person', async ( { browser, b
   await expect( assign.getByTestId( 'bwx-section-assign' ) ).toHaveText( 'Who and hours' );
   await expect( assign.locator( 'input[type="date"]' ) ).toHaveCount( 0 );
 
-  // #544. Each date saves as it is picked, so the record is what is waited for.
+  // #544. The dates save without Save changes, so the record is what is waited for.
   const read = () => admin.api.get( `/work-items/${ item.id }` ).then( ( answer ) => answer.item );
 
   await dates.getByLabel( 'Design by' ).fill( on( 2 ) );
   await dates.getByLabel( 'Deliver by' ).fill( on( 3 ) );
+  // #567. Saved together once the dates are left.
+  await dates.getByLabel( 'Deliver by' ).blur();
   await expect.poll( () => read().then( ( saved ) => [ saved.design_target, saved.planned_due, saved.planned_start ] ), { timeout: 30_000 } ).toEqual( [ on( 2 ), on( 3 ), on( 2 ) ] );
 
   // No design needed: no Design by, and it goes with the designer so no
@@ -54,6 +56,7 @@ test( 'the dates sit in their own section, one per person', async ( { browser, b
   await expect.poll( () => read().then( ( cleared ) => cleared.design_target ), { timeout: 30_000 } ).toBe( '' );
 
   await dates.getByLabel( 'Deliver by' ).fill( on( 1 ) );
+  await dates.getByLabel( 'Deliver by' ).blur();
   await expect.poll( () => read().then( ( cleared ) => [ cleared.design_target, cleared.planned_start ] ), { timeout: 30_000 } ).toEqual( [ '', on( 1 ) ] );
 
   await admin.context.close();
@@ -106,6 +109,84 @@ test( 'the date pickers keep the dates in order, and say so when they fall out o
   await page.locator( '#bwx-designer_id' ).selectOption( '' );
   await expect( dates.getByLabel( 'Deliver by' ) ).not.toHaveAttribute( 'min', /./ );
   await expect( dates.getByLabel( 'Review by' ) ).toHaveAttribute( 'min', on( 6 ) );
+
+  await admin.context.close();
+} );
+
+// #567. Moving several dates is checked once the dates are left, not after
+// each one: a date that is out of order for a moment does not snap back.
+test( 'several dates can be moved into a new order without any snapping back', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { site } = await Forge.makeSite( admin.api, `Move Co ${ RUN }`, RUN );
+  const made = await Forge.makeItem( admin.api, site.id, { title: `Moved ${ RUN }` } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  const item = ( await made.json() ).item;
+  const dated = await admin.api.patch( `/work-items/${ item.id }`, { planned_due: on( 10 ), review_target: on( 12 ), release_target: on( 14 ), record_version: item.record_version } );
+  expect( dated.status(), await dated.text() ).toBe( 200 );
+
+  const page = await admin.context.newPage();
+  await page.goto( `/blueworx-forge/#item=${ item.id }` );
+  const panel = page.getByTestId( 'bwx-panel' );
+  await expect( panel ).toContainText( `Moved ${ RUN }`, { timeout: 60_000 } );
+  const dates = panel.getByTestId( 'bwx-dates' );
+  const read = () => admin.api.get( `/work-items/${ item.id }` ).then( ( answer ) => answer.item );
+
+  // Deliver by first, past both of the others: out of order for now.
+  await dates.getByLabel( 'Deliver by' ).fill( on( 20 ) );
+  await expect( panel.getByTestId( 'bwx-date-order' ) ).toHaveCount( 2 );
+
+  // Nothing is sent while the dates are still being changed, so nothing snaps back.
+  await page.waitForTimeout( 3_000 );
+  await expect( dates.getByLabel( 'Deliver by' ) ).toHaveValue( on( 20 ) );
+  expect( ( await read() ).planned_due ).toBe( on( 10 ) );
+
+  await dates.getByLabel( 'Review by' ).fill( on( 22 ) );
+  await dates.getByLabel( 'Release by' ).fill( on( 24 ) );
+  await expect( dates.getByLabel( 'Deliver by' ) ).toHaveValue( on( 20 ) );
+  await expect( panel.getByTestId( 'bwx-date-order' ) ).toHaveCount( 0 );
+
+  // Leaving the dates saves all three together.
+  await page.locator( '#bwx-title' ).click();
+  await expect.poll( () => read().then( ( saved ) => [ saved.planned_due, saved.review_target, saved.release_target ] ), { timeout: 30_000 } ).toEqual( [ on( 20 ), on( 22 ), on( 24 ) ] );
+  await expect( dates.getByLabel( 'Deliver by' ) ).toHaveValue( on( 20 ) );
+  await expect( panel.getByTestId( 'bwx-field-error' ) ).toHaveCount( 0 );
+
+  // Left out of order: kept on screen with the reason, and not sent.
+  await dates.getByLabel( 'Release by' ).fill( on( 21 ) );
+  await page.locator( '#bwx-title' ).click();
+  await expect( panel.getByTestId( 'bwx-date-order' ) ).toHaveAttribute( 'data-field', 'release_target' );
+  await page.waitForTimeout( 3_000 );
+  await expect( dates.getByLabel( 'Release by' ) ).toHaveValue( on( 21 ) );
+  expect( ( await read() ).release_target ).toBe( on( 24 ) );
+
+  await admin.context.close();
+} );
+
+// #567. Dates typed and left by closing the panel are kept: Escape closes it
+// with focus still in a date, and the date is saved anyway.
+test( 'a date typed and then closed with Escape is saved', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
+  const { site } = await Forge.makeSite( admin.api, `Escape Co ${ RUN }`, RUN );
+  const made = await Forge.makeItem( admin.api, site.id, { title: `Escaped ${ RUN }` } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  const item = ( await made.json() ).item;
+
+  const page = await admin.context.newPage();
+  await page.goto( `/blueworx-forge/#item=${ item.id }` );
+  const panel = page.getByTestId( 'bwx-panel' );
+  await expect( panel ).toContainText( `Escaped ${ RUN }`, { timeout: 60_000 } );
+
+  const deliver = panel.getByTestId( 'bwx-dates' ).getByLabel( 'Deliver by' );
+  await deliver.fill( on( 5 ) );
+  await expect( deliver ).toBeFocused();
+  await page.keyboard.press( 'Escape' );
+  await expect( panel ).toHaveCount( 0 );
+
+  await expect.poll( () => admin.api.get( `/work-items/${ item.id }` ).then( ( answer ) => answer.item.planned_due ), { timeout: 30_000 } ).toBe( on( 5 ) );
 
   await admin.context.close();
 } );

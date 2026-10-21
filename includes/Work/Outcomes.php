@@ -208,7 +208,8 @@ final class Outcomes {
 
 	/**
 	 * Whether an item is in a state that may be archived: it ended, either at a
-	 * terminal outcome or at Released.
+	 * terminal outcome or at Released. A project or a release may be archived at
+	 * any phase (#590).
 	 *
 	 * @param array<string, mixed> $item The item, as read.
 	 * @return bool
@@ -216,6 +217,12 @@ final class Outcomes {
 	public static function may_archive( array $item ): bool {
 		if ( ! empty( $item['archived'] ) ) {
 			return false;
+		}
+
+		// A project or a release is archived in any phase (#590): it is put
+		// away to tidy the lists, not because it ended.
+		if ( in_array( (string) ( $item['level'] ?? '' ), array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			return true;
 		}
 
 		return self::is_closed( $item ) || 'released' === (string) $item['stage'];

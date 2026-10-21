@@ -118,7 +118,9 @@ test('a card about a piece of work opens that work', async ({ browser, baseURL }
   const panel = page.getByTestId('bwx-panel');
 
   await expect(panel).toBeVisible({ timeout: 30_000 });
-  await expect(panel).toContainText(`Parked thing ${RUN_ID}`);
+  // The panel fills once its read is answered, and on a full instance that
+  // read queues behind the whole-board read the page has just started.
+  await expect(panel).toContainText(`Parked thing ${RUN_ID}`, { timeout: 30_000 });
 
   await page.close();
   await crew.close();

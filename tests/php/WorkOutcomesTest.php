@@ -129,4 +129,20 @@ final class WorkOutcomesTest extends TestCase {
 
 		$this->assertFalse( Outcomes::may_archive( $already ) );
 	}
+
+	/**
+	 * A project or a release is archived in any phase (#590), once.
+	 */
+	public function test_a_project_or_release_can_be_archived_in_any_phase(): void {
+		foreach ( array( 'project', 'milestone' ) as $level ) {
+			$open          = $this->item( 'in-development' );
+			$open['level'] = $level;
+
+			$this->assertTrue( Outcomes::may_archive( $open ) );
+
+			$open['archived'] = true;
+
+			$this->assertFalse( Outcomes::may_archive( $open ) );
+		}
+	}
 }

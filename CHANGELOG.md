@@ -8,6 +8,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.203.1] - 2026-10-21
+
+### Fixed
+
+- Ticking a task's checklist turns its row green and updates the gate straight away, without a reload.
+- You can change several of a task's dates in a row without any snapping back. They save together once you move out of the dates, including when you close the task, and if they are out of order they stay as you typed them with the reason shown.
+- Work sent back after it started is no longer charged again, and clients already affected have their hours put right on update. A client's hours list shows each task or meeting once with the hours it used, with its history folded beneath it.
+
+## [2.203.0] - 2026-10-21
+
+### Added
+
+- Projects and releases can be archived from their own page, found again under Archived on the Projects page, and restored. An admin can then delete an archived project or release after a confirmation; anything under it is kept and moves up a level, and any support hours it was holding go back to the client.
+
+### Fixed
+
+- The project page and the Projects page now have the same page margin and spacing as the rest of Forge.
+
+## [2.202.0] - 2026-10-21
+
+### Added
+
+- Reminders can have a time, from 5 minutes to 5 hours. Everyone on the reminder gets the full time on its first day in Capacity and Day by day. Reminders with no time still count as nothing.
+- "Convert to task" on a reminder turns it into one task with the same title, client, people and time for everyone who hasn't ticked it yet. The reminder itself stays, marked as converted.
+
+## [2.201.0] - 2026-10-21
+
+### Added
+
+- The daily standup can now switch between Today, Tomorrow and the Next seven days.
+
+### Changed
+
+- The daily standup's "Somebody's turn" is now "Requires Client Review". It holds only work waiting on the client, whatever its date, and a review that was sent back or is overdue shows a tag. Work with a team reviewer stays under Work needing attention.
+
+## [2.200.0] - 2026-10-21
+
+### Added
+
+- Documents (PDF, Office files, text, CSV) can now be uploaded to a task, opened from it and removed again. They are kept private to signed-in staff.
+- The task screen has one Attachments section holding Documents, Links and Images.
+
 ## [2.199.0] - 2026-10-20
 
 ### Added

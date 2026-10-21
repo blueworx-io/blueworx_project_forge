@@ -16,14 +16,14 @@ export const SECTIONS = [
   {
     id: 'work',
     title: 'Work needing attention',
-    blurb: 'Late, due today, stopped, waiting on a requirement, or untouched for 30 days.',
-    rules: [ 'overdue', 'due-today', 'blocked', 'gate-unmet', 'stale' ],
+    blurb: 'Late, due, stopped, waiting on a requirement, with a team member to review or release, sent back, or untouched for 30 days.',
+    rules: [ 'overdue', 'due-today', 'blocked', 'gate-unmet', 'stale', 'awaiting-review', 'awaiting-release', 'returned' ],
   },
   {
     id: 'turn',
-    title: 'Somebody’s turn',
-    blurb: 'Handed over and waiting on a person.',
-    rules: [ 'awaiting-review', 'awaiting-release', 'returned' ],
+    title: 'Requires Client Review',
+    blurb: 'Handed over and waiting on the client to review.',
+    rules: [ 'awaiting-review' ],
   },
   {
     id: 'clients',
@@ -38,6 +38,48 @@ export const SECTIONS = [
     rules: [ 'over-committed', 'needs-intervention' ],
   },
 ] as const;
+
+/** Whether the client is the one a review card waits on (#571). */
+export function isClientReview( card: StandupCard ): boolean {
+  return 'awaiting-review' === card.rule && true === card.detail?.client_review;
+}
+
+/**
+ * The cards that belong in a section (#571). A review waiting on the client is
+ * Requires Client Review's alone; a review waiting on a team member stays in
+ * Work needing attention.
+ */
+export function cardsIn( section: ( typeof SECTIONS )[ number ], cards: StandupCard[] ): StandupCard[] {
+  return cards.filter( ( card ) => {
+    if ( ! ( section.rules as readonly string[] ).includes( card.rule ) ) {
+      return false;
+    }
+
+    if ( 'awaiting-review' !== card.rule ) {
+      return true;
+    }
+
+    return 'turn' === section.id ? isClientReview( card ) : ! isClientReview( card );
+  } );
+}
+
+/** "Tue 13 Oct" for the day read, or "Tue 13 Oct to Mon 19 Oct" for the next seven (#572). */
+export function viewRange( today: string, view: string ): string {
+  if ( '' === today || 'today' === view ) return today;
+
+  const shift = ( days: number ): string => new Date( Date.parse( `${ today }T00:00:00Z` ) + days * 86400000 ).toISOString().slice( 0, 10 );
+
+  return 'tomorrow' === view ? shift( 1 ) : `${ today } to ${ shift( 6 ) }`;
+}
+
+/** The ways of looking at the day (#572). */
+export const VIEWS = [
+  { id: 'today', label: 'Today' },
+  { id: 'tomorrow', label: 'Tomorrow' },
+  { id: 'week', label: 'Next seven days' },
+] as const;
+
+export type StandupView = ( typeof VIEWS )[ number ][ 'id' ];
 
 /**
  * What each rule means, said the way somebody would say it.

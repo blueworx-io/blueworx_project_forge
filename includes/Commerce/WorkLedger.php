@@ -68,6 +68,35 @@ final class WorkLedger {
 	}
 
 	/**
+	 * Gives back every hour an item is still holding, because it is going away (#590).
+	 *
+	 * Usage stays: that time was worked. Nothing is written when nothing is held.
+	 *
+	 * @param array<string, mixed> $item  The item, as it stands.
+	 * @param int                  $actor Who is removing it.
+	 * @return bool False when the ledger refused the entry.
+	 */
+	public static function release_all( array $item, int $actor ): bool {
+		$id   = (string) ( $item['id'] ?? '' );
+		$held = (float) self::position( $id )['reserved'];
+
+		if ( $held <= 0 ) {
+			return true;
+		}
+
+		return null !== Ledger::append(
+			array(
+				'client_site_id' => (string) ( $item['client_site_id'] ?? '' ),
+				'event_type'     => Entries::WORK_RELEASE,
+				'hours'          => $held,
+				'source_type'    => WorkHours::SOURCE,
+				'source_id'      => $id,
+				'actor'          => $actor,
+			)
+		);
+	}
+
+	/**
 	 * What the ledger holds against one item.
 	 *
 	 * @param string $item_id The item.
@@ -94,13 +123,15 @@ final class WorkLedger {
 			return HoursGate::free();
 		}
 
-		$site = (string) ( $item['client_site_id'] ?? '' );
+		$site     = (string) ( $item['client_site_id'] ?? '' );
+		$position = self::position( (string) ( $item['id'] ?? '' ) );
 
 		return HoursGate::assess(
 			$item,
 			Assignments::entitlement_on( $site, gmdate( 'Y-m-d' ) ),
 			Ledger::balance( $site ),
-			(float) self::position( (string) ( $item['id'] ?? '' ) )['reserved']
+			(float) $position['reserved'],
+			(float) $position['used']
 		);
 	}
 

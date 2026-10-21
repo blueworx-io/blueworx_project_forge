@@ -15,6 +15,7 @@ use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Tenancy\Reach;
+use Blueworx\Forge\Tenancy\Users;
 use WP_REST_Request;
 
 /**
@@ -85,6 +86,20 @@ final class RemindersController {
 				)
 			);
 		}
+
+		Server::register_route(
+			$route_namespace,
+			'/reminders/(?P<reminder_id>[A-Za-z0-9_\-]+)/convert',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'convert' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The callback refuses a reminder on a site the caller does not reach, and anyone but its author or an administrator.',
+				),
+			)
+		);
 	}
 
 	/**
@@ -234,6 +249,88 @@ final class RemindersController {
 	}
 
 	/**
+	 * Turns a reminder into a task (#574): one task for everyone who had not
+	 * ticked it yet, carrying its title, client site, people and time. Their
+	 * copies close into it; the reminder itself carries on.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function convert( WP_REST_Request $request ) {
+		$source = self::editable( (string) $request['reminder_id'] );
+
+		if ( ! is_array( $source ) ) {
+			return $source;
+		}
+
+		$result = Reminders::convert( $source, get_current_user_id() );
+		$names  = self::names( (array) ( $result['people'] ?? array() ) );
+
+		switch ( $result['code'] ) {
+			case 'nothing_open':
+				return Errors::rest( 'nothing_open', __( 'Nobody has this reminder left to do.', 'blueworx-forge' ), 409 );
+			case 'stuck':
+				return Errors::rest(
+					'copy_not_closable',
+					/* translators: %s: names of people */
+					sprintf( __( 'Nothing was changed: the copy for %s is blocked, or somewhere it cannot be closed from. Unblock it, or take them off the reminder, then try again.', 'blueworx-forge' ), $names ),
+					409
+				);
+			case 'busy':
+				return Errors::rest( 'stale_version', __( 'This reminder is already being turned into a task — reload and check.', 'blueworx-forge' ), 409 );
+			case 'partial':
+				return Errors::rest(
+					'partly_converted',
+					/* translators: %s: names of people */
+					sprintf( __( 'The task was made, but %s\'s copy changed while it was saving, so they stay on the reminder. Reload and try again for them.', 'blueworx-forge' ), $names ),
+					409,
+					array( 'item' => $result['task'] ?? array() )
+				);
+			case '':
+				break;
+			default:
+				return Errors::rest( 'write_failed', __( 'That task could not be made, and nothing was changed.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'item'     => $result['task'],
+				'reminder' => self::answer_shape( $source ),
+			)
+		);
+	}
+
+	/**
+	 * People's names, for a message.
+	 *
+	 * @param array<int, string> $ids Person ids.
+	 * @return string
+	 */
+	private static function names( array $ids ): string {
+		$names = array();
+
+		foreach ( $ids as $id ) {
+			$person  = Users::get( (string) $id );
+			$names[] = null === $person ? __( 'Somebody', 'blueworx-forge' ) : (string) $person['display_name'];
+		}
+
+		return implode( ', ', $names );
+	}
+
+	/**
+	 * A reminder, re-read, with its copies.
+	 *
+	 * @param array<string, mixed> $source The reminder.
+	 * @return array<string, mixed>
+	 */
+	private static function answer_shape( array $source ): array {
+		$fresh = Sources::get( (string) $source['id'] ) ?? $source;
+
+		return self::shape( $fresh, Reminders::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() );
+	}
+
+	/**
 	 * The reminder, if the caller may change it; otherwise the refusal.
 	 *
 	 * @param string $id Reminder id.
@@ -315,14 +412,18 @@ final class RemindersController {
 			'assignees'      => (array) $source['assignees'],
 			'starts_on'      => (string) $source['starts_on'],
 			'ends_on'        => (string) $source['ends_on'],
+			// Each person's time, in hours (#573); 0 when none is set.
+			'hours_each'     => (float) $source['hours_each'],
 			'record_version' => (int) $source['record_version'],
 			'created_by'     => (int) $source['created_by'],
 			'can_edit'       => self::may_edit( $source ),
 			'copies'         => array_map(
 				static fn( array $item ): array => array(
-					'item_id' => (string) $item['id'],
-					'person'  => (string) ( ( (array) $item['assignees'] )[0] ?? '' ),
-					'done'    => array() !== (array) $item['ticks'],
+					'item_id'      => (string) $item['id'],
+					'person'       => (string) ( ( (array) $item['assignees'] )[0] ?? '' ),
+					// A copy turned into a task (#574) is not done: it moved.
+					'done'         => array() !== (array) $item['ticks'] && '' === Reminders::converted_to( $item ),
+					'converted_to' => Reminders::converted_to( $item ),
 				),
 				$copies
 			),

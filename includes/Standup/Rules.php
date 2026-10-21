@@ -187,14 +187,16 @@ final class Rules {
 	 *
 	 * @param array<string, mixed> $state    items, submissions, onboarding_steps,
 	 *                                       capacity, interventions.
-	 * @param string               $today    YYYY-MM-DD.
+	 * @param string               $today    YYYY-MM-DD. The day the list is read for.
+	 * @param string|null          $through  YYYY-MM-DD, the last day a look-ahead covers (#572);
+	 *                                       null for the plain day.
 	 * @return array<int, array<string, mixed>> Cards, in rule order.
 	 */
-	public static function evaluate( array $state, string $today ): array {
+	public static function evaluate( array $state, string $today, ?string $through = null ): array {
 		$cards = array();
 
 		foreach ( (array) ( $state['items'] ?? array() ) as $item ) {
-			foreach ( self::for_item( (array) $item, $today ) as $card ) {
+			foreach ( self::for_item( (array) $item, $today, $through ) as $card ) {
 				$cards[] = $card;
 			}
 		}
@@ -214,7 +216,7 @@ final class Rules {
 		}
 
 		foreach ( (array) ( $state['capacity'] ?? array() ) as $position ) {
-			$card = self::for_capacity( (array) $position );
+			$card = self::for_capacity( (array) $position, null === $through ? null : array( $today, $through ) );
 
 			if ( array() !== $card ) {
 				$cards[] = $card;
@@ -241,14 +243,16 @@ final class Rules {
 	 * picking one would hide the other — the board decides how to present that,
 	 * not this.
 	 *
-	 * @param array<string, mixed> $item  The work item.
-	 * @param string               $today YYYY-MM-DD.
+	 * @param array<string, mixed> $item    The work item.
+	 * @param string               $today   YYYY-MM-DD.
+	 * @param string|null          $through Last day a look-ahead covers (#572); null for the plain day.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function for_item( array $item, string $today ): array {
+	public static function for_item( array $item, string $today, ?string $through = null ): array {
 		$stage    = (string) ( $item['stage'] ?? '' );
 		$finished = in_array( $stage, self::FINISHED, true );
 		$due      = (string) ( $item['planned_due'] ?? '' );
+		$through  = null === $through || $through < $today ? $today : $through;
 
 		/*
 		 * Work in delivery, or waiting to be released, is off the standup
@@ -256,8 +260,30 @@ final class Rules {
 		 * Once it is back, everything about it shows. Blocked work keeps its
 		 * place whatever its date.
 		 */
-		$dated_now = '' !== $due && $due <= $today;
+		$dated_now = '' !== $due && $due <= $through;
 		$urgent    = 'urgent' === (string) ( $item['priority'] ?? '' );
+
+		/*
+		 * #571. Work waiting on the client sits under Requires Client Review
+		 * and nowhere else, whatever its date, so none of its other cards are
+		 * kept. What would otherwise be lost, being sent back or late, rides
+		 * on the card as a tag.
+		 */
+		if ( 'in-review' === $stage && ClientReviewer::is( $item ) ) {
+			return array(
+				self::work_card(
+					self::AWAITING_REVIEW,
+					$item,
+					array(
+						'waiting_on'      => (string) ( $item['reviewer_id'] ?? '' ),
+						'waiting_on_name' => __( 'The client', 'blueworx-forge' ),
+						'client_review'   => true,
+						'returned'        => ! empty( $item['was_returned'] ),
+						'overdue'         => '' !== $due && $due < $today,
+					)
+				),
+			);
+		}
 
 		if ( in_array( $stage, self::IN_DELIVERY, true ) && ! $dated_now && ! $urgent ) {
 			return self::stale_or_nothing( $item, $finished, $today );
@@ -274,7 +300,7 @@ final class Rules {
 		if ( ! $finished && '' !== $due ) {
 			if ( $due < $today ) {
 				$cards[] = self::work_card( self::OVERDUE, $item, array( 'due' => $due ) );
-			} elseif ( $due === $today ) {
+			} elseif ( $due <= $through ) {
 				$cards[] = self::work_card( self::DUE_TODAY, $item, array( 'due' => $due ) );
 			}
 		}
@@ -285,11 +311,6 @@ final class Rules {
 
 		if ( 'in-review' === $stage ) {
 			$waiting = array( 'waiting_on' => (string) ( $item['reviewer_id'] ?? '' ) );
-
-			// #391. The client is named as the client, not as a person.
-			if ( ClientReviewer::is( $item ) ) {
-				$waiting['waiting_on_name'] = __( 'The client', 'blueworx-forge' );
-			}
 
 			$cards[] = self::work_card( self::AWAITING_REVIEW, $item, $waiting );
 		}
@@ -477,12 +498,26 @@ final class Rules {
 	 * capacity screen; a daily list that included everybody who is busy would
 	 * be a daily list of the whole studio.
 	 *
-	 * @param array<string, mixed> $position One person's week.
+	 * @param array<string, mixed>             $position One person's week.
+	 * @param array{0: string, 1: string}|null $window   First and last day a look-ahead covers (#572); null for the whole week.
 	 * @return array<string, mixed>
 	 */
-	public static function for_capacity( array $position ): array {
+	public static function for_capacity( array $position, ?array $window = null ): array {
 		if ( 'over' !== (string) ( $position['band'] ?? '' ) ) {
 			return array();
+		}
+
+		if ( null !== $window ) {
+			$position['days'] = array_values(
+				array_filter(
+					(array) ( $position['days'] ?? array() ),
+					static fn( $day ): bool => (string) ( $day['date'] ?? '' ) >= $window[0] && (string) ( $day['date'] ?? '' ) <= $window[1]
+				)
+			);
+
+			if ( array() === $position['days'] ) {
+				return array();
+			}
 		}
 
 		return self::card(

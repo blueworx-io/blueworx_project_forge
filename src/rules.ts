@@ -35,6 +35,10 @@ export const RULES: RuleSection[] = [
         why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
       },
       {
+        what: 'A project or release can be archived at any phase, from its own page, and its phase is left as it was. It leaves the Projects lists, the client\'s page and the pickers, and is found under Archived on the Projects page, where it can be restored. Nothing new can be added under it while it is archived, and work already under it stays on the boards and in capacity, with the count shown beside an archived release. Only an archived project or release can be deleted, after a confirmation, and only an admin can delete. Deleting removes only that project or release: whatever was under it is kept and moves up to its parent, or is left with no parent, and any support hours it was holding go back to the client. Anyone who can move or end work can archive and restore.',
+        why: 'Finished or unwanted projects stop cluttering the lists without losing any work, and nothing is deleted by accident.',
+      },
+      {
         what: 'A project or release\'s own hours are the work on it as a whole, such as planning it, the release review and delivering it. They are counted once, like any other item\'s hours, and never as a total of the work inside it. A project\'s own hours only reach capacity once it has a Deliver by date; until then they sit on no one\'s week.',
         why: 'The work inside already carries its own hours, so adding them up again would count the same time twice.',
       },
@@ -45,6 +49,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'Work that ended without being done, such as cancelled or deferred work, still shows on a project\'s page, a client\'s page and the client\'s Projects, tagged Ended, and is left out of the progress beside it. Clients see the tag, but not how it ended.',
         why: 'So a count like 2 of 2 done next to a third piece of work makes sense, and nobody waits on work that has stopped.',
+      },
+      {
+        what: 'A task\'s Attachments section holds its documents, links and images. Documents can be PDFs, Office files, plain text or CSV, up to ten per task and 15 MB each; each opens from the task and can be removed again.',
+        why: 'So everything attached to a task is in one place, and only safe kinds of file get in.',
       },
       {
         what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',
@@ -83,11 +91,11 @@ export const RULES: RuleSection[] = [
         why: 'The checklist is the doer\'s own list of what done means, and the reviewer needs to know how to test it.',
       },
       {
-        what: 'In the task panel every drop-down (who pays, priority, people, hours), every date, every before-item pick, and the checklist and test steps save as soon as they change, with the same quiet "Saved." the button shows. Typed text (title, description, how to test it, comments) still waits for Save changes. A refused auto-save says why under the field and keeps the saved value.',
+        what: 'In the task panel every drop-down (who pays, priority, people, hours), every before-item pick, and the checklist and test steps save as soon as they change, and the dates save together once you move out of them, with the same quiet "Saved." the button shows. Typed text (title, description, how to test it, comments) still waits for Save changes. A refused auto-save says why under the field and keeps the saved value.',
         why: 'A pick, a date or a tick is too easy to lose by closing the task, while a half-typed sentence should not be sent mid-word.',
       },
       {
-        what: 'A task\'s dates must stay in order (design by, then deliver by, then review by, then release by), though any of them may be in the past. Design by only shows when the task has a designer. The pickers don\'t offer a day earlier than the date before it, and a date left out of order is flagged under its field straight away as well as on Save.',
+        what: 'A task\'s dates must stay in order (design by, then deliver by, then review by, then release by), though any of them may be in the past. Design by only shows when the task has a designer. The pickers don\'t offer a day earlier than the date before it, and a date left out of order is flagged under its field straight away. Nothing is saved or put back while you are still changing the dates: they are checked once you move out of them, and dates left out of order stay as typed, flagged, until you fix them.',
         why: 'Dates that run backwards make the plan and the timeline meaningless.',
       },
       {
@@ -371,6 +379,14 @@ export const RULES: RuleSection[] = [
         why: 'One screen should answer what needs attention today.',
       },
       {
+        what: 'Work waiting on the client to review shows only under Requires Client Review on the standup, with no other cards. Work with a team member as reviewer stays under Work needing attention, and so do work waiting to be released and work sent back. A client review that was sent back or is overdue carries that as a tag on its card, and shows whatever its date.',
+        why: 'What waits on the client is kept apart from what the team can act on.',
+      },
+      {
+        what: 'The standup can look at Today (the default), Tomorrow, or the Next seven days. Work due on those days is listed, and Over hours shows only the days covered.',
+        why: 'The team can look ahead, not just at today.',
+      },
+      {
         what: 'Over hours on the standup flags anyone with a day in the next seven that is over their hours, however little, using the same day-by-day figures as Capacity. It names each day, the tasks filling it, and links to their capacity.',
         why: 'A warning is only useful if it says where the problem is and matches what Capacity shows.',
       },
@@ -425,7 +441,7 @@ export const RULES: RuleSection[] = [
         why: 'A panel that listed work booked on other days would never agree with the cell behind it.',
       },
       {
-        what: 'Standing meetings and the days ahead of recurring tasks count too, and capacity always adds up every client, whichever client is picked.',
+        what: 'Standing meetings, the days ahead of recurring tasks and the time on reminders count too, and capacity always adds up every client, whichever client is picked.',
         why: 'A person can\'t look free for one client while they are busy for another.',
       },
       {
@@ -445,7 +461,7 @@ export const RULES: RuleSection[] = [
         why: 'Planning is quick for the usual case and still right for the unusual one.',
       },
       {
-        what: 'Only work where the client pays uses their support hours: it holds them from Up Next and spends them when work starts.',
+        what: 'Only work where the client pays uses their support hours: it holds them from Up Next and spends them when work starts. Work sent back after it started is not charged again. Hours added after work started are not held while it waits; they are checked and spent when it starts again. The client\'s hours list shows each task or meeting once, with what it used, and its history folded beneath it.',
         why: 'The balance shows what is committed as well as what has been used.',
       },
       {
@@ -483,11 +499,23 @@ export const RULES: RuleSection[] = [
         why: 'Reminders can be told apart and sorted at a glance.',
       },
       {
-        what: 'Reminders are free and carry no hours, so they never count against capacity or a client\'s support hours.',
-        why: 'A reminder is a nudge, not planned work.',
+        what: 'Reminders are free, so they never count against a client\'s support hours.',
+        why: 'A reminder is a nudge, not paid work.',
       },
       {
-        what: 'A reminder shows on the calendar on every day it covers, and moves into Today in My tasks when its first day arrives.',
+        what: 'A reminder can take a time, from 5 minutes to 5 hours. Everyone on it carries the full time, all on its first day, in Capacity and Day by day. A reminder with no time set counts as nothing.',
+        why: 'Time spent on reminders is real time, and like any assignment it is done in a day.',
+      },
+      {
+        what: 'Convert to task turns a reminder into one task for everyone who hasn\'t ticked it yet, with the same title, client, people and time, due on the reminder\'s first day, or today if that has passed. Their copies close as turned into that task. The reminder itself carries on: it isn\'t ended or deleted, it stays in the list marked Converted to task with a link to the task, and copies already ticked stay as they were.',
+        why: 'Some reminders turn out to need proper work, without losing the reminder or counting the time twice.',
+      },
+      {
+        what: 'A reminder can\'t be converted while anyone\'s copy of it is blocked; nothing changes until it is unblocked or that person is taken off. Converting is done once, however many times it is pressed at once.',
+        why: 'Half a conversion would leave somebody\'s time counted twice, or lost.',
+      },
+      {
+        what: 'A reminder shows on the calendar on every day it covers, and moves into Today in My tasks when its first day arrives. Copies turned into a task are left off the calendar, as cancelled work is.',
         why: 'It is visible ahead of time and becomes a to-do when it matters.',
       },
       {

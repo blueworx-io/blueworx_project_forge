@@ -780,6 +780,17 @@ function update_user_meta( int $user_id, string $key, $value ): bool {
 }
 
 /**
+ * Stub. No users at all: a step that needs an administrator finds none and
+ * leaves the site alone (#568).
+ *
+ * @param array<string, mixed> $args Query arguments.
+ * @return array<int, mixed>
+ */
+function get_users( array $args = array() ): array {
+	return array();
+}
+
+/**
  * Stub. The site's timezone, which for a unit test is UTC.
  *
  * @return DateTimeZone

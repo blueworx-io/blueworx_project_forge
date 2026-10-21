@@ -21,6 +21,7 @@ const WORD: Record< string, string > = {
   unblocked: 'Unblocked',
   ended: 'Ended',
   archived: 'Archived',
+  restored: 'Restored',
   reopened: 'Reopened',
   overridden: 'A gate was overridden',
   'over-allocated': 'Committed past their hours',

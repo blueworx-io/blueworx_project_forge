@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle } from 'lucide-react';
 import type { Stage, WorkItem } from '../types';
-import { api, ApiError, isDenied } from '../api';
+import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import type { SiteOption } from '../sites';
 import { buildTree, isDone, reviewProgress, summary } from '../tree.mjs';
 import { itemWeeks } from '../weeks.mjs';
-import { Button, Panel, StageChip, Tag } from '../kit';
+import { Button, Modal, Panel, StageChip, Tag } from '../kit';
 import { CopyLink } from './CopyLink';
 import { ItemPanel } from './ItemPanel';
 import { NewWork, type NewWorkPreset } from './NewWork';
@@ -59,6 +59,60 @@ export function Progress( { node }: { node: Node } ) {
   );
 }
 
+/** #590. Puts a project or release away, or brings it back; the lists then reload. */
+export async function setArchived( one: WorkItem, archive: boolean ) {
+  await api( `/work-items/${ one.id }/${ archive ? 'archive' : 'restore' }`, { method: 'POST', body: { record_version: one.record_version } } );
+}
+
+/**
+ * #590. The confirmation before an archived project or release is deleted. Only
+ * the item itself goes: whatever sat under it is kept and moves up a level.
+ */
+export function DeleteArchived( { item, onClose, onDeleted }: { item: WorkItem; onClose: () => void; onDeleted: () => void } ) {
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const noun = 'milestone' === item.level ? 'release' : 'project';
+
+  async function remove() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api( `/work-items/${ item.id }/delete-archived`, { method: 'POST', body: { record_version: item.record_version } } );
+      onDeleted();
+    } catch ( error ) {
+      setNotice( messageFor( error, `That ${ noun } could not be deleted.` ) );
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Modal
+      title={ `Delete ${ item.title }?` }
+      description={ `Only the ${ noun } itself is deleted. Anything under it is kept and moves up a level, so no work is lost. This cannot be undone.` }
+      width={ 480 }
+      testId="bwx-delete-archived"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button variant="danger" data-testid="bwx-delete-confirm" disabled={ busy } onClick={ () => void remove() }>
+            { `Delete ${ noun }` }
+          </Button>
+          <Button variant="ghost" data-testid="bwx-delete-cancel" onClick={ onClose }>
+            Keep it
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-delete-notice" role="status">
+          { notice }
+        </p>
+      ) }
+    </Modal>
+  );
+}
+
 /**
  * #562. One project: its dates and progress, and its releases with the work in
  * each. Everything is added from where it belongs, and any row opens its panel.
@@ -80,18 +134,29 @@ export function ProjectScreen( {
   const [ open, setOpen ] = useState< Set< string > >( () => new Set() );
   const [ opened, setOpened ] = useState( '' );
   const [ adding, setAdding ] = useState< NewWorkPreset | null >( null );
+  // #590. Archived releases of this project, kept apart so they can be restored or deleted.
+  const [ shelved, setShelved ] = useState< WorkItem[] >( [] );
+  // How many live items still sit directly under each archived release, by its id.
+  const [ underShelved, setUnderShelved ] = useState< Map< string, number > >( () => new Map() );
+  const [ deleting, setDeleting ] = useState< WorkItem | null >( null );
+  const [ notice, setNotice ] = useState( '' );
 
   async function load() {
     try {
       const { item } = await api< { item: WorkItem } >( `/work-items/${ projectId }` );
       const [ list, sites ] = await Promise.all( [
-        api< { items: WorkItem[] } >( `/work-items?client_site_id=${ item.client_site_id }` ),
+        api< { items: WorkItem[] } >( `/work-items?client_site_id=${ item.client_site_id }&include_archived=1` ),
         api< { sites: SiteOption[] } >( '/client-sites' ).catch( () => ( { sites: [] as SiteOption[] } ) ),
       ] );
 
-      const kept = list.items.filter( ( one ) => ! one.archived );
+      // An archived project still opens (to restore or delete it); archived work under it stays out of the tree.
+      const kept = list.items.filter( ( one ) => ! one.archived || one.id === projectId );
 
       setItems( kept );
+      const archivedReleases = list.items.filter( ( one ) => one.archived && 'milestone' === one.level && one.parent_id === projectId );
+
+      setShelved( archivedReleases );
+      setUnderShelved( new Map( archivedReleases.map( ( one ) => [ one.id, list.items.filter( ( inner ) => inner.parent_id === one.id && ! inner.archived ).length ] ) ) );
       setSite( sites.sites.find( ( one ) => one.id === item.client_site_id ) ?? null );
       setState( kept.some( ( one ) => one.id === projectId ) ? 'ready' : 'missing' );
     } catch ( error ) {
@@ -108,11 +173,27 @@ export function ProjectScreen( {
 
   useLiveReload( () => load() );
 
+  /** #590. Archives or restores a project or release, then reloads. */
+  async function shelve( one: WorkItem, archive: boolean ) {
+    setNotice( '' );
+
+    try {
+      await setArchived( one, archive );
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, archive ? 'That could not be archived.' : 'That could not be restored.' ) );
+    }
+  }
+
   const tree = 'ready' === state ? ( buildTree( items, projectId ) as Node ) : null;
   const project = tree?.item;
   const releases = tree?.parts.filter( ( part ) => 'milestone' === part.item.level ) ?? [];
   const others = tree?.parts.filter( ( part ) => 'milestone' !== part.item.level ) ?? [];
   const when = tree ? summary( tree ) : null;
+  // #590. Nothing new is added under a project that is archived.
+  const frozen = Boolean( project?.archived );
+  // Only an administrator deletes for good.
+  const mayDelete = forgeData()?.canManage ?? false;
 
   const toggle = ( id: string ) =>
     setOpen( ( held ) => {
@@ -145,6 +226,10 @@ export function ProjectScreen( {
   /** What can be added under one item. */
   const adds = ( one: WorkItem ) => {
     const level = featureLevel( one.level );
+
+    if ( frozen ) {
+      return null;
+    }
 
     return (
       <div className="bwx-project-adds">
@@ -180,7 +265,7 @@ export function ProjectScreen( {
    */
   const reviewBox = ( node: Node ) => {
     const { total, finished } = reviewProgress( node );
-    const reviewing = 'in-review' === node.item.stage;
+    const reviewing = 'in-review' === node.item.stage && ! frozen;
     const raise = ( workType: 'bug' | 'feedback' ) => addUnder( { level: 'sub-feature', parentId: node.item.id, workType, reviewOf: node.item.id } );
 
     return (
@@ -279,12 +364,40 @@ export function ProjectScreen( {
             right={
               <span className="bwx-moves">
                 <CopyLink itemId={ project.id } />
-                <Button size="sm" data-testid="bwx-project-add-release" onClick={ () => addUnder( { level: 'milestone', parentId: project.id, workType: 'feature' } ) }>
-                  + Add release
-                </Button>
+                { project.archived ? (
+                  <>
+                    <Button size="sm" variant="secondary" data-testid="bwx-project-restore" aria-label={ `Restore ${ project.title }` } onClick={ () => void shelve( project, false ) }>
+                      Restore
+                    </Button>
+                    { mayDelete && (
+                      <Button size="sm" variant="danger" data-testid="bwx-project-delete" aria-label={ `Delete ${ project.title }` } onClick={ () => setDeleting( project ) }>
+                        Delete
+                      </Button>
+                    ) }
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" data-testid="bwx-project-archive" aria-label={ `Archive ${ project.title }` } onClick={ () => void shelve( project, true ) }>
+                      Archive
+                    </Button>
+                    <Button size="sm" data-testid="bwx-project-add-release" onClick={ () => addUnder( { level: 'milestone', parentId: project.id, workType: 'feature' } ) }>
+                      + Add release
+                    </Button>
+                  </>
+                ) }
               </span>
             }
           >
+            { project.archived && (
+              <p className="bwx-hint" data-testid="bwx-project-archived">
+                This project is archived. It is out of the project lists until it is restored.
+              </p>
+            ) }
+            { '' !== notice && (
+              <p className="bwx-notice" data-testid="bwx-project-notice" role="status">
+                { notice }
+              </p>
+            ) }
             <p className="bwx-hint" data-testid="bwx-project-summary">
               { [ site?.client_name || site?.name || '', when.ongoing ? 'Ongoing' : when.start ? `${ day( when.start ) } – ${ day( when.due ) }` : `Until ${ day( when.due ) }` ].filter( Boolean ).join( ' · ' ) }
             </p>
@@ -318,6 +431,11 @@ export function ProjectScreen( {
                         <StageChip stage={ node.item.stage } dense />
                         <Ended item={ node.item } />
                         <Progress node={ node } />
+                        { ! frozen && (
+                          <Button size="sm" variant="ghost" data-testid="bwx-release-archive" aria-label={ `Archive ${ node.item.title }` } onClick={ () => void shelve( node.item, true ) }>
+                            Archive
+                          </Button>
+                        ) }
                       </div>
                       { expanded && (
                         <div className="bwx-project-inside">
@@ -332,6 +450,32 @@ export function ProjectScreen( {
             ) }
           </Panel>
 
+          { 0 < shelved.length && (
+            <Panel title="Archived releases" flush>
+              <ul className="bwx-project-releases" data-testid="bwx-project-shelved">
+                { shelved.map( ( one ) => (
+                  <li key={ one.id } className="bwx-project-release" data-testid="bwx-project-shelved-release" data-item={ one.id }>
+                    <div className="bwx-project-line">
+                      { title( one ) }
+                      <StageChip stage={ one.stage } dense />
+                      <span className="bwx-progress-figures" data-testid="bwx-shelved-under">
+                        { `${ underShelved.get( one.id ) ?? 0 } still under it` }
+                      </span>
+                      <Button size="sm" variant="secondary" data-testid="bwx-release-restore" aria-label={ `Restore ${ one.title }` } onClick={ () => void shelve( one, false ) }>
+                        Restore
+                      </Button>
+                      { mayDelete && (
+                        <Button size="sm" variant="danger" data-testid="bwx-release-delete" aria-label={ `Delete ${ one.title }` } onClick={ () => setDeleting( one ) }>
+                          Delete
+                        </Button>
+                      ) }
+                    </div>
+                  </li>
+                ) ) }
+              </ul>
+            </Panel>
+          ) }
+
           { 0 < others.length + tree.attached.length && (
             <Panel title="Also in this project">
               <ul className="bwx-project-tree">
@@ -345,6 +489,24 @@ export function ProjectScreen( {
 
       { null !== adding && project && (
         <NewWork clientSiteId={ project.client_site_id } preset={ adding } onClose={ () => setAdding( null ) } onCreated={ () => void load() } />
+      ) }
+
+      { null !== deleting && (
+        <DeleteArchived
+          item={ deleting }
+          onClose={ () => setDeleting( null ) }
+          onDeleted={ () => {
+            const wasProject = deleting.id === projectId;
+
+            setDeleting( null );
+
+            if ( wasProject ) {
+              onBack( site?.client_id );
+            } else {
+              void load();
+            }
+          } }
+        />
       ) }
 
       { '' !== opened && <ItemPanel itemId={ opened } stages={ stages } onClose={ () => setOpened( '' ) } onChanged={ () => void load() } /> }

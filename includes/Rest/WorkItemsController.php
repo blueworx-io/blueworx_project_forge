@@ -77,13 +77,15 @@ final class WorkItemsController {
 	 * The ways work moves other than forwards, as route path to callback.
 	 */
 	private const MOVES = array(
-		'return'   => 'send_back',
-		'block'    => 'block',
-		'unblock'  => 'unblock',
-		'outcome'  => 'outcome',
-		'archive'  => 'archive',
-		'reopen'   => 'reopen',
-		'override' => 'override',
+		'return'          => 'send_back',
+		'block'           => 'block',
+		'unblock'         => 'unblock',
+		'outcome'         => 'outcome',
+		'archive'         => 'archive',
+		'restore'         => 'restore',
+		'delete-archived' => 'delete_archived',
+		'reopen'          => 'reopen',
+		'override'        => 'override',
 	);
 
 	/**
@@ -378,6 +380,37 @@ final class WorkItemsController {
 			array(
 				'methods'             => 'DELETE',
 				'callback'            => array( self::class, 'remove_image' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
+		// Documents (#569): the same shape as images, for files that are not pictures.
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/documents',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'add_document' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/documents/(?P<attachment_id>[0-9]+)',
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'remove_document' ),
 				'permission_callback' => array( Permissions::class, 'signed_in' ),
 				'scope'               => array(
 					'kind'   => Boundary::SCOPE_ITEM,
@@ -714,6 +747,29 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function destroy( WP_REST_Request $request ) {
+		$target = Items::get( (string) $request['item_id'] );
+
+		// A project or a release goes through the archive first (#590), and
+		// what was under it is kept.
+		if ( null !== $target && in_array( (string) $target['level'], array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			$refused = self::refuse_unless_archived_group( $target );
+
+			if ( null !== $refused ) {
+				return $refused;
+			}
+
+			if ( ! Items::delete_keeping_children( (string) $target['id'], get_current_user_id() ) ) {
+				return Errors::rest( 'write_failed', __( 'That could not be deleted.', 'blueworx-forge' ), 500 );
+			}
+
+			return rest_ensure_response(
+				array(
+					'ok'      => true,
+					'deleted' => 1,
+				)
+			);
+		}
+
 		$deleted = Items::delete( (string) $request['item_id'] );
 
 		if ( 0 === $deleted ) {
@@ -1021,6 +1077,170 @@ final class WorkItemsController {
 		}
 
 		$updated = Items::set_images( (string) $item['id'], $kept );
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => null === $updated ? $item : $updated,
+			)
+		);
+	}
+
+	/**
+	 * The document types a task accepts, and only these: WordPress's own
+	 * types for PDFs, Office documents and plain text. No web pages, no
+	 * scripts, no archives, no SVG.
+	 *
+	 * @return array<string, string> Extension to MIME type.
+	 */
+	public static function document_mimes(): array {
+		return array(
+			'pdf'  => 'application/pdf',
+			'doc'  => 'application/msword',
+			'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			'xls'  => 'application/vnd.ms-excel',
+			'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'ppt'  => 'application/vnd.ms-powerpoint',
+			'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+			'odt'  => 'application/vnd.oasis.opendocument.text',
+			'ods'  => 'application/vnd.oasis.opendocument.spreadsheet',
+			'odp'  => 'application/vnd.oasis.opendocument.presentation',
+			'rtf'  => 'application/rtf',
+			'txt'  => 'text/plain',
+			'csv'  => 'text/csv',
+		);
+	}
+
+	/**
+	 * Adds a document to an item (#569): the file goes into the media
+	 * library, and the item lists it. The type is judged by WordPress from
+	 * the file's extension and contents, never from what the browser said.
+	 *
+	 * @param WP_REST_Request $request Request, with a file called `document`.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function add_document( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_DEFINITION, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$files = $request->get_file_params();
+
+		if ( empty( $files['document'] ) ) {
+			// A file past the host's post_max_size arrives as nothing at all.
+			if ( empty( $files ) && (int) $request->get_header( 'content_length' ) > 0 ) {
+				return Errors::rest( 'document_too_big', __( 'A document can be at most 15 MB.', 'blueworx-forge' ), 400 );
+			}
+
+			return Errors::rest( 'no_document', __( 'Choose a document to add.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( count( (array) $item['documents'] ) >= Fields::LINK_ROWS ) {
+			return Errors::rest( 'too_many_documents', __( 'An item holds at most ten documents.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( (int) ( $files['document']['size'] ?? 0 ) > 15 * MB_IN_BYTES ) {
+			return Errors::rest( 'document_too_big', __( 'A document can be at most 15 MB.', 'blueworx-forge' ), 400 );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$attachment_id = media_handle_upload(
+			'document',
+			0,
+			array( 'post_status' => 'private' ),
+			array(
+				'test_form'                => false,
+				'mimes'                    => self::document_mimes(),
+				// The stored name is random, so the file's address cannot be guessed
+				// from what it was called. The original name is kept for display.
+				'unique_filename_callback' => static function ( $dir, $name, $ext ) {
+					unset( $dir, $name );
+					return bin2hex( random_bytes( 12 ) ) . $ext;
+				},
+			)
+		);
+
+		if ( is_wp_error( $attachment_id ) ) {
+			return Errors::rest( 'upload_failed', $attachment_id->get_error_message(), 400 );
+		}
+
+		// Read again just before writing, so a document added a moment ago by
+		// someone else is kept rather than overwritten.
+		$fresh = Items::get( (string) $item['id'] );
+
+		if ( null === $fresh || count( (array) $fresh['documents'] ) >= Fields::LINK_ROWS ) {
+			wp_delete_attachment( (int) $attachment_id, true );
+
+			return Errors::rest( 'too_many_documents', __( 'An item holds at most ten documents.', 'blueworx-forge' ), 400 );
+		}
+
+		$documents   = (array) $fresh['documents'];
+		$documents[] = array(
+			'id'   => (int) $attachment_id,
+			'url'  => (string) wp_get_attachment_url( (int) $attachment_id ),
+			'name' => sanitize_text_field( wp_basename( (string) ( $files['document']['name'] ?? '' ) ) ),
+		);
+
+		$updated = Items::set_documents( (string) $item['id'], $documents );
+
+		if ( null === $updated ) {
+			wp_delete_attachment( (int) $attachment_id, true );
+
+			return Errors::rest( 'upload_failed', __( 'That document could not be saved.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => $updated,
+			)
+		);
+	}
+
+	/**
+	 * Takes a document off an item, and out of the media library. Only a
+	 * document the item itself lists can be removed this way.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function remove_document( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_DEFINITION, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$gone = (int) $request['attachment_id'];
+		$kept = array();
+
+		foreach ( (array) $item['documents'] as $document ) {
+			if ( (int) $document['id'] === $gone ) {
+				wp_delete_attachment( $gone, true );
+				continue;
+			}
+
+			$kept[] = $document;
+		}
+
+		$updated = Items::set_documents( (string) $item['id'], $kept );
 
 		return rest_ensure_response(
 			array(
@@ -2356,6 +2576,79 @@ final class WorkItemsController {
 	}
 
 	/**
+	 * Brings an archived project or release back (#590).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function restore( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		return self::answer( Transition::restore( $ready['item'], $ready['version'], get_current_user_id() ) );
+	}
+
+	/**
+	 * Deletes an archived project or release, keeping what was under it (#590).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function delete_archived( WP_REST_Request $request ) {
+		// Deleting for good stays with administrators, as it is for all work.
+		if ( ! Permissions::manage() ) {
+			return Errors::rest( 'forbidden', __( 'Only an administrator can delete this.', 'blueworx-forge' ), 403 );
+		}
+
+		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$refused = self::refuse_unless_archived_group( $ready['item'] );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$kept = count( Items::children( (string) $ready['item']['id'] ) );
+
+		if ( ! Items::delete_keeping_children( (string) $ready['item']['id'], get_current_user_id() ) ) {
+			return Errors::rest( 'write_failed', __( 'That could not be deleted.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'deleted' => 1,
+				'kept'    => $kept,
+			)
+		);
+	}
+
+	/**
+	 * Why a project or release cannot be deleted yet, or null when it can (#590).
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return \WP_Error|null
+	 */
+	private static function refuse_unless_archived_group( array $item ) {
+		if ( ! in_array( (string) $item['level'], array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			return Errors::rest( 'not_a_project', __( 'Only a project or a release is deleted this way.', 'blueworx-forge' ), 409 );
+		}
+
+		if ( empty( $item['archived'] ) ) {
+			return Errors::rest( 'not_archived', __( 'Archive it first. Only an archived project or release can be deleted.', 'blueworx-forge' ), 409 );
+		}
+
+		return null;
+	}
+
+	/**
 	 * The item and the version every move route needs, or the refusal that
 	 * stops it: no such item, or a write against a version that has moved on.
 	 *
@@ -2641,6 +2934,16 @@ final class WorkItemsController {
 		 */
 		if ( null === $parent || (string) $parent['client_site_id'] !== $client_site_id ) {
 			return Errors::rest( 'unknown_parent', __( 'There is no such parent item.', 'blueworx-forge' ), 404 );
+		}
+
+		// #590. Nothing new goes under a project or release that is archived. An
+		// item already there can still be edited without moving.
+		if ( ! empty( $parent['archived'] ) ) {
+			$child = '' === $child_id ? null : Items::get( $child_id );
+
+			if ( null === $child || (string) $child['parent_id'] !== $parent_id ) {
+				return Errors::rest( 'invalid_parent', __( 'That is archived. Restore it before adding work to it.', 'blueworx-forge' ), 409 );
+			}
 		}
 
 		// #562. A bug, task or feedback item never holds work.

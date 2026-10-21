@@ -54,10 +54,17 @@ final class HoursGate {
 	 * @param float                $balance     What the site has left.
 	 * @param float                $held        What this item has already
 	 *                                          reserved of that.
+	 * @param float                $used        What this item has already
+	 *                                          spent (#568).
 	 * @return array<string, mixed>
 	 */
-	public static function assess( array $item, array $entitlement, float $balance, float $held ): array {
-		$needed = WorkHours::chargeable( $item ) ? WorkHours::planned( $item ) : 0.0;
+	public static function assess( array $item, array $entitlement, float $balance, float $held, float $used = 0.0 ): array {
+		/*
+		 * #568. Only what the work has not spent yet. Work sent back after it
+		 * started has paid for its plan already, and moving it on again asks
+		 * only for hours added since.
+		 */
+		$needed = WorkHours::chargeable( $item ) ? round( max( 0.0, WorkHours::planned( $item ) - $used ), 2 ) : 0.0;
 
 		/*
 		 * The item's own reservation is added back before the comparison.

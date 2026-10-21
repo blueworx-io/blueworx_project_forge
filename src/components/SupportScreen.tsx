@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { alphabetical } from '../alphabetical.mjs';
+import { ledgerLines } from '../ledgerLines.mjs';
 import { LifeBuoy, Receipt } from 'lucide-react';
 import type { LedgerEntry, SupportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState, SupportSummaryAnswer, SupportSummaryRow } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
@@ -52,6 +53,19 @@ const ENTRY_LABELS: Record< string, string > = {
   'adjustment': 'Adjustment',
   'expiry': 'Expired',
   'rollover': 'Carried over',
+};
+
+/** A line on the ledger table (#568): an entry, or a task or meeting with its entries folded under it. */
+type LedgerLine = {
+  id: string;
+  key: string;
+  when: string;
+  hours: number;
+  event_type?: string;
+  label?: string;
+  about?: string;
+  reason?: string;
+  history: LedgerEntry[];
 };
 
 /** +5 → "+5h", −2 → "-2h": the sign is the point of a ledger line. */
@@ -169,12 +183,38 @@ export function SupportScreen() {
     { key: 'ended', label: 'Why it ended', wrap: true, render: ( p ) => p.ended_because || '—' },
   ];
 
-  const ledgerColumns: Column< LedgerEntry >[] = [
+  // #568. One line per task or meeting, its reserved / released / done
+  // entries folded under it; the hours are those entries added up.
+  const ledgerColumns: Column< LedgerLine >[] = [
     { key: 'when', label: 'When', mono: true, width: 120, render: ( e ) => e.when },
-    { key: 'what', label: 'What', width: 160, render: ( e ) => ENTRY_LABELS[ e.event_type ] ?? e.event_type },
-    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 90, render: ( e ) => signedHours( e.hours ) },
+    { key: 'what', label: 'What', width: 160, render: ( e ) => e.label ?? ENTRY_LABELS[ e.event_type ?? '' ] ?? e.event_type },
+    { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 90, render: ( e ) => <span data-testid="bwx-ledger-hours" data-hours={ plain( e.hours ) }>{ signedHours( e.hours ) }</span> },
     // What it was for: the meeting or task it names, and the reason given, where there was one (2026-09-20).
-    { key: 'why', label: 'What for', wrap: true, render: ( e ) => [ e.about, e.reason ].filter( Boolean ).join( ' · ' ) || '—' },
+    {
+      key: 'why',
+      label: 'What for',
+      wrap: true,
+      render: ( e ) => (
+        <>
+          { [ e.about, e.reason ].filter( Boolean ).join( ' · ' ) || '—' }
+          { 1 < e.history.length && (
+            <details className="bwx-ledger-history" data-testid="bwx-ledger-history">
+              <summary>{ `History, ${ e.history.length } entries` }</summary>
+              <ul>
+                { e.history.map( ( one ) => (
+                  <li key={ one.id }>
+                    <span className="fk-mono">{ one.when }</span>
+                    { ` ${ ENTRY_LABELS[ one.event_type ] ?? one.event_type } ` }
+                    <span className="fk-mono">{ signedHours( one.hours ) }</span>
+                    { one.reason ? ` · ${ one.reason }` : '' }
+                  </li>
+                ) ) }
+              </ul>
+            </details>
+          ) }
+        </>
+      ),
+    },
   ];
 
   const position = answer?.position ?? null;
@@ -265,11 +305,11 @@ export function SupportScreen() {
           </Panel>
 
           <Panel title="Every hour" flush>
-            <DataView< LedgerEntry >
+            <DataView< LedgerLine >
               bare
               fixed
               columns={ ledgerColumns }
-              rows={ answer.ledger }
+              rows={ ledgerLines( answer.ledger ) as LedgerLine[] }
               sortable={ false }
               empty={ <EmptyState icon={ Receipt } dense title="Nothing on the ledger" body="Nothing has happened to this site's hours yet." /> }
               footer={ `Left: ${ hoursLabel( position.balance ) }` }

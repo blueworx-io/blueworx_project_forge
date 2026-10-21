@@ -82,6 +82,27 @@ final class Occurrences {
 	}
 
 	/**
+	 * Gives a claim back when what it was for did not happen, so it can be
+	 * tried again (#574).
+	 *
+	 * @param string $recurring_id Source id.
+	 * @param string $due_on       What was claimed.
+	 */
+	public static function release( string $recurring_id, string $due_on ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->delete(
+			Schema::recurring_occurrences_table(),
+			array(
+				'recurring_id' => $recurring_id,
+				'due_on'       => $due_on,
+			),
+			array( '%s', '%s' )
+		);
+	}
+
+	/**
 	 * The most recent occurrence of each source, keyed by source id.
 	 *
 	 * @param array<int, string> $recurring_ids Source ids.

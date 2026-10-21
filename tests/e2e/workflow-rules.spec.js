@@ -196,6 +196,63 @@ test('links are saved with the task, an image goes up on its own, and dependenci
   await page.close();
 });
 
+test('documents upload to a task, open from it, and come off again; unsafe files are refused (#569, #570)', async () => {
+  test.slow();
+
+  const item = await fresh(`Documents ${RUN_ID}`);
+  const route = `/wp-json/blueworx-forge/v1/work-items/${item.id}/documents`;
+  const send = (name, mimeType, buffer) => admin.api.request.post(route, { headers: admin.api.headers, multipart: { document: { name, mimeType, buffer } } });
+
+  // A web page and a script are refused, even when the browser says they are text or a PDF.
+  expect((await send('page.html', 'text/plain', Buffer.from('<script>alert(1)</script>'))).status()).toBe(400);
+  expect((await send('shell.php', 'application/pdf', Buffer.from('<?php echo 1;'))).status()).toBe(400);
+  expect((await send('fake.pdf.php', 'application/pdf', Buffer.from('%PDF-1.4'))).status()).toBe(400);
+
+  // Not signed in, no upload.
+  const anon = await admin.context.browser().newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
+  const refused = await anon.request.post(route, { multipart: { document: { name: 'a.txt', mimeType: 'text/plain', buffer: Buffer.from('hi') } } });
+  expect([401, 403]).toContain(refused.status());
+
+  const uploaded = await send('Brief notes.txt', 'application/octet-stream', Buffer.from('Notes for the task'));
+  expect(uploaded.status(), await uploaded.text()).toBe(200);
+  const withDoc = (await uploaded.json()).item;
+  expect(withDoc.documents).toHaveLength(1);
+  expect(withDoc.documents[0].name).toBe('Brief notes.txt');
+  expect(withDoc.images).toEqual([]);
+
+  // Kept private: not in the public media list, and stored under a name that is not the file's own.
+  expect(withDoc.documents[0].url).not.toContain('Brief');
+  const publicMedia = await anon.request.get('/wp-json/wp/v2/media?per_page=100');
+  expect(JSON.stringify(await publicMedia.json())).not.toContain(withDoc.documents[0].url);
+
+  const opened = await admin.api.request.get(withDoc.documents[0].url);
+  expect(opened.status()).toBe(200);
+  expect(await opened.text()).toBe('Notes for the task');
+
+  // On the task screen, in one Attachments section with links and images.
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
+  await page.getByTestId('bwx-card').filter({ hasText: `Documents ${RUN_ID}` }).click();
+  const section = page.getByTestId('bwx-attachments');
+  await expect(section).toBeVisible();
+  await expect(section.getByRole('heading', { name: 'Attachments' })).toBeVisible();
+  await expect(section.getByTestId('bwx-documents')).toBeVisible();
+  await expect(section.getByTestId('bwx-links')).toBeVisible();
+  await expect(section.getByTestId('bwx-images')).toBeVisible();
+  await expect(section.getByTestId('bwx-document')).toHaveCount(1);
+  await expect(section.getByRole('link', { name: 'Brief notes.txt' })).toHaveAttribute('href', withDoc.documents[0].url);
+
+  await section.getByRole('button', { name: 'Remove Brief notes.txt' }).click();
+  await expect(section.getByTestId('bwx-document')).toHaveCount(0, { timeout: 30_000 });
+  expect((await admin.api.get(`/work-items/${item.id}`)).item.documents).toEqual([]);
+  expect((await admin.api.request.get(withDoc.documents[0].url)).status()).toBe(404);
+
+  await page.close();
+  await anon.close();
+});
+
 test('a before-row takes you to its field, and a checklist counts what is ticked', async () => {
   test.slow();
 
