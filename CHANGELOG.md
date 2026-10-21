@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.201.0] - 2026-10-21
+
+### Added
+
+- The daily standup can now switch between Today, Tomorrow and the Next seven days.
+
+### Changed
+
+- The daily standup's "Somebody's turn" is now "Requires Client Review". It holds only work waiting on the client, whatever its date, and a review that was sent back or is overdue shows a tag. Work with a team reviewer stays under Work needing attention.
+
 ## [2.200.0] - 2026-10-21
 
 ### Added
