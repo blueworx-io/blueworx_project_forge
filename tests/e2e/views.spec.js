@@ -135,7 +135,9 @@ test.describe('views', () => {
     await page.goto('/blueworx-forge/');
     await page.selectOption('[data-testid="bwx-client-choice"]', world.site.id);
 
-    await expect(page.locator('[data-testid="bwx-board"]')).toBeVisible();
+    // The board waits on the whole site's work, which on a full instance is
+    // slower than the default expect timeout.
+    await expect(page.locator('[data-testid="bwx-board"]')).toBeVisible({ timeout: 30_000 });
     const onBoard = await page.locator('[data-testid="bwx-card"]').count();
 
     await page.locator('[data-testid="bwx-view-list"]').click();
