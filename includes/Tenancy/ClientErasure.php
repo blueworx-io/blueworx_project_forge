@@ -312,6 +312,10 @@ final class ClientErasure {
 				foreach ( (array) ( $item['images'] ?? array() ) as $image ) {
 					wp_delete_attachment( (int) $image['id'], true );
 				}
+
+				foreach ( (array) ( $item['documents'] ?? array() ) as $document ) {
+					wp_delete_attachment( (int) $document['id'], true );
+				}
 			}
 
 			$integration = Integrations::for_site( $site_id );

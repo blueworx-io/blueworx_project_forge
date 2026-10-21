@@ -86,6 +86,8 @@ export interface WorkItem {
   test_steps: ChecklistRow[];
   links: LinkRow[];
   images: ImageRow[];
+  /** Documents uploaded to the task (#569), attachments like images. */
+  documents: ImageRow[];
   stage: string;
   stage_label: string;
   prior_stage: string;

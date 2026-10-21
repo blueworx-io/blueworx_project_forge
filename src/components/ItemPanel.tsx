@@ -1049,6 +1049,44 @@ export function ItemPanel( {
     }
   }
 
+  /** Adds chosen documents, one upload each (#569). */
+  async function addDocuments( files: FileList | File[] ) {
+    const chosen = Array.from( files );
+
+    if ( 0 === chosen.length ) {
+      return;
+    }
+
+    setBusy( true );
+
+    try {
+      for ( const file of chosen ) {
+        const form = new FormData();
+        form.append( 'document', file, file.name );
+        await api( `/work-items/${ itemId }/documents`, { method: 'POST', body: form } );
+      }
+
+      await load( true );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That document could not be added.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  async function removeDocument( id: number ) {
+    setBusy( true );
+
+    try {
+      await api( `/work-items/${ itemId }/documents/${ id }`, { method: 'DELETE' } );
+      await load( true );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That document could not be removed.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   async function removeImage( id: number ) {
     setBusy( true );
 
@@ -2126,7 +2164,56 @@ export function ItemPanel( {
                 with everything else; an image goes up as soon as it is
                 dropped, because a file is not a draft.
              */ }
-            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < links.length ) && (
+            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < links.length || 0 < item.images.length || 0 < ( item.documents ?? [] ).length ) && (
+              <section className="bwx-attachments" data-testid="bwx-attachments" aria-labelledby="bwx-attachments-title">
+                <h3 id="bwx-attachments-title" className="bwx-attachments-title">Attachments</h3>
+
+                { /* Documents (#569): uploaded to the media library, opened from here. */ }
+                <div className="bwx-field" data-testid="bwx-documents">
+                  <span className="bwx-checklist-head">
+                    <span>Documents</span>
+                    { 0 < ( item.documents ?? [] ).length && <span className="bwx-mono">{ `${ ( item.documents ?? [] ).length } of ${ CHECKLIST_ROWS }` }</span> }
+                  </span>
+                  { 0 < ( item.documents ?? [] ).length && (
+                    <ul className="bwx-document-list">
+                      { ( item.documents ?? [] ).map( ( doc ) => (
+                        <li key={ doc.id } data-testid="bwx-document">
+                          <a href={ doc.url } target="_blank" rel="noreferrer noopener">{ doc.name || 'Document' }</a>
+                          <button
+                            type="button"
+                            className="bwx-icon-button"
+                            aria-label={ `Remove ${ doc.name || 'document' }` }
+                            disabled={ busy }
+                            onClick={ () => void removeDocument( doc.id ) }
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      ) ) }
+                    </ul>
+                  ) }
+                  { ( item.documents ?? [] ).length < CHECKLIST_ROWS && (
+                    <label className="bwx-drop" data-testid="bwx-document-drop">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv"
+                        multiple
+                        data-testid="bwx-document-input"
+                        aria-label="Add documents"
+                        disabled={ busy }
+                        onChange={ ( event ) => {
+                          if ( event.target.files ) {
+                            void addDocuments( event.target.files );
+                          }
+
+                          event.target.value = '';
+                        } }
+                      />
+                      <span>Choose documents (PDF, Office, text or CSV).</span>
+                    </label>
+                  ) }
+                </div>
+
               <div className="bwx-field bwx-links" data-testid="bwx-links">
                 <span className="bwx-checklist-head">
                   <span>Links</span>
@@ -2176,9 +2263,7 @@ export function ItemPanel( {
                   </div>
                 ) }
               </div>
-            ) }
 
-            { staff && ! chore && ( reached( 'documentation-period' ) || 0 < item.images.length ) && (
               <div className="bwx-field" data-testid="bwx-images">
                 <span className="bwx-checklist-head">
                   <span>Images</span>
@@ -2238,6 +2323,7 @@ export function ItemPanel( {
                   </label>
                 ) }
               </div>
+              </section>
             ) }
 
             { /*

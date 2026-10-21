@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 42;
+	public const VERSION = 44;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -705,6 +705,7 @@ final class Schema {
 	test_steps text NULL,
 	links text NULL,
 	images text NULL,
+	documents text NULL,
 	checklist text NULL,
 	assignees text NULL,
 	ticks text NULL,

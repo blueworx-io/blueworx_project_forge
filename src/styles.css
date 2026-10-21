@@ -4505,3 +4505,30 @@ select.bwx-select {
   padding: 8px 0;
   border-bottom: 1px solid var( --border-hairline );
 }
+
+/* Attachments (#570): documents, links and images under one heading. */
+.bwx-attachments {
+  display: grid;
+  gap: 16px;
+}
+.bwx-attachments-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.bwx-document-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.bwx-document-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bwx-document-list a {
+  overflow-wrap: anywhere;
+}

@@ -47,6 +47,10 @@ export const RULES: RuleSection[] = [
         why: 'So a count like 2 of 2 done next to a third piece of work makes sense, and nobody waits on work that has stopped.',
       },
       {
+        what: 'A task\'s Attachments section holds its documents, links and images. Documents can be PDFs, Office files, plain text or CSV, up to ten per task and 15 MB each; each opens from the task and can be removed again.',
+        why: 'So everything attached to a task is in one place, and only safe kinds of file get in.',
+      },
+      {
         what: 'Every item has its own link, and the Copy link button beside Close copies it. Opening the link brings up that item.',
         why: 'So you can point a colleague at the exact piece of work instead of describing where to find it.',
       },

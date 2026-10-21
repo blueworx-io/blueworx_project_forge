@@ -570,6 +570,28 @@ final class Items {
 	}
 
 	/**
+	 * Replaces the documents on an item. Written by the upload route, never
+	 * by an edit; each is an attachment in the media library, like an image.
+	 *
+	 * @param string                                                $id        Item id.
+	 * @param array<int, array{id: int, url: string, name: string}> $documents The list.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_documents( string $id, array $documents ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'documents'  => (string) wp_json_encode( array_values( $documents ) ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
 	 * A stored list of ids.
 	 *
 	 * @param string $stored JSON, or nothing.
@@ -702,6 +724,7 @@ final class Items {
 			'test_steps'               => '[]',
 			'links'                    => '[]',
 			'images'                   => '[]',
+			'documents'                => '[]',
 			'checklist'                => '[]',
 			'assignees'                => '[]',
 			'ticks'                    => '{}',
@@ -775,6 +798,7 @@ final class Items {
 			'test_steps'               => self::checklist( (string) ( $row['test_steps'] ?? '' ) ),
 			'links'                    => self::links( (string) ( $row['links'] ?? '' ) ),
 			'images'                   => self::images( (string) ( $row['images'] ?? '' ) ),
+			'documents'                => self::images( (string) ( $row['documents'] ?? '' ) ),
 			'checklist'                => self::checklist( (string) ( $row['checklist'] ?? '' ) ),
 			'stage'                    => (string) $row['stage'],
 			'stage_label'              => Stages::label( (string) $row['stage'] ),

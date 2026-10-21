@@ -387,6 +387,37 @@ final class WorkItemsController {
 			)
 		);
 
+		// Documents (#569): the same shape as images, for files that are not pictures.
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/documents',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'add_document' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
+		Server::register_route(
+			$route_namespace,
+			'/work-items/(?P<item_id>[A-Za-z0-9_\-]+)/documents/(?P<attachment_id>[0-9]+)',
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( self::class, 'remove_document' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_ITEM,
+					'param'  => 'item_id',
+					'record' => 'work_item',
+				),
+			)
+		);
+
 		/*
 		 * #103. Adding and removing a dependency are their own routes rather
 		 * than fields on the item, because a dependency is a relationship
@@ -1021,6 +1052,143 @@ final class WorkItemsController {
 		}
 
 		$updated = Items::set_images( (string) $item['id'], $kept );
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => null === $updated ? $item : $updated,
+			)
+		);
+	}
+
+	/**
+	 * The document types a task accepts, and only these: WordPress's own
+	 * types for PDFs, Office documents and plain text. No web pages, no
+	 * scripts, no archives, no SVG.
+	 *
+	 * @return array<string, string> Extension to MIME type.
+	 */
+	public static function document_mimes(): array {
+		return array(
+			'pdf'  => 'application/pdf',
+			'doc'  => 'application/msword',
+			'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			'xls'  => 'application/vnd.ms-excel',
+			'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			'ppt'  => 'application/vnd.ms-powerpoint',
+			'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+			'odt'  => 'application/vnd.oasis.opendocument.text',
+			'ods'  => 'application/vnd.oasis.opendocument.spreadsheet',
+			'odp'  => 'application/vnd.oasis.opendocument.presentation',
+			'rtf'  => 'application/rtf',
+			'txt'  => 'text/plain',
+			'csv'  => 'text/csv',
+		);
+	}
+
+	/**
+	 * Adds a document to an item (#569): the file goes into the media
+	 * library, and the item lists it. The type is judged by WordPress from
+	 * the file's extension and contents, never from what the browser said.
+	 *
+	 * @param WP_REST_Request $request Request, with a file called `document`.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function add_document( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_DEFINITION, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$files = $request->get_file_params();
+
+		if ( empty( $files['document'] ) ) {
+			return Errors::rest( 'no_document', __( 'Choose a document to add.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( count( (array) $item['documents'] ) >= Fields::LINK_ROWS ) {
+			return Errors::rest( 'too_many_documents', __( 'An item holds at most ten documents.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( (int) ( $files['document']['size'] ?? 0 ) > 15 * MB_IN_BYTES ) {
+			return Errors::rest( 'document_too_big', __( 'A document can be at most 15 MB.', 'blueworx-forge' ), 400 );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$attachment_id = media_handle_upload(
+			'document',
+			0,
+			array(),
+			array(
+				'test_form' => false,
+				'mimes'     => self::document_mimes(),
+			)
+		);
+
+		if ( is_wp_error( $attachment_id ) ) {
+			return Errors::rest( 'upload_failed', $attachment_id->get_error_message(), 400 );
+		}
+
+		$documents   = (array) $item['documents'];
+		$documents[] = array(
+			'id'   => (int) $attachment_id,
+			'url'  => (string) wp_get_attachment_url( (int) $attachment_id ),
+			'name' => sanitize_text_field( wp_basename( (string) ( $files['document']['name'] ?? '' ) ) ),
+		);
+
+		$updated = Items::set_documents( (string) $item['id'], $documents );
+
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => null === $updated ? $item : $updated,
+			)
+		);
+	}
+
+	/**
+	 * Takes a document off an item, and out of the media library. Only a
+	 * document the item itself lists can be removed this way.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function remove_document( WP_REST_Request $request ) {
+		$item = Items::get( (string) $request['item_id'] );
+
+		if ( null === $item ) {
+			return Boundary::absent( 'work_item' );
+		}
+
+		$refused = self::permit( Capabilities::EDIT_DEFINITION, $item );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$gone = (int) $request['attachment_id'];
+		$kept = array();
+
+		foreach ( (array) $item['documents'] as $document ) {
+			if ( (int) $document['id'] === $gone ) {
+				wp_delete_attachment( $gone, true );
+				continue;
+			}
+
+			$kept[] = $document;
+		}
+
+		$updated = Items::set_documents( (string) $item['id'], $kept );
 
 		return rest_ensure_response(
 			array(
