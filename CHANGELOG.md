@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.200.0] - 2026-10-21
+
+### Added
+
+- Documents (PDF, Office files, text, CSV) can now be uploaded to a task, opened from it and removed again. They are kept private to signed-in staff.
+- The task screen has one Attachments section holding Documents, Links and Images.
+
 ## [2.199.0] - 2026-10-20
 
 ### Added
