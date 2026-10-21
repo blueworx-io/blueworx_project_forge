@@ -85,6 +85,20 @@ final class RemindersController {
 				)
 			);
 		}
+
+		Server::register_route(
+			$route_namespace,
+			'/reminders/(?P<reminder_id>[A-Za-z0-9_\-]+)/convert',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'convert' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The callback refuses a reminder on a site the caller does not reach, and anyone but its author or an administrator.',
+				),
+			)
+		);
 	}
 
 	/**
@@ -234,6 +248,40 @@ final class RemindersController {
 	}
 
 	/**
+	 * Turns a reminder into a task (#574): one task for everyone who had not
+	 * ticked it yet, carrying its title, client site, people and time. Their
+	 * copies close into it; the reminder itself carries on.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function convert( WP_REST_Request $request ) {
+		$source = self::editable( (string) $request['reminder_id'] );
+
+		if ( ! is_array( $source ) ) {
+			return $source;
+		}
+
+		$task = Reminders::convert( $source, get_current_user_id() );
+
+		if ( 'nothing_open' === $task ) {
+			return Errors::rest( 'nothing_open', __( 'Everyone on this reminder has already ticked it off.', 'blueworx-forge' ), 409 );
+		}
+
+		if ( ! is_array( $task ) ) {
+			return Errors::rest( 'write_failed', __( 'That task could not be made.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'item'     => $task,
+				'reminder' => self::shape( $source, Reminders::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() ),
+			)
+		);
+	}
+
+	/**
 	 * The reminder, if the caller may change it; otherwise the refusal.
 	 *
 	 * @param string $id Reminder id.
@@ -315,6 +363,8 @@ final class RemindersController {
 			'assignees'      => (array) $source['assignees'],
 			'starts_on'      => (string) $source['starts_on'],
 			'ends_on'        => (string) $source['ends_on'],
+			// Each person's time, in hours (#573); 0 when none is set.
+			'hours_each'     => (float) $source['hours_each'],
 			'record_version' => (int) $source['record_version'],
 			'created_by'     => (int) $source['created_by'],
 			'can_edit'       => self::may_edit( $source ),

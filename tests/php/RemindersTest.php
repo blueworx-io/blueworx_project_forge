@@ -119,4 +119,58 @@ final class RemindersTest extends TestCase {
 		self::assertSame( 'That is not a date.', Reminders::validate( array( 'starts_on' => '2026-00-10' ), true )['errors']['starts_on'] );
 		self::assertArrayNotHasKey( 'starts_on', Reminders::validate( array( 'starts_on' => '2028-02-29' ), true )['errors'] );
 	}
+
+	public function test_a_time_is_optional_and_counts_as_nothing_when_left_out(): void {
+		self::assertSame( '0', Reminders::validate( $this->good(), false )['values']['hours_each'] );
+		self::assertSame( '0.5', Reminders::validate( array_merge( $this->good(), array( 'hours_each' => '0.5' ) ), false )['values']['hours_each'] );
+		self::assertSame( '0.17', Reminders::validate( array_merge( $this->good(), array( 'hours_each' => 0.17 ) ), false )['values']['hours_each'] );
+		self::assertSame( '0', Reminders::validate( array_merge( $this->good(), array( 'hours_each' => '' ) ), false )['values']['hours_each'] );
+		self::assertArrayNotHasKey( 'hours_each', Reminders::validate( array( 'title' => 'Only the title' ), true )['values'] );
+	}
+
+	public function test_a_time_is_one_of_the_steps_up_to_five_hours(): void {
+		foreach ( array( '6', '-1', 'lots', '0.33' ) as $wrong ) {
+			self::assertSame( 'Pick a time from the list.', Reminders::validate( array_merge( $this->good(), array( 'hours_each' => $wrong ) ), false )['errors']['hours_each'] );
+		}
+
+		self::assertSame( '5', Reminders::validate( array_merge( $this->good(), array( 'hours_each' => '5' ) ), false )['values']['hours_each'] );
+	}
+
+	public function test_each_persons_copy_carries_the_full_time(): void {
+		$source = array(
+			'id'          => 'rem_1',
+			'title'       => 'Check the ads',
+			'description' => '',
+			'starts_on'   => '2026-10-01',
+			'ends_on'     => '',
+			'hours_each'  => 0.5,
+		);
+
+		self::assertSame( 0.5, Reminders::values( $source, 'usr_abc123' )['hours_each'] );
+		self::assertSame( 0.5, Reminders::values( $source, 'usr_def456' )['hours_each'] );
+		self::assertSame( 0.0, Reminders::values( array_merge( $source, array( 'hours_each' => 0 ) ), 'usr_abc123' )['hours_each'] );
+	}
+
+	public function test_a_converted_task_carries_the_title_people_and_time_on_the_reminders_first_day(): void {
+		$values = Reminders::task_values(
+			array(
+				'id'          => 'rem_1',
+				'title'       => 'Deadline: File the VAT return',
+				'description' => '',
+				'starts_on'   => '2026-10-01',
+				'ends_on'     => '2026-10-03',
+				'hours_each'  => 1.0,
+			),
+			array( 'usr_abc123', 'usr_def456' )
+		);
+
+		self::assertSame( 'Deadline: File the VAT return', $values['title'] );
+		self::assertSame( '<p>Deadline: File the VAT return</p>', $values['problem'] );
+		self::assertSame( array( 'usr_abc123', 'usr_def456' ), $values['assignees'] );
+		self::assertSame( 1.0, $values['hours_each'] );
+		self::assertSame( '2026-10-01', $values['planned_start'] );
+		self::assertSame( '2026-10-01', $values['planned_due'] );
+		// A task of its own now, no longer one of the reminder's copies.
+		self::assertSame( '', $values['recurring_id'] );
+	}
 }

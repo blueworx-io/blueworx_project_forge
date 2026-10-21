@@ -283,6 +283,46 @@ final class CapacityAllocationsTest extends TestCase {
 		$this->assertSame( '2026-09-11', $allocations[0]['to'] );
 	}
 
+	public function test_a_reminders_time_sits_on_its_first_day_for_each_person(): void {
+		$allocations = Allocations::from_item(
+			$this->item(
+				array(
+					'recurring_id'  => 'rem_1',
+					'assignees'     => '["usr_a","usr_b"]',
+					'hours_each'    => 0.5,
+					'hours_primary' => 0.0,
+					'hours_review'  => 0.0,
+				)
+			)
+		);
+
+		$this->assertSame( array( 'usr_a', 'usr_b' ), array_column( $allocations, 'user_id' ) );
+
+		foreach ( $allocations as $allocation ) {
+			$this->assertSame( 'assignee', $allocation['role'] );
+			$this->assertSame( 0.5, $allocation['hours'] );
+			$this->assertSame( '2026-09-07', $allocation['from'] );
+			$this->assertSame( '2026-09-07', $allocation['to'] );
+		}
+	}
+
+	public function test_a_reminder_with_no_time_commits_nothing(): void {
+		$this->assertSame(
+			array(),
+			Allocations::from_item(
+				$this->item(
+					array(
+						'recurring_id'  => 'rem_1',
+						'assignees'     => '["usr_a"]',
+						'hours_each'    => 0.0,
+						'hours_primary' => 0.0,
+						'hours_review'  => 0.0,
+					)
+				)
+			)
+		);
+	}
+
 	public function test_hours_spread_evenly_across_working_days(): void {
 		$allocation = $this->across_the_week();
 

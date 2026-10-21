@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Capacity;
 
+use Blueworx\Forge\Recurring\Reminders;
 use Blueworx\Forge\Work\ClientReviewer;
 use Blueworx\Forge\Work\Stages;
 
@@ -279,6 +280,14 @@ final class Allocations {
 		$assignees = $item['assignees'] ?? array();
 		$assignees = is_string( $assignees ) ? (array) json_decode( $assignees, true ) : (array) $assignees;
 
+		/*
+		 * #573. A reminder's time sits on its first day, the day it reaches
+		 * Today, however many days it covers: an assignment is done in a day
+		 * (#513). A chore keeps its own window, which is one day anyway.
+		 */
+		$reminder = Reminders::is_reminder( (string) ( $item['recurring_id'] ?? '' ) );
+		$span     = $reminder ? array( $window[0], $window[0] ) : $window;
+
 		if ( $each > 0 ) {
 			foreach ( $assignees as $who ) {
 				$out[] = array(
@@ -290,8 +299,8 @@ final class Allocations {
 					'user_id'        => (string) $who,
 					'covering'       => '',
 					'hours'          => $each,
-					'from'           => $window[0],
-					'to'             => $window[1],
+					'from'           => $span[0],
+					'to'             => $span[1],
 					'status'         => $status,
 				);
 			}

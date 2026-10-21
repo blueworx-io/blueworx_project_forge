@@ -592,6 +592,32 @@ final class Items {
 	}
 
 	/**
+	 * Sets the hours each assignee spends (#573). Written only when a
+	 * reminder's time changes and its copies follow, never by an edit to the
+	 * item itself: the hours are the reminder's, as the people are.
+	 *
+	 * Not versioned, as a tick is not: the reminder's own sync is the only
+	 * writer, and it has just read the row.
+	 *
+	 * @param string $id    Item id.
+	 * @param float  $hours Hours each.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_hours_each( string $id, float $hours ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'hours_each' => (string) round( max( 0.0, $hours ), 2 ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
 	 * A stored list of ids.
 	 *
 	 * @param string $stored JSON, or nothing.

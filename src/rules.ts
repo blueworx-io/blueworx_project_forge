@@ -437,7 +437,7 @@ export const RULES: RuleSection[] = [
         why: 'A panel that listed work booked on other days would never agree with the cell behind it.',
       },
       {
-        what: 'Standing meetings and the days ahead of recurring tasks count too, and capacity always adds up every client, whichever client is picked.',
+        what: 'Standing meetings, the days ahead of recurring tasks and the time on reminders count too, and capacity always adds up every client, whichever client is picked.',
         why: 'A person can\'t look free for one client while they are busy for another.',
       },
       {
@@ -495,8 +495,16 @@ export const RULES: RuleSection[] = [
         why: 'Reminders can be told apart and sorted at a glance.',
       },
       {
-        what: 'Reminders are free and carry no hours, so they never count against capacity or a client\'s support hours.',
-        why: 'A reminder is a nudge, not planned work.',
+        what: 'Reminders are free, so they never count against a client\'s support hours.',
+        why: 'A reminder is a nudge, not paid work.',
+      },
+      {
+        what: 'A reminder can take a time, from 5 minutes to 5 hours. Everyone on it carries the full time, all on its first day, in Capacity and Day by day. A reminder with no time set counts as nothing.',
+        why: 'Time spent on reminders is real time, and like any assignment it is done in a day.',
+      },
+      {
+        what: 'Convert to task turns a reminder into one task for everyone who hasn\'t ticked it yet, with the same title, client, people and time, due on the reminder\'s first day. Their copies close as turned into that task. The reminder itself carries on: it isn\'t ended or deleted, and copies already ticked stay as they were.',
+        why: 'Some reminders turn out to need proper work, without losing the reminder or counting the time twice.',
       },
       {
         what: 'A reminder shows on the calendar on every day it covers, and moves into Today in My tasks when its first day arrives.',

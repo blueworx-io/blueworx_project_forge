@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Recurring;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Work\Fields;
 use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Outcomes;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Transition;
 
@@ -46,6 +47,19 @@ final class Reminders {
 		'deadline'  => 'Deadline',
 		'other'     => 'Other',
 	);
+
+	/**
+	 * The times a reminder may take each person, in hours (#573): the steps
+	 * work is planned in everywhere else (HOUR_OPTIONS in src/hours.tsx),
+	 * up to the five-hour most any one assignment takes. Nothing is the
+	 * default, and counts as no time at all.
+	 */
+	public const TIMES = array( 0.0, 0.08, 0.17, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0 );
+
+	/**
+	 * What a time off the list is called.
+	 */
+	public const BAD_TIME = 'Pick a time from the list.';
 
 	/**
 	 * Checks a reminder. The client is checked by the route, which knows the
@@ -112,6 +126,18 @@ final class Reminders {
 				$errors['assignees'] = 'Choose at least one person.';
 			} else {
 				$values['assignees'] = array_values( $people );
+			}
+		}
+
+		// How long it takes each person (#573). Left out, it takes nothing.
+		if ( ! $partial || array_key_exists( 'hours_each', $input ) ) {
+			$time = trim( (string) ( $input['hours_each'] ?? '' ) );
+			$time = '' === $time ? '0' : $time;
+
+			if ( ! is_numeric( $time ) || ! in_array( round( (float) $time, 2 ), self::TIMES, true ) ) {
+				$errors['hours_each'] = self::BAD_TIME;
+			} else {
+				$values['hours_each'] = (string) round( (float) $time, 2 );
 			}
 		}
 
@@ -186,9 +212,105 @@ final class Reminders {
 			'commercial_class' => 'free-general',
 			'recurring_id'     => (string) $source['id'],
 			'assignees'        => array( $person ),
-			'hours_each'       => 0.0,
+			// Everyone on it spends the full time (#573): thirty minutes for
+			// two people is thirty minutes each. No time is no hours.
+			'hours_each'       => round( (float) ( $source['hours_each'] ?? 0 ), 2 ),
 			'checklist'        => '[]',
 		);
+	}
+
+	/**
+	 * The task a reminder is turned into (#574). Pure, so the shape can be
+	 * tested.
+	 *
+	 * It carries the reminder's title, words, people and time. It is a task
+	 * of its own, named by no source, so the reminder's later edits never
+	 * reach it. It is due on the reminder's first day, where its time already
+	 * sat, because an assignment is done in a day.
+	 *
+	 * @param array<string, mixed> $source The reminder.
+	 * @param array<int, string>   $people Who it is for.
+	 * @return array<string, mixed>
+	 */
+	public static function task_values( array $source, array $people ): array {
+		$first  = self::values( $source, '' );
+		$starts = (string) $source['starts_on'];
+
+		return array_merge(
+			$first,
+			array(
+				'planned_start' => $starts,
+				'planned_due'   => $starts,
+				'recurring_id'  => '',
+				'assignees'     => array_values( array_map( 'strval', $people ) ),
+			)
+		);
+	}
+
+	/**
+	 * Turns a reminder's open copies into one task for the people they
+	 * belong to (#574), and closes those copies as ticked off into it.
+	 *
+	 * Luke, 2026-10-21: the reminder itself carries on. It is not ended or
+	 * deleted, and copies already ticked stay as they were.
+	 *
+	 * @param array<string, mixed> $source The reminder.
+	 * @param int                  $actor  WordPress user id doing it.
+	 * @return array<string, mixed>|string The task, or why there is none:
+	 *                                     'nothing_open' or 'write_failed'.
+	 */
+	public static function convert( array $source, int $actor ) {
+		$open   = array();
+		$people = array();
+
+		foreach ( self::copies_for( array( (string) $source['id'] ) )[ (string) $source['id'] ] ?? array() as $item ) {
+			if ( array() === (array) $item['ticks'] && '' === (string) ( $item['terminal_outcome'] ?? '' ) ) {
+				$open[]   = $item;
+				$people[] = (string) ( ( (array) $item['assignees'] )[0] ?? '' );
+			}
+		}
+
+		$people = array_values( array_filter( array_unique( $people ) ) );
+
+		if ( array() === $people ) {
+			return 'nothing_open';
+		}
+
+		$task = Items::create( (string) $source['client_site_id'], (string) $source['client_id'], self::task_values( $source, $people ), $actor, true );
+
+		if ( null === $task ) {
+			return 'write_failed';
+		}
+
+		Transition::record_creation( $task, $actor );
+		$placed = Transition::place( $task, Stages::UP_NEXT, $actor, __( 'Turned into a task from a reminder.', 'blueworx-forge' ) );
+		$task   = is_array( $placed ) ? $placed : $task;
+
+		/*
+		 * Each copy is ticked, so every list that reads ticks (My tasks, the
+		 * calendar, the reminder's own Done count) sees that person's part as
+		 * handled and a later edit leaves it alone; and cancelled, so its time
+		 * is not counted a second time beside the task's.
+		 */
+		foreach ( $open as $item ) {
+			$person = (string) ( ( (array) $item['assignees'] )[0] ?? '' );
+			$ticked = Items::tick( (string) $item['id'], $person, true );
+
+			if ( null === $ticked ) {
+				continue;
+			}
+
+			Transition::end(
+				$ticked,
+				Outcomes::CANCELLED,
+				/* translators: %s: the new task's id */
+				array( 'reason' => sprintf( __( 'Turned into task %s.', 'blueworx-forge' ), (string) $task['id'] ) ),
+				(int) $ticked['record_version'],
+				$actor
+			);
+		}
+
+		return $task;
 	}
 
 	/**
@@ -297,6 +419,12 @@ final class Reminders {
 			);
 
 			if ( null === $updated ) {
+				$clean = false;
+				continue;
+			}
+
+			// The time (#573) is set on a copy only here, never by an edit to it.
+			if ( (float) $updated['hours_each'] !== (float) $values['hours_each'] && null === Items::set_hours_each( (string) $item['id'], (float) $values['hours_each'] ) ) {
 				$clean = false;
 			}
 		}

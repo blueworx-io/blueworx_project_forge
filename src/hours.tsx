@@ -20,6 +20,11 @@ export const HOUR_OPTIONS: Array< { value: string; label: string } > = [
   { value: '5', label: '5 hours' },
 ];
 
+/** "30 min", "1 hour": a figure in hours as the list names it, or "0.6 hours" when it is not on the list. */
+export function hourLabel( hours: number ): string {
+  return HOUR_OPTIONS.find( ( one ) => Number( one.value ) === hours )?.label ?? `${ hours } hours`;
+}
+
 /** The list, with whatever is already stored kept on it so an older figure is shown rather than silently dropped. */
 export function hourOptions( current: string ): Array< { value: string; label: string } > {
   const options = [ { value: '', label: 'Not set' }, ...HOUR_OPTIONS ];

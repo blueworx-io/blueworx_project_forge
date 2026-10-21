@@ -540,6 +540,8 @@ export interface Reminder {
   starts_on: string;
   /** '' for a one-day reminder. */
   ends_on: string;
+  /** Each person's time in hours (#573), counted on the first day; 0 when none is set. */
+  hours_each: number;
   record_version: number;
   created_by: number;
   /** Whether the signed-in person may change it: its author, or an administrator. */
