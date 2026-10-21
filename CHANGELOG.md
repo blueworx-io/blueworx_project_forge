@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.203.0] - 2026-10-21
+
+### Added
+
+- Projects and releases can be archived from their own page, found again under Archived on the Projects page, and restored. An admin can then delete an archived project or release after a confirmation; anything under it is kept and moves up a level, and any support hours it was holding go back to the client.
+
+### Fixed
+
+- The project page and the Projects page now have the same page margin and spacing as the rest of Forge.
+
 ## [2.202.0] - 2026-10-21
 
 ### Added
