@@ -142,6 +142,25 @@ final class WorkHours {
 	}
 
 	/**
+	 * What the ledger should be holding for this item, given what it has
+	 * already spent.
+	 *
+	 * #568. Work that has spent its hours holds none again. Sent back to Up
+	 * Next or Design after it started, it is the same work being changed, not
+	 * new work being planned: holding its hours again counted them twice, so
+	 * the balance read low for as long as it sat there, and every round trip
+	 * left another reserved and released pair on the client's record. Hours
+	 * added since are charged as spend when it starts again (see plan()).
+	 *
+	 * @param array<string, mixed>             $item    The item, as read.
+	 * @param array<int, array<string, mixed>> $entries Its ledger entries so far.
+	 * @return float
+	 */
+	public static function holding( array $item, array $entries ): float {
+		return self::position( $entries )['used'] > 0 ? 0.0 : self::holds( $item );
+	}
+
+	/**
 	 * Whether the work has started, and so has hours to answer for.
 	 *
 	 * Position rather than stage name, so a stage added between In Development
@@ -207,7 +226,7 @@ final class WorkHours {
 		$position = self::position( $entries );
 		$plan     = array();
 
-		$difference = round( self::holds( $item ) - $position['reserved'], 2 );
+		$difference = round( self::holding( $item, $entries ) - $position['reserved'], 2 );
 
 		/*
 		 * Never the new total: COMM-3 says nothing written is ever changed, so

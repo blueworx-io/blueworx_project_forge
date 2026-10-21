@@ -3680,6 +3680,20 @@ td[ data-band='over' ] {
   color: var( --tile-rose-fg );
 }
 
+/* #568. A task's or meeting's ledger entries, folded under its one line. */
+.bwx-ledger-history {
+  margin-top: 4px;
+  font-size: var( --text-caption );
+  color: var( --color-steel );
+}
+.bwx-ledger-history > summary {
+  cursor: pointer;
+}
+.bwx-ledger-history > ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
 /* ---- Meetings (PR 6 of spec 2026-09-17) ---- */
 
 .bwx-meetings {

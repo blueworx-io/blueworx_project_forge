@@ -123,13 +123,15 @@ final class WorkLedger {
 			return HoursGate::free();
 		}
 
-		$site = (string) ( $item['client_site_id'] ?? '' );
+		$site     = (string) ( $item['client_site_id'] ?? '' );
+		$position = self::position( (string) ( $item['id'] ?? '' ) );
 
 		return HoursGate::assess(
 			$item,
 			Assignments::entitlement_on( $site, gmdate( 'Y-m-d' ) ),
 			Ledger::balance( $site ),
-			(float) self::position( (string) ( $item['id'] ?? '' ) )['reserved']
+			(float) $position['reserved'],
+			(float) $position['used']
 		);
 	}
 

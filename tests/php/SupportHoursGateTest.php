@@ -89,6 +89,24 @@ final class SupportHoursGateTest extends TestCase {
 		$this->assertSame( 13.0, $result['available'] );
 	}
 
+	public function test_work_sent_back_after_it_started_is_asked_only_for_what_it_has_not_spent(): void {
+		/*
+		 * #568. Work sent back after it started holds nothing — its hours were
+		 * spent — so moving it on again asks the site only for hours added
+		 * since, not for the whole plan a second time.
+		 */
+		$paid = HoursGate::assess( $this->item(), $this->entitlement(), 0.0, 0.0, 13.0 );
+
+		$this->assertTrue( $paid['sufficient'] );
+		$this->assertSame( 0.0, $paid['needed'] );
+
+		$more = HoursGate::assess( $this->item( array( 'hours_primary' => 12.0 ) ), $this->entitlement(), 1.0, 0.0, 13.0 );
+
+		$this->assertFalse( $more['sufficient'] );
+		$this->assertSame( 2.0, $more['needed'] );
+		$this->assertSame( 1.0, $more['shortfall'] );
+	}
+
 	public function test_a_site_short_of_hours_is_refused_and_says_by_how_many(): void {
 		// By how many, because "not enough" is not a figure anybody can act on:
 		// somebody has to decide whether to sell four hours or cut the plan.

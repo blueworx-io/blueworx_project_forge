@@ -334,6 +334,60 @@ final class WorkHoursTest extends TestCase {
 		$this->assertSame( array( array( Entries::WORK_RELEASE, 13.0 ) ), $this->pairs( $plan ) );
 	}
 
+	/* ------------------------------------------- sent back after starting */
+
+	public function test_work_sent_back_after_it_started_takes_no_hours_again(): void {
+		/*
+		 * #568. Spent once, the hours are the client's cost already. Sending
+		 * the work back to Up Next or Design to change it does not plan new
+		 * hours, and holding them again counted the same work twice: the site
+		 * showed reserved, released and done lines over and over, and its
+		 * balance read low for as long as the work sat back there.
+		 */
+		$spent = array(
+			$this->entry( Entries::WORK_RESERVATION, 13 ),
+			$this->entry( Entries::WORK_RELEASE, 13 ),
+			$this->entry( Entries::WORK_USAGE, 13 ),
+		);
+
+		foreach ( array( 'up-next', 'design-process' ) as $stage ) {
+			$this->assertSame( array(), WorkHours::plan( $this->item( array( 'stage' => $stage ) ), $spent ), 'sent back to ' . $stage );
+		}
+
+		$this->assertSame( array(), WorkHours::plan( $this->item( array( 'stage' => 'in-development' ) ), $spent ), 'started again' );
+	}
+
+	public function test_hours_added_while_sent_back_are_charged_when_it_starts_again(): void {
+		$spent = array(
+			$this->entry( Entries::WORK_RESERVATION, 13 ),
+			$this->entry( Entries::WORK_RELEASE, 13 ),
+			$this->entry( Entries::WORK_USAGE, 13 ),
+		);
+		$more  = array( 'hours_primary' => 12.0 );
+
+		$this->assertSame( array(), WorkHours::plan( $this->item( array( 'stage' => 'up-next' ) + $more ), $spent ) );
+		$this->assertSame(
+			array( array( Entries::WORK_USAGE, 2.0 ) ),
+			$this->pairs( WorkHours::plan( $this->item( array( 'stage' => 'in-development' ) + $more ), $spent ) )
+		);
+	}
+
+	public function test_a_reservation_taken_again_before_the_fix_is_given_back(): void {
+		// Ledgers written before #568 can hold one; the next move or edit
+		// settles it, by appending a release rather than touching the record.
+		$plan = WorkHours::plan(
+			$this->item( array( 'stage' => 'design-process' ) ),
+			array(
+				$this->entry( Entries::WORK_RESERVATION, 13 ),
+				$this->entry( Entries::WORK_RELEASE, 13 ),
+				$this->entry( Entries::WORK_USAGE, 13 ),
+				$this->entry( Entries::WORK_RESERVATION, 13 ),
+			)
+		);
+
+		$this->assertSame( array( array( Entries::WORK_RELEASE, 13.0 ) ), $this->pairs( $plan ) );
+	}
+
 	/* ------------------------------------------------------------- blocked */
 
 	public function test_blocking_planned_work_keeps_its_hours_held(): void {
@@ -457,6 +511,8 @@ final class WorkHoursTest extends TestCase {
 			'straight through'      => array( 'triage', 'up-next', 'in-development', 'in-review', 'completed', 'released' ),
 			'blocked and back'      => array( 'up-next', 'blocked:up-next', 'up-next', 'in-development', 'blocked:in-development', 'in-development' ),
 			'sent back and forward' => array( 'up-next', 'triage', 'up-next', 'in-development' ),
+			// #568. Sent back after the work started, more than once.
+			'sent back after start' => array( 'up-next', 'in-development', 'in-review', 'design-process', 'in-development', 'up-next', 'in-development' ),
 			'planned twice'         => array( 'up-next', 'up-next', 'up-next' ),
 			'cancelled unplanned'   => array( 'triage', 'cancelled:triage' ),
 			'cancelled planned'     => array( 'up-next', 'cancelled:up-next' ),
@@ -475,7 +531,7 @@ final class WorkHoursTest extends TestCase {
 				$position = WorkHours::position( $entries );
 
 				$this->assertSame(
-					WorkHours::holds( $item ),
+					WorkHours::holding( $item, $entries ),
 					$position['reserved'],
 					$name . ' held the wrong hours at ' . $step
 				);
