@@ -546,7 +546,8 @@ export interface Reminder {
   created_by: number;
   /** Whether the signed-in person may change it: its author, or an administrator. */
   can_edit: boolean;
-  copies: Array< { item_id: string; person: string; done: boolean } >;
+  /** converted_to: the task a copy was turned into (#574), '' otherwise; such a copy is not done. */
+  copies: Array< { item_id: string; person: string; done: boolean; converted_to: string } >;
 }
 
 /** A connected SureCart store, as the Subscriptions screen sees it (PR 4). */

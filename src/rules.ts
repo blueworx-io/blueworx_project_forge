@@ -503,11 +503,15 @@ export const RULES: RuleSection[] = [
         why: 'Time spent on reminders is real time, and like any assignment it is done in a day.',
       },
       {
-        what: 'Convert to task turns a reminder into one task for everyone who hasn\'t ticked it yet, with the same title, client, people and time, due on the reminder\'s first day. Their copies close as turned into that task. The reminder itself carries on: it isn\'t ended or deleted, and copies already ticked stay as they were.',
+        what: 'Convert to task turns a reminder into one task for everyone who hasn\'t ticked it yet, with the same title, client, people and time, due on the reminder\'s first day, or today if that has passed. Their copies close as turned into that task. The reminder itself carries on: it isn\'t ended or deleted, it stays in the list marked Converted to task with a link to the task, and copies already ticked stay as they were.',
         why: 'Some reminders turn out to need proper work, without losing the reminder or counting the time twice.',
       },
       {
-        what: 'A reminder shows on the calendar on every day it covers, and moves into Today in My tasks when its first day arrives.',
+        what: 'A reminder can\'t be converted while anyone\'s copy of it is blocked; nothing changes until it is unblocked or that person is taken off. Converting is done once, however many times it is pressed at once.',
+        why: 'Half a conversion would leave somebody\'s time counted twice, or lost.',
+      },
+      {
+        what: 'A reminder shows on the calendar on every day it covers, and moves into Today in My tasks when its first day arrives. Copies turned into a task are left off the calendar, as cancelled work is.',
         why: 'It is visible ahead of time and becomes a to-do when it matters.',
       },
       {

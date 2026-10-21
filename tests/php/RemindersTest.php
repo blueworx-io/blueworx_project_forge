@@ -161,7 +161,8 @@ final class RemindersTest extends TestCase {
 				'ends_on'     => '2026-10-03',
 				'hours_each'  => 1.0,
 			),
-			array( 'usr_abc123', 'usr_def456' )
+			array( 'usr_abc123', 'usr_def456' ),
+			'2026-09-28'
 		);
 
 		self::assertSame( 'Deadline: File the VAT return', $values['title'] );
@@ -172,5 +173,57 @@ final class RemindersTest extends TestCase {
 		self::assertSame( '2026-10-01', $values['planned_due'] );
 		// A task of its own now, no longer one of the reminder's copies.
 		self::assertSame( '', $values['recurring_id'] );
+	}
+
+	public function test_a_task_converted_after_the_first_day_is_due_today_not_late(): void {
+		$values = Reminders::task_values(
+			array(
+				'id'          => 'rem_1',
+				'title'       => 'Campaign: October push',
+				'description' => '',
+				'starts_on'   => '2026-10-01',
+				'ends_on'     => '2026-10-31',
+				'hours_each'  => 0.5,
+			),
+			array( 'usr_abc123' ),
+			'2026-10-21'
+		);
+
+		self::assertSame( '2026-10-21', $values['planned_start'] );
+		self::assertSame( '2026-10-21', $values['planned_due'] );
+	}
+
+	public function test_a_blocked_or_closed_copy_cannot_be_turned_into_a_task(): void {
+		$copy = array(
+			'stage'            => 'up-next',
+			'archived'         => 0,
+			'terminal_outcome' => '',
+		);
+
+		self::assertTrue( Reminders::closable( $copy ) );
+		self::assertFalse( Reminders::closable( array_merge( $copy, array( 'stage' => 'blocked' ) ) ) );
+		self::assertFalse( Reminders::closable( array_merge( $copy, array( 'terminal_outcome' => 'cancelled' ) ) ) );
+		self::assertFalse( Reminders::closable( array_merge( $copy, array( 'archived' => 1 ) ) ) );
+	}
+
+	public function test_a_converted_copy_names_its_task(): void {
+		self::assertSame(
+			'itm_9',
+			Reminders::converted_to(
+				array(
+					'terminal_outcome' => 'cancelled',
+					'duplicate_of'     => 'itm_9',
+				)
+			)
+		);
+		self::assertSame(
+			'',
+			Reminders::converted_to(
+				array(
+					'terminal_outcome' => '',
+					'duplicate_of'     => '',
+				)
+			)
+		);
 	}
 }

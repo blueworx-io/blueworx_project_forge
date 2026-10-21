@@ -196,6 +196,12 @@ final class Feed {
 			$ticked = is_array( $ticks ) ? count( $ticks ) : 0;
 
 			if ( Reminders::is_reminder( (string) $row['recurring_id'] ) ) {
+				// A closed copy, one turned into a task among them (#574), is
+				// left out as a cancelled meeting is: it is neither to do nor done.
+				if ( '' !== (string) ( $row['terminal_outcome'] ?? '' ) ) {
+					continue;
+				}
+
 				$recurring_id = (string) $row['recurring_id'];
 				$due          = (string) $row['planned_due'];
 				$start        = '' === (string) $row['planned_start'] ? $due : (string) $row['planned_start'];

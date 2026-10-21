@@ -93,14 +93,14 @@ function when( reminder: Reminder ): string {
   return '' === reminder.ends_on || reminder.ends_on === reminder.starts_on ? day( reminder.starts_on ) : `${ day( reminder.starts_on ) } – ${ day( reminder.ends_on ) }`;
 }
 
-/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. */
+/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. A copy turned into a task is not done, so a converted reminder stays listed (#574). */
 function isCompleted( reminder: Reminder ): boolean {
   return reminder.copies.every( ( copy ) => copy.done );
 }
 
 /** Somebody still has it to do, so there is something to turn into a task (#574). */
 function hasOpen( reminder: Reminder ): boolean {
-  return reminder.copies.some( ( copy ) => ! copy.done );
+  return reminder.copies.some( ( copy ) => ! copy.done && '' === copy.converted_to );
 }
 
 function siteLabel( site: Site ): string {
@@ -216,8 +216,24 @@ export function RemindersScreen() {
     {
       key: 'done',
       label: 'Done',
-      width: 110,
-      render: ( r ) => `${ r.copies.filter( ( copy ) => copy.done ).length } of ${ r.copies.length } done`,
+      width: 170,
+      render: ( r ) => {
+        const task = r.copies.find( ( copy ) => '' !== copy.converted_to )?.converted_to ?? '';
+
+        return (
+          <>
+            { `${ r.copies.filter( ( copy ) => copy.done ).length } of ${ r.copies.length } done` }
+            { '' !== task && (
+              <>
+                { ' · ' }
+                <button type="button" className="bwx-row-open" data-testid="bwx-reminder-converted" onClick={ () => setOpened( task ) }>
+                  Converted to task
+                </button>
+              </>
+            ) }
+          </>
+        );
+      },
     },
     {
       key: 'actions',

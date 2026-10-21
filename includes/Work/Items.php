@@ -618,6 +618,30 @@ final class Items {
 	}
 
 	/**
+	 * Narrows who a task is for (#574). Written only when a reminder is
+	 * turned into a task and one person's copy would not close: they stay on
+	 * the reminder, so they come off the task, and their time is not counted
+	 * on both.
+	 *
+	 * @param string             $id     Item id.
+	 * @param array<int, string> $people Person ids.
+	 * @return array<string, mixed>|null The item, or null when it is gone.
+	 */
+	public static function set_assignees( string $id, array $people ): ?array {
+		global $wpdb;
+
+		$changes = array(
+			'assignees'  => (string) wp_json_encode( array_values( array_map( 'strval', $people ) ) ),
+			'updated_at' => bwx_forge_now(),
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update( Schema::work_items_table(), $changes, array( 'id' => $id ), Formats::for_row( $changes ), array( '%s' ) );
+
+		return self::get( $id );
+	}
+
+	/**
 	 * A stored list of ids.
 	 *
 	 * @param string $stored JSON, or nothing.
