@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle } from 'lucide-react';
 import type { Stage, WorkItem } from '../types';
-import { api, ApiError, isDenied, messageFor } from '../api';
+import { api, ApiError, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import type { SiteOption } from '../sites';
 import { buildTree, isDone, reviewProgress, summary } from '../tree.mjs';
@@ -136,6 +136,8 @@ export function ProjectScreen( {
   const [ adding, setAdding ] = useState< NewWorkPreset | null >( null );
   // #590. Archived releases of this project, kept apart so they can be restored or deleted.
   const [ shelved, setShelved ] = useState< WorkItem[] >( [] );
+  // How many live items still sit directly under each archived release, by its id.
+  const [ underShelved, setUnderShelved ] = useState< Map< string, number > >( () => new Map() );
   const [ deleting, setDeleting ] = useState< WorkItem | null >( null );
   const [ notice, setNotice ] = useState( '' );
 
@@ -151,7 +153,10 @@ export function ProjectScreen( {
       const kept = list.items.filter( ( one ) => ! one.archived || one.id === projectId );
 
       setItems( kept );
-      setShelved( list.items.filter( ( one ) => one.archived && 'milestone' === one.level && one.parent_id === projectId ) );
+      const archivedReleases = list.items.filter( ( one ) => one.archived && 'milestone' === one.level && one.parent_id === projectId );
+
+      setShelved( archivedReleases );
+      setUnderShelved( new Map( archivedReleases.map( ( one ) => [ one.id, list.items.filter( ( inner ) => inner.parent_id === one.id && ! inner.archived ).length ] ) ) );
       setSite( sites.sites.find( ( one ) => one.id === item.client_site_id ) ?? null );
       setState( kept.some( ( one ) => one.id === projectId ) ? 'ready' : 'missing' );
     } catch ( error ) {
@@ -185,6 +190,10 @@ export function ProjectScreen( {
   const releases = tree?.parts.filter( ( part ) => 'milestone' === part.item.level ) ?? [];
   const others = tree?.parts.filter( ( part ) => 'milestone' !== part.item.level ) ?? [];
   const when = tree ? summary( tree ) : null;
+  // #590. Nothing new is added under a project that is archived.
+  const frozen = Boolean( project?.archived );
+  // Only an administrator deletes for good.
+  const mayDelete = forgeData()?.canManage ?? false;
 
   const toggle = ( id: string ) =>
     setOpen( ( held ) => {
@@ -217,6 +226,10 @@ export function ProjectScreen( {
   /** What can be added under one item. */
   const adds = ( one: WorkItem ) => {
     const level = featureLevel( one.level );
+
+    if ( frozen ) {
+      return null;
+    }
 
     return (
       <div className="bwx-project-adds">
@@ -252,7 +265,7 @@ export function ProjectScreen( {
    */
   const reviewBox = ( node: Node ) => {
     const { total, finished } = reviewProgress( node );
-    const reviewing = 'in-review' === node.item.stage;
+    const reviewing = 'in-review' === node.item.stage && ! frozen;
     const raise = ( workType: 'bug' | 'feedback' ) => addUnder( { level: 'sub-feature', parentId: node.item.id, workType, reviewOf: node.item.id } );
 
     return (
@@ -353,16 +366,18 @@ export function ProjectScreen( {
                 <CopyLink itemId={ project.id } />
                 { project.archived ? (
                   <>
-                    <Button size="sm" variant="secondary" data-testid="bwx-project-restore" onClick={ () => void shelve( project, false ) }>
+                    <Button size="sm" variant="secondary" data-testid="bwx-project-restore" aria-label={ `Restore ${ project.title }` } onClick={ () => void shelve( project, false ) }>
                       Restore
                     </Button>
-                    <Button size="sm" variant="danger" data-testid="bwx-project-delete" onClick={ () => setDeleting( project ) }>
-                      Delete
-                    </Button>
+                    { mayDelete && (
+                      <Button size="sm" variant="danger" data-testid="bwx-project-delete" aria-label={ `Delete ${ project.title }` } onClick={ () => setDeleting( project ) }>
+                        Delete
+                      </Button>
+                    ) }
                   </>
                 ) : (
                   <>
-                    <Button size="sm" variant="ghost" data-testid="bwx-project-archive" onClick={ () => void shelve( project, true ) }>
+                    <Button size="sm" variant="ghost" data-testid="bwx-project-archive" aria-label={ `Archive ${ project.title }` } onClick={ () => void shelve( project, true ) }>
                       Archive
                     </Button>
                     <Button size="sm" data-testid="bwx-project-add-release" onClick={ () => addUnder( { level: 'milestone', parentId: project.id, workType: 'feature' } ) }>
@@ -416,9 +431,11 @@ export function ProjectScreen( {
                         <StageChip stage={ node.item.stage } dense />
                         <Ended item={ node.item } />
                         <Progress node={ node } />
-                        <Button size="sm" variant="ghost" data-testid="bwx-release-archive" onClick={ () => void shelve( node.item, true ) }>
-                          Archive
-                        </Button>
+                        { ! frozen && (
+                          <Button size="sm" variant="ghost" data-testid="bwx-release-archive" aria-label={ `Archive ${ node.item.title }` } onClick={ () => void shelve( node.item, true ) }>
+                            Archive
+                          </Button>
+                        ) }
                       </div>
                       { expanded && (
                         <div className="bwx-project-inside">
@@ -441,12 +458,17 @@ export function ProjectScreen( {
                     <div className="bwx-project-line">
                       { title( one ) }
                       <StageChip stage={ one.stage } dense />
-                      <Button size="sm" variant="secondary" data-testid="bwx-release-restore" onClick={ () => void shelve( one, false ) }>
+                      <span className="bwx-progress-figures" data-testid="bwx-shelved-under">
+                        { `${ underShelved.get( one.id ) ?? 0 } still under it` }
+                      </span>
+                      <Button size="sm" variant="secondary" data-testid="bwx-release-restore" aria-label={ `Restore ${ one.title }` } onClick={ () => void shelve( one, false ) }>
                         Restore
                       </Button>
-                      <Button size="sm" variant="danger" data-testid="bwx-release-delete" onClick={ () => setDeleting( one ) }>
-                        Delete
-                      </Button>
+                      { mayDelete && (
+                        <Button size="sm" variant="danger" data-testid="bwx-release-delete" aria-label={ `Delete ${ one.title }` } onClick={ () => setDeleting( one ) }>
+                          Delete
+                        </Button>
+                      ) }
                     </div>
                   </li>
                 ) ) }

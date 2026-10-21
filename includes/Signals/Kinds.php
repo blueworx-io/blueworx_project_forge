@@ -68,6 +68,7 @@ final class Kinds {
 		Events::UNBLOCKED,
 		Events::ENDED,
 		Events::ARCHIVED,
+		Events::RESTORED,
 		Events::REOPENED,
 		Events::OVERRIDDEN,
 		Events::OVER_ALLOCATED,
@@ -151,6 +152,8 @@ final class Kinds {
 				return __( 'Ended', 'blueworx-forge' );
 			case Events::ARCHIVED:
 				return __( 'Archived', 'blueworx-forge' );
+			case Events::RESTORED:
+				return __( 'Restored', 'blueworx-forge' );
 			case Events::REOPENED:
 				return __( 'Reopened', 'blueworx-forge' );
 			case Events::OVERRIDDEN:

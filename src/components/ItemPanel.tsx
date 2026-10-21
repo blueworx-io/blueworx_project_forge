@@ -1163,6 +1163,8 @@ export function ItemPanel( {
   const myId = forgeData()?.person?.id ?? '';
   const choreTicker = undone.includes( myId ) ? myId : forgeData()?.canManage ? undone[ 0 ] ?? '' : '';
   const ended = undefined !== item && '' !== item.terminal_outcome && 'deferred' !== item.terminal_outcome;
+  // A project or release is archived from its own page, not from here (#590).
+  const archivable = Boolean( detail?.can_archive ) && ! [ 'project', 'milestone' ].includes( item?.level ?? '' );
   // #391. In review with the client: only the client, or an admin for them, decides.
   const clientReviewing = undefined !== item && CLIENT === item.reviewer_id && 'in-review' === item.stage && ! ended;
   const lines = detail ? historyLines( detail.history, label ) : [];
@@ -1739,7 +1741,7 @@ export function ItemPanel( {
                 forward on the right, the other directions on the left. Each
                 button appears only when it applies.
              */ }
-            { ( ! ended || detail.can_archive ) && (
+            { ( ! ended || archivable ) && (
               <div className="bwx-actions" data-testid="bwx-actions" data-collapsed={ isFolded( 'actions' ) ? 'true' : 'false' }>
                 { head( 'actions', 'Actions' ) }
                 <div className="bwx-action-row">
@@ -1803,7 +1805,7 @@ export function ItemPanel( {
                       </button>
                     </>
                   ) }
-                  { detail.can_archive && (
+                  { archivable && (
                     <button
                       type="button"
                       className="bwx-button"

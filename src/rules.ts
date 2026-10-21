@@ -35,7 +35,7 @@ export const RULES: RuleSection[] = [
         why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
       },
       {
-        what: 'A project or release can be archived at any phase, from its own page, and its phase is left as it was. It leaves the Projects lists, the client\'s page and the pickers, and is found under Archived on the Projects page, where it can be restored. Only an archived project or release can be deleted, after a confirmation. Deleting removes only that project or release: whatever was under it is kept and moves up to its parent, or is left with no parent. Anyone who can already move or end work can archive, restore and delete.',
+        what: 'A project or release can be archived at any phase, from its own page, and its phase is left as it was. It leaves the Projects lists, the client\'s page and the pickers, and is found under Archived on the Projects page, where it can be restored. Nothing new can be added under it while it is archived, and work already under it stays on the boards and in capacity, with the count shown beside an archived release. Only an archived project or release can be deleted, after a confirmation, and only an admin can delete. Deleting removes only that project or release: whatever was under it is kept and moves up to its parent, or is left with no parent, and any support hours it was holding go back to the client. Anyone who can move or end work can archive and restore.',
         why: 'Finished or unwanted projects stop cluttering the lists without losing any work, and nothing is deleted by accident.',
       },
       {

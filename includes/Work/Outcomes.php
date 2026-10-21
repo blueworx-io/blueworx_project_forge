@@ -208,7 +208,8 @@ final class Outcomes {
 
 	/**
 	 * Whether an item is in a state that may be archived: it ended, either at a
-	 * terminal outcome or at Released.
+	 * terminal outcome or at Released. A project or a release may be archived at
+	 * any phase (#590).
 	 *
 	 * @param array<string, mixed> $item The item, as read.
 	 * @return bool

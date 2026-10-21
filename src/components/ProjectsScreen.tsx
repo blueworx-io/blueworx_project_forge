@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FolderKanban } from 'lucide-react';
 import type { WorkItem } from '../types';
-import { api, isDenied, messageFor } from '../api';
+import { api, forgeData, isDenied, messageFor } from '../api';
 import { useClientChoice } from '../ClientChoice';
 import { useLiveReload } from '../live';
 import { ALL_SITES } from '../sites';
@@ -140,12 +140,14 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
       align: 'right',
       render: ( one ) => (
         <span className="bwx-moves" onClick={ ( event ) => event.stopPropagation() } onKeyDown={ ( event ) => event.stopPropagation() }>
-          <Button size="sm" variant="secondary" data-testid="bwx-projects-restore" onClick={ () => void bringBack( one ) }>
+          <Button size="sm" variant="secondary" data-testid="bwx-projects-restore" aria-label={ `Restore ${ one.title }` } onClick={ () => void bringBack( one ) }>
             Restore
           </Button>
-          <Button size="sm" variant="danger" data-testid="bwx-projects-delete" onClick={ () => setDeleting( one ) }>
-            Delete
-          </Button>
+          { forgeData()?.canManage && (
+            <Button size="sm" variant="danger" data-testid="bwx-projects-delete" aria-label={ `Delete ${ one.title }` } onClick={ () => setDeleting( one ) }>
+              Delete
+            </Button>
+          ) }
         </span>
       ),
     },

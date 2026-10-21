@@ -116,3 +116,96 @@ test('deleting asks first, and the release goes while its work stays', async () 
   await expect(shelved).toHaveCount(0, SLOW);
   await expect(page.getByTestId('bwx-project-node').filter({ hasText: feature.title })).toBeVisible(SLOW);
 });
+
+const PASSWORD = Forge.PASSWORD;
+
+test('who may archive, restore and delete: staff archive and restore, only an admin deletes', async ({ browser, baseURL }) => {
+  test.setTimeout(420_000);
+
+  const { client, site: own } = await Forge.makeSite(admin.api, 'Archive Rights Co', RUN_ID);
+  const one = async (data) => (await (await Forge.makeItem(admin.api, own.id, data)).json()).item;
+  const project = await one({ title: `Rights ${RUN_ID}`, level: 'project', work_type: 'feature' });
+  const task = await one({ title: `Rights task ${RUN_ID}`, level: 'sub-feature', work_type: 'task', parent_id: project.id });
+
+  const call = async (who, item, path) =>
+    (await who.api.post(`/work-items/${item.id}/${path}`, { record_version: (await admin.api.get(`/work-items/${item.id}`)).item.record_version })).status();
+
+  const people = {};
+  for (const role of ['client_admin', 'client_viewer', 'staff']) {
+    const person = await Forge.makePerson(admin.api, client.id, role, `${role.replace('_', '')}${RUN_ID.slice(-6)}`);
+    people[role] = await Forge.signedIn(browser, baseURL, person.login, PASSWORD);
+  }
+
+  for (const role of ['client_admin', 'client_viewer']) {
+    expect(await call(people[role], project, 'archive'), `${role} archive`).toBe(403);
+    expect(await call(people[role], project, 'restore'), `${role} restore`).toBe(403);
+    expect(await call(people[role], project, 'delete-archived'), `${role} delete`).toBe(403);
+  }
+
+  expect(await call(people.staff, project, 'archive')).toBe(200);
+  // Staff may not delete, archived or not.
+  expect(await call(people.staff, project, 'delete-archived')).toBe(403);
+  expect(await call(people.staff, project, 'restore')).toBe(200);
+
+  // Restoring something that is not an archived project or release is refused.
+  expect(await call(admin, project, 'restore')).toBe(409);
+  expect(await call(admin, task, 'restore')).toBe(409);
+
+  // Nothing new goes under an archived project.
+  expect(await call(people.staff, project, 'archive')).toBe(200);
+  const under = await Forge.makeItem(admin.api, own.id, { title: `Late ${RUN_ID}`, level: 'sub-feature', work_type: 'task', parent_id: project.id });
+  expect(under.status()).toBe(409);
+
+  // An archived project is not in what the client page and pickers read.
+  const listed = await admin.api.get(`/work-items?client_site_id=${own.id}`);
+  expect(listed.items.map((i) => i.id)).not.toContain(project.id);
+
+  for (const who of Object.values(people)) await who.context.close();
+});
+
+test('a grandchild keeps its parent when its release is deleted', async () => {
+  const project = await made({ title: `Deep ${RUN_ID}`, level: 'project', work_type: 'feature' });
+  const release = await made({ title: `Deep release ${RUN_ID}`, level: 'milestone', work_type: 'feature', parent_id: project.id });
+  const feature = await made({ title: `Deep feature ${RUN_ID}`, level: 'feature', work_type: 'feature', parent_id: release.id });
+  const sub = await made({ title: `Deep sub ${RUN_ID}`, level: 'sub-feature', work_type: 'task', parent_id: feature.id });
+
+  expect((await move(release, 'archive')).status()).toBe(200);
+  expect((await move(release, 'delete-archived')).status()).toBe(200);
+
+  expect((await admin.api.get(`/work-items/${feature.id}`)).item.parent_id).toBe(project.id);
+  expect((await admin.api.get(`/work-items/${sub.id}`)).item.parent_id).toBe(feature.id);
+});
+
+test('deleting a release that holds support hours gives the hours back', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const { client, site: paid } = await Forge.makeSite(admin.api, 'Archive Hours Co', RUN_ID);
+  await Forge.onSupport(admin, paid.id, 200);
+  const people = await Forge.team(admin.api, browser, baseURL, client.id);
+
+  const project = (await (await Forge.makeItem(admin.api, paid.id, { title: `Paid ${RUN_ID}`, level: 'project', work_type: 'feature' })).json()).item;
+  const release = (await (await Forge.makeItem(admin.api, paid.id, { title: `Paid release ${RUN_ID}`, level: 'milestone', work_type: 'feature', parent_id: project.id })).json()).item;
+
+  const planned = await Forge.walkTo(admin.api, release, ['triage', 'documentation-period', 'up-next'], {
+    seats: {
+      primary_user_id: people.primary.id,
+      reviewer_id: people.reviewer.id,
+      deliverer_id: people.deliverer.id,
+      planned_start: '2026-10-05',
+      planned_due: '2026-10-09',
+      hours_primary: 10,
+    },
+  });
+  expect(planned.stage).toBe('up-next');
+
+  const held = await Forge.hourLedger(admin, paid.id);
+  expect(held.balance).toBeLessThan(200);
+
+  const current = (await admin.api.get(`/work-items/${release.id}`)).item;
+  expect((await admin.api.post(`/work-items/${release.id}/archive`, { record_version: current.record_version })).status()).toBe(200);
+  expect((await move(release, 'delete-archived')).status()).toBe(200);
+
+  const after = await Forge.hourLedger(admin, paid.id);
+  expect(after.balance).toBe(200);
+  expect(after.entries.some(([type]) => 'work-release' === type)).toBe(true);
+});

@@ -758,7 +758,9 @@ final class WorkItemsController {
 				return $refused;
 			}
 
-			Items::delete_keeping_children( (string) $target['id'] );
+			if ( ! Items::delete_keeping_children( (string) $target['id'], get_current_user_id() ) ) {
+				return Errors::rest( 'write_failed', __( 'That could not be deleted.', 'blueworx-forge' ), 500 );
+			}
 
 			return rest_ensure_response(
 				array(
@@ -2596,6 +2598,11 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function delete_archived( WP_REST_Request $request ) {
+		// Deleting for good stays with administrators, as it is for all work.
+		if ( ! Permissions::manage() ) {
+			return Errors::rest( 'forbidden', __( 'Only an administrator can delete this.', 'blueworx-forge' ), 403 );
+		}
+
 		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
 
 		if ( ! is_array( $ready ) ) {
@@ -2610,7 +2617,7 @@ final class WorkItemsController {
 
 		$kept = count( Items::children( (string) $ready['item']['id'] ) );
 
-		if ( ! Items::delete_keeping_children( (string) $ready['item']['id'] ) ) {
+		if ( ! Items::delete_keeping_children( (string) $ready['item']['id'], get_current_user_id() ) ) {
 			return Errors::rest( 'write_failed', __( 'That could not be deleted.', 'blueworx-forge' ), 500 );
 		}
 
@@ -2927,6 +2934,16 @@ final class WorkItemsController {
 		 */
 		if ( null === $parent || (string) $parent['client_site_id'] !== $client_site_id ) {
 			return Errors::rest( 'unknown_parent', __( 'There is no such parent item.', 'blueworx-forge' ), 404 );
+		}
+
+		// #590. Nothing new goes under a project or release that is archived. An
+		// item already there can still be edited without moving.
+		if ( ! empty( $parent['archived'] ) ) {
+			$child = '' === $child_id ? null : Items::get( $child_id );
+
+			if ( null === $child || (string) $child['parent_id'] !== $parent_id ) {
+				return Errors::rest( 'invalid_parent', __( 'That is archived. Restore it before adding work to it.', 'blueworx-forge' ), 409 );
+			}
 		}
 
 		// #562. A bug, task or feedback item never holds work.
