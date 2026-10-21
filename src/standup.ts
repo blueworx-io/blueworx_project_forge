@@ -63,6 +63,15 @@ export function cardsIn( section: ( typeof SECTIONS )[ number ], cards: StandupC
   } );
 }
 
+/** "Tue 13 Oct" for the day read, or "Tue 13 Oct to Mon 19 Oct" for the next seven (#572). */
+export function viewRange( today: string, view: string ): string {
+  if ( '' === today || 'today' === view ) return today;
+
+  const shift = ( days: number ): string => new Date( Date.parse( `${ today }T00:00:00Z` ) + days * 86400000 ).toISOString().slice( 0, 10 );
+
+  return 'tomorrow' === view ? shift( 1 ) : `${ today } to ${ shift( 6 ) }`;
+}
+
 /** The ways of looking at the day (#572). */
 export const VIEWS = [
   { id: 'today', label: 'Today' },

@@ -3,7 +3,7 @@ import type { KeyboardEvent } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { SECTIONS, VIEWS, cardDetail, cardTitle, cardsFor, cardsIn, inOrder, keyOf, overDayText, overDays, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
+import { SECTIONS, VIEWS, viewRange, cardDetail, cardTitle, cardsFor, cardsIn, isClientReview, inOrder, keyOf, overDayText, overDays, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
 import type { StandupView } from '../standup';
 import { durationLabel } from '../duration.mjs';
 import { PRIORITY_TONE } from '../priority';
@@ -77,6 +77,8 @@ export function StandupScreen() {
   // #572. Which day(s) the date-based sections cover; Today unless asked.
   const [ view, setView ] = useState< StandupView >( 'today' );
   const tabs = useRef< Map< string, HTMLButtonElement > >( new Map() );
+  // The view last asked for, so a slower answer to an earlier one is dropped.
+  const latest = useRef< StandupView >( 'today' );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ opened, setOpened ] = useState( '' );
@@ -89,6 +91,10 @@ export function StandupScreen() {
       // Refresh on is one they expect to be the server's, not the kept copy.
       const answer = await api< StandupList >( 'today' === asked ? '/standup' : `/standup?view=${ asked }`, fresh ? { cache: 'fresh' } : {} );
 
+      if ( asked !== latest.current ) {
+        return;
+      }
+
       if ( answer.denied ) {
         setState( 'denied' );
         return;
@@ -97,6 +103,10 @@ export function StandupScreen() {
       setList( answer );
       setState( 'ready' );
     } catch ( failure ) {
+      if ( asked !== latest.current ) {
+        return;
+      }
+
       setNotice( messageFor( failure, 'The day’s list could not be read.' ) );
       setState( isDenied( failure ) ? 'denied' : 'error' );
     }
@@ -197,6 +207,7 @@ export function StandupScreen() {
       return;
     }
 
+    latest.current = next;
     setView( next );
     setState( 'loading' );
   }
@@ -214,7 +225,7 @@ export function StandupScreen() {
         <span className="bwx-eyebrow">{ VIEWS.find( ( one ) => one.id === view )?.label }</span>
 
         <span className="bwx-mono" data-testid="bwx-standup-day">
-          { list?.today ?? '' }
+          { viewRange( list?.today ?? '', view ) }
         </span>
 
         <span className="bwx-header-spacer" />
@@ -262,6 +273,8 @@ export function StandupScreen() {
             } }
             type="button"
             role="tab"
+            id={ `bwx-standup-tab-${ one.id }` }
+            aria-controls="bwx-standup-panel"
             className="fk-tab"
             aria-selected={ one.id === view }
             tabIndex={ one.id === view ? 0 : -1 }
@@ -274,6 +287,7 @@ export function StandupScreen() {
         ) ) }
       </div>
 
+      <div id="bwx-standup-panel" role="tabpanel" aria-labelledby={ `bwx-standup-tab-${ view }` }>
       { '' !== notice && 'error' !== state && 'denied' !== state && (
         <div style={ { margin: '12px 20px 0' } }>
           <Notice said={ said } testId="bwx-standup-notice" onClose={ () => setSaid( NOTHING_SAID ) } />
@@ -390,6 +404,8 @@ export function StandupScreen() {
           ) ) }
         </div>
       ) }
+
+      </div>
 
       { '' !== opened && (
         <ItemPanel
@@ -608,6 +624,14 @@ function Card( {
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
+
+      { /* #571. What the client review would otherwise have lost. */ }
+      { isClientReview( card ) && ( true === card.detail?.returned || true === card.detail?.overdue ) && (
+        <span data-testid="bwx-standup-client-tags">
+          { true === card.detail?.returned && <Tag tone="warn">Sent back</Tag> }
+          { true === card.detail?.overdue && <Tag tone="danger">Overdue</Tag> }
+        </span>
+      ) }
 
       <span className="bwx-standup-client" data-testid="bwx-standup-client">
         { '' === client ? '—' : client }

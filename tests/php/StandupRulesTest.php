@@ -774,6 +774,36 @@ final class StandupRulesTest extends TestCase {
 		$this->assertTrue( $cards[0]['detail']['client_review'] );
 	}
 
+	public function test_client_review_shows_whatever_its_date_and_carries_why_it_is_urgent(): void {
+		foreach ( array( '', '2026-04-01' ) as $due ) {
+			$cards = Rules::for_item(
+				$this->item( array( 'stage' => 'in-review', 'reviewer_id' => 'client', 'planned_due' => $due, 'priority' => 'normal' ) ),
+				self::TODAY
+			);
+
+			$this->assertSame( array( Rules::AWAITING_REVIEW ), $this->rules( $cards ), "due '{$due}'" );
+			$this->assertFalse( $cards[0]['detail']['overdue'] );
+			$this->assertFalse( $cards[0]['detail']['returned'] );
+		}
+
+		$late = Rules::for_item(
+			$this->item( array( 'stage' => 'in-review', 'reviewer_id' => 'client', 'planned_due' => '2026-03-01', 'was_returned' => true, 'unmet' => array( array( 'id' => 'x' ) ) ) ),
+			self::TODAY
+		);
+
+		$this->assertSame( array( Rules::AWAITING_REVIEW ), $this->rules( $late ) );
+		$this->assertTrue( $late[0]['detail']['overdue'] );
+		$this->assertTrue( $late[0]['detail']['returned'] );
+	}
+
+	public function test_a_week_look_ahead_includes_day_six_and_not_day_seven(): void {
+		$six   = $this->item( array( 'stage' => 'triage', 'planned_due' => '2026-03-16' ) );
+		$seven = $this->item( array( 'stage' => 'triage', 'planned_due' => '2026-03-17' ) );
+
+		$this->assertSame( array( Rules::DUE_TODAY ), $this->rules( Rules::for_item( $six, self::TODAY, '2026-03-16' ) ) );
+		$this->assertSame( array(), Rules::for_item( $seven, self::TODAY, '2026-03-16' ) );
+	}
+
 	public function test_work_waiting_on_a_team_reviewer_keeps_its_other_cards(): void {
 		$cards = Rules::for_item(
 			$this->item( array( 'stage' => 'in-review', 'reviewer_id' => 'usr_reviewer', 'planned_due' => '2026-03-01' ) ),

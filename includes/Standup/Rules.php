@@ -263,6 +263,28 @@ final class Rules {
 		$dated_now = '' !== $due && $due <= $through;
 		$urgent    = 'urgent' === (string) ( $item['priority'] ?? '' );
 
+		/*
+		 * #571. Work waiting on the client sits under Requires Client Review
+		 * and nowhere else, whatever its date, so none of its other cards are
+		 * kept. What would otherwise be lost, being sent back or late, rides
+		 * on the card as a tag.
+		 */
+		if ( 'in-review' === $stage && ClientReviewer::is( $item ) ) {
+			return array(
+				self::work_card(
+					self::AWAITING_REVIEW,
+					$item,
+					array(
+						'waiting_on'      => (string) ( $item['reviewer_id'] ?? '' ),
+						'waiting_on_name' => __( 'The client', 'blueworx-forge' ),
+						'client_review'   => true,
+						'returned'        => ! empty( $item['was_returned'] ),
+						'overdue'         => '' !== $due && $due < $today,
+					)
+				),
+			);
+		}
+
 		if ( in_array( $stage, self::IN_DELIVERY, true ) && ! $dated_now && ! $urgent ) {
 			return self::stale_or_nothing( $item, $finished, $today );
 		}
@@ -290,22 +312,7 @@ final class Rules {
 		if ( 'in-review' === $stage ) {
 			$waiting = array( 'waiting_on' => (string) ( $item['reviewer_id'] ?? '' ) );
 
-			// #391. The client is named as the client, not as a person.
-			if ( ClientReviewer::is( $item ) ) {
-				$waiting['waiting_on_name'] = __( 'The client', 'blueworx-forge' );
-				$waiting['client_review']   = true;
-			}
-
-			$review  = self::work_card( self::AWAITING_REVIEW, $item, $waiting );
-			$cards[] = $review;
-
-			/*
-			 * #571. Work waiting on the client sits under Requires Client
-			 * Review and nowhere else, so none of its other cards are kept.
-			 */
-			if ( isset( $waiting['client_review'] ) ) {
-				return array( $review );
-			}
+			$cards[] = self::work_card( self::AWAITING_REVIEW, $item, $waiting );
 		}
 
 		if ( 'completed' === $stage ) {

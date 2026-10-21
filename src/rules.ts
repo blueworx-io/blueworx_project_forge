@@ -375,7 +375,7 @@ export const RULES: RuleSection[] = [
         why: 'One screen should answer what needs attention today.',
       },
       {
-        what: 'Work waiting on the client to review shows only under Requires Client Review on the standup, with no other cards. Work with a team member as reviewer stays under Work needing attention.',
+        what: 'Work waiting on the client to review shows only under Requires Client Review on the standup, with no other cards. Work with a team member as reviewer stays under Work needing attention, and so do work waiting to be released and work sent back. A client review that was sent back or is overdue carries that as a tag on its card, and shows whatever its date.',
         why: 'What waits on the client is kept apart from what the team can act on.',
       },
       {

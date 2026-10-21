@@ -42,10 +42,15 @@ test('client review is its own section; a team reviewer stays in work needing at
   const withClient = await inReview(admin.api, site.id, `Client reviews ${RUN}`, 'client', '2020-01-02');
   const withTeam = await inReview(admin.api, site.id, `Team reviews ${RUN}`, person.id, '2020-01-02');
 
-  // The list itself: the client's item carries one card, the team's carries both.
+  const undated = await inReview(admin.api, site.id, `Client reviews, no date ${RUN}`, 'client', '');
+  const later = await inReview(admin.api, site.id, `Client reviews later ${RUN}`, 'client', '2099-01-01');
+
+  // The list itself: a client review has one card whatever its date, the team's carries both.
   const list = await admin.api.get('/standup');
   const rulesOf = (id) => list.cards.filter((c) => c.subject_id === id).map((c) => c.rule);
   expect(rulesOf(withClient.id)).toEqual(['awaiting-review']);
+  expect(rulesOf(undated.id)).toEqual(['awaiting-review']);
+  expect(rulesOf(later.id)).toEqual(['awaiting-review']);
   expect(rulesOf(withTeam.id).sort()).toEqual(['awaiting-review', 'overdue']);
 
   const page = await admin.context.newPage();
@@ -82,13 +87,15 @@ test('the standup switches between today, tomorrow and the next seven days', asy
   const now = await make(`Due today ${RUN}`, today);
   const next = await make(`Due tomorrow ${RUN}`, plus(1));
   const later = await make(`Due in four days ${RUN}`, plus(4));
-  const far = await make(`Due in nine days ${RUN}`, plus(9));
+  const edgeIn = await make(`Due in six days ${RUN}`, plus(6));
+  const far = await make(`Due in seven days ${RUN}`, plus(7));
 
   const has = async (view, item) => (await admin.api.get(`/standup?view=${view}`)).cards.some((c) => c.subject_id === item.id && ['overdue', 'due-today'].includes(c.rule));
 
   expect([await has('today', now), await has('today', next), await has('today', later)]).toEqual([true, false, false]);
   expect([await has('tomorrow', now), await has('tomorrow', next), await has('tomorrow', later)]).toEqual([true, true, false]);
   expect([await has('week', now), await has('week', next), await has('week', later), await has('week', far)]).toEqual([true, true, true, false]);
+  expect(await has('week', edgeIn)).toBe(true);
 
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/#screen=standup');
@@ -110,7 +117,7 @@ test('the standup switches between today, tomorrow and the next seven days', asy
   await page.keyboard.press('ArrowRight');
   await expect(page.getByTestId('bwx-standup-view-tomorrow')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('bwx-standup-view-tomorrow')).toBeFocused();
-  await expect(page.getByTestId('bwx-standup-day')).toHaveText(plus(0));
+  await expect(page.getByTestId('bwx-standup-day')).toHaveText(plus(1));
   await expect(page.getByTestId('bwx-standup')).toBeVisible({ timeout: 60_000 });
   await unfold();
   await expect(card(next).first()).toBeVisible({ timeout: 30_000 });
