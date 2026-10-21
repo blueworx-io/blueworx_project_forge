@@ -81,6 +81,7 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
       key: 'title',
       label: 'Project',
       wrap: true,
+      width: 320,
       render: ( project ) => (
         <>
           <span data-testid="bwx-projects-title">{ project.title }</span>
