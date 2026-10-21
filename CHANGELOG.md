@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.203.1] - 2026-10-21
+
+### Fixed
+
+- Ticking a task's checklist turns its row green and updates the gate straight away, without a reload.
+- You can change several of a task's dates in a row without any snapping back. They save together once you move out of the dates, including when you close the task, and if they are out of order they stay as you typed them with the reason shown.
+- Work sent back after it started is no longer charged again, and clients already affected have their hours put right on update. A client's hours list shows each task or meeting once with the hours it used, with its history folded beneath it.
+
 ## [2.203.0] - 2026-10-21
 
 ### Added
