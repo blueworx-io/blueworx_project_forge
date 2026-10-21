@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { FolderKanban } from 'lucide-react';
 import type { WorkItem } from '../types';
-import { api, isDenied } from '../api';
+import { api, isDenied, messageFor } from '../api';
 import { useClientChoice } from '../ClientChoice';
 import { useLiveReload } from '../live';
 import { ALL_SITES } from '../sites';
 import { summary } from '../tree.mjs';
-import { Button, DataView, EmptyState, Panel, StageChip } from '../kit';
+import { Button, DataView, EmptyState, Panel, StageChip, Tag } from '../kit';
 import type { Column } from '../kit';
-import { Progress } from './ProjectScreen';
+import { DeleteArchived, Progress, setArchived } from './ProjectScreen';
 import { Screen } from './States';
 
 /** 3 Nov 2026, from a Y-m-d date, without the timezone moving the day. */
@@ -28,11 +28,16 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
   // under a project is work in it, not a release.
   const [ releases, setReleases ] = useState< Map< string, number > >( () => new Map() );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
-  const [ completed, setCompleted ] = useState( false );
+  const [ view, setView ] = useState< 'active' | 'completed' | 'archived' >( 'active' );
+  // #590. Archived projects and releases, found here to restore or delete.
+  const [ shelved, setShelved ] = useState< WorkItem[] >( [] );
+  const [ deleting, setDeleting ] = useState< WorkItem | null >( null );
+  const [ notice, setNotice ] = useState( '' );
+  const completed = 'completed' === view;
 
   async function load() {
     try {
-      const answer = await api< { items: WorkItem[] } >( '/work-items-all?level[]=project&level[]=milestone' );
+      const answer = await api< { items: WorkItem[] } >( '/work-items-all?level[]=project&level[]=milestone&include_archived=1' );
       const kept = answer.items.filter( ( one ) => ! one.archived );
       const counts = new Map< string, number >();
 
@@ -40,6 +45,7 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
         if ( 'milestone' === one.level && '' !== one.parent_id ) counts.set( one.parent_id, ( counts.get( one.parent_id ) ?? 0 ) + 1 );
       }
 
+      setShelved( answer.items.filter( ( one ) => one.archived ) );
       setProjects( kept.filter( ( one ) => 'project' === one.level ) );
       setReleases( counts );
       setState( 'ready' );
@@ -57,6 +63,18 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
 
   const ofSite = projects.filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
   const shown = ofSite.filter( ( one ) => completed === finished( one ) );
+  const archivedShown = shelved.filter( ( one ) => ALL_SITES === siteId || one.client_site_id === siteId );
+
+  async function bringBack( one: WorkItem ) {
+    setNotice( '' );
+
+    try {
+      await setArchived( one, false );
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be restored.' ) );
+    }
+  }
 
   const columns: Column< WorkItem >[] = [
     {
@@ -99,6 +117,39 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
     },
   ];
 
+  const archivedColumns: Column< WorkItem >[] = [
+    {
+      key: 'title',
+      label: 'Name',
+      wrap: true,
+      render: ( one ) => (
+        <>
+          <span data-testid="bwx-projects-archived-title">{ one.title }</span>
+          { ' ' }
+          <Tag tone="neutral">{ 'milestone' === one.level ? 'Release' : 'Project' }</Tag>
+        </>
+      ),
+    },
+    { key: 'client', label: 'Client', wrap: true, sortBy: ( one ) => label( one.client_site_id ), render: ( one ) => label( one.client_site_id ) },
+    {
+      key: 'actions',
+      label: '',
+      width: 200,
+      sortable: false,
+      align: 'right',
+      render: ( one ) => (
+        <span className="bwx-moves" onClick={ ( event ) => event.stopPropagation() } onKeyDown={ ( event ) => event.stopPropagation() }>
+          <Button size="sm" variant="secondary" data-testid="bwx-projects-restore" onClick={ () => void bringBack( one ) }>
+            Restore
+          </Button>
+          <Button size="sm" variant="danger" data-testid="bwx-projects-delete" onClick={ () => setDeleting( one ) }>
+            Delete
+          </Button>
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="bwx-projects" data-testid="bwx-projects">
       { 'loading' === state && <Screen state="loading" testId="bwx-projects-state" /> }
@@ -111,15 +162,39 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
           flush
           right={
             <div className="bwx-moves">
-              <Button size="sm" variant={ completed ? 'ghost' : 'secondary' } data-testid="bwx-projects-active" aria-pressed={ ! completed } onClick={ () => setCompleted( false ) }>
+              <Button size="sm" variant={ 'active' === view ? 'secondary' : 'ghost' } data-testid="bwx-projects-active" aria-pressed={ 'active' === view } onClick={ () => setView( 'active' ) }>
                 Active
               </Button>
-              <Button size="sm" variant={ completed ? 'secondary' : 'ghost' } data-testid="bwx-projects-completed" aria-pressed={ completed } onClick={ () => setCompleted( true ) }>
+              <Button size="sm" variant={ completed ? 'secondary' : 'ghost' } data-testid="bwx-projects-completed" aria-pressed={ completed } onClick={ () => setView( 'completed' ) }>
                 Completed
+              </Button>
+              <Button size="sm" variant={ 'archived' === view ? 'secondary' : 'ghost' } data-testid="bwx-projects-archived" aria-pressed={ 'archived' === view } onClick={ () => setView( 'archived' ) }>
+                Archived
               </Button>
             </div>
           }
         >
+          { '' !== notice && (
+            <p className="bwx-notice" data-testid="bwx-projects-notice" role="status">
+              { notice }
+            </p>
+          ) }
+          { 'archived' === view ? (
+            <DataView< WorkItem >
+              bare
+              columns={ archivedColumns }
+              rows={ archivedShown }
+              fixed
+              onRowClick={ ( one ) => {
+                const project = 'project' === one.level ? one.id : one.parent_id;
+
+                if ( '' !== project ) onOpen( project );
+              } }
+              empty={ <EmptyState icon={ FolderKanban } dense title="Nothing archived" body="Archive a project or release from its own page and it appears here." /> }
+              footer={ `${ archivedShown.length } archived` }
+              testId="bwx-projects-archived-list"
+            />
+          ) : (
           <DataView< WorkItem >
             bare
             columns={ columns }
@@ -130,7 +205,19 @@ export function ProjectsScreen( { onOpen }: { onOpen: ( projectId: string ) => v
             footer={ `${ shown.length } ${ 1 === shown.length ? 'project' : 'projects' }` }
             testId="bwx-projects-list"
           />
+          ) }
         </Panel>
+      ) }
+
+      { null !== deleting && (
+        <DeleteArchived
+          item={ deleting }
+          onClose={ () => setDeleting( null ) }
+          onDeleted={ () => {
+            setDeleting( null );
+            void load();
+          } }
+        />
       ) }
     </div>
   );

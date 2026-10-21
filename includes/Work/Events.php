@@ -67,6 +67,11 @@ final class Events {
 	public const ARCHIVED = 'archived';
 
 	/**
+	 * An archived project or release was brought back into the lists (#590).
+	 */
+	public const RESTORED = 'restored';
+
+	/**
 	 * Finished work was picked up again, as a new cycle (#113).
 	 */
 	public const REOPENED = 'reopened';
@@ -152,6 +157,7 @@ final class Events {
 		self::UNBLOCKED,
 		self::ENDED,
 		self::ARCHIVED,
+		self::RESTORED,
 		self::REOPENED,
 		self::OVERRIDDEN,
 		self::OVER_ALLOCATED,

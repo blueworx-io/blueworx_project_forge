@@ -969,6 +969,50 @@ final class Items {
 	}
 
 	/**
+	 * Removes one project or release for good, keeping everything under it (#590).
+	 *
+	 * What sat directly under it moves up to its own parent, or is left with no
+	 * parent when it had none, so no work is lost. Its comments, history, gate
+	 * records and dependencies go with it, as they do in {@see self::delete()}.
+	 *
+	 * @param string $id The item.
+	 * @return bool Whether it was removed.
+	 */
+	public static function delete_keeping_children( string $id ): bool {
+		global $wpdb;
+
+		$item = self::get( $id );
+
+		if ( null === $item ) {
+			return false;
+		}
+
+		$table = Schema::work_items_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own tables; the table name cannot be a placeholder.
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET parent_id = %s, updated_at = %s, record_version = record_version + 1 WHERE parent_id = %s",
+				(string) $item['parent_id'],
+				bwx_forge_now(),
+				$id
+			)
+		);
+
+		$wpdb->delete( Schema::dependencies_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::dependencies_table(), array( 'depends_on_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::work_events_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::comments_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $id ), array( '%s' ), array( '%s' ) );
+
+		$removed = false !== $wpdb->delete( $table, array( 'id' => $id ), array( '%s' ) );
+		// phpcs:enable
+
+		return $removed;
+	}
+
+	/**
 	 * Removes an item and everything under it, for good.
 	 *
 	 * Administrators only, and the route is the only caller. Comments, history,

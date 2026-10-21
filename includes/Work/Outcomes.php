@@ -218,6 +218,12 @@ final class Outcomes {
 			return false;
 		}
 
+		// A project or a release is archived in any phase (#590): it is put
+		// away to tidy the lists, not because it ended.
+		if ( in_array( (string) ( $item['level'] ?? '' ), array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			return true;
+		}
+
 		return self::is_closed( $item ) || 'released' === (string) $item['stage'];
 	}
 

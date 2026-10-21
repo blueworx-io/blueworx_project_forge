@@ -2768,7 +2768,7 @@ export function ItemPanel( {
         </div>
 
         <footer className="bwx-panel-foot" data-testid="bwx-panel-foot">
-          { detail && forgeData()?.canManage ? (
+          { detail && forgeData()?.canManage && ! [ 'project', 'milestone' ].includes( detail.item.level ) ? (
             <button
               type="button"
               className="bwx-button"
@@ -2894,6 +2894,8 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       return `Ended as ${ event.outcome }`;
     case 'archived':
       return 'Archived';
+    case 'restored':
+      return 'Restored';
     case 'placed':
       // A recurring task or a renewal reminder, put straight where it is
       // worked from. The reason beside it says which and for what day.

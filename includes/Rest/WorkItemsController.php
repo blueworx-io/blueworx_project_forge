@@ -77,13 +77,15 @@ final class WorkItemsController {
 	 * The ways work moves other than forwards, as route path to callback.
 	 */
 	private const MOVES = array(
-		'return'   => 'send_back',
-		'block'    => 'block',
-		'unblock'  => 'unblock',
-		'outcome'  => 'outcome',
-		'archive'  => 'archive',
-		'reopen'   => 'reopen',
-		'override' => 'override',
+		'return'          => 'send_back',
+		'block'           => 'block',
+		'unblock'         => 'unblock',
+		'outcome'         => 'outcome',
+		'archive'         => 'archive',
+		'restore'         => 'restore',
+		'delete-archived' => 'delete_archived',
+		'reopen'          => 'reopen',
+		'override'        => 'override',
 	);
 
 	/**
@@ -745,6 +747,27 @@ final class WorkItemsController {
 	 * @return WP_REST_Response|\WP_Error
 	 */
 	public static function destroy( WP_REST_Request $request ) {
+		$target = Items::get( (string) $request['item_id'] );
+
+		// A project or a release goes through the archive first (#590), and
+		// what was under it is kept.
+		if ( null !== $target && in_array( (string) $target['level'], array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			$refused = self::refuse_unless_archived_group( $target );
+
+			if ( null !== $refused ) {
+				return $refused;
+			}
+
+			Items::delete_keeping_children( (string) $target['id'] );
+
+			return rest_ensure_response(
+				array(
+					'ok'      => true,
+					'deleted' => 1,
+				)
+			);
+		}
+
 		$deleted = Items::delete( (string) $request['item_id'] );
 
 		if ( 0 === $deleted ) {
@@ -2548,6 +2571,74 @@ final class WorkItemsController {
 		}
 
 		return self::answer( Transition::archive( $ready['item'], $ready['version'], get_current_user_id() ) );
+	}
+
+	/**
+	 * Brings an archived project or release back (#590).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function restore( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		return self::answer( Transition::restore( $ready['item'], $ready['version'], get_current_user_id() ) );
+	}
+
+	/**
+	 * Deletes an archived project or release, keeping what was under it (#590).
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	public static function delete_archived( WP_REST_Request $request ) {
+		$ready = self::ready( $request, Capabilities::RECORD_OUTCOME );
+
+		if ( ! is_array( $ready ) ) {
+			return $ready;
+		}
+
+		$refused = self::refuse_unless_archived_group( $ready['item'] );
+
+		if ( null !== $refused ) {
+			return $refused;
+		}
+
+		$kept = count( Items::children( (string) $ready['item']['id'] ) );
+
+		if ( ! Items::delete_keeping_children( (string) $ready['item']['id'] ) ) {
+			return Errors::rest( 'write_failed', __( 'That could not be deleted.', 'blueworx-forge' ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'deleted' => 1,
+				'kept'    => $kept,
+			)
+		);
+	}
+
+	/**
+	 * Why a project or release cannot be deleted yet, or null when it can (#590).
+	 *
+	 * @param array<string, mixed> $item The item, as read.
+	 * @return \WP_Error|null
+	 */
+	private static function refuse_unless_archived_group( array $item ) {
+		if ( ! in_array( (string) $item['level'], array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			return Errors::rest( 'not_a_project', __( 'Only a project or a release is deleted this way.', 'blueworx-forge' ), 409 );
+		}
+
+		if ( empty( $item['archived'] ) ) {
+			return Errors::rest( 'not_archived', __( 'Archive it first. Only an archived project or release can be deleted.', 'blueworx-forge' ), 409 );
+		}
+
+		return null;
 	}
 
 	/**

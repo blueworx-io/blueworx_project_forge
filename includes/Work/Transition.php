@@ -652,6 +652,41 @@ final class Transition {
 	}
 
 	/**
+	 * Brings an archived project or release back into the lists (#590).
+	 *
+	 * Its phase was never touched by archiving, so nothing else changes.
+	 *
+	 * @param array<string, mixed> $item         The item, as read.
+	 * @param int                  $sent_version Version moved against.
+	 * @param int                  $actor        Who is doing it.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public static function restore( array $item, int $sent_version, int $actor ) {
+		$level = (string) ( $item['level'] ?? '' );
+
+		if ( empty( $item['archived'] ) || ! in_array( $level, array( Levels::PROJECT, Levels::MILESTONE ), true ) ) {
+			return new WP_Error(
+				'bwx_forge_not_restorable',
+				__( 'Only an archived project or release can be restored.', 'blueworx-forge' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		return self::commit(
+			$item,
+			(string) $item['stage'],
+			array( 'archived' => 0 ),
+			array(
+				'action'  => Events::RESTORED,
+				'gate'    => '',
+				'outcome' => '',
+			),
+			$sent_version,
+			$actor
+		);
+	}
+
+	/**
 	 * Picks finished work back up, as a new cycle (#113).
 	 *
 	 * Nothing is erased and nothing is rewound. The earlier completion and

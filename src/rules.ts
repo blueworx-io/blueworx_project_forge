@@ -35,6 +35,10 @@ export const RULES: RuleSection[] = [
         why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
       },
       {
+        what: 'A project or release can be archived at any phase, from its own page, and its phase is left as it was. It leaves the Projects lists, the client\'s page and the pickers, and is found under Archived on the Projects page, where it can be restored. Only an archived project or release can be deleted, after a confirmation. Deleting removes only that project or release: whatever was under it is kept and moves up to its parent, or is left with no parent. Anyone who can already move or end work can archive, restore and delete.',
+        why: 'Finished or unwanted projects stop cluttering the lists without losing any work, and nothing is deleted by accident.',
+      },
+      {
         what: 'A project or release\'s own hours are the work on it as a whole, such as planning it, the release review and delivering it. They are counted once, like any other item\'s hours, and never as a total of the work inside it. A project\'s own hours only reach capacity once it has a Deliver by date; until then they sit on no one\'s week.',
         why: 'The work inside already carries its own hours, so adding them up again would count the same time twice.',
       },
