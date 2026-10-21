@@ -55,15 +55,17 @@ final class Board {
 	 * The day's list for whoever is asking.
 	 *
 	 * @param array<string, mixed> $reach The caller's reach.
-	 * @param string               $today YYYY-MM-DD.
+	 * @param string               $today   YYYY-MM-DD, the real day.
+	 * @param string|null          $read_on YYYY-MM-DD the list is read for (#572); null for today.
+	 * @param string|null          $through Last day a look-ahead covers; null for just that day.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function for_reach( array $reach, string $today ): array {
+	public static function for_reach( array $reach, string $today, ?string $read_on = null, ?string $through = null ): array {
 		if ( Reach::is_nothing( $reach ) ) {
 			return array();
 		}
 
-		return Rules::evaluate( self::state( $reach, $today ), $today );
+		return Rules::evaluate( self::state( $reach, $today ), $read_on ?? $today, $through );
 	}
 
 	/**

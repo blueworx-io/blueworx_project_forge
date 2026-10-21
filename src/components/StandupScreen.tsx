@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { Requirement, Stage, StandupCard, StandupList } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { SECTIONS, cardDetail, cardTitle, cardsFor, inOrder, keyOf, overDayText, overDays, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
+import { SECTIONS, VIEWS, cardDetail, cardTitle, cardsFor, cardsIn, inOrder, keyOf, overDayText, overDays, ruleTone, ruleWord, siteOf, toSettleFor } from '../standup';
+import type { StandupView } from '../standup';
 import { durationLabel } from '../duration.mjs';
 import { PRIORITY_TONE } from '../priority';
 import { Tag } from '../kit';
@@ -72,17 +74,20 @@ export function StandupScreen() {
   const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
   const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
   const notice = said.text;
+  // #572. Which day(s) the date-based sections cover; Today unless asked.
+  const [ view, setView ] = useState< StandupView >( 'today' );
+  const tabs = useRef< Map< string, HTMLButtonElement > >( new Map() );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
   const [ stages, setStages ] = useState< Stage[] >( [] );
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
   const settling = useRef( false );
 
-  const load = useCallback( async ( fresh = false ) => {
+  const load = useCallback( async ( fresh = false, asked: StandupView = view ) => {
     try {
       // Refresh asks the server (2026-09-19): a list somebody just pressed
       // Refresh on is one they expect to be the server's, not the kept copy.
-      const answer = await api< StandupList >( '/standup', fresh ? { cache: 'fresh' } : {} );
+      const answer = await api< StandupList >( 'today' === asked ? '/standup' : `/standup?view=${ asked }`, fresh ? { cache: 'fresh' } : {} );
 
       if ( answer.denied ) {
         setState( 'denied' );
@@ -95,7 +100,7 @@ export function StandupScreen() {
       setNotice( messageFor( failure, 'The day’s list could not be read.' ) );
       setState( isDenied( failure ) ? 'denied' : 'error' );
     }
-  }, [] );
+  }, [ view ] );
 
   useEffect( () => {
     // The first read of the day's list. load() sets state when the answer comes
@@ -172,6 +177,30 @@ export function StandupScreen() {
     }
   }
 
+  /** Arrow keys move between the tabs, as a tab list is expected to. */
+  function onKey( event: KeyboardEvent< HTMLButtonElement >, index: number ) {
+    const step = { ArrowRight: 1, ArrowLeft: -1, Home: -index, End: VIEWS.length - 1 - index }[ event.key ];
+
+    if ( undefined === step ) {
+      return;
+    }
+
+    event.preventDefault();
+    const next = VIEWS[ ( index + step + VIEWS.length ) % VIEWS.length ];
+
+    pick( next.id );
+    tabs.current.get( next.id )?.focus();
+  }
+
+  function pick( next: StandupView ) {
+    if ( next === view ) {
+      return;
+    }
+
+    setView( next );
+    setState( 'loading' );
+  }
+
   const cards = cardsFor( list, siteId );
   const toSettle = toSettleFor( list, siteId );
 
@@ -182,7 +211,7 @@ export function StandupScreen() {
   return (
     <>
       <header className="bwx-header" data-testid="bwx-standup-header">
-        <span className="bwx-eyebrow">Today</span>
+        <span className="bwx-eyebrow">{ VIEWS.find( ( one ) => one.id === view )?.label }</span>
 
         <span className="bwx-mono" data-testid="bwx-standup-day">
           { list?.today ?? '' }
@@ -219,6 +248,31 @@ export function StandupScreen() {
           { cards.length } { 1 === cards.length ? 'thing' : 'things' }
         </span>
       </header>
+
+      <div className="fk-tabs bwx-standup-views" role="tablist" aria-label="Which days to look at" data-testid="bwx-standup-views" style={ { margin: '12px 20px 0' } }>
+        { VIEWS.map( ( one, index ) => (
+          <button
+            key={ one.id }
+            ref={ ( element ) => {
+              if ( element ) {
+                tabs.current.set( one.id, element );
+              } else {
+                tabs.current.delete( one.id );
+              }
+            } }
+            type="button"
+            role="tab"
+            className="fk-tab"
+            aria-selected={ one.id === view }
+            tabIndex={ one.id === view ? 0 : -1 }
+            data-testid={ `bwx-standup-view-${ one.id }` }
+            onClick={ () => pick( one.id ) }
+            onKeyDown={ ( event ) => onKey( event, index ) }
+          >
+            { one.label }
+          </button>
+        ) ) }
+      </div>
 
       { '' !== notice && 'error' !== state && 'denied' !== state && (
         <div style={ { margin: '12px 20px 0' } }>
@@ -318,7 +372,8 @@ export function StandupScreen() {
               id={ section.id }
               title={ section.title }
               blurb={ section.blurb }
-              cards={ cards.filter( ( card ) => section.rules.includes( card.rule as never ) ) }
+              cards={ cardsIn( section, cards ) }
+              view={ view }
               hidden={ hidden }
               busy={ busy }
               onDismiss={ dismiss }
@@ -384,12 +439,14 @@ function Section( {
   cards,
   hidden,
   busy,
+  view,
   onDismiss,
   onOpen,
   onComplete,
   onShowAll,
 }: {
   id: string;
+  view: StandupView;
   title: string;
   blurb: string;
   cards: StandupCard[];
@@ -467,6 +524,7 @@ function Section( {
               key={ keyOf( card ) }
               card={ card }
               busy={ busy }
+              view={ view }
               onDismiss={ () => onDismiss( card ) }
               onOpen={ onOpen }
               onComplete={ onComplete }
@@ -497,11 +555,13 @@ function Section( {
 function Card( {
   card,
   busy,
+  view,
   onDismiss,
   onOpen,
   onComplete,
 }: {
   card: StandupCard;
+  view: StandupView;
   busy: boolean;
   onDismiss: () => void;
   onOpen: ( itemId: string ) => void;
@@ -543,7 +603,7 @@ function Card( {
     >
       <div className="bwx-standup-card-head">
         <span className="bwx-chip" data-rule={ card.rule }>
-          { ruleWord( card.rule ) }
+          { 'today' !== view && 'due-today' === card.rule ? 'Due' : ruleWord( card.rule ) }
         </span>
       </div>
 

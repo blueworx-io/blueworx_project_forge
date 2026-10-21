@@ -763,6 +763,53 @@ final class StandupRulesTest extends TestCase {
 		}
 	}
 
+	public function test_work_waiting_on_the_client_has_only_the_client_review_card(): void {
+		// #571. Overdue as well as in review, and still only the one card.
+		$cards = Rules::for_item(
+			$this->item( array( 'stage' => 'in-review', 'reviewer_id' => 'client', 'planned_due' => '2026-03-01' ) ),
+			self::TODAY
+		);
+
+		$this->assertSame( array( Rules::AWAITING_REVIEW ), $this->rules( $cards ) );
+		$this->assertTrue( $cards[0]['detail']['client_review'] );
+	}
+
+	public function test_work_waiting_on_a_team_reviewer_keeps_its_other_cards(): void {
+		$cards = Rules::for_item(
+			$this->item( array( 'stage' => 'in-review', 'reviewer_id' => 'usr_reviewer', 'planned_due' => '2026-03-01' ) ),
+			self::TODAY
+		);
+
+		$this->assertSame( array( Rules::OVERDUE, Rules::AWAITING_REVIEW ), $this->rules( $cards ) );
+		$this->assertArrayNotHasKey( 'client_review', $cards[1]['detail'] );
+	}
+
+	public function test_a_look_ahead_counts_work_due_through_its_last_day(): void {
+		$item = $this->item( array( 'stage' => 'triage', 'planned_due' => '2026-03-13' ) );
+
+		$this->assertSame( array(), Rules::for_item( $item, self::TODAY ) );
+		$this->assertSame( array(), Rules::for_item( $item, self::TODAY, '2026-03-12' ) );
+		$this->assertSame( array( Rules::DUE_TODAY ), $this->rules( Rules::for_item( $item, self::TODAY, '2026-03-16' ) ) );
+		// Read for the day itself, it is the same work as today's list.
+		$this->assertSame( array( Rules::DUE_TODAY ), $this->rules( Rules::for_item( $item, '2026-03-13', '2026-03-13' ) ) );
+		$this->assertSame( array( Rules::OVERDUE ), $this->rules( Rules::for_item( $item, '2026-03-14', '2026-03-14' ) ) );
+	}
+
+	public function test_a_look_ahead_shows_only_the_over_hours_days_it_covers(): void {
+		$position = array(
+			'user_id' => 'usr_one',
+			'band'    => 'over',
+			'days'    => array(
+				array( 'date' => '2026-03-10', 'used' => 9, 'available' => 8, 'tasks' => array() ),
+				array( 'date' => '2026-03-12', 'used' => 9, 'available' => 8, 'tasks' => array() ),
+			),
+		);
+
+		$this->assertCount( 2, Rules::for_capacity( $position )['detail']['days'] );
+		$this->assertCount( 1, Rules::for_capacity( $position, array( '2026-03-11', '2026-03-12' ) )['detail']['days'] );
+		$this->assertSame( array(), Rules::for_capacity( $position, array( '2026-03-11', '2026-03-11' ) ) );
+	}
+
 	public function test_there_are_thirteen_of_them(): void {
 		$this->assertCount( 13, Rules::ALL );
 		$this->assertSame( Rules::ALL, array_unique( Rules::ALL ) );

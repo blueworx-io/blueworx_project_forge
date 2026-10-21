@@ -831,6 +831,8 @@ export interface StandupCard {
 export interface StandupList {
   denied?: boolean;
   today: string;
+  /** Which look the list was worked out for (#572). */
+  view?: 'today' | 'tomorrow' | 'week';
   generated: number;
   rules: string[];
   cards: StandupCard[];

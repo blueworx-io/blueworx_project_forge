@@ -375,6 +375,14 @@ export const RULES: RuleSection[] = [
         why: 'One screen should answer what needs attention today.',
       },
       {
+        what: 'Work waiting on the client to review shows only under Requires Client Review on the standup, with no other cards. Work with a team member as reviewer stays under Work needing attention.',
+        why: 'What waits on the client is kept apart from what the team can act on.',
+      },
+      {
+        what: 'The standup can look at Today (the default), Tomorrow, or the Next seven days. Work due on those days is listed, and Over hours shows only the days covered.',
+        why: 'The team can look ahead, not just at today.',
+      },
+      {
         what: 'Over hours on the standup flags anyone with a day in the next seven that is over their hours, however little, using the same day-by-day figures as Capacity. It names each day, the tasks filling it, and links to their capacity.',
         why: 'A warning is only useful if it says where the problem is and matches what Capacity shows.',
       },
