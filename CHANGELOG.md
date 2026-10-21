@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.202.0] - 2026-10-21
+
+### Added
+
+- Reminders can have a time, from 5 minutes to 5 hours. Everyone on the reminder gets the full time on its first day in Capacity and Day by day. Reminders with no time still count as nothing.
+- "Convert to task" on a reminder turns it into one task with the same title, client, people and time for everyone who hasn't ticked it yet. The reminder itself stays, marked as converted.
+
 ## [2.201.0] - 2026-10-21
 
 ### Added
