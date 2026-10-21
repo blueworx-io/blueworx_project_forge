@@ -684,6 +684,9 @@ export function ItemPanel( {
    */
   function saveNow( patch: Record< string, string > ) {
     const fields = Object.keys( patch );
+    // #567. Only the fields still holding what was sent take the answer: one
+    // changed again while this was on its way keeps the newer value.
+    const untouched = ( held: Record< string, string > ) => fields.filter( ( field ) => held[ field ] === patch[ field ] );
 
     queue.current = queue.current.then( async () => {
       const current = latest.current;
@@ -710,13 +713,14 @@ export function ItemPanel( {
 
         latest.current = loaded;
         setDetail( loaded );
-        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( fields.map( ( field ) => [ field, now[ field ] ] ) ) } ) );
+        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( untouched( held ).map( ( field ) => [ field, now[ field ] ] ) ) } ) );
         setFieldErrors( ( held ) => Object.fromEntries( Object.entries( held ).filter( ( [ field ] ) => ! fields.includes( field ) ) ) );
         onChanged();
         setNotice( SAVED, 'ok' );
       } catch ( error ) {
-        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( fields.map( ( field ) => [ field, saved[ field ] ] ) ) } ) );
-        setFieldErrors( ( held ) => ( { ...held, [ fields[ 0 ] ]: refusal( error ) } ) );
+        setDraft( ( held ) => ( { ...held, ...Object.fromEntries( untouched( held ).map( ( field ) => [ field, saved[ field ] ] ) ) } ) );
+        // Under the first field that changed: several are sent together (#567).
+        setFieldErrors( ( held ) => ( { ...held, [ Object.keys( changed )[ 0 ] ]: refusal( error ) } ) );
       }
     } );
   }
@@ -1506,6 +1510,22 @@ export function ItemPanel( {
     }
 
     return `${ DATES.find( ( date ) => date.field === field )?.label ?? field } cannot be before ${ latest.label.toLowerCase() }.`;
+  };
+
+  /**
+   * #567. Every date on show, saved in one write once focus has left the
+   * dates — and only when they are in order. Out of order they stay as
+   * typed, flagged, for the person to finish; Save changes would be refused
+   * the same way.
+   */
+  const saveDates = () => {
+    const shown = DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( draft.designer_id ?? '' ) ).map( ( date ) => date.field );
+
+    if ( shown.some( ( field ) => '' !== outOfOrder( field ) ) ) {
+      return;
+    }
+
+    saveNow( Object.fromEntries( shown.map( ( field ) => [ field, draft[ field ] ?? '' ] ) ) );
   };
 
   return (
@@ -2610,7 +2630,21 @@ export function ItemPanel( {
               <div className="bwx-assign" data-testid="bwx-dates" data-collapsed={ isFolded( 'dates' ) ? 'true' : 'false' }>
                 { head( 'dates', 'Dates' ) }
 
-                <div className="bwx-pair">
+                { /*
+                    #567. The dates are saved together once focus leaves
+                    them, not one by one: moving all of them takes several
+                    changes, and a date out of order part-way is not a
+                    mistake yet. Left out of order, they stay as typed with
+                    the reason under them, and nothing is sent.
+                 */ }
+                <div
+                  className="bwx-pair"
+                  onBlur={ ( event ) => {
+                    if ( ! event.currentTarget.contains( event.relatedTarget as Node | null ) ) {
+                      saveDates();
+                    }
+                  } }
+                >
                   { /* No design needed, no Design by. */ }
                   { DATES.filter( ( date ) => 'design_target' !== date.field || '' !== ( draft.designer_id ?? '' ) ).map( ( date ) => (
                     <div className="bwx-field" key={ date.field }>
@@ -2622,11 +2656,7 @@ export function ItemPanel( {
                         min={ earliestFor( date.field ) }
                         value={ draft[ date.field ] ?? '' }
                         aria-invalid={ '' !== outOfOrder( date.field ) ? 'true' : undefined }
-                        // #544. A date picked is saved at once. A date being
-                        // retyped reads as empty part-way, so a clearing waits
-                        // for the field to be left rather than saving mid-edit.
-                        onChange={ ( event ) => ( '' === event.target.value ? setDraft( { ...draft, [ date.field ]: '' } ) : saveDraft( { [ date.field ]: event.target.value } ) ) }
-                        onBlur={ ( event ) => saveNow( { [ date.field ]: event.target.value } ) }
+                        onChange={ ( event ) => setDraft( { ...draft, [ date.field ]: event.target.value } ) }
                       />
                       { '' !== outOfOrder( date.field ) && (
                         <p className="bwx-hint bwx-date-order" role="alert" data-testid="bwx-date-order" data-field={ date.field }>
