@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Meetings;
 
+use Blueworx\Forge\Capacity\Allocations;
+
 /**
  * #155, MEET-1. A meeting, expressed as an ordinary capacity commitment.
  *
@@ -65,8 +67,15 @@ final class Load {
 
 			$on = (string) $meeting['on'];
 
+			// #601. A held meeting is done: its time is counted beside finished
+			// work rather than as still to do. One still to come says nothing,
+			// as before.
+			$done = Occurrence::HELD === (string) ( $meeting['status'] ?? '' )
+				? array( 'status' => Allocations::DONE )
+				: array();
+
 			foreach ( $people as $who ) {
-				$out[] = array(
+				$out[] = $done + array(
 					'item_id'        => (string) ( $meeting['id'] ?? '' ),
 					'title'          => (string) ( $meeting['title'] ?? __( 'Support meeting', 'blueworx-forge' ) ),
 					'client_id'      => $client_id,

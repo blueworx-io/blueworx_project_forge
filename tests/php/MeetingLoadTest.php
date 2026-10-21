@@ -104,6 +104,27 @@ final class MeetingLoadTest extends TestCase {
 		$this->assertCount( 1, $allocations );
 	}
 
+	/**
+	 * #601. Held is done: its time is counted beside finished work, not as
+	 * still to do, so a held meeting stops reading as something left today.
+	 */
+	public function test_a_held_meeting_counts_as_done(): void {
+		$allocations = Load::allocations(
+			array( $this->meeting( array( 'status' => Occurrence::HELD ) ) ),
+			self::HOST,
+			'cst_one',
+			'cli_one'
+		);
+
+		$this->assertSame( Allocations::DONE, $allocations[0]['status'] );
+	}
+
+	public function test_a_meeting_still_to_come_is_not_done(): void {
+		$allocations = Load::allocations( array( $this->meeting() ), self::HOST, 'cst_one', 'cli_one' );
+
+		$this->assertNotSame( Allocations::DONE, $allocations[0]['status'] ?? '' );
+	}
+
 	public function test_a_meeting_that_is_not_happening_takes_no_time(): void {
 		foreach ( array( Occurrence::CANCELLED, Occurrence::NO_SHOW ) as $status ) {
 			$this->assertSame(

@@ -351,7 +351,10 @@ final class Feed {
 						trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
 						'' === $host ? array() : array( $host ),
 						'',
-						(string) $site['id']
+						(string) $site['id'],
+						// #601. Held, or nobody came: it has happened, and
+						// leaves Today's diary as a finished chore does.
+						Occurrence::settled( (string) ( $meeting['status'] ?? '' ) )
 					);
 				}
 			}
@@ -432,7 +435,7 @@ final class Feed {
 	 * @param array<int, string>|string $people  Who it is for: ids, or 'all'.
 	 * @param string                    $item_id The work item behind it, if any.
 	 * @param string                    $site_id The client site it is for, or '' for none (#402).
-	 * @param bool                      $done    Everyone on it has ticked (#412); always false for a kind with no ticking.
+	 * @param bool                      $done    Everyone on it has ticked (#412), or a meeting has happened (#601); false otherwise.
 	 * @return array<string, mixed>
 	 */
 	private static function entry( string $kind, string $id, string $date, string $ends_on, string $title, string $detail, $people, string $item_id = '', string $site_id = '', bool $done = false ): array {
