@@ -624,6 +624,8 @@ export function ItemPanel( {
     latest.current = detail;
   }, [ detail ] );
   const queue = useRef< Promise< void > >( Promise.resolve() );
+  // How many list changes are waiting behind the one being written (#566).
+  const waitingLines = useRef( 0 );
 
   /**
    * #451. A checklist change is written as soon as it is made, on its own:
@@ -631,9 +633,19 @@ export function ItemPanel( {
    * a later Save changes does not meet a conflict. A refusal says so and the
    * rows stay as they are, for Save changes to try again. #544: the test
    * steps the same way.
+   *
+   * #566. The task is then read again, as every other auto-save does: the
+   * gates are worked out from the list, so a tick that finishes it has to
+   * reach "Checklist complete" too. Only the record is replaced — the rows
+   * on screen are left as they are, so a line being typed is not touched.
+   * Read once, after the last of a quick run of changes, not after each.
    */
   function saveLines( field: 'checklist' | 'test_steps', rows: ChecklistRow[] ) {
+    waitingLines.current += 1;
+
     queue.current = queue.current.then( async () => {
+      waitingLines.current -= 1;
+
       const current = latest.current;
       const change = linesChange( field, rows, current );
 
@@ -646,8 +658,10 @@ export function ItemPanel( {
           method: 'PATCH',
           body: { [ field ]: change[ field ], record_version: current.item.record_version },
         } );
+        const saved = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
 
-        latest.current = { ...current, item: { ...current.item, [ field ]: answer.item[ field ], record_version: answer.item.record_version } };
+        // Saved either way: a read that fails keeps what the write answered.
+        latest.current = 0 < waitingLines.current ? saved : await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } ).catch( () => saved );
         setDetail( latest.current );
         onChanged();
         setNotice( SAVED, 'ok' );
