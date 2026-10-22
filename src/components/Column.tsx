@@ -61,7 +61,9 @@ export function Column( {
 } ) {
   const index = STAGE_ORDER.indexOf( stage.id );
   const [ everything, setEverything ] = useState( false );
-  const view = inView( stage.id, items, Date.now() );
+  // When the board was drawn: two weeks are counted back from here.
+  const [ now ] = useState( () => Date.now() );
+  const view = inView( stage.id, items, now );
   const cards = everything ? view.all : view.shown;
 
   return (
