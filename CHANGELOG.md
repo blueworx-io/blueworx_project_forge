@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.203.4] - 2026-10-22
+
+### Changed
+
+- A task's Attachments section now lists images first, then documents, then links.
+
+### Fixed
+
+- The staff filter now looks the same as the "Any kind" filter beside it.
+- A client's profile page now has the same page margin as every other page.
+
 ## [2.203.3] - 2026-10-21
 
 ### Changed

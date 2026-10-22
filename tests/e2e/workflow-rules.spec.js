@@ -243,6 +243,9 @@ test('documents upload to a task, open from it, and come off again; unsafe files
   await expect(section.getByTestId('bwx-documents')).toBeVisible();
   await expect(section.getByTestId('bwx-links')).toBeVisible();
   await expect(section.getByTestId('bwx-images')).toBeVisible();
+  // Images, then documents, then links (#615).
+  const order = await section.locator('[data-testid="bwx-images"], [data-testid="bwx-documents"], [data-testid="bwx-links"]').evaluateAll((parts) => parts.map((part) => part.dataset.testid));
+  expect(order).toEqual(['bwx-images', 'bwx-documents', 'bwx-links']);
   await expect(section.getByTestId('bwx-document')).toHaveCount(1);
   await expect(section.getByRole('link', { name: 'Brief notes.txt' })).toHaveAttribute('href', withDoc.documents[0].url);
 

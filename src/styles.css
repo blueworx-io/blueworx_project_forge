@@ -220,6 +220,12 @@ body {
 
 /* The search box takes the room that is going, and stops before it becomes the
    widest thing on a wide screen. */
+/* #614. A button dressed as the "Any kind" select beside it. */
+.bwx-staff-pick {
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
 /* #524. The staff list can be long; it scrolls rather than running off the page. */
 .bwx-staff-menu {
   max-height: 320px;
@@ -4351,7 +4357,8 @@ td[ data-band='over' ] {
 .bwx-panel select,
 .bwx-panel-scrim select,
 select.fk-input,
-select.bwx-select {
+select.bwx-select,
+.bwx-staff-pick {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 34px;
@@ -4424,9 +4431,10 @@ select.bwx-select {
   flex-direction: column;
   gap: var( --space-16 );
 }
-/* #591. The same page margin the other screens give their panels (Clients, Leads). */
+/* #591, #599. The same page margin the other screens give their panels (Clients, Leads). */
 .bwx-project,
-.bwx-projects {
+.bwx-projects,
+.bwx-client-profile {
   padding: var( --space-20 );
 }
 .bwx-project-releases,
