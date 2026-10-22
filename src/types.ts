@@ -537,8 +537,9 @@ export interface Reminder {
   description: string;
   category: 'general' | 'campaign' | 'marketing' | 'sales' | 'finance' | 'deadline' | 'other';
   assignees: string[];
+  /** Both dates are optional (#611): '' for none. */
   starts_on: string;
-  /** '' for a one-day reminder. */
+  /** '' for a one-day reminder, or one with no end. */
   ends_on: string;
   /** Each person's time in hours (#573), counted on the first day; 0 when none is set. */
   hours_each: number;

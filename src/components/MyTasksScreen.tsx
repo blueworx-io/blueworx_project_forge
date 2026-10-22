@@ -114,7 +114,7 @@ export function MyTasksScreen() {
   const ours = useMemo( () => listed( mine, siteId ), [ mine, siteId ] );
 
   const counts = useMemo( () => {
-    const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, done: 0, all: ours.length };
+    const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, nodate: 0, done: 0, all: ours.length };
     for ( const one of ours ) c[ viewOf( one ) ] += 1;
     return c;
   }, [ ours ] );
@@ -134,6 +134,7 @@ export function MyTasksScreen() {
     { id: 'tomorrow', label: 'Tomorrow', count: counts.tomorrow },
     { id: 'week', label: 'Next seven days', count: counts.week },
     { id: 'later', label: 'Further out', count: counts.later },
+    { id: 'nodate', label: 'No date', count: counts.nodate },
     { id: 'all', label: 'Everything assigned to you', count: counts.all },
   ];
 
@@ -196,6 +197,7 @@ export function MyTasksScreen() {
     today: 'Nothing needs you today',
     week: 'Nothing due in the next seven days',
     later: 'Nothing further out',
+    nodate: 'No reminders without a date',
     all: 'No task names you in any role',
   };
 

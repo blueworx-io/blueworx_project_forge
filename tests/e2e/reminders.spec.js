@@ -506,8 +506,8 @@ test('a 30-minute reminder for two people adds 30 minutes to each of them on its
   expect((await tooLong.json()).data.fields.hours_each).toBe('Pick a time from the list.');
 });
 
-// #574. Convert to task: one occurrence becomes a task, and the reminder carries on.
-test('converting a reminder makes a task with its title, client, people and time, and the reminder stays', async ({ browser, baseURL }) => {
+// #574. Convert to task. #612: the reminder then leaves reminders altogether.
+test('converting a reminder makes a task with its title, client, people and time, and the reminder goes', async ({ browser, baseURL }) => {
   test.slow();
 
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -542,11 +542,12 @@ test('converting a reminder makes a task with its title, client, people and time
   page.once('dialog', (dialog) => dialog.accept());
   await row.getByTestId('bwx-reminder-convert').click();
 
-  // The new task opens; the reminder stays listed, marked as converted, with nothing left to convert.
+  // The new task opens, and the reminder is gone from the list, completed ones included.
   await expect(page.getByTestId('bwx-panel')).toContainText(title, { timeout: 30_000 });
   await page.keyboard.press('Escape');
-  await expect(row.getByTestId('bwx-reminder-converted')).toBeVisible({ timeout: 30_000 });
-  await expect(row.getByTestId('bwx-reminder-convert')).toHaveCount(0);
+  await expect(row).toHaveCount(0, { timeout: 30_000 });
+  await page.getByTestId('bwx-reminders-completed').click();
+  await expect(row).toHaveCount(0);
   await page.close();
 
   const work = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items;
@@ -570,15 +571,9 @@ test('converting a reminder makes a task with its title, client, people and time
   // The time is counted once, on the task.
   expect(await hoursByDay(admin.api, two.id, today, plus(today, 6), [task.id, ...reminder.copies.map((copy) => copy.item_id)])).toEqual({ [plus(today, 1)]: 1 });
 
-  // The reminder carries on, and says where the converted copies went.
-  const kept = (await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id);
-  expect(kept).toBeTruthy();
-  expect(kept.copies.find((copy) => copy.person === one.id).done).toBe(true);
-  for (const person of [two, three]) {
-    const copy = kept.copies.find((each) => each.person === person.id);
-    expect(copy.done).toBe(false);
-    expect(copy.converted_to).toBe(task.id);
-  }
+  // The reminder is no longer listed; person one keeps theirs, ticked.
+  expect((await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id)).toBeUndefined();
+  expect(Object.keys((await admin.api.get(`/work-items/${copyOf(one)}`)).item.ticks)).toEqual([one.id]);
 
   // The calendar leaves the converted copies out: only person one's, done.
   const feed = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 5)}`);
@@ -586,18 +581,145 @@ test('converting a reminder makes a task with its title, client, people and time
   expect(entry.people).toEqual([one.id]);
   expect(entry.detail).toBe('General · Done');
 
-  // An archived converted copy never comes back on an edit.
-  const closed = (await admin.api.get(`/work-items/${copyOf(three)}`)).item;
-  expect((await admin.api.post(`/work-items/${closed.id}/archive`, { record_version: closed.record_version })).status()).toBe(200);
-  const renamed = await admin.api.patch(`/reminders/${reminder.id}`, { title: `${title} again`, record_version: kept.record_version });
-  expect(renamed.status(), await renamed.text()).toBe(200);
-  const after = (await renamed.json()).reminder;
-  expect(after.copies.filter((copy) => copy.person === three.id)).toHaveLength(0);
-  expect(after.copies.some((copy) => !copy.done && '' === copy.converted_to)).toBe(false);
-
-  // Nothing is left to convert.
+  // Gone, so there is nothing left to edit or convert.
+  const renamed = await admin.api.patch(`/reminders/${reminder.id}`, { title: `${title} again`, record_version: reminder.record_version });
+  expect(renamed.status()).toBe(404);
   const again = await admin.api.post(`/reminders/${reminder.id}/convert`, {});
-  expect(again.status()).toBe(409);
+  expect(again.status()).toBe(404);
+});
+
+// #612. Reminders turned into tasks before this change leave the list too.
+test('a reminder whose open copies all became a task is not listed', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindOldConvert', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remoldconv');
+
+  const made = await admin.api.post('/reminders', { client_site_id: site.id, title: `Old convert ${RUN_ID}`, assignees: [person.id], starts_on: today });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+  const task = (await (await Forge.makeItem(admin.api, site.id, { title: `Its task ${RUN_ID}` })).json()).item;
+
+  // Closed into a task the way a convert did, leaving the reminder itself as it was.
+  const copy = (await admin.api.get(`/work-items/${reminder.copies[0].item_id}`)).item;
+  const ended = await admin.api.post(`/work-items/${copy.id}/outcome`, { outcome: 'cancelled', reason: 'Turned into a task.', duplicate_of: task.id, record_version: copy.record_version });
+  expect(ended.status(), await ended.text()).toBe(200);
+
+  expect((await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id)).toBeUndefined();
+});
+
+// #611. Both dates are optional.
+test('a reminder may have no dates, or only an end, and My tasks files it to match', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindNoDate', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, client.id, 'staff', 'remnodate');
+  const undated = `Whenever ${RUN_ID}`;
+  const byEnd = `By the end ${RUN_ID}`;
+
+  const none = await admin.api.post('/reminders', { client_site_id: site.id, title: undated, assignees: [person.id], hours_each: 1 });
+  expect(none.status(), await none.text()).toBe(200);
+  const noneCopy = (await admin.api.get(`/work-items/${(await none.json()).reminder.copies[0].item_id}`)).item;
+  expect(noneCopy.planned_start).toBe('');
+  expect(noneCopy.planned_due).toBe('');
+
+  const end = await admin.api.post('/reminders', { client_site_id: site.id, title: byEnd, assignees: [person.id], ends_on: plus(today, 5) });
+  expect(end.status(), await end.text()).toBe(200);
+  const endCopy = (await admin.api.get(`/work-items/${(await end.json()).reminder.copies[0].item_id}`)).item;
+  expect(endCopy.planned_start).toBe(today);
+  expect(endCopy.planned_due).toBe(plus(today, 5));
+
+  // The undated one takes nobody's time on any day, and is not on the calendar.
+  expect(await hoursByDay(admin.api, person.id, today, plus(today, 6), [noneCopy.id])).toEqual({});
+  const feed = await admin.api.get(`/calendar?from=${today}&to=${plus(today, 6)}`);
+  expect(feed.entries.some((each) => each.title === undated)).toBe(false);
+  expect(feed.entries.some((each) => each.title === byEnd)).toBe(true);
+
+  const me = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+  const page = await me.context.newPage();
+  await page.goto('/blueworx-forge/#screen=mytasks');
+  const table = page.getByTestId('bwx-mytasks-table');
+  await expect(table).toBeVisible({ timeout: 60_000 });
+
+  // Only an end: Today until it is ticked. No dates: a No date group of its own.
+  await expect(table.locator('tbody tr', { hasText: byEnd })).toHaveCount(1);
+  await expect(table).not.toContainText(undated);
+  await table.getByRole('button', { name: /^No date/ }).click();
+  await expect(table.locator('tbody tr', { hasText: undated })).toHaveCount(1);
+  await expect(table).not.toContainText(byEnd);
+
+  // On the Reminders page each says when it is, and one can be added with no dates.
+  // Through about:blank, as a change of hash alone does not load the page again.
+  await page.goto('about:blank');
+  await page.goto('/blueworx-forge/#screen=reminders');
+  const list = page.getByTestId('bwx-reminders-table');
+  await expect(list.locator('tbody tr', { hasText: undated })).toContainText('No date', { timeout: 60_000 });
+  await expect(list.locator('tbody tr', { hasText: byEnd })).toContainText('Until');
+
+  await page.getByTestId('bwx-reminders-add').click();
+  await page.getByTestId('bwx-reminder-title').fill(`Added undated ${RUN_ID}`);
+  await page.getByTestId('bwx-reminder-client').selectOption(site.id);
+  await page.getByTestId(`bwx-reminder-person-${person.id}`).check();
+  await page.getByTestId('bwx-reminder-starts').fill('');
+  await page.getByTestId('bwx-reminder-save').click();
+  await expect(list.locator('tbody tr', { hasText: `Added undated ${RUN_ID}` })).toContainText('No date', { timeout: 30_000 });
+  await page.close();
+});
+
+// #610. An opened reminder is changed, or turned into a task, where it opens.
+test('an opened reminder can be edited and turned into a task by its author, and only read by others', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { client, site } = await Forge.makeSite(admin.api, 'RemindOpen', RUN_ID);
+  const today = (await admin.api.get('/standup')).today;
+  const author = await Forge.makePerson(admin.api, client.id, 'staff', 'remopenauthor');
+  const other = await Forge.makePerson(admin.api, client.id, 'staff', 'remopenother');
+  const title = `Opened ${RUN_ID}`;
+
+  const asAuthor = await Forge.signedIn(browser, baseURL, author.login, Forge.PASSWORD);
+  const made = await asAuthor.api.post('/reminders', { client_site_id: site.id, title, assignees: [author.id, other.id], starts_on: today });
+  expect(made.status(), await made.text()).toBe(200);
+  const reminder = (await made.json()).reminder;
+
+  // Somebody it is for, who did not write it, can read it but not change it.
+  const asOther = await Forge.signedIn(browser, baseURL, other.login, Forge.PASSWORD);
+  const theirs = await asOther.context.newPage();
+  await theirs.goto('/blueworx-forge/#screen=mytasks');
+  await theirs.getByTestId('bwx-mytasks-table').locator('tbody tr', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
+  await expect(theirs.getByTestId('bwx-reminder-actions')).toBeVisible({ timeout: 30_000 });
+  await expect(theirs.getByTestId('bwx-reminder-actions').getByTestId('bwx-reminder-edit')).toHaveCount(0);
+  await expect(theirs.getByTestId('bwx-reminder-actions').getByTestId('bwx-reminder-convert')).toHaveCount(0);
+  await theirs.close();
+
+  // Its author opens it and changes it there.
+  const page = await asAuthor.context.newPage();
+  await page.goto('/blueworx-forge/#screen=mytasks');
+  await page.getByTestId('bwx-mytasks-table').locator('tbody tr', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
+  const actions = page.getByTestId('bwx-reminder-actions');
+  await expect(actions.getByTestId('bwx-reminder-edit')).toBeVisible({ timeout: 30_000 });
+  await actions.getByTestId('bwx-reminder-edit').click();
+  const form = page.getByTestId('bwx-reminder-form');
+  await expect(form).toBeVisible();
+  await form.getByTestId('bwx-reminder-ends').fill(plus(today, 2));
+  await form.getByTestId('bwx-reminder-hours').selectOption('1');
+  await form.getByTestId('bwx-reminder-save').click();
+  await expect(form).toHaveCount(0, { timeout: 30_000 });
+  const edited = (await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id);
+  expect(edited.ends_on).toBe(plus(today, 2));
+  expect(edited.hours_each).toBe(1);
+
+  // And turns it into a task from the same place.
+  page.once('dialog', (dialog) => dialog.accept());
+  await actions.getByTestId('bwx-reminder-convert').click();
+  await expect.poll(async () => (await admin.api.get('/reminders')).reminders.some((r) => r.id === reminder.id), { timeout: 30_000 }).toBe(false);
+  const work = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items;
+  expect(work.filter((item) => item.title.endsWith(title) && '' === (item.recurring_id ?? ''))).toHaveLength(1);
+  await page.close();
 });
 
 test('a reminder with a blocked copy is not converted, and nothing changes', async ({ browser, baseURL }) => {

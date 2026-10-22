@@ -32,7 +32,7 @@ export interface Mine extends Record< string, unknown > {
   ticked: boolean;
 }
 
-export type View = 'today' | 'tomorrow' | 'week' | 'later' | 'all';
+export type View = 'today' | 'tomorrow' | 'week' | 'later' | 'nodate' | 'all';
 
 /** Where a row sorts: one of the dated views, or done (under none of them). */
 export type Slot = Exclude< View, 'all' > | 'done';
@@ -59,6 +59,8 @@ export function viewOf( one: Mine ): Slot {
   // Released or ticked off is done, and not listed. Completed but late
   // is still to ship, so it sorts by date like the rest (Luke, 2026-09-26).
   if ( 'released' === one.item.stage || one.ticked ) return 'done';
+  // A reminder with no dates at all (#611) waits under No date until ticked.
+  if ( one.reminder && null === one.starts && null === one.due ) return 'nodate';
   // Urgent is Today whatever its date (#507) — but a reminder still waits for its first day.
   if ( isUrgent( one ) && ! one.reminder ) return 'today';
   // A reminder is Today from its first day until it is ticked (2026-09-25).

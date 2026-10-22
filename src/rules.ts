@@ -487,7 +487,7 @@ export const RULES: RuleSection[] = [
     title: 'Reminders',
     rules: [
       {
-        what: 'A reminder is a task for one day or a few days, for one or more people, on one client.',
+        what: 'A reminder is a task for one day or a few days, for one or more people, on one client. Both dates are optional: with only an end date it runs from today to that day, and with no dates it waits under No date in My tasks until ticked, off the calendar and counting on no day in Capacity.',
         why: 'Some things just need doing on a date, without a repeat or a full journey.',
       },
       {
@@ -515,8 +515,8 @@ export const RULES: RuleSection[] = [
         why: 'Time spent on reminders is real time, and like any assignment it is done in a day.',
       },
       {
-        what: 'Convert to task turns a reminder into one task for everyone who hasn\'t ticked it yet, with the same title, client, people and time, due on the reminder\'s first day, or today if that has passed. Their copies close as turned into that task. The reminder itself carries on: it isn\'t ended or deleted, it stays in the list marked Converted to task with a link to the task, and copies already ticked stay as they were.',
-        why: 'Some reminders turn out to need proper work, without losing the reminder or counting the time twice.',
+        what: 'Convert to task turns a reminder into one task for everyone who hasn\'t ticked it yet, with the same title, client, people and time, due on the reminder\'s first day, or today if that has passed. Their copies close as turned into that task, and the reminder leaves Reminders altogether, completed ones included. Anyone who had already ticked it keeps it as done.',
+        why: 'Once it is a task, the task is the one thing to follow, and the time is never counted twice.',
       },
       {
         what: 'A reminder can\'t be converted while anyone\'s copy of it is blocked; nothing changes until it is unblocked or that person is taken off. Converting is done once, however many times it is pressed at once.',
@@ -525,6 +525,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'A reminder shows on the calendar on every day it covers, and moves into Today in My tasks when its first day arrives. Copies turned into a task are left off the calendar, as cancelled work is.',
         why: 'It is visible ahead of time and becomes a to-do when it matters.',
+      },
+      {
+        what: 'A reminder opened anywhere, from My tasks, the calendar or its own page, can be edited or turned into a task right there by whoever added it or an administrator. Anyone else sees whose it is to change.',
+        why: 'Nobody should have to go to the Reminders page to change something they already have open.',
       },
       {
         what: 'Editing a reminder updates the copies nobody has ticked; removing a person removes their unticked copy, and deleting the reminder keeps ticked copies as the record.',
