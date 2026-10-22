@@ -146,7 +146,7 @@ final class UpdatesController {
 	 * The answer the Settings screen draws.
 	 *
 	 * @param array{state: string, message: string, release: string} $status    From Updates::status().
-	 * @param string                                                  $installed The version installed.
+	 * @param string                                                 $installed The version installed.
 	 * @return array<string, mixed>
 	 */
 	public static function answer( array $status, string $installed ): array {
