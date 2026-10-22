@@ -39,6 +39,14 @@ test( 'the staff filter narrows every view to the people picked', async ( { brow
   const staff = page.getByTestId( 'bwx-filter-staff' );
   await expect( staff ).toContainText( 'All staff' );
 
+  // It looks like the "Any kind" picker beside it (#614).
+  await expect( staff ).toHaveText( 'All staff' );
+  const look = ( box ) => box.evaluate( ( el ) => {
+    const s = getComputedStyle( el );
+    return { height: el.getBoundingClientRect().height, radius: s.borderRadius, size: s.fontSize, color: s.color, background: s.backgroundColor, arrow: s.backgroundImage };
+  } );
+  expect( await look( staff ) ).toEqual( await look( page.getByTestId( 'bwx-filter-type' ) ) );
+
   // One person.
   await staff.click();
   await page.getByTestId( `bwx-filter-staff-${ ana.id }` ).click();

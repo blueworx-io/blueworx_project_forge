@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
 import type { Person, SavedView, WorkFilters } from '../types';
 import { alphabetical } from '../alphabetical.mjs';
 import { everybody } from './ItemPanel';
@@ -9,7 +8,8 @@ import { everybody } from './ItemPanel';
  *
  * A person is on a task when they hold any seat on it, stand in for one, or
  * are assigned a recurring task — the server decides that, this only says
- * who. Only the studio's own people are offered.
+ * who. Only the studio's own people are offered. It looks like the "Any kind"
+ * picker beside it (#614), though it is a button, as a select cannot hold several.
  */
 function StaffFilter( { picked, onChange }: { picked: string[]; onChange: ( people: string[] ) => void } ) {
   const [ people, setPeople ] = useState< Person[] >( [] );
@@ -65,17 +65,15 @@ function StaffFilter( { picked, onChange }: { picked: string[]; onChange: ( peop
     <span className="fk-filter" ref={ wrap }>
       <button
         type="button"
-        className="fk-filter-btn"
+        className="bwx-select bwx-staff-pick"
         data-testid="bwx-filter-staff"
-        data-set={ 0 < picked.length ? 'true' : undefined }
+        aria-label={ `Staff: ${ value }` }
         aria-haspopup="listbox"
         aria-expanded={ open }
         aria-controls={ menuId }
         onClick={ () => setOpen( ! open ) }
       >
-        <span className="fk-filter-label">Staff</span>
-        <span className="fk-filter-value">{ value }</span>
-        <ChevronDown size={ 12 } strokeWidth={ 2 } aria-hidden="true" />
+        { value }
       </button>
       { open && (
         <ul className="fk-menu bwx-staff-menu" id={ menuId } role="listbox" aria-label="Staff" aria-multiselectable="true" data-testid="bwx-filter-staff-menu">

@@ -2320,6 +2320,67 @@ export function ItemPanel( {
               <div className="bwx-attachments" data-testid="bwx-attachments" data-collapsed={ isFolded( 'attachments' ) ? 'true' : 'false' }>
                 { head( 'attachments', 'Attachments' ) }
 
+                { /* Images first, then documents, then links (#615). */ }
+              <div className="bwx-field" data-testid="bwx-images">
+                <span className="bwx-checklist-head">
+                  <span>Images</span>
+                  { 0 < item.images.length && <span className="bwx-mono">{ `${ item.images.length } of ${ CHECKLIST_ROWS }` }</span> }
+                </span>
+                { 0 < item.images.length && (
+                  <ul className="bwx-image-list">
+                    { item.images.map( ( image ) => (
+                      <li key={ image.id } data-testid="bwx-image">
+                        <a href={ image.url } target="_blank" rel="noreferrer noopener">
+                          <img src={ image.url } alt={ image.name } />
+                        </a>
+                        <button
+                          type="button"
+                          className="bwx-icon-button"
+                          aria-label={ `Remove ${ image.name || 'image' }` }
+                          disabled={ busy }
+                          onClick={ () => void removeImage( image.id ) }
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ) ) }
+                  </ul>
+                ) }
+                { item.images.length < CHECKLIST_ROWS && (
+                  <label
+                    className="bwx-drop"
+                    data-testid="bwx-image-drop"
+                    data-over={ dropping ? 'true' : 'false' }
+                    onDragOver={ ( event ) => {
+                      event.preventDefault();
+                      setDropping( true );
+                    } }
+                    onDragLeave={ () => setDropping( false ) }
+                    onDrop={ ( event ) => {
+                      event.preventDefault();
+                      setDropping( false );
+                      void addImages( event.dataTransfer.files );
+                    } }
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      data-testid="bwx-image-input"
+                      disabled={ busy }
+                      onChange={ ( event ) => {
+                        if ( event.target.files ) {
+                          void addImages( event.target.files );
+                        }
+
+                        event.target.value = '';
+                      } }
+                    />
+                    <span>Drop images or screenshots here, or choose some.</span>
+                  </label>
+                ) }
+              </div>
+
                 { /* Documents (#569): uploaded to the media library, opened from here. */ }
                 <div className="bwx-field" data-testid="bwx-documents">
                   <span className="bwx-checklist-head">
@@ -2427,66 +2488,6 @@ export function ItemPanel( {
                       Add a link
                     </button>
                   </div>
-                ) }
-              </div>
-
-              <div className="bwx-field" data-testid="bwx-images">
-                <span className="bwx-checklist-head">
-                  <span>Images</span>
-                  { 0 < item.images.length && <span className="bwx-mono">{ `${ item.images.length } of ${ CHECKLIST_ROWS }` }</span> }
-                </span>
-                { 0 < item.images.length && (
-                  <ul className="bwx-image-list">
-                    { item.images.map( ( image ) => (
-                      <li key={ image.id } data-testid="bwx-image">
-                        <a href={ image.url } target="_blank" rel="noreferrer noopener">
-                          <img src={ image.url } alt={ image.name } />
-                        </a>
-                        <button
-                          type="button"
-                          className="bwx-icon-button"
-                          aria-label={ `Remove ${ image.name || 'image' }` }
-                          disabled={ busy }
-                          onClick={ () => void removeImage( image.id ) }
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    ) ) }
-                  </ul>
-                ) }
-                { item.images.length < CHECKLIST_ROWS && (
-                  <label
-                    className="bwx-drop"
-                    data-testid="bwx-image-drop"
-                    data-over={ dropping ? 'true' : 'false' }
-                    onDragOver={ ( event ) => {
-                      event.preventDefault();
-                      setDropping( true );
-                    } }
-                    onDragLeave={ () => setDropping( false ) }
-                    onDrop={ ( event ) => {
-                      event.preventDefault();
-                      setDropping( false );
-                      void addImages( event.dataTransfer.files );
-                    } }
-                  >
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      data-testid="bwx-image-input"
-                      disabled={ busy }
-                      onChange={ ( event ) => {
-                        if ( event.target.files ) {
-                          void addImages( event.target.files );
-                        }
-
-                        event.target.value = '';
-                      } }
-                    />
-                    <span>Drop images or screenshots here, or choose some.</span>
-                  </label>
                 ) }
               </div>
               </div>

@@ -30,6 +30,10 @@ test("opens a client's profile from Clients and by link", async () => {
   await expect(page.getByTestId('bwx-client-profile')).toContainText(client.display_name, { timeout: 30_000 });
   await expect(page.getByTestId('bwx-client-projects')).toBeVisible();
 
+  // The same page margin as Clients beside it (#599).
+  const margin = await page.getByTestId('bwx-client-profile').evaluate((el) => getComputedStyle(el).padding);
+  expect(margin).toBe('20px');
+
   await page.close();
 
   const linked = await admin.context.newPage();
