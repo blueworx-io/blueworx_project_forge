@@ -101,7 +101,7 @@ test("builds a project from a client's page", async () => {
   await expect(feature).toContainText(`Wrong total ${RUN_ID}`, SLOW);
 
   // Opening any row opens its panel.
-  await feature.getByRole('button', { name: `Wrong total ${RUN_ID}` }).click();
+  await feature.getByRole('button', { name: `Wrong total ${RUN_ID}`, exact: true }).click();
   await expect(page.getByTestId('bwx-panel')).toContainText(`Wrong total ${RUN_ID}`, SLOW);
 
   await page.close();
