@@ -72,3 +72,37 @@ test('Settings carries a cog icon in the menu and on its header', async ({ brows
 
   await admin.context.close();
 });
+
+test('an administrator checks for updates from Settings, and nobody else can (#603)', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const { version } = JSON.parse(await import('node:fs').then((fs) => fs.readFileSync('package.json', 'utf8')));
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/#screen=settings');
+
+  const updates = page.getByTestId('bwx-updates');
+  await expect(updates).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('bwx-updates-summary')).toContainText(`Forge ${version} is installed.`, { timeout: 60_000 });
+
+  await page.getByTestId('bwx-updates-check').click();
+  await expect(page.getByTestId('bwx-updates-check')).toHaveText('Check for updates', { timeout: 60_000 });
+  await expect(page.getByTestId('bwx-updates-summary')).toContainText(`Forge ${version} is installed.`);
+
+  // A branch's version is never behind the latest release, so there is nothing to install.
+  const answer = await admin.api.get('/updates');
+  expect(answer.installed).toBe(version);
+  expect(answer.update_available).toBe(false);
+  const install = await admin.api.post('/updates/install', {});
+  expect(install.status()).toBe(409);
+
+  // Somebody signed out is refused every route.
+  const anon = await browser.newContext({ baseURL });
+  for (const [method, path] of [['get', '/updates'], ['post', '/updates/check'], ['post', '/updates/install']]) {
+    const refused = await anon.request[method](`/wp-json/blueworx-forge/v1${path}`);
+    expect([401, 403], `${method} ${path}`).toContain(refused.status());
+  }
+
+  await anon.close();
+  await admin.context.close();
+});

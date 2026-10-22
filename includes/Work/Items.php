@@ -148,6 +148,19 @@ final class Items {
 				continue;
 			}
 
+			// #609. Several values, such as projects and releases at once.
+			if ( is_array( $filters[ $column ] ) ) {
+				$wanted = array_values( array_filter( array_map( 'strval', $filters[ $column ] ), 'strlen' ) );
+
+				if ( array() === $wanted ) {
+					continue;
+				}
+
+				$where[] = $column . ' IN (' . implode( ', ', array_fill( 0, count( $wanted ), '%s' ) ) . ')';
+				$values  = array_merge( $values, $wanted );
+				continue;
+			}
+
 			$where[]  = $column . ' = %s';
 			$values[] = (string) $filters[ $column ];
 		}

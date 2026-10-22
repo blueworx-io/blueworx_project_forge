@@ -152,6 +152,106 @@ test.describe('the board', () => {
     await expect(page.locator('[data-testid="bwx-card"]')).toHaveAttribute('data-stage', 'triage');
   });
 
+  test('two quick moves both stay, and a read from before the second cannot undo it (#613)', async ({ page }) => {
+    test.slow();
+
+    const { siteId, itemId: first, clientId } = await seed(page, 'Quick');
+    const nonce = await page.evaluate(() => window.bwxForgeData.nonce);
+    const api = Forge.forge(page.context().request, nonce);
+    const second = (await (await Forge.makeItem(api, siteId, { title: `Second card ${RUN_ID}`, level: 'feature' })).json()).item.id;
+    await readyForTriage(page, first, clientId);
+    await readyForTriage(page, second, clientId);
+
+    await page.goto('/blueworx-forge/');
+    await page.waitForSelector('[data-testid="bwx-board"]');
+    await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
+    const card = (id) => page.locator(`[data-testid="bwx-card"][data-item="${id}"]`);
+    await expect(card(second)).toBeVisible({ timeout: 60_000 });
+
+    // From here, each read of the board is taken as the server answers it, then held.
+    const held = [];
+    await page.route((url) => url.pathname.endsWith('/work-items') && url.search.includes('client_site_id='), async (route) => {
+      if ('GET' !== route.request().method()) return route.fallback();
+      held.push({ route, answer: await route.fetch() });
+    });
+
+    // The second card's move waits until the first move's read has been taken.
+    let letSecondGo;
+    const secondMay = new Promise((resolve) => { letSecondGo = resolve; });
+    await page.route(`**/work-items/${second}/transition`, async (route) => {
+      await secondMay;
+      await route.continue();
+    });
+
+    const triage = page.locator('[data-stage="triage"][data-testid="bwx-column"]');
+    await card(first).dragTo(triage);
+    // The card settles without waiting for the board to be read again.
+    await expect(card(first)).toHaveAttribute('data-stage', 'triage');
+    await expect.poll(() => held.length, { timeout: 60_000 }).toBeGreaterThan(0);
+
+    const moved = page.waitForResponse((response) => response.url().includes(`/work-items/${second}/transition`));
+    await card(second).dragTo(triage);
+    letSecondGo();
+    expect((await moved).status()).toBe(200);
+
+    // The read from before the second move arrives: it must not put that card back.
+    await held[0].route.fulfill({ response: held[0].answer });
+    await page.waitForTimeout(500);
+    await expect(card(second)).toHaveAttribute('data-stage', 'triage');
+    await expect(card(first)).toHaveAttribute('data-stage', 'triage');
+
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    for (const one of held.slice(1)) await one.route.fulfill({ response: one.answer }).catch(() => undefined);
+
+    await page.reload();
+    await page.waitForSelector('[data-testid="bwx-board"]');
+    await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
+    await expect(card(first)).toHaveAttribute('data-stage', 'triage');
+    await expect(card(second)).toHaveAttribute('data-stage', 'triage');
+  });
+
+  test('Released shows the last two weeks, and a long column the first thirty, with the rest a click away (#616)', async ({ page }) => {
+    test.slow();
+
+    const { siteId } = await seed(page, 'Long');
+    const now = Math.floor(Date.now() / 1000);
+
+    // The site's one card, as forty: three released this week, five long ago, and thirty-two at Triage.
+    await page.route((url) => url.pathname.endsWith('/work-items') && url.search.includes(`client_site_id=${siteId}`), async (route) => {
+      if ('GET' !== route.request().method()) return route.fallback();
+      const response = await route.fetch();
+      const body = await response.json();
+      const [ one ] = body.items;
+      const copy = (n, stage, releasedAt) => ({ ...one, id: `${one.id}x${n}`, title: `Copy ${n}`, stage, released_at: releasedAt, next_step: null });
+      body.items = [
+        ...[0, 1, 2].map((n) => copy(n, 'released', now - n * 86400)),
+        ...[3, 4, 5, 6, 7].map((n) => copy(n, 'released', now - 40 * 86400)),
+        ...Array.from({ length: 32 }, (_, n) => copy(100 + n, 'triage', 0)),
+      ];
+      await route.fulfill({ response, json: body });
+    });
+
+    await page.goto('/blueworx-forge/');
+    await page.waitForSelector('[data-testid="bwx-board"]');
+    await page.selectOption('[data-testid="bwx-client-choice"]', siteId);
+
+    const column = (stage) => page.locator(`[data-testid="bwx-column"][data-stage="${stage}"]`);
+    await expect(column('released').getByTestId('bwx-card')).toHaveCount(3, { timeout: 60_000 });
+    await expect(column('released').getByTestId('bwx-column-count')).toHaveText('8');
+    // Newest first.
+    await expect(column('released').getByTestId('bwx-card').first()).toContainText('Copy 0');
+
+    const older = column('released').getByTestId('bwx-column-more');
+    await expect(older).toHaveText('Show older (5)');
+    await older.click();
+    await expect(column('released').getByTestId('bwx-card')).toHaveCount(8);
+    await expect(older).toHaveText('Show fewer');
+
+    await expect(column('triage').getByTestId('bwx-card')).toHaveCount(30);
+    await column('triage').getByTestId('bwx-column-more').click();
+    await expect(column('triage').getByTestId('bwx-card')).toHaveCount(32);
+  });
+
   test('a move the workflow refuses puts the card back and says why', async ({ page }) => {
     const { siteId } = await seed(page, 'Refused');
     await openBoardOn(page, siteId);

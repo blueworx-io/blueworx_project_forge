@@ -27,12 +27,24 @@ export const RULES: RuleSection[] = [
         why: 'People plan and talk about releases by week, so the weeks are there without opening the release.',
       },
       {
+        what: 'On the board, the Released column shows what went live in the last two weeks, newest first, with Show older for the rest. Any other column shows its first thirty cards, with Show more for the rest. Each column\'s count is always the full number.',
+        why: 'Long columns were hard to scan and slowed the board down, and older work is still one click away.',
+      },
+      {
+        what: 'A card dragged to another column settles there straight away, and the board catches up in the background. Several cards can be moved one after another without any of them jumping back.',
+        why: 'Waiting for the whole board to reload after every move made moving work slow, and a second quick move could be refused.',
+      },
+      {
         what: 'Projects, releases and features nest inside each other, and bugs, tasks and feedback can sit under any of them or on their own. Bugs, tasks and feedback never have anything under them, and a level can only be changed if it still fits what it sits under and what sits under it.',
         why: 'A client\'s work reads as projects made of releases, and the order of the levels keeps anything from ending up inside itself.',
       },
       {
         what: 'The Projects page lists every project, the active ones first and the released or closed ones behind Completed. Its dates and progress come from the releases inside, its Releases count is only the releases in it, and a project with none reads Ongoing and No work yet.',
         why: 'A project has no dates or progress of its own, so it never shows a made-up zero.',
+      },
+      {
+        what: 'Work already on the site can be added to a project or a release from the project page. It moves inside, so it counts towards that progress and those dates, and only what may sit there by the level rules is offered. The cross beside a piece of work takes it out again, leaving it on the site under nothing.',
+        why: 'Work is often made before anyone knows which release it belongs to, and it has to be gathered in without making it again.',
       },
       {
         what: 'A project or release can be archived at any phase, from its own page, and its phase is left as it was. It leaves the Projects lists, the client\'s page and the pickers, and is found under Archived on the Projects page, where it can be restored. Nothing new can be added under it while it is archived, and work already under it stays on the boards and in capacity, with the count shown beside an archived release. Only an archived project or release can be deleted, after a confirmation, and only an admin can delete. Deleting removes only that project or release: whatever was under it is kept and moves up to its parent, or is left with no parent, and any support hours it was holding go back to the client. Anyone who can move or end work can archive and restore.',
@@ -590,6 +602,10 @@ export const RULES: RuleSection[] = [
     id: 'people',
     title: 'Who can do what',
     rules: [
+      {
+        what: 'An administrator can check for a newer Forge and install it from Settings, without going into WordPress admin. It installs the same release WordPress would offer under Plugins, and only when it is newer. Client sites still update the way they always have.',
+        why: 'Keeping Forge up to date should not mean leaving it.',
+      },
       {
         what: 'A lead is a business we are talking to, kept on the Leads page under Clients. Only administrators add, edit, move or archive leads. A lead moves Lead → Opportunity → Client, or into the archive, from where it can be restored.',
         why: 'Prospects need somewhere to live before they are clients, without anyone mistaking them for one.',
