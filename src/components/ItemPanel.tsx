@@ -2293,14 +2293,32 @@ export function ItemPanel( {
             ) ) }
 
             { /*
-                Links and images (2026-09-19), from the documentation period
+                The stage boxes (2026-09-18): every before-item that wants
+                words, a number or a date, shown only while a next stage asks
+                for it or once it holds an answer. Saved with Save changes as
+                a gate record, so who answered and when is kept.
+             */ }
+            { ! chore && boxRows().map( ( row ) => (
+              <StageBox
+                key={ row.id }
+                row={ row }
+                value={ boxes[ row.id ] ?? recorded( row.id ) }
+                allowed={ allowed( row ) }
+                onChange={ ( value ) => setBoxes( { ...boxes, [ row.id ]: value } ) }
+              />
+            ) ) }
+            </div>
+
+            { /*
+                Attachments (#570), a section of its own: documents, links and
+                images (2026-09-19), from the documentation period
                 on. Both optional: a link is a label and an address, saved
                 with everything else; an image goes up as soon as it is
                 dropped, because a file is not a draft.
              */ }
             { staff && ! chore && ( reached( 'documentation-period' ) || 0 < links.length || 0 < item.images.length || 0 < ( item.documents ?? [] ).length ) && (
-              <section className="bwx-attachments" data-testid="bwx-attachments" aria-labelledby="bwx-attachments-title">
-                <h3 id="bwx-attachments-title" className="bwx-attachments-title">Attachments</h3>
+              <div className="bwx-attachments" data-testid="bwx-attachments" data-collapsed={ isFolded( 'attachments' ) ? 'true' : 'false' }>
+                { head( 'attachments', 'Attachments' ) }
 
                 { /* Documents (#569): uploaded to the media library, opened from here. */ }
                 <div className="bwx-field" data-testid="bwx-documents">
@@ -2471,25 +2489,8 @@ export function ItemPanel( {
                   </label>
                 ) }
               </div>
-              </section>
+              </div>
             ) }
-
-            { /*
-                The stage boxes (2026-09-18): every before-item that wants
-                words, a number or a date, shown only while a next stage asks
-                for it or once it holds an answer. Saved with Save changes as
-                a gate record, so who answered and when is kept.
-             */ }
-            { ! chore && boxRows().map( ( row ) => (
-              <StageBox
-                key={ row.id }
-                row={ row }
-                value={ boxes[ row.id ] ?? recorded( row.id ) }
-                allowed={ allowed( row ) }
-                onChange={ ( value ) => setBoxes( { ...boxes, [ row.id ]: value } ) }
-              />
-            ) ) }
-            </div>
 
             { /*
                 Who does the work, what it costs and when it happens.

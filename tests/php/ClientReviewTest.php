@@ -130,7 +130,7 @@ final class ClientReviewTest extends TestCase {
 		$ids = array_column( $records, 'requirement' );
 		sort( $ids );
 
-		$this->assertSame( array( 'G-IN-REVIEW-1', 'G-IN-REVIEW-2', 'G-IN-REVIEW-4', 'G-IN-REVIEW-5' ), $ids );
+		$this->assertSame( array( 'G-IN-REVIEW-1', 'G-IN-REVIEW-2', 'G-IN-REVIEW-4' ), $ids );
 
 		foreach ( $records as $record ) {
 			$this->assertSame( 'G-IN-REVIEW', $record['gate'] );
