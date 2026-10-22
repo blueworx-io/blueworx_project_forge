@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.204.1] - 2026-10-22
+
+### Changed
+
+- Forge has a new menu icon.
+
+### Fixed
+
+- A task's links can be clicked, and open in a new tab.
+- New task images are kept out of the public media library, under names nobody can guess, the same as documents.
+
 ## [2.204.0] - 2026-10-22
 
 ### Added

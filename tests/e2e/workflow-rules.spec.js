@@ -162,7 +162,15 @@ test('links are saved with the task, an image goes up on its own, and dependenci
   expect(uploaded.status(), await uploaded.text()).toBe(200);
   const withImage = (await uploaded.json()).item;
   expect(withImage.images).toHaveLength(1);
-  expect(withImage.images[0].url).toContain('dot');
+  expect(withImage.images[0].name).toBe('dot.png');
+
+  // #598. Kept private, as documents are: not in the public media list, under a name that is not the file's own.
+  expect(withImage.images[0].url).not.toContain('dot');
+  const anon = await admin.context.browser().newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL });
+  const publicMedia = await anon.request.get('/wp-json/wp/v2/media?per_page=100');
+  expect(JSON.stringify(await publicMedia.json())).not.toContain(withImage.images[0].url);
+  await anon.close();
+  expect((await admin.api.request.get(withImage.images[0].url)).status()).toBe(200);
 
   const removed = await admin.api.request.delete(`/wp-json/blueworx-forge/v1/work-items/${item.id}/images/${withImage.images[0].id}`, { headers: admin.api.headers });
   expect(removed.status()).toBe(200);
@@ -187,6 +195,20 @@ test('links are saved with the task, an image goes up on its own, and dependenci
 
   // The links the save carries.
   await expect(page.getByTestId('bwx-link-row')).toHaveCount(2);
+
+  // #619. Each opens in a new tab.
+  const open = page.getByTestId('bwx-link-open');
+  await expect(open).toHaveCount(2);
+  await expect(open.first()).toHaveAttribute('href', 'https://example.test/brief');
+  await expect(open.first()).toHaveAttribute('target', '_blank');
+  await expect(open.first()).toHaveAttribute('rel', /noopener/);
+  await expect(open.first()).toHaveAccessibleName('Open The brief in a new tab');
+
+  // One still being typed isn't a link yet.
+  await page.getByTestId('bwx-link-add').click();
+  await page.getByTestId('bwx-link-url').last().fill('javascript:alert(1)');
+  await expect(open).toHaveCount(2);
+  await page.getByRole('button', { name: 'Remove link 3' }).click();
 
   // Off again lets go of them.
   await toggle.click();

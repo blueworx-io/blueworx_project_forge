@@ -4142,10 +4142,10 @@ td[ data-band='over' ] {
   background: var( --brand-700, var( --brand-600 ) );
 }
 
-/* Links: a label, an address, and a way to drop the row. */
+/* Links: a label, an address, a way to open it (#619), and a way to drop the row. */
 .bwx-link-row {
   display: grid;
-  grid-template-columns: minmax( 0, 2fr ) minmax( 0, 3fr ) auto;
+  grid-template-columns: minmax( 0, 2fr ) minmax( 0, 3fr ) 24px auto;
   gap: 8px;
   align-items: center;
 }

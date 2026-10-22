@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { alphabetical } from '../alphabetical.mjs';
 import { CopyLink } from './CopyLink';
 import { SitsUnder } from './SitsUnder';
@@ -330,6 +331,11 @@ function weekOf( date: string ): string {
 /** Hours, without a trailing decimal nobody needs. */
 function hours( value: number ): string {
   return `${ Math.round( value * 10 ) / 10 }`;
+}
+
+/** A link worth opening: a web address, never javascript: or the like (#619). */
+function openable( url: string ): boolean {
+  return /^https?:\/\/\S+$/i.test( url.trim() );
 }
 
 /** Blocked time, said the way a person would say it. */
@@ -2483,6 +2489,21 @@ export function ItemPanel( {
                       value={ row.url }
                       onChange={ ( event ) => setLinks( links.map( ( one, i ) => ( i === at ? { ...one, url: event.target.value } : one ) ) ) }
                     />
+                    { /* #619. Opens in a new tab, and only a web address does. */ }
+                    { openable( row.url ) ? (
+                      <a
+                        className="bwx-icon-button"
+                        data-testid="bwx-link-open"
+                        href={ row.url.trim() }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={ `Open ${ row.label.trim() || row.url.trim() } in a new tab` }
+                      >
+                        <ExternalLink size={ 16 } aria-hidden="true" />
+                      </a>
+                    ) : (
+                      <span />
+                    ) }
                     <button
                       type="button"
                       className="bwx-icon-button"
