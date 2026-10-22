@@ -26,6 +26,7 @@ import { RichText, Select } from '../kit';
 import type { SiteOption } from '../sites';
 import { Inline, NOTHING_SAID, Notice, Screen } from './States';
 import type { Said, SaidTone } from './States';
+import { ReminderActions } from './ReminderForm';
 
 interface Detail {
   item: WorkItem;
@@ -1857,6 +1858,22 @@ export function ItemPanel( {
                 clientReviews={ CLIENT === item.reviewer_id }
               />
             ) ) }
+
+            { /* #610. A reminder's copy: the reminder itself, changed or turned into a task here. */ }
+            { staff && ( item.recurring_id ?? '' ).startsWith( 'rem_' ) && (
+              <ReminderActions
+                reminderId={ item.recurring_id ?? '' }
+                people={ staffList }
+                onChanged={ () => {
+                  void load( true );
+                  onChanged();
+                } }
+                onConverted={ () => {
+                  onChanged();
+                  onClose();
+                } }
+              />
+            ) }
 
             { /*
                 One place for everything that moves the work (2026-09-19):

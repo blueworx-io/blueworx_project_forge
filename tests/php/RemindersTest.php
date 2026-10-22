@@ -29,12 +29,13 @@ final class RemindersTest extends TestCase {
 		self::assertSame( '2026-10-05', $checked['values']['ends_on'] );
 	}
 
-	public function test_title_people_and_start_are_required_notes_and_end_are_not(): void {
+	public function test_title_and_people_are_required_notes_and_both_dates_are_not(): void {
 		$checked = Reminders::validate( array(), false );
 
 		self::assertSame( 'A reminder needs a title.', $checked['errors']['title'] );
 		self::assertSame( 'Choose at least one person.', $checked['errors']['assignees'] );
-		self::assertArrayHasKey( 'starts_on', $checked['errors'] );
+		// #611. Either date, both or neither.
+		self::assertArrayNotHasKey( 'starts_on', $checked['errors'] );
 		self::assertArrayNotHasKey( 'ends_on', $checked['errors'] );
 		self::assertArrayNotHasKey( 'description', $checked['errors'] );
 	}
@@ -79,6 +80,41 @@ final class RemindersTest extends TestCase {
 
 		self::assertSame( '2026-10-01', $values['planned_due'] );
 		self::assertSame( '<p>About the invoice.</p>', $values['problem'] );
+	}
+
+	public function test_a_reminder_may_have_no_dates_and_its_copies_have_none_either(): void {
+		$checked = Reminders::validate( array_merge( $this->good(), array( 'starts_on' => '', 'ends_on' => '' ) ), false );
+
+		self::assertSame( array(), $checked['errors'] );
+		self::assertSame( '', $checked['values']['starts_on'] );
+		self::assertSame( '', $checked['values']['ends_on'] );
+
+		$values = Reminders::values( array( 'id' => 'rem_1', 'title' => 'Someday', 'description' => '', 'starts_on' => '', 'ends_on' => '' ), 'usr_abc123', '2026-10-10' );
+
+		self::assertSame( '', $values['planned_start'] );
+		self::assertSame( '', $values['planned_due'] );
+	}
+
+	public function test_a_reminder_with_only_an_end_runs_from_today_to_that_day(): void {
+		$checked = Reminders::validate( array_merge( $this->good(), array( 'starts_on' => '' ) ), false );
+
+		self::assertSame( array(), $checked['errors'] );
+
+		$source = array( 'id' => 'rem_1', 'title' => 'By Friday', 'description' => '', 'starts_on' => '', 'ends_on' => '2026-10-20' );
+		$values = Reminders::values( $source, 'usr_abc123', '2026-10-10' );
+
+		self::assertSame( '2026-10-10', $values['planned_start'] );
+		self::assertSame( '2026-10-20', $values['planned_due'] );
+
+		// Once the day has passed it is that day, never later than it.
+		self::assertSame( '2026-10-20', Reminders::values( $source, 'usr_abc123', '2026-10-25' )['planned_start'] );
+	}
+
+	public function test_a_task_converted_from_an_undated_reminder_is_due_today(): void {
+		$values = Reminders::task_values( array( 'id' => 'rem_1', 'title' => 'Someday', 'description' => '', 'starts_on' => '', 'ends_on' => '' ), array( 'usr_abc123' ), '2026-10-10' );
+
+		self::assertSame( '2026-10-10', $values['planned_start'] );
+		self::assertSame( '2026-10-10', $values['planned_due'] );
 	}
 
 	public function test_a_title_used_as_the_problem_is_escaped_not_trusted_as_html(): void {
@@ -225,5 +261,28 @@ final class RemindersTest extends TestCase {
 				)
 			)
 		);
+	}
+
+	public function test_a_reminder_is_converted_once_a_copy_went_into_a_task_and_none_is_left_to_do(): void {
+		$moved  = array(
+			'ticks'            => array(),
+			'terminal_outcome' => 'cancelled',
+			'duplicate_of'     => 'itm_9',
+		);
+		$ticked = array(
+			'ticks'            => array( 'usr_a' => 1 ),
+			'terminal_outcome' => '',
+			'duplicate_of'     => '',
+		);
+		$open   = array(
+			'ticks'            => array(),
+			'terminal_outcome' => '',
+			'duplicate_of'     => '',
+		);
+
+		self::assertTrue( Reminders::converted( array( $moved, $ticked ) ) );
+		self::assertFalse( Reminders::converted( array( $moved, $open ) ) );
+		self::assertFalse( Reminders::converted( array( $ticked ) ) );
+		self::assertFalse( Reminders::converted( array() ) );
 	}
 }

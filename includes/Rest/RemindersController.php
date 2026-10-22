@@ -68,6 +68,21 @@ final class RemindersController {
 			)
 		);
 
+		// #610. One reminder, for the task panel a copy opens in.
+		Server::register_route(
+			$route_namespace,
+			'/reminders/(?P<reminder_id>[A-Za-z0-9_\-]+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( self::class, 'show' ),
+				'permission_callback' => array( Permissions::class, 'signed_in' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'The callback refuses a reminder on a site the caller does not reach.',
+				),
+			)
+		);
+
 		foreach ( array(
 			'PATCH'  => 'update',
 			'DELETE' => 'remove',
@@ -123,14 +138,46 @@ final class RemindersController {
 		$sites   = array_column( Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' ), 'id' );
 		$sources = Sources::for_sites( $sites, array( Sources::REMINDER ) );
 		$copies  = Reminders::copies_for( array_column( $sources, 'id' ) );
+		$listed  = array();
+
+		foreach ( $sources as $source ) {
+			$mine = $copies[ (string) $source['id'] ] ?? array();
+
+			// #612. One turned into a task before a convert ended it is gone too.
+			if ( Reminders::converted( $mine ) ) {
+				continue;
+			}
+
+			$listed[] = self::shape( $source, $mine );
+		}
 
 		return rest_ensure_response(
 			array(
 				'ok'        => true,
 				'denied'    => false,
-				'reminders' => array_map( static fn( array $source ): array => self::shape( $source, $copies[ (string) $source['id'] ] ?? array() ), $sources ),
+				'reminders' => $listed,
 			)
 		);
+	}
+
+	/**
+	 * One reminder (#610), with whether the caller may change it.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function show( WP_REST_Request $request ) {
+		$source = Sources::get( (string) $request['reminder_id'] );
+
+		if ( null === $source || Sources::REMINDER !== (string) $source['kind'] || Sources::ENDED === (string) $source['status'] ) {
+			return Boundary::absent( 'reminder' );
+		}
+
+		if ( null === RecurringController::site_for( (string) $source['client_site_id'] ) ) {
+			return Boundary::hidden( 'reminder' );
+		}
+
+		return self::answer( $source );
 	}
 
 	/**
@@ -251,7 +298,7 @@ final class RemindersController {
 	/**
 	 * Turns a reminder into a task (#574): one task for everyone who had not
 	 * ticked it yet, carrying its title, client site, people and time. Their
-	 * copies close into it; the reminder itself carries on.
+	 * copies close into it, and the reminder leaves reminders (#612).
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error

@@ -141,19 +141,19 @@ final class Reminders {
 			}
 		}
 
+		// #611. Both dates are optional: either, both or neither.
 		foreach ( array( 'starts_on', 'ends_on' ) as $date ) {
-			if ( ! array_key_exists( $date, $input ) && ( $partial || 'ends_on' === $date ) ) {
+			if ( ! array_key_exists( $date, $input ) ) {
+				if ( ! $partial ) {
+					$values[ $date ] = '';
+				}
 				continue;
 			}
 
 			$value = trim( (string) ( $input[ $date ] ?? '' ) );
 
 			if ( '' === $value ) {
-				if ( 'ends_on' === $date ) {
-					$values['ends_on'] = '';
-				} else {
-					$errors['starts_on'] = 'Say the day.';
-				}
+				$values[ $date ] = '';
 				continue;
 			}
 
@@ -166,7 +166,7 @@ final class Reminders {
 			}
 		}
 
-		if ( isset( $values['starts_on'], $values['ends_on'] ) && '' !== $values['ends_on'] && $values['ends_on'] < $values['starts_on'] ) {
+		if ( isset( $values['starts_on'], $values['ends_on'] ) && '' !== $values['starts_on'] && '' !== $values['ends_on'] && $values['ends_on'] < $values['starts_on'] ) {
 			$errors['ends_on'] = self::ENDS_EARLY;
 		}
 
@@ -189,14 +189,22 @@ final class Reminders {
 	/**
 	 * One person's copy. Pure, so the shape can be tested.
 	 *
+	 * #611. With no dates the copy has none, and waits under No date in My
+	 * tasks. With only an end it runs from today to that day.
+	 *
 	 * @param array<string, mixed> $source The reminder.
 	 * @param string               $person Person id.
+	 * @param string               $today  YYYY-MM-DD; the site's today when empty.
 	 * @return array<string, mixed>
 	 */
-	public static function values( array $source, string $person ): array {
+	public static function values( array $source, string $person, string $today = '' ): array {
 		$description = trim( (string) $source['description'] );
 		$starts      = (string) $source['starts_on'];
 		$ends        = '' === (string) $source['ends_on'] ? $starts : (string) $source['ends_on'];
+
+		if ( '' === $starts && '' !== $ends ) {
+			$starts = min( '' === $today ? wp_date( 'Y-m-d' ) : $today, $ends );
+		}
 
 		return array(
 			'title'            => (string) $source['title'],
@@ -274,11 +282,34 @@ final class Reminders {
 	}
 
 	/**
+	 * Whether a reminder was turned into a task (#612): a copy went into one
+	 * and nobody has one still to do. Pure, so the rule can be tested.
+	 *
+	 * @param array<int, array<string, mixed>> $copies Its copies.
+	 * @return bool
+	 */
+	public static function converted( array $copies ): bool {
+		$moved = false;
+
+		foreach ( $copies as $item ) {
+			if ( '' !== self::converted_to( $item ) ) {
+				$moved = true;
+			} elseif ( array() === (array) $item['ticks'] && '' === (string) ( $item['terminal_outcome'] ?? '' ) ) {
+				return false;
+			}
+		}
+
+		return $moved;
+	}
+
+	/**
 	 * Turns a reminder's open copies into one task for the people they
 	 * belong to (#574), and closes those copies into it.
 	 *
-	 * Luke, 2026-10-21: the reminder itself carries on. It is not ended or
-	 * deleted, and copies already ticked stay as they were.
+	 * #612: the reminder then leaves reminders altogether. It is ended, not
+	 * deleted, so copies already ticked stay as they were, done, with a
+	 * source. Only when somebody's copy could not close does it stay, so
+	 * they still have it.
 	 *
 	 * Nothing is changed until every open copy is known to close, so a
 	 * Blocked copy refuses the whole thing rather than leaving one person
@@ -382,15 +413,17 @@ final class Reminders {
 			$closed[] = (string) $person;
 		}
 
-		// A later convert, after somebody is added, claims afresh.
-		Sources::update( $id, array(), (int) $source['record_version'] );
-
 		if ( array() === $left ) {
+			Sources::end( $id );
+
 			return array(
 				'code' => '',
 				'task' => $task,
 			);
 		}
+
+		// A later convert, for those left, claims afresh.
+		Sources::update( $id, array(), (int) $source['record_version'] );
 
 		if ( array() === $closed ) {
 			Items::delete( (string) $task['id'] );
@@ -413,7 +446,10 @@ final class Reminders {
 	 * @return int How many copies were made.
 	 */
 	public static function make( array $source ): int {
-		if ( ! Occurrences::claim( (string) $source['id'], (string) $source['starts_on'] ) ) {
+		// A reminder with no start date (#611) still claims its one making.
+		$claim = '' === (string) $source['starts_on'] ? 'undated' : (string) $source['starts_on'];
+
+		if ( ! Occurrences::claim( (string) $source['id'], $claim ) ) {
 			return 0;
 		}
 
@@ -427,7 +463,7 @@ final class Reminders {
 			}
 
 			if ( 0 === $made ) {
-				Occurrences::record_item( (string) $source['id'], (string) $source['starts_on'], (string) $item['id'] );
+				Occurrences::record_item( (string) $source['id'], $claim, (string) $item['id'] );
 			}
 
 			++$made;
@@ -579,7 +615,7 @@ final class Reminders {
 
 		Transition::record_creation( $item, $author );
 		/* translators: %s: a date */
-		Transition::place( $item, Stages::UP_NEXT, $author, sprintf( __( 'Reminder for %s', 'blueworx-forge' ), (string) $source['starts_on'] ) );
+		Transition::place( $item, Stages::UP_NEXT, $author, '' === (string) $source['starts_on'] ? __( 'Reminder.', 'blueworx-forge' ) : sprintf( __( 'Reminder for %s', 'blueworx-forge' ), (string) $source['starts_on'] ) );
 
 		return $item;
 	}

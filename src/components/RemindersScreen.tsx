@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
-import type { ClientSite, Person, Reminder, Stage } from '../types';
-import { api, ApiError, isDenied, messageFor } from '../api';
+import type { Person, Reminder, Stage } from '../types';
+import { api, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
-import { Aside, DataView, EmptyState, RichText } from '../kit';
+import { DataView, EmptyState } from '../kit';
 import type { Column } from '../kit';
 import { everybody, ItemPanel } from './ItemPanel';
-import { HoursSelect, hourLabel } from '../hours';
+import { hourLabel } from '../hours';
 import { Screen } from './States';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
+import { CATEGORIES, convertReminder, hasOpen, ReminderForm, siteLabel } from './ReminderForm';
+import type { Site } from './ReminderForm';
 
 /**
  * Reminders (2026-09-25): a task on a fixed day or over a few, for one or
@@ -20,91 +22,20 @@ import { ALL_SITES } from '../sites';
  * ticked.
  */
 
-type Site = ClientSite & { client_name: string };
-
-const CATEGORIES: Array< { id: Reminder[ 'category' ]; label: string } > = [
-  { id: 'campaign', label: 'Campaign' },
-  { id: 'deadline', label: 'Deadline' },
-  { id: 'finance', label: 'Finance' },
-  { id: 'general', label: 'General' },
-  { id: 'marketing', label: 'Marketing' },
-  { id: 'other', label: 'Other' },
-  { id: 'sales', label: 'Sales' },
-];
-
-interface Draft {
-  title: string;
-  description: string;
-  category: Reminder[ 'category' ];
-  client_site_id: string;
-  assignees: string[];
-  starts_on: string;
-  ends_on: string;
-  /** Each person's time (#573), as the hours list stores it; '' for none. */
-  hours_each: string;
-}
-
-function today(): string {
-  const now = new Date();
-
-  return `${ now.getFullYear() }-${ String( now.getMonth() + 1 ).padStart( 2, '0' ) }-${ String( now.getDate() ).padStart( 2, '0' ) }`;
-}
-
-function blank( site = '' ): Draft {
-  return { title: '', description: '', category: 'general', client_site_id: site, assignees: [], starts_on: today(), ends_on: '', hours_each: '' };
-}
-
-/** A title without its type in front: "General: Catch up" reads "Catch up". */
-function bare( title: string ): string {
-  const prefix = CATEGORIES.find( ( option ) => title.startsWith( `${ option.label }: ` ) );
-
-  return prefix ? title.slice( prefix.label.length + 2 ) : title;
-}
-
-/** A reminder's title is saved with its type in front (2026-09-27). */
-function titled( draft: Draft ): string {
-  const label = CATEGORIES.find( ( option ) => option.id === draft.category )?.label;
-  const title = bare( draft.title.trim() );
-
-  return label ? `${ label }: ${ title }` : title;
-}
-
-function fromReminder( reminder: Reminder ): Draft {
-  return {
-    title: bare( reminder.title ),
-    description: reminder.description,
-    category: reminder.category,
-    client_site_id: reminder.client_site_id,
-    assignees: reminder.assignees,
-    starts_on: reminder.starts_on,
-    ends_on: reminder.ends_on,
-    hours_each: 0 < reminder.hours_each ? String( reminder.hours_each ) : '',
-  };
-}
-
-function complete( draft: Draft ): boolean {
-  return '' !== draft.title.trim() && '' !== draft.client_site_id && 0 < draft.assignees.length && '' !== draft.starts_on && ( '' === draft.ends_on || draft.ends_on >= draft.starts_on );
-}
-
-/** "3 Oct", or "1 Oct – 5 Oct" for a period. */
+/** "3 Oct", "1 Oct – 5 Oct" for a period, "Until 5 Oct", or "No date" (#611). */
 function when( reminder: Reminder ): string {
   const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' } );
+
+  if ( '' === reminder.starts_on ) {
+    return '' === reminder.ends_on ? 'No date' : `Until ${ day( reminder.ends_on ) }`;
+  }
 
   return '' === reminder.ends_on || reminder.ends_on === reminder.starts_on ? day( reminder.starts_on ) : `${ day( reminder.starts_on ) } – ${ day( reminder.ends_on ) }`;
 }
 
-/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. A copy turned into a task is not done, so a converted reminder stays listed (#574). */
+/** Finished once every copy is ticked. A reminder with no copies left is nobody's to do, and counts too. A converted one is not listed at all (#612). */
 function isCompleted( reminder: Reminder ): boolean {
   return reminder.copies.every( ( copy ) => copy.done );
-}
-
-/** Somebody still has it to do, so there is something to turn into a task (#574). */
-function hasOpen( reminder: Reminder ): boolean {
-  return reminder.copies.some( ( copy ) => ! copy.done && '' === copy.converted_to );
-}
-
-function siteLabel( site: Site ): string {
-  return site.client_name && site.client_name !== site.name ? `${ site.client_name } · ${ site.name }` : site.client_name || site.name;
 }
 
 export function RemindersScreen() {
@@ -172,19 +103,18 @@ export function RemindersScreen() {
     }
   }
 
-  // #574. One task for everyone still to do it; the reminder carries on.
+  // #574. One task for everyone still to do it, which opens; the reminder goes (#612).
   async function convert( reminder: Reminder ) {
-    if ( ! window.confirm( `Turn "${ reminder.title }" into a task? Everyone who hasn't ticked it yet moves onto one task with the same title, client and time. The reminder itself stays.` ) ) {
-      return;
-    }
-
     setBusy( true );
     setNotice( '' );
 
     try {
-      const answer = await api< { item: { id: string } } >( `/reminders/${ reminder.id }/convert`, { method: 'POST' } );
-      await load();
-      setOpened( answer.item.id );
+      const task = await convertReminder( reminder );
+
+      if ( '' !== task ) {
+        await load();
+        setOpened( task );
+      }
     } catch ( error ) {
       setNotice( messageFor( error, 'That did not work.' ) );
     } finally {
@@ -213,28 +143,7 @@ export function RemindersScreen() {
     { key: 'who', label: 'Who', width: 200, wrap: true, render: ( r ) => r.assignees.map( name ).join( ', ' ) },
     { key: 'when', label: 'When', width: 150, sortBy: ( r ) => r.starts_on, render: ( r ) => when( r ) },
     { key: 'time', label: 'Time each', width: 110, sortBy: ( r ) => r.hours_each, render: ( r ) => ( 0 < r.hours_each ? hourLabel( r.hours_each ) : '—' ) },
-    {
-      key: 'done',
-      label: 'Done',
-      width: 170,
-      render: ( r ) => {
-        const task = r.copies.find( ( copy ) => '' !== copy.converted_to )?.converted_to ?? '';
-
-        return (
-          <>
-            { `${ r.copies.filter( ( copy ) => copy.done ).length } of ${ r.copies.length } done` }
-            { '' !== task && (
-              <>
-                { ' · ' }
-                <button type="button" className="bwx-row-open" data-testid="bwx-reminder-converted" onClick={ () => setOpened( task ) }>
-                  Converted to task
-                </button>
-              </>
-            ) }
-          </>
-        );
-      },
-    },
+    { key: 'done', label: 'Done', width: 170, render: ( r ) => `${ r.copies.filter( ( copy ) => copy.done ).length } of ${ r.copies.length } done` },
     {
       key: 'actions',
       label: '',
@@ -323,156 +232,5 @@ export function RemindersScreen() {
 
       { '' !== opened && <ItemPanel itemId={ opened } stages={ stages } onClose={ () => setOpened( '' ) } onChanged={ () => void load() } /> }
     </>
-  );
-}
-
-function ReminderForm( {
-  reminder,
-  people,
-  sites,
-  site,
-  onClose,
-  onSaved,
-}: {
-  reminder: Reminder | null;
-  people: Person[];
-  sites: Site[];
-  /** The client a new reminder starts on. */
-  site: string;
-  onClose: () => void;
-  onSaved: () => void;
-} ) {
-  const [ draft, setDraft ] = useState< Draft >( () => ( reminder ? fromReminder( reminder ) : blank( site ) ) );
-  const [ notice, setNotice ] = useState( '' );
-  const [ busy, setBusy ] = useState( false );
-
-  const set = < K extends keyof Draft >( key: K, value: Draft[ K ] ) => setDraft( { ...draft, [ key ]: value } );
-
-  async function save() {
-    setBusy( true );
-    setNotice( '' );
-
-    const body = {
-      title: titled( draft ),
-      description: draft.description,
-      category: draft.category,
-      assignees: draft.assignees,
-      starts_on: draft.starts_on,
-      ends_on: draft.ends_on,
-      hours_each: draft.hours_each,
-    };
-
-    try {
-      if ( reminder ) {
-        await api( `/reminders/${ reminder.id }`, { method: 'PATCH', body: { ...body, record_version: reminder.record_version } } );
-      } else {
-        await api( '/reminders', { method: 'POST', body: { ...body, client_site_id: draft.client_site_id } } );
-      }
-
-      onSaved();
-    } catch ( error ) {
-      const fields = error instanceof ApiError ? ( error.data.fields as Record< string, string > | undefined ) : undefined;
-
-      setNotice( fields ? Object.values( fields ).join( ' ' ) : messageFor( error, 'That could not be saved.' ) );
-    } finally {
-      setBusy( false );
-    }
-  }
-
-  return (
-    <Aside
-      label={ reminder ? 'Edit reminder' : 'Add reminder' }
-      testId="bwx-reminder-form"
-      width={ 560 }
-      onClose={ onClose }
-      footer={
-        <div className="bwx-moves">
-          <button type="button" className="bwx-button" data-testid="bwx-reminder-save" disabled={ busy || ! complete( draft ) } onClick={ () => void save() }>
-            { reminder ? 'Save' : 'Add' }
-          </button>
-          <button type="button" className="bwx-button" data-variant="quiet" onClick={ onClose }>
-            Cancel
-          </button>
-        </div>
-      }
-    >
-      { '' !== notice && (
-        <p className="bwx-notice" data-testid="bwx-reminder-form-notice" role="status">
-          { notice }
-        </p>
-      ) }
-
-      <div className="bwx-field">
-        <label htmlFor="bwx-reminder-title">Title</label>
-        <input id="bwx-reminder-title" className="bwx-input" data-testid="bwx-reminder-title" autoFocus value={ draft.title } onChange={ ( event ) => set( 'title', event.target.value ) } />
-        { '' !== draft.title.trim() && (
-          <span className="bwx-hint" data-testid="bwx-reminder-titled">
-            Saved as { titled( draft ) }
-          </span>
-        ) }
-      </div>
-
-      <div className="bwx-field">
-        <label htmlFor="bwx-reminder-category">Type</label>
-        <select id="bwx-reminder-category" className="bwx-select" data-testid="bwx-reminder-category" value={ draft.category } onChange={ ( event ) => set( 'category', event.target.value as Reminder[ 'category' ] ) }>
-          { CATEGORIES.map( ( option ) => (
-            <option key={ option.id } value={ option.id }>
-              { option.label }
-            </option>
-          ) ) }
-        </select>
-      </div>
-
-      <div className="bwx-field">
-        <label htmlFor="bwx-reminder-client">Client</label>
-        { /* A reminder stays with the client it was made for; edits change the rest. */ }
-        <select id="bwx-reminder-client" className="bwx-select" data-testid="bwx-reminder-client" value={ draft.client_site_id } disabled={ null !== reminder } onChange={ ( event ) => set( 'client_site_id', event.target.value ) }>
-          <option value="">Choose a client</option>
-          { sites.map( ( site ) => (
-            <option key={ site.id } value={ site.id }>
-              { siteLabel( site ) }
-            </option>
-          ) ) }
-        </select>
-      </div>
-
-      <div className="bwx-field">
-        <label htmlFor="bwx-reminder-description">Notes (optional)</label>
-        <RichText id="bwx-reminder-description" testId="bwx-reminder-description" label="Notes" value={ draft.description } onChange={ ( html ) => set( 'description', html ) } />
-      </div>
-
-      <div className="bwx-field bwx-recurring-dates">
-        <span>
-          <label htmlFor="bwx-reminder-starts">On, or from</label>
-          <input id="bwx-reminder-starts" className="bwx-input" type="date" data-testid="bwx-reminder-starts" value={ draft.starts_on } onChange={ ( event ) => set( 'starts_on', event.target.value ) } />
-        </span>
-        <span>
-          <label htmlFor="bwx-reminder-ends">Until (optional)</label>
-          <input id="bwx-reminder-ends" className="bwx-input" type="date" data-testid="bwx-reminder-ends" min={ draft.starts_on } value={ draft.ends_on } onChange={ ( event ) => set( 'ends_on', event.target.value ) } />
-        </span>
-      </div>
-
-      <div className="bwx-field">
-        <label htmlFor="bwx-reminder-hours">Time each (optional)</label>
-        <HoursSelect id="bwx-reminder-hours" testId="bwx-reminder-hours" value={ draft.hours_each } onChange={ ( value ) => set( 'hours_each', value ) } />
-        <span className="bwx-hint">Everyone on it gets the full time, on its first day, in Capacity.</span>
-      </div>
-
-      <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-reminder-people">
-        <legend>Who</legend>
-        { people.map( ( person ) => (
-          <label key={ person.id } className="bwx-recurring-person">
-            <input
-              type="checkbox"
-              data-testid={ `bwx-reminder-person-${ person.id }` }
-              checked={ draft.assignees.includes( person.id ) }
-              onChange={ ( event ) => set( 'assignees', event.target.checked ? [ ...draft.assignees, person.id ] : draft.assignees.filter( ( one ) => one !== person.id ) ) }
-            />
-            { person.display_name }
-          </label>
-        ) ) }
-        { 0 === people.length && <span className="bwx-hint">Nobody on People yet.</span> }
-      </fieldset>
-    </Aside>
   );
 }

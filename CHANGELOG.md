@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.204.0] - 2026-10-22
+
+### Added
+
+- An opened reminder can be edited, or turned into a task, right where it opens, by whoever added it or an administrator.
+- A reminder's dates are both optional. With only an end date it runs from today to that day; with none it waits under a new No date group in My tasks.
+
+### Changed
+
+- A reminder turned into a task now leaves Reminders altogether. Anyone who had already ticked it keeps it as done.
+
 ## [2.203.4] - 2026-10-22
 
 ### Changed
