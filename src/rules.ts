@@ -51,7 +51,7 @@ export const RULES: RuleSection[] = [
         why: 'So a count like 2 of 2 done next to a third piece of work makes sense, and nobody waits on work that has stopped.',
       },
       {
-        what: 'A task\'s Attachments section, a section of its own on the task, holds its images, documents and links, in that order. Documents can be PDFs, Office files, plain text or CSV, up to ten per task and 15 MB each; each opens from the task and can be removed again.',
+        what: 'A task\'s Attachments section, a section of its own on the task, holds its images, documents and links, in that order. Documents can be PDFs, Office files, plain text or CSV, up to ten per task and 15 MB each; each opens from the task and can be removed again. Images and documents are kept out of the public media library, under names nobody can guess, and each link opens in a new tab.',
         why: 'So everything attached to a task is in one place, and only safe kinds of file get in.',
       },
       {

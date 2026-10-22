@@ -87,7 +87,7 @@ final class BoardLink {
 			ManagerRole::USE,
 			Frontend::instance()->app_page_url(),
 			'',
-			'dashicons-hammer',
+			MenuIcon::data_uri(),
 			2
 		);
 	}

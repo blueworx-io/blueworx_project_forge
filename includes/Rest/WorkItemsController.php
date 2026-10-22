@@ -977,7 +977,9 @@ final class WorkItemsController {
 
 	/**
 	 * Adds an image to an item (2026-09-19): the file in the request goes
-	 * into the media library, and the item lists it.
+	 * into the media library, and the item lists it. Kept out of the public
+	 * media list and stored under a name nobody can guess, as documents are
+	 * (#598).
 	 *
 	 * @param WP_REST_Request $request Request, with a file called `image`.
 	 * @return WP_REST_Response|\WP_Error
@@ -1012,15 +1014,19 @@ final class WorkItemsController {
 		$attachment_id = media_handle_upload(
 			'image',
 			0,
-			array(),
+			array( 'post_status' => 'private' ),
 			array(
-				'test_form' => false,
-				'mimes'     => array(
+				'test_form'                => false,
+				'mimes'                    => array(
 					'jpg|jpeg' => 'image/jpeg',
 					'png'      => 'image/png',
 					'gif'      => 'image/gif',
 					'webp'     => 'image/webp',
 				),
+				'unique_filename_callback' => static function ( $dir, $name, $ext ) {
+					unset( $dir, $name );
+					return bin2hex( random_bytes( 12 ) ) . $ext;
+				},
 			)
 		);
 
@@ -1032,7 +1038,7 @@ final class WorkItemsController {
 		$images[] = array(
 			'id'   => (int) $attachment_id,
 			'url'  => (string) wp_get_attachment_url( (int) $attachment_id ),
-			'name' => (string) ( $files['image']['name'] ?? '' ),
+			'name' => sanitize_text_field( wp_basename( (string) ( $files['image']['name'] ?? '' ) ) ),
 		);
 
 		$updated = Items::set_images( (string) $item['id'], $images );

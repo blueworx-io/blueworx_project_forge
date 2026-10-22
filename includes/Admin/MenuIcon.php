@@ -10,7 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Admin;
 
 /**
- * The lucide anvil, in the admin menu.
+ * The lucide bolt, a nut, in the admin menu (#579).
  *
  * Handed to add_menu_page as a data URI and then left to WordPress, which
  * paints a menu's SVG icon the way it paints its own: as the entry's
@@ -18,9 +18,9 @@ namespace Blueworx\Forge\Admin;
  * admin theme does to every other plugin's icon it does to this one — and
  * recoloured on hover and on the current screen by rewriting the SVG's fill.
  *
- * Lucide draws with strokes; WordPress recolours fills. So the anvil is given
- * as a filled silhouette, which is also how every other icon in that menu is
- * drawn. An earlier version painted the outline itself on a box beside the
+ * Lucide draws with strokes; WordPress recolours fills. So the bolt is given
+ * as a filled silhouette, the hexagon with its hole cut out, which is also how
+ * every other icon in that menu is drawn. An earlier version painted the outline itself on a box beside the
  * entry, and sat wrong the moment a site restyled its menu.
  */
 final class MenuIcon {
@@ -42,17 +42,14 @@ final class MenuIcon {
 	}
 
 	/**
-	 * The lucide anvil as a silhouette, filled in one colour.
+	 * The lucide bolt as a silhouette, filled in one colour.
 	 *
 	 * @param string $fill A CSS colour.
 	 * @return string
 	 */
 	public static function svg( string $fill ): string {
 		return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="' . $fill . '">'
-			. '<path d="M7 10H6a4 4 0 0 1-4-4 1 1 0 0 1 1-1h4z"/>'
-			. '<path d="M7 5a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1 7 7 0 0 1-7 7H8a1 1 0 0 1-1-1z"/>'
-			. '<path d="M8 12h2v5H8z"/><path d="M14 12h2v5h-2z"/>'
-			. '<path d="M5 20a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3 1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/>'
+			. '<path fill-rule="evenodd" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM16 12a4 4 0 1 0-8 0 4 4 0 1 0 8 0z"/>'
 			. '</svg>';
 	}
 }
