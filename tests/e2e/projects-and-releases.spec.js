@@ -243,3 +243,47 @@ test('moves an existing task under a release from its panel', async () => {
 
   await fresh.close();
 });
+
+test('existing work is added to a release and a project from the project page, and taken out again (#607)', async () => {
+  test.slow();
+
+  const project = await made({ title: `Gathering ${RUN_ID}`, level: 'project' });
+  const release = await made({ title: `Gathered ${RUN_ID}`, level: 'milestone', parent_id: project.id });
+  const task = await made({ title: `Picked task ${RUN_ID}`, level: 'sub-feature', work_type: 'task' });
+  const feature = await made({ title: `Picked feature ${RUN_ID}`, level: 'feature' });
+
+  const page = await admin.context.newPage();
+  await page.goto(`/blueworx-forge/#screen=project&project=${project.id}`);
+  const row = page.getByTestId('bwx-project-release').filter({ hasText: release.title });
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByTestId('bwx-project-toggle').click();
+
+  // The release offers what can sit in it, and never the project above it.
+  const picker = row.getByTestId('bwx-project-add-existing');
+  await expect(picker).toHaveAccessibleName(`Add existing work to ${release.title}`);
+  await expect(picker.locator(`option[value="${task.id}"]`)).toHaveCount(1, SLOW);
+  await expect(picker.locator(`option[value="${project.id}"]`)).toHaveCount(0);
+
+  await picker.selectOption(task.id);
+  const node = row.locator(`[data-testid="bwx-project-node"][data-item="${task.id}"]`);
+  await expect(node).toBeVisible(SLOW);
+  expect((await admin.api.get(`/work-items/${task.id}`)).item.parent_id).toBe(release.id);
+  // Counted now: the release has work.
+  await expect(row).toContainText('0 of 1 done', SLOW);
+  // And it is not offered twice.
+  await expect(picker.locator(`option[value="${task.id}"]`)).toHaveCount(0);
+
+  // The project takes a feature straight in.
+  const projectPicker = page.getByRole('combobox', { name: `Add existing work to ${project.title}` });
+  await projectPicker.selectOption(feature.id);
+  await expect(page.locator(`[data-testid="bwx-project-node"][data-item="${feature.id}"]`)).toBeVisible(SLOW);
+
+  // Taking the task out leaves it on the site, under nothing.
+  await node.getByTestId('bwx-project-take-out').click();
+  await expect(node).toHaveCount(0, SLOW);
+  const after = (await admin.api.get(`/work-items/${task.id}`)).item;
+  expect(after.parent_id).toBe('');
+  expect(after.archived).toBeFalsy();
+
+  await page.close();
+});

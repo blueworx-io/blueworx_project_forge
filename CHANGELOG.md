@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.205.0] - 2026-10-22
+
+### Added
+
+- Existing work can be added to a project or release from the project page, and taken out again. It moves inside, so it counts towards the project's or release's progress and dates.
+
 ## [2.204.2] - 2026-10-22
 
 ### Changed

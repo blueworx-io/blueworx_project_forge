@@ -32,6 +32,9 @@ const KIND: Record< string, string > = {
 /** What an item is, as a person reads it: its type for a leaf, else its level. */
 const kindOf = ( one: WorkItem ) => KIND[ 'feature' === one.work_type ? one.level : one.work_type ] ?? one.level_label;
 
+/** How deep each level sits: work can only be put inside something above it (#607). */
+const DEPTH: Record< string, number > = { project: 0, milestone: 1, feature: 2, 'sub-feature': 3 };
+
 /** The level a feature added inside something takes, or '' when nothing can be. */
 const featureLevel = ( level: string ) => ( 'milestone' === level ? 'feature' : 'feature' === level ? 'sub-feature' : '' );
 
@@ -216,6 +219,89 @@ export function ProjectScreen( {
     setAdding( preset );
   };
 
+  /**
+   * #607. Work already on the site that can be put inside one item: what may
+   * sit under it, as the server's own level rule has it, that is not ended,
+   * archived or inside it already, and not something it sits inside itself.
+   */
+  const candidates = ( target: WorkItem ) => {
+    const within = new Set< string >( [ target.id ] );
+    let grown = true;
+
+    while ( grown ) {
+      grown = false;
+
+      for ( const one of items ) {
+        if ( '' !== one.parent_id && within.has( one.parent_id ) && ! within.has( one.id ) ) {
+          within.add( one.id );
+          grown = true;
+        }
+      }
+    }
+
+    const byId = new Map( items.map( ( one ) => [ one.id, one ] ) );
+    const above = new Set< string >();
+    let up = target.parent_id;
+
+    while ( '' !== up && ! above.has( up ) ) {
+      above.add( up );
+      up = byId.get( up )?.parent_id ?? '';
+    }
+
+    return items
+      .filter( ( one ) => ! within.has( one.id ) && ! above.has( one.id ) && ! one.archived && '' === one.terminal_outcome )
+      // A bug, task or feedback item sits under anything; the rest go below their own level.
+      .filter( ( one ) => [ 'bug', 'task', 'feedback' ].includes( one.work_type ) || ( DEPTH[ one.level ] ?? 3 ) > ( DEPTH[ target.level ] ?? 3 ) )
+      .sort( ( a, b ) => a.title.localeCompare( b.title ) );
+  };
+
+  /** #607. Puts work inside a project or release, or takes it out again with an empty parent. */
+  async function placeUnder( one: WorkItem, parentId: string ) {
+    setNotice( '' );
+
+    try {
+      await api( `/work-items/${ one.id }`, { method: 'PATCH', body: { parent_id: parentId, record_version: one.record_version } } );
+
+      if ( '' !== parentId ) {
+        setOpen( ( held ) => new Set( held ).add( parentId ) );
+      }
+
+      await load();
+    } catch ( error ) {
+      setNotice( messageFor( error, '' === parentId ? 'That could not be taken out.' : 'That could not be added.' ) );
+    }
+  }
+
+  /** #607. Picks work already on the site to put inside a project or release. */
+  const existing = ( one: WorkItem ) => (
+    <select
+      className="bwx-select bwx-project-add-existing"
+      data-testid="bwx-project-add-existing"
+      aria-label={ `Add existing work to ${ one.title }` }
+      value=""
+      onChange={ ( event ) => {
+        const chosen = items.find( ( candidate ) => candidate.id === event.target.value );
+
+        if ( chosen ) void placeUnder( chosen, one.id );
+      } }
+    >
+      <option value="">+ Add existing work</option>
+      { candidates( one ).map( ( candidate ) => (
+        <option key={ candidate.id } value={ candidate.id }>
+          { `${ kindOf( candidate ) }: ${ candidate.title }` }
+        </option>
+      ) ) }
+    </select>
+  );
+
+  /** #607. Takes a row out of whatever it sits in. */
+  const takeOut = ( one: WorkItem ) =>
+    frozen ? null : (
+      <button type="button" className="bwx-icon-button" data-testid="bwx-project-take-out" aria-label={ `Take ${ one.title } out` } onClick={ () => void placeUnder( one, '' ) }>
+        ✕
+      </button>
+    );
+
   /** The title of a row, which opens its panel. */
   const title = ( one: WorkItem ) => (
     <button type="button" className="bwx-project-open" onClick={ () => setOpened( one.id ) }>
@@ -241,6 +327,7 @@ export function ProjectScreen( {
         <Button size="sm" variant="ghost" data-testid="bwx-project-add-leaf" onClick={ () => addUnder( { level: 'sub-feature', parentId: one.id } ) }>
           + Add bug / task / feedback
         </Button>
+        { 'milestone' === one.level && existing( one ) }
       </div>
     );
   };
@@ -253,6 +340,7 @@ export function ProjectScreen( {
         { title( one ) }
         <StageChip stage={ one.stage } dense />
         <Ended item={ one } />
+        { takeOut( one ) }
       </div>
     </li>
   );
@@ -326,6 +414,7 @@ export function ProjectScreen( {
         <StageChip stage={ node.item.stage } dense />
         <Ended item={ node.item } />
         { 0 < node.parts.length + node.attached.length && <Progress node={ node } /> }
+        { takeOut( node.item ) }
       </div>
       { beneath( node ) }
     </li>
@@ -402,6 +491,7 @@ export function ProjectScreen( {
               { [ site?.client_name || site?.name || '', when.ongoing ? 'Ongoing' : when.start ? `${ day( when.start ) } – ${ day( when.due ) }` : `Until ${ day( when.due ) }` ].filter( Boolean ).join( ' · ' ) }
             </p>
             <Progress node={ tree } />
+            { ! frozen && <div className="bwx-project-adds">{ existing( project ) }</div> }
           </Panel>
 
           <Panel title="Releases" flush>

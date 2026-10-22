@@ -4510,6 +4510,11 @@ select.bwx-select,
   gap: var( --space-4 );
   margin-top: var( --space-8 );
 }
+/* #607. Picks work already on the site, beside the buttons that make new work. */
+.bwx-project-add-existing {
+  width: auto;
+  max-width: 280px;
+}
 /* #564. The one thing on a release waiting on a decision, ruled in the review stage's colour. */
 .bwx-release-review {
   margin: 0 0 12px;
