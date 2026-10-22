@@ -418,4 +418,32 @@ final class Events {
 
 		return null !== $found && '' !== (string) $found;
 	}
+
+	/**
+	 * When each item on a site last entered a stage (#616), in one read.
+	 *
+	 * @param string $client_site_id The site.
+	 * @param string $stage          The stage.
+	 * @return array<string, int> Unix time, keyed by item id.
+	 */
+	public static function entered_on_site( string $client_site_id, string $stage ): array {
+		global $wpdb;
+
+		if ( '' === $client_site_id || '' === $stage ) {
+			return array();
+		}
+
+		$table = Schema::work_events_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, MAX( occurred_at ) AS entered FROM {$table} WHERE client_site_id = %s AND to_stage = %s GROUP BY item_id", $client_site_id, $stage ), ARRAY_A );
+
+		$entered = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$entered[ (string) $row['item_id'] ] = (int) $row['entered'];
+		}
+
+		return $entered;
+	}
 }

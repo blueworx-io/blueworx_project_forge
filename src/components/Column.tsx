@@ -1,7 +1,31 @@
+import { useState } from 'react';
 import type { Stage, WorkItem } from '../types';
 import { phaseOf } from '../phases';
 import { STAGE_ORDER } from '../kit';
 import { Card } from './Card';
+
+/** #616. How long released work stays in view, and how many cards any other column shows before the rest wait behind a button. */
+const RECENT_DAYS = 14;
+const SHOWN = 30;
+
+/** When released work went live, falling back to its last change. */
+const releasedAt = ( item: WorkItem ) => item.released_at || item.updated_at || 0;
+
+/**
+ * The cards a column draws until asked for more (#616): released work from
+ * the last two weeks, newest first, or the first thirty of anything else.
+ * Long columns were hard to scan and slowed the whole board down.
+ */
+export function inView( stage: string, items: WorkItem[], now: number ): { shown: WorkItem[]; all: WorkItem[]; hidden: number } {
+  if ( 'released' === stage ) {
+    const all = [ ...items ].sort( ( a, b ) => releasedAt( b ) - releasedAt( a ) );
+    const shown = all.filter( ( item ) => now - releasedAt( item ) * 1000 <= RECENT_DAYS * 86400000 );
+
+    return { shown, all, hidden: all.length - shown.length };
+  }
+
+  return { shown: items.slice( 0, SHOWN ), all: items, hidden: Math.max( 0, items.length - SHOWN ) };
+}
 
 /**
  * One stage, and the work sitting in it.
@@ -36,6 +60,10 @@ export function Column( {
   names?: Map< string, string >;
 } ) {
   const index = STAGE_ORDER.indexOf( stage.id );
+  const [ everything, setEverything ] = useState( false );
+  const view = inView( stage.id, items, Date.now() );
+  const cards = everything ? view.all : view.shown;
+
   return (
     <section
       className="bwx-column"
@@ -70,7 +98,7 @@ export function Column( {
       </header>
 
       <div className="bwx-cards">
-        { items.map( ( item ) => (
+        { cards.map( ( item ) => (
           <Card
             key={ item.id }
             item={ item }
@@ -84,7 +112,14 @@ export function Column( {
         ) ) }
       </div>
 
+      { 0 < view.hidden && (
+        <button type="button" className="bwx-button bwx-column-more" data-variant="quiet" data-testid="bwx-column-more" aria-expanded={ everything } onClick={ () => setEverything( ! everything ) }>
+          { everything ? 'Show fewer' : 'released' === stage.id ? `Show older (${ view.hidden })` : `Show ${ view.hidden } more` }
+        </button>
+      ) }
+
       { 0 === items.length && <p className="bwx-empty">{ 'blocked' === stage.id ? 'No blocked work' : 'No work at this stage' }</p> }
+      { 0 < items.length && 0 === view.shown.length && ! everything && <p className="bwx-empty">Nothing released in the last two weeks</p> }
     </section>
   );
 }

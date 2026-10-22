@@ -419,6 +419,11 @@ body {
   padding: 10px;
 }
 
+/* #616. The rest of a long column, a click away. */
+.bwx-column-more {
+  margin: 0 10px 10px;
+}
+
 .bwx-card {
   position: relative;
   display: flex;

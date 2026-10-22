@@ -607,6 +607,16 @@ final class WorkItemsController {
 			if ( is_string( $value ) && '' !== $value ) {
 				$narrow[ $filter ] = $value;
 			}
+
+			// #609. A list, as the Projects page asks for projects and releases
+			// together. Ignoring it read every item on every site to keep a few.
+			if ( is_array( $value ) ) {
+				$wanted = array_values( array_filter( $value, static fn( $one ): bool => is_string( $one ) && '' !== $one ) );
+
+				if ( array() !== $wanted ) {
+					$narrow[ $filter ] = $wanted;
+				}
+			}
 		}
 
 		// Archived work is out of the default view and in every report (#111),
@@ -702,6 +712,10 @@ final class WorkItemsController {
 		 */
 		$waits = Dependencies::chain_on_site( $site_id );
 
+		// #616. When released work went live, so the board can keep its
+		// Released column to the last two weeks.
+		$released = Events::entered_on_site( $site_id, 'released' );
+
 		// Every open item's gate records in one read, for the ready-to-move icon
 		// (#453), rather than a query per card.
 		$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
@@ -717,8 +731,9 @@ final class WorkItemsController {
 			$items[ $index ] = array_merge(
 				$item,
 				array(
-					'waits_on'  => $waits[ $id ] ?? array(),
-					'next_step' => empty( $item['archived'] ) ? Transition::next_step( $item, $children[ $id ] ?? array(), $records[ $id ] ?? array() ) : null,
+					'waits_on'    => $waits[ $id ] ?? array(),
+					'next_step'   => empty( $item['archived'] ) ? Transition::next_step( $item, $children[ $id ] ?? array(), $records[ $id ] ?? array() ) : null,
+					'released_at' => 'released' === (string) $item['stage'] ? (int) ( $released[ $id ] ?? $item['updated_at'] ?? 0 ) : 0,
 				)
 			);
 		}

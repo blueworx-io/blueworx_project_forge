@@ -179,9 +179,13 @@ export function WorkScreen( {
    * work.
    */
   const latest = useRef( '' );
+  // #613. Moves made so far. A read that set off before the latest move would
+  // put that card back where it was, so its answer is dropped too.
+  const moves = useRef( 0 );
 
   async function loadItems( id: string, applied: WorkFilters = filters ) {
     const asked = `${ id }|${ JSON.stringify( applied ) }`;
+    const movesBefore = moves.current;
 
     latest.current = asked;
 
@@ -201,7 +205,7 @@ export function WorkScreen( {
           : `/work-items?client_site_id=${ encodeURIComponent( id ) }${ query }`
       );
 
-      if ( latest.current !== asked ) {
+      if ( latest.current !== asked || moves.current !== movesBefore ) {
         return;
       }
 
@@ -278,18 +282,33 @@ export function WorkScreen( {
      * gates mean a move genuinely can be refused and pretending otherwise would
      * leave the board showing something that never happened.
      */
-    setItems( items.map( ( each ) => ( each.id === itemId ? { ...each, stage: to } : each ) ) );
+    /*
+     * #613. Each change touches only the card moved, on the board as it is by
+     * then, so two quick moves never undo each other. The board is drawn again
+     * in the background: waiting for it before the card settled made every
+     * move feel slow, and a second move made in that wait was refused for
+     * carrying the card's old version.
+     */
+    const only = ( change: ( each: WorkItem ) => WorkItem ) =>
+      setItems( ( current ) => current.map( ( each ) => ( each.id === itemId ? change( each ) : each ) ) );
+
+    moves.current += 1;
+    only( ( each ) => ( { ...each, stage: to } ) );
     setNotice( '' );
     setUnmet( [] );
 
     try {
-      await api( `/work-items/${ itemId }/transition`, {
+      const moved = await api< { item: WorkItem } >( `/work-items/${ itemId }/transition`, {
         method: 'POST',
         body: { to, record_version: item.record_version },
       } );
-      await loadItems( siteId );
+      // Its readiness is for the stage it left until the board is read again.
+      only( ( each ) => ( { ...each, stage: moved.item.stage, prior_stage: moved.item.prior_stage, record_version: moved.item.record_version, updated_at: moved.item.updated_at, next_step: null } ) );
+      void loadItems( siteId );
     } catch ( error ) {
-      setItems( items );
+      only( () => item );
+      // A read an earlier move dropped is asked for again.
+      void loadItems( siteId );
 
       // A gate refusal is not "that did not work": it is a list of things that
       // would make it work, and dropping that list on the floor is what turns a

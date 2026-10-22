@@ -170,6 +170,8 @@ export interface WorkItem {
    * a move is refused by. Null where there is no next stage to move to.
    */
   next_step?: { to: string; ready: boolean; missing: string[] } | null;
+  /** #616. When released work went live (unix time), 0 for anything else. */
+  released_at?: number;
 }
 
 /**

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.204.2] - 2026-10-22
+
+### Changed
+
+- The Released column on the board shows the last two weeks, with Show older for the rest. Other long columns show their first thirty cards, with Show more.
+
+### Fixed
+
+- The Projects page loads faster: it no longer works through every task on every client to show the projects.
+- Moving a card on the board is quick and reliable. It settles straight away, and several cards moved one after another all stay where they were dropped.
+
 ## [2.204.1] - 2026-10-22
 
 ### Changed
