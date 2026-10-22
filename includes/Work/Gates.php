@@ -253,7 +253,7 @@ final class Gates {
 				self::done( 'G-IN-REVIEW-2', 'Every acceptance criterion confirmed', 'Tick every line of the checklist, or mark this Done.', self::REV, 'checklist' ),
 				self::auto( 'G-IN-REVIEW-3', 'All feedback resolved', 'checklist', 'feedback', 'Answer every open question from the client, or return the item.', self::REV ),
 				self::approval( 'G-IN-REVIEW-4', 'Review approval', 'Approve the review as the assigned Reviewer or an authorised substitute.', self::REV ),
-				self::box( 'G-IN-REVIEW-5', 'Post-review hours adjustment', 'number', 'Fill in the post-review hours adjustment (0 for none).', self::REV ),
+				// No post-review hours adjustment (#604); its id stays retired.
 				// #564. Every bug and feedback item raised in the release's review.
 				self::releases_only( self::system( 'G-IN-REVIEW-6', 'Review fixes completed', 'review_fixes_completed', 'Every bug and feedback item raised in this review has to reach Completed first.' ) ),
 			),

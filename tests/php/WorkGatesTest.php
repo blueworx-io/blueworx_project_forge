@@ -727,4 +727,11 @@ final class WorkGatesTest extends TestCase {
 		sort( $found );
 		$this->assertSame( $expected, $found );
 	}
+
+	/**
+	 * #604. Review no longer asks for a post-review hours adjustment.
+	 */
+	public function test_review_does_not_ask_for_a_post_review_hours_adjustment(): void {
+		$this->assertNotContains( 'G-IN-REVIEW-5', array_column( Gates::requirements( 'G-IN-REVIEW' ), 'id' ) );
+	}
 }

@@ -51,7 +51,7 @@ export const RULES: RuleSection[] = [
         why: 'So a count like 2 of 2 done next to a third piece of work makes sense, and nobody waits on work that has stopped.',
       },
       {
-        what: 'A task\'s Attachments section holds its documents, links and images. Documents can be PDFs, Office files, plain text or CSV, up to ten per task and 15 MB each; each opens from the task and can be removed again.',
+        what: 'A task\'s Attachments section, a section of its own on the task, holds its documents, links and images. Documents can be PDFs, Office files, plain text or CSV, up to ten per task and 15 MB each; each opens from the task and can be removed again.',
         why: 'So everything attached to a task is in one place, and only safe kinds of file get in.',
       },
       {
@@ -89,6 +89,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'To go to In Review every line of the task\'s checklist must be ticked, and \'How to test it\' must be written; a task with no checklist goes straight through, and the test steps are optional.',
         why: 'The checklist is the doer\'s own list of what done means, and the reviewer needs to know how to test it.',
+      },
+      {
+        what: 'Review does not ask for a post-review hours adjustment.',
+        why: 'Hours are planned and charged as the work goes, so review has nothing to add.',
       },
       {
         what: 'In the task panel every drop-down (who pays, priority, people, hours), every before-item pick, and the checklist and test steps save as soon as they change, and the dates save together once you move out of them, with the same quiet "Saved." the button shows. Typed text (title, description, how to test it, comments) still waits for Save changes. A refused auto-save says why under the field and keeps the saved value.',

@@ -237,7 +237,9 @@ test('documents upload to a task, open from it, and come off again; unsafe files
   await page.getByTestId('bwx-card').filter({ hasText: `Documents ${RUN_ID}` }).click();
   const section = page.getByTestId('bwx-attachments');
   await expect(section).toBeVisible();
-  await expect(section.getByRole('heading', { name: 'Attachments' })).toBeVisible();
+  // Its own section, not part of the Task card, and it folds like the others.
+  await expect(page.getByTestId('bwx-task').getByTestId('bwx-attachments')).toHaveCount(0);
+  await expect(section.getByTestId('bwx-section-attachments')).toHaveText('Attachments');
   await expect(section.getByTestId('bwx-documents')).toBeVisible();
   await expect(section.getByTestId('bwx-links')).toBeVisible();
   await expect(section.getByTestId('bwx-images')).toBeVisible();

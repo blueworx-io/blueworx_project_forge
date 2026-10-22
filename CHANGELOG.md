@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.203.3] - 2026-10-21
+
+### Changed
+
+- Attachments is now its own section on a task, folding like the others, instead of sitting inside the Task section.
+
+### Removed
+
+- Review no longer asks for a post-review hours adjustment.
+
 ## [2.203.2] - 2026-10-21
 
 ### Fixed
