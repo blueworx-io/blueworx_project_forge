@@ -603,6 +603,10 @@ export const RULES: RuleSection[] = [
     title: 'Who can do what',
     rules: [
       {
+        what: 'An administrator can check for a newer Forge and install it from Settings, without going into WordPress admin. It installs the same release WordPress would offer under Plugins, and only when it is newer. Client sites still update the way they always have.',
+        why: 'Keeping Forge up to date should not mean leaving it.',
+      },
+      {
         what: 'A lead is a business we are talking to, kept on the Leads page under Clients. Only administrators add, edit, move or archive leads. A lead moves Lead → Opportunity → Client, or into the archive, from where it can be restored.',
         why: 'Prospects need somewhere to live before they are clients, without anyone mistaking them for one.',
       },
