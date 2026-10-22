@@ -301,7 +301,9 @@ written into `phpcs.xml.dist`; nothing security-related is among them.
   work or to configure it — is the React application. WordPress admin holds only
   what needs WordPress itself: the app page, site connection, updates and sync
   health. A screen is built once, in the app, and never rebuilt as a WordPress
-  admin page.
+  admin page. The one exception is updates: an administrator can also check for
+  and install them from the app's Settings (#603), and the WordPress admin
+  Updates screen stays for when the app itself can't load.
 - **The rules page stays true.** A change to how Forge behaves updates `src/rules.ts`
   (the Settings screen, #467) in the same pull request as its changelog entry.
 - Use the `frontend-design` skill for all UI work.
