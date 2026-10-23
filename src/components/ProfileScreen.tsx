@@ -121,7 +121,7 @@ function GooglePanel( { outcome }: { outcome: string } ) {
       <div data-testid="bwx-profile-google" data-connected={ mine?.connected ? 'yes' : 'no' }>
         <Notice said={ said } testId="bwx-profile-google-notice" />
         { mine && ! mine.configured && ! mine.connected && (
-          <p className="bwx-hint">Google Calendar is not set up yet. An administrator adds the studio's Google client in Settings.</p>
+          <p className="bwx-hint">Google Calendar is not set up yet. An administrator adds the studio&apos;s Google client in Settings.</p>
         ) }
         { mine?.connected && (
           <p className="bwx-hint" data-testid="bwx-profile-google-status">
