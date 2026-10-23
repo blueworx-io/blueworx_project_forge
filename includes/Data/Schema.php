@@ -531,9 +531,9 @@ final class Schema {
 		$staff_roles      = self::staff_roles_table();
 		$calendar_dates   = self::calendar_dates_table();
 
-		$google_connections = self::google_connections_table();
-		$google_meetings    = self::google_meetings_table();
-		$google_people      = self::google_people_table();
+		$gcal_links    = self::google_connections_table();
+		$gcal_meetings = self::google_meetings_table();
+		$gcal_people   = self::google_people_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1673,7 +1673,7 @@ final class Schema {
 			 * and never leave PHP; the sync token is Google's bookmark for the
 			 * next incremental read.
 			 */
-			$google_connections => "CREATE TABLE {$google_connections} (
+			$gcal_links       => "CREATE TABLE {$gcal_links} (
 	id varchar(32) NOT NULL,
 	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 	email varchar(191) NOT NULL DEFAULT '',
@@ -1695,7 +1695,7 @@ final class Schema {
 			 * and the same status and ledger state a standing meeting's
 			 * occurrence does.
 			 */
-			$google_meetings => "CREATE TABLE {$google_meetings} (
+			$gcal_meetings    => "CREATE TABLE {$gcal_meetings} (
 	id varchar(32) NOT NULL,
 	share_key varchar(32) NOT NULL,
 	title varchar(191) NOT NULL DEFAULT '',
@@ -1733,7 +1733,7 @@ final class Schema {
 			 * copy, with how they answered and whether it counts against their
 			 * time.
 			 */
-			$google_people => "CREATE TABLE {$google_people} (
+			$gcal_people      => "CREATE TABLE {$gcal_people} (
 	id varchar(32) NOT NULL,
 	meeting_id varchar(32) NOT NULL,
 	user_id varchar(32) NOT NULL,

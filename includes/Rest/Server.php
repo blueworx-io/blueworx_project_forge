@@ -111,5 +111,6 @@ final class Server {
 		CalendarController::register_routes( self::NAMESPACE );
 		ReportsController::register_routes( self::NAMESPACE );
 		SignalsController::register_routes( self::NAMESPACE );
+		GoogleController::register_routes( self::NAMESPACE );
 	}
 }

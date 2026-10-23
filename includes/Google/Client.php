@@ -102,7 +102,9 @@ final class Client {
 		}
 
 		// Google sends a new refresh token only sometimes.
-		return self::tokens_from( $answer, '' === (string) ( $answer['refresh_token'] ?? '' ) ? $refresh_token : (string) $answer['refresh_token'] );
+		$kept = (string) ( $answer['refresh_token'] ?? '' );
+
+		return self::tokens_from( $answer, '' === $kept ? $refresh_token : $kept );
 	}
 
 	/**
