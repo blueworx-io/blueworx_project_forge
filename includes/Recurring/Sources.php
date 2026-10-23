@@ -12,6 +12,8 @@ namespace Blueworx\Forge\Recurring;
 use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Tenancy\Ids;
+use DateInterval;
+use DateTimeImmutable;
 
 /**
  * A source is the arrangement — "backups, every Monday, Sam does it, an hour"
@@ -302,6 +304,30 @@ final class Sources {
 	}
 
 	/**
+	 * The next day of a changed rule: its first on or after today and the
+	 * start, and never a day already made. Measured from the last day made,
+	 * not from the day the old rule had lined up — a monthly schedule changed
+	 * to every Friday would otherwise wait for the old month's date and skip
+	 * every Friday before it.
+	 *
+	 * @param array<string, mixed> $rule      The new rule.
+	 * @param string               $starts_on YYYY-MM-DD.
+	 * @param string               $today     YYYY-MM-DD.
+	 * @param string               $last_made YYYY-MM-DD, or empty when none.
+	 * @return string YYYY-MM-DD.
+	 */
+	public static function next_after_edit( array $rule, string $starts_on, string $today, string $last_made ): string {
+		$from = max( $starts_on, $today );
+
+		if ( '' !== $last_made && $last_made >= $from ) {
+			$after = DateTimeImmutable::createFromFormat( '!Y-m-d', $last_made, wp_timezone() );
+			$from  = false === $after ? $from : $after->add( new DateInterval( 'P1D' ) )->format( 'Y-m-d' );
+		}
+
+		return Rule::next_on_or_after( $rule, $from );
+	}
+
+	/**
 	 * Changes a source, against the version the caller saw.
 	 *
 	 * A changed rule or start moves the next due date along with it, so an
@@ -325,13 +351,15 @@ final class Sources {
 		$changes = self::writable( $values );
 
 		if ( self::REMINDER !== (string) $current['kind'] && ( isset( $changes['rule'] ) || isset( $changes['starts_on'] ) ) ) {
-			$rule  = isset( $changes['rule'] ) ? (array) json_decode( (string) $changes['rule'], true ) : $current['rule'];
-			$from  = max( (string) ( $changes['starts_on'] ?? $current['starts_on'] ), wp_date( 'Y-m-d' ) );
-			$after = $current['next_due'];
+			$rule   = isset( $changes['rule'] ) ? (array) json_decode( (string) $changes['rule'], true ) : $current['rule'];
+			$latest = Occurrences::latest_for( array( $id ) );
 
-			// Only ever forward: a rule change must not re-create days that
-			// have already been made.
-			$changes['next_due'] = max( $after, Rule::next_on_or_after( $rule, $from ) );
+			$changes['next_due'] = self::next_after_edit(
+				$rule,
+				(string) ( $changes['starts_on'] ?? $current['starts_on'] ),
+				wp_date( 'Y-m-d' ),
+				(string) ( $latest[ $id ]['due_on'] ?? '' )
+			);
 		}
 
 		$changes['updated_at']     = bwx_forge_now();

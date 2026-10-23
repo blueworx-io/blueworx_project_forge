@@ -345,6 +345,10 @@ export const RULES: RuleSection[] = [
         why: 'Missed chores stay visible instead of quietly disappearing.',
       },
       {
+        what: 'Changing how often a recurring task repeats makes its next copy on the first day of the new pattern, from today on, and never a day already made.',
+        why: 'Otherwise a monthly task changed to weekly would wait for the old monthly date and skip every week before it.',
+      },
+      {
         what: 'A copy\'s client can\'t be changed on the copy; change it on the recurring task instead.',
         why: 'Otherwise the next copy would be made on the old client again.',
       },

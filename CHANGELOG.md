@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.206.1] - 2026-10-23
+
+### Fixed
+
+- Changing how often a recurring task repeats no longer skips days: a task changed from monthly to every Friday is made this Friday, not on the old monthly date.
+
 ## [2.206.0] - 2026-10-22
 
 ### Added
