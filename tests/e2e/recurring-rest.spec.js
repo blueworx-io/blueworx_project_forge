@@ -114,6 +114,50 @@ test('a daily source makes today’s task once, in Up Next, for its people', asy
   await admin.context.close();
 });
 
+test('changing a schedule to today’s weekday makes today’s task, not the old rule’s next one', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const sites = await admin.api.get('/client-sites');
+  const studio = sites.sites.find((one) => one.studio);
+  const person = await makePerson(admin.api, studio.client_id, 'staff', 'reschedule');
+  const today = await serverToday(admin.api);
+
+  // Monday is 1, Sunday 7. The schedule starts on another weekday, so its
+  // next day is later in the week.
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay() || 7;
+  const otherDay = (weekday % 7) + 1;
+
+  const made = await admin.api.post('/recurring', {
+    title: `Moved to today ${RUN_ID}`,
+    description: '<p>Do it.</p>',
+    work_type: 'task',
+    rule: { every: 'week', days: [otherDay] },
+    starts_on: today,
+    assignees: [person.id],
+    hours_each: '0.5',
+    client_site_id: studio.id,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+  const source = (await made.json()).source;
+  expect(source.next_due > today).toBe(true);
+
+  const changed = await admin.api.patch(`/recurring/${source.id}`, {
+    rule: { every: 'week', days: [weekday] },
+    record_version: source.record_version,
+  });
+  expect(changed.status(), await changed.text()).toBe(200);
+  expect((await changed.json()).source.next_due).toBe(today);
+
+  await admin.api.post('/recurring/run', {});
+  const work = await admin.api.get(`/work-items?client_site_id=${studio.id}`);
+  const tasks = work.items.filter((one) => one.title.startsWith(`Moved to today ${RUN_ID}`));
+  expect(tasks).toHaveLength(1);
+  expect(tasks[0].planned_due).toBe(today);
+
+  await admin.context.close();
+});
+
 test('a recurring task is set up for a chosen client, and needs one', async ({ browser, baseURL }) => {
   const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const { client, site } = await Forge.makeSite(admin.api, 'RecurClient', RUN_ID);
