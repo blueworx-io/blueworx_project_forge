@@ -799,6 +799,18 @@ function wp_timezone(): DateTimeZone {
 	return new DateTimeZone( 'UTC' );
 }
 
+if ( ! function_exists( 'admin_url' ) ) {
+	/**
+	 * Stub. The studio's admin address, for the Google redirect (#606).
+	 *
+	 * @param string $path Path under wp-admin.
+	 * @return string
+	 */
+	function admin_url( string $path = '' ): string {
+		return 'https://studio.test/wp-admin/' . ltrim( $path, '/' );
+	}
+}
+
 // WordPress's own secret, which Tenancy\Secrets derives its key from.
 if ( ! defined( 'AUTH_KEY' ) ) {
 	define( 'AUTH_KEY', 'unit-test-auth-key-not-a-secret' );
