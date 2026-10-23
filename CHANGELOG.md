@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.207.0] - 2026-10-23
+
+### Added
+
+- Clients now have guides on how Forge works: sending a request, following it up, reviewing finished work, answering the studio, onboarding, support hours and the emails they get. They are in a new Guides tab in the Forge workspace, and also on the BlueWorx Guides page for anyone who can open it.
+
 ## [2.206.2] - 2026-10-23
 
 ### Fixed

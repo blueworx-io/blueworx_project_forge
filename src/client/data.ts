@@ -11,6 +11,11 @@ export interface ClientData {
   version: string;
   client: { name: string; connected: boolean };
   user: { name: string };
+  /** The guides, the same ones the BlueWorx Guides page shows (#580). */
+  guides?: {
+    tabs: Array< { id: string; label: string } >;
+    guides: Array< { id: string; title: string; tab: string; where: string; steps: string[]; then: string } >;
+  };
 }
 
 declare global {

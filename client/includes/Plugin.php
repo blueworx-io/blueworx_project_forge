@@ -81,6 +81,9 @@ final class Plugin {
 
 		// So the studio's connection record knows what this site is running and
 		// whether it can email anybody (#89).
+		// The guides for the client, on the BlueWorx Guides page (#580).
+		Guides::boot();
+
 		Mail::boot();
 		Report::boot();
 

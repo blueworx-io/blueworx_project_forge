@@ -593,6 +593,10 @@ export const RULES: RuleSection[] = [
         why: 'They know it arrived without having to chase us.',
       },
       {
+        what: 'Clients get guides on how Forge works: a Guides tab in their workspace, and the same guides on the BlueWorx Guides page for anyone who can open it. Only people who can use Forge see them.',
+        why: 'A client shouldn\'t need to ask us how to send a request or review finished work, and a Forge manager can\'t open the BlueWorx Guides page, so the workspace has them too.',
+      },
+      {
         what: 'Client accounts never move tasks by any route; the one exception is approving or sending back a task they are reviewing.',
         why: 'Where work is in its journey is our decision, and that line is a security boundary rather than a preference.',
       },
