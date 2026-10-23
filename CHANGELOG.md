@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.206.2] - 2026-10-23
+
+### Fixed
+
+- The support hours list on a client now shows every entry, not just the first 500. A busy client's newest entries were missing, so the lines no longer added up to "Left".
+
 ## [2.206.1] - 2026-10-23
 
 ### Fixed
