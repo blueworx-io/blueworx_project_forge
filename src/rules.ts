@@ -415,6 +415,22 @@ export const RULES: RuleSection[] = [
         why: 'Google owns when a meeting is; Forge owns what it cost.',
       },
       {
+        what: 'The Today tab on My tasks is a planned day from 7am to 7pm, the same for everyone. Meetings you host or attend sit at their times in your own time zone, and your tasks fill the open time from now on, urgent first, then high, normal and low; within a priority, overdue first, then due earliest. A task is as tall as its hours, and a task that runs into a meeting carries on after it.',
+        why: 'A list says what is due but not whether it fits in the day.',
+      },
+      {
+        what: 'Under the day, Doesn\'t fit today lists tasks that would run past 7pm, and No hours set lists tasks with no hours, which are never placed. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today.',
+        why: 'Everything on Today is somewhere on the screen, and no task looks scheduled when it has nothing to place it by.',
+      },
+      {
+        what: 'Edit plan lets you move a task up or down, bring one up from either list, or send one down. The order holds for that day on your account, new tasks drop into open time without reshuffling it, and tomorrow starts fresh. The plan never changes a task\'s date, stage, priority or hours.',
+        why: 'The plan is yours to arrange, and it is a view of the work rather than part of it.',
+      },
+      {
+        what: 'Overlapping meetings, and work due today or overdue that sits in Doesn\'t fit today, show in red and are counted at the top of the day.',
+        why: 'These are the days that will not work out, and they are better seen early.',
+      },
+      {
         what: 'Colleagues see a Google meeting\'s title, time and who is on it; an event marked private in Google shows to them as Busy. Google sign-in details are kept sealed and never shown to anyone, and only an administrator enters the studio\'s Google client.',
         why: 'Somebody\'s calendar is theirs, and Forge only needs enough of it to plan time.',
       },

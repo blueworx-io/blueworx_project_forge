@@ -6,6 +6,7 @@ import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { DiaryLine, useDiary } from './Diary';
+import { DayPlanner } from './DayPlanner';
 import { useClientChoice } from '../ClientChoice';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
@@ -222,7 +223,7 @@ export function MyTasksScreen() {
           Today's diary (#386): the chores, dates, meetings, renewals and
           absences that are yours today. Shown whenever there is one.
        */ }
-      { 'ready' === state && 0 < myDiary.length && (
+      { 'ready' === state && 'today' !== view && 0 < myDiary.length && (
         <section className="bwx-standup-diary" data-testid="bwx-mytasks-diary">
           <p className="bwx-eyebrow">Today&apos;s diary</p>
           { 0 < openDiary.length ? (
@@ -253,6 +254,7 @@ export function MyTasksScreen() {
             onClearFilters={ () => setRole( null ) }
             columns={ columns }
             rows={ rows }
+            body={ 'today' === view ? <DayPlanner rows={ rows } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } /> : undefined }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
             footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }

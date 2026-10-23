@@ -4081,6 +4081,117 @@ td[ data-band='over' ] {
 .bwx-mytasks-due[ data-due='today' ] { color: var( --ink-900 ); font-weight: var( --weight-medium ); }
 .bwx-mytasks-due[ data-due='ahead' ] { color: var( --color-success ); }
 
+/* The day planner (#620): Today as a day, 7am to 7pm. Hour rows, with the
+   meetings and tasks that start in each hour; a block is as tall as its hours. */
+.bwx-day {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+.bwx-day-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bwx-day-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  color: var( --ink-700 );
+  font-size: var( --text-small );
+}
+.bwx-day-summary strong { color: var( --ink-900 ); font-variant-numeric: tabular-nums; }
+.bwx-day-clash {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var( --state-danger );
+  font-weight: var( --weight-medium );
+  font-size: var( --text-small );
+}
+.bwx-day-away {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --phase-gate-border );
+  background: var( --phase-gate-bg );
+  color: var( --phase-gate-ink );
+  font-size: var( --text-small );
+}
+.bwx-day-strip { padding: 0 4px; }
+.bwx-day-grid { display: flex; flex-direction: column; }
+.bwx-day-hour {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 8px;
+  border-top: 1px solid var( --border-hairline );
+  min-height: 40px;
+}
+.bwx-day-hour[ data-past='true' ] .bwx-day-label { opacity: 0.5; }
+.bwx-day-label { padding-top: 8px; text-align: right; color: var( --ink-500 ); font-size: var( --text-small ); }
+.bwx-day-slot { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; min-width: 0; }
+.bwx-day-gap {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px dashed var( --border-hairline );
+  border-radius: 8px;
+  color: var( --ink-500 );
+  font-size: var( --text-small );
+}
+.bwx-day-meeting {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --phase-exception-border );
+  border-left-width: 4px;
+  background: var( --phase-exception-bg );
+  color: var( --phase-exception-ink );
+}
+.bwx-day-meeting-body { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; flex: 1; min-width: 0; font-size: var( --text-small ); }
+.bwx-day-meeting-title { font-weight: var( --weight-medium ); }
+.bwx-day-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var( --border-hairline );
+  border-left-width: 4px;
+  background: var( --surface-card );
+}
+.bwx-day-block[ data-priority='urgent' ] { border-left-color: var( --state-danger ); }
+.bwx-day-block[ data-priority='high' ] { border-left-color: var( --color-warning ); }
+.bwx-day-block[ data-editing='true' ] { border-style: dashed; border-left-style: solid; }
+.bwx-day-block-main { flex: 1 1 260px; min-width: 0; }
+.bwx-day-block-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: var( --text-small ); }
+.bwx-day-fact { color: var( --ink-700 ); }
+.bwx-day-hours { min-width: 36px; text-align: right; }
+.bwx-day-part { color: var( --ink-500 ); font-size: var( --text-small ); }
+.bwx-day-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.bwx-day-block[ data-clash='true' ],
+.bwx-day-meeting[ data-clash='true' ] {
+  border-color: var( --state-danger );
+  background: var( --state-danger-wash );
+  color: var( --ink-900 );
+}
+.bwx-day-list { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var( --border-hairline ); }
+.bwx-day-list h3 { margin: 0; font-size: var( --text-small ); text-transform: none; }
+.bwx-day-list p { margin: 0; }
+@media ( max-width: 640px ) {
+  .bwx-day { padding: 8px; }
+  .bwx-day-hour { grid-template-columns: 36px 1fr; gap: 4px; }
+  .bwx-day-block { flex-direction: column; align-items: flex-start; }
+}
+
 /* The profile page: a person's facts in a row, and the Slack preferences. */
 .bwx-profile {
   display: flex;

@@ -874,6 +874,13 @@ export interface DiaryEntry {
   off_support?: boolean;
   /** #606. Scheduled, held, cancelled or no-show. */
   status?: string;
+  /** #620. A meeting's start and end (unix seconds), 0 when it has no time of day. */
+  starts_at?: number;
+  ends_at?: number;
+  /** #620. An all-day event, which sits above the day rather than at a time. */
+  all_day?: boolean;
+  /** #620. The people going, for the day planner. */
+  attendee_ids?: string[];
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */

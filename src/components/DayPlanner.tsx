@@ -1,0 +1,438 @@
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpToLine, ArrowDownToLine, Handshake, TriangleAlert } from 'lucide-react';
+import type { DiaryEntry } from '../types';
+import { api } from '../api';
+import { Button, StageChip, Tag } from '../kit';
+import { DiaryLine, daysOf, useDiary } from './Diary';
+import { todayIso } from '../calendar';
+import { PRIORITY_TONE } from '../priority';
+import { bringUp, clockText, DAY_END, DAY_START, hoursText, minuteOfDay, moveInOrder, planDay, sendDown } from '../dayplan.mjs';
+import type { Mine, Role } from '../mytasks';
+
+/*
+ * The day planner (#620): the Today tab of My tasks as a day, 7am to 7pm.
+ * Meetings sit at their times (in the viewer's own zone), tasks fill the open
+ * time by priority, and what does not fit, or has no hours, sits beneath.
+ * It is a view: it never changes a task. The placing rules live in
+ * src/dayplan.mjs; the only thing kept is the order a person sets (#620).
+ */
+
+const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
+const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
+
+/** Pixels an hour of the day is drawn at. */
+const HOUR_PX = 64;
+
+interface Saved {
+  order: string[];
+  down: string[];
+}
+
+interface Meeting {
+  id: string;
+  start: number;
+  end: number;
+  entry: DiaryEntry;
+}
+
+function dueText( one: Mine ): string {
+  if ( null === one.due ) return '—';
+  if ( one.due < 0 ) return `${ one.due }d`;
+  if ( 0 === one.due ) return 'today';
+  return new Date( `${ one.item.planned_due || one.item.derived_due }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' } );
+}
+
+function shiftDay( day: string, by: number ): string {
+  return new Date( Date.parse( `${ day }T00:00:00Z` ) + by * 86400000 ).toISOString().slice( 0, 10 );
+}
+
+function hourLabel( hour: number ): string {
+  return `${ hour % 12 || 12 }${ hour < 12 ? 'am' : 'pm' }`;
+}
+
+/** The same details as the table row has, one task. */
+function TaskBlock( {
+  one,
+  part,
+  parts,
+  clash,
+  editing,
+  actions,
+  onOpen,
+  height,
+  where,
+}: {
+  one: Mine;
+  part?: number;
+  parts?: number;
+  clash?: boolean;
+  editing?: boolean;
+  actions?: ReactNode;
+  onOpen: ( itemId: string ) => void;
+  height?: number;
+  where: 'day' | 'overflow' | 'unset';
+} ) {
+  return (
+    <div
+      className="bwx-day-block"
+      data-testid="bwx-day-block"
+      data-task={ one.id }
+      data-where={ where }
+      data-part={ part && parts && 1 < parts ? part : undefined }
+      data-priority={ one.item.priority }
+      data-clash={ clash ? 'true' : undefined }
+      data-editing={ editing ? 'true' : undefined }
+      style={ height ? { minHeight: height } : undefined }
+    >
+      <span className="bwx-day-block-main">
+        <span className="bwx-mytasks-title-row">
+          <button type="button" className="bwx-row-open" data-testid="bwx-mytasks-open" onClick={ () => onOpen( one.item.id ) }>
+            { one.item.title }
+          </button>
+          { 'blocked' === one.item.stage && <Tag tone="danger">Blocked</Tag> }
+          { 'assignee' === one.role && (
+            <span className="bwx-mytasks-done" data-testid="bwx-mytasks-done">
+              Done <span className="bwx-mono">{ `${ Object.keys( one.item.ticks ?? {} ).length } of ${ one.item.assignees.length }` }</span>
+            </span>
+          ) }
+          { parts && 1 < parts && <span className="bwx-day-part">{ `Part ${ part } of ${ parts }` }</span> }
+          { clash && (
+            <span className="bwx-day-clash" data-testid="bwx-day-clash">
+              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> Due, and no room today
+            </span>
+          ) }
+        </span>
+      </span>
+      <span className="bwx-day-block-facts">
+        <span className="bwx-day-fact">{ one.site.client_name || one.site.name }</span>
+        <StageChip stage={ one.item.stage } dense />
+        <Tag tone={ ROLE_TONE[ one.role ] }>{ ROLE_LABEL[ one.role ] }</Tag>
+        <span data-testid="bwx-mytasks-priority" data-priority={ one.item.priority }>
+          { one.item.priority ? <Tag tone={ PRIORITY_TONE[ one.item.priority ] ?? 'neutral' }>{ one.item.priority }</Tag> : '—' }
+        </span>
+        <span className="bwx-mono bwx-day-hours">{ one.hours ? `${ one.hours.toFixed( 1 ) }h` : '—' }</span>
+        <span className="bwx-mytasks-due bwx-mono" data-due={ null === one.due ? 'none' : one.due < -1 ? 'late' : one.due < 0 ? 'yesterday' : 0 === one.due ? 'today' : 'ahead' }>
+          { `Due ${ dueText( one ) }` }
+        </span>
+      </span>
+      { actions && <span className="bwx-day-actions">{ actions }</span> }
+    </div>
+  );
+}
+
+export function DayPlanner( {
+  rows,
+  me,
+  onOpen,
+  filtered,
+}: {
+  /** The Today tab's rows, already narrowed by the search, role and client. */
+  rows: Mine[];
+  me: { id: string } | null;
+  onOpen: ( itemId: string ) => void;
+  /** Whether a filter is narrowing the day, so an empty day can say so. */
+  filtered: boolean;
+} ) {
+  const day = todayIso();
+  const [ now, setNow ] = useState( () => new Date() );
+  const [ saved, setSaved ] = useState< Saved >( { order: [], down: [] } );
+  const [ editing, setEditing ] = useState( false );
+  const [ said, setSaid ] = useState( '' );
+  // The day is drawn once the saved order is known, so it never jumps.
+  const [ loaded, setLoaded ] = useState( false );
+
+  useEffect( () => {
+    const tick = window.setInterval( () => setNow( new Date() ), 60000 );
+    return () => window.clearInterval( tick );
+  }, [] );
+
+  // The order this person set for today, kept on their account.
+  useEffect( () => {
+    let live = true;
+    api< Saved >( `/day-plan?day=${ day }`, { cache: 'fresh' } )
+      .then( ( answer ) => {
+        if ( live ) setSaved( { order: answer.order ?? [], down: answer.down ?? [] } );
+      } )
+      .catch( () => undefined )
+      .finally( () => {
+        if ( live ) setLoaded( true );
+      } );
+    return () => {
+      live = false;
+    };
+  }, [ day ] );
+
+  // A three-day window, so a meeting is found by when it happens in this
+  // viewer's own day whichever date it was set on.
+  const diary = useDiary( shiftDay( day, -1 ), shiftDay( day, 1 ) );
+
+  const [ y, m, d ] = day.split( '-' ).map( Number );
+  const dayStartMs = new Date( y, m - 1, d ).getTime();
+  const nowMins = Math.floor( ( now.getTime() - dayStartMs ) / 60000 );
+
+  const { meetings, strip, away } = useMemo( () => {
+    const meetings: Meeting[] = [];
+    const strip: DiaryEntry[] = [];
+    let away = false;
+    const seen = new Set< string >();
+
+    for ( const entry of diary.entries ) {
+      if ( seen.has( entry.id ) ) continue;
+      seen.add( entry.id );
+      const mineAlone = 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) );
+
+      if ( 'meeting' === entry.kind ) {
+        const going = 'google' === entry.source ? ( entry.attendee_ids ?? [] ).includes( me?.id ?? '' ) : mineAlone || ( entry.attendee_ids ?? [] ).includes( me?.id ?? '' );
+        if ( ! going ) continue;
+
+        if ( entry.starts_at && entry.ends_at && ! entry.all_day ) {
+          const start = minuteOfDay( entry.starts_at, dayStartMs );
+          const end = minuteOfDay( entry.ends_at, dayStartMs );
+          if ( end > 0 && start < 1440 ) meetings.push( { id: entry.id, start, end, entry } );
+        } else if ( daysOf( entry ).includes( day ) ) {
+          strip.push( entry );
+        }
+        continue;
+      }
+
+      // Chores and reminders are drawn once, as their task; a finished one is gone.
+      if ( 'recurring' === entry.kind || 'reminder' === entry.kind ) continue;
+      if ( ! mineAlone || ! daysOf( entry ).includes( day ) ) continue;
+
+      // A whole day away: leave in Forge is always whole days.
+      if ( 'leave' === entry.kind && null !== me && 'all' !== entry.people && entry.people.includes( me.id ) ) away = true;
+      strip.push( entry );
+    }
+
+    return { meetings, strip, away };
+  }, [ diary.entries, me, day, dayStartMs ] );
+
+  const byId = useMemo( () => new Map( rows.map( ( one ) => [ one.id, one ] ) ), [ rows ] );
+  const tasks = useMemo(
+    () => rows.map( ( one, index ) => ( { id: one.id, hours: one.hours, priority: one.item.priority, due: one.due, index } ) ),
+    [ rows ]
+  );
+
+  const compute = ( order: string[], down: string[] ) =>
+    planDay( { now: nowMins, meetings: meetings.map( ( one ) => ( { id: one.id, start: one.start, end: one.end } ) ), tasks, order, down, away } );
+  const plan = useMemo( () => compute( saved.order, saved.down ), [ meetings, tasks, saved, nowMins, away ] ); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function keep( next: Saved, note = '' ) {
+    setSaved( next );
+    setSaid( note );
+    try {
+      await api( '/day-plan', { method: 'PUT', body: { day, order: next.order, down: next.down } } );
+    } catch {
+      setSaid( 'Your change could not be saved.' );
+    }
+  }
+
+  function bring( id: string, hasHours: boolean ) {
+    const next = bringUp( { order: plan.placedOrder, down: saved.down }, id );
+    const fits = hasHours && ! compute( next.order, next.down ).overflow.includes( id );
+    void keep( next, hasHours && ! fits ? 'That one is longer than the open time left today.' : '' );
+    if ( ! hasHours ) onOpen( byId.get( id )?.item.id ?? '' );
+  }
+
+  const meetingById = new Map( meetings.map( ( one ) => [ one.id, one ] ) );
+  const clashing = new Set( [ ...plan.clashes.meetings, ...plan.clashes.tasks ] );
+
+  const hours: number[] = [];
+  for ( let hour = DAY_START / 60; hour < DAY_END / 60; hour += 1 ) hours.push( hour );
+
+  const empty = 0 === rows.length && 0 === meetings.length;
+  const taskCount = plan.placedOrder.length;
+  const clashes = plan.clashes.count;
+
+  if ( ! loaded ) {
+    return (
+      <p className="bwx-muted bwx-day" data-testid="bwx-day-loading">
+        Planning your day…
+      </p>
+    );
+  }
+
+  return (
+    <div className="bwx-day" data-testid="bwx-day" data-editing={ editing ? 'true' : undefined }>
+      <div className="bwx-day-bar">
+        <p className="bwx-day-summary" data-testid="bwx-day-summary">
+          <span>{ `${ taskCount } ${ 1 === taskCount ? 'task' : 'tasks' } planned` }</span>
+          <span>{ `${ meetings.length } ${ 1 === meetings.length ? 'meeting' : 'meetings' }` }</span>
+          <span data-testid="bwx-day-planned">
+            <strong>{ hoursText( plan.plannedMins ) }</strong> planned
+          </span>
+          <span data-testid="bwx-day-open">
+            <strong>{ hoursText( plan.openMins ) }</strong> open
+          </span>
+          { 0 < clashes && (
+            <span className="bwx-day-clash" data-testid="bwx-day-clashes" role="status">
+              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" />
+              { ` ${ clashes } ${ 1 === clashes ? 'clash' : 'clashes' }` }
+            </span>
+          ) }
+        </p>
+        <Button variant="secondary" size="sm" data-testid="bwx-day-edit" aria-pressed={ editing } onClick={ () => setEditing( ! editing ) }>
+          { editing ? 'Done editing' : 'Edit plan' }
+        </Button>
+      </div>
+
+      { '' !== said && (
+        <p className="bwx-muted" role="status" data-testid="bwx-day-said">
+          { said }
+        </p>
+      ) }
+
+      { away && (
+        <p className="bwx-day-away" data-testid="bwx-day-away" role="status">
+          You are away today, so there is no open time. Everything with hours is under Doesn&apos;t fit today.
+        </p>
+      ) }
+
+      { 0 < strip.length && (
+        <ul className="bwx-diary-lines bwx-day-strip" data-testid="bwx-day-strip" aria-label="All day">
+          { strip.map( ( entry ) => (
+            <DiaryLine key={ entry.id } entry={ entry } onOpen={ onOpen } />
+          ) ) }
+        </ul>
+      ) }
+
+      { empty && ! away && (
+        <p className="bwx-muted" data-testid="bwx-day-empty">
+          { filtered ? 'Nothing matches the filters for today.' : 'Nothing needs you today.' }
+        </p>
+      ) }
+
+      <div className="bwx-day-grid" data-testid="bwx-day-grid">
+        { hours.map( ( hour ) => {
+          const here = plan.segments.filter( ( seg: { start: number } ) => seg.start >= hour * 60 && seg.start < hour * 60 + 60 );
+          return (
+            <div key={ hour } className="bwx-day-hour" data-hour={ hour } data-past={ hour * 60 + 60 <= nowMins ? 'true' : undefined }>
+              <span className="bwx-day-label bwx-mono">{ hourLabel( hour ) }</span>
+              <div className="bwx-day-slot">
+                { here.map( ( seg: { type: string; id: string; start: number; end: number; part: number; parts: number } ) => {
+                  const height = Math.round( ( ( seg.end - seg.start ) / 60 ) * HOUR_PX );
+
+                  if ( 'gap' === seg.type ) {
+                    return (
+                      <div key={ `gap${ seg.start }` } className="bwx-day-gap" data-testid="bwx-day-gap" style={ { minHeight: Math.max( 28, height ) } }>
+                        { `Open · ${ hoursText( seg.end - seg.start ) }` }
+                      </div>
+                    );
+                  }
+
+                  if ( 'meeting' === seg.type ) {
+                    const one = meetingById.get( seg.id );
+                    if ( ! one ) return null;
+                    const rest = one.entry.detail.replace( /^\d{1,2}:\d{2}\s*·?\s*/, '' );
+                    return (
+                      <div key={ `m${ seg.id }` } className="bwx-day-meeting" data-testid="bwx-day-meeting" data-meeting={ one.entry.id } data-clash={ clashing.has( seg.id ) ? 'true' : undefined } style={ { minHeight: Math.max( 40, height ) } }>
+                        <Handshake size={ 16 } strokeWidth={ 1.75 } aria-hidden="true" />
+                        <span className="bwx-day-meeting-body">
+                          <span className="bwx-day-meeting-title">{ one.entry.title }</span>
+                          <span className="bwx-day-meeting-when bwx-mono">{ `${ clockText( one.start ) }–${ clockText( one.end ) }` }</span>
+                          { '' !== rest && <span className="bwx-muted">{ rest }</span> }
+                        </span>
+                        { clashing.has( seg.id ) && (
+                          <span className="bwx-day-clash" data-testid="bwx-day-clash">
+                            <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> Overlaps another
+                          </span>
+                        ) }
+                      </div>
+                    );
+                  }
+
+                  const one = byId.get( seg.id );
+                  if ( ! one ) return null;
+                  const at = plan.placedOrder.indexOf( seg.id );
+                  const label = one.item.title;
+                  return (
+                    <TaskBlock
+                      key={ `${ seg.id }:${ seg.part }` }
+                      one={ one }
+                      part={ seg.part }
+                      parts={ seg.parts }
+                      height={ Math.max( 52, height ) }
+                      editing={ editing }
+                      where="day"
+                      onOpen={ onOpen }
+                      actions={
+                        editing && 1 === seg.part ? (
+                          <>
+                            <Button variant="ghost" size="sm" data-testid="bwx-day-up" aria-label={ `Move ${ label } up` } disabled={ 0 === at } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, -1 ), down: saved.down } ) }>
+                              <ArrowUp size={ 14 } aria-hidden="true" /> Up
+                            </Button>
+                            <Button variant="ghost" size="sm" data-testid="bwx-day-down" aria-label={ `Move ${ label } down` } disabled={ at === plan.placedOrder.length - 1 } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, 1 ), down: saved.down } ) }>
+                              <ArrowDown size={ 14 } aria-hidden="true" /> Down
+                            </Button>
+                            <Button variant="ghost" size="sm" data-testid="bwx-day-senddown" aria-label={ `Send ${ label } down to Doesn't fit today` } onClick={ () => void keep( sendDown( { order: plan.placedOrder, down: saved.down }, seg.id ) ) }>
+                              <ArrowDownToLine size={ 14 } aria-hidden="true" /> Send down
+                            </Button>
+                          </>
+                        ) : undefined
+                      }
+                    />
+                  );
+                } ) }
+              </div>
+            </div>
+          );
+        } ) }
+      </div>
+
+      { 0 < plan.overflow.length && (
+        <section className="bwx-day-list" data-testid="bwx-day-overflow" aria-labelledby="bwx-day-overflow-h">
+          <h3 id="bwx-day-overflow-h">{ `Doesn't fit today (${ plan.overflow.length })` }</h3>
+          { plan.overflow.map( ( id: string ) => {
+            const one = byId.get( id );
+            if ( ! one ) return null;
+            return (
+              <TaskBlock
+                key={ id }
+                one={ one }
+                where="overflow"
+                clash={ plan.clashes.tasks.includes( id ) }
+                editing={ editing }
+                onOpen={ onOpen }
+                actions={
+                  editing ? (
+                    <Button variant="ghost" size="sm" data-testid="bwx-day-bringup" aria-label={ `Bring ${ one.item.title } up into the day` } onClick={ () => bring( id, true ) }>
+                      <ArrowUpToLine size={ 14 } aria-hidden="true" /> Bring up
+                    </Button>
+                  ) : undefined
+                }
+              />
+            );
+          } ) }
+        </section>
+      ) }
+
+      { 0 < plan.unset.length && (
+        <section className="bwx-day-list" data-testid="bwx-day-unset" aria-labelledby="bwx-day-unset-h">
+          <h3 id="bwx-day-unset-h">{ `No hours set (${ plan.unset.length })` }</h3>
+          <p className="bwx-muted">These are not placed in the day until they have hours.</p>
+          { plan.unset.map( ( id: string ) => {
+            const one = byId.get( id );
+            if ( ! one ) return null;
+            return (
+              <TaskBlock
+                key={ id }
+                one={ one }
+                where="unset"
+                editing={ editing }
+                onOpen={ onOpen }
+                actions={
+                  editing ? (
+                    <Button variant="ghost" size="sm" data-testid="bwx-day-bringup" aria-label={ `Set hours for ${ one.item.title } to bring it up` } onClick={ () => bring( id, false ) }>
+                      <ArrowUpToLine size={ 14 } aria-hidden="true" /> Set hours
+                    </Button>
+                  ) : undefined
+                }
+              />
+            );
+          } ) }
+        </section>
+      ) }
+    </div>
+  );
+}

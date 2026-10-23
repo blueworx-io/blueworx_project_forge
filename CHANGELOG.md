@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.209.0] - 2026-10-23
+
+### Added
+
+- Today on My tasks is now a planned day, 7am to 7pm. Your meetings sit at their times, your tasks fill the open time by priority and as tall as their hours, and open time is shown. Work that won't fit before 7pm, and work with no hours, are listed beneath.
+- Edit plan lets you move tasks up or down, bring one up, or send one down. Your order holds for the day. Overlapping meetings and due work with no room today show in red and are counted at the top.
+
 ## [2.208.0] - 2026-10-23
 
 ### Added
