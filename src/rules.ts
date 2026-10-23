@@ -395,6 +395,30 @@ export const RULES: RuleSection[] = [
         why: 'A meeting set up by mistake shouldn\'t linger, but what a client paid for can\'t be undone.',
       },
       {
+        what: 'Each staff member can connect their own Google work calendar from their profile, and every event on it comes into Forge and follows Google when it is moved, changed or deleted. Forge only reads Google and never changes anything there.',
+        why: 'Most meetings live in Google Calendar, so capacity and support hours would miss them otherwise.',
+      },
+      {
+        what: 'A meeting from Google counts against the time of each connected person on it who hasn\'t declined, from the moment it arrives. Declined events, all-day events, out-of-office and focus time, and events marked free in Google show but take no time and never need settling.',
+        why: 'A holiday or a meeting somebody turned down shouldn\'t fill their week.',
+      },
+      {
+        what: 'A meeting on several connected calendars shows once, with everyone on it, and is settled and charged once. A Google event on the same day as a standing meeting, overlapping its time, with one of its people as host or attendee, is left out until somebody settles it, so the standing meeting counts once.',
+        why: 'One meeting must never charge a client twice.',
+      },
+      {
+        what: 'A meeting from Google arrives with no client and is settled by its people or an administrator: pick the client, or no client for studio time, and whether its time comes off their support hours. Picking a client ahead holds their hours as a standing meeting does, and they are only used when it is marked held. Once it has used hours its client can\'t change.',
+        why: 'Only a person knows who a meeting was for and whether the client pays for it.',
+      },
+      {
+        what: 'A settled meeting keeps its client when Google moves it, and its hours follow the new length. A meeting deleted in Google is removed and its held hours given back, unless it was marked held. Disconnecting removes only meetings nobody has settled.',
+        why: 'Google owns when a meeting is; Forge owns what it cost.',
+      },
+      {
+        what: 'Colleagues see a Google meeting\'s title, time and who is on it; an event marked private in Google shows to them as Busy. Google sign-in details are kept sealed and never shown to anyone, and only an administrator enters the studio\'s Google client.',
+        why: 'Somebody\'s calendar is theirs, and Forge only needs enough of it to plan time.',
+      },
+      {
         what: 'The daily standup is worked out fresh from what is true right now, and nothing is flagged or cleared by hand.',
         why: 'An item leaves the standup the moment its problem is fixed, and can\'t be hidden without fixing it.',
       },

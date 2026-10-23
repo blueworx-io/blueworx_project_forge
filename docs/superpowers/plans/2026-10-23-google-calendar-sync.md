@@ -37,6 +37,8 @@
 - Ruling: sync runs when the app opens (`POST /me/google/sync`), at most every 5 minutes per person; "Sync now" forces it. A full sync runs on first connect, when Google says the sync token expired (410), and once a day; it removes that person's copies Google no longer returned.
 - Ruling: deleted/cancelled in Google removes that person's copy; a meeting with nobody left is removed (its held hours released first) unless held. Disconnect removes only unsettled copies.
 - Ruling: "pick a client ahead" is offered from the calendar (click a Google meeting); "held / cancelled / nobody came" from the standup, with the client picker on the same line.
+- Ruling: "No client" goes through the same reach check as any site, so somebody who cannot reach the studio's own site cannot pick it — the design keeps internal meetings inside the access rules — cost: such a person asks an administrator to settle internal meetings.
+- Ruling: the background sync on opening Forge does not clear the app's kept answers (a new `background()` call beside `api()`), or every page load would throw away the session's warm copies — cost: a meeting that arrives shows on the next read rather than at once.
 - Ruling: synced meetings show to everyone in reach while unsettled (site ''), and once settled follow the site's reach — always to the people on them. A private event reads "Busy" to anyone not on it and not an administrator.
 
 ## Review Focus

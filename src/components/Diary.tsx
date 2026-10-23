@@ -285,7 +285,18 @@ export function AddDate( { onSaved, onClose }: { onSaved: () => void; onClose: (
 /**
  * The next thirty days as a list, day by day, with the way in for dates.
  */
-export function DiaryList( { entries, onOpen, onChanged }: { entries: DiaryEntry[]; onOpen: ( itemId: string ) => void; onChanged: () => void } ) {
+export function DiaryList( {
+  entries,
+  onOpen,
+  onChanged,
+  onGoogle,
+}: {
+  entries: DiaryEntry[];
+  onOpen: ( itemId: string ) => void;
+  onChanged: () => void;
+  /** #606. Opens a meeting from Google Calendar to pick its client. */
+  onGoogle?: ( entry: DiaryEntry ) => void;
+} ) {
   const canManage = forgeData()?.canManage ?? false;
   const byDay = diaryByDay( entries );
   const days = Object.keys( byDay ).sort();
@@ -328,6 +339,11 @@ export function DiaryList( { entries, onOpen, onChanged }: { entries: DiaryEntry
               { byDay[ day ].map( ( entry ) => (
                 <li key={ entry.id } className="bwx-diary-row">
                   <DiaryLine entry={ entry } onOpen={ onOpen } />
+                  { onGoogle && 'google' === entry.source && entry.can_settle && (
+                    <Button variant="ghost" size="sm" data-testid="bwx-google-open" onClick={ () => onGoogle( entry ) }>
+                      { '' === entry.site_id ? 'Pick client' : 'Change' }
+                    </Button>
+                  ) }
                   { canManage && 'date' === entry.kind && (
                     <Button variant="ghost" size="sm" data-testid="bwx-date-remove" onClick={ () => void remove( entry ) }>
                       Remove

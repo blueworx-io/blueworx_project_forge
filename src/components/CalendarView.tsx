@@ -13,6 +13,7 @@ import {
 } from '../calendar';
 import type { Mode } from '../calendar';
 import { DIARY_KINDS, DiaryList, diaryByDay, useDiary } from './Diary';
+import { fromGoogle, GoogleMeetingPanel } from './GoogleMeeting';
 import { isCompact } from '../viewport';
 
 /** How many entries a month cell shows before it says there are more. */
@@ -59,9 +60,12 @@ export function CalendarView( {
   // renewals and who is away, beside the work.
   const diary = useDiary( days[ 0 ], days[ days.length - 1 ] );
   const diaryDays = diaryByDay( diary.entries );
+  // #606. A meeting from Google Calendar, opened to pick its client.
+  const [ google, setGoogle ] = useState< DiaryEntry | null >( null );
 
   return (
     <div className="bwx-calendar" data-testid="bwx-calendar" data-mode={ mode }>
+      { google && <GoogleMeetingPanel entry={ google } onClose={ () => setGoogle( null ) } onSaved={ diary.reload } /> }
       <div className="bwx-calendar-head">
         <div className="bwx-views" role="group" aria-label="Calendar range">
           { ( [ 'month', 'week', 'day', 'list' ] as Mode[] ).map( ( each ) => (
@@ -130,7 +134,7 @@ export function CalendarView( {
       </div>
 
       { 'list' === mode && (
-        <DiaryList entries={ diary.entries } onOpen={ onOpenId } onChanged={ diary.reload } />
+        <DiaryList entries={ diary.entries } onOpen={ onOpenId } onChanged={ diary.reload } onGoogle={ setGoogle } />
       ) }
 
       { 'day' !== mode && 'list' !== mode && (
@@ -183,7 +187,7 @@ export function CalendarView( {
                       data-entry={ entry.id }
                       data-tone={ DIARY_KINDS[ entry.kind ].tone }
                       title={ entry.detail }
-                      onClick={ () => '' !== entry.item_id && onOpenId( entry.item_id ) }
+                      onClick={ () => ( fromGoogle( entry ) ? setGoogle( entry ) : '' !== entry.item_id && onOpenId( entry.item_id ) ) }
                     >
                       <span className="bwx-calendar-kind">{ DIARY_KINDS[ entry.kind ].label }</span>
                       <span className="bwx-calendar-entry-title">{ entry.title }</span>

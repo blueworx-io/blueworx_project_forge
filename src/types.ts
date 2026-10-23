@@ -864,6 +864,16 @@ export interface DiaryEntry {
   site_id: string;
   /** Everyone on it has ticked (#412); always false for a kind with no ticking. */
   done: boolean;
+  /** #606. 'google' for a meeting that came from Google Calendar. */
+  source?: 'google';
+  /** #606. The synced meeting's id, for settling it. */
+  google_id?: string;
+  /** #606. Whether the signed-in person may settle it. */
+  can_settle?: boolean;
+  /** #606. Whether its time comes off the client's support hours. */
+  off_support?: boolean;
+  /** #606. Scheduled, held, cancelled or no-show. */
+  status?: string;
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */

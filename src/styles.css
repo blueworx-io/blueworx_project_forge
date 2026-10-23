@@ -4585,3 +4585,26 @@ select.bwx-select,
 .bwx-document-list a {
   overflow-wrap: anywhere;
 }
+
+/* ---- #606. Settling a meeting from Google Calendar ---- */
+.bwx-google-settle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bwx-google-settle .fk-input {
+  width: auto;
+  min-width: 12rem;
+  max-width: 100%;
+}
+.bwx-google-settle-support {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var( --text-small );
+}
+.bwx-google-meeting-settle {
+  display: grid;
+  gap: 8px;
+}

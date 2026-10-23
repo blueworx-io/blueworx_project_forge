@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.208.0] - 2026-10-23
+
+### Added
+
+- Staff can connect their own Google work calendar from their profile, and their meetings come into Forge on their own: on the calendar, My tasks, capacity and the standup. Declined and all-day events show but don't take anyone's time.
+- A meeting from Google is settled from the standup or the calendar: pick the client (or no client) and whether its time comes off their support hours. It is charged once, only when marked held, however many staff were on it.
+- An administrator adds the studio's Google client once, in Settings.
+
 ## [2.207.0] - 2026-10-23
 
 ### Added

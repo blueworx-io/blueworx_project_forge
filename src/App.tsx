@@ -3,7 +3,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
-import { api, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
+import { api, background, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
@@ -310,6 +310,8 @@ export function App() {
     const client = /(?:^|[#&])client=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
     // #562. A link to one project's page.
     const project = /(?:^|[#&])project=([A-Za-z0-9_-]+)/.exec( hash )?.[ 1 ] ?? '';
+    // #606. How connecting Google Calendar went, for the profile to say.
+    const google = /(?:^|[#&])google=([a-z]+)/.exec( hash )?.[ 1 ] ?? '';
 
     if ( '' !== item || '' !== screen ) {
       window.history.replaceState( null, '', window.location.pathname + window.location.search );
@@ -318,7 +320,7 @@ export function App() {
     // A Manager landing on an administrator's screen opens the board instead.
     const allowed = Object.hasOwn( TITLES, screen ) && ( admin || ! ADMIN_ONLY.has( screen ) ) && ( 'client' !== screen || '' !== client ) && ( 'project' !== screen || '' !== project );
 
-    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules, client, project };
+    return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules, client, project, google };
   } );
   const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
   const [ view, setView ] = useState< ViewName >( 'board' );
@@ -381,6 +383,18 @@ export function App() {
       } ),
     []
   );
+
+  /*
+   * #606. Opening Forge brings the signed-in person's Google Calendar into
+   * step (at most every five minutes; the server decides), and the hours of
+   * settled meetings with it. There is no cron, so this is when it happens.
+   * Quiet: a failure here is shown on the person's own page, not as a banner.
+   */
+  useEffect( () => {
+    if ( isConnected() ) {
+      void background( '/me/google/sync' ).catch( () => undefined );
+    }
+  }, [] );
 
   if ( ! isConnected() ) {
     return (
@@ -645,7 +659,7 @@ export function App() {
         { 'leads' === screen && <LeadsScreen key={ generation } /> }
         { 'support' === screen && <SupportScreen key={ generation } /> }
         { 'meetings' === screen && <MeetingsScreen key={ generation } /> }
-        { 'profile' === screen && <ProfileScreen key={ generation } /> }
+        { 'profile' === screen && <ProfileScreen key={ generation } google={ landing.google } /> }
         </WhenChosen>
       </main>
 

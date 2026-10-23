@@ -11,6 +11,7 @@ import { Tag } from '../kit';
 import { waitingOn } from '../turn';
 import type { Seated } from '../turn';
 import { DiaryLine } from './Diary';
+import { fromGoogle, GoogleSettle } from './GoogleMeeting';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
 import { GateList, ItemPanel } from './ItemPanel';
@@ -148,6 +149,28 @@ export function StandupScreen() {
 
     try {
       await api( `/client-sites/${ entry.site_id }/meetings/${ entry.series_id }/${ entry.slot }/settle`, { method: 'POST', body: { status } } );
+      await load( true );
+      setNotice( 'Settled.', 'ok' );
+    } catch ( failure ) {
+      setNotice( messageFor( failure, 'That meeting could not be settled.' ) );
+    } finally {
+      settling.current = false;
+      setBusy( false );
+    }
+  }
+
+  /** Settles a meeting from Google Calendar: its client, its support choice, and what became of it (#606). */
+  async function settleGoogle( entry: NonNullable< StandupList[ 'to_settle' ] >[ number ], body: { client_site_id: string; off_support: boolean; status?: string } ) {
+    if ( settling.current ) {
+      return;
+    }
+
+    settling.current = true;
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      await api( `/google-meetings/${ entry.google_id }/settle`, { method: 'POST', body } );
       await load( true );
       setNotice( 'Settled.', 'ok' );
     } catch ( failure ) {
@@ -339,6 +362,10 @@ export function StandupScreen() {
                 key={ entry.id }
                 entry={ { ...entry, title: `${ entry.title } · ${ entry.date }` } }
                 action={
+                  fromGoogle( entry ) ? (
+                    // #606. From Google Calendar: pick its client too.
+                    entry.can_settle ? <GoogleSettle entry={ entry } statuses busy={ busy } onSettle={ ( body ) => void settleGoogle( entry, body ) } /> : undefined
+                  ) : (
                   <span className="bwx-moves">
                     { entry.can_settle && SETTLE_AS.map( ( one ) => (
                       <button key={ one.status } type="button" className="bwx-button" data-size="sm" disabled={ busy } onClick={ () => void settle( entry, one.status ) }>
@@ -362,6 +389,7 @@ export function StandupScreen() {
                       </a>
                     ) }
                   </span>
+                  )
                 }
               />
             ) ) }
