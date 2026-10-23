@@ -139,7 +139,8 @@ export function DayPlanner( {
   const [ saved, setSaved ] = useState< Saved >( { order: [], down: [] } );
   const [ editing, setEditing ] = useState( false );
   const [ said, setSaid ] = useState( '' );
-  // The day is drawn once the saved order is known, so it never jumps.
+  // Whether the saved order has been read. The day draws at once in the
+  // default order and settles into the person's own when it arrives.
   const [ loaded, setLoaded ] = useState( false );
 
   useEffect( () => {
@@ -183,6 +184,8 @@ export function DayPlanner( {
       const mineAlone = 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) );
 
       if ( 'meeting' === entry.kind ) {
+        // A meeting that has been held leaves the day, as it leaves Today's diary (#601).
+        if ( entry.done ) continue;
         const going = 'google' === entry.source ? ( entry.attendee_ids ?? [] ).includes( me?.id ?? '' ) : mineAlone || ( entry.attendee_ids ?? [] ).includes( me?.id ?? '' );
         if ( ! going ) continue;
 
@@ -245,16 +248,8 @@ export function DayPlanner( {
   const taskCount = plan.placedOrder.length;
   const clashes = plan.clashes.count;
 
-  if ( ! loaded ) {
-    return (
-      <p className="bwx-muted bwx-day" data-testid="bwx-day-loading">
-        Planning your day…
-      </p>
-    );
-  }
-
   return (
-    <div className="bwx-day" data-testid="bwx-day" data-editing={ editing ? 'true' : undefined }>
+    <div className="bwx-day" data-testid="bwx-day" data-ready={ loaded ? 'true' : 'false' } data-editing={ editing ? 'true' : undefined }>
       <div className="bwx-day-bar">
         <p className="bwx-day-summary" data-testid="bwx-day-summary">
           <span>{ `${ taskCount } ${ 1 === taskCount ? 'task' : 'tasks' } planned` }</span>

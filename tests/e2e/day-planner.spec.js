@@ -41,7 +41,7 @@ async function openToday( browser, baseURL, person, offset = 0 ) {
   const page = await me.context.newPage();
   await page.clock.setFixedTime( eightAm( offset ) );
   await page.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( page.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 90_000 } );
+  await expect( page.locator( '[data-testid="bwx-day"][data-ready="true"]' ) ).toBeVisible( { timeout: 90_000 } );
   return { me, page };
 }
 
@@ -159,7 +159,7 @@ test( 'the order a person sets holds after a reload, and tomorrow starts fresh',
 
   await page.reload();
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
-  await expect( day ).toBeVisible( { timeout: 90_000 } );
+  await expect( day.and( page.locator( '[data-ready="true"]' ) ) ).toBeVisible( { timeout: 90_000 } );
   expect( await titles( page, 'day' ), 'the order holds after a reload' ).toEqual( [ order[ 0 ], order[ 1 ] ] );
   expect( await titles( page, 'overflow' ) ).toEqual( [ order[ 2 ] ] );
 

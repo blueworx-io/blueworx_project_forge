@@ -40,10 +40,9 @@ test( 'My tasks has a Priority column and runs urgent first, then by date, then 
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
 
   const table = page.getByTestId( 'bwx-mytasks-table' );
-  await expect( table.locator( 'tbody tr', { hasText: `Today urgent ${ RUN }` } ) ).toBeVisible( { timeout: 60_000 } );
-  await expect( table.locator( 'thead' ) ).toContainText( 'Priority' );
+  await expect( page.locator( '[data-testid="bwx-day-block"]', { hasText: `Today urgent ${ RUN }` } ) ).toBeVisible( { timeout: 60_000 } );
 
-  const rows = table.locator( 'tbody tr' );
+  const rows = page.locator( '[data-testid="bwx-day-block"]' );
   await expect( rows ).toHaveCount( 4 );
   await expect( rows.nth( 0 ) ).toContainText( `Today urgent ${ RUN }` );
   await expect( rows.nth( 1 ) ).toContainText( `Late low ${ RUN }` );

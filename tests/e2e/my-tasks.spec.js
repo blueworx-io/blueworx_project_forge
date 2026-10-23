@@ -122,7 +122,7 @@ test( 'an urgent task due next month is at the top of Today, for whoever’s tur
 
   // The owner's turn: both urgent ones in Today, above what is merely due today.
   const owned = await look( owner );
-  const rows = owned.table.locator( 'tbody tr' );
+  const rows = owned.page.locator( '[data-testid="bwx-day-block"]' );
   await expect( rows ).toHaveCount( 3 );
   await expect( rows.nth( 0 ) ).toContainText( 'Urgent' );
   await expect( rows.nth( 1 ) ).toContainText( 'Urgent' );
@@ -176,18 +176,18 @@ test( 'two people with chores today each see only their own in their diary', asy
   const asOne = await Forge.signedIn( browser, baseURL, one.login, Forge.PASSWORD );
   const pageOne = await asOne.context.newPage();
   await pageOne.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( pageOne.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( pageOne.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Ones chore ${ RUN }` );
-  await expect( pageOne.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( `Twos chore ${ RUN }` );
+  await expect( pageOne.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( pageOne.getByTestId( 'bwx-day' ) ).toContainText( `Ones chore ${ RUN }` );
+  await expect( pageOne.getByTestId( 'bwx-day' ) ).not.toContainText( `Twos chore ${ RUN }` );
   await pageOne.close();
   await asOne.context.close();
 
   const asTwo = await Forge.signedIn( browser, baseURL, two.login, Forge.PASSWORD );
   const pageTwo = await asTwo.context.newPage();
   await pageTwo.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( pageTwo.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( pageTwo.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Twos chore ${ RUN }` );
-  await expect( pageTwo.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( `Ones chore ${ RUN }` );
+  await expect( pageTwo.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( pageTwo.getByTestId( 'bwx-day' ) ).toContainText( `Twos chore ${ RUN }` );
+  await expect( pageTwo.getByTestId( 'bwx-day' ) ).not.toContainText( `Ones chore ${ RUN }` );
   await pageTwo.close();
   await asTwo.context.close();
 
@@ -206,8 +206,8 @@ test( 'a company date for everyone shows in every person’s diary', async ( { b
   const asPerson = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
   const page = await asPerson.context.newPage();
   await page.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Studio day ${ RUN }` );
+  await expect( page.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( page.getByTestId( 'bwx-day' ) ).toContainText( `Studio day ${ RUN }` );
   await page.close();
   await asPerson.context.close();
   await admin.context.close();
@@ -250,23 +250,23 @@ test( 'a finished chore leaves Today’s diary and stays gone, and a partly-done
   const asSolo = await Forge.signedIn( browser, baseURL, solo.login, Forge.PASSWORD );
   const soloPage = await asSolo.context.newPage();
   await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( soloTitle );
+  await expect( soloPage.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( soloPage.getByTestId( 'bwx-day' ) ).toContainText( soloTitle );
 
   const ticked = await admin.api.post( `/work-items/${ soloItem.id }/tick`, { user_id: solo.id, done: true } );
   expect( ticked.status(), await ticked.text() ).toBe( 200 );
 
   await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
   await soloPage.reload();
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( soloTitle );
+  await expect( soloPage.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( soloPage.getByTestId( 'bwx-day' ) ).not.toContainText( soloTitle );
 
   // Stays gone after a further reload (the hash is cleared once read, so
   // land on My tasks by it again rather than a bare reload).
   await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
   await soloPage.reload();
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( soloTitle );
+  await expect( soloPage.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( soloPage.getByTestId( 'bwx-day' ) ).not.toContainText( soloTitle );
   await soloPage.close();
   await asSolo.context.close();
 
@@ -287,24 +287,26 @@ test( 'a finished chore leaves Today’s diary and stays gone, and a partly-done
   const asOne = await Forge.signedIn( browser, baseURL, one.login, Forge.PASSWORD );
   const onePage = await asOne.context.newPage();
   await onePage.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( pairTitle );
+  await expect( onePage.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( onePage.getByTestId( 'bwx-day' ) ).toContainText( pairTitle );
+  await expect( onePage.getByTestId( 'bwx-day' ) ).toContainText( 'Done 0 of 1' );
 
   const oneTicked = await admin.api.post( `/work-items/${ oneCopy.item_id }/tick`, { user_id: one.id, done: true } );
   expect( oneTicked.status(), await oneTicked.text() ).toBe( 200 );
 
   await onePage.goto( '/blueworx-forge/#screen=mytasks' );
   await onePage.reload();
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( pairTitle );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( '1 of 2 done' );
+  // Their own copy is ticked, so it has left their day; the other person's is not theirs.
+  await expect( onePage.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( onePage.getByTestId( 'bwx-day' ) ).not.toContainText( pairTitle );
 
   const twoTicked = await admin.api.post( `/work-items/${ twoCopy.item_id }/tick`, { user_id: two.id, done: true } );
   expect( twoTicked.status(), await twoTicked.text() ).toBe( 200 );
 
   await onePage.goto( '/blueworx-forge/#screen=mytasks' );
   await onePage.reload();
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( pairTitle );
+  await expect( onePage.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( onePage.getByTestId( 'bwx-day' ) ).not.toContainText( pairTitle );
   await onePage.close();
   await asOne.context.close();
 
@@ -397,8 +399,8 @@ test( 'a held meeting leaves Today’s diary and counts as done', async ( { brow
   const asHost = await Forge.signedIn( browser, baseURL, host.login, Forge.PASSWORD );
   const page = await asHost.context.newPage();
   await page.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( title );
+  await expect( page.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( page.getByTestId( 'bwx-day' ) ).toContainText( title );
 
   const held = await admin.api.post( `/client-sites/${ site.id }/meetings/${ series.id }/${ today }/settle`, { status: 'held' } );
   expect( held.status(), await held.text() ).toBe( 200 );
@@ -419,8 +421,8 @@ test( 'a held meeting leaves Today’s diary and counts as done', async ( { brow
   await page.goto( '/blueworx-forge/#screen=mytasks' );
   // Other specs leave dates for everyone today, so the diary need not be
   // empty; only this meeting has to have gone from it.
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( title );
+  await expect( page.getByTestId( 'bwx-day' ) ).toBeVisible( { timeout: 30_000 } );
+  await expect( page.getByTestId( 'bwx-day' ) ).not.toContainText( title );
 
   await page.close();
   await asHost.context.close();
