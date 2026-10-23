@@ -358,19 +358,29 @@ final class Feed {
 
 					$host = (string) ( $series['host_user_id'] ?? '' );
 
-					$out[] = self::entry(
-						'meeting',
-						'' !== (string) $meeting['id'] ? (string) $meeting['id'] : (string) $series['id'] . '@' . (string) $meeting['on'],
-						(string) $meeting['on'],
-						'',
-						(string) $series['title'],
-						trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
-						'' === $host ? array() : array( $host ),
-						'',
-						(string) $site['id'],
-						// #601. Held, or nobody came: it has happened, and
-						// leaves Today's diary as a finished chore does.
-						Occurrence::settled( (string) ( $meeting['status'] ?? '' ) )
+					$out[] = array_merge(
+						self::entry(
+							'meeting',
+							'' !== (string) $meeting['id'] ? (string) $meeting['id'] : (string) $series['id'] . '@' . (string) $meeting['on'],
+							(string) $meeting['on'],
+							'',
+							(string) $series['title'],
+							trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
+							'' === $host ? array() : array( $host ),
+							'',
+							(string) $site['id'],
+							// #601. Held, or nobody came: it has happened, and
+							// leaves Today's diary as a finished chore does.
+							Occurrence::settled( (string) ( $meeting['status'] ?? '' ) )
+						),
+						// #620. When it happens, and who else comes, for the day
+						// planner. Added to the entry; nothing else reads them.
+						array(
+							'starts_at'    => (int) ( $meeting['starts_at'] ?? 0 ),
+							'ends_at'      => (int) ( $meeting['ends_at'] ?? 0 ),
+							'all_day'      => false,
+							'attendee_ids' => array_values( array_map( 'strval', (array) ( $series['attendee_ids'] ?? array() ) ) ),
+						)
 					);
 				}
 			}
@@ -454,6 +464,12 @@ final class Feed {
 				),
 				array(
 					'source'         => 'google',
+					// #620. For the day planner.
+					'starts_at'      => $meeting['all_day'] ? 0 : (int) $meeting['starts_at'],
+					'ends_at'        => $meeting['all_day'] ? 0 : (int) $meeting['ends_at'],
+					'all_day'        => (bool) $meeting['all_day'],
+					// Who is going: a declined invitation takes no one's time.
+					'attendee_ids'   => array_values( array_map( 'strval', array_column( array_filter( $meeting['people'], static fn( array $person ): bool => 'declined' !== (string) $person['response'] ), 'user_id' ) ) ),
 					'google_id'      => (string) $meeting['id'],
 					'status'         => (string) $meeting['status'],
 					'off_support'    => (bool) $meeting['off_support'],
