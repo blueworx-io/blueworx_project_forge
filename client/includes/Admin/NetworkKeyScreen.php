@@ -47,6 +47,7 @@ final class NetworkKeyScreen {
 
 		add_action( 'network_admin_menu', array( self::class, 'register' ) );
 		add_action( 'network_admin_edit_' . self::ACTION, array( self::class, 'generate' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue' ) );
 	}
 
 	/**
@@ -85,29 +86,51 @@ final class NetworkKeyScreen {
 		$fresh = (string) get_site_transient( self::shown_once() );
 		delete_site_transient( self::shown_once() );
 
-		echo '<div class="wrap"><h1>' . esc_html__( 'Forge network', 'blueworx-forge' ) . '</h1>';
-		echo '<p>' . esc_html__( 'Blueworx Forge can create client sites on this network. In Forge, open Settings, then Connections, and connect the WordPress multisite network with this address and key.', 'blueworx-forge' ) . '</p>';
-		echo '<table class="form-table" role="presentation"><tr><th scope="row">' . esc_html__( 'Network address', 'blueworx-forge' ) . '</th><td><code data-testid="bwx-network-address">' . esc_html( untrailingslashit( network_home_url() ) ) . '</code></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Key', 'blueworx-forge' ) . '</th><td>';
+		Page::open( __( 'Forge network', 'blueworx-forge' ), '', __( 'Blueworx Forge can create client sites on this network. In Forge, open Settings, then Connections, and connect the WordPress multisite network with this address and key.', 'blueworx-forge' ) );
+		Page::panel_open( __( 'Network key', 'blueworx-forge' ), 'network-key' );
+
+		echo '<div class="bw-formrow">';
+		printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Network address', 'blueworx-forge' ) );
+		printf( '<div class="bw-formrow__control"><code class="bw-input--mono" data-testid="bwx-network-address">%s</code></div>', esc_html( untrailingslashit( network_home_url() ) ) );
+		echo '</div>';
+
+		echo '<div class="bw-formrow">';
+		printf( '<span class="bw-formrow__label">%s</span>', esc_html__( 'Key', 'blueworx-forge' ) );
+		echo '<div class="bw-formrow__control">';
 
 		if ( '' !== $fresh ) {
-			echo '<code data-testid="bwx-network-key">' . esc_html( $fresh ) . '</code><p class="description">' . esc_html__( 'Copy it now: it is not shown again.', 'blueworx-forge' ) . '</p>';
+			echo '<code class="bw-input--mono" data-testid="bwx-network-key">' . esc_html( $fresh ) . '</code><p class="bw-formrow__help">' . esc_html__( 'Copy it now: it is not shown again.', 'blueworx-forge' ) . '</p>';
 		} elseif ( Key::fixed() ) {
-			echo '<p>' . esc_html__( 'Set in wp-config.php (BWX_FORGE_NETWORK_KEY).', 'blueworx-forge' ) . '</p>';
+			echo '<p class="bw-formrow__help">' . esc_html__( 'Set in wp-config.php (BWX_FORGE_NETWORK_KEY).', 'blueworx-forge' ) . '</p>';
 		} else {
-			echo '<p>' . esc_html( '' === Key::get() ? __( 'No key yet.', 'blueworx-forge' ) : __( 'A key is set. Make a new one to replace it; Forge stops creating sites until the new one is entered there.', 'blueworx-forge' ) ) . '</p>';
+			echo '<p class="bw-formrow__help">' . esc_html( '' === Key::get() ? __( 'No key yet.', 'blueworx-forge' ) : __( 'A key is set. Make a new one to replace it; Forge stops creating sites until the new one is entered there.', 'blueworx-forge' ) ) . '</p>';
 		}
-
-		echo '</td></tr></table>';
 
 		if ( ! Key::fixed() ) {
 			echo '<form method="post" action="' . esc_url( network_admin_url( 'edit.php?action=' . self::ACTION ) ) . '">';
 			wp_nonce_field( self::ACTION );
-			submit_button( '' === Key::get() ? __( 'Make a key', 'blueworx-forge' ) : __( 'Make a new key', 'blueworx-forge' ) );
+			printf( '<button type="submit" class="bw-btn bw-btn--primary">%s</button>', esc_html( '' === Key::get() ? __( 'Make a key', 'blueworx-forge' ) : __( 'Make a new key', 'blueworx-forge' ) ) );
 			echo '</form>';
 		}
 
-		echo '</div>';
+		echo '</div></div>';
+
+		Page::panel_close();
+		Page::close();
+	}
+
+	/**
+	 * Loads the design system here. This is a network screen, so the site
+	 * screens' own loader never sees it.
+	 *
+	 * @param string $hook The screen's hook suffix.
+	 */
+	public static function enqueue( string $hook ): void {
+		if ( 'settings_page_' . self::SLUG !== $hook || ! function_exists( 'blueworx_admin_design_enqueue' ) ) {
+			return;
+		}
+
+		blueworx_admin_design_enqueue();
 	}
 
 	/**

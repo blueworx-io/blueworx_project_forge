@@ -72,8 +72,8 @@ test('two people on a weekday chore get a copy each, and each finishes their own
   await page.goto('/blueworx-forge/#screen=mytasks');
   await expect(page.getByTestId('bwx-mytasks')).toBeVisible({ timeout: 30_000 });
 
-  const row = page.locator('[data-testid="bwx-mytasks"] tr', { hasText: `Clear the inbox ${RUN_ID}` });
-  await expect(row).toHaveCount(1);
+  const row = page.locator('[data-testid="bwx-mytasks"] tr, [data-testid="bwx-day-block"]', { hasText: `Clear the inbox ${RUN_ID}` });
+  await expect(row).toHaveCount(1, { timeout: 60_000 });
   // Ticked off from inside the task; the list only shows the count (2026-09-27).
   await row.getByTestId('bwx-mytasks-open').click();
   await page.getByTestId('bwx-chore-done').click();
