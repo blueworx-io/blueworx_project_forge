@@ -4249,6 +4249,22 @@ td[ data-band='over' ] {
 .bwx-day-list { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var( --border-hairline ); }
 .bwx-day-list h3 { margin: 0; font-size: var( --text-small ); text-transform: none; }
 .bwx-day-list p { margin: 0; }
+/* #635. Beneath the day, in a box of their own; the first list needs no rule. */
+.bwx-day-lists { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.bwx-day-lists > .bwx-day-list:first-child { padding-top: 0; border-top: 0; }
+/* #635. Urgent or overdue work with no room, above the day. */
+.bwx-day-attention {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var( --state-danger-edge );
+  border-radius: 8px;
+  background: var( --state-danger-wash );
+}
+.bwx-day-attention h3 { display: inline-flex; align-items: center; gap: 4px; margin: 0; color: var( --state-danger ); font-size: var( --text-small ); text-transform: none; }
+.bwx-day-attention p { margin: 0; }
+[ data-testid='bwx-day-earlier' ] { align-self: flex-start; }
 @media ( max-width: 640px ) {
   .bwx-day { padding: 8px; }
   .bwx-day-hour { grid-template-columns: 36px 1fr; gap: 4px; }

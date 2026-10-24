@@ -17,6 +17,9 @@ namespace Blueworx\Forge\Work;
  * person and nobody else's request can reach it. It holds task ids and nothing
  * else, so it can never change a task, and an id for work that has since gone
  * is simply ignored when the plan is drawn.
+ *
+ * #635. It also keeps when the day was planned, so the plan holds each task
+ * in its slot as the day goes on rather than chasing the clock.
  */
 final class DayPlan {
 
@@ -41,7 +44,7 @@ final class DayPlan {
 	 *
 	 * @param int    $wp_user_id WordPress user id.
 	 * @param string $day        YYYY-MM-DD.
-	 * @return array{order: array<int, string>, down: array<int, string>}
+	 * @return array{order: array<int, string>, down: array<int, string>, start: int|null}
 	 */
 	public static function for_day( int $wp_user_id, string $day ): array {
 		$stored = $wp_user_id > 0 ? get_user_meta( $wp_user_id, self::META_KEY, true ) : array();
@@ -50,6 +53,7 @@ final class DayPlan {
 		return array(
 			'order' => self::ids( $plan['order'] ?? array() ),
 			'down'  => self::ids( $plan['down'] ?? array() ),
+			'start' => self::minute( $plan['start'] ?? null ),
 		);
 	}
 
@@ -60,9 +64,10 @@ final class DayPlan {
 	 * @param string            $day        YYYY-MM-DD.
 	 * @param array<int, mixed> $order      Task ids, in the order set.
 	 * @param array<int, mixed> $down       Task ids sent down to "doesn't fit".
+	 * @param mixed             $start      When the day was planned, in minutes from midnight.
 	 * @return bool Whether it was saved.
 	 */
-	public static function save( int $wp_user_id, string $day, array $order, array $down ): bool {
+	public static function save( int $wp_user_id, string $day, array $order, array $down, $start = null ): bool {
 		if ( $wp_user_id <= 0 || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ) {
 			return false;
 		}
@@ -73,6 +78,7 @@ final class DayPlan {
 		$stored[ $day ] = array(
 			'order' => self::ids( $order ),
 			'down'  => self::ids( $down ),
+			'start' => self::minute( $start ),
 		);
 
 		// Newest days last; keep only the latest few.
@@ -82,6 +88,16 @@ final class DayPlan {
 		update_user_meta( $wp_user_id, self::META_KEY, $stored );
 
 		return true;
+	}
+
+	/**
+	 * A minute of the day, or null for anything that is not one.
+	 *
+	 * @param mixed $raw Whatever arrived or was stored.
+	 * @return int|null
+	 */
+	private static function minute( $raw ): ?int {
+		return is_int( $raw ) && $raw >= 0 && $raw < 1440 ? $raw : null;
 	}
 
 	/**

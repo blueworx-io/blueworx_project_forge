@@ -419,8 +419,16 @@ export const RULES: RuleSection[] = [
         why: 'A list says what is due but not whether it fits in the day.',
       },
       {
-        what: 'Under the day, Doesn\'t fit today lists tasks that would run past 7pm, and No hours set lists tasks with no hours, which are never placed. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today.',
+        what: 'In a box of its own beneath the day, Doesn\'t fit today lists tasks that would run past 7pm, and No hours set lists tasks with no hours, which are never placed. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today.',
         why: 'Everything on Today is somewhere on the screen, and no task looks scheduled when it has nothing to place it by.',
+      },
+      {
+        what: 'Urgent or overdue tasks that are not in the day, because they have no hours or are too long for the time left, show in red under Needs attention above the day, most pressing first, and not again in the lists beneath. The hours before the day was planned are folded away, with a link to show them, and Today\'s diary shows on Today and every other tab.',
+        why: 'The most pressing work is the first thing seen, and the plan starts where the day did.',
+      },
+      {
+        what: 'The day is planned once, the first time you open Today. Each task then keeps its slot for the rest of the day, even after its time has passed, until you edit the plan, which plans it again from that moment. The next day is planned afresh.',
+        why: 'A plan that moved every time the clock did would never say what was missed.',
       },
       {
         what: 'Edit plan lets you move a task up or down, bring one up from either list, or send one down. The order holds for that day on your account, new tasks drop into open time without reshuffling it, and tomorrow starts fresh. The plan never changes a task\'s date, stage, priority or hours.',

@@ -163,10 +163,16 @@ export function planDay({ now, meetings, tasks, order = [], down = [], away = fa
     return due !== null && due <= 0;
   });
 
+  // Urgent or overdue work the day has no room for (#635), most pressing
+  // first, so it is shown above the day rather than lost below it.
+  const placed = new Set(placedOrder);
+  const attention = defaultOrder(tasks.filter((task) => !placed.has(task.id) && ('urgent' === task.priority || (task.due !== null && task.due < 0))));
+
   return {
     segments,
     overflow,
     unset,
+    attention,
     placedOrder,
     plannedMins,
     openMins: gaps.reduce((sum, [s, e]) => sum + (e - s), 0),
