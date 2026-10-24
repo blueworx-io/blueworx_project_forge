@@ -144,7 +144,6 @@ export function DayPlanner( {
   const [ now, setNow ] = useState( () => new Date() );
   const [ saved, setSaved ] = useState< Saved >( { order: [], down: [], start: null } );
   const [ editing, setEditing ] = useState( false );
-  const [ earlier, setEarlier ] = useState( false );
   const [ said, setSaid ] = useState( '' );
   // Whether the saved order has been read. The day draws at once in the
   // default order and settles into the person's own when it arrives.
@@ -257,16 +256,12 @@ export function DayPlanner( {
   const meetingById = new Map( meetings.map( ( one ) => [ one.id, one ] ) );
   const clashing = new Set( [ ...plan.clashes.meetings, ...plan.clashes.tasks ] );
 
-  // The hours before the day was planned fold away (#635): nothing is in
-  // them, and they would only push the plan down the page.
-  const startHour = Math.min( Math.max( DAY_START / 60, Math.floor( planStart / 60 ) ), DAY_END / 60 - 1 );
-  const folded = startHour > DAY_START / 60;
-  const firstHour = earlier ? DAY_START / 60 : startHour;
+  // The whole day, always (#637).
   const hours: number[] = [];
-  for ( let hour = firstHour; hour < DAY_END / 60; hour += 1 ) hours.push( hour );
+  for ( let hour = DAY_START / 60; hour < DAY_END / 60; hour += 1 ) hours.push( hour );
 
-  // Urgent or overdue work with no room is shown above the day, and so not
-  // again in the lists beneath it (#635).
+  // Urgent or overdue work with no room needs attention first, and so is not
+  // listed again under Doesn't fit today or No hours set (#635).
   const attention: string[] = plan.attention;
   const needed = new Set( attention );
   const overflow = plan.overflow.filter( ( id: string ) => ! needed.has( id ) );
@@ -284,33 +279,36 @@ export function DayPlanner( {
       </Button>
     );
 
-  // What does not fit and what has no hours, in a box of their own beneath
-  // the day's (#635), so the day reads as one thing.
+  // Beneath the day, each in a box of its own and in this order (#637):
+  // what needs attention, what doesn't fit, and what has no hours.
+  const box = ( kind: 'attention' | 'overflow' | 'unset', heading: ReactNode, note: string, ids: string[] ) =>
+    0 < ids.length && (
+      <Card className={ `bwx-day-box bwx-day-box-${ kind }` } pad={ 16 } testId={ `bwx-day-${ kind }` }>
+        <section className="bwx-day-list" aria-labelledby={ `bwx-day-${ kind }-h` }>
+          <h3 id={ `bwx-day-${ kind }-h` }>{ heading }</h3>
+          { '' !== note && <p className="bwx-muted">{ note }</p> }
+          { ids.map( ( id: string ) => {
+            const one = byId.get( id );
+            if ( ! one ) return null;
+            return <TaskBlock key={ id } one={ one } where={ kind } clash={ 'overflow' === kind && plan.clashes.tasks.includes( id ) } editing={ editing } onOpen={ onOpen } actions={ editing ? bringButton( id, one.item.title ) : undefined } />;
+          } ) }
+        </section>
+      </Card>
+    );
   const lists = (
-    <Card className="bwx-day-lists" pad={ 16 } testId="bwx-day-lists">
-      { 0 < overflow.length && (
-        <section className="bwx-day-list" data-testid="bwx-day-overflow" aria-labelledby="bwx-day-overflow-h">
-          <h3 id="bwx-day-overflow-h">{ `Doesn't fit today (${ overflow.length })` }</h3>
-          { overflow.map( ( id: string ) => {
-            const one = byId.get( id );
-            if ( ! one ) return null;
-            return <TaskBlock key={ id } one={ one } where="overflow" clash={ plan.clashes.tasks.includes( id ) } editing={ editing } onOpen={ onOpen } actions={ editing ? bringButton( id, one.item.title ) : undefined } />;
-          } ) }
-        </section>
+    <>
+      { box(
+        'attention',
+        <>
+          <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" />
+          { ` Needs attention (${ attention.length })` }
+        </>,
+        'Urgent or overdue, and not in the day: no hours set, or too long for the time left.',
+        attention
       ) }
-
-      { 0 < unset.length && (
-        <section className="bwx-day-list" data-testid="bwx-day-unset" aria-labelledby="bwx-day-unset-h">
-          <h3 id="bwx-day-unset-h">{ `No hours set (${ unset.length })` }</h3>
-          <p className="bwx-muted">These are not placed in the day until they have hours.</p>
-          { unset.map( ( id: string ) => {
-            const one = byId.get( id );
-            if ( ! one ) return null;
-            return <TaskBlock key={ id } one={ one } where="unset" editing={ editing } onOpen={ onOpen } actions={ editing ? bringButton( id, one.item.title ) : undefined } />;
-          } ) }
-        </section>
-      ) }
-    </Card>
+      { box( 'overflow', `Doesn't fit today (${ overflow.length })`, '', overflow ) }
+      { box( 'unset', `No hours set (${ unset.length })`, 'These are not placed in the day until they have hours.', unset ) }
+    </>
   );
 
   const empty = 0 === rows.length && 0 === meetings.length;
@@ -365,27 +363,6 @@ export function DayPlanner( {
         <p className="bwx-muted" data-testid="bwx-day-empty">
           { filtered ? 'Nothing matches the filters for today.' : 'Nothing needs you today.' }
         </p>
-      ) }
-
-      { 0 < attention.length && (
-        <section className="bwx-day-attention" data-testid="bwx-day-attention" aria-labelledby="bwx-day-attention-h">
-          <h3 id="bwx-day-attention-h">
-            <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" />
-            { ` Needs attention (${ attention.length })` }
-          </h3>
-          <p className="bwx-muted">Urgent or overdue, and not in the day: no hours set, or too long for the time left.</p>
-          { attention.map( ( id: string ) => {
-            const one = byId.get( id );
-            if ( ! one ) return null;
-            return <TaskBlock key={ id } one={ one } where="attention" editing={ editing } onOpen={ onOpen } actions={ editing ? bringButton( id, one.item.title ) : undefined } />;
-          } ) }
-        </section>
-      ) }
-
-      { folded && (
-        <Button variant="ghost" size="sm" data-testid="bwx-day-earlier" aria-expanded={ earlier } onClick={ () => setEarlier( ! earlier ) }>
-          { earlier ? 'Hide earlier hours' : `Show earlier, from ${ hourLabel( DAY_START / 60 ) }` }
-        </Button>
       ) }
 
       <div className="bwx-day-grid" data-testid="bwx-day-grid">
@@ -465,7 +442,7 @@ export function DayPlanner( {
         } ) }
       </div>
 
-      { below && 0 < overflow.length + unset.length && createPortal( lists, below ) }
+      { below && 0 < attention.length + overflow.length + unset.length && createPortal( lists, below ) }
     </div>
   );
 }
