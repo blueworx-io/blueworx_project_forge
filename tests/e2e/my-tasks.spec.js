@@ -68,9 +68,11 @@ test( 'the four views reconcile, and each opens the item', async ( { browser, ba
 
   // Today is due today or late, and nothing else (#481): the late one, and
   // not tomorrow's or the undated one in review.
-  await expect( table ).toContainText( `Late one ${ RUN }` );
-  await expect( table ).not.toContainText( `Tomorrow one ${ RUN }` );
-  await expect( table ).not.toContainText( `Checking ${ RUN }` );
+  // Today's lists sit in boxes of their own beside the table (#637).
+  const area = page.getByTestId( 'bwx-mytasks' );
+  await expect( area ).toContainText( `Late one ${ RUN }` );
+  await expect( area ).not.toContainText( `Tomorrow one ${ RUN }` );
+  await expect( area ).not.toContainText( `Checking ${ RUN }` );
   await table.getByRole( 'button', { name: /^Tomorrow/ } ).click();
   await expect( table.locator( 'tbody tr', { hasText: `Tomorrow one ${ RUN }` } ) ).toHaveCount( 1 );
   await expect( table ).not.toContainText( `Late one ${ RUN }` );
@@ -348,7 +350,8 @@ test( 'overdue work is under Today, and released work is under none of the dated
   const table = page.getByTestId( 'bwx-mytasks-table' );
   await expect( table ).toBeVisible( { timeout: 60_000 } );
 
-  await expect( table ).toContainText( `Late to ship ${ RUN }` );
+  // Today's lists sit in boxes of their own beside the table (#637).
+  await expect( page.getByTestId( 'bwx-mytasks' ) ).toContainText( `Late to ship ${ RUN }` );
   // Done work is under no view, Everything included (Luke, 2026-09-27).
   for ( const tab of [ /^Today/, /^Tomorrow/, /^Next seven days/, /^Further out/, /^Everything/ ] ) {
     await table.getByRole( 'button', { name: tab } ).click();
