@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect as baseExpect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
 import { signedIn, makeSite, makePackage } from './helpers/forge.js';
 
@@ -11,6 +11,11 @@ const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const HOURS = 40;
+
+// The test server answers one request at a time, so a save pressed while the
+// app's first loads are still running waits behind them, past the default
+// five seconds.
+const expect = baseExpect.configure({ timeout: 30_000 });
 
 test.describe.configure({ mode: 'serial' });
 
