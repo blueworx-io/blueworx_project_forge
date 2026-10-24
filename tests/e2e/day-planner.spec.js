@@ -105,7 +105,7 @@ test( 'Today is a planned day: meetings at their times, tasks by priority, the r
   await expect( day.getByTestId( 'bwx-day-meeting' ) ).toHaveCount( 2 );
   await expect( day.locator( '[data-testid="bwx-day-meeting"][data-clash="true"]' ) ).toHaveCount( 2 );
   expect( await titles( page, 'overflow' ) ).toEqual( [ `Huge job ${ RUN }` ] );
-  await expect( day.locator( '[data-where="overflow"]' ) ).toHaveAttribute( 'data-clash', 'true' );
+  await expect( page.locator( '[data-where="overflow"]' ) ).toHaveAttribute( 'data-clash', 'true' );
   await expect( day.getByTestId( 'bwx-day-clashes' ) ).toContainText( '3 clashes' );
 
   // No hours: listed, never placed.
@@ -139,7 +139,7 @@ test( 'the order a person sets holds after a reload, and tomorrow starts fresh',
 
   const { me, page } = await openToday( browser, baseURL, person );
   const day = page.getByTestId( 'bwx-day' );
-  const block = ( name ) => day.locator( '[data-task]', { hasText: `${ name } ${ RUN }` } );
+  const block = ( name ) => page.locator( '[data-task]', { hasText: `${ name } ${ RUN }` } );
   const order = [ `First by priority ${ RUN }`, `Second ${ RUN }`, `Third ${ RUN }` ];
 
   expect( await titles( page, 'day' ) ).toEqual( order );
@@ -204,6 +204,98 @@ test( 'a day away has no open time: a banner, and everything with hours does not
   await expect( day.getByTestId( 'bwx-day-open' ) ).toContainText( '0m' );
   expect( await titles( page, 'overflow' ) ).toEqual( [ `While away ${ RUN }` ] );
   await expect( day.getByTestId( 'bwx-day-gap' ) ).toHaveCount( 0 );
+
+  await page.close();
+  await me.context.close();
+  await admin.context.close();
+} );
+
+test( 'urgent and overdue work with no room needs attention above the day; the lists sit in their own box; the diary is on Today; past hours fold away (#635)', async ( { browser, baseURL } ) => {
+  test.slow();
+  test.setTimeout( 400_000 );
+
+  const { admin, site, person } = await setUp( browser, baseURL, 'd' );
+  const today = localDate();
+  await makeTask( admin, site.id, `Urgent unsized ${ RUN }`, { primary_user_id: person.id, priority: 'urgent', planned_due: today } );
+  await makeTask( admin, site.id, `Overdue and big ${ RUN }`, { primary_user_id: person.id, priority: 'high', hours_primary: 8, planned_due: localDate( -2 ) } );
+  await makeTask( admin, site.id, `Fits today ${ RUN }`, { primary_user_id: person.id, priority: 'normal', hours_primary: 1, planned_due: today } );
+  await makeTask( admin, site.id, `Normal unsized ${ RUN }`, { primary_user_id: person.id, priority: 'normal', planned_due: today } );
+
+  // A date in today's diary.
+  const dated = await admin.api.post( '/calendar-dates', { title: `Diary date ${ RUN }`, kind: 'company-day', on_date: ( await admin.api.get( '/standup' ) ).today, people: 'all' } );
+  expect( dated.status(), await dated.text() ).toBe( 200 );
+
+  // Opened at 2pm: five hours left, so the eight-hour job cannot fit.
+  const me = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
+  const page = await me.context.newPage();
+  const twoPm = new Date();
+  twoPm.setHours( 14, 0, 0, 0 );
+  await page.clock.setFixedTime( twoPm );
+  await page.goto( '/blueworx-forge/#screen=mytasks' );
+  const day = page.getByTestId( 'bwx-day' );
+  await expect( page.locator( '[data-testid="bwx-day"][data-ready="true"]' ) ).toBeVisible( { timeout: 90_000 } );
+
+  // Needs attention, above the day, most pressing first.
+  const attention = day.getByTestId( 'bwx-day-attention' );
+  await expect( attention ).toBeVisible();
+  expect( await titles( page, 'attention' ) ).toEqual( [ `Urgent unsized ${ RUN }`, `Overdue and big ${ RUN }` ] );
+  expect( await titles( page, 'day' ) ).toContain( `Fits today ${ RUN }` );
+
+  // The lists beneath are their own box, outside the day's, and do not repeat
+  // what needs attention.
+  const lists = page.getByTestId( 'bwx-day-lists' );
+  await expect( lists.getByTestId( 'bwx-day-unset' ) ).toBeVisible();
+  await expect( page.getByTestId( 'bwx-mytasks-table' ).getByTestId( 'bwx-day-unset' ) ).toHaveCount( 0 );
+  expect( await titles( page, 'unset' ) ).toEqual( [ `Normal unsized ${ RUN }` ] );
+  expect( await titles( page, 'overflow' ) ).toEqual( [] );
+
+  // Today's diary is on Today.
+  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Diary date ${ RUN }` );
+
+  // The morning has gone: it is folded away until asked for.
+  const grid = day.getByTestId( 'bwx-day-grid' );
+  await expect( grid.locator( '[data-hour="13"]' ) ).toHaveCount( 0 );
+  await expect( grid.locator( '[data-hour="14"]' ) ).toBeVisible();
+  await day.getByTestId( 'bwx-day-earlier' ).click();
+  await expect( grid.locator( '[data-hour="7"]' ) ).toBeVisible();
+
+  await page.close();
+  await me.context.close();
+  await admin.context.close();
+} );
+
+test( 'the day is planned once: a missed task keeps its slot as time passes, until the plan is edited (#635)', async ( { browser, baseURL } ) => {
+  test.slow();
+  test.setTimeout( 400_000 );
+
+  const { admin, site, person } = await setUp( browser, baseURL, 'e' );
+  const today = localDate();
+  await makeTask( admin, site.id, `Morning first ${ RUN }`, { primary_user_id: person.id, priority: 'high', hours_primary: 1, planned_due: today } );
+  await makeTask( admin, site.id, `Morning second ${ RUN }`, { primary_user_id: person.id, priority: 'normal', hours_primary: 1, planned_due: today } );
+
+  // Planned at 8am: the first at 8, the second at 9.
+  const { me, page } = await openToday( browser, baseURL, person );
+  const grid = page.getByTestId( 'bwx-day-grid' );
+  const inHour = ( hour, name ) => grid.locator( `[data-hour="${ hour }"] [data-task]`, { hasText: `${ name } ${ RUN }` } );
+  await expect( inHour( 8, 'Morning first' ) ).toBeVisible();
+  await expect( inHour( 9, 'Morning second' ) ).toBeVisible();
+  await expect.poll( async () => ( await me.api.get( `/day-plan?day=${ today }` ) ).start, { timeout: 30_000 } ).toBe( 480 );
+
+  // At 11am both have been missed, and both are still where they were.
+  const eleven = eightAm();
+  eleven.setHours( 11 );
+  await page.clock.setFixedTime( eleven );
+  await page.reload();
+  await page.getByTestId( 'bwx-screen-mytasks' ).click();
+  await expect( page.locator( '[data-testid="bwx-day"][data-ready="true"]' ) ).toBeVisible( { timeout: 90_000 } );
+  await expect( inHour( 8, 'Morning first' ) ).toBeVisible();
+  await expect( inHour( 9, 'Morning second' ) ).toBeVisible();
+
+  // Editing plans the day again, from now.
+  await page.getByTestId( 'bwx-day-edit' ).click();
+  await page.getByRole( 'button', { name: `Move Morning second ${ RUN } up` } ).click();
+  await expect( inHour( 11, 'Morning second' ) ).toBeVisible();
+  await expect( inHour( 12, 'Morning first' ) ).toBeVisible();
 
   await page.close();
   await me.context.close();

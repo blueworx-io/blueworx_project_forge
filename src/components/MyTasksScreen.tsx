@@ -54,6 +54,8 @@ export function MyTasksScreen() {
   const [ search, setSearch ] = useState( '' );
   const [ role, setRole ] = useState< string | null >( null );
   const [ opened, setOpened ] = useState( '' );
+  // Where the day planner puts its lists, beneath the tasks' own box (#635).
+  const [ below, setBelow ] = useState< HTMLDivElement | null >( null );
   // The top bar's client (#402) replaces the screen's own Client filter.
   const { siteId, label } = useClientChoice();
 
@@ -223,7 +225,7 @@ export function MyTasksScreen() {
           Today's diary (#386): the chores, dates, meetings, renewals and
           absences that are yours today. Shown whenever there is one.
        */ }
-      { 'ready' === state && 'today' !== view && 0 < myDiary.length && (
+      { 'ready' === state && 0 < myDiary.length && (
         <section className="bwx-standup-diary" data-testid="bwx-mytasks-diary">
           <p className="bwx-eyebrow">Today&apos;s diary</p>
           { 0 < openDiary.length ? (
@@ -254,12 +256,14 @@ export function MyTasksScreen() {
             onClearFilters={ () => setRole( null ) }
             columns={ columns }
             rows={ rows }
-            body={ 'today' === view ? <DayPlanner rows={ rows } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } /> : undefined }
+            body={ 'today' === view ? <DayPlanner rows={ rows } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } below={ below } /> : undefined }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
             footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }
             testId="bwx-mytasks-table"
           />
+          { /* The day's lists of what does not fit, in their own box (#635). */ }
+          <div ref={ setBelow } className="bwx-day-below" />
         </div>
       ) }
 

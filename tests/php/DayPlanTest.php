@@ -33,6 +33,7 @@ final class DayPlanTest extends TestCase {
 			array(
 				'order' => array( 'itm_a', 'itm_b' ),
 				'down'  => array( 'itm_c' ),
+				'start' => null,
 			),
 			DayPlan::for_day( 7, '2026-10-23' )
 		);
@@ -47,6 +48,7 @@ final class DayPlanTest extends TestCase {
 		$empty = array(
 			'order' => array(),
 			'down'  => array(),
+			'start' => null,
 		);
 
 		$this->assertSame( $empty, DayPlan::for_day( 7, '2026-10-24' ) );
@@ -87,5 +89,20 @@ final class DayPlanTest extends TestCase {
 	public function test_a_bad_day_or_nobody_is_refused(): void {
 		$this->assertFalse( DayPlan::save( 7, 'tomorrow', array( 'itm_a' ), array() ) );
 		$this->assertFalse( DayPlan::save( 0, '2026-10-23', array( 'itm_a' ), array() ) );
+	}
+
+	/**
+	 * #635. When the day was planned is kept with it, so the plan holds its
+	 * slots as the day goes on; a time that is not one is dropped.
+	 */
+	public function test_the_time_the_day_was_planned_is_kept(): void {
+		DayPlan::save( 7, '2026-10-24', array( 'itm_a' ), array(), 480 );
+		$this->assertSame( 480, DayPlan::for_day( 7, '2026-10-24' )['start'] );
+
+		DayPlan::save( 7, '2026-10-24', array( 'itm_a' ), array(), 2000 );
+		$this->assertNull( DayPlan::for_day( 7, '2026-10-24' )['start'] );
+
+		DayPlan::save( 7, '2026-10-24', array( 'itm_a' ), array() );
+		$this->assertNull( DayPlan::for_day( 7, '2026-10-24' )['start'] );
 	}
 }

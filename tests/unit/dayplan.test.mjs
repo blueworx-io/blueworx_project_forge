@@ -163,3 +163,25 @@ test('hoursText reads minutes the way the header and gaps do', () => {
   assert.equal(hoursText(45), '45m');
   assert.equal(hoursText(0), '0m');
 });
+
+test('urgent or overdue work that is not in the day needs attention, most pressing first (#635)', () => {
+  const plan = planDay({
+    now: h(9),
+    meetings: [],
+    tasks: [
+      task('urgent-none', 0, { priority: 'urgent' }),
+      task('late-big', 4, { priority: 'high', due: -1 }),
+      task('late-sent', 1, { due: -2 }),
+      task('today-big', 5, { due: 0 }),
+      task('fits', 1, { priority: 'urgent' }),
+      task('later-none', 0, { due: 3 }),
+    ],
+    down: ['late-sent'],
+  });
+  assert.deepEqual(plan.attention, ['urgent-none', 'late-big', 'late-sent']);
+});
+
+test('nothing needs attention when the urgent and overdue work is in the day (#635)', () => {
+  const plan = planDay({ now: 0, meetings: [], tasks: [task('u', 1, { priority: 'urgent' }), task('l', 1, { due: -1 })] });
+  assert.deepEqual(plan.attention, []);
+});

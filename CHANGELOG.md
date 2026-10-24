@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.211.1] - 2026-10-24
+
+### Fixed
+
+- Today's diary shows on the Today tab of My tasks again, instead of only on the other tabs.
+- Urgent or overdue tasks that are not in the day, because they have no hours or are too long for the time left, now show in red under Needs attention at the top of Today instead of at the bottom of the page.
+- Today is planned once, the first time you open it, and each task keeps its slot for the day even if its time passes. Editing the plan plans it again from then, and each new day is planned afresh.
+- The hours before the day was planned are folded away, with a link to show them.
+- Doesn't fit today and No hours set sit in their own box beneath the day.
+
 ## [2.211.0] - 2026-10-23
 
 ### Added

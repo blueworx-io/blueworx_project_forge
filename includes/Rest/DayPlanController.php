@@ -79,7 +79,7 @@ final class DayPlanController {
 		$body = (array) $request->get_json_params();
 		$day  = (string) ( $body['day'] ?? '' );
 
-		if ( ! DayPlan::save( get_current_user_id(), $day, (array) ( $body['order'] ?? array() ), (array) ( $body['down'] ?? array() ) ) ) {
+		if ( ! DayPlan::save( get_current_user_id(), $day, (array) ( $body['order'] ?? array() ), (array) ( $body['down'] ?? array() ), $body['start'] ?? null ) ) {
 			return Errors::rest( 'plan_not_saved', __( 'That plan could not be saved. It needs a day.', 'blueworx-forge' ), 400 );
 		}
 
