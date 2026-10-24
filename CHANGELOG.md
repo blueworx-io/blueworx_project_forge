@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.211.0] - 2026-10-23
+
+### Added
+
+- Connect the studio's WordPress multisite network in Settings, under Connections, with its address and the key made on its Forge network screen (Network Admin, Settings, Forge network). The client plugin must be network-activated there.
+- Create a client's WordPress site on the network from their page in Clients, on any of their sites with no WordPress site connected yet. Forge makes the site, links it to Forge, and gives the client's people their logins: admins get Editor and Forge: Manager, viewers get Forge: Manager. New accounts get WordPress's set-password email. Each step shows as it happens, and a failed step can be tried again.
+
 ## [2.210.0] - 2026-10-23
 
 ### Added

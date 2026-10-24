@@ -81,6 +81,57 @@ function CloudwaysForm( { service, onDone, onCancel }: { service: Service; onDon
   );
 }
 
+/** The multisite network: its address and the key its Forge network screen made, checked with it first. */
+function NetworkForm( { onDone, onCancel }: { onDone: ( next: Connections ) => void; onCancel: () => void } ) {
+  const [ url, setUrl ] = useState( 'https://' );
+  const [ key, setKey ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const [ notice, setNotice ] = useState( '' );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+    try {
+      onDone( await api< Connections >( '/connections/network', { method: 'POST', body: { url, key } } ) );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'The network could not be connected.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <form
+      className="bwx-connection-form"
+      data-testid="bwx-network-form"
+      onSubmit={ ( event ) => {
+        event.preventDefault();
+        void save();
+      } }
+    >
+      <Field label="Network address" help="The network's main site, as shown on its Forge network screen.">
+        { ( id ) => <TextInput id={ id } type="url" autoComplete="off" data-testid="bwx-network-url" value={ url } onChange={ ( event ) => setUrl( event.target.value ) } /> }
+      </Field>
+      <Field label="Network key" help="Made in the network's Network Admin, under Settings, then Forge network. Kept sealed and never shown again.">
+        { ( id ) => <TextInput id={ id } type="password" autoComplete="off" data-testid="bwx-network-key" value={ key } onChange={ ( event ) => setKey( event.target.value ) } /> }
+      </Field>
+      { '' !== notice && (
+        <p className="bwx-notice" role="alert" data-testid="bwx-network-notice">
+          { notice }
+        </p>
+      ) }
+      <div className="bwx-moves">
+        <Button size="sm" type="submit" disabled={ busy } data-testid="bwx-network-save">
+          { busy ? 'Checking with the network…' : 'Connect network' }
+        </Button>
+        <Button size="sm" variant="ghost" disabled={ busy } onClick={ onCancel }>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * #621. Every outside service Forge talks to, in one place: whether it is
  * connected and when it last checked in. Cloudways is connected from here;
@@ -156,6 +207,8 @@ export function ConnectionsPanel( { onOpenServers }: { onOpenServers?: () => voi
             ) }
             { undefined !== service.link && <p className="bwx-hint">Stores and the Slack app are still set up on the WordPress admin Connections screen.</p> }
             { editing === service.id && 'cloudways' === service.id && <CloudwaysForm service={ service } onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
+            { editing === service.id && 'network' === service.id && <NetworkForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
+            { 'network' === service.id && service.connected && <p className="bwx-hint">Create a client&apos;s site from their page in Clients, on a site with no WordPress site connected yet.</p> }
           </li>
         ) ) }
       </ul>

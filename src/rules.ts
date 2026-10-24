@@ -748,6 +748,26 @@ export const RULES: RuleSection[] = [
         what: 'A server Cloudways last reported as anything but running is on the Daily standup, under The studio itself, for administrators only. If Cloudways can\'t be reached, servers show as unreachable and the standup keeps what Cloudways last reported.',
         why: 'Only administrators can see the servers, and an outage at Cloudways shouldn\'t hide a server that was down or flag every one that wasn\'t.',
       },
+      {
+        what: 'Once the WordPress multisite network is connected, an administrator can create a client\'s site on it from the client\'s page, on any of their sites that has no WordPress site connected yet. The address and title are theirs to choose; the site gets whatever plugins are switched on across the network.',
+        why: 'The Forge site that work, hours and onboarding already hang off is the one that gets filled in, rather than a second one being made.',
+      },
+      {
+        what: 'Creating a site runs three steps in order: the site is made, it is linked to Forge with a new key nobody has to copy, and the client\'s people get their logins. A step that fails says so, keeps what was done, and can be tried again from there.',
+        why: 'A half-made site should be finished, not started again.',
+      },
+      {
+        what: 'On the new site, the client\'s admins get Editor and Forge: Manager, and the client\'s viewers get Forge: Manager only. Studio staff and anyone limited to another of the client\'s sites get nothing; the network\'s own administrators already have access. Nobody is made an administrator.',
+        why: 'Admins look after their site\'s content; viewers only follow the work in Forge.',
+      },
+      {
+        what: 'Somebody who already has an account on the network is added to the new site rather than given a second one. New accounts get WordPress\'s own email to set a password; no password is ever sent or shown.',
+        why: 'A password in an email is a password anyone with that email can read.',
+      },
+      {
+        what: 'Forge only talks to the network over https, with every call signed by the network\'s key, timed, and usable once. The network will only link or add people to a site it made for that same Forge site.',
+        why: 'A route that makes sites and logins must not answer anyone else, or let the studio\'s key reach other sites on the network.',
+      },
     ],
   },
 ];

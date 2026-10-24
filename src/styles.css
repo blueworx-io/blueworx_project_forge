@@ -1896,6 +1896,24 @@ body {
   max-width: 420px;
   padding-top: 4px;
 }
+/* #621. Creating a client's site: one line per step, its state first. */
+.bwx-create-site {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.bwx-create-site-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.bwx-create-site-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .bwx-servers-head {
   align-items: center;
   justify-content: space-between;

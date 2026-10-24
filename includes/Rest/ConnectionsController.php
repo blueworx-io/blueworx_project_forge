@@ -13,6 +13,10 @@ use Blueworx\Forge\Admin\ConnectionsScreen;
 use Blueworx\Forge\Cloudways\Client as Cloudways;
 use Blueworx\Forge\Cloudways\Settings as CloudwaysSettings;
 use Blueworx\Forge\Cloudways\Status;
+use Blueworx\Forge\Network\Client as NetworkClient;
+use Blueworx\Forge\Network\Deploys;
+use Blueworx\Forge\Network\Settings as NetworkSettings;
+use Blueworx\Forge\Tenancy\ClientSites;
 use WP_REST_Request;
 
 /**
@@ -41,6 +45,8 @@ final class ConnectionsController {
 			array( '/connections/cloudways', 'POST', 'connect_cloudways' ),
 			array( '/connections/cloudways', 'DELETE', 'disconnect_cloudways' ),
 			array( '/servers', 'GET', 'servers' ),
+			array( '/connections/network', 'POST', 'connect_network' ),
+			array( '/connections/network', 'DELETE', 'disconnect_network' ),
 		);
 
 		foreach ( $routes as list( $path, $method, $callback ) ) {
@@ -55,6 +61,157 @@ final class ConnectionsController {
 				)
 			);
 		}
+
+		// #621, Part B. Creating a Forge site's WordPress site on the network.
+		foreach ( array(
+			'GET'  => 'deploy',
+			'POST' => 'run_deploy',
+		) as $method => $callback ) {
+			Server::register_route(
+				$route_namespace,
+				'/client-sites/(?P<site_id>[A-Za-z0-9_-]+)/deploy',
+				array(
+					'methods'             => $method,
+					'callback'            => array( self::class, $callback ),
+					'permission_callback' => array( Permissions::class, 'manage' ),
+					'scope'               => array(
+						'kind'   => Boundary::SCOPE_SITE,
+						'param'  => 'site_id',
+						'record' => 'client_site',
+					),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Connects the multisite network, once it has answered a call signed with
+	 * the key.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function connect_network( WP_REST_Request $request ) {
+		$body = (array) $request->get_json_params();
+		$url  = trim( (string) ( $body['url'] ?? '' ) );
+		$key  = trim( sanitize_text_field( (string) ( $body['key'] ?? '' ) ) );
+
+		$fields = array();
+
+		if ( ! NetworkSettings::valid_url( $url ) ) {
+			$fields['url'] = __( 'Enter the network\'s address, starting https://.', 'blueworx-forge' );
+		}
+
+		if ( '' === $key ) {
+			$fields['key'] = __( 'Enter the key from Network Admin, Settings, Forge network.', 'blueworx-forge' );
+		}
+
+		if ( array() !== $fields ) {
+			return Errors::rest( 'invalid_network', (string) reset( $fields ), 400, array( 'fields' => $fields ) );
+		}
+
+		$hello = NetworkClient::send( $url, $key, 'GET', '/network/hello' );
+
+		if ( is_wp_error( $hello ) ) {
+			return NetworkClient::DENIED === $hello->get_error_code()
+				? Errors::rest( 'network_refused', __( 'The network did not accept that key. Nothing was saved.', 'blueworx-forge' ), 422 )
+				/* translators: %s: what went wrong reaching the network. */
+				: Errors::rest( 'network_unreachable', sprintf( __( '%s Nothing was saved.', 'blueworx-forge' ), $hello->get_error_message() ), 502 );
+		}
+
+		NetworkSettings::save( $url, $key, $hello );
+
+		return rest_ensure_response( self::answer() );
+	}
+
+	/**
+	 * Disconnects the network.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public static function disconnect_network() {
+		NetworkSettings::forget();
+
+		return rest_ensure_response( self::answer() );
+	}
+
+	/**
+	 * Whether a Forge site can have its WordPress site created, and how far
+	 * creating it has got.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function deploy( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		return null === $site ? Boundary::absent( 'client_site' ) : rest_ensure_response( self::deploy_answer( $site ) );
+	}
+
+	/**
+	 * Runs one step of creating a Forge site's WordPress site.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function run_deploy( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$body = (array) $request->get_json_params();
+		$step = (string) ( $body['step'] ?? '' );
+
+		if ( ! in_array( $step, Deploys::STEPS, true ) ) {
+			return Errors::rest( 'invalid_step', __( 'That is not a step of creating a site.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( ! Deploys::available( $site ) ) {
+			return Errors::rest( 'deploy_unavailable', __( 'This site already has a WordPress site connected, or the network is not connected.', 'blueworx-forge' ), 409 );
+		}
+
+		$done = Deploys::run( $site, $step, $body, get_current_user_id() );
+
+		if ( is_wp_error( $done ) ) {
+			$data = (array) $done->get_error_data();
+
+			return Errors::rest(
+				'deploy_failed',
+				$done->get_error_message(),
+				(int) ( $data['status'] ?? 502 ),
+				array(
+					'step'   => (string) ( $data['step'] ?? $step ),
+					'fields' => (array) ( $data['fields'] ?? array() ),
+				)
+			);
+		}
+
+		return rest_ensure_response( self::deploy_answer( $site ) );
+	}
+
+	/**
+	 * The deploy answer.
+	 *
+	 * @param array<string, mixed> $site The Forge site.
+	 * @return array<string, mixed>
+	 */
+	private static function deploy_answer( array $site ): array {
+		$about = NetworkSettings::about();
+
+		return array(
+			'ok'        => true,
+			'available' => Deploys::available( $site ),
+			'network'   => array(
+				'connected'  => NetworkSettings::connected(),
+				'name'       => $about['name'],
+				'domain'     => $about['domain'],
+				'path'       => $about['path'],
+				'subdomains' => $about['subdomains'],
+			),
+			'deploy'    => Deploys::get( (string) $site['id'] ),
+		);
 	}
 
 	/**
@@ -167,6 +324,14 @@ final class ConnectionsController {
 					'hint'         => CloudwaysSettings::key_hint(),
 					'connected_at' => CloudwaysSettings::connected_at(),
 					'last_checked' => Status::last()['checked_at'],
+				),
+				array(
+					'id'           => 'network',
+					'name'         => 'WordPress multisite network',
+					'connected'    => NetworkSettings::connected(),
+					'email'        => NetworkSettings::url(),
+					'hint'         => NetworkSettings::key_hint(),
+					'last_checked' => NetworkSettings::about()['last_ok_at'],
 				),
 				array(
 					'id'   => 'surecart',

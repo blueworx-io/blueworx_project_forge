@@ -38,7 +38,7 @@ final class ConnectionsRestTest extends TestCase {
 	public function test_the_routes_exist(): void {
 		$routes = array_keys( $this->permissions() );
 
-		foreach ( array( 'GET /connections', 'POST /connections/cloudways', 'DELETE /connections/cloudways', 'GET /servers' ) as $expected ) {
+		foreach ( array( 'GET /connections', 'POST /connections/cloudways', 'DELETE /connections/cloudways', 'GET /servers', 'POST /connections/network', 'DELETE /connections/network', 'GET /client-sites/(?P<site_id>[A-Za-z0-9_-]+)/deploy', 'POST /client-sites/(?P<site_id>[A-Za-z0-9_-]+)/deploy' ) as $expected ) {
 			$this->assertContains( $expected, $routes );
 		}
 	}

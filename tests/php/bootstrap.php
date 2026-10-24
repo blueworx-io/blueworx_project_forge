@@ -863,3 +863,15 @@ if ( ! function_exists( 'wp_parse_url' ) ) {
 		return parse_url( $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
 	}
 }
+
+if ( ! function_exists( 'untrailingslashit' ) ) {
+	/**
+	 * Stub.
+	 *
+	 * @param string $value A path or address.
+	 * @return string
+	 */
+	function untrailingslashit( string $value ): string {
+		return rtrim( $value, '/' );
+	}
+}
