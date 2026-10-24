@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.210.0] - 2026-10-23
+
+### Added
+
+- Settings now has a Connections section listing each outside service, whether it is connected and when it last checked in. Cloudways is connected there with your account email and API key; the key is checked with Cloudways first, kept sealed, and never shown again beyond its last four characters. SureCart and Slack link to their existing screen in WordPress admin.
+- A new Servers page, for administrators, shows every server on the Cloudways account, what it is doing, and which clients' sites are on it. It checks when you open it or press Check now; nothing checks in the background.
+- A server that isn't running shows on the Daily standup under The studio itself, for administrators only, with the clients it affects.
+
 ## [2.209.0] - 2026-10-23
 
 ### Added

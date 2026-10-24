@@ -728,4 +728,26 @@ export const RULES: RuleSection[] = [
       },
     ],
   },
+  {
+    id: 'connections',
+    title: 'Connections',
+    rules: [
+      {
+        what: 'Outside services are connected in Settings, under Connections, by an administrator. A key is checked with the service before it is saved, kept sealed, and only its last four characters are ever shown again.',
+        why: 'A key that reaches the browser, a log or a backup in the clear is a key someone else can use.',
+      },
+      {
+        what: 'Forge asks Cloudways about the servers only when an administrator opens Servers or presses Check now. Opening the page again within five minutes, or pressing Check now within fifteen seconds, shows the last answer.',
+        why: 'Nothing checks in the background yet, and asking Cloudways over and over says nothing new.',
+      },
+      {
+        what: 'Each application on a server is matched to a client by its address, ignoring https, www and anything after the domain. Applications that match no client are listed as not matched.',
+        why: 'It shows which clients a server problem affects.',
+      },
+      {
+        what: 'A server Cloudways last reported as anything but running is on the Daily standup, under The studio itself, for administrators only. If Cloudways can\'t be reached, servers show as unreachable and the standup keeps what Cloudways last reported.',
+        why: 'Only administrators can see the servers, and an outage at Cloudways shouldn\'t hide a server that was down or flag every one that wasn\'t.',
+      },
+    ],
+  },
 ];

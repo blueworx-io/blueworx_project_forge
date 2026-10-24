@@ -1855,6 +1855,51 @@ body {
   gap: 16px;
   align-content: start;
 }
+/* #621. Connections: one row per outside service, its state at a glance. */
+.bwx-connections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.bwx-connection {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var( --border-hairline );
+}
+.bwx-connection:first-child {
+  padding-top: 0;
+}
+.bwx-connection:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.bwx-connection-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.bwx-connection-name {
+  min-width: 10ch;
+}
+.bwx-connection-moves {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.bwx-connection-form {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  padding-top: 4px;
+}
+.bwx-servers-head {
+  align-items: center;
+  justify-content: space-between;
+}
 /* #528. The topics as tabs: eleven of them, so they wrap rather than scroll. */
 .bwx-rules-tabs {
   flex-wrap: wrap;

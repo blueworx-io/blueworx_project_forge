@@ -41,6 +41,7 @@ const APP_SCREENS = [
   [ 'People', 'bwx-screen-people' ],
   [ 'Availability', 'bwx-screen-availability' ],
   [ 'Packages', 'bwx-screen-packages' ],
+  [ 'Servers', 'bwx-screen-servers' ],
   [ 'Settings', 'bwx-screen-settings' ],
   [ 'Support', 'bwx-screen-support' ],
   [ 'Meetings', 'bwx-screen-meetings' ],

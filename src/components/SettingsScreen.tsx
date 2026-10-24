@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react';
 import { api, forgeData, messageFor } from '../api';
 import { Button, Field, Panel, TextInput } from '../kit';
 import { RULES } from '../rules';
+import { ConnectionsPanel } from './ConnectionsPanel';
 
 interface UpdateStatus {
   installed: string;
@@ -205,7 +206,7 @@ function GoogleCalendar() {
  * Read-only by design. The rules are written in src/rules.ts, and a change to
  * how Forge behaves changes that file in the same pull request.
  */
-export function SettingsScreen( { section = '' }: { section?: string } ) {
+export function SettingsScreen( { section = '', onOpenServers }: { section?: string; onOpenServers?: () => void } ) {
   const known = RULES.some( ( one ) => one.id === section );
   const [ active, setActive ] = useState( known ? section : RULES[ 0 ].id );
   const tabs = useRef< Map< string, HTMLButtonElement > >( new Map() );
@@ -229,6 +230,7 @@ export function SettingsScreen( { section = '' }: { section?: string } ) {
 
   return (
     <div className="bwx-settings" data-testid="bwx-settings">
+      { forgeData()?.canManage && <ConnectionsPanel onOpenServers={ onOpenServers } /> }
       { forgeData()?.canManage && <Updates /> }
       { forgeData()?.canManage && <GoogleCalendar /> }
 

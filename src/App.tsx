@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Server, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, background, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -17,6 +17,7 @@ import { MyTasksScreen } from './components/MyTasksScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { PackagesScreen } from './components/PackagesScreen';
 import { SettingsScreen } from './components/SettingsScreen';
+import { ServersScreen } from './components/ServersScreen';
 import { LeadsScreen } from './components/LeadsScreen';
 import { Warmer } from './components/Warmer';
 import { PeopleScreen } from './components/PeopleScreen';
@@ -92,6 +93,7 @@ const RAIL: Entry[] = [
   { key: 'reports', label: 'Reports', icon: BarChart3, testId: 'bwx-screen-reports', admin: true },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard, testId: 'bwx-screen-subscriptions', admin: true },
   { key: 'packages', label: 'Packages', icon: Receipt, testId: 'bwx-screen-packages', admin: true },
+  { key: 'servers', label: 'Servers', icon: Server, testId: 'bwx-screen-servers', admin: true },
   { key: 'settings', label: 'Settings', icon: Settings, testId: 'bwx-screen-settings', admin: true },
 ];
 
@@ -203,6 +205,7 @@ const TITLES: Record< ScreenName, string > = {
   availability: 'Availability',
   packages: 'Support packages',
   settings: 'Settings',
+  servers: 'Servers',
   people: 'People',
   clients: 'Clients',
   client: 'Client',
@@ -245,6 +248,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   availability: { crumbs: [ 'Team', 'Availability' ], eyebrow: 'Working weeks and time off', tile: CalendarCheck, hue: 'blue' },
   packages: { crumbs: [ 'Insight', 'Packages' ], eyebrow: 'What is on offer, and every version of it', tile: Receipt, hue: 'emerald' },
   settings: { crumbs: [ 'Insight', 'Settings' ], eyebrow: 'How Forge behaves, and why', tile: Settings, hue: 'slate' },
+  servers: { crumbs: [ 'Insight', 'Servers' ], eyebrow: 'What Cloudways says each server is doing', tile: Server, hue: 'slate' },
   people: { crumbs: [ 'Team', 'People' ], eyebrow: 'Everyone, and everywhere they work', tile: Users, hue: 'violet' },
   clients: { crumbs: [ 'Clients', 'Clients' ], eyebrow: 'Who we work for, and their sites', tile: Building2, hue: 'teal' },
   client: { crumbs: [ 'Clients', 'Client' ], eyebrow: 'Their details, sites and projects', tile: Building2, hue: 'teal' },
@@ -625,7 +629,8 @@ export function App() {
         { 'subscriptions' === screen && <SubscriptionsScreen key={ generation } /> }
         { 'availability' === screen && <AvailabilityScreen key={ generation } person={ landing.person } /> }
         { 'packages' === screen && <PackagesScreen key={ generation } /> }
-        { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } /> }
+        { 'settings' === screen && <SettingsScreen key={ generation } section={ landing.rules } onOpenServers={ () => go( 'servers' ) } /> }
+        { 'servers' === screen && <ServersScreen key={ generation } /> }
         { 'people' === screen && <PeopleScreen key={ generation } person={ landing.person } /> }
         { 'clients' === screen && <ClientsScreen key={ generation } onOpen={ ( id ) => go( 'client', undefined, id ) } /> }
         { 'projects' === screen && (

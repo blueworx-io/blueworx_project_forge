@@ -850,3 +850,16 @@ function _n( string $single, string $plural, int $number, string $text_domain = 
 	unset( $text_domain );
 	return 1 === $number ? $single : $plural;
 }
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	/**
+	 * Stub. WordPress's wrapper over parse_url().
+	 *
+	 * @param string $url       The address.
+	 * @param int    $component A PHP_URL_* constant, or -1 for all parts.
+	 * @return mixed
+	 */
+	function wp_parse_url( string $url, int $component = -1 ) {
+		return parse_url( $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
+	}
+}
