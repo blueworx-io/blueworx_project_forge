@@ -33,7 +33,7 @@ test( 'a task with the client leaves My tasks, stays on the standup, and returns
   await expect( table ).toBeVisible( { timeout: 60_000 } );
 
   // Urgent would put it in Today, if it were theirs. It is not, in any view.
-  await expect( table ).not.toContainText( title );
+  await expect( page.getByTestId( 'bwx-mytasks' ) ).not.toContainText( title );
   await table.getByRole( 'button', { name: /^Everything/ } ).click();
   await expect( table ).not.toContainText( title );
   const everything = table.getByRole( 'button', { name: /^Everything/ } );
@@ -50,7 +50,7 @@ test( 'a task with the client leaves My tasks, stays on the standup, and returns
   await page.reload();
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
   await expect( table ).toBeVisible( { timeout: 60_000 } );
-  await expect( table.locator( 'tbody tr, [data-testid="bwx-day-block"]', { hasText: title } ) ).toHaveCount( 1 );
+  await expect( page.getByTestId( 'bwx-mytasks' ).locator( 'tbody tr, [data-testid="bwx-day-block"]', { hasText: title } ) ).toHaveCount( 1 );
 
   await page.close();
   await me.context.close();
