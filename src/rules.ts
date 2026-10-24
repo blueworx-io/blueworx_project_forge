@@ -419,12 +419,12 @@ export const RULES: RuleSection[] = [
         why: 'A list says what is due but not whether it fits in the day.',
       },
       {
-        what: 'In a box of its own beneath the day, Doesn\'t fit today lists tasks that would run past 7pm, and No hours set lists tasks with no hours, which are never placed. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today.',
+        what: 'Beneath the whole day, each in a box of its own and in this order: Needs attention lists urgent or overdue tasks that are not in the day, because they have no hours or are too long for the time left, in red, most pressing first; Doesn\'t fit today lists the other tasks that would run past 7pm; and No hours set lists the other tasks with no hours, which are never placed. Recurring tasks and reminders are tasks like any other and are planned and listed the same way. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today or Needs attention.',
         why: 'Everything on Today is somewhere on the screen, and no task looks scheduled when it has nothing to place it by.',
       },
       {
-        what: 'Urgent or overdue tasks that are not in the day, because they have no hours or are too long for the time left, show in red under Needs attention above the day, most pressing first, and not again in the lists beneath. The hours before the day was planned are folded away, with a link to show them, and Today\'s diary shows on Today and every other tab.',
-        why: 'The most pressing work is the first thing seen, and the plan starts where the day did.',
+        what: 'Today always shows the whole day, 7am to 7pm, and Today\'s diary shows on Today and every other tab.',
+        why: 'The plan is read as one day, missed slots included.',
       },
       {
         what: 'The day is planned once, the first time you open Today. Each task then keeps its slot for the rest of the day, even after its time has passed, until you edit the plan, which plans it again from that moment. The next day is planned afresh.',

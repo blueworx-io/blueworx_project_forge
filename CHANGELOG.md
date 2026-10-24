@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.211.2] - 2026-10-24
+
+### Fixed
+
+- Beneath the day on Today, Needs attention, Doesn't fit today and No hours set each sit in a box of their own, in that order.
+- Today always shows the whole day, 7am to 7pm, with nothing folded away.
+- Recurring tasks and reminders are planned and listed like any other task.
+
 ## [2.211.1] - 2026-10-24
 
 ### Fixed

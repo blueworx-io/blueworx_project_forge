@@ -210,22 +210,39 @@ test( 'a day away has no open time: a banner, and everything with hours does not
   await admin.context.close();
 } );
 
-test( 'urgent and overdue work with no room needs attention above the day; the lists sit in their own box; the diary is on Today; past hours fold away (#635)', async ( { browser, baseURL } ) => {
+test( 'below the whole day, in boxes of their own: needs attention, then doesn’t fit, then no hours set, chores and reminders among them; the diary is on Today (#635, #637)', async ( { browser, baseURL } ) => {
   test.slow();
   test.setTimeout( 400_000 );
 
   const { admin, site, person } = await setUp( browser, baseURL, 'd' );
   const today = localDate();
+  const serverToday = ( await admin.api.get( '/standup' ) ).today;
   await makeTask( admin, site.id, `Urgent unsized ${ RUN }`, { primary_user_id: person.id, priority: 'urgent', planned_due: today } );
   await makeTask( admin, site.id, `Overdue and big ${ RUN }`, { primary_user_id: person.id, priority: 'high', hours_primary: 8, planned_due: localDate( -2 ) } );
   await makeTask( admin, site.id, `Fits today ${ RUN }`, { primary_user_id: person.id, priority: 'normal', hours_primary: 1, planned_due: today } );
+  await makeTask( admin, site.id, `Too long today ${ RUN }`, { primary_user_id: person.id, priority: 'normal', hours_primary: 6, planned_due: today } );
   await makeTask( admin, site.id, `Normal unsized ${ RUN }`, { primary_user_id: person.id, priority: 'normal', planned_due: today } );
 
+  // A chore and a reminder of the person's: real tasks, in the day and the lists.
+  const chore = await admin.api.post( '/recurring', {
+    title: `Plan chore ${ RUN }`,
+    description: '<p>Do it.</p>',
+    rule: { every: 'day' },
+    starts_on: serverToday,
+    assignees: [ person.id ],
+    hours_each: '0.5',
+    client_site_id: site.id,
+  } );
+  expect( chore.status(), await chore.text() ).toBe( 200 );
+  await admin.api.post( '/recurring/run', {} );
+  const reminder = await admin.api.post( '/reminders', { client_site_id: site.id, title: `Plan reminder ${ RUN }`, assignees: [ person.id ], starts_on: serverToday, ends_on: '' } );
+  expect( reminder.status(), await reminder.text() ).toBe( 200 );
+
   // A date in today's diary.
-  const dated = await admin.api.post( '/calendar-dates', { title: `Diary date ${ RUN }`, kind: 'company-day', on_date: ( await admin.api.get( '/standup' ) ).today, people: 'all' } );
+  const dated = await admin.api.post( '/calendar-dates', { title: `Diary date ${ RUN }`, kind: 'company-day', on_date: serverToday, people: 'all' } );
   expect( dated.status(), await dated.text() ).toBe( 200 );
 
-  // Opened at 2pm: five hours left, so the eight-hour job cannot fit.
+  // Opened at 2pm: five hours left, so the eight- and six-hour jobs cannot fit.
   const me = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
   const page = await me.context.newPage();
   const twoPm = new Date();
@@ -235,29 +252,35 @@ test( 'urgent and overdue work with no room needs attention above the day; the l
   const day = page.getByTestId( 'bwx-day' );
   await expect( page.locator( '[data-testid="bwx-day"][data-ready="true"]' ) ).toBeVisible( { timeout: 90_000 } );
 
-  // Needs attention, above the day, most pressing first.
-  const attention = day.getByTestId( 'bwx-day-attention' );
-  await expect( attention ).toBeVisible();
-  expect( await titles( page, 'attention' ) ).toEqual( [ `Urgent unsized ${ RUN }`, `Overdue and big ${ RUN }` ] );
-  expect( await titles( page, 'day' ) ).toContain( `Fits today ${ RUN }` );
+  // The whole day is shown, from 7am, with nothing folded away.
+  const grid = day.getByTestId( 'bwx-day-grid' );
+  await expect( grid.locator( '[data-hour="7"]' ) ).toBeVisible();
+  await expect( page.getByTestId( 'bwx-day-earlier' ) ).toHaveCount( 0 );
 
-  // The lists beneath are their own box, outside the day's, and do not repeat
-  // what needs attention.
-  const lists = page.getByTestId( 'bwx-day-lists' );
-  await expect( lists.getByTestId( 'bwx-day-unset' ) ).toBeVisible();
-  await expect( page.getByTestId( 'bwx-mytasks-table' ).getByTestId( 'bwx-day-unset' ) ).toHaveCount( 0 );
-  expect( await titles( page, 'unset' ) ).toEqual( [ `Normal unsized ${ RUN }` ] );
-  expect( await titles( page, 'overflow' ) ).toEqual( [] );
+  const placed = await titles( page, 'day' );
+  expect( placed ).toContain( `Fits today ${ RUN }` );
+  expect( placed.some( ( title ) => title.startsWith( `Plan chore ${ RUN }` ) ), 'the chore is planned into the day' ).toBe( true );
+
+  // Three boxes of their own beneath the day, in this order, none inside the day's.
+  const attention = page.getByTestId( 'bwx-day-attention' );
+  const overflow = page.getByTestId( 'bwx-day-overflow' );
+  const unset = page.getByTestId( 'bwx-day-unset' );
+  for ( const box of [ attention, overflow, unset ] ) await expect( box ).toBeVisible();
+  await expect( page.getByTestId( 'bwx-mytasks-table' ).locator( '[data-testid="bwx-day-attention"], [data-testid="bwx-day-overflow"], [data-testid="bwx-day-unset"]' ) ).toHaveCount( 0 );
+  const top = async ( locator ) => ( await locator.boundingBox() ).y;
+  expect( await top( grid ) ).toBeLessThan( await top( attention ) );
+  expect( await top( attention ) ).toBeLessThan( await top( overflow ) );
+  expect( await top( overflow ) ).toBeLessThan( await top( unset ) );
+
+  // What each holds, with nothing repeated.
+  expect( await titles( page, 'attention' ) ).toEqual( [ `Urgent unsized ${ RUN }`, `Overdue and big ${ RUN }` ] );
+  expect( await titles( page, 'overflow' ) ).toEqual( [ `Too long today ${ RUN }` ] );
+  const noHours = await titles( page, 'unset' );
+  expect( noHours ).toContain( `Normal unsized ${ RUN }` );
+  expect( noHours.some( ( title ) => title.startsWith( `Plan reminder ${ RUN }` ) ), 'the reminder is listed' ).toBe( true );
 
   // Today's diary is on Today.
   await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Diary date ${ RUN }` );
-
-  // The morning has gone: it is folded away until asked for.
-  const grid = day.getByTestId( 'bwx-day-grid' );
-  await expect( grid.locator( '[data-hour="13"]' ) ).toHaveCount( 0 );
-  await expect( grid.locator( '[data-hour="14"]' ) ).toBeVisible();
-  await day.getByTestId( 'bwx-day-earlier' ).click();
-  await expect( grid.locator( '[data-hour="7"]' ) ).toBeVisible();
 
   await page.close();
   await me.context.close();
