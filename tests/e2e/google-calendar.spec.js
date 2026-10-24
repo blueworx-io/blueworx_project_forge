@@ -1,0 +1,300 @@
+import { test, expect } from '@playwright/test';
+import { signedIn, makeSite, makePerson, onSupport, hourLedger, PASSWORD } from './helpers/forge.js';
+import { installGoogleStub, removeGoogleStub, putEvents, readsOf, expireSyncToken, connectGoogle, timedEvent } from './helpers/google.js';
+
+// #606. Each staff member connects their own Google Calendar; its events
+// come into Forge one way and are settled to a client. Google is a stand-in
+// inside the test WordPress (tests/support/google-stub.php): nothing reaches
+// the network. The instance is reused between runs, so every person, site
+// and event id carries this run's id.
+const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
+const RUN = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
+const SECRET = `GOCSPX-secret-${RUN}`;
+const DAY = 86400000;
+
+/** A day some days from today, as YYYY-MM-DD. */
+function day(offset) {
+  return new Date(Date.now() + offset * DAY).toISOString().slice(0, 10);
+}
+
+/** Noon UTC on a day some days from today, so the local day is the same. */
+function noon(offset, hour = 12) {
+  return `${day(offset)}T${String(hour).padStart(2, '0')}:00:00Z`;
+}
+
+test.describe.configure({ mode: 'serial' });
+
+let admin;
+let site;
+let alice;
+let bob;
+let carol;
+const as = {};
+const who = { alice: `ga${RUN}`, bob: `gb${RUN}` };
+
+/** Every synced meeting on the calendar for a window, as somebody sees it. */
+async function googleEntries(api, from, to) {
+  const answer = await api.get(`/calendar?from=${from}&to=${to}`);
+
+  return (answer.entries ?? []).filter((entry) => 'google' === entry.source);
+}
+
+/** The synced meeting made from one event, by its title, as admin sees it. */
+async function meetingTitled(title, from = day(-2), to = day(10)) {
+  return (await googleEntries(admin.api, from, to)).find((entry) => entry.title === title);
+}
+
+async function syncNow(person) {
+  const answer = await person.api.post('/me/google/sync', { force: true });
+  expect(answer.status(), await answer.text()).toBe(200);
+
+  return answer.json();
+}
+
+test.beforeAll(async ({ browser, baseURL }) => {
+  test.setTimeout(600000);
+  installGoogleStub();
+
+  admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const where = await makeSite(admin.api, 'Google Calendar', RUN);
+  site = where.site;
+  await onSupport(admin, site.id, 200);
+
+  alice = await makePerson(admin.api, where.client.id, 'staff', who.alice);
+  bob = await makePerson(admin.api, where.client.id, 'staff', who.bob);
+  carol = await makePerson(admin.api, where.client.id, 'staff', `gc${RUN}`);
+
+  for (const [name, person] of Object.entries({ alice, bob, carol })) {
+    as[name] = await signedIn(browser, baseURL, person.login, PASSWORD);
+  }
+});
+
+test.afterAll(async () => {
+  for (const one of [admin, ...Object.values(as)]) {
+    await one?.context.close();
+  }
+
+  removeGoogleStub();
+});
+
+test('an administrator saves the studio\'s Google client, and its secret is never read back', async () => {
+  test.slow();
+
+  const refused = await admin.api.post('/google/settings', { client_id: '' });
+  expect(refused.status()).toBe(400);
+
+  const saved = await admin.api.post('/google/settings', { client_id: `client-${RUN}.apps.googleusercontent.com`, client_secret: SECRET });
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  const text = await saved.text();
+  expect(text).not.toContain(SECRET);
+
+  const answer = JSON.parse(text);
+  expect(answer.configured).toBe(true);
+  expect(answer.client_id).toBe(`client-${RUN}.apps.googleusercontent.com`);
+  expect(answer.secret_hint.endsWith(SECRET.slice(-4))).toBe(true);
+  expect(answer.redirect_uri).toMatch(/wp-admin\/admin-post\.php\?action=bwx_forge_google$/);
+
+  // Somebody who is not an administrator cannot read or change it.
+  const staff = await as.carol.api.request.get('/wp-json/blueworx-forge/v1/google/settings', { headers: as.carol.api.headers });
+  expect(staff.status()).toBe(403);
+});
+
+test('a person connects their own calendar and every event comes across', async () => {
+  test.slow();
+
+  await putEvents(as.alice.context.request, who.alice, [
+    timedEvent(`a1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}` }),
+    timedEvent(`a2${RUN}`, `u2${RUN}@google.com`, noon(-1, 14), 60, {
+      summary: `Declined ${RUN}`,
+      attendees: [{ email: `${who.alice}@studio.test`, self: true, responseStatus: 'declined' }],
+    }),
+    { id: `a3${RUN}`, iCalUID: `u3${RUN}@google.com`, status: 'confirmed', summary: `Holiday ${RUN}`, start: { date: day(0) }, end: { date: day(1) } },
+    timedEvent(`a4${RUN}`, `u4${RUN}@google.com`, noon(1, 10), 30, { summary: `Doctor ${RUN}`, visibility: 'private' }),
+    timedEvent(`a5${RUN}`, `u5${RUN}@google.com`, noon(3), 60, { summary: `Planning ${RUN}` }),
+  ]);
+
+  const page = await as.alice.context.newPage();
+  const landed = await connectGoogle(page, as.alice.api, who.alice);
+  expect(landed).toContain('google=connected');
+  await page.close();
+
+  const mine = await as.alice.api.request.get('/wp-json/blueworx-forge/v1/me/google', { headers: as.alice.api.headers });
+  const text = await mine.text();
+  expect(text).not.toContain('rt-');
+  expect(text).not.toContain('at-');
+
+  const answer = JSON.parse(text);
+  expect(answer.connected).toBe(true);
+  expect(answer.email).toBe(`${who.alice}@studio.test`);
+
+  const entries = await googleEntries(admin.api, day(-2), day(5));
+  const titles = entries.map((entry) => entry.title);
+  expect(titles).toEqual(expect.arrayContaining([`Kick-off ${RUN}`, `Declined ${RUN}`, `Holiday ${RUN}`, `Doctor ${RUN}`, `Planning ${RUN}`]));
+
+  const kickoff = entries.find((entry) => entry.title === `Kick-off ${RUN}`);
+  expect(kickoff.people).toEqual([alice.id]);
+  expect(kickoff.site_id).toBe('');
+  expect(kickoff.detail).toContain('Google Calendar');
+});
+
+test('declined and all-day events show but take no time and need no settling', async () => {
+  test.slow();
+
+  const kickoff = await meetingTitled(`Kick-off ${RUN}`);
+  const declined = await meetingTitled(`Declined ${RUN}`);
+  const holiday = await meetingTitled(`Holiday ${RUN}`);
+
+  const capacity = await admin.api.get(`/capacity/person/${alice.id}?from=${day(-1)}&to=${day(0)}`);
+  const google = capacity.allocations.filter((one) => [kickoff, declined, holiday].some((entry) => entry.google_id === one.item_id));
+
+  expect(google.map((one) => one.item_id)).toEqual([kickoff.google_id]);
+  expect(Number(google[0].hours)).toBe(1.5);
+
+  const standup = await as.alice.api.get('/standup');
+  const settle = (standup.to_settle ?? []).map((entry) => entry.google_id).filter(Boolean);
+  expect(settle).toContain(kickoff.google_id);
+  expect(settle).not.toContain(declined.google_id);
+  expect(settle).not.toContain(holiday.google_id);
+});
+
+test('the same invitation on two connected calendars is one meeting with both people', async () => {
+  test.slow();
+
+  await putEvents(as.bob.context.request, who.bob, [
+    timedEvent(`b1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}` }),
+  ]);
+
+  const page = await as.bob.context.newPage();
+  await connectGoogle(page, as.bob.api, who.bob);
+  await page.close();
+
+  const kickoffs = (await googleEntries(admin.api, day(-2), day(0))).filter((entry) => entry.title === `Kick-off ${RUN}`);
+  expect(kickoffs).toHaveLength(1);
+  expect([...kickoffs[0].people].sort()).toEqual([alice.id, bob.id].sort());
+});
+
+test('a private event reads as Busy to a colleague', async () => {
+  test.slow();
+
+  const seen = await googleEntries(as.bob.api, day(0), day(2));
+  expect(seen.map((entry) => entry.title)).not.toContain(`Doctor ${RUN}`);
+  expect(seen.map((entry) => entry.title)).toContain('Busy');
+
+  const own = await googleEntries(as.alice.api, day(0), day(2));
+  expect(own.map((entry) => entry.title)).toContain(`Doctor ${RUN}`);
+});
+
+test('a meeting is settled to a client with time off support, marked held, and charged once', async () => {
+  test.slow();
+
+  const kickoff = await meetingTitled(`Kick-off ${RUN}`);
+
+  // Somebody not on it cannot settle it.
+  const stranger = await as.carol.api.post(`/google-meetings/${kickoff.google_id}/settle`, { client_site_id: site.id, off_support: true, status: 'held' });
+  expect(stranger.status()).toBe(403);
+
+  for (let time = 0; time < 2; time++) {
+    const settled = await as.alice.api.post(`/google-meetings/${kickoff.google_id}/settle`, { client_site_id: site.id, off_support: true, status: 'held' });
+    expect(settled.status(), await settled.text()).toBe(200);
+  }
+
+  const ledger = await hourLedger(admin, site.id);
+  const usage = ledger.entries.filter(([type, , source]) => 'meeting-usage' === type && source === `google-meeting:${kickoff.google_id}`);
+  expect(usage).toHaveLength(1);
+  expect(Math.abs(usage[0][1])).toBe(1.5);
+
+  const standup = await as.alice.api.get('/standup');
+  expect((standup.to_settle ?? []).map((entry) => entry.google_id)).not.toContain(kickoff.google_id);
+
+  // Charged: its client cannot change now, even for an administrator.
+  const moved = await admin.api.post(`/google-meetings/${kickoff.google_id}/settle`, { client_site_id: '', off_support: false });
+  expect(moved.status()).toBe(409);
+});
+
+test('a client picked ahead holds hours, follows Google moving it, and gives them back when deleted', async () => {
+  test.slow();
+
+  const planning = await meetingTitled(`Planning ${RUN}`);
+  const source = `google-meeting:${planning.google_id}`;
+  const held = async () => (await hourLedger(admin, site.id)).entries
+    .filter(([, , from]) => from === source)
+    .reduce((sum, [type, hours]) => sum + ('meeting-reservation' === type || 'meeting-release' === type ? -hours : 0), 0);
+
+  const picked = await as.alice.api.post(`/google-meetings/${planning.google_id}/settle`, { client_site_id: site.id, off_support: true });
+  expect(picked.status(), await picked.text()).toBe(200);
+  expect(await held()).toBe(1);
+
+  // Moved and lengthened in Google: the time follows, the client stays.
+  await putEvents(as.alice.context.request, who.alice, [
+    timedEvent(`a5${RUN}`, `u5${RUN}@google.com`, noon(4), 120, { summary: `Planning ${RUN}` }),
+  ]);
+  await syncNow(as.alice);
+
+  const after = await meetingTitled(`Planning ${RUN}`);
+  expect(after.date).toBe(day(4));
+  expect(after.site_id).toBe(site.id);
+  expect(await held()).toBe(2);
+
+  // Deleted in Google: it goes, and the hours come back.
+  await putEvents(as.alice.context.request, who.alice, [{ id: `a5${RUN}`, status: 'cancelled' }]);
+  await syncNow(as.alice);
+
+  expect(await meetingTitled(`Planning ${RUN}`)).toBeUndefined();
+  expect(await held()).toBe(0);
+});
+
+test('a Google event that is a standing meeting shows once, as the standing meeting', async () => {
+  test.slow();
+
+  const on = day(6);
+  const series = await admin.api.post(`/client-sites/${site.id}/meetings/series`, {
+    title: `Standing ${RUN}`,
+    frequency: 'weekly',
+    starts_on: on,
+    ends_on: '',
+    time_of_day: '12:00',
+    duration_mins: 60,
+    timezone: 'UTC',
+    host_user_id: alice.id,
+    attendees: '',
+    planned_hours: 0,
+  });
+  expect(series.status(), await series.text()).toBe(200);
+
+  await putEvents(as.alice.context.request, who.alice, [
+    timedEvent(`a6${RUN}`, `u6${RUN}@google.com`, `${on}T12:30:00Z`, 60, { summary: `Standing in Google ${RUN}` }),
+    timedEvent(`a7${RUN}`, `u7${RUN}@google.com`, `${on}T15:00:00Z`, 60, { summary: `Afterwards ${RUN}` }),
+  ]);
+  await syncNow(as.alice);
+
+  const titles = (await googleEntries(admin.api, on, on)).map((entry) => entry.title);
+  expect(titles).not.toContain(`Standing in Google ${RUN}`);
+  expect(titles).toContain(`Afterwards ${RUN}`);
+});
+
+test('an expired sync token starts a full read rather than failing', async () => {
+  test.slow();
+
+  await expireSyncToken(as.alice.context.request, who.alice);
+  const answer = await syncNow(as.alice);
+
+  expect(answer.last_error).toBe('');
+  expect((await readsOf(as.alice.context.request, who.alice)).slice(-2)).toEqual(['incremental', 'full']);
+});
+
+test('disconnecting stops the sync and removes only unsettled meetings', async () => {
+  test.slow();
+
+  const gone = await as.alice.api.del('/me/google');
+  expect(gone.status()).toBe(200);
+  expect((await gone.json()).connected).toBe(false);
+
+  const titles = (await googleEntries(admin.api, day(-2), day(10))).map((entry) => entry.title);
+  // Settled (held) stays; Alice's unsettled ones go; Bob's copy of the
+  // shared meeting is untouched.
+  expect(titles).toContain(`Kick-off ${RUN}`);
+  expect(titles).not.toContain(`Declined ${RUN}`);
+  expect(titles).not.toContain(`Afterwards ${RUN}`);
+});

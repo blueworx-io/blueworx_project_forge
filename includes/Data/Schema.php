@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 48;
+	public const VERSION = 49;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -435,6 +435,39 @@ final class Schema {
 	}
 
 	/**
+	 * People's Google Calendar connections (#606).
+	 *
+	 * @return string
+	 */
+	public static function google_connections_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_google_connections';
+	}
+
+	/**
+	 * Meetings that came from Google Calendar (#606).
+	 *
+	 * @return string
+	 */
+	public static function google_meetings_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_google_meetings';
+	}
+
+	/**
+	 * Who is on each meeting from Google Calendar (#606).
+	 *
+	 * @return string
+	 */
+	public static function google_people_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_google_people';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -497,6 +530,10 @@ final class Schema {
 		$slack_events     = self::slack_events_table();
 		$staff_roles      = self::staff_roles_table();
 		$calendar_dates   = self::calendar_dates_table();
+
+		$gcal_links    = self::google_connections_table();
+		$gcal_meetings = self::google_meetings_table();
+		$gcal_people   = self::google_people_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1628,6 +1665,86 @@ final class Schema {
 	record_version int(11) unsigned NOT NULL DEFAULT 1,
 	PRIMARY KEY  (id),
 	KEY on_date (on_date)
+) {$collate};",
+
+			/*
+			 * #606. A person's own Google Calendar connection, keyed by the
+			 * person's id like a Slack row. The tokens are sealed in `secret`
+			 * and never leave PHP; the sync token is Google's bookmark for the
+			 * next incremental read.
+			 */
+			$gcal_links       => "CREATE TABLE {$gcal_links} (
+	id varchar(32) NOT NULL,
+	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+	email varchar(191) NOT NULL DEFAULT '',
+	secret text NOT NULL,
+	sync_token text NULL,
+	full_synced_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	synced_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	last_error varchar(191) NOT NULL DEFAULT '',
+	connected_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id)
+) {$collate};",
+
+			/*
+			 * #606. One row per meeting that came from Google, however many
+			 * connected calendars it is on: `share_key` is the same for every
+			 * copy of one invitation. It has no client until somebody settles
+			 * it; then it carries the site, whether its time comes off support,
+			 * and the same status and ledger state a standing meeting's
+			 * occurrence does.
+			 */
+			$gcal_meetings    => "CREATE TABLE {$gcal_meetings} (
+	id varchar(32) NOT NULL,
+	share_key varchar(32) NOT NULL,
+	title varchar(191) NOT NULL DEFAULT '',
+	description text NULL,
+	attendees text NULL,
+	on_date varchar(10) NOT NULL DEFAULT '',
+	ends_on varchar(10) NOT NULL DEFAULT '',
+	at_time varchar(5) NOT NULL DEFAULT '',
+	starts_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	ends_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	all_day tinyint(1) NOT NULL DEFAULT 0,
+	private tinyint(1) NOT NULL DEFAULT 0,
+	planned_hours decimal(8,2) NOT NULL DEFAULT 0,
+	client_site_id varchar(32) NOT NULL DEFAULT '',
+	client_id varchar(32) NOT NULL DEFAULT '',
+	off_support tinyint(1) NOT NULL DEFAULT 0,
+	settled_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	settled_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	status varchar(20) NOT NULL DEFAULT 'scheduled',
+	ledger_state varchar(20) NOT NULL DEFAULT 'forecast',
+	held_marked_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	held_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	UNIQUE KEY share_key (share_key),
+	KEY on_date (on_date),
+	KEY site_state (client_site_id, ledger_state)
+) {$collate};",
+
+			/*
+			 * #606. Who a synced meeting is on: one row per connected person's
+			 * copy, with how they answered and whether it counts against their
+			 * time.
+			 */
+			$gcal_people      => "CREATE TABLE {$gcal_people} (
+	id varchar(32) NOT NULL,
+	meeting_id varchar(32) NOT NULL,
+	user_id varchar(32) NOT NULL,
+	event_id varchar(191) NOT NULL,
+	response varchar(20) NOT NULL DEFAULT 'accepted',
+	counts tinyint(1) NOT NULL DEFAULT 0,
+	private tinyint(1) NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	UNIQUE KEY person_event (user_id, event_id),
+	KEY meeting (meeting_id)
 ) {$collate};",
 		);
 	}

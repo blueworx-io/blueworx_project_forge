@@ -207,7 +207,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'client' | 'projects' | 'project' | 'leads' | 'support' | 'meetings' | 'profile' | 'settings';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'client' | 'projects' | 'project' | 'leads' | 'support' | 'meetings' | 'profile' | 'settings' | 'servers';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -864,6 +864,23 @@ export interface DiaryEntry {
   site_id: string;
   /** Everyone on it has ticked (#412); always false for a kind with no ticking. */
   done: boolean;
+  /** #606. 'google' for a meeting that came from Google Calendar. */
+  source?: 'google';
+  /** #606. The synced meeting's id, for settling it. */
+  google_id?: string;
+  /** #606. Whether the signed-in person may settle it. */
+  can_settle?: boolean;
+  /** #606. Whether its time comes off the client's support hours. */
+  off_support?: boolean;
+  /** #606. Scheduled, held, cancelled or no-show. */
+  status?: string;
+  /** #620. A meeting's start and end (unix seconds), 0 when it has no time of day. */
+  starts_at?: number;
+  ends_at?: number;
+  /** #620. An all-day event, which sits above the day rather than at a time. */
+  all_day?: boolean;
+  /** #620. The people going, for the day planner. */
+  attendee_ids?: string[];
 }
 
 /** A company day, birthday, campaign or other date the studio keeps. */

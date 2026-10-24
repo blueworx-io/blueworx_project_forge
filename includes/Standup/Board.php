@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Standup;
 
 use Blueworx\Forge\Capacity\Position;
+use Blueworx\Forge\Cloudways\Status as Servers;
 use Blueworx\Forge\Notifications\Register;
 use Blueworx\Forge\Onboarding\Steps;
 use Blueworx\Forge\Tenancy\Clients;
@@ -84,7 +85,12 @@ final class Board {
 			'submissions'      => Reach::keep_sites( $reach, Submissions::all() ),
 			'onboarding_steps' => self::steps( $site_ids ),
 			'capacity'         => self::capacity( $today ),
-			'interventions'    => self::interventions( $reach, $site_ids ),
+			'interventions'    => array_merge(
+				self::interventions( $reach, $site_ids ),
+				// #621. A server down is the studio's to deal with, and only
+				// those who may see the Servers page are told: administrators.
+				current_user_can( 'manage_options' ) ? Servers::problems() : array()
+			),
 		);
 	}
 

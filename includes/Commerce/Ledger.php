@@ -163,25 +163,29 @@ final class Ledger {
 	/**
 	 * A site's entries, oldest first — the order they happened in.
 	 *
+	 * All of them, unless a caller asks for fewer (#597). A cap here once
+	 * dropped a busy client's newest entries, so the lines stopped adding up
+	 * to what the site had left.
+	 *
 	 * @param string $client_site_id The site.
-	 * @param int    $limit          How many at most.
+	 * @param int    $limit          How many at most; 0 for every one.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public static function for_site( string $client_site_id, int $limit = 500 ): array {
+	public static function for_site( string $client_site_id, int $limit = 0 ): array {
 		global $wpdb;
 
 		$table = Schema::hour_ledger_table();
+		$query = "SELECT * FROM {$table} WHERE client_site_id = %s ORDER BY occurred_at ASC, id ASC";
+		$args  = array( $client_site_id );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE client_site_id = %s ORDER BY occurred_at ASC, id ASC LIMIT %d",
-				$client_site_id,
-				max( 1, min( 2000, $limit ) )
-			),
-			ARRAY_A
-		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $limit > 0 ) {
+			$query .= ' LIMIT %d';
+			$args[] = $limit;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; the query is built from fixed parts above.
+		$rows = $wpdb->get_results( $wpdb->prepare( $query, $args ), ARRAY_A );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
 	}

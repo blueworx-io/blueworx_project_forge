@@ -87,6 +87,9 @@ final class Plugin {
 		Admin\ConnectionActions::boot();
 		Admin\ProfileSlack::boot();
 
+		// #606. Where Google's consent screen sends a person back.
+		Google\OAuth::boot();
+
 		/*
 		 * #157. The one studio screen that spans clients on purpose: who needs
 		 * selling to, before the next thing they ask for is refused.

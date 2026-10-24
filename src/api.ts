@@ -225,6 +225,16 @@ export function forgetAll(): void {
 }
 
 /** One request to the server, as it was before anything was kept. */
+/**
+ * A write made in the background that changes nothing a screen is holding
+ * yet (#606: the Google Calendar sync when Forge opens). Unlike api(), it
+ * does not forget every kept answer: doing that on every page load would
+ * throw away the session's warm copies for a sync that usually finds nothing.
+ */
+export function background< T >( path: string, body: unknown = {} ): Promise< T > {
+  return fetchJson< T >( path, { method: 'POST', body } );
+}
+
 async function fetchJson< T >(
   path: string,
   options: { method?: string; body?: unknown } = {}

@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Capacity;
 
 use Blueworx\Forge\Data\Schema;
+use Blueworx\Forge\Google\Load as GoogleLoad;
 use Blueworx\Forge\Meetings\Load;
 use Blueworx\Forge\Recurring\Load as RecurringLoad;
 use Blueworx\Forge\Work\Fields;
@@ -132,7 +133,8 @@ final class Commitments {
 		 */
 		// And the days ahead of every running schedule (2026-09-19), for the
 		// same reason: a task made each morning is invisible to next week.
-		return array_merge( $out, Load::across( $from, $to ), RecurringLoad::across( $from, $to ) );
+		// And meetings from Google Calendar (#606), in the same shape.
+		return array_merge( $out, Load::across( $from, $to ), RecurringLoad::across( $from, $to ), GoogleLoad::across( $from, $to ) );
 	}
 
 	/**

@@ -8,6 +8,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.211.0] - 2026-10-23
+
+### Added
+
+- Connect the studio's WordPress multisite network in Settings, under Connections, with its address and the key made on its Forge network screen (Network Admin, Settings, Forge network). The client plugin must be network-activated there.
+- Create a client's WordPress site on the network from their page in Clients, on any of their sites with no WordPress site connected yet. Forge makes the site, links it to Forge, and gives the client's people their logins: admins get Editor and Forge: Manager, viewers get Forge: Manager. New accounts get WordPress's set-password email. Each step shows as it happens, and a failed step can be tried again.
+
+## [2.210.0] - 2026-10-23
+
+### Added
+
+- Settings now has a Connections section listing each outside service, whether it is connected and when it last checked in. Cloudways is connected there with your account email and API key; the key is checked with Cloudways first, kept sealed, and never shown again beyond its last four characters. SureCart and Slack link to their existing screen in WordPress admin.
+- A new Servers page, for administrators, shows every server on the Cloudways account, what it is doing, and which clients' sites are on it. It checks when you open it or press Check now; nothing checks in the background.
+- A server that isn't running shows on the Daily standup under The studio itself, for administrators only, with the clients it affects.
+
+## [2.209.0] - 2026-10-23
+
+### Added
+
+- Today on My tasks is now a planned day, 7am to 7pm. Your meetings sit at their times, your tasks fill the open time by priority and as tall as their hours, and open time is shown. Work that won't fit before 7pm, and work with no hours, are listed beneath.
+- Edit plan lets you move tasks up or down, bring one up, or send one down. Your order holds for the day. Overlapping meetings and due work with no room today show in red and are counted at the top.
+
+## [2.208.0] - 2026-10-23
+
+### Added
+
+- Staff can connect their own Google work calendar from their profile, and their meetings come into Forge on their own: on the calendar, My tasks, capacity and the standup. Declined and all-day events show but don't take anyone's time.
+- A meeting from Google is settled from the standup or the calendar: pick the client (or no client) and whether its time comes off their support hours. It is charged once, only when marked held, however many staff were on it.
+- An administrator adds the studio's Google client once, in Settings.
+
+## [2.207.0] - 2026-10-23
+
+### Added
+
+- Clients now have guides on how Forge works: sending a request, following it up, reviewing finished work, answering the studio, onboarding, support hours and the emails they get. They are in a new Guides tab in the Forge workspace, and also on the BlueWorx Guides page for anyone who can open it.
+
+## [2.206.2] - 2026-10-23
+
+### Fixed
+
+- The support hours list on a client now shows every entry, not just the first 500. A busy client's newest entries were missing, so the lines no longer added up to "Left".
+
 ## [2.206.1] - 2026-10-23
 
 ### Fixed

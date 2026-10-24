@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { api, forgeData, messageFor } from '../api';
-import { Button, Panel } from '../kit';
+import { Button, Field, Panel, TextInput } from '../kit';
 import { RULES } from '../rules';
+import { ConnectionsPanel } from './ConnectionsPanel';
 
 interface UpdateStatus {
   installed: string;
@@ -89,6 +90,114 @@ function Updates() {
   );
 }
 
+interface GoogleSetup {
+  configured: boolean;
+  client_id: string;
+  secret_hint: string;
+  redirect_uri: string;
+  people: Array< { user_id: string; display_name: string; email: string; synced_at: number; last_error: string } >;
+}
+
+/**
+ * #606. The studio's Google OAuth client, entered once, and who has connected
+ * their calendar. The secret is never shown back beyond its last characters.
+ */
+function GoogleCalendar() {
+  const [ setup, setSetup ] = useState< GoogleSetup | null >( null );
+  const [ clientId, setClientId ] = useState( '' );
+  const [ secret, setSecret ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const [ notice, setNotice ] = useState( '' );
+
+  function landed( fresh: GoogleSetup ) {
+    setSetup( fresh );
+    setClientId( fresh.client_id );
+    setSecret( '' );
+  }
+
+  useEffect( () => {
+    void api< GoogleSetup >( '/google/settings', { cache: 'fresh' } )
+      .then( landed )
+      .catch( ( error ) => setNotice( messageFor( error, 'Google Calendar settings could not be read.' ) ) );
+  }, [] );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      landed( await api< GoogleSetup >( '/google/settings', { method: 'POST', body: { client_id: clientId, client_secret: secret } } ) );
+      setNotice( 'Saved. Staff can now connect their calendars from their own page.' );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be saved.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  async function cut( person: GoogleSetup[ 'people' ][ number ] ) {
+    if ( ! window.confirm( `Disconnect ${ person.display_name }'s Google Calendar? Their meetings nobody has settled yet are taken out of Forge.` ) ) {
+      return;
+    }
+
+    setBusy( true );
+
+    try {
+      landed( await api< GoogleSetup >( `/google/connections/${ person.user_id }`, { method: 'DELETE' } ) );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be done.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Panel title="Google Calendar">
+      <div className="bwx-settings-google" data-testid="bwx-google-settings">
+        <p className="bwx-hint">
+          The studio&apos;s Google Cloud OAuth client. Add this exact address to the client&apos;s authorised redirect URIs:
+        </p>
+        <p className="fk-mono" data-testid="bwx-google-redirect">{ setup?.redirect_uri ?? '' }</p>
+
+        <Field label="Client id">
+          { ( id ) => <TextInput id={ id } data-testid="bwx-google-client-id" autoComplete="off" value={ clientId } onChange={ ( event ) => setClientId( event.target.value ) } /> }
+        </Field>
+        <Field label="Client secret" help={ setup?.secret_hint ? `Saved (${ setup.secret_hint }). Leave empty to keep it.` : 'Kept sealed, and never shown again.' }>
+          { ( id ) => <TextInput id={ id } type="password" data-testid="bwx-google-secret" autoComplete="off" value={ secret } onChange={ ( event ) => setSecret( event.target.value ) } /> }
+        </Field>
+
+        { '' !== notice && (
+          <p className="bwx-notice" role="status" data-testid="bwx-google-settings-notice">
+            { notice }
+          </p>
+        ) }
+
+        <div className="bwx-moves bwx-form-foot">
+          <Button size="sm" data-testid="bwx-google-save" disabled={ busy } onClick={ () => void save() }>
+            Save Google client
+          </Button>
+        </div>
+
+        { setup && 0 < setup.people.length && (
+          <ul className="bwx-rules" data-testid="bwx-google-people">
+            { setup.people.map( ( person ) => (
+              <li key={ person.user_id } className="bwx-moves">
+                <span>
+                  { `${ person.display_name } · ${ person.email }` }
+                  { '' !== person.last_error && ` · ${ person.last_error }` }
+                </span>
+                <Button variant="ghost" size="sm" disabled={ busy } onClick={ () => void cut( person ) }>
+                  Disconnect
+                </Button>
+              </li>
+            ) ) }
+          </ul>
+        ) }
+      </div>
+    </Panel>
+  );
+}
+
 /**
  * Every rule Forge follows, in plain English (#467): what happens, and why.
  * One topic at a time (#528): the topics are tabs, and only the chosen one's
@@ -97,7 +206,7 @@ function Updates() {
  * Read-only by design. The rules are written in src/rules.ts, and a change to
  * how Forge behaves changes that file in the same pull request.
  */
-export function SettingsScreen( { section = '' }: { section?: string } ) {
+export function SettingsScreen( { section = '', onOpenServers }: { section?: string; onOpenServers?: () => void } ) {
   const known = RULES.some( ( one ) => one.id === section );
   const [ active, setActive ] = useState( known ? section : RULES[ 0 ].id );
   const tabs = useRef< Map< string, HTMLButtonElement > >( new Map() );
@@ -121,7 +230,9 @@ export function SettingsScreen( { section = '' }: { section?: string } ) {
 
   return (
     <div className="bwx-settings" data-testid="bwx-settings">
+      { forgeData()?.canManage && <ConnectionsPanel onOpenServers={ onOpenServers } /> }
       { forgeData()?.canManage && <Updates /> }
+      { forgeData()?.canManage && <GoogleCalendar /> }
 
       <p className="bwx-hint">How Forge behaves, and why. The rules cannot be changed from this page.</p>
 

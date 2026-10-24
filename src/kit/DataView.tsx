@@ -220,6 +220,7 @@ export function DataView< Row extends RowRecord >( {
   bulkNoun = 'item',
   bulkActions,
   pageSize,
+  body,
   testId,
 }: {
   columns: Column< Row >[];
@@ -257,6 +258,8 @@ export function DataView< Row extends RowRecord >( {
   bulkActions?: ReactNode;
   /** Rows per page; unset shows every row. The pager sits in the footer. */
   pageSize?: number;
+  /** Replaces the table (#620): a view that is not rows, drawn under the same title, views and tools. */
+  body?: ReactNode;
   testId?: string;
 } ) {
   const [ sort, setSort ] = useState< Sort | null >( defaultSort ?? null );
@@ -343,7 +346,7 @@ export function DataView< Row extends RowRecord >( {
       ) }
 
       { /* On a phone the headers are hidden, so sorting is a choice above the cards (#438). */ }
-      { stack && sortable && columns.some( ( column ) => false !== column.sortable && !! column.label ) && (
+      { stack && ! body && sortable && columns.some( ( column ) => false !== column.sortable && !! column.label ) && (
         <label className="fk-phone-sort">
           Sort by
           <select
@@ -365,6 +368,9 @@ export function DataView< Row extends RowRecord >( {
         </label>
       ) }
 
+      { body && <div className="fk-dataview-body">{ body }</div> }
+
+      { ! body && (
       <div className="fk-dataview-scroll" data-capped={ maxHeight ? 'true' : undefined } style={ { maxHeight } }>
         <table className="fk-table" data-dense={ dense ? 'true' : 'false' } data-fixed={ fixed ? 'true' : undefined } data-stack={ stack ? 'true' : undefined }>
           <thead>
@@ -468,6 +474,7 @@ export function DataView< Row extends RowRecord >( {
           </tbody>
         </table>
       </div>
+      ) }
 
       { ( footer || pages > 1 ) && (
         <div className="fk-dataview-footer" data-testid="fk-dataview-footer">

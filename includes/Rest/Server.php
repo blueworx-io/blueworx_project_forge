@@ -94,6 +94,7 @@ final class Server {
 		WorkItemsController::register_routes( self::NAMESPACE );
 		CommentsController::register_routes( self::NAMESPACE );
 		SavedViewsController::register_routes( self::NAMESPACE );
+		DayPlanController::register_routes( self::NAMESPACE );
 		SubmissionsController::register_routes( self::NAMESPACE );
 		CapacityController::register_routes( self::NAMESPACE );
 		OnboardingController::register_routes( self::NAMESPACE );
@@ -111,5 +112,7 @@ final class Server {
 		CalendarController::register_routes( self::NAMESPACE );
 		ReportsController::register_routes( self::NAMESPACE );
 		SignalsController::register_routes( self::NAMESPACE );
+		GoogleController::register_routes( self::NAMESPACE );
+		ConnectionsController::register_routes( self::NAMESPACE );
 	}
 }

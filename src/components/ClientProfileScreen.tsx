@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { ClientRecord, ClientSiteRecord, WorkItem } from '../types';
-import { api, isDenied } from '../api';
+import { api, forgeData, isDenied } from '../api';
 import { useLiveReload } from '../live';
 import { buildTree, summary, topLevel } from '../tree.mjs';
 import { Button, Panel, Select, StageChip, Tag } from '../kit';
@@ -9,6 +9,7 @@ import { NewWork } from './NewWork';
 import { Ended } from './ProjectScreen';
 import { contactLabel } from './ClientsScreen';
 import { Screen } from './States';
+import { CreateSite } from './CreateSite';
 
 /** 3 Nov 2026, from a Y-m-d date, without the timezone moving the day. */
 const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } );
@@ -26,6 +27,7 @@ export function ClientProfileScreen( {
   onBack: () => void;
   onOpenProject?: ( projectId: string ) => void;
 } ) {
+  const admin = forgeData()?.canManage ?? false;
   const [ client, setClient ] = useState< ClientRecord | null >( null );
   const [ sites, setSites ] = useState< ClientSiteRecord[] >( [] );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'missing' | 'denied' | 'error' >( 'loading' );
@@ -93,7 +95,11 @@ export function ClientProfileScreen( {
             ) : (
               <ul className="bwx-hint bwx-panel-lead" data-testid="bwx-client-sites">
                 { sites.map( ( site ) => (
-                  <li key={ site.id }>{ site.name }{ 'active' !== site.status && ' (deactivated)' }</li>
+                  <li key={ site.id }>
+                    { site.name }{ 'active' !== site.status && ' (deactivated)' }
+                    { /* #621. An administrator can create its WordPress site on the network. */ }
+                    { admin && 'active' === site.status && <CreateSite siteId={ site.id } siteName={ site.name } /> }
+                  </li>
                 ) ) }
               </ul>
             ) }

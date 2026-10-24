@@ -77,6 +77,7 @@ final class ClientErasure {
 			array( Schema::meeting_events_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::meeting_occurrences_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::meeting_series_table(), 'client_site_id', self::BY_SITE ),
+			array( Schema::google_meetings_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::onboarding_step_events_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::onboarding_evidence_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::onboarding_steps_table(), 'client_site_id', self::BY_SITE ),
@@ -115,6 +116,11 @@ final class ClientErasure {
 			Schema::slack_people_table(),
 			Schema::staff_roles_table(),
 			Schema::calendar_dates_table(),
+			// #606. A person's Google connection, and who is on each synced
+			// meeting: people's own, not a client's. A copy whose meeting went
+			// with a client is let go the next time that calendar syncs.
+			Schema::google_connections_table(),
+			Schema::google_people_table(),
 		);
 	}
 

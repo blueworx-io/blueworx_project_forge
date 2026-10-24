@@ -12,6 +12,8 @@ namespace Blueworx\Forge\Calendar;
 use Blueworx\Forge\Capacity\Unavailability;
 use Blueworx\Forge\Commerce\SureCart\Subscriptions;
 use Blueworx\Forge\Data\Schema;
+use Blueworx\Forge\Google\Matching;
+use Blueworx\Forge\Google\Meetings as GoogleMeetings;
 use Blueworx\Forge\Meetings\Diary;
 use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Occurrence;
@@ -67,6 +69,12 @@ final class Feed {
 			self::recurring( array_column( $sites, 'id' ), $from, $to ),
 			self::dates( $from, $to ),
 			self::meetings( $sites, $from, $to, $names ),
+			array_values(
+				array_filter(
+					self::google( array_column( $sites, null, 'id' ), $from, $to, $names, current_user_can( 'manage_options' ), self::my_id() ),
+					static fn( array $entry ): bool => Occurrence::CANCELLED !== $entry['status']
+				)
+			),
 			self::subscriptions( $from, $to ),
 			self::leave( array_keys( $names ), $from, $to, $names )
 		);
@@ -142,6 +150,14 @@ final class Feed {
 						'can_settle' => $admin || ( '' !== $host && $host === $my_id ),
 					)
 				);
+			}
+		}
+
+		// #606. Meetings from Google Calendar nobody has said anything about
+		// yet. Declined and all-day ones never need settling.
+		foreach ( self::google( $sites, $from, $today, $names, $admin, $my_id ) as $entry ) {
+			if ( Occurrence::SCHEDULED === $entry['status'] && $entry['needs_settling'] ) {
+				$out[] = $entry;
 			}
 		}
 
@@ -342,25 +358,142 @@ final class Feed {
 
 					$host = (string) ( $series['host_user_id'] ?? '' );
 
-					$out[] = self::entry(
-						'meeting',
-						'' !== (string) $meeting['id'] ? (string) $meeting['id'] : (string) $series['id'] . '@' . (string) $meeting['on'],
-						(string) $meeting['on'],
-						'',
-						(string) $series['title'],
-						trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
-						'' === $host ? array() : array( $host ),
-						'',
-						(string) $site['id'],
-						// #601. Held, or nobody came: it has happened, and
-						// leaves Today's diary as a finished chore does.
-						Occurrence::settled( (string) ( $meeting['status'] ?? '' ) )
+					$out[] = array_merge(
+						self::entry(
+							'meeting',
+							'' !== (string) $meeting['id'] ? (string) $meeting['id'] : (string) $series['id'] . '@' . (string) $meeting['on'],
+							(string) $meeting['on'],
+							'',
+							(string) $series['title'],
+							trim( (string) $meeting['at'] . ' · ' . (string) $site['name'] . ( '' === $host ? '' : ' · ' . (string) ( $names[ $host ] ?? '' ) ), ' ·' ),
+							'' === $host ? array() : array( $host ),
+							'',
+							(string) $site['id'],
+							// #601. Held, or nobody came: it has happened, and
+							// leaves Today's diary as a finished chore does.
+							Occurrence::settled( (string) ( $meeting['status'] ?? '' ) )
+						),
+						// #620. When it happens, and who else comes, for the day
+						// planner. Added to the entry; nothing else reads them.
+						array(
+							'starts_at'    => (int) ( $meeting['starts_at'] ?? 0 ),
+							'ends_at'      => (int) ( $meeting['ends_at'] ?? 0 ),
+							'all_day'      => false,
+							'attendee_ids' => array_values( array_map( 'strval', (array) ( $series['attendee_ids'] ?? array() ) ) ),
+						)
 					);
 				}
 			}
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Meetings from Google Calendar in the window (#606), as diary entries.
+	 *
+	 * Shown where a standing meeting would be: to everyone while it has no
+	 * client, then to whoever reaches its site — and always to the people on
+	 * it and to administrators. Anybody else sees a private event as "Busy".
+	 * One that is a standing meeting's own is left out, so it shows once.
+	 *
+	 * @param array<string, array<string, mixed>> $sites Sites in reach, by id.
+	 * @param string                              $from  YYYY-MM-DD.
+	 * @param string                              $to    YYYY-MM-DD.
+	 * @param array<string, string>               $names Person id to name.
+	 * @param bool                                $admin Whether the caller administers Forge.
+	 * @param string                              $my_id The caller's person id, or ''.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function google( array $sites, string $from, string $to, array $names, bool $admin, string $my_id ): array {
+		$meetings = GoogleMeetings::between( $from, $to );
+
+		if ( array() === $meetings ) {
+			return array();
+		}
+
+		$slots      = Matching::standing_slots( $from, $to );
+		$site_names = array_column( ClientSites::all( null ), 'name', 'id' );
+		$out        = array();
+
+		foreach ( $meetings as $meeting ) {
+			if ( Matching::skipped( $meeting, $slots ) ) {
+				continue;
+			}
+
+			$people = array_column( $meeting['people'], 'user_id' );
+			$on_it  = '' !== $my_id && in_array( $my_id, $people, true );
+			$site   = (string) $meeting['client_site_id'];
+
+			if ( ! $admin && ! $on_it && '' !== $site && ! isset( $sites[ $site ] ) ) {
+				continue;
+			}
+
+			$hidden = $meeting['private'] && ! $on_it && ! $admin;
+			$who    = array();
+
+			foreach ( $meeting['people'] as $person ) {
+				$name  = (string) ( $names[ (string) $person['user_id'] ] ?? '' );
+				$who[] = 'declined' === (string) $person['response'] ? sprintf( '%s (declined)', $name ) : $name;
+			}
+
+			$detail = implode(
+				' · ',
+				array_filter(
+					array(
+						$meeting['all_day'] ? 'All day' : (string) $meeting['at'],
+						'Google Calendar',
+						'' === $site ? '' : (string) ( $site_names[ $site ] ?? '' ),
+						$hidden ? '' : implode( ', ', array_filter( $who ) ),
+					)
+				)
+			);
+
+			$out[] = array_merge(
+				self::entry(
+					'meeting',
+					'g-' . (string) $meeting['id'],
+					(string) $meeting['on'],
+					(string) $meeting['ends_on'],
+					$hidden ? 'Busy' : (string) $meeting['title'],
+					$detail,
+					$people,
+					'',
+					$site,
+					Occurrence::settled( (string) $meeting['status'] )
+				),
+				array(
+					'source'         => 'google',
+					// #620. For the day planner.
+					'starts_at'      => $meeting['all_day'] ? 0 : (int) $meeting['starts_at'],
+					'ends_at'        => $meeting['all_day'] ? 0 : (int) $meeting['ends_at'],
+					'all_day'        => (bool) $meeting['all_day'],
+					// Who is going: a declined invitation takes no one's time.
+					'attendee_ids'   => array_values( array_map( 'strval', array_column( array_filter( $meeting['people'], static fn( array $person ): bool => 'declined' !== (string) $person['response'] ), 'user_id' ) ) ),
+					'google_id'      => (string) $meeting['id'],
+					'status'         => (string) $meeting['status'],
+					'off_support'    => (bool) $meeting['off_support'],
+					'needs_settling' => GoogleMeetings::needs_settling( $meeting ),
+					'can_settle'     => $admin || $on_it,
+					'site_id'        => $site,
+					'series_id'      => '',
+					'slot'           => '',
+				)
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The signed-in person's Forge id, or ''.
+	 *
+	 * @return string
+	 */
+	private static function my_id(): string {
+		$me = Users::by_wp_user( get_current_user_id() );
+
+		return null === $me ? '' : (string) $me['id'];
 	}
 
 	/**

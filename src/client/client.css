@@ -1280,3 +1280,35 @@ p.fc-muted + p.fc-muted,
     margin-left: 0;
   }
 }
+
+/* Guides (#580). */
+.fc-guides {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.fc-guide-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fc-guide-steps {
+  margin: 12px 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --ink-700 );
+}
+.fc-guide-then {
+  margin: 0;
+  font-size: var( --text-small );
+  line-height: 1.5;
+  color: var( --ink-900 );
+}
+.fc-guides em {
+  font-style: normal;
+  font-weight: var( --weight-medium );
+}

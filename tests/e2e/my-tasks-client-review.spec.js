@@ -50,7 +50,7 @@ test( 'a task with the client leaves My tasks, stays on the standup, and returns
   await page.reload();
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
   await expect( table ).toBeVisible( { timeout: 60_000 } );
-  await expect( table.locator( 'tbody tr', { hasText: title } ) ).toHaveCount( 1 );
+  await expect( table.locator( 'tbody tr, [data-testid="bwx-day-block"]', { hasText: title } ) ).toHaveCount( 1 );
 
   await page.close();
   await me.context.close();

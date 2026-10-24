@@ -54,6 +54,9 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\WorkspaceController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Rest\ReadController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Rest\WriteController::class, 'register_routes' ) );
+		// #621. The routes the studio calls to make a client's site, on a network.
+		add_action( 'rest_api_init', array( Rest\NetworkController::class, 'register_routes' ) );
+		Admin\NetworkKeyScreen::boot();
 		add_action( 'admin_menu', array( Admin\Screen::class, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( Admin\Screen::class, 'enqueue' ) );
 		// A token from before releases went public (#340) is dropped on sight.
@@ -81,6 +84,9 @@ final class Plugin {
 
 		// So the studio's connection record knows what this site is running and
 		// whether it can email anybody (#89).
+		// The guides for the client, on the BlueWorx Guides page (#580).
+		Guides::boot();
+
 		Mail::boot();
 		Report::boot();
 

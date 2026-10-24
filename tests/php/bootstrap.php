@@ -799,6 +799,18 @@ function wp_timezone(): DateTimeZone {
 	return new DateTimeZone( 'UTC' );
 }
 
+if ( ! function_exists( 'admin_url' ) ) {
+	/**
+	 * Stub. The studio's admin address, for the Google redirect (#606).
+	 *
+	 * @param string $path Path under wp-admin.
+	 * @return string
+	 */
+	function admin_url( string $path = '' ): string {
+		return 'https://studio.test/wp-admin/' . ltrim( $path, '/' );
+	}
+}
+
 // WordPress's own secret, which Tenancy\Secrets derives its key from.
 if ( ! defined( 'AUTH_KEY' ) ) {
 	define( 'AUTH_KEY', 'unit-test-auth-key-not-a-secret' );
@@ -837,4 +849,29 @@ function wp_strip_all_tags( string $text, bool $remove_breaks = false ): string 
 function _n( string $single, string $plural, int $number, string $text_domain = 'default' ): string {
 	unset( $text_domain );
 	return 1 === $number ? $single : $plural;
+}
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	/**
+	 * Stub. WordPress's wrapper over parse_url().
+	 *
+	 * @param string $url       The address.
+	 * @param int    $component A PHP_URL_* constant, or -1 for all parts.
+	 * @return mixed
+	 */
+	function wp_parse_url( string $url, int $component = -1 ) {
+		return parse_url( $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
+	}
+}
+
+if ( ! function_exists( 'untrailingslashit' ) ) {
+	/**
+	 * Stub.
+	 *
+	 * @param string $value A path or address.
+	 * @return string
+	 */
+	function untrailingslashit( string $value ): string {
+		return rtrim( $value, '/' );
+	}
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarCheck, Columns3, FolderKanban, Inbox, LayoutDashboard, Receipt, X } from 'lucide-react';
+import { BookOpen, CalendarCheck, Columns3, FolderKanban, Inbox, LayoutDashboard, Receipt, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card, EmptyState, SectionTitle, Tag, ToastProvider } from '../kit';
 import { clientData } from './data';
@@ -10,6 +10,7 @@ import { Projects } from './screens/Projects';
 import { Requests } from './screens/Requests';
 import { Sales } from './screens/Sales';
 import { Onboarding } from './screens/Onboarding';
+import { Guides } from './screens/Guides';
 
 /*
  * The client workspace shell (#297): banner, header with the nav, the screen,
@@ -20,7 +21,7 @@ import { Onboarding } from './screens/Onboarding';
  * works, without asking WordPress for a route it does not have.
  */
 
-type ScreenName = 'dashboard' | 'board' | 'projects' | 'requests' | 'sales' | 'onboarding';
+type ScreenName = 'dashboard' | 'board' | 'projects' | 'requests' | 'sales' | 'onboarding' | 'guides';
 
 interface Screen {
   id: ScreenName;
@@ -72,6 +73,13 @@ const SCREENS: Screen[] = [
     title: 'Launch readiness',
     sub: 'The list we work through together before you go live. You can fill things in, attach what is asked for and send steps back to us — we set the list and we approve it.',
     icon: CalendarCheck,
+  },
+  {
+    id: 'guides',
+    label: 'Guides',
+    title: 'Guides',
+    sub: 'How Forge works, one task at a time: where to go, what to press, and what happens next.',
+    icon: BookOpen,
   },
 ];
 
@@ -184,6 +192,8 @@ export function App() {
             <Sales />
           ) : 'onboarding' === screen && data ? (
             <Onboarding step={ route.sub } />
+          ) : 'guides' === screen && data ? (
+            <Guides />
           ) : (
           <Card>
             <EmptyState

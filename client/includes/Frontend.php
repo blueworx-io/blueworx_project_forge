@@ -330,6 +330,7 @@ final class Frontend {
 				'name'      => (string) ( $view['record']['name'] ?? '' ),
 				'connected' => is_array( $view['record'] ?? null ),
 			),
+			'guides'    => Guides::for_workspace(),
 			'user'      => array(
 				'name' => $user->display_name,
 			),

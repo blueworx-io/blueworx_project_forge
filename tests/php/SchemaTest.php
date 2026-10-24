@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 36, $definitions );
+		$this->assertCount( 39, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -142,6 +142,15 @@ final class SchemaTest extends TestCase {
 			 * and there is no version to guard.
 			 */
 			Schema::staff_roles_table(),
+
+			/*
+			 * #606. A person's Google connection is theirs alone and written
+			 * by the sync for them, like a Slack row; and who is on a synced
+			 * meeting is Google's answer, replaced on every sync rather than
+			 * edited by anybody.
+			 */
+			Schema::google_connections_table(),
+			Schema::google_people_table(),
 		);
 
 		foreach ( $definitions as $table => $sql ) {

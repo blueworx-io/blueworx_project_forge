@@ -17,6 +17,8 @@ use Blueworx\Forge\Commerce\Sales;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\Terms;
 use Blueworx\Forge\Commerce\WorkHours;
+use Blueworx\Forge\Google\Hours as GoogleHours;
+use Blueworx\Forge\Google\Meetings as GoogleMeetings;
 use Blueworx\Forge\Meetings\Diary;
 use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Series;
@@ -687,6 +689,21 @@ final class SupportController {
 			} elseif ( null === $meeting ) {
 				// Taken away when its series changed (2026-09-28, #432). Its
 				// release named it, so the lines before that still can.
+				foreach ( Ledger::for_source( $type, $id ) as $line ) {
+					if ( '' !== (string) ( $line['reason'] ?? '' ) ) {
+						$names[ $key ] = (string) $line['reason'];
+						break;
+					}
+				}
+			}
+		} elseif ( GoogleHours::SOURCE === $type ) {
+			// #606. A meeting from Google Calendar; once gone, its lines
+			// still name it.
+			$meeting = GoogleMeetings::get( $id );
+
+			if ( null !== $meeting ) {
+				$names[ $key ] = GoogleHours::name( $meeting );
+			} else {
 				foreach ( Ledger::for_source( $type, $id ) as $line ) {
 					if ( '' !== (string) ( $line['reason'] ?? '' ) ) {
 						$names[ $key ] = (string) $line['reason'];

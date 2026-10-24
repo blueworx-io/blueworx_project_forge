@@ -39,7 +39,113 @@ function refusal( error: unknown, fallback: string ): string {
   return fields ? Object.values( fields ).join( ' ' ) : messageFor( error, fallback );
 }
 
-export function ProfileScreen() {
+/** A person's own Google Calendar connection (#606). */
+interface MyGoogle {
+  configured: boolean;
+  connected: boolean;
+  email: string;
+  synced_at: number;
+  last_error: string;
+}
+
+/** What coming back from Google's consent screen means, in words. */
+const GOOGLE_OUTCOMES: Record< string, Said > = {
+  connected: ok( 'Google Calendar is connected. Your meetings are coming in.' ),
+  declined: warn( 'Google Calendar was not connected: access was not given.' ),
+  expired: failed( 'That took too long, or was started somewhere else. Connect again.' ),
+  failed: failed( 'Google could not be reached. Try connecting again.' ),
+};
+
+/**
+ * #606. Connect and disconnect your own Google work calendar, and see when it
+ * last synced. Forge only ever reads it, and never shows your tokens.
+ */
+function GooglePanel( { outcome }: { outcome: string } ) {
+  const [ mine, setMine ] = useState< MyGoogle | null >( null );
+  const [ busy, setBusy ] = useState( false );
+  const [ said, setSaid ] = useState< Said >( GOOGLE_OUTCOMES[ outcome ] ?? NOTHING_SAID );
+
+  useEffect( () => {
+    void api< MyGoogle >( '/me/google', { cache: 'fresh' } )
+      .then( setMine )
+      .catch( ( error ) => setSaid( failed( messageFor( error, 'Your Google Calendar could not be read.' ) ) ) );
+  }, [] );
+
+  async function act( what: 'connect' | 'disconnect' | 'sync' ) {
+    if ( 'disconnect' === what && ! window.confirm( 'Disconnect Google Calendar? Meetings nobody has settled yet are taken out of Forge.' ) ) {
+      return;
+    }
+
+    setBusy( true );
+    setSaid( NOTHING_SAID );
+
+    try {
+      if ( 'connect' === what ) {
+        const started = await api< { url: string } >( '/me/google/connect', { method: 'POST', body: {} } );
+
+        window.location.assign( started.url );
+        return;
+      }
+
+      const fresh = 'sync' === what
+        ? await api< MyGoogle >( '/me/google/sync', { method: 'POST', body: { force: true } } )
+        : await api< MyGoogle >( '/me/google', { method: 'DELETE' } );
+
+      setMine( fresh );
+      setSaid( '' !== fresh.last_error ? failed( fresh.last_error ) : ok( 'sync' === what ? 'Synced.' : 'Google Calendar is disconnected.' ) );
+    } catch ( error ) {
+      setSaid( failed( messageFor( error, 'That could not be done.' ) ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  const synced = mine && 0 < mine.synced_at ? new Date( mine.synced_at * 1000 ).toLocaleString( 'en-GB', { dateStyle: 'medium', timeStyle: 'short' } ) : '';
+
+  return (
+    <Panel
+      title="Google Calendar"
+      right={
+        mine?.connected ? (
+          <div className="bwx-moves">
+            <Button variant="secondary" size="sm" data-testid="bwx-profile-google-sync" disabled={ busy } onClick={ () => void act( 'sync' ) }>
+              Sync now
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="bwx-profile-google-disconnect" disabled={ busy } onClick={ () => void act( 'disconnect' ) }>
+              Disconnect
+            </Button>
+          </div>
+        ) : undefined
+      }
+    >
+      <div data-testid="bwx-profile-google" data-connected={ mine?.connected ? 'yes' : 'no' }>
+        <Notice said={ said } testId="bwx-profile-google-notice" />
+        { mine && ! mine.configured && ! mine.connected && (
+          <p className="bwx-hint">Google Calendar is not set up yet. An administrator adds the studio&apos;s Google client in Settings.</p>
+        ) }
+        { mine?.connected && (
+          <p className="bwx-hint" data-testid="bwx-profile-google-status">
+            { `Connected as ${ mine.email }.` }
+            { '' !== synced && ` Last synced ${ synced }.` }
+            { '' !== mine.last_error && ` The last sync failed: ${ mine.last_error }` }
+          </p>
+        ) }
+        { mine && mine.configured && ! mine.connected && (
+          <>
+            <p className="bwx-hint">Connect your Google work calendar and your meetings come into Forge on their own. Forge only reads it, and never changes anything in Google.</p>
+            <div className="bwx-moves bwx-form-foot">
+              <Button data-testid="bwx-profile-google-connect" disabled={ busy } onClick={ () => void act( 'connect' ) }>
+                Connect Google Calendar
+              </Button>
+            </div>
+          </>
+        ) }
+      </div>
+    </Panel>
+  );
+}
+
+export function ProfileScreen( { google = '' }: { google?: string } ) {
   const [ me, setMe ] = useState< Me | null >( null );
   const [ state, setState ] = useState< 'loading' | 'ready' | 'denied' | 'error' >( 'loading' );
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
@@ -204,6 +310,8 @@ export function ProfileScreen() {
           </Button>
         </div>
       </Panel>
+
+      <GooglePanel outcome={ google } />
     </div>
   );
 }

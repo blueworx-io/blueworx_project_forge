@@ -215,6 +215,8 @@ export function cardDetail( card: StandupCard ): string {
     case 'needs-intervention':
       // A site says what is wrong in words; the code is for machines (2026-09-27).
       if ( 'client_site' === said( 'subject_type' ) ) return said( 'detail' );
+      // #621. A server says what Cloudways reported and which clients it affects.
+      if ( 'server' === said( 'subject_type' ) ) return said( 'detail' );
 
       return 'notification' === said( 'subject_type' ) || '' !== said( 'kind' )
         ? said( 'kind' )

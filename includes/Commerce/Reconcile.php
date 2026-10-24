@@ -217,7 +217,7 @@ final class Reconcile {
 			 * them to get wrong, and grouping them would report every one of
 			 * them as an unreleased reservation.
 			 */
-			if ( ! in_array( $type, array( 'work-item', 'meeting-occurrence' ), true ) ) {
+			if ( ! in_array( $type, array( 'work-item', 'meeting-occurrence', 'google-meeting' ), true ) ) {
 				continue;
 			}
 

@@ -395,6 +395,46 @@ export const RULES: RuleSection[] = [
         why: 'A meeting set up by mistake shouldn\'t linger, but what a client paid for can\'t be undone.',
       },
       {
+        what: 'Each staff member can connect their own Google work calendar from their profile, and every event on it comes into Forge and follows Google when it is moved, changed or deleted. Forge only reads Google and never changes anything there.',
+        why: 'Most meetings live in Google Calendar, so capacity and support hours would miss them otherwise.',
+      },
+      {
+        what: 'A meeting from Google counts against the time of each connected person on it who hasn\'t declined, from the moment it arrives. Declined events, all-day events, out-of-office and focus time, and events marked free in Google show but take no time and never need settling.',
+        why: 'A holiday or a meeting somebody turned down shouldn\'t fill their week.',
+      },
+      {
+        what: 'A meeting on several connected calendars shows once, with everyone on it, and is settled and charged once. A Google event on the same day as a standing meeting, overlapping its time, with one of its people as host or attendee, is left out until somebody settles it, so the standing meeting counts once.',
+        why: 'One meeting must never charge a client twice.',
+      },
+      {
+        what: 'A meeting from Google arrives with no client and is settled by its people or an administrator: pick the client, or no client for studio time, and whether its time comes off their support hours. Picking a client ahead holds their hours as a standing meeting does, and they are only used when it is marked held. Once it has used hours its client can\'t change.',
+        why: 'Only a person knows who a meeting was for and whether the client pays for it.',
+      },
+      {
+        what: 'A settled meeting keeps its client when Google moves it, and its hours follow the new length. A meeting deleted in Google is removed and its held hours given back, unless it was marked held. Disconnecting removes only meetings nobody has settled.',
+        why: 'Google owns when a meeting is; Forge owns what it cost.',
+      },
+      {
+        what: 'The Today tab on My tasks is a planned day from 7am to 7pm, the same for everyone. Meetings you host or attend sit at their times in your own time zone, and your tasks fill the open time from now on, urgent first, then high, normal and low; within a priority, overdue first, then due earliest. A task is as tall as its hours, and a task that runs into a meeting carries on after it.',
+        why: 'A list says what is due but not whether it fits in the day.',
+      },
+      {
+        what: 'Under the day, Doesn\'t fit today lists tasks that would run past 7pm, and No hours set lists tasks with no hours, which are never placed. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today.',
+        why: 'Everything on Today is somewhere on the screen, and no task looks scheduled when it has nothing to place it by.',
+      },
+      {
+        what: 'Edit plan lets you move a task up or down, bring one up from either list, or send one down. The order holds for that day on your account, new tasks drop into open time without reshuffling it, and tomorrow starts fresh. The plan never changes a task\'s date, stage, priority or hours.',
+        why: 'The plan is yours to arrange, and it is a view of the work rather than part of it.',
+      },
+      {
+        what: 'Overlapping meetings, and work due today or overdue that sits in Doesn\'t fit today, show in red and are counted at the top of the day.',
+        why: 'These are the days that will not work out, and they are better seen early.',
+      },
+      {
+        what: 'Colleagues see a Google meeting\'s title, time and who is on it; an event marked private in Google shows to them as Busy. Google sign-in details are kept sealed and never shown to anyone, and only an administrator enters the studio\'s Google client.',
+        why: 'Somebody\'s calendar is theirs, and Forge only needs enough of it to plan time.',
+      },
+      {
         what: 'The daily standup is worked out fresh from what is true right now, and nothing is flagged or cleared by hand.',
         why: 'An item leaves the standup the moment its problem is fixed, and can\'t be hidden without fixing it.',
       },
@@ -593,6 +633,10 @@ export const RULES: RuleSection[] = [
         why: 'They know it arrived without having to chase us.',
       },
       {
+        what: 'Clients get guides on how Forge works: a Guides tab in their workspace, and the same guides on the BlueWorx Guides page for anyone who can open it. Only people who can use Forge see them.',
+        why: 'A client shouldn\'t need to ask us how to send a request or review finished work, and a Forge manager can\'t open the BlueWorx Guides page, so the workspace has them too.',
+      },
+      {
         what: 'Client accounts never move tasks by any route; the one exception is approving or sending back a task they are reviewing.',
         why: 'Where work is in its journey is our decision, and that line is a security boundary rather than a preference.',
       },
@@ -681,6 +725,48 @@ export const RULES: RuleSection[] = [
       {
         what: 'An urgent task is in Today on My tasks whatever its date, at the top, for whoever\'s turn it is. A reminder still waits for its first day.',
         why: 'Urgent work should never be sitting under Further out.',
+      },
+    ],
+  },
+  {
+    id: 'connections',
+    title: 'Connections',
+    rules: [
+      {
+        what: 'Outside services are connected in Settings, under Connections, by an administrator. A key is checked with the service before it is saved, kept sealed, and only its last four characters are ever shown again.',
+        why: 'A key that reaches the browser, a log or a backup in the clear is a key someone else can use.',
+      },
+      {
+        what: 'Forge asks Cloudways about the servers only when an administrator opens Servers or presses Check now. Opening the page again within five minutes, or pressing Check now within fifteen seconds, shows the last answer.',
+        why: 'Nothing checks in the background yet, and asking Cloudways over and over says nothing new.',
+      },
+      {
+        what: 'Each application on a server is matched to a client by its address, ignoring https, www and anything after the domain. Applications that match no client are listed as not matched.',
+        why: 'It shows which clients a server problem affects.',
+      },
+      {
+        what: 'A server Cloudways last reported as anything but running is on the Daily standup, under The studio itself, for administrators only. If Cloudways can\'t be reached, servers show as unreachable and the standup keeps what Cloudways last reported.',
+        why: 'Only administrators can see the servers, and an outage at Cloudways shouldn\'t hide a server that was down or flag every one that wasn\'t.',
+      },
+      {
+        what: 'Once the WordPress multisite network is connected, an administrator can create a client\'s site on it from the client\'s page, on any of their sites that has no WordPress site connected yet. The address and title are theirs to choose; the site gets whatever plugins are switched on across the network.',
+        why: 'The Forge site that work, hours and onboarding already hang off is the one that gets filled in, rather than a second one being made.',
+      },
+      {
+        what: 'Creating a site runs three steps in order: the site is made, it is linked to Forge with a new key nobody has to copy, and the client\'s people get their logins. A step that fails says so, keeps what was done, and can be tried again from there.',
+        why: 'A half-made site should be finished, not started again.',
+      },
+      {
+        what: 'On the new site, the client\'s admins get Editor and Forge: Manager, and the client\'s viewers get Forge: Manager only. Studio staff and anyone limited to another of the client\'s sites get nothing; the network\'s own administrators already have access. Nobody is made an administrator.',
+        why: 'Admins look after their site\'s content; viewers only follow the work in Forge.',
+      },
+      {
+        what: 'Somebody who already has an account on the network is added to the new site rather than given a second one. New accounts get WordPress\'s own email to set a password; no password is ever sent or shown.',
+        why: 'A password in an email is a password anyone with that email can read.',
+      },
+      {
+        what: 'Forge only talks to the network over https, with every call signed by the network\'s key, timed, and usable once. The network will only link or add people to a site it made for that same Forge site.',
+        why: 'A route that makes sites and logins must not answer anyone else, or let the studio\'s key reach other sites on the network.',
       },
     ],
   },
