@@ -39,7 +39,6 @@ test( 'My tasks has a Priority column and runs urgent first, then by date, then 
   await page.goto( '/blueworx-forge/' );
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
 
-  const table = page.getByTestId( 'bwx-mytasks-table' );
   await expect( page.locator( '[data-testid="bwx-day-block"]', { hasText: `Today urgent ${ RUN }` } ) ).toBeVisible( { timeout: 60_000 } );
 
   const rows = page.locator( '[data-testid="bwx-day-block"]' );
