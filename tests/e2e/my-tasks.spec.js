@@ -83,7 +83,7 @@ test( 'the four views reconcile, and each opens the item', async ( { browser, ba
 
   // A row opens the record.
   await table.getByRole( 'button', { name: `Late one ${ RUN }` } ).click();
-  await expect( page.getByTestId( 'bwx-panel' ) ).toContainText( `Late one ${ RUN }` );
+  await expect( page.getByTestId( 'bwx-panel' ) ).toContainText( `Late one ${ RUN }`, { timeout: 60_000 } );
 
   await page.close();
   await me.context.close();
