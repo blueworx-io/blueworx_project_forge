@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.213.2] - 2026-10-25
+
+### Fixed
+
+- A day on Capacity and the panel it opens now always show the same time, even for a chore whose date was moved, and a day whose time is all finished work says done.
+
 ## [2.213.1] - 2026-10-25
 
 ### Fixed
