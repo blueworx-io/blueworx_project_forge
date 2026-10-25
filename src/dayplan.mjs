@@ -220,3 +220,27 @@ export function clockText(mins) {
   const m = mins % 60;
   return `${h}:${String(m).padStart(2, '0')}`;
 }
+
+/**
+ * Where each segment sits on the drawn day (#639): its top and height in
+ * pixels from 7am, so a task covers the hours it takes rather than stretching
+ * one row. A few minutes still gets minPx to be read; whatever follows moves
+ * down only as far as it must, and still ends at its own time where it can.
+ * Meetings that really overlap are a clash, and stay at their own times.
+ *
+ * @param {{start: number, end: number}[]} segments In time order.
+ * @param {{hourPx: number, minPx: number}} sizes
+ */
+export function layOut(segments, { hourPx, minPx }) {
+  let floor = 0;
+  let last = -Infinity;
+  return segments.map((seg) => {
+    const at = Math.round(((seg.start - DAY_START) / 60) * hourPx);
+    const top = seg.start >= last ? Math.max(at, floor) : at;
+    last = Math.max(last, seg.end);
+    const end = Math.round(((seg.end - DAY_START) / 60) * hourPx);
+    const height = Math.max(end - top, minPx);
+    floor = top + height;
+    return { ...seg, top, height };
+  });
+}

@@ -4186,17 +4186,25 @@ td[ data-band='over' ] {
   font-size: var( --text-small );
 }
 .bwx-day-strip { padding: 0 4px; }
-.bwx-day-grid { display: flex; flex-direction: column; }
-.bwx-day-hour {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 8px;
-  border-top: 1px solid var( --border-hairline );
-  min-height: 40px;
-}
+/* #639. Every hour the same height; each piece of the day sits across the
+   hours it takes, laid over them. */
+.bwx-day-grid { position: relative; }
+.bwx-day-hour { box-sizing: border-box; border-top: 1px solid var( --border-hairline ); }
 .bwx-day-hour[ data-past='true' ] .bwx-day-label { opacity: 0.5; }
-.bwx-day-label { padding-top: 8px; text-align: right; color: var( --ink-500 ); font-size: var( --text-small ); }
-.bwx-day-slot { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; min-width: 0; }
+.bwx-day-label { display: block; width: 48px; padding-top: 6px; text-align: right; color: var( --ink-500 ); font-size: var( --text-small ); }
+.bwx-day-layer { position: absolute; inset: 0 0 0 56px; }
+.bwx-day-item { position: absolute; left: 0; right: 0; box-sizing: border-box; padding: 2px 0; }
+.bwx-day-item > * { box-sizing: border-box; height: 100%; overflow: hidden; }
+/* Details at the top of a long piece, as a calendar reads. */
+.bwx-day-item:not( [ data-short='true' ] ) > .bwx-day-block { align-content: flex-start; }
+.bwx-day-item:not( [ data-short='true' ] ) > .bwx-day-gap { align-items: flex-start; }
+/* A few minutes: one line, the title and the time it takes. */
+.bwx-day-item[ data-short='true' ] .bwx-day-block,
+.bwx-day-item[ data-short='true' ] .bwx-day-meeting,
+.bwx-day-item[ data-short='true' ] .bwx-day-gap { flex-wrap: nowrap; align-items: center; padding-top: 0; padding-bottom: 0; }
+.bwx-day-item[ data-short='true' ] .bwx-day-block-main { flex: 1 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bwx-day-item[ data-short='true' ] .bwx-day-block-facts > :not( .bwx-day-hours, .bwx-mytasks-due ) { display: none; }
+.bwx-day-item[ data-short='true' ] .bwx-day-meeting-body > .bwx-muted { display: none; }
 .bwx-day-gap {
   display: flex;
   align-items: center;
@@ -4257,8 +4265,10 @@ td[ data-band='over' ] {
 .bwx-day-box-attention h3 { display: inline-flex; align-items: center; gap: 4px; color: var( --state-danger ); }
 @media ( max-width: 640px ) {
   .bwx-day { padding: 8px; }
-  .bwx-day-hour { grid-template-columns: 36px 1fr; gap: 4px; }
-  .bwx-day-block { flex-direction: column; align-items: flex-start; }
+  .bwx-day-label { width: 36px; }
+  .bwx-day-layer { left: 40px; }
+  .bwx-day-block { flex-wrap: nowrap; }
+  .bwx-day-block-facts > :not( .bwx-day-hours, .bwx-mytasks-due ) { display: none; }
 }
 
 /* The profile page: a person's facts in a row, and the Slack preferences. */

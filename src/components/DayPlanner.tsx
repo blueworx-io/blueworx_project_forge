@@ -8,7 +8,7 @@ import { Button, Card, StageChip, Tag } from '../kit';
 import { DiaryLine, daysOf, useDiary } from './Diary';
 import { todayIso } from '../calendar';
 import { PRIORITY_TONE } from '../priority';
-import { bringUp, clockText, DAY_END, DAY_START, hoursText, minuteOfDay, moveInOrder, planDay, sendDown } from '../dayplan.mjs';
+import { bringUp, clockText, DAY_END, DAY_START, hoursText, layOut, minuteOfDay, moveInOrder, planDay, sendDown } from '../dayplan.mjs';
 import type { Mine, Role } from '../mytasks';
 
 /*
@@ -23,7 +23,22 @@ const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Design
 const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
 
 /** Pixels an hour of the day is drawn at. */
-const HOUR_PX = 64;
+const HOUR_PX = 80;
+/** The least a piece of the day is drawn at, so a few minutes can be read (#639). */
+const MIN_PX = 30;
+/** Below this, a task shows on one line (#639). */
+const SHORT_PX = 56;
+
+interface Seg {
+  type: string;
+  id: string;
+  start: number;
+  end: number;
+  part: number;
+  parts: number;
+}
+
+type Box = Seg & { top: number; height: number };
 
 interface Saved {
   order: string[];
@@ -63,7 +78,6 @@ function TaskBlock( {
   editing,
   actions,
   onOpen,
-  height,
   where,
 }: {
   one: Mine;
@@ -73,7 +87,6 @@ function TaskBlock( {
   editing?: boolean;
   actions?: ReactNode;
   onOpen: ( itemId: string ) => void;
-  height?: number;
   where: 'day' | 'attention' | 'overflow' | 'unset';
 } ) {
   return (
@@ -86,7 +99,6 @@ function TaskBlock( {
       data-priority={ one.item.priority }
       data-clash={ clash ? 'true' : undefined }
       data-editing={ editing ? 'true' : undefined }
-      style={ height ? { minHeight: height } : undefined }
     >
       <span className="bwx-day-block-main">
         <span className="bwx-mytasks-title-row">
@@ -311,6 +323,73 @@ export function DayPlanner( {
     </>
   );
 
+  // Every hour the same height, and each piece of the day across the hours
+  // it takes (#639).
+  const boxes: Box[] = layOut( [ ...plan.segments ].sort( ( x: Seg, y: Seg ) => x.start - y.start ), { hourPx: HOUR_PX, minPx: MIN_PX } );
+  const dayHeight = Math.max( hours.length * HOUR_PX, ...boxes.map( ( one ) => one.top + one.height ) );
+
+  /** One piece of the day: open time, a meeting, or a task. */
+  const piece = ( seg: Box ): ReactNode => {
+    if ( 'gap' === seg.type ) {
+      return (
+        <div className="bwx-day-gap" data-testid="bwx-day-gap">
+          { `Open · ${ hoursText( seg.end - seg.start ) }` }
+        </div>
+      );
+    }
+
+    if ( 'meeting' === seg.type ) {
+      const one = meetingById.get( seg.id );
+      if ( ! one ) return null;
+      const rest = one.entry.detail.replace( /^\d{1,2}:\d{2}\s*·?\s*/, '' );
+      return (
+        <div className="bwx-day-meeting" data-testid="bwx-day-meeting" data-meeting={ one.entry.id } data-clash={ clashing.has( seg.id ) ? 'true' : undefined }>
+          <Handshake size={ 16 } strokeWidth={ 1.75 } aria-hidden="true" />
+          <span className="bwx-day-meeting-body">
+            <span className="bwx-day-meeting-title">{ one.entry.title }</span>
+            <span className="bwx-day-meeting-when bwx-mono">{ `${ clockText( one.start ) }–${ clockText( one.end ) }` }</span>
+            { '' !== rest && <span className="bwx-muted">{ rest }</span> }
+          </span>
+          { clashing.has( seg.id ) && (
+            <span className="bwx-day-clash" data-testid="bwx-day-clash">
+              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> Overlaps another
+            </span>
+          ) }
+        </div>
+      );
+    }
+
+    const one = byId.get( seg.id );
+    if ( ! one ) return null;
+    const at = plan.placedOrder.indexOf( seg.id );
+    const label = one.item.title;
+    return (
+      <TaskBlock
+        one={ one }
+        part={ seg.part }
+        parts={ seg.parts }
+        editing={ editing }
+        where="day"
+        onOpen={ onOpen }
+        actions={
+          editing && 1 === seg.part ? (
+            <>
+              <Button variant="ghost" size="sm" data-testid="bwx-day-up" aria-label={ `Move ${ label } up` } disabled={ 0 === at } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, -1 ), down: saved.down } ) }>
+                <ArrowUp size={ 14 } aria-hidden="true" /> Up
+              </Button>
+              <Button variant="ghost" size="sm" data-testid="bwx-day-down" aria-label={ `Move ${ label } down` } disabled={ at === plan.placedOrder.length - 1 } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, 1 ), down: saved.down } ) }>
+                <ArrowDown size={ 14 } aria-hidden="true" /> Down
+              </Button>
+              <Button variant="ghost" size="sm" data-testid="bwx-day-senddown" aria-label={ `Send ${ label } down to Doesn't fit today` } onClick={ () => void keep( sendDown( { order: plan.placedOrder, down: saved.down }, seg.id ) ) }>
+                <ArrowDownToLine size={ 14 } aria-hidden="true" /> Send down
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
+    );
+  };
+
   const empty = 0 === rows.length && 0 === meetings.length;
   const taskCount = plan.placedOrder.length;
   const clashes = plan.clashes.count;
@@ -365,81 +444,24 @@ export function DayPlanner( {
         </p>
       ) }
 
-      <div className="bwx-day-grid" data-testid="bwx-day-grid">
-        { hours.map( ( hour ) => {
-          const here = plan.segments.filter( ( seg: { start: number } ) => seg.start >= hour * 60 && seg.start < hour * 60 + 60 );
-          return (
-            <div key={ hour } className="bwx-day-hour" data-hour={ hour } data-past={ hour * 60 + 60 <= nowMins ? 'true' : undefined }>
-              <span className="bwx-day-label bwx-mono">{ hourLabel( hour ) }</span>
-              <div className="bwx-day-slot">
-                { here.map( ( seg: { type: string; id: string; start: number; end: number; part: number; parts: number } ) => {
-                  const height = Math.round( ( ( seg.end - seg.start ) / 60 ) * HOUR_PX );
-
-                  if ( 'gap' === seg.type ) {
-                    return (
-                      <div key={ `gap${ seg.start }` } className="bwx-day-gap" data-testid="bwx-day-gap" style={ { minHeight: Math.max( 28, height ) } }>
-                        { `Open · ${ hoursText( seg.end - seg.start ) }` }
-                      </div>
-                    );
-                  }
-
-                  if ( 'meeting' === seg.type ) {
-                    const one = meetingById.get( seg.id );
-                    if ( ! one ) return null;
-                    const rest = one.entry.detail.replace( /^\d{1,2}:\d{2}\s*·?\s*/, '' );
-                    return (
-                      <div key={ `m${ seg.id }` } className="bwx-day-meeting" data-testid="bwx-day-meeting" data-meeting={ one.entry.id } data-clash={ clashing.has( seg.id ) ? 'true' : undefined } style={ { minHeight: Math.max( 40, height ) } }>
-                        <Handshake size={ 16 } strokeWidth={ 1.75 } aria-hidden="true" />
-                        <span className="bwx-day-meeting-body">
-                          <span className="bwx-day-meeting-title">{ one.entry.title }</span>
-                          <span className="bwx-day-meeting-when bwx-mono">{ `${ clockText( one.start ) }–${ clockText( one.end ) }` }</span>
-                          { '' !== rest && <span className="bwx-muted">{ rest }</span> }
-                        </span>
-                        { clashing.has( seg.id ) && (
-                          <span className="bwx-day-clash" data-testid="bwx-day-clash">
-                            <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> Overlaps another
-                          </span>
-                        ) }
-                      </div>
-                    );
-                  }
-
-                  const one = byId.get( seg.id );
-                  if ( ! one ) return null;
-                  const at = plan.placedOrder.indexOf( seg.id );
-                  const label = one.item.title;
-                  return (
-                    <TaskBlock
-                      key={ `${ seg.id }:${ seg.part }` }
-                      one={ one }
-                      part={ seg.part }
-                      parts={ seg.parts }
-                      height={ Math.max( 52, height ) }
-                      editing={ editing }
-                      where="day"
-                      onOpen={ onOpen }
-                      actions={
-                        editing && 1 === seg.part ? (
-                          <>
-                            <Button variant="ghost" size="sm" data-testid="bwx-day-up" aria-label={ `Move ${ label } up` } disabled={ 0 === at } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, -1 ), down: saved.down } ) }>
-                              <ArrowUp size={ 14 } aria-hidden="true" /> Up
-                            </Button>
-                            <Button variant="ghost" size="sm" data-testid="bwx-day-down" aria-label={ `Move ${ label } down` } disabled={ at === plan.placedOrder.length - 1 } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, 1 ), down: saved.down } ) }>
-                              <ArrowDown size={ 14 } aria-hidden="true" /> Down
-                            </Button>
-                            <Button variant="ghost" size="sm" data-testid="bwx-day-senddown" aria-label={ `Send ${ label } down to Doesn't fit today` } onClick={ () => void keep( sendDown( { order: plan.placedOrder, down: saved.down }, seg.id ) ) }>
-                              <ArrowDownToLine size={ 14 } aria-hidden="true" /> Send down
-                            </Button>
-                          </>
-                        ) : undefined
-                      }
-                    />
-                  );
-                } ) }
-              </div>
-            </div>
-          );
-        } ) }
+      <div className="bwx-day-grid" data-testid="bwx-day-grid" style={ { minHeight: dayHeight } }>
+        { hours.map( ( hour ) => (
+          <div key={ hour } className="bwx-day-hour" data-hour={ hour } data-past={ hour * 60 + 60 <= nowMins ? 'true' : undefined } style={ { height: HOUR_PX } }>
+            <span className="bwx-day-label bwx-mono">{ hourLabel( hour ) }</span>
+          </div>
+        ) ) }
+        <div className="bwx-day-layer">
+          { boxes.map( ( seg: Box ) => {
+            const inner = piece( seg );
+            return (
+              inner && (
+                <div key={ `${ seg.type }${ seg.id ?? '' }:${ seg.start }` } className="bwx-day-item" data-hour={ Math.floor( seg.start / 60 ) } data-short={ seg.height < SHORT_PX ? 'true' : undefined } style={ { top: seg.top, height: seg.height } }>
+                  { inner }
+                </div>
+              )
+            );
+          } ) }
+        </div>
       </div>
 
       { below && 0 < attention.length + overflow.length + unset.length && createPortal( lists, below ) }
