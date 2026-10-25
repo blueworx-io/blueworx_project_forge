@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.214.1] - 2026-10-25
+
+### Fixed
+
+- My tasks now shows everything you're on that's due today or late, at every stage. Recurring tasks and reminders reach their reviewer and deliverer, cancelled work drops off, and today's recurring tasks are there from your own midnight.
+
 ## [2.214.0] - 2026-10-25
 
 ### Changed
