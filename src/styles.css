@@ -4165,6 +4165,8 @@ td[ data-band='over' ] {
   gap: 12px;
   flex-wrap: wrap;
 }
+/* #649. Schedule, then Edit plan, together at the end of the bar. */
+.bwx-day-tools { display: inline-flex; align-items: center; gap: 8px; }
 .bwx-day-summary {
   display: flex;
   flex-wrap: wrap;

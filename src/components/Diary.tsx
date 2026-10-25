@@ -61,8 +61,10 @@ export function diaryByDay( entries: DiaryEntry[] ): Record< string, DiaryEntry[
  * Entries that belong to no client — company dates, leave, renewals —
  * show whichever client is picked.
  */
-export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; reload: () => void } {
+export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; ready: boolean; reload: () => void } {
   const [ every, setEntries ] = useState< DiaryEntry[] >( [] );
+  // #649. Whether the first answer is in, so a day is not planned without its meetings.
+  const [ ready, setReady ] = useState( false );
   const { siteId } = useClientChoice();
   const entries = useMemo(
     () => ( ALL_SITES === siteId ? every : every.filter( ( entry ) => '' === ( entry.site_id ?? '' ) || entry.site_id === siteId ) ),
@@ -79,6 +81,9 @@ export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; r
       } )
       .catch( () => {
         if ( live ) setEntries( [] );
+      } )
+      .finally( () => {
+        if ( live ) setReady( true );
       } );
 
     return () => {
@@ -86,7 +91,7 @@ export function useDiary( from: string, to: string ): { entries: DiaryEntry[]; r
     };
   }, [ from, to, generation ] );
 
-  return { entries, reload: () => setGeneration( ( n ) => n + 1 ) };
+  return { entries, ready, reload: () => setGeneration( ( n ) => n + 1 ) };
 }
 
 /** One diary entry, as a line. */

@@ -314,7 +314,8 @@ test( 'the day is planned once: a missed task keeps its slot as time passes, unt
   await expect( inHour( 8, 'Morning first' ) ).toBeVisible();
   await expect( inHour( 9, 'Morning second' ) ).toBeVisible();
 
-  // Editing plans the day again, from now.
+  // An edit never puts work in time already past (#649): the swapped pair
+  // moves to the first open time from now.
   await page.getByTestId( 'bwx-day-edit' ).click();
   await page.getByRole( 'button', { name: `Move Morning second ${ RUN } up` } ).click();
   await expect( inHour( 11, 'Morning second' ) ).toBeVisible();
@@ -355,6 +356,108 @@ test( 'a task covers every hour it takes, and short work still reads (#639)', as
   await expect( grid.getByText( `Five minutes ${ RUN }` ) ).toBeVisible();
 
   await page.screenshot( { path: 'test-results/day-plan-spans.png', fullPage: true } );
+
+  await page.close();
+  await me.context.close();
+  await admin.context.close();
+} );
+
+test( 'a kept day stays put: new and finished work move nothing, an edit holds, and Schedule plans again (#649)', async ( { browser, baseURL } ) => {
+  test.slow();
+  test.setTimeout( 500_000 );
+
+  const { admin, site, person } = await setUp( browser, baseURL, 'g' );
+  const today = localDate();
+  const serverToday = ( await admin.api.get( '/standup' ) ).today;
+  await makeTask( admin, site.id, `Kept first ${ RUN }`, { primary_user_id: person.id, priority: 'urgent', hours_primary: 1, planned_due: today } );
+  await makeTask( admin, site.id, `Kept last ${ RUN }`, { primary_user_id: person.id, priority: 'low', hours_primary: 1, planned_due: today } );
+  const choreTitle = `Kept chore ${ RUN }`;
+  const chore = await admin.api.post( '/recurring', {
+    title: choreTitle,
+    description: '<p>Do it.</p>',
+    rule: { every: 'day' },
+    starts_on: serverToday,
+    assignees: [ person.id ],
+    hours_each: '1',
+    client_site_id: site.id,
+  } );
+  expect( chore.status(), await chore.text() ).toBe( 200 );
+  await admin.api.post( '/recurring/run', {} );
+  const choreItem = ( await admin.api.get( `/work-items?client_site_id=${ site.id }` ) ).items.find( ( item ) => item.title.startsWith( choreTitle ) );
+  expect( choreItem, 'the chore is made' ).toBeTruthy();
+
+  // Planned at 8am by priority: first at 8, the chore at 9, the low one at 10.
+  const { me, page } = await openToday( browser, baseURL, person );
+  const grid = page.getByTestId( 'bwx-day-grid' );
+  const inHour = ( hour, name ) => grid.locator( `.bwx-day-item[data-hour="${ hour }"] [data-task]`, { hasText: `${ name } ${ RUN }` } );
+  const reopen = async () => {
+    await page.reload();
+    await page.getByTestId( 'bwx-screen-mytasks' ).click();
+    await expect( page.locator( '[data-testid="bwx-day"][data-ready="true"]' ) ).toBeVisible( { timeout: 90_000 } );
+  };
+  await expect( inHour( 8, 'Kept first' ) ).toBeVisible();
+  await expect( inHour( 9, 'Kept chore' ) ).toBeVisible();
+  await expect( inHour( 10, 'Kept last' ) ).toBeVisible();
+  await expect.poll( async () => ( ( await me.api.get( `/day-plan?day=${ today }` ) ).slots ?? [] ).length, { timeout: 30_000 } ).toBe( 3 );
+  const zone = await page.evaluate( () => Intl.DateTimeFormat().resolvedOptions().timeZone );
+
+  // Since then: a new task, a meeting on top of the low one, and the chore done.
+  await makeTask( admin, site.id, `Arrived later ${ RUN }`, { primary_user_id: person.id, priority: 'high', hours_primary: 1, planned_due: today } );
+  const meeting = await admin.api.post( `/client-sites/${ site.id }/meetings/series`, {
+    title: `Landed on it ${ RUN }`,
+    frequency: 'weekly',
+    starts_on: today,
+    ends_on: '',
+    time_of_day: '10:00',
+    duration_mins: 60,
+    timezone: zone,
+    host_user_id: person.id,
+    attendees: '',
+    planned_hours: 0,
+  } );
+  expect( meeting.status(), await meeting.text() ).toBe( 200 );
+  const ticked = await admin.api.post( `/work-items/${ choreItem.id }/tick`, { user_id: person.id, done: true } );
+  expect( ticked.status(), await ticked.text() ).toBe( 200 );
+
+  // Nothing moved. The chore's hour is open, the new task waits beneath, and
+  // the meeting sits on the low one with both shown as a clash.
+  await reopen();
+  await expect( page.getByTestId( 'bwx-day-meeting' ) ).toHaveCount( 1, { timeout: 30_000 } );
+  await expect( inHour( 8, 'Kept first' ) ).toBeVisible();
+  await expect( inHour( 10, 'Kept last' ) ).toBeVisible();
+  await expect( grid ).not.toContainText( choreTitle );
+  await expect( grid.locator( '.bwx-day-item[data-hour="9"] [data-testid="bwx-day-gap"]' ) ).toBeVisible();
+  expect( await titles( page, 'overflow' ) ).toEqual( [ `Arrived later ${ RUN }` ] );
+  await expect( inHour( 10, 'Kept last' ) ).toHaveAttribute( 'data-clash', 'true' );
+  await expect( page.locator( '[data-testid="bwx-day-meeting"][data-clash="true"]' ) ).toHaveCount( 1 );
+
+  // An edit moves only what it touches: the low one swaps with the first,
+  // into the time they held, clear of the meeting.
+  await page.getByTestId( 'bwx-day-edit' ).click();
+  await page.getByRole( 'button', { name: `Move Kept last ${ RUN } up` } ).click();
+  await expect( inHour( 8, 'Kept last' ) ).toBeVisible();
+  await expect( inHour( 9, 'Kept first' ) ).toBeVisible();
+
+  // And it holds across a reload, with the new task still beneath.
+  await reopen();
+  await expect( inHour( 8, 'Kept last' ) ).toBeVisible();
+  await expect( inHour( 9, 'Kept first' ) ).toBeVisible();
+  expect( await titles( page, 'overflow' ) ).toEqual( [ `Arrived later ${ RUN }` ] );
+
+  // Schedule, to the left of Edit plan, plans again from now and replaces the edit.
+  const schedule = page.getByTestId( 'bwx-day-schedule' );
+  const edit = page.getByTestId( 'bwx-day-edit' );
+  expect( ( await schedule.boundingBox() ).x ).toBeLessThan( ( await edit.boundingBox() ).x );
+  await schedule.click();
+  await expect( inHour( 8, 'Kept first' ) ).toBeVisible();
+  await expect( inHour( 9, 'Arrived later' ) ).toBeVisible();
+  await expect( inHour( 11, 'Kept last' ) ).toBeVisible();
+  await expect( page.getByTestId( 'bwx-day-overflow' ) ).toHaveCount( 0 );
+
+  await reopen();
+  await expect( inHour( 8, 'Kept first' ) ).toBeVisible();
+  await expect( inHour( 9, 'Arrived later' ) ).toBeVisible();
+  await expect( inHour( 11, 'Kept last' ) ).toBeVisible();
 
   await page.close();
   await me.context.close();

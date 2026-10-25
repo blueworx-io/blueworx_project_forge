@@ -427,11 +427,11 @@ export const RULES: RuleSection[] = [
         why: 'The plan is read as one day, missed slots included.',
       },
       {
-        what: 'The day is planned once, the first time you open Today. Each task then keeps its slot for the rest of the day, even after its time has passed, until you edit the plan, which plans it again from that moment. The next day is planned afresh.',
-        why: 'A plan that moved every time the clock did would never say what was missed.',
+        what: 'The day is planned once, the first time you open Today, and each task keeps the time it was given for the rest of the day, even after that time has passed. Nothing moves on its own: a meeting or task that arrives later waits beneath the day, a finished task leaves its time open, a task whose hours change keeps its slot, and a meeting that lands on a planned task leaves the task where it is and shows both as a clash. Schedule, beside Edit plan, plans the day again from now by priority and replaces your changes. The next day is planned afresh.',
+        why: 'A plan that moved every time the clock or the work did would never say what was missed, or keep the day you arranged.',
       },
       {
-        what: 'Edit plan lets you move a task up or down, bring one up from either list, or send one down. The order holds for that day on your account, new tasks drop into open time without reshuffling it, and tomorrow starts fresh. The plan never changes a task\'s date, stage, priority or hours.',
+        what: 'Edit plan lets you swap a task with the one before or after it, bring one up from the lists beneath into the first open time from now, or send one down and leave its time open. An edit moves only the tasks it touches, never into time already past, and what you set holds for that day on your account until you edit again or press Schedule. The plan never changes a task\'s date, stage, priority or hours.',
         why: 'The plan is yours to arrange, and it is a view of the work rather than part of it.',
       },
       {

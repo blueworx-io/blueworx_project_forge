@@ -115,6 +115,9 @@ export function MyTasksScreen() {
   // Narrowed first, so the counts on the tabs are for the picked client too.
   // Done work is under no view, Everything included (Luke, 2026-09-27).
   const ours = useMemo( () => listed( mine, siteId ), [ mine, siteId ] );
+  // #649. Everything on Today whatever the filters, so the day plan can tell
+  // a finished task from one a filter is hiding.
+  const onToday = useMemo( () => new Set( listed( mine, ALL_SITES ).filter( ( one ) => 'today' === viewOf( one ) ).map( ( one ) => one.id ) ), [ mine ] );
 
   const counts = useMemo( () => {
     const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, nodate: 0, done: 0, all: ours.length };
@@ -256,7 +259,7 @@ export function MyTasksScreen() {
             onClearFilters={ () => setRole( null ) }
             columns={ columns }
             rows={ rows }
-            body={ 'today' === view ? <DayPlanner rows={ rows } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } below={ below } /> : undefined }
+            body={ 'today' === view ? <DayPlanner rows={ rows } onToday={ onToday } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } below={ below } /> : undefined }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
             footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }

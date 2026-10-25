@@ -34,6 +34,7 @@ final class DayPlanTest extends TestCase {
 				'order' => array( 'itm_a', 'itm_b' ),
 				'down'  => array( 'itm_c' ),
 				'start' => null,
+				'slots' => null,
 			),
 			DayPlan::for_day( 7, '2026-10-23' )
 		);
@@ -49,6 +50,7 @@ final class DayPlanTest extends TestCase {
 			'order' => array(),
 			'down'  => array(),
 			'start' => null,
+			'slots' => null,
 		);
 
 		$this->assertSame( $empty, DayPlan::for_day( 7, '2026-10-24' ) );
@@ -104,5 +106,76 @@ final class DayPlanTest extends TestCase {
 
 		DayPlan::save( 7, '2026-10-24', array( 'itm_a' ), array() );
 		$this->assertNull( DayPlan::for_day( 7, '2026-10-24' )['start'] );
+	}
+
+	/**
+	 * #649. The times each task was placed at are kept, so the day is drawn
+	 * from them rather than laid out again; anything that is not a time is dropped.
+	 */
+	public function test_the_placed_times_are_kept(): void {
+		DayPlan::save(
+			7,
+			'2026-10-25',
+			array( 'itm_a' ),
+			array(),
+			480,
+			array(
+				array(
+					'id'    => 'itm_a',
+					'start' => 480,
+					'end'   => 540,
+				),
+				array(
+					'id'    => 'itm_a',
+					'start' => 600,
+					'end'   => 630,
+				),
+				array(
+					'id'    => '<b>',
+					'start' => 480,
+					'end'   => 540,
+				),
+				array(
+					'id'    => 'itm_b',
+					'start' => 540,
+					'end'   => 540,
+				),
+				array(
+					'id'    => 'itm_c',
+					'start' => '9',
+					'end'   => 2000,
+				),
+				'junk',
+			)
+		);
+
+		$this->assertSame(
+			array(
+				array(
+					'id'    => 'itm_a',
+					'start' => 480,
+					'end'   => 540,
+				),
+				array(
+					'id'    => 'itm_a',
+					'start' => 600,
+					'end'   => 630,
+				),
+			),
+			DayPlan::for_day( 7, '2026-10-25' )['slots']
+		);
+	}
+
+	/**
+	 * #649. A plan saved before the times were kept, or with none sent, has
+	 * no slots: null, so the screen knows to lay it out once and keep it.
+	 */
+	public function test_a_plan_without_times_has_no_slots(): void {
+		DayPlan::save( 7, '2026-10-25', array( 'itm_a' ), array(), 480 );
+		$this->assertNull( DayPlan::for_day( 7, '2026-10-25' )['slots'] );
+		$this->assertNull( DayPlan::for_day( 7, '2026-10-26' )['slots'] );
+
+		DayPlan::save( 7, '2026-10-25', array(), array(), 480, array() );
+		$this->assertSame( array(), DayPlan::for_day( 7, '2026-10-25' )['slots'] );
 	}
 }

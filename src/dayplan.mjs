@@ -53,6 +53,29 @@ function merged(intervals) {
   return out;
 }
 
+/** Where planning from `now` starts: 7am at the earliest, on the next five minutes. */
+function cursorOf(now) {
+  return Math.ceil(Math.max(now, DAY_START) / STEP) * STEP;
+}
+
+/** Takes `need` minutes from the front of the open time, or null if it does not fit whole. */
+function take(free, need) {
+  if (free.reduce((sum, [s, e]) => sum + (e - s), 0) < need) return null;
+  const pieces = [];
+  const rest = [];
+  for (const [s, e] of free) {
+    if (need <= 0) {
+      rest.push([s, e]);
+      continue;
+    }
+    const got = Math.min(need, e - s);
+    pieces.push([s, s + got]);
+    need -= got;
+    if (s + got < e) rest.push([s + got, e]);
+  }
+  return { pieces, rest };
+}
+
 /** The open stretches of the day from `from`, with the meetings taken out. */
 function openTime(from, meetings) {
   let free = [[Math.max(from, DAY_START), DAY_END]];
@@ -101,8 +124,7 @@ export function planDay({ now, meetings, tasks, order = [], down = [], away = fa
     if (!seen.has(id) && !sentDown.has(id)) sequence.push(id);
   }
 
-  const cursor = Math.ceil(Math.max(now, DAY_START) / STEP) * STEP;
-  let free = away ? [] : openTime(cursor, meetings);
+  let free = away ? [] : openTime(cursorOf(now), meetings);
 
   const segments = [];
   const overflow = withHours.filter((task) => sentDown.has(task.id)).map((task) => task.id);
@@ -110,31 +132,27 @@ export function planDay({ now, meetings, tasks, order = [], down = [], away = fa
   let plannedMins = 0;
 
   for (const id of sequence) {
-    let need = minutesOf(byId.get(id).hours);
-    const total = free.reduce((sum, [s, e]) => sum + (e - s), 0);
-    if (total < need) {
+    const got = take(free, minutesOf(byId.get(id).hours));
+    if (!got) {
       overflow.push(id);
       continue;
     }
-
-    const pieces = [];
-    const rest = [];
-    for (const [s, e] of free) {
-      if (need <= 0) {
-        rest.push([s, e]);
-        continue;
-      }
-      const take = Math.min(need, e - s);
-      pieces.push([s, s + take]);
-      need -= take;
-      if (s + take < e) rest.push([s + take, e]);
-    }
-    free = rest;
+    const { pieces } = got;
+    free = got.rest;
     pieces.forEach(([s, e], at) => segments.push({ type: 'task', id, start: s, end: e, part: at + 1, parts: pieces.length }));
     placedOrder.push(id);
     plannedMins += minutesOf(byId.get(id).hours);
   }
 
+  return finish({ segments, free, meetings, tasks, overflow, unset, placedOrder, plannedMins, kept: [] });
+}
+
+/**
+ * What a planned day and a kept one share (#649): open time as gaps,
+ * meetings, the drawing order, clashes and what needs attention.
+ */
+function finish({ segments, free, meetings, tasks, overflow, unset, placedOrder, plannedMins, kept }) {
+  const byId = new Map(tasks.map((task) => [task.id, task]));
   const gaps = free.filter(([s, e]) => e - s >= MIN_GAP);
   for (const [s, e] of gaps) segments.push({ type: 'gap', id: 'gap', start: s, end: e });
 
@@ -163,6 +181,20 @@ export function planDay({ now, meetings, tasks, order = [], down = [], away = fa
     return due !== null && due <= 0;
   });
 
+  // #649. A meeting that lands on a kept task leaves the task where it is;
+  // both are a clash until the person edits or plans again.
+  const overlapTasks = new Set();
+  const overlapMeetings = new Set();
+  for (const piece of kept) {
+    for (const meeting of meetings) {
+      if (piece.start < meeting.end && meeting.start < piece.end) {
+        overlapTasks.add(piece.id);
+        overlapMeetings.add(meeting.id);
+      }
+    }
+  }
+  const flagged = new Set([...clashing, ...overlapMeetings]);
+
   // Urgent or overdue work the day has no room for (#635), most pressing
   // first, so it is shown above the day rather than lost below it.
   const placed = new Set(placedOrder);
@@ -176,8 +208,111 @@ export function planDay({ now, meetings, tasks, order = [], down = [], away = fa
     placedOrder,
     plannedMins,
     openMins: gaps.reduce((sum, [s, e]) => sum + (e - s), 0),
-    clashes: { meetings: [...clashing], tasks: clashTasks, count: clashing.size + clashTasks.length },
+    clashes: {
+      meetings: [...clashing],
+      tasks: clashTasks,
+      overlaps: { tasks: [...overlapTasks], meetings: [...overlapMeetings] },
+      count: flagged.size + clashTasks.length + overlapTasks.size,
+    },
   };
+}
+
+/** Where each task was placed (#649): one {id, start, end} for each piece. */
+export function slotsOf(plan) {
+  return plan.segments.filter((seg) => seg.type === 'task').map(({ id, start, end }) => ({ id, start, end }));
+}
+
+const byStart = (a, b) => a.start - b.start || a.end - b.end;
+
+/** The order tasks come in on a kept day: by when each first starts. */
+export function slotOrder(slots) {
+  const out = [];
+  for (const piece of [...slots].sort(byStart)) if (!out.includes(piece.id)) out.push(piece.id);
+  return out;
+}
+
+/**
+ * Draws a kept day (#649): every task at the time it was given, whatever has
+ * changed since. A task that has gone leaves its time open; one that arrived
+ * since waits beneath the day until the person edits or plans again.
+ *
+ * @param {object} input
+ * @param {number} input.now When the day was planned; open time is shown from then.
+ * @param {{ id: string, start: number, end: number }[]} input.meetings
+ * @param {{ id: string, hours: number, priority?: string, due: number | null, index: number }[]} input.tasks
+ * @param {{ id: string, start: number, end: number }[]} input.slots
+ * @param {boolean} [input.away]
+ */
+export function drawDay({ now, meetings, tasks, slots, away = false }) {
+  const here = new Set(tasks.map((task) => task.id));
+  const kept = slots.filter((piece) => here.has(piece.id) && piece.end > piece.start).sort(byStart);
+  const placed = new Set(kept.map((piece) => piece.id));
+
+  const parts = new Map();
+  for (const piece of kept) parts.set(piece.id, (parts.get(piece.id) ?? 0) + 1);
+  const seen = new Map();
+  const segments = kept.map(({ id, start, end }) => {
+    const part = (seen.get(id) ?? 0) + 1;
+    seen.set(id, part);
+    return { type: 'task', id, start, end, part, parts: parts.get(id) };
+  });
+
+  return finish({
+    segments,
+    free: away ? [] : openTime(cursorOf(now), [...meetings, ...kept]),
+    meetings,
+    tasks,
+    overflow: defaultOrder(tasks.filter((task) => minutesOf(task.hours) > 0 && !placed.has(task.id))),
+    unset: tasks.filter((task) => minutesOf(task.hours) === 0 && !placed.has(task.id)).map((task) => task.id),
+    placedOrder: slotOrder(kept),
+    plannedMins: kept.reduce((sum, piece) => sum + (piece.end - piece.start), 0),
+    kept,
+  });
+}
+
+/** Lays work into open time in turn, each whole or not at all. */
+function fill(free, work) {
+  const out = [];
+  for (const [id, mins] of work) {
+    const got = take(free, mins);
+    if (!got) continue;
+    free = got.rest;
+    for (const [start, end] of got.pieces) out.push({ id, start, end });
+  }
+  return out;
+}
+
+/**
+ * Swaps two tasks on a kept day (#649), `first` being the earlier: the later
+ * one takes its place and the earlier follows, in the time they held. Nothing
+ * else moves, and nothing lands in time already past.
+ */
+export function swapSlots({ slots, meetings, now }, first, second) {
+  const mine = (id) => slots.filter((piece) => piece.id === id);
+  const a = mine(first);
+  const b = mine(second);
+  if (0 === a.length || 0 === b.length) return [...slots];
+  const length = (list) => list.reduce((sum, piece) => sum + (piece.end - piece.start), 0);
+  const rest = slots.filter((piece) => piece.id !== first && piece.id !== second);
+  const from = Math.max(cursorOf(now), Math.min(...a.map((piece) => piece.start), ...b.map((piece) => piece.start)));
+  const moved = fill(openTime(from, [...meetings, ...rest]), [
+    [second, length(b)],
+    [first, length(a)],
+  ]);
+  return [...rest, ...moved].sort(byStart);
+}
+
+/** Puts a task into the first open time from now (#649), or null if it does not fit. */
+export function placeSlot({ slots, meetings, now }, id, hours) {
+  const rest = slots.filter((piece) => piece.id !== id);
+  const got = take(openTime(cursorOf(now), [...meetings, ...rest]), minutesOf(hours));
+  if (!got) return null;
+  return [...rest, ...got.pieces.map(([start, end]) => ({ id, start, end }))].sort(byStart);
+}
+
+/** Takes a task out of the day, leaving its time open (#649). */
+export function dropSlot(slots, id) {
+  return slots.filter((piece) => piece.id !== id);
 }
 
 /** Moves one id a place up (-1) or down (+1) in an order; the ends stay put. */
