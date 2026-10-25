@@ -397,6 +397,34 @@ final class WorkHoursTest extends TestCase {
 		$this->assertSame( array( array( Entries::WORK_USAGE, 8.0 ) ), $this->pairs( $plan ) );
 	}
 
+	/* ------------------------------------------------ free work on a paying client */
+
+	public function test_making_a_paying_clients_work_free_needs_a_reason(): void {
+		$this->assertTrue( WorkHours::free_needs_reason( $this->item(), array( 'commercial_class' => 'free-general' ), 'active', '' ) );
+	}
+
+	public function test_a_reason_is_enough(): void {
+		$this->assertFalse( WorkHours::free_needs_reason( $this->item(), array( 'commercial_class' => 'free-general' ), 'active', 'Goodwill after the outage.' ) );
+	}
+
+	public function test_a_client_with_no_package_is_not_asked(): void {
+		$this->assertFalse( WorkHours::free_needs_reason( $this->item(), array( 'commercial_class' => 'free-general' ), 'none', '' ) );
+	}
+
+	public function test_a_site_bug_is_not_asked(): void {
+		$this->assertFalse( WorkHours::free_needs_reason( $this->item(), array( 'commercial_class' => 'free-bug' ), 'active', '' ) );
+	}
+
+	public function test_work_already_free_is_not_asked_again(): void {
+		$free = $this->item( array( 'commercial_class' => 'free-general' ) );
+
+		$this->assertFalse( WorkHours::free_needs_reason( $free, array( 'commercial_class' => 'free-general' ), 'active', '' ) );
+	}
+
+	public function test_an_edit_that_leaves_who_pays_alone_is_not_asked(): void {
+		$this->assertFalse( WorkHours::free_needs_reason( $this->item(), array( 'title' => 'Renamed' ), 'active', '' ) );
+	}
+
 	/* ------------------------------------------------------- and giving back */
 
 	public function test_cancelling_before_the_work_starts_gives_every_hour_back(): void {

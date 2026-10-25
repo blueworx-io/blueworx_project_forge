@@ -48,6 +48,8 @@ interface Detail {
     upstream: DependencyRow[];
     downstream: DependencyRow[];
   };
+  /** Whether the client has a support package (#642). */
+  on_support?: boolean;
 }
 
 /** One item this one waits on, or one waiting on it. */
@@ -404,6 +406,8 @@ export function ItemPanel( {
 
   /** #544. What a refused auto-save said, by field, shown under it. */
   const [ fieldErrors, setFieldErrors ] = useState< Record< string, string > >( {} );
+  // #642. Why a paying client's work is free, asked before it is saved.
+  const [ freeReason, setFreeReason ] = useState< string | null >( null );
   const [ checklist, setChecklist ] = useState< ChecklistRow[] >( [] );
 
   /** Review and testing (2026-09-19): the steps beside how to test. */
@@ -2676,7 +2680,20 @@ export function ItemPanel( {
                       id="bwx-commercial_class"
                       className="bwx-select"
                       value={ draft.commercial_class ?? '' }
-                      onChange={ ( event ) => saveDraft( { commercial_class: event.target.value } ) }
+                      onChange={ ( event ) => {
+                        const value = event.target.value;
+
+                        // #642. A paying client's work made free waits for a reason.
+                        if ( 'free-general' === value && detail?.on_support && 'free-general' !== detail.item.commercial_class ) {
+                          setDraft( ( held ) => ( { ...held, commercial_class: value } ) );
+                          setFreeReason( '' );
+
+                          return;
+                        }
+
+                        setFreeReason( null );
+                        saveDraft( { commercial_class: value } );
+                      } }
                     >
                       { CLASSES.map( ( option ) => (
                         <option key={ option.value } value={ option.value }>
@@ -2684,6 +2701,30 @@ export function ItemPanel( {
                         </option>
                       ) ) }
                     </select>
+                    { null !== freeReason && (
+                      <div className="bwx-free-reason" data-testid="bwx-free-reason">
+                        <label htmlFor="bwx-free-reason-text">This client has a support package. Why is this free?</label>
+                        <input
+                          id="bwx-free-reason-text"
+                          className="bwx-input"
+                          data-testid="bwx-free-reason-text"
+                          value={ freeReason }
+                          onChange={ ( event ) => setFreeReason( event.target.value ) }
+                        />
+                        <button
+                          type="button"
+                          className="bwx-button"
+                          data-testid="bwx-free-reason-save"
+                          disabled={ '' === freeReason.trim() }
+                          onClick={ () => {
+                            saveNow( { commercial_class: 'free-general', reason: freeReason.trim() } );
+                            setFreeReason( null );
+                          } }
+                        >
+                          Make it free
+                        </button>
+                      </div>
+                    ) }
                     { fieldError( 'commercial_class' ) }
                   </div>
 

@@ -541,6 +541,10 @@ export const RULES: RuleSection[] = [
         why: 'We don\'t commit to work a client hasn\'t got the hours for.',
       },
       {
+        what: 'Making work free with "No charge — general item" on a client with a support package needs a reason, kept in the task\'s history, and the task\'s card says No charge.',
+        why: 'Client work should never end up free by accident.',
+      },
+      {
         what: 'A Manager sees only their own row on Capacity; administrators see everyone.',
         why: 'A person\'s load is their own business and the administrators\'.',
       },

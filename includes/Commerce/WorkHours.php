@@ -270,6 +270,26 @@ final class WorkHours {
 	}
 
 	/**
+	 * Whether an edit making work free needs somebody's reason first (#642).
+	 *
+	 * Only "No charge — general item" on a client with a support package: a
+	 * site bug says why already, and a client with no package pays for
+	 * nothing anyway. Work that was already free is not asked again.
+	 *
+	 * @param array<string, mixed> $before  The item before the edit.
+	 * @param array<string, mixed> $values  The edit's values.
+	 * @param string               $support The client's support state today.
+	 * @param string               $reason  The reason sent with the edit.
+	 * @return bool
+	 */
+	public static function free_needs_reason( array $before, array $values, string $support, string $reason ): bool {
+		return 'free-general' === (string) ( $values['commercial_class'] ?? '' )
+			&& 'free-general' !== (string) ( $before['commercial_class'] ?? '' )
+			&& Support::NONE !== $support
+			&& '' === trim( $reason );
+	}
+
+	/**
 	 * The hours to give back when an edit lowers charged work's hours (#641).
 	 *
 	 * Only what this edit takes off, and only what is still spent above the

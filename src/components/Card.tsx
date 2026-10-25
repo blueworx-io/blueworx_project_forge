@@ -143,6 +143,13 @@ export function Card( {
           </span>
         ) }
         { blocked && <Tag tone="danger">Blocked</Tag> }
+        { /* #642. Work nobody pays for says so. Chores and reminders are free
+             by design, so only ordinary work is tagged. */ }
+        { 'free-general' === item.commercial_class && 0 === ( item.assignees?.length ?? 0 ) && (
+          <span data-testid="bwx-card-free">
+            <Tag tone="neutral">No charge</Tag>
+          </span>
+        ) }
         { /* A new idea waits for its client to be confirmed (#390). */ }
         { 'future-idea' === item.stage && ! item.client_confirmed_at && (
           <span data-testid="bwx-card-unconfirmed">

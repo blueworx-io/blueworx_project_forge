@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.213.0] - 2026-10-25
+
+### Changed
+
+- Setting a task to "No charge" for a client with a support package now asks why, and keeps the reason in the task's history. Free tasks say "No charge" on their card.
+
 ## [2.212.0] - 2026-10-25
 
 ### Changed

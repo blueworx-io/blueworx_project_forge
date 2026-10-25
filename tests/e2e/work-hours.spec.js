@@ -235,6 +235,41 @@ test('lowering the hours of started work gives the client the difference back', 
   expect(after.balance).toBe(GRANTED - 7);
 });
 
+test('a paying client\'s work is only made free with a reason', async ({ browser, baseURL }) => {
+  test.slow();
+
+  // #642.
+  const { api, site } = await withSiteOnSupport(browser, baseURL);
+  const item = (await (await Forge.makeItem(api, site.id, { title: `Free ${RUN_ID}` })).json()).item;
+
+  const refused = await api.patch(`/work-items/${item.id}`, {
+    commercial_class: 'free-general',
+    record_version: item.record_version,
+  });
+
+  expect(refused.status()).toBe(400);
+  expect((await refused.json()).data.fields).toHaveProperty('commercial_class');
+
+  const saved = await api.patch(`/work-items/${item.id}`, {
+    commercial_class: 'free-general',
+    reason: 'Goodwill after the outage.',
+    record_version: item.record_version,
+  });
+
+  expect(saved.status(), await saved.text()).toBe(200);
+  expect((await saved.json()).item.commercial_class).toBe('free-general');
+
+  // A client with no package pays for nothing, so nobody is asked.
+  const { api: other, site: unpaid } = await withSiteOnSupport(browser, baseURL, { hours: 0 });
+  const plain = (await (await Forge.makeItem(other, unpaid.id, { title: `Unpaid ${RUN_ID}` })).json()).item;
+  const free = await other.patch(`/work-items/${plain.id}`, {
+    commercial_class: 'free-general',
+    record_version: plain.record_version,
+  });
+
+  expect(free.status(), await free.text()).toBe(200);
+});
+
 test('a free bug never touches the ledger', async ({ browser, baseURL }) => {
   test.slow();
 
