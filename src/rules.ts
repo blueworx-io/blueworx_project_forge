@@ -341,7 +341,7 @@ export const RULES: RuleSection[] = [
         why: 'Otherwise next week would look emptier than it really is.',
       },
       {
-        what: 'Days missed while nobody opened Forge are still made the next time anyone does, while a paused recurring task skips its days.',
+        what: 'Days missed while nobody opened Forge are still made the next time anyone does, while a paused recurring task skips its days. A day\'s copies are made as soon as that day has begun where you are, even while the site\'s own clock is still on the day before.',
         why: 'Missed chores stay visible instead of quietly disappearing.',
       },
       {
@@ -727,8 +727,8 @@ export const RULES: RuleSection[] = [
         why: 'The client only signs off at review, and the earlier checks still need someone accountable to give them.',
       },
       {
-        what: 'A task shows in someone\'s My tasks only while it is their turn: the doer\'s until review, the designer\'s at Design Process, the reviewer\'s in review, and the deliverer\'s once Completed. While the client reviews it, it is in nobody\'s My tasks and stays on the Daily standup until it comes back.',
-        why: 'Each person\'s list shows what they need to act on now, and each task appears once. Work in the client\'s hands is not anyone\'s to act on.',
+        what: 'A task shows in someone\'s My tasks only while it is their turn: the doer\'s until review, the designer\'s at Design Process, the reviewer\'s in review, and the deliverer\'s once Completed. Recurring tasks, reminders and tasks made from a reminder are their named people\'s until review, then the reviewer\'s and the deliverer\'s like any other work, staying with their people when there is nobody in that seat. While the client reviews it, it is in nobody\'s My tasks and stays on the Daily standup until it comes back. Cancelled work is in nobody\'s My tasks.',
+        why: 'Each person\'s list shows what they need to act on now, and each task appears once. Work in the client\'s hands, or that has been stopped, is not anyone\'s to act on.',
       },
       {
         what: 'My tasks sorts by due date: Today is due today or late, then Tomorrow, the next seven days, and further out. Undated work is further out. Within a tab, work runs by due date, then priority, urgent first.',

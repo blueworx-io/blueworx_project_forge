@@ -59,18 +59,53 @@ final class Materialise {
 	 * @return int
 	 */
 	public static function maybe(): int {
-		if ( self::$done || false !== get_transient( self::RAN ) ) {
+		$day = self::day( wp_date( 'Y-m-d' ), self::viewer_day() );
+		$ran = get_transient( self::RAN );
+
+		// #648. The transient holds the day it ran to, so a viewer whose day
+		// has begun is not kept waiting by a run for the site's.
+		if ( self::$done || ( false !== $ran && (string) $ran >= $day ) ) {
 			return 0;
 		}
 
 		self::$done = true;
-		set_transient( self::RAN, 1, self::EVERY );
+		set_transient( self::RAN, $day, self::EVERY );
 
 		// Renewal dates first, so a subscription that renews today has its
 		// source pinned to today before today's tasks are made.
 		Sync::maybe();
 
-		return self::run( wp_date( 'Y-m-d' ) );
+		return self::run( $day );
+	}
+
+	/**
+	 * The day to make tasks up to (#648). My tasks counts days from the
+	 * browser's date, so somebody whose day began before the site's would
+	 * find today's recurring tasks missing until the site caught up. Their
+	 * day is used when it is the site's next one; anything else is the
+	 * site's own. Pure, so the rule can be tested.
+	 *
+	 * @param string $site   YYYY-MM-DD, the site's today.
+	 * @param string $viewer YYYY-MM-DD, the browser's today, or ''.
+	 * @return string
+	 */
+	public static function day( string $site, string $viewer ): string {
+		$at = DateTimeImmutable::createFromFormat( '!Y-m-d', $site, wp_timezone() );
+
+		if ( false === $at || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $viewer ) ) {
+			return $site;
+		}
+
+		return $at->add( new DateInterval( 'P1D' ) )->format( 'Y-m-d' ) === $viewer ? $viewer : $site;
+	}
+
+	/**
+	 * The browser's today, as the app sends it on every request (#648).
+	 *
+	 * @return string
+	 */
+	private static function viewer_day(): string {
+		return isset( $_SERVER['HTTP_X_BWX_FORGE_TODAY'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_X_BWX_FORGE_TODAY'] ) ) : '';
 	}
 
 	/**

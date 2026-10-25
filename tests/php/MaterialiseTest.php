@@ -174,4 +174,19 @@ final class MaterialiseTest extends TestCase {
 
 		self::assertSame( array(), Materialise::copies( $this->source(), '2026-09-14', $away ), 'the primary seat is on leave' );
 	}
+
+	// #648. A person whose day has already begun gets its tasks, though the site's has not.
+	public function test_tasks_are_made_up_to_the_viewers_day_when_it_is_a_day_ahead(): void {
+		self::assertSame( '2026-10-26', Materialise::day( '2026-10-25', '2026-10-26' ) );
+		self::assertSame( '2026-11-01', Materialise::day( '2026-10-31', '2026-11-01' ), 'across a month' );
+	}
+
+	public function test_the_sites_day_stands_otherwise(): void {
+		self::assertSame( '2026-10-25', Materialise::day( '2026-10-25', '' ), 'nobody said' );
+		self::assertSame( '2026-10-25', Materialise::day( '2026-10-25', '2026-10-25' ), 'the same day' );
+		self::assertSame( '2026-10-25', Materialise::day( '2026-10-25', '2026-10-24' ), 'behind the site' );
+		self::assertSame( '2026-10-25', Materialise::day( '2026-10-25', '2026-10-27' ), 'more than a day ahead' );
+		self::assertSame( '2026-10-25', Materialise::day( '2026-10-25', '2026-02-31' ), 'not a date' );
+		self::assertSame( '2026-10-25', Materialise::day( '2026-10-25', 'tomorrow' ), 'not a date' );
+	}
 }
