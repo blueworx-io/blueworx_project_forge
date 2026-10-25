@@ -423,7 +423,7 @@ export const RULES: RuleSection[] = [
         why: 'Everything on Today is somewhere on the screen, and no task looks scheduled when it has nothing to place it by.',
       },
       {
-        what: 'Today always shows the whole day, 7am to 7pm, and Today\'s diary shows on Today and every other tab.',
+        what: 'Today always shows the whole day, 7am to 7pm, every hour the same height, with each task, meeting and open time across the hours it takes. Today\'s diary shows on Today and every other tab.',
         why: 'The plan is read as one day, missed slots included.',
       },
       {

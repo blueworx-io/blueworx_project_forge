@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.211.3] - 2026-10-25
+
+### Fixed
+
+- On Today, a task covers every hour it takes: a four-hour task at 11am fills 11am to 3pm instead of stretching one row and leaving the hours after it looking free. Every hour is drawn the same height, and a task of a few minutes still shows its title.
+
 ## [2.211.2] - 2026-10-24
 
 ### Fixed

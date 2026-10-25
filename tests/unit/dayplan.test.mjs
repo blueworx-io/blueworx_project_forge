@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 // #620. The day planner's placing rules, proven without a browser.
 
-import { DAY_START, DAY_END, planDay, defaultOrder, minuteOfDay, moveInOrder, bringUp, sendDown, hoursText } from '../../src/dayplan.mjs';
+import { DAY_START, DAY_END, planDay, defaultOrder, minuteOfDay, moveInOrder, bringUp, sendDown, hoursText, layOut } from '../../src/dayplan.mjs';
 
 const h = (n) => DAY_START + n * 60; // minutes, n hours after 7am
 const task = (id, hours, extra = {}) => ({ id, hours, priority: 'normal', due: 0, index: 0, ...extra });
@@ -184,4 +184,27 @@ test('urgent or overdue work that is not in the day needs attention, most pressi
 test('nothing needs attention when the urgent and overdue work is in the day (#635)', () => {
   const plan = planDay({ now: 0, meetings: [], tasks: [task('u', 1, { priority: 'urgent' }), task('l', 1, { due: -1 })] });
   assert.deepEqual(plan.attention, []);
+});
+
+test('a task covers the hours it takes on the day, not one stretched row (#639)', () => {
+  const boxes = layOut([{ id: 'epim', start: h(4), end: h(8) }], { hourPx: 80, minPx: 32 });
+  assert.deepEqual(boxes.map(({ top, height }) => ({ top, height })), [{ top: 4 * 80, height: 4 * 80 }]);
+});
+
+test('back-to-back work sits end to end, each at its own time (#639)', () => {
+  const boxes = layOut([{ id: 'a', start: h(1), end: h(2) }, { id: 'b', start: h(2), end: h(4) }], { hourPx: 80, minPx: 32 });
+  assert.deepEqual(boxes.map(({ top, height }) => [top, height]), [[80, 80], [160, 160]]);
+});
+
+test('a few minutes still gets room to read, and what follows moves down only as far as it must (#639)', () => {
+  const boxes = layOut([{ id: 'tiny', start: h(8), end: h(8) + 5 }, { id: 'next', start: h(8) + 5, end: h(9) }], { hourPx: 80, minPx: 32 });
+  assert.equal(boxes[0].top, 8 * 80);
+  assert.equal(boxes[0].height, 32);
+  assert.equal(boxes[1].top, 8 * 80 + 32);
+  assert.equal(boxes[1].top + boxes[1].height, 9 * 80, 'it still ends at its own time');
+});
+
+test('meetings that really overlap stay at their own times (#639)', () => {
+  const boxes = layOut([{ id: 'm1', start: h(2), end: h(4) }, { id: 'm2', start: h(3), end: h(4) }], { hourPx: 80, minPx: 32 });
+  assert.equal(boxes[1].top, 3 * 80);
 });

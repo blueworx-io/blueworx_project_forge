@@ -254,7 +254,7 @@ test( 'below the whole day, in boxes of their own: needs attention, then doesnâ€
 
   // The whole day is shown, from 7am, with nothing folded away.
   const grid = day.getByTestId( 'bwx-day-grid' );
-  await expect( grid.locator( '[data-hour="7"]' ) ).toBeVisible();
+  await expect( grid.locator( '.bwx-day-hour[data-hour="7"]' ) ).toBeVisible();
   await expect( page.getByTestId( 'bwx-day-earlier' ) ).toHaveCount( 0 );
 
   const placed = await titles( page, 'day' );
@@ -299,7 +299,7 @@ test( 'the day is planned once: a missed task keeps its slot as time passes, unt
   // Planned at 8am: the first at 8, the second at 9.
   const { me, page } = await openToday( browser, baseURL, person );
   const grid = page.getByTestId( 'bwx-day-grid' );
-  const inHour = ( hour, name ) => grid.locator( `[data-hour="${ hour }"] [data-task]`, { hasText: `${ name } ${ RUN }` } );
+  const inHour = ( hour, name ) => grid.locator( `.bwx-day-item[data-hour="${ hour }"] [data-task]`, { hasText: `${ name } ${ RUN }` } );
   await expect( inHour( 8, 'Morning first' ) ).toBeVisible();
   await expect( inHour( 9, 'Morning second' ) ).toBeVisible();
   await expect.poll( async () => ( await me.api.get( `/day-plan?day=${ today }` ) ).start, { timeout: 30_000 } ).toBe( 480 );
@@ -319,6 +319,42 @@ test( 'the day is planned once: a missed task keeps its slot as time passes, unt
   await page.getByRole( 'button', { name: `Move Morning second ${ RUN } up` } ).click();
   await expect( inHour( 11, 'Morning second' ) ).toBeVisible();
   await expect( inHour( 12, 'Morning first' ) ).toBeVisible();
+
+  await page.close();
+  await me.context.close();
+  await admin.context.close();
+} );
+
+test( 'a task covers every hour it takes, and short work still reads (#639)', async ( { browser, baseURL } ) => {
+  test.slow();
+  test.setTimeout( 400_000 );
+
+  const { admin, site, person } = await setUp( browser, baseURL, 'f' );
+  const today = localDate();
+  await makeTask( admin, site.id, `First hour ${ RUN }`, { primary_user_id: person.id, priority: 'high', hours_primary: 1, planned_due: today } );
+  await makeTask( admin, site.id, `Four hours ${ RUN }`, { primary_user_id: person.id, priority: 'normal', hours_primary: 4, planned_due: today } );
+  await makeTask( admin, site.id, `Five minutes ${ RUN }`, { primary_user_id: person.id, priority: 'low', hours_primary: 0.08, planned_due: today } );
+
+  const { me, page } = await openToday( browser, baseURL, person );
+  const grid = page.getByTestId( 'bwx-day-grid' );
+  const row = async ( hour ) => ( await grid.locator( `.bwx-day-hour[data-hour="${ hour }"]` ).boundingBox() ).y;
+  const box = async ( name ) => grid.locator( '[data-testid="bwx-day-block"]', { hasText: `${ name } ${ RUN }` } ).boundingBox();
+
+  // 8am, then 9am to 1pm: it reaches the 1pm line, and 10, 11 and 12 are under it.
+  const four = await box( 'Four hours' );
+  expect( Math.abs( four.y - ( await row( 9 ) ) ) ).toBeLessThan( 6 );
+  expect( Math.abs( four.y + four.height - ( await row( 13 ) ) ) ).toBeLessThan( 6 );
+
+  // Every hour is drawn the same height, whatever is in it.
+  const heights = new Set( await grid.locator( '.bwx-day-hour' ).evaluateAll( ( rows ) => rows.map( ( one ) => Math.round( one.getBoundingClientRect().height ) ) ) );
+  expect( heights.size ).toBe( 1 );
+
+  // Five minutes at 1pm still has room for its title.
+  const tiny = await box( 'Five minutes' );
+  expect( tiny.height ).toBeGreaterThan( 20 );
+  await expect( grid.getByText( `Five minutes ${ RUN }` ) ).toBeVisible();
+
+  await page.screenshot( { path: 'test-results/day-plan-spans.png', fullPage: true } );
 
   await page.close();
   await me.context.close();
