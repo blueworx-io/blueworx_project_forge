@@ -9,27 +9,25 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Cloudways;
 
-use Blueworx\Forge\Tenancy\Secrets;
 use WP_Error;
 
 /**
- * #621. Two calls, both reads apart from asking for a token: swap the email
- * and API key for an access token, and list the account's servers with the
- * applications on each. Forge never changes anything at Cloudways.
+ * #621. One call, a read: list the account's servers with the applications on
+ * each. Forge never changes anything at Cloudways.
  *
- * The token lasts about an hour. It is kept sealed for a little less, so a
- * status check is one call rather than two, and asked for again once if
- * Cloudways says it has expired early.
+ * #645. Cloudways retired its email-and-API-key exchange on 15 October 2026.
+ * An access token is made in Cloudways with its own expiry and scope, and is
+ * sent as it is; Read-Only is enough for this.
  */
 final class Client {
 
 	/**
 	 * The Cloudways API.
 	 */
-	public const API = 'https://api.cloudways.com/api/v1';
+	public const API = 'https://api.cloudways.com/api/v2';
 
 	/**
-	 * Cloudways refused the email and key.
+	 * Cloudways refused the token.
 	 */
 	public const DENIED = 'bwx_forge_cloudways_denied';
 
@@ -44,55 +42,22 @@ final class Client {
 	private const TIMEOUT = 15;
 
 	/**
-	 * How long a token is kept, in seconds: under Cloudways' hour.
-	 */
-	private const TOKEN_LIFE = 3000;
-
-	/**
-	 * Asks Cloudways for an access token. Never cached: connecting uses this to
-	 * check a key before it is saved.
-	 *
-	 * @param string $email The account email.
-	 * @param string $key   The API key.
-	 * @return string|WP_Error
-	 */
-	public static function token( string $email, string $key ) {
-		$answer = self::read(
-			wp_remote_post(
-				self::API . '/oauth/access_token',
-				array(
-					'timeout' => self::TIMEOUT,
-					'body'    => array(
-						'email'   => $email,
-						'api_key' => $key,
-					),
-				)
-			)
-		);
-
-		if ( is_wp_error( $answer ) ) {
-			return $answer;
-		}
-
-		$token = (string) ( $answer['access_token'] ?? '' );
-
-		return '' === $token
-			? new WP_Error( self::DENIED, __( 'Cloudways did not accept that email and API key.', 'blueworx-forge' ) )
-			: $token;
-	}
-
-	/**
 	 * Every server on the account, with the applications on each.
 	 *
+	 * Connecting passes the token it is about to save, so Cloudways checks it
+	 * before anything is kept; everything else reads with the saved one.
+	 *
+	 * @param string|null $token A token to check, or null for the saved one.
 	 * @return array<int, array{id: string, label: string, status: string, apps: array<int, array{id: string, label: string, domains: array<int, string>}>}>|WP_Error
 	 */
-	public static function servers() {
-		$answer = self::get( '/server', false );
+	public static function servers( ?string $token = null ) {
+		$token = $token ?? Settings::token();
 
-		if ( is_wp_error( $answer ) && self::DENIED === $answer->get_error_code() ) {
-			// The token may have run out before Cloudways said it would.
-			$answer = self::get( '/server', true );
+		if ( null === $token || '' === $token ) {
+			return new WP_Error( self::DENIED, __( 'Cloudways is not connected.', 'blueworx-forge' ) );
 		}
+
+		$answer = self::get( '/server', $token );
 
 		if ( is_wp_error( $answer ) ) {
 			return $answer;
@@ -130,19 +95,13 @@ final class Client {
 	}
 
 	/**
-	 * A read from the API with a held, or fresh, token.
+	 * A read from the API.
 	 *
 	 * @param string $path  Path under the API.
-	 * @param bool   $fresh Ask for a new token first.
+	 * @param string $token The access token.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	private static function get( string $path, bool $fresh ) {
-		$token = self::held_token( $fresh );
-
-		if ( is_wp_error( $token ) ) {
-			return $token;
-		}
-
+	private static function get( string $path, string $token ) {
 		return self::read(
 			wp_remote_get(
 				self::API . $path,
@@ -158,53 +117,8 @@ final class Client {
 	}
 
 	/**
-	 * The token kept from last time, or a new one.
-	 *
-	 * The expiry travels inside the value rather than relying on the
-	 * transient's own, so a persistent object cache that ignores expiry
-	 * cannot hand back a dead token forever.
-	 *
-	 * @param bool $fresh Ignore any token held.
-	 * @return string|WP_Error
-	 */
-	private static function held_token( bool $fresh ) {
-		$held = get_transient( Settings::TOKEN );
-
-		if ( ! $fresh && is_array( $held ) && (int) ( $held['until'] ?? 0 ) > bwx_forge_now() ) {
-			$token = Secrets::open( (string) ( $held['token'] ?? '' ) );
-
-			if ( null !== $token ) {
-				return $token;
-			}
-		}
-
-		$key = Settings::key();
-
-		if ( null === $key ) {
-			return new WP_Error( self::DENIED, __( 'Cloudways is not connected.', 'blueworx-forge' ) );
-		}
-
-		$token = self::token( Settings::email(), $key );
-
-		if ( is_wp_error( $token ) ) {
-			return $token;
-		}
-
-		set_transient(
-			Settings::TOKEN,
-			array(
-				'token' => Secrets::seal( $token ),
-				'until' => bwx_forge_now() + self::TOKEN_LIFE,
-			),
-			self::TOKEN_LIFE
-		);
-
-		return $token;
-	}
-
-	/**
 	 * Cloudways' answer, or what went wrong in words an administrator can use.
-	 * Nothing from the request — least of all the key — is repeated back.
+	 * Nothing from the request — least of all the token — is repeated back.
 	 *
 	 * @param array<string, mixed>|WP_Error $response From wp_remote_*.
 	 * @return array<string, mixed>|WP_Error
@@ -218,7 +132,7 @@ final class Client {
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( 401 === $code || 403 === $code ) {
-			return new WP_Error( self::DENIED, __( 'Cloudways did not accept that email and API key.', 'blueworx-forge' ) );
+			return new WP_Error( self::DENIED, __( 'Cloudways did not accept that access token. It may have expired: make a new one in Cloudways and connect again.', 'blueworx-forge' ) );
 		}
 
 		if ( $code < 200 || $code >= 300 ) {

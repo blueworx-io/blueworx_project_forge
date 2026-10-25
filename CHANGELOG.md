@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.213.1] - 2026-10-25
+
+### Fixed
+
+- Cloudways connects again, with an access token made in Cloudways under Account, then API (Read-Only is enough). Cloudways stopped accepting the old email and API key on 15 October; reconnect with a token to see your servers again.
+
 ## [2.213.0] - 2026-10-25
 
 ### Changed

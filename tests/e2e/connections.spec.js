@@ -10,7 +10,7 @@ import { installCloudwaysStub, removeCloudwaysStub, cloudwaysSays, serverReads, 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
-const KEY = `good-${RUN}-wxyz`;
+const TOKEN = `good-${RUN}-wxyz`;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -54,7 +54,7 @@ test.afterAll(async () => {
   removeCloudwaysStub();
 });
 
-test('an administrator connects Cloudways in Settings, and a refused key is not saved', async ({ page }) => {
+test('an administrator connects Cloudways with an access token, and a refused token is not saved', async ({ page }) => {
   test.slow();
 
   await signIn(page, ADMIN_USER, ADMIN_PASS);
@@ -65,24 +65,28 @@ test('an administrator connects Cloudways in Settings, and a refused key is not 
   await expect(page.getByTestId('bwx-connection-surecart-link')).toHaveAttribute('href', /page=blueworx-forge-connections/);
 
   await page.getByTestId('bwx-connection-cloudways-connect').click();
-  await page.getByLabel('Cloudways account email').fill('ops@studio.test');
-  await page.getByLabel('API key').fill('bad-key');
+  // #645. Access tokens replaced the email and API key.
+  await expect(page.getByLabel('Cloudways account email')).toHaveCount(0);
+  await page.getByLabel('Access token').fill('bad-token');
   await page.getByTestId('bwx-cloudways-save').click();
-  await expect(page.getByTestId('bwx-cloudways-notice')).toContainText('did not accept', { timeout: 60000 });
+  await expect(page.getByTestId('bwx-cloudways-notice')).toContainText('did not accept that access token', { timeout: 60000 });
   await expect(row).toHaveAttribute('data-connected', 'no');
 
-  await page.getByLabel('API key').fill(KEY);
+  await page.getByLabel('Access token').fill(TOKEN);
   await page.getByTestId('bwx-cloudways-save').click();
   await expect(row).toHaveAttribute('data-connected', 'yes', { timeout: 60000 });
   await expect(row).toContainText('••••wxyz');
 
-  // The key never comes back, from any route the app reads.
+  // The token never comes back, from any route the app reads.
   const answer = await admin.api.request.get('/wp-json/blueworx-forge/v1/connections', { headers: admin.api.headers });
-  expect(await answer.text()).not.toContain(KEY);
+  expect(await answer.text()).not.toContain(TOKEN);
 });
 
 test('the Servers page lists each server, matches applications to clients, and asks Cloudways once', async ({ page }) => {
   test.slow();
+
+  // #645. Connecting checked the token with one read of its own; count the page's alone.
+  await cloudwaysSays(admin.api.request, { reset: true });
 
   await signIn(page, ADMIN_USER, ADMIN_PASS);
   await openScreen(page, 'servers');

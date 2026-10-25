@@ -224,39 +224,31 @@ final class ConnectionsController {
 	}
 
 	/**
-	 * Connects Cloudways, once Cloudways has accepted the email and key.
+	 * Connects Cloudways, once Cloudways has accepted the access token (#645).
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function connect_cloudways( WP_REST_Request $request ) {
 		$body  = (array) $request->get_json_params();
-		$email = trim( sanitize_email( (string) ( $body['email'] ?? '' ) ) );
-		$key   = trim( sanitize_text_field( (string) ( $body['api_key'] ?? '' ) ) );
+		$token = trim( sanitize_text_field( (string) ( $body['token'] ?? '' ) ) );
 
-		$fields = array();
+		if ( '' === $token ) {
+			$message = __( 'Enter an access token from Cloudways (Account, then API).', 'blueworx-forge' );
 
-		if ( '' === $email || ! is_email( $email ) ) {
-			$fields['email'] = __( 'Enter the email you sign in to Cloudways with.', 'blueworx-forge' );
+			return Errors::rest( 'invalid_cloudways', $message, 400, array( 'fields' => array( 'token' => $message ) ) );
 		}
 
-		if ( '' === $key ) {
-			$fields['api_key'] = __( 'Enter the API key from Cloudways (Account, then API Integration).', 'blueworx-forge' );
+		// One read, so nothing is kept that Cloudways would refuse.
+		$checked = Cloudways::servers( $token );
+
+		if ( is_wp_error( $checked ) ) {
+			return Cloudways::DENIED === $checked->get_error_code()
+				? Errors::rest( 'cloudways_refused', __( 'Cloudways did not accept that access token. It may have expired or been copied wrongly. Nothing was saved.', 'blueworx-forge' ), 422 )
+				: Errors::rest( 'cloudways_unreachable', __( 'Cloudways could not be reached, so the token could not be checked. Nothing was saved; try again.', 'blueworx-forge' ), 502 );
 		}
 
-		if ( array() !== $fields ) {
-			return Errors::rest( 'invalid_cloudways', (string) reset( $fields ), 400, array( 'fields' => $fields ) );
-		}
-
-		$token = Cloudways::token( $email, $key );
-
-		if ( is_wp_error( $token ) ) {
-			return Cloudways::DENIED === $token->get_error_code()
-				? Errors::rest( 'cloudways_refused', __( 'Cloudways did not accept that email and API key. Nothing was saved.', 'blueworx-forge' ), 422 )
-				: Errors::rest( 'cloudways_unreachable', __( 'Cloudways could not be reached, so the key could not be checked. Nothing was saved; try again.', 'blueworx-forge' ), 502 );
-		}
-
-		CloudwaysSettings::save( $email, $key );
+		CloudwaysSettings::save( $token );
 
 		return rest_ensure_response( self::answer() );
 	}
@@ -320,8 +312,7 @@ final class ConnectionsController {
 					'id'           => 'cloudways',
 					'name'         => 'Cloudways',
 					'connected'    => CloudwaysSettings::connected(),
-					'email'        => CloudwaysSettings::email(),
-					'hint'         => CloudwaysSettings::key_hint(),
+					'hint'         => CloudwaysSettings::token_hint(),
 					'connected_at' => CloudwaysSettings::connected_at(),
 					'last_checked' => Status::last()['checked_at'],
 				),

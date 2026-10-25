@@ -12,10 +12,10 @@ namespace Blueworx\Forge\Cloudways;
 use Blueworx\Forge\Tenancy\Secrets;
 
 /**
- * #621. Entered once by an administrator in Connections: the Cloudways
- * account email and an API key. The key is sealed at rest and never handed
- * back — only its last four characters, so an administrator can tell which
- * one is in.
+ * #621. Entered once by an administrator in Connections: a Cloudways access
+ * token (#645 — Cloudways retired the email and API key on 15 October 2026).
+ * The token is sealed at rest and never handed back — only its last four
+ * characters, so an administrator can tell which one is in.
  */
 final class Settings {
 
@@ -30,61 +30,45 @@ final class Settings {
 	public const STATUS = 'bwx_forge_cloudways_status';
 
 	/**
-	 * Where the access token is kept, sealed, between checks.
-	 */
-	public const TOKEN = 'bwx_forge_cloudways_token';
-
-	/**
-	 * Saves the account.
+	 * Saves the access token.
 	 *
-	 * @param string $email The Cloudways account email.
-	 * @param string $key   The API key.
+	 * @param string $token The Cloudways access token.
 	 */
-	public static function save( string $email, string $key ): void {
+	public static function save( string $token ): void {
 		update_option(
 			self::OPTION,
 			array(
-				'email'        => trim( $email ),
-				'key'          => Secrets::seal( trim( $key ) ),
-				'hint'         => substr( trim( $key ), -4 ),
+				'token'        => Secrets::seal( trim( $token ) ),
+				'hint'         => substr( trim( $token ), -4 ),
 				'connected_at' => bwx_forge_now(),
 			),
 			false
 		);
-
-		// A token belongs to the account it was issued for.
-		delete_transient( self::TOKEN );
 	}
 
 	/**
-	 * The account email, or ''.
+	 * The access token, opened. For asking Cloudways only.
 	 *
-	 * @return string
-	 */
-	public static function email(): string {
-		return (string) ( self::stored()['email'] ?? '' );
-	}
-
-	/**
-	 * The API key, opened. For asking Cloudways for a token only.
+	 * A legacy email and API key saved before #645 has no token, so it reads
+	 * as not connected rather than as a key Cloudways will refuse.
 	 *
 	 * @return string|null
 	 */
-	public static function key(): ?string {
-		$sealed = (string) ( self::stored()['key'] ?? '' );
+	public static function token(): ?string {
+		$sealed = (string) ( self::stored()['token'] ?? '' );
 
 		return '' === $sealed ? null : Secrets::open( $sealed );
 	}
 
 	/**
-	 * What an administrator is shown of the key.
+	 * What an administrator is shown of the token.
 	 *
 	 * @return string '' when none is saved.
 	 */
-	public static function key_hint(): string {
+	public static function token_hint(): string {
 		$hint = (string) ( self::stored()['hint'] ?? '' );
 
-		return '' === $hint ? '' : '••••' . $hint;
+		return '' === $hint || ! self::connected() ? '' : '••••' . $hint;
 	}
 
 	/**
@@ -93,7 +77,7 @@ final class Settings {
 	 * @return bool
 	 */
 	public static function connected(): bool {
-		return '' !== self::email() && null !== self::key();
+		return null !== self::token();
 	}
 
 	/**
@@ -106,12 +90,11 @@ final class Settings {
 	}
 
 	/**
-	 * Disconnects: the account, its token and what was last seen through it.
+	 * Disconnects: the account and what was last seen through it.
 	 */
 	public static function forget(): void {
 		delete_option( self::OPTION );
 		delete_option( self::STATUS );
-		delete_transient( self::TOKEN );
 	}
 
 	/**

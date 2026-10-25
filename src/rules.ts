@@ -749,6 +749,10 @@ export const RULES: RuleSection[] = [
         why: 'A key that reaches the browser, a log or a backup in the clear is a key someone else can use.',
       },
       {
+        what: 'Cloudways is connected with an access token made in Cloudways, under Account, then API; Read-Only is enough. When the token expires, Forge says Cloudways did not accept it, and a new one is connected the same way.',
+        why: 'Forge only reads from Cloudways, and Cloudways now gives every token an expiry date.',
+      },
+      {
         what: 'Forge asks Cloudways about the servers only when an administrator opens Servers or presses Check now. Opening the page again within five minutes, or pressing Check now within fifteen seconds, shows the last answer.',
         why: 'Nothing checks in the background yet, and asking Cloudways over and over says nothing new.',
       },
