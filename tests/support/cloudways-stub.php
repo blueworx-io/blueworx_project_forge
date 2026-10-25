@@ -6,8 +6,8 @@
  * tests/e2e/helpers/cloudways.js before a spec that needs it, and removed
  * afterwards. Never shipped: tests/ is outside every build allowlist.
  *
- * Any email with a key starting `good-` gets a token; any other key is
- * refused. The server list is whatever the spec put in through the route at
+ * Any access token starting `good-` is accepted (#645); any other token is
+ * refused, and so is the old v1 API with its email-and-key exchange. The server list is whatever the spec put in through the route at
  * the bottom, and every server-list read is counted, so a spec can see that
  * opening the page twice asked once.
  *
@@ -70,7 +70,7 @@ add_filter(
 	 * @return false|array|WP_Error
 	 */
 	static function ( $answer, array $args, string $url ) {
-		if ( 0 !== strpos( $url, 'https://api.cloudways.com/api/v1/' ) ) {
+		if ( 0 !== strpos( $url, 'https://api.cloudways.com/api/' ) ) {
 			return $answer;
 		}
 
@@ -80,20 +80,12 @@ add_filter(
 			return new WP_Error( 'http_request_failed', 'Cloudways stand-in is down.' );
 		}
 
-		if ( false !== strpos( $url, '/oauth/access_token' ) ) {
-			$body = is_array( $args['body'] ?? null ) ? $args['body'] : array();
-
-			return 0 === strpos( (string) ( $body['api_key'] ?? '' ), 'good-' )
-				? bwx_forge_cloudways_stub_response(
-					array(
-						'access_token' => 'cw-token',
-						'expires_in'   => 3600,
-					)
-				)
-				: bwx_forge_cloudways_stub_response( array( 'error' => 'invalid_credentials' ), 401 );
+		// Retired with the legacy API keys.
+		if ( 0 !== strpos( $url, 'https://api.cloudways.com/api/v2/' ) ) {
+			return bwx_forge_cloudways_stub_response( array( 'error' => 'gone' ), 410 );
 		}
 
-		if ( 'Bearer cw-token' !== (string) ( $args['headers']['Authorization'] ?? '' ) ) {
+		if ( 0 !== strpos( (string) ( $args['headers']['Authorization'] ?? '' ), 'Bearer good-' ) ) {
 			return bwx_forge_cloudways_stub_response( array( 'error' => 'unauthorised' ), 401 );
 		}
 

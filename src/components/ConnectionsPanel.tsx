@@ -30,10 +30,9 @@ export function since( at: number | undefined ): string {
   return new Date( at * 1000 ).toLocaleDateString( undefined, { day: 'numeric', month: 'short' } );
 }
 
-/** Cloudways: the account email and an API key, checked with Cloudways before it is kept. */
-function CloudwaysForm( { service, onDone, onCancel }: { service: Service; onDone: ( next: Connections ) => void; onCancel: () => void } ) {
-  const [ email, setEmail ] = useState( service.email ?? '' );
-  const [ key, setKey ] = useState( '' );
+/** Cloudways: an access token (#645), checked with Cloudways before it is kept. */
+function CloudwaysForm( { onDone, onCancel }: { onDone: ( next: Connections ) => void; onCancel: () => void } ) {
+  const [ token, setToken ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
 
@@ -41,7 +40,7 @@ function CloudwaysForm( { service, onDone, onCancel }: { service: Service; onDon
     setBusy( true );
     setNotice( '' );
     try {
-      onDone( await api< Connections >( '/connections/cloudways', { method: 'POST', body: { email, api_key: key } } ) );
+      onDone( await api< Connections >( '/connections/cloudways', { method: 'POST', body: { token } } ) );
     } catch ( error ) {
       setNotice( messageFor( error, 'Cloudways could not be connected.' ) );
     } finally {
@@ -58,11 +57,8 @@ function CloudwaysForm( { service, onDone, onCancel }: { service: Service; onDon
         void save();
       } }
     >
-      <Field label="Cloudways account email">
-        { ( id ) => <TextInput id={ id } type="email" autoComplete="off" data-testid="bwx-cloudways-email" value={ email } onChange={ ( event ) => setEmail( event.target.value ) } /> }
-      </Field>
-      <Field label="API key" help="In Cloudways under Account, then API Integration. Kept sealed and never shown again.">
-        { ( id ) => <TextInput id={ id } type="password" autoComplete="off" data-testid="bwx-cloudways-key" value={ key } onChange={ ( event ) => setKey( event.target.value ) } /> }
+      <Field label="Access token" help="In Cloudways under Account, then API: create a new access token. Read-Only is enough. Kept sealed and never shown again.">
+        { ( id ) => <TextInput id={ id } type="password" autoComplete="off" data-testid="bwx-cloudways-token" value={ token } onChange={ ( event ) => setToken( event.target.value ) } /> }
       </Field>
       { '' !== notice && (
         <p className="bwx-notice" role="alert" data-testid="bwx-cloudways-notice">
@@ -205,8 +201,11 @@ export function ConnectionsPanel( { onOpenServers }: { onOpenServers?: () => voi
             { service.connected && '' !== ( service.email ?? '' ) && (
               <p className="bwx-hint">{ `${ service.email }, key ${ service.hint ?? '' }` }</p>
             ) }
+            { service.connected && 'cloudways' === service.id && '' !== ( service.hint ?? '' ) && (
+              <p className="bwx-hint">{ `Access token ${ service.hint }` }</p>
+            ) }
             { undefined !== service.link && <p className="bwx-hint">Stores and the Slack app are still set up on the WordPress admin Connections screen.</p> }
-            { editing === service.id && 'cloudways' === service.id && <CloudwaysForm service={ service } onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
+            { editing === service.id && 'cloudways' === service.id && <CloudwaysForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
             { editing === service.id && 'network' === service.id && <NetworkForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
             { 'network' === service.id && service.connected && <p className="bwx-hint">Create a client&apos;s site from their page in Clients, on a site with no WordPress site connected yet.</p> }
           </li>

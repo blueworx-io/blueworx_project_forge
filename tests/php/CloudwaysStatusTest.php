@@ -37,33 +37,15 @@ final class CloudwaysStatusTest extends TestCase {
 		$GLOBALS['bwx_forge_test_transients']    = array();
 		$GLOBALS['bwx_forge_test_now']           = 1000000;
 		unset( $GLOBALS['bwx_forge_test_options'][ Settings::OPTION ], $GLOBALS['bwx_forge_test_options'][ Settings::STATUS ] );
-		Settings::save( 'ops@studio.test', 'the-api-key-1234' );
+		Settings::save( 'the-access-token-1234' );
 	}
 
 	/**
-	 * Queues a token and a server list.
+	 * Queues a server list: one call, the token sent as it is (#645).
 	 *
 	 * @param string $state What Cloudways says the server is doing.
 	 */
 	private function cloudways_says( string $state ): void {
-		$GLOBALS['bwx_forge_test_http'][] = array(
-			'response' => array( 'code' => 200 ),
-			'body'     => (string) wp_json_encode(
-				array(
-					'access_token' => 'tok',
-					'expires_in'   => 3600,
-				)
-			),
-		);
-		$this->servers_say( $state );
-	}
-
-	/**
-	 * Queues a server list alone, for when the token is already held.
-	 *
-	 * @param string $state What Cloudways says the server is doing.
-	 */
-	private function servers_say( string $state ): void {
 		$GLOBALS['bwx_forge_test_http'][] = array(
 			'response' => array( 'code' => 200 ),
 			'body'     => (string) wp_json_encode(
@@ -116,7 +98,7 @@ final class CloudwaysStatusTest extends TestCase {
 		$GLOBALS['bwx_forge_test_now'] += 299;
 		Status::read( false, $this->sites );
 
-		$this->assertCount( 2, $GLOBALS['bwx_forge_test_http_requests'] );
+		$this->assertCount( 1, $GLOBALS['bwx_forge_test_http_requests'] );
 	}
 
 	public function test_check_now_asks_again_but_not_within_fifteen_seconds(): void {
@@ -125,12 +107,12 @@ final class CloudwaysStatusTest extends TestCase {
 
 		$GLOBALS['bwx_forge_test_now'] += 10;
 		Status::read( true, $this->sites );
-		$this->assertCount( 2, $GLOBALS['bwx_forge_test_http_requests'] );
+		$this->assertCount( 1, $GLOBALS['bwx_forge_test_http_requests'] );
 
 		$GLOBALS['bwx_forge_test_now'] += 10;
-		$this->servers_say( 'running' );
+		$this->cloudways_says( 'running' );
 		Status::read( true, $this->sites );
-		$this->assertCount( 3, $GLOBALS['bwx_forge_test_http_requests'] );
+		$this->assertCount( 2, $GLOBALS['bwx_forge_test_http_requests'] );
 	}
 
 	public function test_cloudways_out_of_reach_shows_servers_unreachable_and_keeps_what_was_known(): void {
@@ -161,7 +143,7 @@ final class CloudwaysStatusTest extends TestCase {
 		$this->assertStringContainsString( 'Acme', $problems[0]['detail'] );
 
 		$GLOBALS['bwx_forge_test_now'] += 600;
-		$this->servers_say( 'running' );
+		$this->cloudways_says( 'running' );
 		Status::read( false, $this->sites );
 
 		$this->assertSame( array(), Status::problems() );
