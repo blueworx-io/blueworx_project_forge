@@ -239,7 +239,7 @@ test('a paying client\'s work is only made free with a reason', async ({ browser
   test.slow();
 
   // #642.
-  const { api, site } = await withSiteOnSupport(browser, baseURL);
+  const { admin, api, site } = await withSiteOnSupport(browser, baseURL);
   const item = (await (await Forge.makeItem(api, site.id, { title: `Free ${RUN_ID}` })).json()).item;
 
   const refused = await api.patch(`/work-items/${item.id}`, {
@@ -260,9 +260,9 @@ test('a paying client\'s work is only made free with a reason', async ({ browser
   expect((await saved.json()).item.commercial_class).toBe('free-general');
 
   // A client with no package pays for nothing, so nobody is asked.
-  const { api: other, site: unpaid } = await withSiteOnSupport(browser, baseURL, { hours: 0 });
-  const plain = (await (await Forge.makeItem(other, unpaid.id, { title: `Unpaid ${RUN_ID}` })).json()).item;
-  const free = await other.patch(`/work-items/${plain.id}`, {
+  const { site: unpaid } = await Forge.makeSite(admin.api, `Unpaid Co ${RUN_ID}`, RUN_ID);
+  const plain = (await (await Forge.makeItem(api, unpaid.id, { title: `Unpaid ${RUN_ID}` })).json()).item;
+  const free = await api.patch(`/work-items/${plain.id}`, {
     commercial_class: 'free-general',
     record_version: plain.record_version,
   });
