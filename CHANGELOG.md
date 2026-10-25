@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.212.0] - 2026-10-25
+
+### Changed
+
+- Lowering the hours on a task the client has already been charged for now gives them the difference back, shown under that task in their hours list.
+
 ## [2.211.3] - 2026-10-25
 
 ### Fixed

@@ -254,7 +254,8 @@ final class WorkHoursTest extends TestCase {
 		 * The one asymmetry in the class, and the reason it is not a single
 		 * "make the ledger match the plan" sum. Time somebody worked was worked.
 		 * Cutting the plan afterwards is a write-off, which COMM-3 says is an
-		 * adjustment with a reason on it — a decision, not arithmetic.
+		 * adjustment with a reason on it — made by refund() on the edit that
+		 * cuts it (#641), never by plan() on whatever move comes next.
 		 */
 		$plan = WorkHours::plan(
 			$this->item( array( 'stage' => 'in-review', 'hours_primary' => 2.0 ) ),
@@ -266,6 +267,134 @@ final class WorkHoursTest extends TestCase {
 		);
 
 		$this->assertSame( array(), $plan );
+	}
+
+	/* ------------------------------------------- lowering hours already charged */
+
+	/**
+	 * Work that has started, charged thirteen hours.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function charged(): array {
+		return array(
+			$this->entry( Entries::WORK_RESERVATION, 13 ),
+			$this->entry( Entries::WORK_RELEASE, 13 ),
+			$this->entry( Entries::WORK_USAGE, 13 ),
+		);
+	}
+
+	public function test_lowering_the_hours_of_charged_work_gives_the_difference_back(): void {
+		$before = $this->item( array( 'stage' => 'in-review' ) );
+		$after  = $this->item(
+			array(
+				'stage'         => 'in-review',
+				'hours_primary' => 2.0,
+			)
+		);
+
+		$this->assertSame( 8.0, WorkHours::refund( $before, $after, $this->charged() ) );
+	}
+
+	public function test_lowering_gives_back_only_what_this_edit_takes_off(): void {
+		/*
+		 * Charged thirteen, cut to six before refunds existed (nothing came
+		 * back), and now cut to two: four come back, not the eleven charged
+		 * above two. Work cut in the past is not refunded by the next edit.
+		 */
+		$before = $this->item(
+			array(
+				'stage'         => 'released',
+				'hours_primary' => 3.0,
+			)
+		);
+		$after  = $this->item(
+			array(
+				'stage'          => 'released',
+				'hours_primary'  => 0.0,
+				'hours_review'   => 1.0,
+				'hours_delivery' => 1.0,
+			)
+		);
+
+		$this->assertSame( 4.0, WorkHours::refund( $before, $after, $this->charged() ) );
+	}
+
+	public function test_lowering_counts_what_was_already_given_back(): void {
+		// Charged thirteen, ten already given back: three still spent. Cut
+		// from six to two, only one more comes back.
+		$before  = $this->item(
+			array(
+				'stage'         => 'released',
+				'hours_primary' => 3.0,
+			)
+		);
+		$after   = $this->item(
+			array(
+				'stage'          => 'released',
+				'hours_primary'  => 0.0,
+				'hours_review'   => 1.0,
+				'hours_delivery' => 1.0,
+			)
+		);
+		$entries = array_merge( $this->charged(), array( $this->entry( Entries::ADJUSTMENT, 10 ) ) );
+
+		$this->assertSame( 1.0, WorkHours::refund( $before, $after, $entries ) );
+	}
+
+	public function test_nothing_comes_back_before_the_work_has_started(): void {
+		$before = $this->item( array( 'stage' => 'up-next' ) );
+		$after  = $this->item(
+			array(
+				'stage'         => 'up-next',
+				'hours_primary' => 2.0,
+			)
+		);
+
+		$this->assertSame( 0.0, WorkHours::refund( $before, $after, array( $this->entry( Entries::WORK_RESERVATION, 13 ) ) ) );
+	}
+
+	public function test_nothing_comes_back_when_the_hours_go_up(): void {
+		$before = $this->item( array( 'stage' => 'in-review' ) );
+		$after  = $this->item(
+			array(
+				'stage'         => 'in-review',
+				'hours_primary' => 20.0,
+			)
+		);
+
+		$this->assertSame( 0.0, WorkHours::refund( $before, $after, $this->charged() ) );
+	}
+
+	public function test_nothing_comes_back_on_free_work(): void {
+		$before = $this->item(
+			array(
+				'stage'            => 'in-review',
+				'commercial_class' => 'free-bug',
+			)
+		);
+		$after  = $this->item(
+			array(
+				'stage'            => 'in-review',
+				'commercial_class' => 'free-bug',
+				'hours_primary'    => 2.0,
+			)
+		);
+
+		$this->assertSame( 0.0, WorkHours::refund( $before, $after, array() ) );
+	}
+
+	public function test_hours_given_back_on_a_task_no_longer_count_as_spent(): void {
+		$entries = array_merge( $this->charged(), array( $this->entry( Entries::ADJUSTMENT, 8 ) ) );
+
+		$this->assertSame( 5.0, WorkHours::position( $entries )['used'] );
+	}
+
+	public function test_raising_the_hours_again_after_a_refund_charges_them_again(): void {
+		$entries = array_merge( $this->charged(), array( $this->entry( Entries::ADJUSTMENT, 8 ) ) );
+		$plan    = WorkHours::plan( $this->item( array( 'stage' => 'in-review' ) ), $entries );
+
+		$this->assertSame( array( array( Entries::WORK_USAGE, 8.0 ) ), $this->pairs( $plan ) );
 	}
 
 	/* ------------------------------------------------------- and giving back */

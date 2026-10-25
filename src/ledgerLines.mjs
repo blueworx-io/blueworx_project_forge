@@ -10,7 +10,8 @@
  * Each folded line carries every entry it came from (`history`), and its
  * hours are those entries added up, so the lines still sum to the balance.
  * Package hours, top-ups, adjustments, expiries and carry-overs are not
- * about one piece of work and stay as lines of their own.
+ * about one piece of work and stay as lines of their own — except hours given
+ * back because a task's hours were lowered (#641), which fold under that task.
  *
  * Plain JavaScript with no DOM, so it can be tested with node alone.
  */
@@ -71,7 +72,9 @@ export function ledgerLines(entries) {
   const folded = new Map();
 
   entries.forEach((entry, index) => {
-    const kind = KINDS[entry.event_type];
+    // #641. Hours given back when a task's hours were lowered belong to that task.
+    const refund = 'adjustment' === entry.event_type && 'work-item' === entry.source_type;
+    const kind = refund ? 'work' : KINDS[entry.event_type];
 
     if (!kind || !entry.source_id) {
       lines.push({ ...entry, key: entry.id, history: [], last: entry.occurred_at, order: index });
@@ -90,7 +93,9 @@ export function ledgerLines(entries) {
 
     const size = Math.abs(Number(entry.hours) || 0);
 
-    if (entry.event_type.endsWith('-reservation')) {
+    if (refund) {
+      line.used -= Number(entry.hours) || 0;
+    } else if (entry.event_type.endsWith('-reservation')) {
       line.reserved += size;
     } else if (entry.event_type.endsWith('-release')) {
       line.reserved -= size;

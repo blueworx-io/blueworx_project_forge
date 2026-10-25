@@ -39,10 +39,9 @@ use Blueworx\Forge\Work\Stages;
  * remembered.
  *
  * **Two rules it will not fold together.** Reserved hours track the item in
- * both directions; spent hours only ever go up. Cutting the plan after the work
- * started does not un-work it — that is a write-off, which COMM-3 says is an
- * adjustment with somebody's reason on it, and this class deliberately cannot
- * make one.
+ * both directions; spent hours only ever go up through plan(). Cutting the plan
+ * after the work started is a write-off, which COMM-3 says is an adjustment with
+ * a reason on it: refund() works out how much, on the edit that cuts it (#641).
  */
 final class WorkHours {
 
@@ -203,6 +202,12 @@ final class WorkHours {
 				case Entries::WORK_USAGE:
 					$used += $hours;
 					break;
+
+				// #641. Hours given back when the plan was lowered: signed,
+				// because an adjustment is the one entry that goes both ways.
+				case Entries::ADJUSTMENT:
+					$used -= (float) ( $entry['hours'] ?? 0 );
+					break;
 			}
 		}
 
@@ -250,9 +255,10 @@ final class WorkHours {
 
 		/*
 		 * Spend is a floor, never a target. Hours added after the work started
-		 * are charged as they are added; hours taken away are not refunded,
-		 * because the time was worked. Giving them back is a decision with a
-		 * reason on it, and this is not the place that makes it.
+		 * are charged as they are added; hours taken away are given back by
+		 * refund(), as an adjustment with its reason, on the edit that lowers
+		 * them — never here, where a cut made long ago would be refunded by
+		 * whatever move came next.
 		 */
 		$short = round( self::planned( $item ) - $position['used'], 2 );
 
@@ -261,6 +267,29 @@ final class WorkHours {
 		}
 
 		return $plan;
+	}
+
+	/**
+	 * The hours to give back when an edit lowers charged work's hours (#641).
+	 *
+	 * Only what this edit takes off, and only what is still spent above the
+	 * new figure: a cut made before refunds existed stays as it was, and hours
+	 * already given back are not given twice.
+	 *
+	 * @param array<string, mixed>             $before  The item before the edit.
+	 * @param array<string, mixed>             $after   The item after it.
+	 * @param array<int, array<string, mixed>> $entries Its ledger entries so far.
+	 * @return float Hours to give back; 0 for none.
+	 */
+	public static function refund( array $before, array $after, array $entries ): float {
+		if ( ! self::chargeable( $before ) || ! self::chargeable( $after ) || ! self::started( $after ) ) {
+			return 0.0;
+		}
+
+		$planned = self::planned( $after );
+		$back    = min( self::planned( $before ) - $planned, self::position( $entries )['used'] - $planned );
+
+		return $back > 0 ? round( $back, 2 ) : 0.0;
 	}
 
 	/**

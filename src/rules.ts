@@ -533,7 +533,7 @@ export const RULES: RuleSection[] = [
         why: 'Planning is quick for the usual case and still right for the unusual one.',
       },
       {
-        what: 'Only work where the client pays uses their support hours: it holds them from Up Next and spends them when work starts. Work sent back after it started is not charged again. Hours added after work started are not held while it waits; they are checked and spent when it starts again. The client\'s hours list shows each task or meeting once, with what it used, and its history folded beneath it.',
+        what: 'Only work where the client pays uses their support hours: it holds them from Up Next and spends them when work starts. Work sent back after it started is not charged again. Hours added after work started are not held while it waits; they are checked and spent when it starts again. Lowering the hours of work already charged gives the client the difference back, shown under that task. The client\'s hours list shows each task or meeting once, with what it used, and its history folded beneath it.',
         why: 'The balance shows what is committed as well as what has been used.',
       },
       {

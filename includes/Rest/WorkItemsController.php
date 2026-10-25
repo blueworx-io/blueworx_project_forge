@@ -1760,7 +1760,7 @@ final class WorkItemsController {
 			Events::append( $entry );
 		}
 
-		if ( ! WorkLedger::reconcile( $updated, get_current_user_id() ) ) {
+		if ( ! WorkLedger::refund( $item, $updated, get_current_user_id() ) || ! WorkLedger::reconcile( $updated, get_current_user_id() ) ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
 			$wpdb->query( 'ROLLBACK' );
 
