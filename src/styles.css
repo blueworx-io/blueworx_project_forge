@@ -2201,6 +2201,11 @@ body {
   color: var( --text-primary );
 }
 
+/* #650. Beside a figure that is all finished work. */
+.bwx-capacity-all-done {
+  color: var( --color-steel );
+}
+
 .bwx-capacity-of {
   color: var( --color-fog );
 }

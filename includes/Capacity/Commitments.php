@@ -170,6 +170,7 @@ final class Commitments {
 			}
 
 			$spread = Allocations::spread( $allocation, $days_by_user[ $user_id ] );
+			$booked = $spread;
 
 			/*
 			 * #384. Finished work is counted beside what is still to do rather
@@ -216,8 +217,9 @@ final class Commitments {
 			 */
 			$shown = self::within( $spread, $days_by_user[ $user_id ] );
 
-			// Every day of it is outside this window: it is not listed here at all.
-			if ( array() === $shown && array() !== $spread ) {
+			// Every day of it is outside this window, or was given back by an
+			// early finish (#650): it is not listed here at all.
+			if ( array() === $shown && array() !== $booked ) {
 				continue;
 			}
 

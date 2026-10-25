@@ -489,7 +489,7 @@ export const RULES: RuleSection[] = [
     title: 'Capacity and hours',
     rules: [
       {
-        what: 'A task counts against its people\'s time from Up Next until it is finished, each person\'s hours on their own date. A recurring task\'s hours are spread evenly over the working days it covers.',
+        what: 'A task counts against its people\'s time from Up Next until it is finished, each person\'s hours on their own date. A recurring task\'s hours all sit on its due date, even after that date is moved.',
         why: 'Ideas that may never be built shouldn\'t make anyone look busy.',
       },
       {
@@ -501,7 +501,7 @@ export const RULES: RuleSection[] = [
         why: 'The work still has to be done, so today should show it rather than a day that has gone.',
       },
       {
-        what: 'Finished work stays on the days it was planned for up to today, shown in its own colour, while planned days after an early finish become free again.',
+        what: 'Finished work stays on the days it was planned for up to today, shown in its own colour, and a day or week whose time is all finished work says done. Planned days after an early finish become free again, and the work is not listed against them.',
         why: 'A day that was used shouldn\'t look free, but time given back should.',
       },
       {
