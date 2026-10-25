@@ -364,4 +364,21 @@ final class CapacityCommitmentsTest extends TestCase {
 		$this->assertSame( array( '2026-09-07' => 2.0, '2026-09-08' => 2.0 ), $gathered['usr_a']['completed_by_day'] );
 		$this->assertSame( 'with-client', $gathered['usr_a']['allocations'][0]['status'] );
 	}
+
+	/*
+	 * #650. Unlike finished work, work with the client is still listed when
+	 * all its days are ahead: the panel shows it under With the client, with
+	 * no hours booked.
+	 */
+	public function test_work_with_the_client_planned_after_today_is_still_listed(): void {
+		$waiting           = $this->allocation( 'usr_a', 4.0, 'cli_1' );
+		$waiting['from']   = '2026-09-08';
+		$waiting['status'] = 'with-client';
+
+		$gathered = Commitments::gather( array( $waiting ), array( 'usr_a' => $this->days() ), '2026-09-07' );
+
+		$this->assertSame( array(), $gathered['usr_a']['completed_by_day'] );
+		$this->assertSame( 'with-client', $gathered['usr_a']['allocations'][0]['status'] ?? null );
+		$this->assertSame( array(), $gathered['usr_a']['allocations'][0]['by_day'] );
+	}
 }
