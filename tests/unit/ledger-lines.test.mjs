@@ -114,3 +114,25 @@ test('each line sits where its latest entry happened', () => {
 
   assert.deepEqual(lines.map((line) => line.source_id || line.event_type), ['top-up', 'wrk_early', 'wrk_late']);
 });
+
+test('hours given back when a task was lowered sit under that task and come off what it used', () => {
+  // #641.
+  const entries = [
+    entry('allocation', 20),
+    work('work-reservation', -1.67),
+    work('work-release', 1.67),
+    work('work-usage', -1.67),
+    work('adjustment', 0.76, 'wrk_design'),
+    entry('adjustment', 2, { source_type: 'adjustment', source_id: 'adj_1', reason: 'Goodwill' }),
+  ];
+
+  const lines = ledgerLines(entries);
+
+  assert.equal(lines.length, 3);
+
+  const task = lines.find((line) => 'work-item:wrk_design' === line.key);
+  assert.equal(task.used, 0.91);
+  assert.equal(task.hours, -0.91);
+  assert.equal(task.history.length, 4);
+  assert.equal(lines[2].event_type, 'adjustment');
+});

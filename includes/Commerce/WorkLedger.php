@@ -68,6 +68,40 @@ final class WorkLedger {
 	}
 
 	/**
+	 * Gives back spent hours an edit took off charged work (#641).
+	 *
+	 * @param array<string, mixed> $before The item before the edit.
+	 * @param array<string, mixed> $after  The item after it.
+	 * @param int                  $actor  Who made the edit.
+	 * @return bool False when the ledger refused the entry.
+	 */
+	public static function refund( array $before, array $after, int $actor ): bool {
+		$id   = (string) ( $after['id'] ?? '' );
+		$back = WorkHours::refund( $before, $after, self::entries( $id ) );
+
+		if ( $back <= 0 ) {
+			return true;
+		}
+
+		return null !== Ledger::append(
+			array(
+				'client_site_id' => (string) ( $after['client_site_id'] ?? '' ),
+				'event_type'     => Entries::ADJUSTMENT,
+				'hours'          => $back,
+				'source_type'    => WorkHours::SOURCE,
+				'source_id'      => $id,
+				'actor'          => $actor,
+				'reason'         => sprintf(
+					/* translators: 1: hours before, 2: hours after. */
+					__( 'Hours lowered from %1$s to %2$s after they were charged.', 'blueworx-forge' ),
+					WorkHours::planned( $before ),
+					WorkHours::planned( $after )
+				),
+			)
+		);
+	}
+
+	/**
 	 * Gives back every hour an item is still holding, because it is going away (#590).
 	 *
 	 * Usage stays: that time was worked. Nothing is written when nothing is held.

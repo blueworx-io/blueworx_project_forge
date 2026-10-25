@@ -9,8 +9,10 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Commerce\Assignments;
 use Blueworx\Forge\Commerce\Entries;
 use Blueworx\Forge\Commerce\Ledger;
+use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\Notifications\Register as Notifications;
@@ -844,6 +846,8 @@ final class WorkItemsController {
 				'returns'       => Returns::targets( $item ),
 				'outcomes'      => Outcomes::available_for( $item ),
 				'can_archive'   => Outcomes::may_archive( $item ),
+				// #642. Making a paying client's work free asks for a reason.
+				'on_support'    => Support::NONE !== self::support_state( $item ),
 
 				/*
 				 * Whether this person may go ahead with an over-allocation
@@ -1703,6 +1707,11 @@ final class WorkItemsController {
 			)
 		);
 
+		// #642. A paying client's work is not made free without a reason.
+		if ( WorkHours::free_needs_reason( $item, $checked['values'], self::support_state( $item ), self::change_context( $request )['reason'] ) ) {
+			$unsaveable['commercial_class'] = __( 'This client has a support package. Say why this work is free.', 'blueworx-forge' );
+		}
+
 		if ( array() !== $unsaveable ) {
 			return Errors::rest(
 				'invalid_work_item',
@@ -1760,7 +1769,7 @@ final class WorkItemsController {
 			Events::append( $entry );
 		}
 
-		if ( ! WorkLedger::reconcile( $updated, get_current_user_id() ) ) {
+		if ( ! WorkLedger::refund( $item, $updated, get_current_user_id() ) || ! WorkLedger::reconcile( $updated, get_current_user_id() ) ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- transaction control, not a read.
 			$wpdb->query( 'ROLLBACK' );
 
@@ -1791,6 +1800,16 @@ final class WorkItemsController {
 				'item' => $updated,
 			)
 		);
+	}
+
+	/**
+	 * The item's client's support state today (#642).
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return string
+	 */
+	private static function support_state( array $item ): string {
+		return (string) Assignments::entitlement_on( (string) $item['client_site_id'], gmdate( 'Y-m-d', bwx_forge_now() ) )['state'];
 	}
 
 	/**

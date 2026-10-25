@@ -925,7 +925,8 @@ body {
   color: var( --color-steel );
 }
 
-.bwx-overrun {
+.bwx-overrun,
+.bwx-free-reason {
   margin-top: 10px;
   display: flex;
   flex-direction: column;

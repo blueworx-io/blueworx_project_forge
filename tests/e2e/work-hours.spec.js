@@ -198,6 +198,78 @@ test('re-planning appends the difference rather than the new total', async ({
   expect(after.balance).toBe(GRANTED - 20);
 });
 
+test('lowering the hours of started work gives the client the difference back', async ({
+  browser,
+  baseURL,
+}) => {
+  test.slow();
+
+  // #641.
+  const { admin, api, site, people } = await withSiteOnSupport(browser, baseURL);
+  const item = await Forge.makeItem(api, site.id, { title: `Lowered ${RUN_ID}` });
+
+  const planned = await Forge.walkTo(
+    api,
+    (await item.json()).item,
+    ['triage', 'documentation-period', 'up-next'],
+    { seats: planFor(people) }
+  );
+  const started = await start(api, planned);
+
+  expect((await Forge.hourLedger(admin, site.id)).balance).toBe(GRANTED - PLANNED);
+
+  // Four for the Primary User now: thirteen planned becomes seven.
+  const lowered = await api.patch(`/work-items/${started.id}`, {
+    hours_primary: 4,
+    record_version: started.record_version,
+  });
+
+  expect(lowered.status(), await lowered.text()).toBe(200);
+
+  const after = await Forge.hourLedger(admin, site.id);
+
+  // Given back against the task itself, so it shows under that task.
+  expect(after.entries.filter(([type]) => 'adjustment' === type)).toEqual([
+    ['adjustment', 6, `work-item:${started.id}`],
+  ]);
+  expect(after.balance).toBe(GRANTED - 7);
+});
+
+test('a paying client\'s work is only made free with a reason', async ({ browser, baseURL }) => {
+  test.slow();
+
+  // #642.
+  const { admin, api, site } = await withSiteOnSupport(browser, baseURL);
+  const item = (await (await Forge.makeItem(api, site.id, { title: `Free ${RUN_ID}` })).json()).item;
+
+  const refused = await api.patch(`/work-items/${item.id}`, {
+    commercial_class: 'free-general',
+    record_version: item.record_version,
+  });
+
+  expect(refused.status()).toBe(400);
+  expect((await refused.json()).data.fields).toHaveProperty('commercial_class');
+
+  const saved = await api.patch(`/work-items/${item.id}`, {
+    commercial_class: 'free-general',
+    reason: 'Goodwill after the outage.',
+    record_version: item.record_version,
+  });
+
+  expect(saved.status(), await saved.text()).toBe(200);
+  expect((await saved.json()).item.commercial_class).toBe('free-general');
+
+  // A client with no package pays for nothing, so nobody is asked.
+  const { site: unpaid } = await Forge.makeSite(admin.api, `Unpaid Co ${RUN_ID}`, RUN_ID);
+  const plain = (await (await Forge.makeItem(api, unpaid.id, { title: `Unpaid ${RUN_ID}` })).json()).item;
+  const free = await api.patch(`/work-items/${plain.id}`, {
+    commercial_class: 'free-general',
+    record_version: plain.record_version,
+  });
+
+  expect(free.status(), await free.text()).toBe(200);
+});
+
 test('a free bug never touches the ledger', async ({ browser, baseURL }) => {
   test.slow();
 
