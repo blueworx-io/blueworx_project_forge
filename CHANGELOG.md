@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.214.0] - 2026-10-25
+
+### Changed
+
+- Today's plan now stays as you left it: new or finished work no longer moves your day, your edits hold, and a new Schedule button plans the day again from now when you want it.
+
 ## [2.213.2] - 2026-10-25
 
 ### Fixed
