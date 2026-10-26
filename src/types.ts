@@ -1336,6 +1336,16 @@ export interface Meeting {
   ledger_state: MeetingLedgerState;
   excepted_from: string | null;
   moved: boolean;
+  /** #657. A manual meeting is Forge's; one given this site from Google Calendar is Google's. */
+  source?: 'forge' | 'google';
+  google_id?: string;
+  title?: string;
+  off_support?: boolean;
+  can_settle?: boolean;
+  /** "Busy" to somebody neither on it nor administering Forge. */
+  private?: boolean;
+  site_id?: string;
+  people?: string[];
 }
 
 /** What `/client-sites/<id>/meetings` answers, and what every write there answers too. */
@@ -1352,17 +1362,21 @@ export interface MeetingsAnswer {
   meeting?: Meeting | null;
 }
 
-/** One row of `/meetings`: a standing meeting, with where it belongs and its next date, if the horizon caught one (#383). */
-export interface AllClientsMeeting extends MeetingSeries {
+/** One row of `/meetings`: a client site with meetings, and the meetings held there, all time (#657). */
+export interface AllClientsRow {
+  client_site_id: string;
+  client_id: string;
   client_name: string;
   site_name: string;
-  next_on: string | null;
+  /** How many meetings were marked held, manual and Google. */
+  meetings: number;
+  held_hours: number;
 }
 
-/** What `/meetings` answers: every client's standing meetings, flat, for the picker's "All Clients". */
+/** What `/meetings` answers: every client with meetings, for the picker's "All Clients". */
 export interface AllClientsMeetingsAnswer {
   ok: true;
-  meetings: AllClientsMeeting[];
+  clients: AllClientsRow[];
 }
 
 /** What a task's reviewer seat holds when the client reviews it (#391). */

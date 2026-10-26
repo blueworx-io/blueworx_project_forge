@@ -112,3 +112,47 @@ test('a person connects Google Calendar from their own page, then settles a meet
   expect(Math.abs(usage[0][1])).toBe(1);
 });
 
+
+// #657. The Meetings page: every client with its hours, and a client's page
+// shows its Google meetings beside the manual ones, settled from there.
+test('the Meetings page lists each client\'s hours, and a client\'s page settles its Google meetings', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const handle = `gm${RUN}`;
+  const them = await makePerson(admin.api, client.id, 'staff', handle);
+  const as = await signedIn(browser, baseURL, them.login, PASSWORD);
+  await putEvents(as.context.request, handle, [
+    timedEvent(`pg${RUN}`, `pg${RUN}@google.com`, `${YESTERDAY}T11:00:00Z`, 60, { summary: `Page call ${RUN}`, attendees: [{ email: `guest${RUN}@example.test` }] }),
+  ]);
+  const own = await as.context.newPage();
+  expect(await connectGoogle(own, as.api, handle)).toContain('google=connected');
+  await as.context.close();
+
+  const call = (await admin.api.get(`/calendar?from=${YESTERDAY}&to=${YESTERDAY}`)).entries.find((entry) => entry.title === `Page call ${RUN}`);
+  const given = await admin.api.post(`/google-meetings/${call.google_id}/settle`, { client_site_id: site.id, off_support: false });
+  expect(given.status(), await given.text()).toBe(200);
+
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.getByTestId('bwx-screen-meetings').click();
+  await page.getByTestId('bwx-client-choice').selectOption('all');
+
+  const row = page.locator(`[data-testid="bwx-meetings-all-row"][data-site="${site.id}"]`);
+  await expect(row).toBeVisible({ timeout: 60000 });
+  await expect(row).toHaveAttribute('data-hours', '1');
+  await row.click();
+  await expect(page.getByTestId('bwx-meetings-standing')).toBeVisible({ timeout: 60000 });
+
+  const past = page.getByTestId('bwx-meetings-past-table').getByRole('row').filter({ hasText: `Page call ${RUN}` });
+  await expect(past.getByTestId('bwx-meetings-meeting')).toHaveAttribute('data-source', 'google');
+  await expect(past).toContainText('Google');
+  await expect(past.getByTestId('bwx-meetings-move')).toHaveCount(0);
+
+  await past.getByTestId('bwx-meetings-settle').click();
+  const panel = page.getByTestId('bwx-google-meeting');
+  await expect(panel).toBeVisible();
+  await panel.getByTestId('bwx-google-settle-held').click();
+
+  await expect(past.getByTestId('bwx-meetings-meeting')).toHaveAttribute('data-status', 'held', { timeout: 60000 });
+  await page.close();
+});
