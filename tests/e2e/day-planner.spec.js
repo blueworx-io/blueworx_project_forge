@@ -104,6 +104,13 @@ test( 'Today is a planned day: meetings at their times, tasks by priority, the r
   // job that is due today and has nowhere to go.
   await expect( day.getByTestId( 'bwx-day-meeting' ) ).toHaveCount( 2 );
   await expect( day.locator( '[data-testid="bwx-day-meeting"][data-clash="true"]' ) ).toHaveCount( 2 );
+
+  // #654. Each at its own time, 80px an hour from 7am, and side by side.
+  const drawn = ( title ) => day.getByTestId( 'bwx-day-meeting' ).filter( { hasText: title } ).locator( 'xpath=ancestor::div[contains(@class, "bwx-day-item")][1]' );
+  await expect( drawn( `Client call ${ RUN }` ) ).toHaveCSS( 'top', '240px' );
+  await expect( drawn( `Overlap chat ${ RUN }` ) ).toHaveCSS( 'top', '280px' );
+  await expect( drawn( `Client call ${ RUN }` ) ).toHaveAttribute( 'style', /left: 0%.*width: 50%/ );
+  await expect( drawn( `Overlap chat ${ RUN }` ) ).toHaveAttribute( 'style', /left: 50%.*width: 50%/ );
   expect( await titles( page, 'overflow' ) ).toEqual( [ `Huge job ${ RUN }` ] );
   await expect( page.locator( '[data-where="overflow"]' ) ).toHaveAttribute( 'data-clash', 'true' );
   await expect( day.getByTestId( 'bwx-day-clashes' ) ).toContainText( '3 clashes' );

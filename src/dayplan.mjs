@@ -357,25 +357,39 @@ export function clockText(mins) {
 }
 
 /**
- * Where each segment sits on the drawn day (#639): its top and height in
- * pixels from 7am, so a task covers the hours it takes rather than stretching
- * one row. A few minutes still gets minPx to be read; whatever follows moves
- * down only as far as it must, and still ends at its own time where it can.
- * Meetings that really overlap are a clash, and stay at their own times.
+ * Where each segment sits on the drawn day: its top and height in pixels from
+ * 7am, always at its own time (#656). A few minutes is a slim line of minPx,
+ * and nothing is pushed down to make room for it; pieces that overlap overlap
+ * (Luke, 2026-10-26). Meetings that overlap each other share the width, side
+ * by side, in `lane` of `lanes` (#654).
  *
- * @param {{start: number, end: number}[]} segments In time order.
+ * @param {{type?: string, start: number, end: number}[]} segments In time order.
  * @param {{hourPx: number, minPx: number}} sizes
  */
 export function layOut(segments, { hourPx, minPx }) {
-  let floor = 0;
-  let last = -Infinity;
-  return segments.map((seg) => {
-    const at = Math.round(((seg.start - DAY_START) / 60) * hourPx);
-    const top = seg.start >= last ? Math.max(at, floor) : at;
-    last = Math.max(last, seg.end);
-    const end = Math.round(((seg.end - DAY_START) / 60) * hourPx);
-    const height = Math.max(end - top, minPx);
-    floor = top + height;
-    return { ...seg, top, height };
+  const px = (mins) => Math.round(((mins - DAY_START) / 60) * hourPx);
+  const boxes = segments.map((seg) => {
+    const top = px(seg.start);
+    return { ...seg, top, height: Math.max(px(seg.end) - top, minPx), lane: 0, lanes: 1 };
   });
+
+  // Meetings in a run that overlaps take the first lane free when each
+  // starts, and every meeting in the run is as narrow as the widest moment.
+  let run = [];
+  let laneEnds = [];
+  const close = () => {
+    for (const box of run) box.lanes = laneEnds.length;
+    run = [];
+    laneEnds = [];
+  };
+  for (const box of boxes.filter((one) => 'meeting' === one.type).sort(byStart)) {
+    if (run.length && laneEnds.every((end) => end <= box.start)) close();
+    const free = laneEnds.findIndex((end) => end <= box.start);
+    box.lane = -1 === free ? laneEnds.length : free;
+    laneEnds[box.lane] = box.end;
+    run.push(box);
+  }
+  close();
+
+  return boxes;
 }

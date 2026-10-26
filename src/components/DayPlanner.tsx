@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, ArrowUpToLine, ArrowDownToLine, CalendarClock, Handshake, TriangleAlert } from 'lucide-react';
 import type { DiaryEntry } from '../types';
@@ -25,8 +25,8 @@ const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary
 
 /** Pixels an hour of the day is drawn at. */
 const HOUR_PX = 80;
-/** The least a piece of the day is drawn at, so a few minutes can be read (#639). */
-const MIN_PX = 30;
+/** The least a piece of the day is drawn at: a few minutes is a slim line (#656). */
+const MIN_PX = 12;
 /** Below this, a task shows on one line (#639). */
 const SHORT_PX = 56;
 
@@ -39,7 +39,14 @@ interface Seg {
   parts: number;
 }
 
-type Box = Seg & { top: number; height: number };
+type Box = Seg & { top: number; height: number; lane: number; lanes: number };
+
+/** Where a piece is drawn: at its own time, and meetings that overlap side by side (#654). */
+function placeOf( seg: Box ): CSSProperties {
+  const at = { top: seg.top, height: seg.height };
+
+  return 1 < seg.lanes ? { ...at, left: `${ ( seg.lane / seg.lanes ) * 100 }%`, right: 'auto', width: `${ 100 / seg.lanes }%` } : at;
+}
 
 interface Saved {
   order: string[];
@@ -507,7 +514,7 @@ export function DayPlanner( {
             const inner = piece( seg );
             return (
               inner && (
-                <div key={ `${ seg.type }${ seg.id ?? '' }:${ seg.start }` } className="bwx-day-item" data-hour={ Math.floor( seg.start / 60 ) } data-short={ seg.height < SHORT_PX ? 'true' : undefined } style={ { top: seg.top, height: seg.height } }>
+                <div key={ `${ seg.type }${ seg.id ?? '' }:${ seg.start }` } className="bwx-day-item" data-hour={ Math.floor( seg.start / 60 ) } data-short={ seg.height < SHORT_PX ? 'true' : undefined } style={ placeOf( seg ) }>
                   { inner }
                 </div>
               )

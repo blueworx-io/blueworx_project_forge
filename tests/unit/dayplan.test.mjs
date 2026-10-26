@@ -196,17 +196,42 @@ test('back-to-back work sits end to end, each at its own time (#639)', () => {
   assert.deepEqual(boxes.map(({ top, height }) => [top, height]), [[80, 80], [160, 160]]);
 });
 
-test('a few minutes still gets room to read, and what follows moves down only as far as it must (#639)', () => {
-  const boxes = layOut([{ id: 'tiny', start: h(8), end: h(8) + 5 }, { id: 'next', start: h(8) + 5, end: h(9) }], { hourPx: 80, minPx: 32 });
+test('a few minutes is drawn as a slim line, and what follows stays at its own time (#656)', () => {
+  const boxes = layOut([{ id: 'tiny', start: h(8), end: h(8) + 5 }, { id: 'next', start: h(8) + 5, end: h(9) }], { hourPx: 80, minPx: 12 });
   assert.equal(boxes[0].top, 8 * 80);
-  assert.equal(boxes[0].height, 32);
-  assert.equal(boxes[1].top, 8 * 80 + 32);
-  assert.equal(boxes[1].top + boxes[1].height, 9 * 80, 'it still ends at its own time');
+  assert.equal(boxes[0].height, 12);
+  assert.equal(boxes[1].top, 8 * 80 + 7);
+  assert.equal(boxes[1].top + boxes[1].height, 9 * 80);
 });
 
-test('meetings that really overlap stay at their own times (#639)', () => {
-  const boxes = layOut([{ id: 'm1', start: h(2), end: h(4) }, { id: 'm2', start: h(3), end: h(4) }], { hourPx: 80, minPx: 32 });
-  assert.equal(boxes[1].top, 3 * 80);
+test('a run of short tasks moves nothing below it (#656)', () => {
+  const short = [0, 12, 24, 36, 48, 60, 72].map((at, n) => ({ type: 'task', id: `s${n}`, start: h(3) + at, end: h(3) + at + 12 }));
+  const long = { type: 'task', id: 'release', start: h(3) + 84, end: h(3) + 174 };
+  // Even when a short task is drawn taller than its time, nothing is pushed.
+  const boxes = layOut([...short, long], { hourPx: 80, minPx: 30 });
+  const drawn = boxes.find((box) => 'release' === box.id);
+  assert.equal(drawn.top, Math.round((h(3) + 84 - DAY_START) / 60 * 80));
+  assert.equal(drawn.height, 120, 'an hour and a half is an hour and a half');
+});
+
+test('meetings that overlap sit side by side, each at its own time (#654)', () => {
+  const boxes = layOut([{ type: 'meeting', id: 'm1', start: h(2), end: h(4) }, { type: 'meeting', id: 'm2', start: h(3), end: h(4) }], { hourPx: 80, minPx: 12 });
+  assert.deepEqual(boxes.map(({ top, lane, lanes }) => [top, lane, lanes]), [[2 * 80, 0, 2], [3 * 80, 1, 2]]);
+});
+
+test('a lane is reused once its meeting has ended, and meetings apart stay full width (#654)', () => {
+  const boxes = layOut([
+    { type: 'meeting', id: 'a', start: h(2), end: h(4) },
+    { type: 'meeting', id: 'b', start: h(3), end: h(5) },
+    { type: 'meeting', id: 'c', start: h(4), end: h(6) },
+    { type: 'meeting', id: 'd', start: h(8), end: h(9) },
+  ], { hourPx: 80, minPx: 12 });
+  assert.deepEqual(boxes.map(({ id, lane, lanes }) => [id, lane, lanes]), [['a', 0, 2], ['b', 1, 2], ['c', 0, 2], ['d', 0, 1]]);
+});
+
+test('a task under a meeting keeps the full width (#654)', () => {
+  const boxes = layOut([{ type: 'task', id: 't', start: h(2), end: h(4) }, { type: 'meeting', id: 'm', start: h(3), end: h(4) }], { hourPx: 80, minPx: 12 });
+  assert.deepEqual(boxes.map(({ lane, lanes }) => [lane, lanes]), [[0, 1], [0, 1]]);
 });
 
 // #649. The plan keeps the times it placed each task at. It is drawn from

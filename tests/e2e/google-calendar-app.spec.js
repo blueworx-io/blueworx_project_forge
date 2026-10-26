@@ -77,3 +77,30 @@ test('a person connects Google Calendar from their own page, then settles a meet
   expect(usage).toHaveLength(1);
   expect(Math.abs(usage[0][1])).toBe(1);
 });
+
+test('a Google meeting at 1pm sits at 1pm on My tasks (#654)', async ({ page }) => {
+  test.slow();
+
+  await signIn(page, person.login, PASSWORD);
+  await page.goto('/blueworx-forge/#screen=mytasks');
+
+  // 1pm today where the browser is, which is the day My tasks draws.
+  const onePm = await page.evaluate(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0).toISOString();
+  });
+
+  await putEvents(page.request, who, [timedEvent(`one${RUN}`, `one${RUN}@google.com`, onePm, 60, { summary: `One o'clock ${RUN}` })]);
+  const synced = await page.request.post('/wp-json/blueworx-forge/v1/me/google/sync', {
+    data: { force: true },
+    headers: { 'X-WP-Nonce': await page.evaluate(() => window.bwxForgeData?.nonce ?? '') },
+  });
+  expect(synced.status(), await synced.text()).toBe(200);
+
+  await page.reload();
+  const meeting = page.getByTestId('bwx-day-meeting').filter({ hasText: `One o'clock ${RUN}` });
+  await expect(meeting).toBeVisible({ timeout: 90000 });
+
+  // 80px an hour from 7am: six hours down.
+  await expect(meeting.locator('xpath=ancestor::div[contains(@class, "bwx-day-item")][1]')).toHaveCSS('top', '480px');
+});
