@@ -395,7 +395,9 @@ final class Meetings {
 		$changes = array();
 
 		foreach ( $wanted as $column => $value ) {
-			if ( (string) $value !== (string) ( $row[ $column ] ?? '' ) ) {
+			$now = (string) ( $row[ $column ] ?? '' );
+
+			if ( $now !== (string) $value ) {
 				$changes[ $column ] = $value;
 			}
 		}
