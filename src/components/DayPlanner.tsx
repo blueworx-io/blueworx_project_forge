@@ -25,10 +25,12 @@ const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary
 
 /** Pixels an hour of the day is drawn at. */
 const HOUR_PX = 80;
-/** The least a piece of the day is drawn at: a few minutes is a slim line (#656). */
-const MIN_PX = 12;
+/** The least a piece of the day is drawn at: a few minutes is one slim line of text (#656). */
+const MIN_PX = 16;
 /** Below this, a task shows on one line (#639). */
 const SHORT_PX = 56;
+/** Below this, a task is a slim line in smaller type (#656). */
+const SLIM_PX = 24;
 
 interface Seg {
   type: string;
@@ -514,7 +516,7 @@ export function DayPlanner( {
             const inner = piece( seg );
             return (
               inner && (
-                <div key={ `${ seg.type }${ seg.id ?? '' }:${ seg.start }` } className="bwx-day-item" data-hour={ Math.floor( seg.start / 60 ) } data-short={ seg.height < SHORT_PX ? 'true' : undefined } style={ placeOf( seg ) }>
+                <div key={ `${ seg.type }${ seg.id ?? '' }:${ seg.start }` } className="bwx-day-item" data-hour={ Math.floor( seg.start / 60 ) } data-short={ seg.height < SHORT_PX ? 'true' : undefined } data-slim={ seg.height < SLIM_PX ? 'true' : undefined } style={ placeOf( seg ) }>
                   { inner }
                 </div>
               )

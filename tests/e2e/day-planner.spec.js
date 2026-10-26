@@ -111,6 +111,7 @@ test( 'Today is a planned day: meetings at their times, tasks by priority, the r
   await expect( drawn( `Overlap chat ${ RUN }` ) ).toHaveCSS( 'top', '280px' );
   await expect( drawn( `Client call ${ RUN }` ) ).toHaveAttribute( 'style', /left: 0%.*width: 50%/ );
   await expect( drawn( `Overlap chat ${ RUN }` ) ).toHaveAttribute( 'style', /left: 50%.*width: 50%/ );
+  await day.getByTestId( 'bwx-day-grid' ).screenshot( { path: 'test-results/day-plan-meetings.png' } );
   expect( await titles( page, 'overflow' ) ).toEqual( [ `Huge job ${ RUN }` ] );
   await expect( page.locator( '[data-where="overflow"]' ) ).toHaveAttribute( 'data-clash', 'true' );
   await expect( day.getByTestId( 'bwx-day-clashes' ) ).toContainText( '3 clashes' );
@@ -357,12 +358,13 @@ test( 'a task covers every hour it takes, and short work still reads (#639)', as
   const heights = new Set( await grid.locator( '.bwx-day-hour' ).evaluateAll( ( rows ) => rows.map( ( one ) => Math.round( one.getBoundingClientRect().height ) ) ) );
   expect( heights.size ).toBe( 1 );
 
-  // Five minutes at 1pm still has room for its title.
+  // Five minutes at 1pm is one slim line, still with its title (#656).
   const tiny = await box( 'Five minutes' );
-  expect( tiny.height ).toBeGreaterThan( 20 );
+  expect( tiny.height ).toBeGreaterThanOrEqual( 12 );
+  expect( tiny.height ).toBeLessThan( 20 );
   await expect( grid.getByText( `Five minutes ${ RUN }` ) ).toBeVisible();
 
-  await page.screenshot( { path: 'test-results/day-plan-spans.png', fullPage: true } );
+  await grid.screenshot( { path: 'test-results/day-plan-spans.png' } );
 
   await page.close();
   await me.context.close();
