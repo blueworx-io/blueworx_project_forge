@@ -13,6 +13,7 @@ use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Tenancy\Ids;
+use Blueworx\Forge\Tenancy\Studio;
 
 /**
  * #606. One row per meeting, however many connected calendars it is on, and
@@ -160,6 +161,24 @@ final class Meetings {
 		}
 
 		self::refresh_private( $id );
+
+		// #657. Fill in the series' client, or studio time; the hours follow
+		// on the next reconcile, which the sync route runs.
+		$stored = self::by_share_key( (string) $event['share_key'] );
+
+		if ( null !== $stored ) {
+			$fill = self::prefill_changes(
+				$stored,
+				SeriesChoice::get( (string) $stored['series_key'] ),
+				false,
+				Studio::site_id(),
+				Studio::client_id()
+			);
+
+			if ( array() !== $fill ) {
+				self::fill( $stored, $fill );
+			}
+		}
 
 		return $id;
 	}
@@ -314,6 +333,91 @@ final class Meetings {
 		);
 
 		return $changed ? self::get( (string) $meeting['id'] ) : null;
+	}
+
+	/**
+	 * What Forge fills in by itself on a meeting (#657). Pure.
+	 *
+	 * Only a meeting nobody has dealt with is touched: still scheduled, and
+	 * either with no client or one Forge filled in. The series' remembered
+	 * client wins, then studio time for an all-staff meeting, else nothing —
+	 * so studio time goes again once somebody from outside is invited.
+	 *
+	 * @param array<string, mixed>      $row           The stored row.
+	 * @param array<string, mixed>|null $choice        The series' choice, or null.
+	 * @param bool                      $internal      Whether only studio staff are on it.
+	 * @param string                    $studio_site   The studio's site.
+	 * @param string                    $studio_client The studio client.
+	 * @return array<string, mixed> Only the columns that change.
+	 */
+	public static function prefill_changes( array $row, ?array $choice, bool $internal, string $studio_site, string $studio_client ): array {
+		$fillable = Occurrence::SCHEDULED === (string) ( $row['status'] ?? '' )
+			&& ( '' === (string) ( $row['client_site_id'] ?? '' ) || '' !== (string) ( $row['prefill'] ?? '' ) );
+
+		if ( ! $fillable ) {
+			return array();
+		}
+
+		if ( null !== $choice && '' !== (string) ( $choice['client_site_id'] ?? '' ) ) {
+			$wanted = array(
+				'client_site_id' => (string) $choice['client_site_id'],
+				'client_id'      => (string) $choice['client_id'],
+				'off_support'    => empty( $choice['off_support'] ) ? 0 : 1,
+				'prefill'        => self::PREFILL_SERIES,
+			);
+		} elseif ( $internal && '' !== $studio_site ) {
+			$wanted = array(
+				'client_site_id' => $studio_site,
+				'client_id'      => $studio_client,
+				'off_support'    => 0,
+				'prefill'        => self::PREFILL_STUDIO,
+			);
+		} else {
+			$wanted = array(
+				'client_site_id' => '',
+				'client_id'      => '',
+				'off_support'    => 0,
+				'prefill'        => '',
+			);
+		}
+
+		$changes = array();
+
+		foreach ( $wanted as $column => $value ) {
+			if ( (string) $value !== (string) ( $row[ $column ] ?? '' ) ) {
+				$changes[ $column ] = $value;
+			}
+		}
+
+		return $changes;
+	}
+
+	/**
+	 * Writes what Forge filled in, against the version it read (#657).
+	 *
+	 * @param array<string, mixed> $row     The stored row, as read.
+	 * @param array<string, mixed> $changes From {@see self::prefill_changes()}.
+	 * @return bool|null True when written, null when the row had moved on.
+	 */
+	public static function fill( array $row, array $changes ): ?bool {
+		global $wpdb;
+
+		$changes['updated_at']     = bwx_forge_now();
+		$changes['record_version'] = (int) $row['record_version'] + 1;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$changed = $wpdb->update(
+			Schema::google_meetings_table(),
+			$changes,
+			array(
+				'id'             => (string) $row['id'],
+				'record_version' => (int) $row['record_version'],
+			),
+			Formats::for_row( $changes ),
+			array( '%s', '%d' )
+		);
+
+		return $changed ? true : null;
 	}
 
 	/**

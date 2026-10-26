@@ -327,3 +327,98 @@ test('a meeting before the person first connected never shows, even after reconn
 
   await as_dave.context.close();
 });
+
+// #657. A recurring meeting remembers the client last picked for it.
+test.describe('a recurring meeting', () => {
+  const handle = `ge${RUN}`;
+  const title = `Sprint ${RUN}`;
+  let eve;
+  let other;
+
+  /** One weekly occurrence of the series, `week` weeks after tomorrow. */
+  const weekly = (week) => timedEvent(`s${week}x${RUN}`, `us${RUN}@google.com`, noon(1 + 7 * week, 9), 60, {
+    summary: title,
+    recurringEventId: `s${RUN}`,
+    originalStartTime: { dateTime: noon(1 + 7 * week, 9) },
+  });
+
+  /** The series' meetings, earliest first, as admin sees them. */
+  const weeks = async () => (await googleEntries(admin.api, day(0), day(40)))
+    .filter((entry) => entry.title === title)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const settle = async (meeting, body) => {
+    const answer = await admin.api.post(`/google-meetings/${meeting.google_id}/settle`, body);
+    expect(answer.status(), await answer.text()).toBe(200);
+  };
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    test.setTimeout(300000);
+    other = (await makeSite(admin.api, 'Google Calendar other', RUN)).site;
+    await onSupport(admin, other.id, 200);
+
+    const person = await makePerson(admin.api, client.id, 'staff', handle);
+    eve = await signedIn(browser, baseURL, person.login, PASSWORD);
+    await putEvents(eve.context.request, handle, [weekly(0), weekly(1), weekly(2)]);
+
+    const page = await eve.context.newPage();
+    expect(await connectGoogle(page, eve.api, handle)).toContain('google=connected');
+    await page.close();
+  });
+
+  test.afterAll(async () => {
+    await eve?.context.close();
+  });
+
+  test('picking a client for one meeting in a series fills in the later ones', async () => {
+    test.slow();
+
+    const [first] = await weeks();
+    await settle(first, { client_site_id: site.id, off_support: true });
+
+    const [, second, third] = await weeks();
+    for (const later of [second, third]) {
+      expect(later.site_id).toBe(site.id);
+      expect(later.off_support).toBe(true);
+      expect(later.status).toBe('scheduled');
+    }
+  });
+
+  test('a new meeting in the series arrives filled in', async () => {
+    test.slow();
+
+    await putEvents(eve.context.request, handle, [weekly(3)]);
+    await syncNow(eve);
+
+    const all = await weeks();
+    expect(all).toHaveLength(4);
+    expect(all[3].site_id).toBe(site.id);
+    expect(all[3].off_support).toBe(true);
+  });
+
+  test('changing only the support tick on one meeting stays on that meeting', async () => {
+    test.slow();
+
+    const [, second] = await weeks();
+    await settle(second, { client_site_id: site.id, off_support: false });
+
+    const [, again, third] = await weeks();
+    expect(again.off_support).toBe(false);
+    expect(third.off_support).toBe(true);
+  });
+
+  test('changing the client on a later meeting carries forward from there, and never moves a held one', async () => {
+    test.slow();
+
+    const [, second, third] = await weeks();
+    await settle(third, { client_site_id: site.id, off_support: true, status: 'held' });
+    await settle(second, { client_site_id: other.id, off_support: true });
+
+    const all = await weeks();
+    expect(all[0].site_id).toBe(site.id);
+    expect(all[1].site_id).toBe(other.id);
+    expect(all[2].site_id).toBe(site.id);
+    expect(all[2].status).toBe('held');
+    expect(all[3].site_id).toBe(other.id);
+  });
+});
