@@ -77,6 +77,8 @@ final class Events {
 			'counts'        => false,
 			'planned_hours' => 0.0,
 			'attendees'     => self::attendees( $item ),
+			// #657. Google hid who else is invited, so who is on it can't be known.
+			'guests_hidden' => ! empty( $item['attendeesOmitted'] ),
 		);
 
 		if ( $all_day ) {
@@ -197,6 +199,18 @@ final class Events {
 			if ( count( $out ) >= 50 ) {
 				break;
 			}
+		}
+
+		// #657. The organiser is on the meeting too, even when the guest list
+		// leaves them out.
+		$organizer = is_array( $item['organizer'] ?? null ) ? $item['organizer'] : array();
+		$email     = mb_substr( (string) ( $organizer['email'] ?? '' ), 0, 191 );
+
+		if ( '' !== $email && empty( $organizer['self'] ) && ! in_array( strtolower( $email ), array_map( 'strtolower', array_column( $out, 'email' ) ), true ) ) {
+			$out[] = array(
+				'email' => $email,
+				'name'  => mb_substr( (string) ( $organizer['displayName'] ?? '' ), 0, 191 ),
+			);
 		}
 
 		return $out;

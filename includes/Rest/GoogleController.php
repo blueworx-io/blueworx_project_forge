@@ -263,8 +263,11 @@ final class GoogleController {
 
 		Hours::settle_one( $settled, get_current_user_id() );
 
-		// #657. The later meetings in its series take the same client.
-		SeriesChoice::remember( $settled, (string) $site['id'], (string) $site['client_id'], $off_support, get_current_user_id() );
+		// #657. The later meetings in its series take the same client — when a
+		// person chose it, not when they kept what Forge filled in.
+		if ( SeriesChoice::is_a_pick( $meeting, (string) $site['id'] ) ) {
+			SeriesChoice::remember( $settled, (string) $site['id'], (string) $site['client_id'], $off_support, get_current_user_id() );
+		}
 
 		return rest_ensure_response(
 			array(

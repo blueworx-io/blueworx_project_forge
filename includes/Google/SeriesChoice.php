@@ -26,7 +26,7 @@ final class SeriesChoice {
 	 * A series' remembered choice.
 	 *
 	 * @param string $series_key The series.
-	 * @return array{client_site_id: string, client_id: string, off_support: bool}|null
+	 * @return array{client_site_id: string, client_id: string, off_support: bool, from_on: string}|null
 	 */
 	public static function get( string $series_key ): ?array {
 		global $wpdb;
@@ -45,8 +45,23 @@ final class SeriesChoice {
 				'client_site_id' => (string) $row['client_site_id'],
 				'client_id'      => (string) $row['client_id'],
 				'off_support'    => 1 === (int) $row['off_support'],
+				'from_on'        => (string) $row['from_on'],
 			)
 			: null;
+	}
+
+	/**
+	 * Whether saving a meeting with a site is a person picking it, rather than
+	 * keeping what Forge filled in (#657). Marking a studio-time meeting held
+	 * without changing its client must not make studio time the series'
+	 * choice. Pure.
+	 *
+	 * @param array<string, mixed> $meeting The meeting before the save.
+	 * @param string               $site_id The site saved.
+	 * @return bool
+	 */
+	public static function is_a_pick( array $meeting, string $site_id ): bool {
+		return '' === (string) ( $meeting['prefill'] ?? '' ) || (string) ( $meeting['client_site_id'] ?? '' ) !== $site_id;
 	}
 
 	/**
@@ -79,6 +94,7 @@ final class SeriesChoice {
 				'client_site_id' => $site_id,
 				'client_id'      => $client_id,
 				'off_support'    => $off_support ? 1 : 0,
+				'from_on'        => (string) $meeting['on'],
 				'created_at'     => $now,
 				'updated_at'     => $now,
 				'created_by'     => $actor,
@@ -88,15 +104,8 @@ final class SeriesChoice {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
 			$wpdb->insert( $table, $row, Formats::for_row( $row ) );
 		} else {
-			$changes = array(
-				'client_site_id' => $site_id,
-				'client_id'      => $client_id,
-				'off_support'    => $off_support ? 1 : 0,
-				'updated_at'     => $now,
-			);
-
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET client_site_id = %s, client_id = %s, off_support = %d, updated_at = %d, record_version = record_version + 1 WHERE id = %s", $changes['client_site_id'], $changes['client_id'], $changes['off_support'], $now, $series_key ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET client_site_id = %s, client_id = %s, off_support = %d, from_on = %s, updated_at = %d, record_version = record_version + 1 WHERE id = %s", $site_id, $client_id, $off_support ? 1 : 0, (string) $meeting['on'], $now, $series_key ) );
 		}
 
 		$choice  = self::get( $series_key );

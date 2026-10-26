@@ -170,7 +170,7 @@ final class Meetings {
 			$fill = self::prefill_changes(
 				$stored,
 				SeriesChoice::get( (string) $stored['series_key'] ),
-				Internal::is_internal( (array) $event['attendees'], Internal::staff_emails(), Internal::domains() ),
+				empty( $event['guests_hidden'] ) && Internal::is_internal( (array) $event['attendees'], Internal::staff_emails(), Internal::domains() ),
 				Studio::site_id(),
 				Studio::client_id()
 			);
@@ -356,6 +356,17 @@ final class Meetings {
 
 		if ( ! $fillable ) {
 			return array();
+		}
+
+		// A series' choice holds from the date it was made on. An earlier date
+		// keeps what it was filled with then; one never filled from the series
+		// is left to the rules below.
+		if ( null !== $choice && (string) ( $row['on_date'] ?? '' ) < (string) ( $choice['from_on'] ?? '' ) ) {
+			if ( self::PREFILL_SERIES === (string) ( $row['prefill'] ?? '' ) ) {
+				return array();
+			}
+
+			$choice = null;
 		}
 
 		if ( null !== $choice && '' !== (string) ( $choice['client_site_id'] ?? '' ) ) {

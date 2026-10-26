@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 50;
+	public const VERSION = 51;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1771,6 +1771,7 @@ final class Schema {
 	client_site_id varchar(32) NOT NULL DEFAULT '',
 	client_id varchar(32) NOT NULL DEFAULT '',
 	off_support tinyint(1) NOT NULL DEFAULT 0,
+	from_on varchar(10) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,

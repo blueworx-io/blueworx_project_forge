@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\Google\Meetings;
+use Blueworx\Forge\Google\SeriesChoice;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -97,5 +98,28 @@ final class GooglePrefillTest extends TestCase {
 
 	public function test_nothing_to_fill_in_changes_nothing(): void {
 		$this->assertSame( array(), Meetings::prefill_changes( $this->row(), null, false, 'cst_s', 'cli_s' ) );
+	}
+
+	public function test_a_series_choice_only_fills_dates_from_where_it_was_made(): void {
+		$choice = array_merge( $this->choice(), array( 'from_on' => '2026-11-01' ) );
+
+		$this->assertSame( array(), Meetings::prefill_changes( $this->row( array( 'on_date' => '2026-10-25' ) ), $choice, false, 'cst_s', 'cli_s' ) );
+		$this->assertSame( 'series', Meetings::prefill_changes( $this->row( array( 'on_date' => '2026-11-01' ) ), $choice, false, 'cst_s', 'cli_s' )['prefill'] );
+	}
+
+	public function test_an_earlier_date_already_filled_from_the_series_keeps_its_client(): void {
+		$choice = array_merge( $this->choice(), array( 'from_on' => '2026-11-01' ) );
+		$row    = $this->row( array( 'on_date' => '2026-10-25', 'client_site_id' => 'cst_a', 'client_id' => 'cli_a', 'prefill' => 'series' ) );
+
+		$this->assertSame( array(), Meetings::prefill_changes( $row, $choice, false, 'cst_s', 'cli_s' ) );
+	}
+
+	public function test_saving_what_forge_filled_in_is_not_a_pick(): void {
+		$studio = array( 'client_site_id' => 'cst_s', 'prefill' => 'studio' );
+
+		$this->assertFalse( SeriesChoice::is_a_pick( $studio, 'cst_s' ) );
+		$this->assertTrue( SeriesChoice::is_a_pick( $studio, 'cst_w' ) );
+		$this->assertTrue( SeriesChoice::is_a_pick( array( 'client_site_id' => 'cst_s', 'prefill' => '' ), 'cst_s' ) );
+		$this->assertTrue( SeriesChoice::is_a_pick( array( 'client_site_id' => '', 'prefill' => '' ), 'cst_s' ) );
 	}
 }

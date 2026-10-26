@@ -258,4 +258,15 @@ final class GoogleEventsTest extends TestCase {
 	public function test_a_one_off_has_no_series_key(): void {
 		$this->assertSame( '', Events::normalise( $this->timed(), $this->zone() )['series_key'] );
 	}
+
+	public function test_an_organiser_from_outside_counts_as_a_guest(): void {
+		$event = Events::normalise( $this->timed( array( 'attendees' => array( array( 'email' => 'me@studio.test', 'self' => true ) ), 'organizer' => array( 'email' => 'boss@client.test' ) ) ), $this->zone() );
+
+		$this->assertContains( 'boss@client.test', array_column( $event['attendees'], 'email' ) );
+		$this->assertFalse( $event['guests_hidden'] );
+	}
+
+	public function test_a_hidden_guest_list_is_said(): void {
+		$this->assertTrue( Events::normalise( $this->timed( array( 'attendeesOmitted' => true ) ), $this->zone() )['guests_hidden'] );
+	}
 }
