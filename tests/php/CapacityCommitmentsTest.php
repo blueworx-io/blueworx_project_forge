@@ -7,6 +7,7 @@
 
 declare( strict_types = 1 );
 
+use Blueworx\Forge\Capacity\Allocations;
 use Blueworx\Forge\Capacity\ClientAnswer;
 use Blueworx\Forge\Capacity\Commitments;
 use Blueworx\Forge\Capacity\Position;
@@ -264,6 +265,91 @@ final class CapacityCommitmentsTest extends TestCase {
 	}
 
 	/*
+	 * #650. Finished work planned after today gives that time back, so it is
+	 * not listed against a day it has no time on either.
+	 */
+	public function test_finished_work_planned_after_today_is_not_listed(): void {
+		$done           = $this->allocation( 'usr_a', 4.0, 'cli_1' );
+		$done['from']   = '2026-09-08';
+		$done['status'] = 'completed';
+
+		$gathered = Commitments::gather( array( $done ), array( 'usr_a' => $this->days() ), '2026-09-07' );
+
+		$this->assertSame( array(), $gathered['usr_a']['completed_by_day'] );
+		$this->assertSame( array(), $gathered['usr_a']['allocations'], 'the panel lists nothing for it' );
+	}
+
+	/**
+	 * Days from one date to another, seven hours on weekdays.
+	 *
+	 * @param string $from First day.
+	 * @param string $to   Last day.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function weekdays( string $from, string $to ): array {
+		$days = array();
+
+		for ( $date = new \DateTimeImmutable( $from ); $date->format( 'Y-m-d' ) <= $to; $date = $date->modify( '+1 day' ) ) {
+			$weekday = (int) $date->format( 'N' ) <= 5;
+			$days[]  = array(
+				'date'       => $date->format( 'Y-m-d' ),
+				'hours'      => $weekday ? 7.0 : 0.0,
+				'base_hours' => $weekday ? 7.0 : 0.0,
+				'reason'     => $weekday ? '' : 'non-working-day',
+			);
+		}
+
+		return $days;
+	}
+
+	/*
+	 * #650. A chore made for Fri 23 Oct, moved to Mon 26 Oct and ticked off
+	 * on Sun 25 Oct. The day's cell (read over a fortnight) and the panel it
+	 * opens (read over that one day) have to show the same time.
+	 */
+	public function test_a_finished_chore_whose_date_moved_reads_the_same_in_cell_and_panel(): void {
+		$moved = array(
+			'id'               => 'wrk_moved',
+			'title'            => 'Clear All Emails — 23 Oct',
+			'client_id'        => 'cli_1',
+			'client_site_id'   => 'cst_1',
+			'stage'            => 'released',
+			'archived'         => 0,
+			'terminal_outcome' => '',
+			'planned_start'    => '2026-10-23',
+			'planned_due'      => '2026-10-26',
+			'assignees'        => '["usr_a"]',
+			'hours_each'       => 0.5,
+		);
+		$today = array_merge(
+			$moved,
+			array(
+				'id'            => 'wrk_today',
+				'title'         => 'Run WordPress Updates Manager — 25 Oct',
+				'planned_start' => '2026-10-25',
+				'planned_due'   => '2026-10-25',
+				'hours_each'    => 0.17,
+			)
+		);
+
+		$allocations = array_merge( Allocations::finished( $moved ), Allocations::finished( $today ) );
+		$fortnight   = $this->weekdays( '2026-10-25', '2026-11-07' );
+		$one_day     = $this->weekdays( '2026-10-25', '2026-10-25' );
+
+		$grid  = Commitments::gather( $allocations, array( 'usr_a' => $fortnight ), '2026-10-25' );
+		$panel = Commitments::gather( $allocations, array( 'usr_a' => $one_day ), '2026-10-25' );
+		$cell  = Position::over( $fortnight, $grid['usr_a']['by_day'], '2026-10-25', '2026-10-25', $grid['usr_a']['completed_by_day'] );
+
+		$this->assertSame( 0.17, $cell['completed'], 'the cell counts the chore done today' );
+		$this->assertSame( 0.17, $panel['usr_a']['completed'], 'and the panel counts the same' );
+
+		$listed = array_sum( array_map( static fn( array $allocation ): float => array_sum( $allocation['by_day'] ), $panel['usr_a']['allocations'] ) );
+
+		$this->assertSame( 0.17, round( $listed, 2 ), 'what the panel lists adds up to the cell' );
+		$this->assertSame( array( 'wrk_today' ), array_column( $panel['usr_a']['allocations'], 'item_id' ) );
+	}
+
+	/*
 	 * #497. Work with the client keeps the days that have been as used, like
 	 * finished work, and leaves the days ahead free.
 	 */
@@ -277,5 +363,22 @@ final class CapacityCommitmentsTest extends TestCase {
 		$this->assertSame( array(), $gathered['usr_a']['by_day'], 'nothing still to do' );
 		$this->assertSame( array( '2026-09-07' => 2.0, '2026-09-08' => 2.0 ), $gathered['usr_a']['completed_by_day'] );
 		$this->assertSame( 'with-client', $gathered['usr_a']['allocations'][0]['status'] );
+	}
+
+	/*
+	 * #650. Unlike finished work, work with the client is still listed when
+	 * all its days are ahead: the panel shows it under With the client, with
+	 * no hours booked.
+	 */
+	public function test_work_with_the_client_planned_after_today_is_still_listed(): void {
+		$waiting           = $this->allocation( 'usr_a', 4.0, 'cli_1' );
+		$waiting['from']   = '2026-09-08';
+		$waiting['status'] = 'with-client';
+
+		$gathered = Commitments::gather( array( $waiting ), array( 'usr_a' => $this->days() ), '2026-09-07' );
+
+		$this->assertSame( array(), $gathered['usr_a']['completed_by_day'] );
+		$this->assertSame( 'with-client', $gathered['usr_a']['allocations'][0]['status'] ?? null );
+		$this->assertSame( array(), $gathered['usr_a']['allocations'][0]['by_day'] );
 	}
 }

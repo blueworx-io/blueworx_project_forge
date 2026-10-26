@@ -341,7 +341,7 @@ export const RULES: RuleSection[] = [
         why: 'Otherwise next week would look emptier than it really is.',
       },
       {
-        what: 'Days missed while nobody opened Forge are still made the next time anyone does, while a paused recurring task skips its days.',
+        what: 'Days missed while nobody opened Forge are still made the next time anyone does, while a paused recurring task skips its days. A day\'s copies are made as soon as that day has begun where you are, even while the site\'s own clock is still on the day before.',
         why: 'Missed chores stay visible instead of quietly disappearing.',
       },
       {
@@ -427,11 +427,11 @@ export const RULES: RuleSection[] = [
         why: 'The plan is read as one day, missed slots included.',
       },
       {
-        what: 'The day is planned once, the first time you open Today. Each task then keeps its slot for the rest of the day, even after its time has passed, until you edit the plan, which plans it again from that moment. The next day is planned afresh.',
-        why: 'A plan that moved every time the clock did would never say what was missed.',
+        what: 'The day is planned once, the first time you open Today, and each task keeps the time it was given for the rest of the day, even after that time has passed. Nothing moves on its own: a meeting or task that arrives later waits beneath the day, a finished task leaves its time open, a task whose hours change keeps its slot, and a meeting that lands on a planned task leaves the task where it is and shows both as a clash. Schedule, beside Edit plan, plans the day again from now by priority and replaces your changes. The next day is planned afresh.',
+        why: 'A plan that moved every time the clock or the work did would never say what was missed, or keep the day you arranged.',
       },
       {
-        what: 'Edit plan lets you move a task up or down, bring one up from either list, or send one down. The order holds for that day on your account, new tasks drop into open time without reshuffling it, and tomorrow starts fresh. The plan never changes a task\'s date, stage, priority or hours.',
+        what: 'Edit plan lets you swap a task with the one before or after it, bring one up from the lists beneath into the first open time from now, or send one down and leave its time open. An edit moves only the tasks it touches, never into time already past, and what you set holds for that day on your account until you edit again or press Schedule. The plan never changes a task\'s date, stage, priority or hours.',
         why: 'The plan is yours to arrange, and it is a view of the work rather than part of it.',
       },
       {
@@ -489,7 +489,7 @@ export const RULES: RuleSection[] = [
     title: 'Capacity and hours',
     rules: [
       {
-        what: 'A task counts against its people\'s time from Up Next until it is finished, each person\'s hours on their own date. A recurring task\'s hours are spread evenly over the working days it covers.',
+        what: 'A task counts against its people\'s time from Up Next until it is finished, each person\'s hours on their own date. A recurring task\'s hours all sit on its due date, even after that date is moved.',
         why: 'Ideas that may never be built shouldn\'t make anyone look busy.',
       },
       {
@@ -501,7 +501,7 @@ export const RULES: RuleSection[] = [
         why: 'The work still has to be done, so today should show it rather than a day that has gone.',
       },
       {
-        what: 'Finished work stays on the days it was planned for up to today, shown in its own colour, while planned days after an early finish become free again.',
+        what: 'Finished work stays on the days it was planned for up to today, shown in its own colour, and a day or week whose time is all finished work says done. Planned days after an early finish become free again, and the work is not listed against them.',
         why: 'A day that was used shouldn\'t look free, but time given back should.',
       },
       {
@@ -727,8 +727,8 @@ export const RULES: RuleSection[] = [
         why: 'The client only signs off at review, and the earlier checks still need someone accountable to give them.',
       },
       {
-        what: 'A task shows in someone\'s My tasks only while it is their turn: the doer\'s until review, the designer\'s at Design Process, the reviewer\'s in review, and the deliverer\'s once Completed. While the client reviews it, it is in nobody\'s My tasks and stays on the Daily standup until it comes back.',
-        why: 'Each person\'s list shows what they need to act on now, and each task appears once. Work in the client\'s hands is not anyone\'s to act on.',
+        what: 'A task shows in someone\'s My tasks only while it is their turn: the doer\'s until review, the designer\'s at Design Process, the reviewer\'s in review, and the deliverer\'s once Completed. Recurring tasks, reminders and tasks made from a reminder are their named people\'s until review, then the reviewer\'s and the deliverer\'s like any other work, staying with their people when there is nobody in that seat. While the client reviews it, it is in nobody\'s My tasks and stays on the Daily standup until it comes back. Cancelled work is in nobody\'s My tasks.',
+        why: 'Each person\'s list shows what they need to act on now, and each task appears once. Work in the client\'s hands, or that has been stopped, is not anyone\'s to act on.',
       },
       {
         what: 'My tasks sorts by due date: Today is due today or late, then Tomorrow, the next seven days, and further out. Undated work is further out. Within a tab, work runs by due date, then priority, urgent first.',

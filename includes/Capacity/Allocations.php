@@ -283,10 +283,12 @@ final class Allocations {
 		/*
 		 * #573. A reminder's time sits on its first day, the day it reaches
 		 * Today, however many days it covers: an assignment is done in a day
-		 * (#513). A chore keeps its own window, which is one day anyway.
+		 * (#513). A chore's sits on its due date (#650): spread over a window
+		 * whose due date had been moved, a one-day read put it on a different
+		 * day from a fortnight's.
 		 */
 		$reminder = Reminders::is_reminder( (string) ( $item['recurring_id'] ?? '' ) );
-		$span     = $reminder ? array( $window[0], $window[0] ) : $window;
+		$span     = $reminder ? array( $window[0], $window[0] ) : array( $window[1], $window[1] );
 
 		if ( $each > 0 ) {
 			foreach ( $assignees as $who ) {

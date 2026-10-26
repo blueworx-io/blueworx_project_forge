@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 // #620. The day planner's placing rules, proven without a browser.
 
-import { DAY_START, DAY_END, planDay, defaultOrder, minuteOfDay, moveInOrder, bringUp, sendDown, hoursText, layOut } from '../../src/dayplan.mjs';
+import { DAY_START, DAY_END, planDay, defaultOrder, minuteOfDay, moveInOrder, bringUp, sendDown, hoursText, layOut, slotsOf, drawDay, swapSlots, placeSlot, dropSlot, slotOrder } from '../../src/dayplan.mjs';
 
 const h = (n) => DAY_START + n * 60; // minutes, n hours after 7am
 const task = (id, hours, extra = {}) => ({ id, hours, priority: 'normal', due: 0, index: 0, ...extra });
@@ -207,4 +207,87 @@ test('a few minutes still gets room to read, and what follows moves down only as
 test('meetings that really overlap stay at their own times (#639)', () => {
   const boxes = layOut([{ id: 'm1', start: h(2), end: h(4) }, { id: 'm2', start: h(3), end: h(4) }], { hourPx: 80, minPx: 32 });
   assert.equal(boxes[1].top, 3 * 80);
+});
+
+// #649. The plan keeps the times it placed each task at. It is drawn from
+// those times, so nothing moves until the person edits it or presses Schedule.
+
+const slot = (id, from, to) => ({ id, start: h(from), end: h(to) });
+
+test('a plan gives the times it placed each task at (#649)', () => {
+  const plan = planDay({ now: 0, meetings: [{ id: 'm', start: h(1), end: h(2) }], tasks: [task('a', 1), task('b', 2)] });
+  assert.deepEqual(slotsOf(plan), [slot('a', 0, 1), slot('b', 2, 4)]);
+});
+
+test('a new day plans afresh: with nothing kept, the first look lays the day out from now (#649)', () => {
+  const plan = planDay({ now: h(2), meetings: [], tasks: [task('a', 1, { priority: 'low' }), task('b', 1, { priority: 'urgent' })] });
+  assert.deepEqual(slotsOf(plan), [slot('b', 2, 3), slot('a', 3, 4)]);
+});
+
+test('a kept plan is drawn at its own times, whatever priority says now (#649)', () => {
+  const day = drawDay({ now: 0, meetings: [], tasks: [task('a', 1, { priority: 'low' }), task('b', 1, { priority: 'urgent' })], slots: [slot('a', 0, 1), slot('b', 1, 2)] });
+  assert.deepEqual(ids(day.segments, 'task'), [`a@${h(0)}-${h(1)}`, `b@${h(1)}-${h(2)}`]);
+  assert.deepEqual(day.placedOrder, ['a', 'b']);
+  assert.equal(day.plannedMins, 120);
+});
+
+test('a task that arrives after the day is planned waits beneath it, and moves nothing (#649)', () => {
+  const day = drawDay({ now: 0, meetings: [], tasks: [task('a', 1), task('new', 1, { priority: 'urgent' }), task('later', 1, { due: 3 }), task('none', 0)], slots: [slot('a', 1, 2)] });
+  assert.deepEqual(ids(day.segments, 'task'), [`a@${h(1)}-${h(2)}`]);
+  assert.deepEqual(day.overflow, ['new', 'later']);
+  assert.deepEqual(day.unset, ['none']);
+  assert.deepEqual(day.attention, ['new']);
+});
+
+test('a finished task leaves its slot open, and later tasks do not slide up (#649)', () => {
+  const day = drawDay({ now: 0, meetings: [], tasks: [task('b', 1)], slots: [slot('a', 0, 1), slot('b', 1, 2)] });
+  assert.deepEqual(ids(day.segments, 'task'), [`b@${h(1)}-${h(2)}`]);
+  assert.deepEqual(ids(day.segments, 'gap'), [`gap@${h(0)}-${h(1)}`, `gap@${h(2)}-${DAY_END}`]);
+});
+
+test('a task whose hours changed keeps its slot (#649)', () => {
+  const day = drawDay({ now: 0, meetings: [], tasks: [task('a', 3), task('b', 0)], slots: [slot('a', 0, 1), slot('b', 1, 2)] });
+  assert.deepEqual(ids(day.segments, 'task'), [`a@${h(0)}-${h(1)}`, `b@${h(1)}-${h(2)}`]);
+  assert.deepEqual(day.unset, []);
+});
+
+test('a meeting that lands on a kept task leaves the task where it is, and both are a clash (#649)', () => {
+  const day = drawDay({ now: 0, meetings: [{ id: 'm', start: h(1), end: h(2) }], tasks: [task('a', 1), task('b', 1)], slots: [slot('a', 0, 1), slot('b', 1, 2)] });
+  assert.deepEqual(ids(day.segments, 'task'), [`a@${h(0)}-${h(1)}`, `b@${h(1)}-${h(2)}`]);
+  assert.deepEqual(day.clashes.overlaps, { tasks: ['b'], meetings: ['m'] });
+  assert.equal(day.clashes.count, 2);
+});
+
+test('a kept task split around a meeting still reads as its parts (#649)', () => {
+  const day = drawDay({ now: 0, meetings: [{ id: 'm', start: h(1), end: h(2) }], tasks: [task('a', 2)], slots: [slot('a', 0, 1), slot('a', 2, 3)] });
+  assert.deepEqual(day.segments.filter((s) => s.type === 'task').map((s) => [s.part, s.parts]), [[1, 2], [2, 2]]);
+  assert.deepEqual(day.clashes.overlaps, { tasks: [], meetings: [] });
+});
+
+test('moving a task up swaps it with the one before, and nothing else moves (#649)', () => {
+  const slots = [slot('a', 0, 1), slot('b', 1, 3), slot('c', 3, 4), slot('d', 5, 6)];
+  const next = swapSlots({ slots, meetings: [], now: 0 }, 'b', 'c');
+  assert.deepEqual(next, [slot('a', 0, 1), slot('c', 1, 2), slot('b', 2, 4), slot('d', 5, 6)]);
+  assert.deepEqual(slotOrder(next), ['a', 'c', 'b', 'd']);
+});
+
+test('a swap never puts work in time already past (#649)', () => {
+  const next = swapSlots({ slots: [slot('a', 1, 2), slot('b', 2, 3)], meetings: [], now: h(4) }, 'a', 'b');
+  assert.deepEqual(next, [slot('b', 4, 5), slot('a', 5, 6)]);
+});
+
+test('a swap works around meetings and other tasks (#649)', () => {
+  const next = swapSlots({ slots: [slot('a', 0, 1), slot('x', 1, 2), slot('b', 3, 5)], meetings: [{ id: 'm', start: h(2), end: h(3) }], now: 0 }, 'a', 'b');
+  assert.deepEqual(next, [slot('b', 0, 1), slot('x', 1, 2), slot('b', 3, 4), slot('a', 4, 5)]);
+});
+
+test('bringing a task up puts it in the first open time from now, and moves nothing else (#649)', () => {
+  const slots = [slot('a', 0, 1), slot('b', 2, 3)];
+  assert.deepEqual(placeSlot({ slots, meetings: [], now: 0 }, 'n', 1), [slot('a', 0, 1), slot('n', 1, 2), slot('b', 2, 3)]);
+  assert.deepEqual(placeSlot({ slots, meetings: [], now: 0 }, 'n', 2), [slot('a', 0, 1), slot('n', 1, 2), slot('b', 2, 3), slot('n', 3, 4)]);
+  assert.equal(placeSlot({ slots, meetings: [], now: h(11) + 30 }, 'n', 1), null, 'too long for the time left');
+});
+
+test('sending a task down leaves its slot open (#649)', () => {
+  assert.deepEqual(dropSlot([slot('a', 0, 1), slot('b', 1, 2)], 'a'), [slot('b', 1, 2)]);
 });

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, ArrowUpToLine, ArrowDownToLine, Handshake, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpToLine, ArrowDownToLine, CalendarClock, Handshake, TriangleAlert } from 'lucide-react';
 import type { DiaryEntry } from '../types';
 import { api } from '../api';
 import { Button, Card, StageChip, Tag } from '../kit';
 import { DiaryLine, daysOf, useDiary } from './Diary';
 import { todayIso } from '../calendar';
 import { PRIORITY_TONE } from '../priority';
-import { bringUp, clockText, DAY_END, DAY_START, hoursText, layOut, minuteOfDay, moveInOrder, planDay, sendDown } from '../dayplan.mjs';
+import { clockText, DAY_END, DAY_START, drawDay, dropSlot, hoursText, layOut, minuteOfDay, placeSlot, planDay, slotOrder, slotsOf, swapSlots } from '../dayplan.mjs';
 import type { Mine, Role } from '../mytasks';
 
 /*
@@ -16,7 +16,8 @@ import type { Mine, Role } from '../mytasks';
  * Meetings sit at their times (in the viewer's own zone), tasks fill the open
  * time by priority, and what does not fit, or has no hours, sits beneath.
  * It is a view: it never changes a task. The placing rules live in
- * src/dayplan.mjs; the only thing kept is the order a person sets (#620).
+ * src/dayplan.mjs. #649: the times each task was placed at are kept, and the
+ * day is drawn from them, so nothing moves until it is edited or scheduled.
  */
 
 const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
@@ -45,6 +46,14 @@ interface Saved {
   down: string[];
   /** When the day was planned, in minutes from midnight; null until it is (#635). */
   start: number | null;
+  /** Where each task was placed (#649); null for a plan kept before then. */
+  slots: Slot[] | null;
+}
+
+interface Slot {
+  id: string;
+  start: number;
+  end: number;
 }
 
 interface Meeting {
@@ -83,7 +92,8 @@ function TaskBlock( {
   one: Mine;
   part?: number;
   parts?: number;
-  clash?: boolean;
+  /** What the clash is, if the block has one. */
+  clash?: string;
   editing?: boolean;
   actions?: ReactNode;
   onOpen: ( itemId: string ) => void;
@@ -114,7 +124,7 @@ function TaskBlock( {
           { parts && 1 < parts && <span className="bwx-day-part">{ `Part ${ part } of ${ parts }` }</span> }
           { clash && (
             <span className="bwx-day-clash" data-testid="bwx-day-clash">
-              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> Due, and no room today
+              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> { clash }
             </span>
           ) }
         </span>
@@ -138,6 +148,7 @@ function TaskBlock( {
 
 export function DayPlanner( {
   rows,
+  onToday,
   me,
   onOpen,
   filtered,
@@ -145,6 +156,8 @@ export function DayPlanner( {
 }: {
   /** The Today tab's rows, already narrowed by the search, role and client. */
   rows: Mine[];
+  /** Every row on Today, filters aside (#649): a kept slot whose task is not here has finished. */
+  onToday: Set< string >;
   me: { id: string } | null;
   onOpen: ( itemId: string ) => void;
   /** Whether a filter is narrowing the day, so an empty day can say so. */
@@ -154,7 +167,7 @@ export function DayPlanner( {
 } ) {
   const day = todayIso();
   const [ now, setNow ] = useState( () => new Date() );
-  const [ saved, setSaved ] = useState< Saved >( { order: [], down: [], start: null } );
+  const [ saved, setSaved ] = useState< Saved >( { order: [], down: [], start: null, slots: null } );
   const [ editing, setEditing ] = useState( false );
   const [ said, setSaid ] = useState( '' );
   // Whether the saved order has been read. The day draws at once in the
@@ -171,7 +184,7 @@ export function DayPlanner( {
     let live = true;
     api< Saved >( `/day-plan?day=${ day }`, { cache: 'fresh' } )
       .then( ( answer ) => {
-        if ( live ) setSaved( { order: answer.order ?? [], down: answer.down ?? [], start: answer.start ?? null } );
+        if ( live ) setSaved( { order: answer.order ?? [], down: answer.down ?? [], start: answer.start ?? null, slots: answer.slots ?? null } );
       } )
       .catch( () => undefined )
       .finally( () => {
@@ -235,38 +248,71 @@ export function DayPlanner( {
     [ rows ]
   );
 
-  // The day is planned once (#635): from when it was first planned, so a task
-  // keeps its slot as the day goes on, even once its time has passed. An edit
-  // plans it again from now, and the next day starts afresh.
+  // The day is planned once (#635), and #649 keeps the time each task was
+  // placed at: the day is drawn from those times, so a new meeting or task, a
+  // finished one or changed hours moves nothing. An edit changes only what it
+  // touches, Schedule plans the day again from now, and the next day starts afresh.
   const planStart = saved.start ?? nowMins;
-  const compute = ( order: string[], down: string[], from = planStart ) =>
-    planDay( { now: from, meetings: meetings.map( ( one ) => ( { id: one.id, start: one.start, end: one.end } ) ), tasks, order, down, away } );
-  const plan = useMemo( () => compute( saved.order, saved.down ), [ meetings, tasks, saved, planStart, away ] ); // eslint-disable-line react-hooks/exhaustive-deps
+  const times = useMemo( () => meetings.map( ( one ) => ( { id: one.id, start: one.start, end: one.end } ) ), [ meetings ] );
+  const fresh = ( from: number, order: string[] = [], down: string[] = [] ) => planDay( { now: from, meetings: times, tasks, order, down, away } );
+  const plan = useMemo(
+    () => ( null !== saved.slots ? drawDay( { now: planStart, meetings: times, tasks, slots: saved.slots, away } ) : fresh( planStart, saved.order, saved.down ) ),
+    [ times, tasks, saved, planStart, away ] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // What an edit works from: a finished task's time is open again, while a
+  // task a filter is hiding keeps its own.
+  const slots: Slot[] = ( saved.slots ?? slotsOf( plan ) ).filter( ( one ) => onToday.has( one.id ) || byId.has( one.id ) );
 
-  async function keep( next: { order: string[]; down: string[] }, note = '' ) {
-    setSaved( { ...next, start: nowMins } );
+  async function keep( next: Slot[], down: string[], note = '', start = planStart ) {
+    const order = slotOrder( next );
+    setSaved( { order, down, start, slots: next } );
     setSaid( note );
     try {
-      await api( '/day-plan', { method: 'PUT', body: { day, order: next.order, down: next.down, start: nowMins } } );
+      await api( '/day-plan', { method: 'PUT', body: { day, order, down, start, slots: next } } );
     } catch {
       setSaid( 'Your change could not be saved.' );
     }
   }
 
-  // The first look at a day plans it, and that plan is kept.
+  // The first look at a day plans it, and that plan is kept. A plan kept
+  // before #649 has its order but no times: it is laid out once more from
+  // when it was planned, and kept from then on.
   useEffect( () => {
-    if ( loaded && null === saved.start ) void keep( { order: compute( saved.order, saved.down, nowMins ).placedOrder, down: saved.down } );
-  }, [ loaded, saved.start ] ); // eslint-disable-line react-hooks/exhaustive-deps
+    if ( ! loaded || ! diary.ready || null !== saved.slots ) return;
+    const from = saved.start ?? nowMins;
+    void keep( slotsOf( fresh( from, saved.order, saved.down ) ), saved.down, '', from );
+  }, [ loaded, diary.ready, saved.slots ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // #649. Plans the day again from now, by priority, and replaces every edit.
+  function schedule() {
+    void keep( slotsOf( fresh( nowMins ) ), [], 'Your day has been planned again from now.', nowMins );
+  }
+
+  // Into the first open time from now; nothing else moves (#649).
   function bring( id: string, hasHours: boolean ) {
-    const next = bringUp( { order: plan.placedOrder, down: saved.down }, id );
-    const fits = hasHours && ! compute( next.order, next.down, nowMins ).overflow.includes( id );
-    void keep( next, hasHours && ! fits ? 'That one is longer than the open time left today.' : '' );
-    if ( ! hasHours ) onOpen( byId.get( id )?.item.id ?? '' );
+    if ( ! hasHours ) {
+      onOpen( byId.get( id )?.item.id ?? '' );
+      return;
+    }
+    const next = placeSlot( { slots, meetings: times, now: nowMins }, id, byId.get( id )?.hours ?? 0 );
+    if ( null === next ) setSaid( 'That one is longer than the open time left today.' );
+    else void keep( next, saved.down.filter( ( one ) => one !== id ) );
+  }
+
+  // Swaps a task with the one before or after it in the day (#649).
+  function move( id: string, delta: number ) {
+    const at = plan.placedOrder.indexOf( id );
+    const other = plan.placedOrder[ at + delta ];
+    if ( at < 0 || undefined === other ) return;
+    const [ first, second ] = delta < 0 ? [ other, id ] : [ id, other ];
+    void keep( swapSlots( { slots, meetings: times, now: nowMins }, first, second ), saved.down );
   }
 
   const meetingById = new Map( meetings.map( ( one ) => [ one.id, one ] ) );
   const clashing = new Set( [ ...plan.clashes.meetings, ...plan.clashes.tasks ] );
+  // #649. A meeting that arrived on top of a kept task: both stay put, flagged.
+  const onTasks = new Set< string >( plan.clashes.overlaps.meetings );
+  const onMeetings = new Set< string >( plan.clashes.overlaps.tasks );
 
   // The whole day, always (#637).
   const hours: number[] = [];
@@ -302,7 +348,7 @@ export function DayPlanner( {
           { ids.map( ( id: string ) => {
             const one = byId.get( id );
             if ( ! one ) return null;
-            return <TaskBlock key={ id } one={ one } where={ kind } clash={ 'overflow' === kind && plan.clashes.tasks.includes( id ) } editing={ editing } onOpen={ onOpen } actions={ editing ? bringButton( id, one.item.title ) : undefined } />;
+            return <TaskBlock key={ id } one={ one } where={ kind } clash={ 'overflow' === kind && plan.clashes.tasks.includes( id ) ? 'Due, and no room today' : undefined } editing={ editing } onOpen={ onOpen } actions={ editing ? bringButton( id, one.item.title ) : undefined } />;
           } ) }
         </section>
       </Card>
@@ -343,16 +389,16 @@ export function DayPlanner( {
       if ( ! one ) return null;
       const rest = one.entry.detail.replace( /^\d{1,2}:\d{2}\s*·?\s*/, '' );
       return (
-        <div className="bwx-day-meeting" data-testid="bwx-day-meeting" data-meeting={ one.entry.id } data-clash={ clashing.has( seg.id ) ? 'true' : undefined }>
+        <div className="bwx-day-meeting" data-testid="bwx-day-meeting" data-meeting={ one.entry.id } data-clash={ clashing.has( seg.id ) || onTasks.has( seg.id ) ? 'true' : undefined }>
           <Handshake size={ 16 } strokeWidth={ 1.75 } aria-hidden="true" />
           <span className="bwx-day-meeting-body">
             <span className="bwx-day-meeting-title">{ one.entry.title }</span>
             <span className="bwx-day-meeting-when bwx-mono">{ `${ clockText( one.start ) }–${ clockText( one.end ) }` }</span>
             { '' !== rest && <span className="bwx-muted">{ rest }</span> }
           </span>
-          { clashing.has( seg.id ) && (
+          { ( clashing.has( seg.id ) || onTasks.has( seg.id ) ) && (
             <span className="bwx-day-clash" data-testid="bwx-day-clash">
-              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> Overlaps another
+              <TriangleAlert size={ 14 } strokeWidth={ 1.75 } aria-hidden="true" /> { clashing.has( seg.id ) ? 'Overlaps another' : 'Overlaps a task' }
             </span>
           ) }
         </div>
@@ -368,19 +414,20 @@ export function DayPlanner( {
         one={ one }
         part={ seg.part }
         parts={ seg.parts }
+        clash={ onMeetings.has( seg.id ) ? 'Overlaps a meeting' : undefined }
         editing={ editing }
         where="day"
         onOpen={ onOpen }
         actions={
           editing && 1 === seg.part ? (
             <>
-              <Button variant="ghost" size="sm" data-testid="bwx-day-up" aria-label={ `Move ${ label } up` } disabled={ 0 === at } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, -1 ), down: saved.down } ) }>
+              <Button variant="ghost" size="sm" data-testid="bwx-day-up" aria-label={ `Move ${ label } up` } disabled={ 0 === at } onClick={ () => move( seg.id, -1 ) }>
                 <ArrowUp size={ 14 } aria-hidden="true" /> Up
               </Button>
-              <Button variant="ghost" size="sm" data-testid="bwx-day-down" aria-label={ `Move ${ label } down` } disabled={ at === plan.placedOrder.length - 1 } onClick={ () => void keep( { order: moveInOrder( plan.placedOrder, seg.id, 1 ), down: saved.down } ) }>
+              <Button variant="ghost" size="sm" data-testid="bwx-day-down" aria-label={ `Move ${ label } down` } disabled={ at === plan.placedOrder.length - 1 } onClick={ () => move( seg.id, 1 ) }>
                 <ArrowDown size={ 14 } aria-hidden="true" /> Down
               </Button>
-              <Button variant="ghost" size="sm" data-testid="bwx-day-senddown" aria-label={ `Send ${ label } down to Doesn't fit today` } onClick={ () => void keep( sendDown( { order: plan.placedOrder, down: saved.down }, seg.id ) ) }>
+              <Button variant="ghost" size="sm" data-testid="bwx-day-senddown" aria-label={ `Send ${ label } down to Doesn't fit today` } onClick={ () => void keep( dropSlot( slots, seg.id ), [ ...saved.down.filter( ( one ) => one !== seg.id ), seg.id ] ) }>
                 <ArrowDownToLine size={ 14 } aria-hidden="true" /> Send down
               </Button>
             </>
@@ -395,7 +442,7 @@ export function DayPlanner( {
   const clashes = plan.clashes.count;
 
   return (
-    <div className="bwx-day" data-testid="bwx-day" data-ready={ loaded ? 'true' : 'false' } data-editing={ editing ? 'true' : undefined }>
+    <div className="bwx-day" data-testid="bwx-day" data-ready={ loaded && diary.ready ? 'true' : 'false' } data-editing={ editing ? 'true' : undefined }>
       <div className="bwx-day-bar">
         <p className="bwx-day-summary" data-testid="bwx-day-summary">
           <span>{ `${ taskCount } ${ 1 === taskCount ? 'task' : 'tasks' } planned` }</span>
@@ -413,9 +460,14 @@ export function DayPlanner( {
             </span>
           ) }
         </p>
-        <Button variant="secondary" size="sm" data-testid="bwx-day-edit" aria-pressed={ editing } onClick={ () => setEditing( ! editing ) }>
-          { editing ? 'Done editing' : 'Edit plan' }
-        </Button>
+        <span className="bwx-day-tools">
+          <Button variant="secondary" size="sm" data-testid="bwx-day-schedule" title="Plan the day again from now. This replaces your changes." disabled={ ! loaded || ! diary.ready } onClick={ schedule }>
+            <CalendarClock size={ 14 } aria-hidden="true" /> Schedule
+          </Button>
+          <Button variant="secondary" size="sm" data-testid="bwx-day-edit" aria-pressed={ editing } onClick={ () => setEditing( ! editing ) }>
+            { editing ? 'Done editing' : 'Edit plan' }
+          </Button>
+        </span>
       </div>
 
       { '' !== said && (

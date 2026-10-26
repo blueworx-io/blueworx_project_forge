@@ -2201,6 +2201,11 @@ body {
   color: var( --text-primary );
 }
 
+/* #650. Beside a figure that is all finished work. */
+.bwx-capacity-all-done {
+  color: var( --color-steel );
+}
+
 .bwx-capacity-of {
   color: var( --color-fog );
 }
@@ -4160,6 +4165,8 @@ td[ data-band='over' ] {
   gap: 12px;
   flex-wrap: wrap;
 }
+/* #649. Schedule, then Edit plan, together at the end of the bar. */
+.bwx-day-tools { display: inline-flex; align-items: center; gap: 8px; }
 .bwx-day-summary {
   display: flex;
   flex-wrap: wrap;

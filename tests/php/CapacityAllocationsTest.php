@@ -27,8 +27,8 @@ final class CapacityAllocationsTest extends TestCase {
 	 * @return array<string, mixed>
 	 */
 	/**
-	 * Ten hours over the working week, as a recurring chore's allocation is:
-	 * the one kind still spread across days (#513).
+	 * Ten hours over the working week. Nothing Forge makes runs over days
+	 * any more (#650), but spread() still answers for one that does.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -268,7 +268,11 @@ final class CapacityAllocationsTest extends TestCase {
 		$this->assertSame( array( '2026-09-11' => 10.0 ), Allocations::spread( $allocation, $this->week() ) );
 	}
 
-	public function test_a_recurring_chore_keeps_its_window(): void {
+	/*
+	 * #650. A chore is done in a day, so its time sits on its due date — even
+	 * once that date has been moved and the chore runs over several days.
+	 */
+	public function test_a_recurring_chore_sits_on_its_due_date(): void {
 		$allocations = Allocations::from_item(
 			$this->item(
 				array(
@@ -279,7 +283,7 @@ final class CapacityAllocationsTest extends TestCase {
 		);
 
 		$this->assertSame( 'assignee', $allocations[0]['role'] );
-		$this->assertSame( '2026-09-07', $allocations[0]['from'] );
+		$this->assertSame( '2026-09-11', $allocations[0]['from'] );
 		$this->assertSame( '2026-09-11', $allocations[0]['to'] );
 	}
 

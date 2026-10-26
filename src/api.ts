@@ -1,5 +1,6 @@
 import type { ForgeData, GateCheck, Requirement } from './types';
 import { announce, clear, newestAt, read, shouldRevalidate, subscribe, touch, write } from './cache.mjs';
+import { todayIso } from './calendar';
 
 /**
  * Everything this app knows about the server it is running on.
@@ -253,6 +254,8 @@ async function fetchJson< T >(
     headers: {
       ...( form ? {} : { 'Content-Type': 'application/json' } ),
       'X-WP-Nonce': data.nonce,
+      // #648. The browser's today, so its recurring tasks are made on time.
+      'X-Bwx-Forge-Today': todayIso(),
     },
     credentials: 'same-origin',
     body: undefined === options.body ? undefined : form ? options.body : JSON.stringify( options.body ),

@@ -144,6 +144,11 @@ function fill( position: CapacityPosition ): { done: number; todo: number } {
   return { done: whole * ( position.completed / used ), todo: whole * ( position.committed / used ) };
 }
 
+/** Some time used, and none of it still to do (#650). */
+function allDone( position: CapacityPosition ): boolean {
+  return 0 >= position.committed && 0 < position.completed;
+}
+
 /**
  * The hours of one allocation that land in the window the panel is about.
  * An allocation can run for a fortnight; the day panel answers for its day.
@@ -394,7 +399,7 @@ export function CapacityScreen( { person = '' }: { person?: string } ) {
                         type="button"
                         className="bwx-capacity-cell"
                         data-testid={ `bwx-capacity-cell-${ person.user_id }-${ cell.from }` }
-                        aria-label={ `${ person.display_name }, ${ 'days' === data.by ? '' : 'week of ' }${ cell.from }: ${ BAND_WORD[ cell.band ] }` }
+                        aria-label={ `${ person.display_name }, ${ 'days' === data.by ? '' : 'week of ' }${ cell.from }: ${ BAND_WORD[ cell.band ] }${ allDone( cell ) ? ', all done' : '' }` }
                         onClick={ () => void openCell( person.user_id, cell.from, cell.to ) }
                       >
                         <Cell cell={ cell } />
@@ -458,6 +463,12 @@ function Figures( { position }: { position: CapacityPosition } ) {
       title={ `${ durationLabel( position.committed ) } still to do, ${ durationLabel( position.completed ) } done, of ${ durationLabel( position.available ) }` }
     >
       <span className="bwx-capacity-committed">{ durationLabel( position.committed + position.completed ) }</span>
+      { /* #650. Time that is all finished says so, rather than reading as open time. */ }
+      { allDone( position ) && (
+        <span className="bwx-capacity-all-done" data-testid="bwx-capacity-all-done">
+          done
+        </span>
+      ) }
       <span className="bwx-capacity-of">/ { durationLabel( position.available ) }</span>
     </span>
   );

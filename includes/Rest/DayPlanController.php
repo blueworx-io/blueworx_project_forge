@@ -15,8 +15,8 @@ use WP_REST_Response;
 
 /**
  * #620. Outside the tenant boundary for the same reason saved views are: it is
- * held against a WordPress account, carries task ids and nothing else, and one
- * person's is not reachable from another's request.
+ * held against a WordPress account, carries task ids and the times they are
+ * planned at (#649), and one person's is not reachable from another's request.
  */
 final class DayPlanController {
 
@@ -28,7 +28,7 @@ final class DayPlanController {
 	public static function register_routes( string $route_namespace ): void {
 		$scope = array(
 			'kind'   => Boundary::SCOPE_OPEN,
-			'reason' => 'The order a person sets on their own day, held against their WordPress account. It carries task ids and nothing else, and one person\'s is not reachable from another\'s request.',
+			'reason' => 'The order a person sets on their own day, held against their WordPress account. It carries task ids and the times they are planned at, and one person\'s is not reachable from another\'s request.',
 		);
 
 		Server::register_route(
@@ -79,7 +79,7 @@ final class DayPlanController {
 		$body = (array) $request->get_json_params();
 		$day  = (string) ( $body['day'] ?? '' );
 
-		if ( ! DayPlan::save( get_current_user_id(), $day, (array) ( $body['order'] ?? array() ), (array) ( $body['down'] ?? array() ), $body['start'] ?? null ) ) {
+		if ( ! DayPlan::save( get_current_user_id(), $day, (array) ( $body['order'] ?? array() ), (array) ( $body['down'] ?? array() ), $body['start'] ?? null, $body['slots'] ?? null ) ) {
 			return Errors::rest( 'plan_not_saved', __( 'That plan could not be saved. It needs a day.', 'blueworx-forge' ), 400 );
 		}
 

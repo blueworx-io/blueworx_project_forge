@@ -80,23 +80,18 @@ export function mineFor( person: { id: string }, siteList: Site[], items: WorkIt
     if ( ! site ) continue;
     const due = daysUntil( item.planned_due || item.derived_due || '' );
 
-    // A recurring chore names its people rather than seats (2026-09-18):
-    // one row for you, with your own tick on it, and nothing else.
-    if ( 0 < ( item.assignees?.length ?? 0 ) ) {
-      if ( item.assignees.includes( person.id ) ) {
-        const reminder = ( item.recurring_id ?? '' ).startsWith( 'rem_' );
-        found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null, ticked: undefined !== ( item.ticks ?? {} )[ person.id ] } );
-      }
-      continue;
-    }
+    // #648. Cancelled, rejected or a duplicate is over: nobody's to do.
+    // Deferred is still open, back at Future idea.
+    if ( '' !== ( item.terminal_outcome ?? '' ) && 'deferred' !== item.terminal_outcome ) continue;
 
     // #517. While the client reviews it, it is in nobody's hands here: it
     // stays on the standup, and comes back to a person's list once it
     // leaves the client.
     if ( 'in-review' === item.stage && CLIENT_REVIEWER === item.reviewer_id ) continue;
 
-    // Otherwise one row, for whoever's stage it is (2026-09-24).
+    // One row, for whoever's stage it is (2026-09-24).
     const seat = responsible( item );
+    if ( null === seat ) continue;
     const seats: Record< Exclude< Role, 'assignee' >, [ string, number ] > = {
       primary: [ item.primary_user_id, item.hours_primary ],
       designer: [ item.designer_id ?? '', item.hours_designer ?? 0 ],
@@ -104,7 +99,20 @@ export function mineFor( person: { id: string }, siteList: Site[], items: WorkIt
       deliverer: [ item.deliverer_id, item.hours_delivery ],
     };
 
-    if ( null !== seat && 'assignee' !== seat && seats[ seat ][ 0 ] === person.id ) {
+    // A recurring task or reminder names its people rather than an owner
+    // (2026-09-18): a row for each, with their own tick on it. #648. Only
+    // while it is the owner's turn, or its seat is empty: in review or once
+    // completed it is the checker's or builder's, like any other work.
+    const named = 0 < ( item.assignees?.length ?? 0 );
+    if ( named && ( 'primary' === seat || '' === ( seats[ seat ][ 0 ] ?? '' ) ) ) {
+      if ( item.assignees.includes( person.id ) ) {
+        const reminder = ( item.recurring_id ?? '' ).startsWith( 'rem_' );
+        found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null, ticked: undefined !== ( item.ticks ?? {} )[ person.id ] } );
+      }
+      continue;
+    }
+
+    if ( seats[ seat ][ 0 ] === person.id ) {
       found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due, reminder: false, starts: null, ticked: false } );
     }
   }
