@@ -75,9 +75,10 @@ test('a person connects Google Calendar from their own page, then settles a meet
   test.slow();
 
   await putEvents(page.request, who, [
-    timedEvent(`ev${RUN}`, `uid${RUN}@google.com`, `${YESTERDAY}T12:00:00Z`, 45, { summary: `Client call ${RUN}` }),
+    timedEvent(`ev${RUN}`, `uid${RUN}@google.com`, `${YESTERDAY}T12:00:00Z`, 45, { summary: `Client call ${RUN}`, attendees: [{ email: `guest${RUN}@example.test` }] }),
   ]);
-  await page.request.post('/wp-json/bwx-forge-test/v1/google/next', { data: { who } });
+  // Backdated, so yesterday's call comes across (#657).
+  await page.request.post('/wp-json/bwx-forge-test/v1/google/next', { data: { who, since: '2000-01-01' } });
 
   await signIn(page, person.login, PASSWORD);
   // The app reads its hash once, as it loads, so each screen is a fresh load.

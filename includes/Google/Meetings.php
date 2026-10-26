@@ -170,7 +170,7 @@ final class Meetings {
 			$fill = self::prefill_changes(
 				$stored,
 				SeriesChoice::get( (string) $stored['series_key'] ),
-				false,
+				Internal::is_internal( (array) $event['attendees'], Internal::staff_emails(), Internal::domains() ),
 				Studio::site_id(),
 				Studio::client_id()
 			);

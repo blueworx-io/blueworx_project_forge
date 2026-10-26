@@ -12,6 +12,8 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
 const SECRET = `GOCSPX-secret-${RUN}`;
 const DAY = 86400000;
+// A client on the invitation, so a meeting is not studio time (#657).
+const GUEST = [{ email: `guest${RUN}@example.test`, responseStatus: 'accepted' }];
 
 /** A day some days from today, as YYYY-MM-DD. */
 function day(offset) {
@@ -107,7 +109,7 @@ test('a person connects their own calendar and every event comes across', async 
   test.slow();
 
   await putEvents(as.alice.context.request, who.alice, [
-    timedEvent(`a1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}` }),
+    timedEvent(`a1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}`, attendees: GUEST }),
     timedEvent(`a2${RUN}`, `u2${RUN}@google.com`, noon(-1, 14), 60, {
       summary: `Declined ${RUN}`,
       attendees: [{ email: `${who.alice}@studio.test`, self: true, responseStatus: 'declined' }],
@@ -165,7 +167,7 @@ test('the same invitation on two connected calendars is one meeting with both pe
   test.slow();
 
   await putEvents(as.bob.context.request, who.bob, [
-    timedEvent(`b1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}` }),
+    timedEvent(`b1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}`, attendees: GUEST }),
   ]);
 
   const page = await as.bob.context.newPage();
@@ -421,4 +423,35 @@ test.describe('a recurring meeting', () => {
     expect(all[2].status).toBe('held');
     expect(all[3].site_id).toBe(other.id);
   });
+});
+
+// #657. A meeting with only studio staff on it fills itself in as studio time.
+test('an all-staff meeting arrives as studio time, and goes back when a guest is added', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const handle = `gf${RUN}`;
+  const person = await makePerson(admin.api, client.id, 'staff', handle);
+  const fay = await signedIn(browser, baseURL, person.login, PASSWORD);
+  const title = `Studio huddle ${RUN}`;
+  const staffOnly = [
+    { email: `${handle}@studio.test`, self: true, responseStatus: 'accepted' },
+    { email: `${who.bob}@studio.test`, responseStatus: 'accepted' },
+  ];
+
+  await putEvents(fay.context.request, handle, [timedEvent(`f1${RUN}`, `uf1${RUN}@google.com`, noon(2), 60, { summary: title, attendees: staffOnly })]);
+  const page = await fay.context.newPage();
+  expect(await connectGoogle(page, fay.api, handle)).toContain('google=connected');
+
+  const studio = await meetingTitled(title, day(0), day(5));
+  expect(studio.site_id).not.toBe('');
+  expect(studio.site_id).not.toBe(site.id);
+  expect(studio.needs_settling).toBe(true);
+  expect(studio.status).toBe('scheduled');
+
+  await putEvents(fay.context.request, handle, [{ id: `f1${RUN}`, attendees: [...staffOnly, { email: `client${RUN}@example.test`, responseStatus: 'needsAction' }] }]);
+  await syncNow(fay);
+
+  expect((await meetingTitled(title, day(0), day(5))).site_id).toBe('');
+
+  await fay.context.close();
 });
