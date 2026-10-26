@@ -40,6 +40,16 @@ final class Meetings {
 	public const PERSON_PREFIX = 'gmp';
 
 	/**
+	 * A client filled in from the series' remembered choice (#657).
+	 */
+	public const PREFILL_SERIES = 'series';
+
+	/**
+	 * Studio time filled in for an all-staff meeting (#657).
+	 */
+	public const PREFILL_STUDIO = 'studio';
+
+	/**
 	 * Brings one event from one person's calendar into Forge.
 	 *
 	 * @param string               $user_id Forge person id.
@@ -72,6 +82,7 @@ final class Meetings {
 
 		$now    = bwx_forge_now();
 		$fields = array(
+			'series_key'    => (string) ( $event['series_key'] ?? '' ),
 			'title'         => (string) $event['title'],
 			'description'   => (string) $event['description'],
 			'attendees'     => (string) wp_json_encode( (array) $event['attendees'] ),
@@ -273,6 +284,8 @@ final class Meetings {
 			'client_site_id' => $site_id,
 			'client_id'      => $client_id,
 			'off_support'    => $off_support ? 1 : 0,
+			// A person's pick is never a pre-fill.
+			'prefill'        => '',
 			'settled_by'     => $actor,
 			'settled_at'     => $now,
 			'updated_at'     => $now,
@@ -577,6 +590,8 @@ final class Meetings {
 		return array(
 			'id'             => (string) $row['id'],
 			'share_key'      => (string) $row['share_key'],
+			'series_key'     => (string) ( $row['series_key'] ?? '' ),
+			'prefill'        => (string) ( $row['prefill'] ?? '' ),
 			'title'          => (string) $row['title'],
 			'description'    => (string) ( $row['description'] ?? '' ),
 			'attendees'      => is_array( $attendees ) ? $attendees : array(),
@@ -591,8 +606,9 @@ final class Meetings {
 			'client_site_id' => (string) $row['client_site_id'],
 			'client_id'      => (string) $row['client_id'],
 			'off_support'    => 1 === (int) $row['off_support'],
-			// Settled: somebody picked a client, or said what became of it.
-			'settled'        => '' !== (string) $row['client_site_id'] || Occurrence::SCHEDULED !== $status,
+			// Settled: somebody picked a client, or said what became of it. A
+			// client Forge filled in by itself is nobody's pick (#657).
+			'settled'        => ( '' !== (string) $row['client_site_id'] && '' === (string) ( $row['prefill'] ?? '' ) ) || Occurrence::SCHEDULED !== $status,
 			'status'         => $status,
 			'status_label'   => Occurrence::label( $status ),
 			'ledger_state'   => (string) $row['ledger_state'],

@@ -227,4 +227,35 @@ final class GoogleEventsTest extends TestCase {
 		$this->assertStringStartsWith( 'Agenda ', $event['description'] );
 		$this->assertLessThanOrEqual( Events::MAX_DESCRIPTION, mb_strlen( $event['description'] ) );
 	}
+
+	public function test_occurrences_of_one_series_share_a_series_key(): void {
+		$first  = Events::normalise(
+			$this->timed(
+				array(
+					'id'                => 'evt1_20261026T100000Z',
+					'recurringEventId'  => 'evt1',
+					'originalStartTime' => array( 'dateTime' => '2026-10-26T10:00:00+00:00' ),
+				)
+			),
+			$this->zone()
+		);
+		$second = Events::normalise(
+			$this->timed(
+				array(
+					'id'                => 'evt1_20261102T100000Z',
+					'recurringEventId'  => 'evt1',
+					'originalStartTime' => array( 'dateTime' => '2026-11-02T10:00:00+00:00' ),
+				)
+			),
+			$this->zone()
+		);
+
+		$this->assertNotSame( '', $first['series_key'] );
+		$this->assertSame( $first['series_key'], $second['series_key'] );
+		$this->assertNotSame( $first['share_key'], $second['share_key'] );
+	}
+
+	public function test_a_one_off_has_no_series_key(): void {
+		$this->assertSame( '', Events::normalise( $this->timed(), $this->zone() )['series_key'] );
+	}
 }

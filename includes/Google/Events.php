@@ -62,6 +62,7 @@ final class Events {
 		$out = array(
 			'event_id'      => $id,
 			'share_key'     => self::share_key( $item ),
+			'series_key'    => self::series_key( $item ),
 			'cancelled'     => $cancelled,
 			'title'         => '' === trim( (string) ( $item['summary'] ?? '' ) ) ? __( '(No title)', 'blueworx-forge' ) : mb_substr( trim( (string) $item['summary'] ), 0, 191 ),
 			'description'   => mb_substr( trim( wp_strip_all_tags( (string) ( $item['description'] ?? '' ) ) ), 0, self::MAX_DESCRIPTION ),
@@ -136,6 +137,25 @@ final class Events {
 		}
 
 		return md5( $key );
+	}
+
+	/**
+	 * The key every meeting in one recurring series shares (#657), or '' for
+	 * a one-off: the share key without the instance's start.
+	 *
+	 * @param array<string, mixed> $item The event.
+	 * @return string 32 hex characters, or ''.
+	 */
+	private static function series_key( array $item ): string {
+		$series = (string) ( $item['recurringEventId'] ?? '' );
+
+		if ( '' === $series ) {
+			return '';
+		}
+
+		$uid = (string) ( $item['iCalUID'] ?? '' );
+
+		return md5( '' === $uid ? $series : $uid );
 	}
 
 	/**

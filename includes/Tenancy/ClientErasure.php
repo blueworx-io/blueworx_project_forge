@@ -78,6 +78,7 @@ final class ClientErasure {
 			array( Schema::meeting_occurrences_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::meeting_series_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::google_meetings_table(), 'client_site_id', self::BY_SITE ),
+			array( Schema::google_series_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::onboarding_step_events_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::onboarding_evidence_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::onboarding_steps_table(), 'client_site_id', self::BY_SITE ),
