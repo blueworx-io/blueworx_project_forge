@@ -13,6 +13,7 @@ commits and pull requests.
 ### Fixed
 
 - My tasks draws every task and meeting at its real time and length. Short tasks are slim lines and no longer push longer work into the wrong slot, and meetings that overlap sit side by side.
+- On a phone, a Google meeting on Daily standup fits the screen even when client names are long.
 
 ## [2.214.2] - 2026-10-26
 
