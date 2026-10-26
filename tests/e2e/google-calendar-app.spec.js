@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { signedIn, makeSite, makePerson, onSupport, hourLedger, PASSWORD } from './helpers/forge.js';
 import { signIn } from '../helpers/sign-in.js';
-import { installGoogleStub, removeGoogleStub, putEvents, timedEvent } from './helpers/google.js';
+import { installGoogleStub, removeGoogleStub, putEvents, timedEvent, connectGoogle } from './helpers/google.js';
 
 // #606, in the app: a person connects Google Calendar from their own page and
 // settles a synced meeting from the standup, choosing its client and whether
@@ -36,6 +36,39 @@ test.beforeAll(async ({ browser, baseURL }) => {
 test.afterAll(async () => {
   await admin?.context.close();
   removeGoogleStub();
+});
+
+// #654. First, and with a person of its own, so it stands on its own.
+test('a Google meeting at 1pm sits at 1pm on My tasks (#654)', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const planner = `gp${RUN}`;
+  const them = await makePerson(admin.api, client.id, 'staff', planner);
+  const as = await signedIn(browser, baseURL, them.login, PASSWORD);
+  const page = await as.context.newPage();
+
+  expect(await connectGoogle(page, as.api, planner)).toContain('google=connected');
+
+  // 1pm today where the browser is, which is the day My tasks draws.
+  const onePm = await page.evaluate(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 13, 0).toISOString();
+  });
+
+  await putEvents(page.request, planner, [timedEvent(`one${RUN}`, `one${RUN}@google.com`, onePm, 60, { summary: `One o'clock ${RUN}` })]);
+  const synced = await as.api.post('/me/google/sync', { force: true });
+  expect(synced.status(), await synced.text()).toBe(200);
+
+  // The app reads its hash once, as it loads.
+  await page.goto('/blueworx-forge/#screen=mytasks');
+  await page.reload();
+  const meeting = page.getByTestId('bwx-day-meeting').filter({ hasText: `One o'clock ${RUN}` });
+  await expect(meeting).toBeVisible({ timeout: 90000 });
+
+  // 80px an hour from 7am: six hours down.
+  await expect(meeting.locator('xpath=ancestor::div[contains(@class, "bwx-day-item")][1]')).toHaveCSS('top', '480px');
+
+  await as.context.close();
 });
 
 test('a person connects Google Calendar from their own page, then settles a meeting from the standup', async ({ page }) => {
@@ -77,3 +110,4 @@ test('a person connects Google Calendar from their own page, then settles a meet
   expect(usage).toHaveLength(1);
   expect(Math.abs(usage[0][1])).toBe(1);
 });
+

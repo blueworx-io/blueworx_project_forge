@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.214.3] - 2026-10-26
+
+### Fixed
+
+- My tasks draws every task and meeting at its real time and length. Short tasks are slim lines and no longer push longer work into the wrong slot, and meetings that overlap sit side by side.
+- On a phone, a Google meeting on Daily standup fits the screen even when client names are long.
+
+## [2.214.2] - 2026-10-26
+
+### Fixed
+
+- Opening Updates clears its count straight away, instead of after a wait on a busy page.
+
 ## [2.214.1] - 2026-10-25
 
 ### Fixed

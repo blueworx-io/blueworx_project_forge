@@ -427,7 +427,7 @@ export const RULES: RuleSection[] = [
         why: 'The plan is read as one day, missed slots included.',
       },
       {
-        what: 'The day is planned once, the first time you open Today, and each task keeps the time it was given for the rest of the day, even after that time has passed. Nothing moves on its own: a meeting or task that arrives later waits beneath the day, a finished task leaves its time open, a task whose hours change keeps its slot, and a meeting that lands on a planned task leaves the task where it is and shows both as a clash. Schedule, beside Edit plan, plans the day again from now by priority and replaces your changes. The next day is planned afresh.',
+        what: 'The day is planned once, the first time you open Today, and each task keeps the time it was given for the rest of the day, even after that time has passed. Nothing moves on its own: a meeting or task that arrives later waits beneath the day, a finished task leaves its time open, a task whose hours change keeps its slot, and a meeting that lands on a planned task leaves the task where it is and shows both as a clash. Schedule, beside Edit plan, plans the day again from now by priority and replaces your changes. The next day is planned afresh. Everything is drawn at its real time and length, so pieces can overlap, and meetings that overlap sit side by side.',
         why: 'A plan that moved every time the clock or the work did would never say what was missed, or keep the day you arranged.',
       },
       {

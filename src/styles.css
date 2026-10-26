@@ -4211,6 +4211,9 @@ td[ data-band='over' ] {
 .bwx-day-item[ data-short='true' ] .bwx-day-meeting,
 .bwx-day-item[ data-short='true' ] .bwx-day-gap { flex-wrap: nowrap; align-items: center; padding-top: 0; padding-bottom: 0; }
 .bwx-day-item[ data-short='true' ] .bwx-day-block-main { flex: 1 1 auto; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* A slim line, under about a quarter of an hour: smaller type, so it fits its slot (#656). */
+.bwx-day-item[ data-slim='true' ] .bwx-day-block { font-size: var( --text-small ); line-height: 1; }
+.bwx-day-item[ data-slim='true' ] .bwx-day-block * { font-size: inherit; line-height: inherit; }
 .bwx-day-item[ data-short='true' ] .bwx-day-block-facts > :not( .bwx-day-hours, .bwx-mytasks-due ) { display: none; }
 .bwx-day-item[ data-short='true' ] .bwx-day-meeting-body > .bwx-muted { display: none; }
 .bwx-day-gap {
@@ -4790,11 +4793,15 @@ select.bwx-select,
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  /* A long client name must not take the row past a phone's width (#654). */
+  min-width: 0;
+  max-width: 100%;
 }
 .bwx-google-settle .fk-input {
   width: auto;
-  min-width: 12rem;
+  min-width: min( 12rem, 100% );
   max-width: 100%;
+  text-overflow: ellipsis;
 }
 .bwx-google-settle-support {
   display: inline-flex;
