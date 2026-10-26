@@ -227,6 +227,33 @@ final class Meetings {
 	}
 
 	/**
+	 * A person's copies from before their start date go, unless the meeting
+	 * has been settled (#657): that time was accounted for by hand.
+	 *
+	 * @param string $user_id Forge person id.
+	 * @param string $start   YYYY-MM-DD.
+	 */
+	public static function forget_before( string $user_id, string $start ): void {
+		foreach ( self::copies_of( $user_id ) as $copy ) {
+			if ( (string) $copy['on_date'] >= $start ) {
+				continue;
+			}
+
+			$meeting = self::get( (string) $copy['meeting_id'] );
+
+			if ( null !== $meeting && $meeting['settled'] ) {
+				continue;
+			}
+
+			self::delete_copy( (string) $copy['id'] );
+
+			if ( null !== $meeting && array() === self::people_of( array( (string) $meeting['id'] ) ) ) {
+				self::remove( $meeting );
+			}
+		}
+	}
+
+	/**
 	 * Settles a meeting: its client site, whether its time comes off
 	 * support, and optionally what became of it.
 	 *

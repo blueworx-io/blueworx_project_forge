@@ -92,15 +92,18 @@ final class Sync {
 	}
 
 	/**
-	 * The window a full read covers.
+	 * The window a full read covers. It never starts before the person's
+	 * start date (#657).
 	 *
+	 * @param string $user_id Forge person id, or '' for the usual window.
 	 * @return array{0: string, 1: string} YYYY-MM-DD, inclusive.
 	 */
-	public static function window(): array {
+	public static function window( string $user_id = '' ): array {
 		$today = ( new \DateTimeImmutable( 'now', wp_timezone() ) )->format( 'Y-m-d' );
+		$back  = gmdate( 'Y-m-d', (int) strtotime( $today . ' 00:00:00 UTC' ) - ( self::BACK_DAYS * DAY_IN_SECONDS ) );
 
 		return array(
-			gmdate( 'Y-m-d', (int) strtotime( $today . ' 00:00:00 UTC' ) - ( self::BACK_DAYS * DAY_IN_SECONDS ) ),
+			Starts::window_from( $back, '' === $user_id ? '' : Starts::of( $user_id ) ),
 			MeetingHours::horizon_end( $today ),
 		);
 	}
@@ -114,7 +117,7 @@ final class Sync {
 	 * @return true|\WP_Error
 	 */
 	private static function read( string $user_id, string $access, bool $full ) {
-		list( $from, $to ) = self::window();
+		list( $from, $to ) = self::window( $user_id );
 
 		$zone  = wp_timezone();
 		$query = $full
@@ -172,6 +175,13 @@ final class Sync {
 
 		if ( $full ) {
 			Meetings::drop_unseen( $user_id, $seen, $from, $to );
+		}
+
+		// Anything from before the start date that is already here goes.
+		$start = Starts::of( $user_id );
+
+		if ( '' !== $start ) {
+			Meetings::forget_before( $user_id, $start );
 		}
 
 		Connections::synced( $user_id, $token, $full );

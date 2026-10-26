@@ -133,6 +133,7 @@ final class OAuth {
 		}
 
 		Connections::connect( (string) $person['id'], $wp_user_id, $email, $tokens );
+		Starts::record( (string) $person['id'] );
 		Sync::run( (string) $person['id'], true );
 
 		return 'connected';

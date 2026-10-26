@@ -43,9 +43,13 @@ export async function expireSyncToken(request, who) {
 /**
  * Connects a person's calendar the way they would: ask Forge for Google's
  * address, follow it, and land back on their page.
+ *
+ * A first connection is their start date, and nothing before it comes
+ * across (#657). `since` backdates it, so a spec's past events still do;
+ * null keeps the real one, today.
  */
-export async function connectGoogle(page, api, who) {
-  await page.request.post(`${STUB}/next`, { data: { who } });
+export async function connectGoogle(page, api, who, { since = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10) } = {}) {
+  await page.request.post(`${STUB}/next`, { data: { who, since: since ?? '' } });
 
   const started = await api.post('/me/google/connect', {});
   if (200 !== started.status()) throw new Error(await started.text());

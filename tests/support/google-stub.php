@@ -181,6 +181,33 @@ add_filter(
 	3
 );
 
+// #657. A first connection records today as the start date; a spec that
+// asked for an earlier one, so its past events still come across, gets it.
+add_filter(
+	'pre_update_option_bwx_forge_google_starts',
+	static function ( $value, $old ) {
+		global $wpdb;
+
+		$state = bwx_forge_google_stub_state();
+		$value = is_array( $value ) ? $value : array();
+		$table = \Blueworx\Forge\Data\Schema::google_connections_table();
+
+		foreach ( array_keys( array_diff_key( $value, is_array( $old ) ? $old : array() ) ) as $user_id ) {
+			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT email FROM {$table} WHERE id = %s", $user_id ) );
+			$who   = strstr( $email, '@studio.test', true );
+			$since = false === $who ? '' : (string) ( $state['since'][ $who ] ?? '' );
+
+			if ( '' !== $since ) {
+				$value[ $user_id ] = $since;
+			}
+		}
+
+		return $value;
+	},
+	10,
+	2
+);
+
 add_action(
 	'rest_api_init',
 	static function (): void {
@@ -224,6 +251,10 @@ add_action(
 				'callback'            => static function ( WP_REST_Request $request ) {
 					$state         = bwx_forge_google_stub_state();
 					$state['next'] = sanitize_key( (string) $request->get_param( 'who' ) );
+					$since         = (string) $request->get_param( 'since' );
+
+					// #657. The start date their first connection records.
+					$state['since'][ $state['next'] ] = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $since ) ? $since : '';
 					bwx_forge_google_stub_save( $state );
 
 					return new WP_REST_Response( array( 'ok' => true ), 200 );

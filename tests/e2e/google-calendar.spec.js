@@ -27,6 +27,7 @@ test.describe.configure({ mode: 'serial' });
 
 let admin;
 let site;
+let client;
 let alice;
 let bob;
 let carol;
@@ -59,6 +60,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
   admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const where = await makeSite(admin.api, 'Google Calendar', RUN);
   site = where.site;
+  client = where.client;
   await onSupport(admin, site.id, 200);
 
   alice = await makePerson(admin.api, where.client.id, 'staff', who.alice);
@@ -297,4 +299,31 @@ test('disconnecting stops the sync and removes only unsettled meetings', async (
   expect(titles).toContain(`Kick-off ${RUN}`);
   expect(titles).not.toContain(`Declined ${RUN}`);
   expect(titles).not.toContain(`Afterwards ${RUN}`);
+});
+
+test('a meeting before the person first connected never shows, even after reconnecting', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const handle = `gd${RUN}`;
+  const dave = await makePerson(admin.api, client.id, 'staff', handle);
+  const as_dave = await signedIn(browser, baseURL, dave.login, PASSWORD);
+
+  await putEvents(as_dave.context.request, handle, [
+    timedEvent(`d1${RUN}`, `ud1${RUN}@google.com`, noon(-3), 60, { summary: `Before ${RUN}` }),
+    timedEvent(`d2${RUN}`, `ud2${RUN}@google.com`, noon(1), 60, { summary: `After ${RUN}` }),
+  ]);
+
+  const titles = async () => (await googleEntries(admin.api, day(-5), day(5))).map((entry) => entry.title).filter((title) => title.endsWith(RUN) && (title.startsWith('Before') || title.startsWith('After')));
+
+  const page = await as_dave.context.newPage();
+  expect(await connectGoogle(page, as_dave.api, handle, { since: null })).toContain('google=connected');
+  expect(await titles()).toEqual([`After ${RUN}`]);
+
+  // A reconnect keeps the first day, so the earlier meeting stays away.
+  expect((await as_dave.api.del('/me/google')).status()).toBe(200);
+  expect(await connectGoogle(page, as_dave.api, handle, { since: null })).toContain('google=connected');
+  await syncNow(as_dave);
+  expect(await titles()).toEqual([`After ${RUN}`]);
+
+  await as_dave.context.close();
 });
