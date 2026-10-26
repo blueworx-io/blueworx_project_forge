@@ -488,6 +488,69 @@ final class Meetings {
 	}
 
 	/**
+	 * One site's meetings in a window, with who is on each (#657), pre-filled
+	 * ones included.
+	 *
+	 * @param string $site_id The site.
+	 * @param string $from    YYYY-MM-DD, inclusive.
+	 * @param string $to      YYYY-MM-DD, inclusive.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function for_site( string $site_id, string $from, string $to ): array {
+		global $wpdb;
+
+		if ( '' === $site_id || $to < $from ) {
+			return array();
+		}
+
+		$table = Schema::google_meetings_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s AND on_date >= %s AND on_date <= %s ORDER BY on_date ASC, at_time ASC, id ASC", $site_id, $from, $to ), ARRAY_A );
+
+		return self::with_people( is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * The day of a site's earliest meeting, or ''.
+	 *
+	 * @param string $site_id The site.
+	 * @return string YYYY-MM-DD, or ''.
+	 */
+	public static function earliest_for_site( string $site_id ): string {
+		global $wpdb;
+
+		$table = Schema::google_meetings_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT MIN(on_date) FROM {$table} WHERE client_site_id = %s", $site_id ) );
+	}
+
+	/**
+	 * Every site with a meeting: how many were marked held, and their hours.
+	 *
+	 * @return array<string, array{meetings: int, held_hours: float}> By site id.
+	 */
+	public static function held_by_site(): array {
+		global $wpdb;
+
+		$table = Schema::google_meetings_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS meetings, SUM(CASE WHEN status = %s THEN planned_hours ELSE 0 END) AS held_hours FROM {$table} WHERE client_site_id <> '' GROUP BY client_site_id", Occurrence::HELD, Occurrence::HELD ), ARRAY_A );
+		$out  = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['client_site_id'] ] = array(
+				'meetings'   => (int) $row['meetings'],
+				'held_hours' => (float) $row['held_hours'],
+			);
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Settled meetings whose hours might need moving: still holding, or
 	 * coming up inside the horizon.
 	 *

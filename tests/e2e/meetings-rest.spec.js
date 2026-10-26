@@ -383,10 +383,9 @@ test('meetings that have passed are listed twelve weeks at a time, newest first,
   expect(after.past.meetings.find((one) => one.slot === last.slot).status).toBe('held');
 });
 
-// #383. "All Clients": a flat list across every site in reach, batched
-// (G1's Series::for_sites and Diary::stored_between), with no twelve-week
-// view and no week grouping.
-test('GET /meetings lists standing meetings across every site in reach', async () => {
+// #657. "All clients": one row per site with meetings, with the all-time
+// hours of the meetings marked held there. Batched, never a query per site.
+test('GET /meetings lists every client with meetings, and their held hours', async () => {
   const alpha = (await makeSite(api, 'All clients alpha', `${RUN_ID}-aca`)).site;
   const beta = (await makeSite(api, 'All clients beta', `${RUN_ID}-acb`)).site;
   await onSupport({ api }, alpha.id, GRANTED);
@@ -400,19 +399,16 @@ test('GET /meetings lists standing meetings across every site in reach', async (
   const all = await api.get('/meetings');
   expect(all.ok).toBe(true);
 
-  const alphaRow = all.meetings.find((one) => one.title === `Alpha standing ${RUN_ID}`);
-  const betaRow = all.meetings.find((one) => one.title === `Beta standing ${RUN_ID}`);
+  const alphaRow = all.clients.find((one) => one.client_site_id === alpha.id);
+  const betaRow = all.clients.find((one) => one.client_site_id === beta.id);
   expect(alphaRow, 'alpha is listed').toBeTruthy();
   expect(betaRow, 'beta is listed').toBeTruthy();
 
-  expect(alphaRow.client_site_id).toBe(alpha.id);
   expect(alphaRow.site_name).toBe(alpha.name);
-  expect(alphaRow.host_name).toBe(host.user.display_name);
-  expect(alphaRow.frequency_label).toBe('Every week');
-  expect(alphaRow.next_on).toBe(first);
-
-  expect(betaRow.client_site_id).toBe(beta.id);
-  expect(betaRow.site_name).toBe(beta.name);
+  expect(alphaRow.client_name).toBe(`All clients alpha ${RUN_ID}-aca`);
+  expect(alphaRow.held_hours).toBe(0);
+  // Nothing has been held there yet.
+  expect(alphaRow.meetings).toBe(0);
 });
 
 test('a Manager reads every client\'s meetings only as far as they reach', async ({ browser, baseURL }) => {
@@ -424,7 +420,7 @@ test('a Manager reads every client\'s meetings only as far as they reach', async
   expect(read.status()).toBe(200);
 
   const reached = (await other.api.get('/client-sites')).sites.map((one) => one.id);
-  for (const row of (await read.json()).meetings) {
+  for (const row of (await read.json()).clients) {
     expect(reached).toContain(row.client_site_id);
   }
 

@@ -455,3 +455,99 @@ test('an all-staff meeting arrives as studio time, and goes back when a guest is
 
   await fay.context.close();
 });
+
+// #657. The Meetings page shows Google meetings beside manual ones.
+test.describe('the Meetings page', () => {
+  const handle = `gh${RUN}`;
+  let hal;
+  let page_site;
+
+  const manual = (title, startsOn, minutes) => ({
+    title,
+    frequency: 'weekly',
+    starts_on: startsOn,
+    ends_on: '',
+    time_of_day: '10:00',
+    duration_mins: minutes,
+    timezone: 'Europe/London',
+    host_user_id: alice.id,
+    attendees: '',
+    planned_hours: 0,
+  });
+
+  const settle = async (title, body) => {
+    const meeting = await meetingTitled(title, day(-6), day(6));
+    const answer = await admin.api.post(`/google-meetings/${meeting.google_id}/settle`, { client_site_id: page_site.id, off_support: false, ...body });
+    expect(answer.status(), await answer.text()).toBe(200);
+
+    return meeting;
+  };
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    test.setTimeout(300000);
+    const made = await makeSite(admin.api, 'Google page', RUN);
+    page_site = made.site;
+    // Carol works on this client, but is on none of its meetings.
+    const member = await admin.api.post(`/clients/${made.client.id}/memberships`, { user_id: carol.id, role: 'staff' });
+    expect(member.status(), await member.text()).toBeLessThan(300);
+    await onSupport(admin, page_site.id, 200);
+
+    const person = await makePerson(admin.api, client.id, 'staff', handle);
+    hal = await signedIn(browser, baseURL, person.login, PASSWORD);
+    await putEvents(hal.context.request, handle, [
+      timedEvent(`h1${RUN}`, `uh1${RUN}@google.com`, noon(1), 60, { summary: `Coming review ${RUN}`, attendees: GUEST }),
+      timedEvent(`h2${RUN}`, `uh2${RUN}@google.com`, noon(-3), 30, { summary: `Past review ${RUN}`, attendees: GUEST }),
+      timedEvent(`h3${RUN}`, `uh3${RUN}@google.com`, noon(2), 60, { summary: `Private chat ${RUN}`, attendees: GUEST, visibility: 'private' }),
+    ]);
+
+    const page = await hal.context.newPage();
+    expect(await connectGoogle(page, hal.api, handle)).toContain('google=connected');
+    await page.close();
+
+    await settle(`Coming review ${RUN}`, {});
+    await settle(`Past review ${RUN}`, { status: 'held' });
+    await settle(`Private chat ${RUN}`, {});
+  });
+
+  test.afterAll(async () => {
+    await hal?.context.close();
+  });
+
+  test('a site\'s meetings include its Google meetings', async () => {
+    const answer = await admin.api.get(`/client-sites/${page_site.id}/meetings`);
+
+    const coming = answer.meetings.find((one) => one.title === `Coming review ${RUN}`);
+    expect(coming.source).toBe('google');
+    expect(coming.on).toBe(day(1));
+    expect(coming.status).toBe('scheduled');
+
+    const past = answer.past.meetings.find((one) => one.title === `Past review ${RUN}`);
+    expect(past.source).toBe('google');
+    expect(past.status).toBe('held');
+  });
+
+  test('every client lists its all-time held meeting hours', async () => {
+    const started = day(-7);
+    const made = await admin.api.post(`/client-sites/${page_site.id}/meetings/series`, manual(`Manual ${RUN}`, started, 60));
+    expect(made.status(), await made.text()).toBe(200);
+    const series = (await made.json()).added;
+    const held = await admin.api.post(`/client-sites/${page_site.id}/meetings/${series.id}/${started}/settle`, { status: 'held' });
+    expect(held.status(), await held.text()).toBe(200);
+
+    const all = await admin.api.get('/meetings');
+    expect(all.ok).toBe(true);
+    const row = all.clients.find((one) => one.client_site_id === page_site.id);
+    expect(row.held_hours).toBe(1.5);
+    expect(row.site_name).toBe(page_site.name);
+  });
+
+  test('a private Google meeting reads Busy to somebody not on it', async () => {
+    const read = await as.carol.api.request.get(`/wp-json/blueworx-forge/v1/client-sites/${page_site.id}/meetings`, { headers: as.carol.api.headers });
+    expect(read.status(), await read.text()).toBe(200);
+
+    const titles = (await read.json()).meetings.filter((one) => 'google' === one.source).map((one) => one.title);
+    expect(titles).toContain(`Coming review ${RUN}`);
+    expect(titles).toContain('Busy');
+    expect(titles).not.toContain(`Private chat ${RUN}`);
+  });
+});

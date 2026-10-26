@@ -10,6 +10,9 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\Google\Hours as GoogleHours;
+use Blueworx\Forge\Google\Matching;
+use Blueworx\Forge\Google\Meetings as GoogleMeetings;
 use Blueworx\Forge\Meetings\Diary;
 use Blueworx\Forge\Meetings\Events;
 use Blueworx\Forge\Meetings\Hours;
@@ -157,99 +160,56 @@ final class MeetingsController {
 	}
 
 	/**
-	 * Every running standing meeting, across every client site in reach, flat
-	 * (#383): the "All Clients" pick on the studio's picker. No twelve-week
-	 * view and no week grouping — one row per series, with the next meeting
-	 * its own rule implies, if the horizon catches one.
+	 * Every client site in reach that has meetings (#657): one row each,
+	 * with the meetings marked held there and their hours, all time, manual
+	 * and Google together. The picker's "All Clients" (#383).
 	 *
-	 * **Batched, never a query per site** (the brief this exists to satisfy).
-	 * One query lists the sites in reach, one lists their series
-	 * ({@see Series::for_sites()}), one lists the stored exceptions touching
-	 * the horizon ({@see Diary::stored_between()}), and the rest — expanding
-	 * each series' rule and merging it with what was actually stored — is
-	 * worked out in memory, exactly as a single site's read already does it
-	 * per series.
+	 * **Batched, never a query per site**: one read of the sites in reach,
+	 * one of their series ({@see Series::for_sites()}), and one sum each of
+	 * the held manual and Google meetings.
 	 *
 	 * @return WP_REST_Response
 	 */
 	public static function index_all(): WP_REST_Response {
 		$reach = Boundary::current();
 		$sites = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
+		$rows  = array();
 
-		if ( array() === $sites ) {
-			return rest_ensure_response(
-				array(
-					'ok'       => true,
-					'meetings' => array(),
-				)
-			);
-		}
+		if ( array() !== $sites ) {
+			$by_site = array_column( $sites, null, 'id' );
+			$names   = array_column( Clients::all( null ), 'display_name', 'id' );
+			$manual  = Diary::held_by_site();
+			$google  = GoogleMeetings::held_by_site();
+			$any     = array_flip( array_merge( array_column( Series::for_sites( array_keys( $by_site ) ), 'client_site_id' ), array_keys( $manual ), array_keys( $google ) ) );
 
-		$by_site  = array_column( $sites, null, 'id' );
-		$site_ids = array_keys( $by_site );
+			foreach ( array_keys( $any ) as $site_id ) {
+				$site = $by_site[ (string) $site_id ] ?? null;
 
-		$names = array();
+				if ( null === $site ) {
+					continue;
+				}
 
-		foreach ( Clients::all( null ) as $client ) {
-			$names[ (string) $client['id'] ] = (string) $client['display_name'];
-		}
-
-		// Read once, the same way $names is: every host named on the list,
-		// looked up in one query rather than one per series (the brief's
-		// "a handful of queries", not one per row).
-		$hosts = array();
-
-		foreach ( Users::all( null ) as $user ) {
-			$hosts[ (string) $user['id'] ] = (string) $user['display_name'];
-		}
-
-		$today  = gmdate( 'Y-m-d' );
-		$to     = MeetingHours::horizon_end( $today );
-		$stored = Diary::stored_between( $today, $to, $site_ids );
-
-		$rows = array();
-
-		foreach ( Series::for_sites( $site_ids ) as $series ) {
-			// Only what is still standing. An ended series generates nothing
-			// new (Series::occurrences() agrees), and a list of "standing
-			// meetings" is no place for one that has stopped.
-			if ( Series::ACTIVE !== (string) $series['state'] ) {
-				continue;
+				$rows[] = array(
+					'client_site_id' => (string) $site['id'],
+					'client_id'      => (string) $site['client_id'],
+					'client_name'    => (string) ( $names[ (string) $site['client_id'] ] ?? '' ),
+					'site_name'      => (string) $site['name'],
+					'meetings'       => (int) ( $manual[ $site_id ]['meetings'] ?? 0 ) + (int) ( $google[ $site_id ]['meetings'] ?? 0 ),
+					'held_hours'     => round( (float) ( $manual[ $site_id ]['held_hours'] ?? 0 ) + (float) ( $google[ $site_id ]['held_hours'] ?? 0 ), 2 ),
+				);
 			}
 
-			$site = $by_site[ (string) $series['client_site_id'] ] ?? null;
-
-			if ( null === $site ) {
-				continue;
-			}
-
-			$merged = Occurrence::merge(
-				Series::occurrences( $series, $today, $to ),
-				$stored[ (string) $series['id'] ] ?? array(),
-				$today,
-				$to
+			usort(
+				$rows,
+				static fn( array $a, array $b ): int =>
+					array( strtolower( $a['client_name'] ), strtolower( $a['site_name'] ) ) <=> array( strtolower( $b['client_name'] ), strtolower( $b['site_name'] ) )
 			);
-
-			$row                = self::series( $series, $hosts );
-			$row['client_name'] = $names[ (string) $series['client_id'] ] ?? '';
-			$row['site_name']   = (string) $site['name'];
-			// The nearest thing the horizon catches, cheaply — the same
-			// expansion the row above the fold already paid for, read first.
-			$row['next_on'] = isset( $merged[0]['on'] ) ? (string) $merged[0]['on'] : null;
-
-			$rows[] = $row;
 		}
-
-		usort(
-			$rows,
-			static fn( array $a, array $b ): int =>
-				array( $a['client_name'], $a['site_name'], $a['title'] ) <=> array( $b['client_name'], $b['site_name'], $b['title'] )
-		);
 
 		return rest_ensure_response(
 			array(
-				'ok'       => true,
-				'meetings' => $rows,
+				'ok'      => true,
+				'clients' => $rows,
 			)
 		);
 	}
@@ -605,15 +565,16 @@ final class MeetingsController {
 			$rows[] = self::meeting( $meeting, $by_id[ (string) $meeting['series_id'] ] ?? array() );
 		}
 
-		// Older pages exist while any series started before this one does.
-		$earliest = array_filter( array_column( $all, 'starts_on' ) );
+		// Older pages exist while any series started before this one does, or
+		// any Google meeting was (#657).
+		$earliest = array_filter( array_merge( array_column( $all, 'starts_on' ), array( GoogleMeetings::earliest_for_site( $site_id ) ) ) );
 
 		return array(
 			'page'     => $page,
 			'from'     => $from,
 			'to'       => $to,
 			'more'     => array() !== $earliest && min( $earliest ) < $from,
-			'meetings' => $rows,
+			'meetings' => self::merged( $rows, self::google_rows( $site_id, $from, $to ), true ),
 		);
 	}
 
@@ -792,7 +753,8 @@ final class MeetingsController {
 				'name' => (string) $site['name'],
 			),
 			'series'   => array_map( array( self::class, 'series' ), $all ),
-			'meetings' => $meetings,
+			// #657. Google meetings given to this site sit among them.
+			'meetings' => self::merged( $meetings, self::google_rows( $id, $today, $to ), false ),
 			'horizon'  => array(
 				'from' => $today,
 				'to'   => $to,
@@ -806,6 +768,101 @@ final class MeetingsController {
 				Users::ours()
 			),
 		);
+	}
+
+	/**
+	 * A site's Google meetings in a window, as the screen shows them (#657):
+	 * left out when a manual standing meeting already stands for one, and
+	 * "Busy" when private to somebody neither on it nor administering Forge.
+	 * Their hours are settled first, so "Hours held" is current.
+	 *
+	 * @param string $site_id The site.
+	 * @param string $from    YYYY-MM-DD.
+	 * @param string $to      YYYY-MM-DD.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function google_rows( string $site_id, string $from, string $to ): array {
+		$meetings = GoogleMeetings::for_site( $site_id, $from, $to );
+
+		if ( array() === $meetings ) {
+			return array();
+		}
+
+		$slots = Matching::standing_slots( $from, $to );
+		$admin = Permissions::manage();
+		$me    = Users::by_wp_user( get_current_user_id() );
+		$my_id = null === $me ? '' : (string) $me['id'];
+		$names = array_column( Users::all( null ), 'display_name', 'id' );
+		$rows  = array();
+
+		foreach ( $meetings as $meeting ) {
+			if ( Matching::skipped( $meeting, $slots ) ) {
+				continue;
+			}
+
+			if ( GoogleHours::settle_one( $meeting, get_current_user_id() ) > 0 ) {
+				$meeting = GoogleMeetings::get( (string) $meeting['id'] ) ?? $meeting;
+			}
+
+			$on_it  = '' !== $my_id && in_array( $my_id, array_column( $meeting['people'], 'user_id' ), true );
+			$hidden = $meeting['private'] && ! $on_it && ! $admin;
+			$title  = $hidden ? __( 'Busy', 'blueworx-forge' ) : (string) $meeting['title'];
+			$people = array();
+
+			foreach ( $meeting['people'] as $person ) {
+				$name     = (string) ( $names[ (string) $person['user_id'] ] ?? '' );
+				$people[] = 'declined' === (string) $person['response'] ? sprintf( '%s (declined)', $name ) : $name;
+			}
+
+			$rows[] = array(
+				'id'             => (string) $meeting['id'],
+				'source'         => 'google',
+				'google_id'      => (string) $meeting['id'],
+				'series_id'      => '',
+				'series_title'   => $title,
+				'title'          => $title,
+				'slot'           => '',
+				'on'             => (string) $meeting['on'],
+				'time'           => (string) $meeting['at'],
+				'status'         => (string) $meeting['status'],
+				'status_label'   => Occurrence::label( (string) $meeting['status'] ),
+				'hours'          => (float) $meeting['planned_hours'],
+				'ledger_state'   => (string) $meeting['ledger_state'],
+				'excepted_from'  => null,
+				'moved'          => false,
+				'private'        => $hidden,
+				'off_support'    => (bool) $meeting['off_support'],
+				'can_settle'     => $admin || $on_it,
+				'site_id'        => (string) $meeting['client_site_id'],
+				'people'         => $hidden ? array() : array_values( array_filter( $people ) ),
+				'needs_settling' => GoogleMeetings::needs_settling( $meeting ),
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Manual and Google meetings as one list, by day and time.
+	 *
+	 * @param array<int, array<string, mixed>> $manual Manual rows.
+	 * @param array<int, array<string, mixed>> $google Google rows.
+	 * @param bool                             $newest Newest first.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function merged( array $manual, array $google, bool $newest ): array {
+		$all = array_merge( $manual, $google );
+
+		usort(
+			$all,
+			static function ( array $a, array $b ) use ( $newest ): int {
+				$order = array( $a['on'], $a['time'] ) <=> array( $b['on'], $b['time'] );
+
+				return $newest ? -$order : $order;
+			}
+		);
+
+		return $all;
 	}
 
 	/**
@@ -859,6 +916,7 @@ final class MeetingsController {
 
 		return array(
 			'id'            => '' === $id ? null : $id,
+			'source'        => 'forge',
 			'series_id'     => (string) $meeting['series_id'],
 			'series_title'  => (string) ( $series['title'] ?? '' ),
 			'slot'          => '' !== $from ? $from : (string) $meeting['on'],
