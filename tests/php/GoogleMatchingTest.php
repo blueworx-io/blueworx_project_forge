@@ -9,6 +9,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\Capacity\Allocations;
+use Blueworx\Forge\Google\Hours;
 use Blueworx\Forge\Google\Load;
 use Blueworx\Forge\Google\Matching;
 use Blueworx\Forge\Google\Meetings;
@@ -167,5 +168,12 @@ final class GoogleMatchingTest extends TestCase {
 		$made = Load::allocations( array( $this->meeting( array( 'status' => 'held', 'client_site_id' => 'cs_a' ) ) ), array(), 'cl', 'cs' );
 
 		$this->assertSame( Allocations::DONE, $made[0]['status'] );
+	}
+
+	public function test_a_hidden_prefilled_copy_holds_no_hours(): void {
+		$copy = $this->meeting( array( 'client_site_id' => 'cst_x', 'client_id' => 'cli_x', 'prefill' => 'series' ) );
+
+		$this->assertSame( '', Hours::as_held( $copy, array( $this->slot( array( 'usr_a' ) ) ) )['client_site_id'] );
+		$this->assertSame( 'cst_x', Hours::as_held( $copy, array() )['client_site_id'] );
 	}
 }

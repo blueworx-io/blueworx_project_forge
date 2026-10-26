@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 49;
+	public const VERSION = 51;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -468,6 +468,17 @@ final class Schema {
 	}
 
 	/**
+	 * The client remembered for each recurring Google meeting (#657).
+	 *
+	 * @return string
+	 */
+	public static function google_series_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_google_series';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -534,6 +545,7 @@ final class Schema {
 		$gcal_links    = self::google_connections_table();
 		$gcal_meetings = self::google_meetings_table();
 		$gcal_people   = self::google_people_table();
+		$gcal_series   = self::google_series_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -1698,6 +1710,8 @@ final class Schema {
 			$gcal_meetings    => "CREATE TABLE {$gcal_meetings} (
 	id varchar(32) NOT NULL,
 	share_key varchar(32) NOT NULL,
+	series_key varchar(32) NOT NULL DEFAULT '',
+	prefill varchar(10) NOT NULL DEFAULT '',
 	title varchar(191) NOT NULL DEFAULT '',
 	description text NULL,
 	attendees text NULL,
@@ -1725,7 +1739,8 @@ final class Schema {
 	PRIMARY KEY  (id),
 	UNIQUE KEY share_key (share_key),
 	KEY on_date (on_date),
-	KEY site_state (client_site_id, ledger_state)
+	KEY site_state (client_site_id, ledger_state),
+	KEY series (series_key, on_date)
 ) {$collate};",
 
 			/*
@@ -1745,6 +1760,24 @@ final class Schema {
 	PRIMARY KEY  (id),
 	UNIQUE KEY person_event (user_id, event_id),
 	KEY meeting (meeting_id)
+) {$collate};",
+
+			/*
+			 * #657. The client somebody last picked for a recurring Google
+			 * meeting, by its series key, so later dates arrive filled in.
+			 */
+			$gcal_series      => "CREATE TABLE {$gcal_series} (
+	id varchar(32) NOT NULL,
+	client_site_id varchar(32) NOT NULL DEFAULT '',
+	client_id varchar(32) NOT NULL DEFAULT '',
+	off_support tinyint(1) NOT NULL DEFAULT 0,
+	from_on varchar(10) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	record_version bigint(20) unsigned NOT NULL DEFAULT 1,
+	PRIMARY KEY  (id),
+	KEY site (client_site_id)
 ) {$collate};",
 		);
 	}

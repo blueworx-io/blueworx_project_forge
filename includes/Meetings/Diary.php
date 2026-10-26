@@ -486,6 +486,30 @@ final class Diary {
 	}
 
 	/**
+	 * Every site's meetings marked held: how many, and their hours (#657).
+	 *
+	 * @return array<string, array{meetings: int, held_hours: float}> By site id.
+	 */
+	public static function held_by_site(): array {
+		global $wpdb;
+
+		$table = Schema::meeting_occurrences_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, COUNT(*) AS meetings, SUM(planned_hours) AS held_hours FROM {$table} WHERE status = %s GROUP BY client_site_id", Occurrence::HELD ), ARRAY_A );
+		$out  = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['client_site_id'] ] = array(
+				'meetings'   => (int) $row['meetings'],
+				'held_hours' => (float) $row['held_hours'],
+			);
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Writes the first exception against a slot.
 	 *
 	 * @param array<string, mixed> $series  The series.

@@ -425,7 +425,9 @@ final class Feed {
 			$on_it  = '' !== $my_id && in_array( $my_id, $people, true );
 			$site   = (string) $meeting['client_site_id'];
 
-			if ( ! $admin && ! $on_it && '' !== $site && ! isset( $sites[ $site ] ) ) {
+			// A client Forge filled in by itself (#657) is nobody's pick yet, so
+			// it shows to everyone as an unsettled one does.
+			if ( ! $admin && ! $on_it && '' !== $site && '' === (string) $meeting['prefill'] && ! isset( $sites[ $site ] ) ) {
 				continue;
 			}
 

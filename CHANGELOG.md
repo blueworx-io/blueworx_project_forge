@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.215.0] - 2026-10-26
+
+### Added
+
+- A recurring Google meeting remembers its client. Pick it once and the later dates arrive filled in; you still mark each one held, cancelled or nobody came.
+- A Google meeting with only BlueWorx staff on it arrives as studio time, with no client to pick.
+- The Meetings page lists every client with how many meetings they've had and the hours, all time. A client's page shows their Google meetings too, and you can settle them there.
+
+### Changed
+
+- Google meetings from before the day you first connected no longer come into Forge, and the ones already on Daily standup from before then are gone.
+
 ## [2.214.3] - 2026-10-26
 
 ### Fixed

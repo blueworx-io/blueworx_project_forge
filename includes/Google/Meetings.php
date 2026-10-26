@@ -13,6 +13,7 @@ use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Tenancy\Ids;
+use Blueworx\Forge\Tenancy\Studio;
 
 /**
  * #606. One row per meeting, however many connected calendars it is on, and
@@ -38,6 +39,16 @@ final class Meetings {
 	 * Id prefix for a person's copy.
 	 */
 	public const PERSON_PREFIX = 'gmp';
+
+	/**
+	 * A client filled in from the series' remembered choice (#657).
+	 */
+	public const PREFILL_SERIES = 'series';
+
+	/**
+	 * Studio time filled in for an all-staff meeting (#657).
+	 */
+	public const PREFILL_STUDIO = 'studio';
 
 	/**
 	 * Brings one event from one person's calendar into Forge.
@@ -72,6 +83,7 @@ final class Meetings {
 
 		$now    = bwx_forge_now();
 		$fields = array(
+			'series_key'    => (string) ( $event['series_key'] ?? '' ),
 			'title'         => (string) $event['title'],
 			'description'   => (string) $event['description'],
 			'attendees'     => (string) wp_json_encode( (array) $event['attendees'] ),
@@ -150,6 +162,24 @@ final class Meetings {
 
 		self::refresh_private( $id );
 
+		// #657. Fill in the series' client, or studio time; the hours follow
+		// on the next reconcile, which the sync route runs.
+		$stored = self::by_share_key( (string) $event['share_key'] );
+
+		if ( null !== $stored ) {
+			$fill = self::prefill_changes(
+				$stored,
+				SeriesChoice::get( (string) $stored['series_key'] ),
+				empty( $event['guests_hidden'] ) && Internal::is_internal( (array) $event['attendees'], Internal::staff_emails(), Internal::domains() ),
+				Studio::site_id(),
+				Studio::client_id()
+			);
+
+			if ( array() !== $fill ) {
+				self::fill( $stored, $fill );
+			}
+		}
+
 		return $id;
 	}
 
@@ -227,6 +257,33 @@ final class Meetings {
 	}
 
 	/**
+	 * A person's copies from before their start date go, unless the meeting
+	 * has been settled (#657): that time was accounted for by hand.
+	 *
+	 * @param string $user_id Forge person id.
+	 * @param string $start   YYYY-MM-DD.
+	 */
+	public static function forget_before( string $user_id, string $start ): void {
+		foreach ( self::copies_of( $user_id ) as $copy ) {
+			if ( (string) $copy['on_date'] >= $start ) {
+				continue;
+			}
+
+			$meeting = self::get( (string) $copy['meeting_id'] );
+
+			if ( null !== $meeting && $meeting['settled'] ) {
+				continue;
+			}
+
+			self::delete_copy( (string) $copy['id'] );
+
+			if ( null !== $meeting && array() === self::people_of( array( (string) $meeting['id'] ) ) ) {
+				self::remove( $meeting );
+			}
+		}
+	}
+
+	/**
 	 * Settles a meeting: its client site, whether its time comes off
 	 * support, and optionally what became of it.
 	 *
@@ -246,6 +303,8 @@ final class Meetings {
 			'client_site_id' => $site_id,
 			'client_id'      => $client_id,
 			'off_support'    => $off_support ? 1 : 0,
+			// A person's pick is never a pre-fill.
+			'prefill'        => '',
 			'settled_by'     => $actor,
 			'settled_at'     => $now,
 			'updated_at'     => $now,
@@ -274,6 +333,104 @@ final class Meetings {
 		);
 
 		return $changed ? self::get( (string) $meeting['id'] ) : null;
+	}
+
+	/**
+	 * What Forge fills in by itself on a meeting (#657). Pure.
+	 *
+	 * Only a meeting nobody has dealt with is touched: still scheduled, and
+	 * either with no client or one Forge filled in. The series' remembered
+	 * client wins, then studio time for an all-staff meeting, else nothing —
+	 * so studio time goes again once somebody from outside is invited.
+	 *
+	 * @param array<string, mixed>      $row           The stored row.
+	 * @param array<string, mixed>|null $choice        The series' choice, or null.
+	 * @param bool                      $internal      Whether only studio staff are on it.
+	 * @param string                    $studio_site   The studio's site.
+	 * @param string                    $studio_client The studio client.
+	 * @return array<string, mixed> Only the columns that change.
+	 */
+	public static function prefill_changes( array $row, ?array $choice, bool $internal, string $studio_site, string $studio_client ): array {
+		$fillable = Occurrence::SCHEDULED === (string) ( $row['status'] ?? '' )
+			&& ( '' === (string) ( $row['client_site_id'] ?? '' ) || '' !== (string) ( $row['prefill'] ?? '' ) );
+
+		if ( ! $fillable ) {
+			return array();
+		}
+
+		// A series' choice holds from the date it was made on. An earlier date
+		// keeps what it was filled with then; one never filled from the series
+		// is left to the rules below.
+		if ( null !== $choice && (string) ( $row['on_date'] ?? '' ) < (string) ( $choice['from_on'] ?? '' ) ) {
+			if ( self::PREFILL_SERIES === (string) ( $row['prefill'] ?? '' ) ) {
+				return array();
+			}
+
+			$choice = null;
+		}
+
+		if ( null !== $choice && '' !== (string) ( $choice['client_site_id'] ?? '' ) ) {
+			$wanted = array(
+				'client_site_id' => (string) $choice['client_site_id'],
+				'client_id'      => (string) $choice['client_id'],
+				'off_support'    => empty( $choice['off_support'] ) ? 0 : 1,
+				'prefill'        => self::PREFILL_SERIES,
+			);
+		} elseif ( $internal && '' !== $studio_site ) {
+			$wanted = array(
+				'client_site_id' => $studio_site,
+				'client_id'      => $studio_client,
+				'off_support'    => 0,
+				'prefill'        => self::PREFILL_STUDIO,
+			);
+		} else {
+			$wanted = array(
+				'client_site_id' => '',
+				'client_id'      => '',
+				'off_support'    => 0,
+				'prefill'        => '',
+			);
+		}
+
+		$changes = array();
+
+		foreach ( $wanted as $column => $value ) {
+			$now = (string) ( $row[ $column ] ?? '' );
+
+			if ( $now !== (string) $value ) {
+				$changes[ $column ] = $value;
+			}
+		}
+
+		return $changes;
+	}
+
+	/**
+	 * Writes what Forge filled in, against the version it read (#657).
+	 *
+	 * @param array<string, mixed> $row     The stored row, as read.
+	 * @param array<string, mixed> $changes From {@see self::prefill_changes()}.
+	 * @return bool|null True when written, null when the row had moved on.
+	 */
+	public static function fill( array $row, array $changes ): ?bool {
+		global $wpdb;
+
+		$changes['updated_at']     = bwx_forge_now();
+		$changes['record_version'] = (int) $row['record_version'] + 1;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$changed = $wpdb->update(
+			Schema::google_meetings_table(),
+			$changes,
+			array(
+				'id'             => (string) $row['id'],
+				'record_version' => (int) $row['record_version'],
+			),
+			Formats::for_row( $changes ),
+			array( '%s', '%d' )
+		);
+
+		return $changed ? true : null;
 	}
 
 	/**
@@ -341,6 +498,69 @@ final class Meetings {
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return self::with_people( is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * One site's meetings in a window, with who is on each (#657), pre-filled
+	 * ones included.
+	 *
+	 * @param string $site_id The site.
+	 * @param string $from    YYYY-MM-DD, inclusive.
+	 * @param string $to      YYYY-MM-DD, inclusive.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function for_site( string $site_id, string $from, string $to ): array {
+		global $wpdb;
+
+		if ( '' === $site_id || $to < $from ) {
+			return array();
+		}
+
+		$table = Schema::google_meetings_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id = %s AND on_date >= %s AND on_date <= %s ORDER BY on_date ASC, at_time ASC, id ASC", $site_id, $from, $to ), ARRAY_A );
+
+		return self::with_people( is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * The day of a site's earliest meeting, or ''.
+	 *
+	 * @param string $site_id The site.
+	 * @return string YYYY-MM-DD, or ''.
+	 */
+	public static function earliest_for_site( string $site_id ): string {
+		global $wpdb;
+
+		$table = Schema::google_meetings_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT MIN(on_date) FROM {$table} WHERE client_site_id = %s", $site_id ) );
+	}
+
+	/**
+	 * Every site with a meeting: how many were marked held, and their hours.
+	 *
+	 * @return array<string, array{meetings: int, held_hours: float}> By site id.
+	 */
+	public static function held_by_site(): array {
+		global $wpdb;
+
+		$table = Schema::google_meetings_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT client_site_id, SUM(CASE WHEN status = %s THEN 1 ELSE 0 END) AS meetings, SUM(CASE WHEN status = %s THEN planned_hours ELSE 0 END) AS held_hours FROM {$table} WHERE client_site_id <> '' GROUP BY client_site_id", Occurrence::HELD, Occurrence::HELD ), ARRAY_A );
+		$out  = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['client_site_id'] ] = array(
+				'meetings'   => (int) $row['meetings'],
+				'held_hours' => (float) $row['held_hours'],
+			);
+		}
+
+		return $out;
 	}
 
 	/**
@@ -550,6 +770,8 @@ final class Meetings {
 		return array(
 			'id'             => (string) $row['id'],
 			'share_key'      => (string) $row['share_key'],
+			'series_key'     => (string) ( $row['series_key'] ?? '' ),
+			'prefill'        => (string) ( $row['prefill'] ?? '' ),
 			'title'          => (string) $row['title'],
 			'description'    => (string) ( $row['description'] ?? '' ),
 			'attendees'      => is_array( $attendees ) ? $attendees : array(),
@@ -564,8 +786,9 @@ final class Meetings {
 			'client_site_id' => (string) $row['client_site_id'],
 			'client_id'      => (string) $row['client_id'],
 			'off_support'    => 1 === (int) $row['off_support'],
-			// Settled: somebody picked a client, or said what became of it.
-			'settled'        => '' !== (string) $row['client_site_id'] || Occurrence::SCHEDULED !== $status,
+			// Settled: somebody picked a client, or said what became of it. A
+			// client Forge filled in by itself is nobody's pick (#657).
+			'settled'        => ( '' !== (string) $row['client_site_id'] && '' === (string) ( $row['prefill'] ?? '' ) ) || Occurrence::SCHEDULED !== $status,
 			'status'         => $status,
 			'status_label'   => Occurrence::label( $status ),
 			'ledger_state'   => (string) $row['ledger_state'],

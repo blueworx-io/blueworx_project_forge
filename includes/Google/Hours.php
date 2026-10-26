@@ -182,13 +182,28 @@ final class Hours {
 		}
 
 		$today   = gmdate( 'Y-m-d' );
+		$until   = MeetingHours::horizon_end( $today );
+		$slots   = Matching::standing_slots( $today, $until );
 		$written = 0;
 
-		foreach ( Meetings::worth_asking( $today, MeetingHours::horizon_end( $today ) ) as $meeting ) {
-			$written += self::settle_one( $meeting, $actor );
+		foreach ( Meetings::worth_asking( $today, $until ) as $meeting ) {
+			$written += self::settle_one( self::as_held( $meeting, $slots ), $actor );
 		}
 
 		return $written;
+	}
+
+	/**
+	 * A meeting as its hours are settled: one a standing meeting already
+	 * stands for holds nothing, even with a client Forge filled in, or the
+	 * client's hours would be set aside twice (#657). Pure.
+	 *
+	 * @param array<string, mixed>             $meeting Hydrated.
+	 * @param array<int, array<string, mixed>> $slots   From {@see Matching::standing_slots()}.
+	 * @return array<string, mixed>
+	 */
+	public static function as_held( array $meeting, array $slots ): array {
+		return Matching::skipped( $meeting, $slots ) ? array_merge( $meeting, array( 'client_site_id' => '' ) ) : $meeting;
 	}
 
 	/**

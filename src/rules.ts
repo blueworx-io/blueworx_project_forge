@@ -411,6 +411,22 @@ export const RULES: RuleSection[] = [
         why: 'Only a person knows who a meeting was for and whether the client pays for it.',
       },
       {
+        what: 'Nothing from before the day a person first connected Google comes into Forge, and disconnecting and connecting again doesn\'t move that day.',
+        why: 'Meetings before then were already accounted for by hand, and would otherwise be charged twice.',
+      },
+      {
+        what: 'Once a client is picked for one date of a recurring Google meeting, the later dates arrive with that client already filled in. Changing the client on a later date carries forward from there; changing only the support-hours tick stays on that one date. Each date is still marked held, cancelled or nobody came, and a date already marked keeps its client.',
+        why: 'A weekly meeting is almost always for the same client, and asking every week is busywork.',
+      },
+      {
+        what: 'A Google meeting where everyone invited is BlueWorx staff arrives as studio time, charging no client but still counting in each person\'s time. If someone from outside is added later, it goes back to asking for a client.',
+        why: 'An internal meeting plainly isn\'t a client\'s, and a guest from outside means it might be.',
+      },
+      {
+        what: 'The Meetings page lists every client with meetings, with how many have been held and their hours, all time. A client\'s page shows its Google meetings among the manual ones, and they are settled from there.',
+        why: 'With meetings moving to Google, this is where to see how much meeting time each client has had.',
+      },
+      {
         what: 'A settled meeting keeps its client when Google moves it, and its hours follow the new length. A meeting deleted in Google is removed and its held hours given back, unless it was marked held. Disconnecting removes only meetings nobody has settled.',
         why: 'Google owns when a meeting is; Forge owns what it cost.',
       },

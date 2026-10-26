@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarClock, CalendarX2 } from 'lucide-react';
-import type { AllClientsMeeting, AllClientsMeetingsAnswer, Meeting, MeetingFrequency, MeetingLedgerState, MeetingSeries, MeetingStatus, MeetingsAnswer } from '../types';
+import type { AllClientsMeetingsAnswer, AllClientsRow, DiaryEntry, Meeting, MeetingFrequency, MeetingLedgerState, MeetingSeries, MeetingStatus, MeetingsAnswer } from '../types';
 import { ApiError, api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, Card, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInput } from '../kit';
 import type { Column } from '../kit';
 import { hoursLabel } from './PackagesScreen';
+import { GoogleMeetingPanel } from './GoogleMeeting';
 import { ALL_SITES } from '../sites';
 import { useClientChoice } from '../ClientChoice';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
@@ -108,13 +109,45 @@ interface MeetingRow extends Omit< Meeting, 'id' > {
   stored: string | null;
 }
 
+/** A meeting as a row; a Google one (#657) is keyed by its own id. */
+function rowOf( meeting: Meeting ): MeetingRow {
+  return { ...meeting, id: isGoogle( meeting ) ? `g-${ meeting.google_id }` : `${ meeting.series_id }@${ meeting.slot }`, stored: meeting.id };
+}
+
+/** Whether a meeting came from Google Calendar (#657). */
+function isGoogle( meeting: Pick< Meeting, 'source' > ): boolean {
+  return 'google' === meeting.source;
+}
+
+/** A Google meeting row as the calendar's panel reads one (#657). */
+function asEntry( meeting: Meeting ): DiaryEntry {
+  return {
+    id: `meeting:g-${ meeting.google_id ?? '' }`,
+    kind: 'meeting',
+    label: 'Meeting',
+    date: meeting.on,
+    ends_on: '',
+    title: meeting.series_title,
+    detail: [ meeting.time, 'Google Calendar', ...( meeting.people ?? [] ) ].filter( ( one ) => '' !== one ).join( ' · ' ),
+    people: [],
+    item_id: '',
+    site_id: meeting.site_id ?? '',
+    done: 'scheduled' !== meeting.status,
+    source: 'google',
+    google_id: meeting.google_id,
+    can_settle: meeting.can_settle,
+    off_support: meeting.off_support,
+    status: meeting.status,
+  };
+}
+
 /** The meetings by the Monday of their week, in the order the server gave them. */
 function byWeek( meetings: Meeting[] ): Array< { monday: string; rows: MeetingRow[] } > {
   const weeks: Array< { monday: string; rows: MeetingRow[] } > = [];
 
   for ( const meeting of meetings ) {
     const monday = mondayOf( meeting.on );
-    const row: MeetingRow = { ...meeting, id: `${ meeting.series_id }@${ meeting.slot }`, stored: meeting.id };
+    const row = rowOf( meeting );
     const week = weeks.find( ( one ) => one.monday === monday );
 
     if ( week ) {
@@ -127,7 +160,7 @@ function byWeek( meetings: Meeting[] ): Array< { monday: string; rows: MeetingRo
   return weeks.sort( ( a, b ) => a.monday.localeCompare( b.monday ) );
 }
 
-type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | { kind: 'delete'; series: MeetingSeries } | null;
+type Opened = { kind: 'add' } | { kind: 'edit'; series: MeetingSeries } | { kind: 'move'; meeting: Meeting } | { kind: 'settle'; meeting: Meeting } | { kind: 'delete'; series: MeetingSeries } | { kind: 'google'; meeting: Meeting } | null;
 
 export function MeetingsScreen() {
   // The client is the top bar's (#402): All is every client's list, one site is that site.
@@ -278,7 +311,7 @@ export function MeetingsScreen() {
       label: 'When',
       width: 170,
       render: ( m ) => (
-        <span className="bwx-meetings-when" data-testid="bwx-meetings-meeting" data-slot={ m.slot } data-on={ m.on } data-status={ m.status } data-ledger={ m.ledger_state }>
+        <span className="bwx-meetings-when" data-testid="bwx-meetings-meeting" data-slot={ m.slot } data-on={ m.on } data-status={ m.status } data-ledger={ m.ledger_state } data-source={ m.source ?? 'forge' }>
           <span className="fk-mono">{ `${ m.on } ${ m.time }` }</span>
           { /*
              * The line under the date rather than beside it: a meeting on an
@@ -289,7 +322,16 @@ export function MeetingsScreen() {
         </span>
       ),
     },
-    { key: 'what', label: 'What', wrap: true, render: ( m ) => m.series_title },
+    {
+      key: 'what',
+      label: 'What',
+      wrap: true,
+      render: ( m ) => isGoogle( m ) ? (
+        <span className="bwx-meetings-what">
+          { m.series_title } <Tag tone="info">Google</Tag>
+        </span>
+      ) : m.series_title,
+    },
     { key: 'hours', label: 'Hours', mono: true, align: 'right', width: 80, render: ( m ) => hoursLabel( m.hours ) },
     { key: 'status', label: 'What happened', width: 120, render: ( m ) => m.status_label },
     {
@@ -303,7 +345,17 @@ export function MeetingsScreen() {
       label: 'Actions',
       sortable: false,
       width: 140,
-      render: ( m ) => (
+      render: ( m ) => isGoogle( m ) ? (
+        <span className="bwx-meetings-actions">
+          { /* #657. Its time is Google's, so it never moves here. */ }
+          <span />
+          { m.can_settle && (
+            <Button size="sm" variant="link" data-testid="bwx-meetings-settle" aria-label={ `Settle the meeting on ${ m.on }` } disabled={ busy } onClick={ () => setOpened( { kind: 'google', meeting: { ...m, id: m.stored } } ) }>
+              Settle
+            </Button>
+          ) }
+        </span>
+      ) : (
         <span className="bwx-meetings-actions">
           { /*
              * A settled meeting stays where it happened (or did not), as on
@@ -328,7 +380,7 @@ export function MeetingsScreen() {
   ];
 
   const weeks = answer ? byWeek( answer.meetings ) : [];
-  const past: MeetingRow[] = ( answer?.past?.meetings ?? [] ).map( ( meeting ) => ( { ...meeting, id: `${ meeting.series_id }@${ meeting.slot }`, stored: meeting.id } ) );
+  const past: MeetingRow[] = ( answer?.past?.meetings ?? [] ).map( rowOf );
 
   return (
     <div className="bwx-meetings" data-testid="bwx-meetings">
@@ -337,8 +389,8 @@ export function MeetingsScreen() {
       { 'error' === state && <Screen state="error" testId="bwx-meetings-state-screen" detail={ notice.text } /> }
 
       { /*
-           All Clients (#383): a plain flat list, no twelve-week view and no
-           week grouping. Picking a client goes back to the ordinary view
+           All Clients (#383, #657): every client with meetings and the hours
+           held, all time. Picking a client goes back to the ordinary view
            below, and a row here does the same — it is a shortcut to that
            client's site, not a second place any of this is done.
         */ }
@@ -432,6 +484,7 @@ export function MeetingsScreen() {
           { opened && 'move' === opened.kind && <MoveForm siteId={ siteId } meeting={ opened.meeting } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'settle' === opened.kind && <SettleForm siteId={ siteId } meeting={ opened.meeting } onClose={ () => setOpened( null ) } onSaved={ landed } /> }
           { opened && 'delete' === opened.kind && <DeleteSeries siteId={ siteId } series={ opened.series } onClose={ () => setOpened( null ) } onDeleted={ landed } /> }
+          { opened && 'google' === opened.kind && <GoogleMeetingPanel entry={ asEntry( opened.meeting ) } onClose={ () => setOpened( null ) } onSaved={ () => void load( siteId, pastPage, false ) } /> }
         </>
       ) }
     </div>
@@ -439,40 +492,37 @@ export function MeetingsScreen() {
 }
 
 /**
- * Every client's standing meetings, flat (#383): the client and site, the
- * title, the cadence and time the series already carries, the host, and its
- * next meeting where the horizon caught one. A row is a shortcut to that
- * site's ordinary view — everything a standing meeting can be done to lives
- * there, not here.
+ * Every client with meetings (#657): the client and site, how many meetings
+ * were marked held there and their hours, all time, manual and Google
+ * together. A row opens that site's page, as the top bar does — everything a
+ * meeting can be done to lives there, not here.
  */
 function AllClientsList( { answer, onPick }: { answer: AllClientsMeetingsAnswer; onPick: ( id: string ) => void } ) {
-  const columns: Column< AllClientsMeeting >[] = [
-    { key: 'client', label: 'Client', render: ( m ) => m.client_name },
-    { key: 'site', label: 'Site', render: ( m ) => m.site_name },
+  const columns: Column< AllClientsRow >[] = [
     {
-      key: 'title',
-      label: 'Standing meeting',
+      key: 'client',
+      label: 'Client',
       wrap: true,
       render: ( m ) => (
-        <span data-testid="bwx-meetings-all-row" data-site={ m.client_site_id } data-client={ m.client_id }>
-          { m.title }
+        <span data-testid="bwx-meetings-all-row" data-site={ m.client_site_id } data-client={ m.client_id } data-hours={ m.held_hours }>
+          { m.client_name }
         </span>
       ),
     },
-    { key: 'when', label: 'When', render: ( m ) => `${ m.frequency_label }, ${ m.time_of_day } ${ m.timezone }` },
-    { key: 'host', label: 'Host', render: ( m ) => m.host_name || '—' },
-    { key: 'next', label: 'Next meeting', mono: true, render: ( m ) => m.next_on ?? '—' },
+    { key: 'site', label: 'Site', wrap: true, render: ( m ) => m.site_name },
+    { key: 'meetings', label: 'Meetings held', mono: true, align: 'right', width: 130, render: ( m ) => String( m.meetings ) },
+    { key: 'hours', label: 'Hours used (all time)', mono: true, align: 'right', width: 170, render: ( m ) => hoursLabel( m.held_hours ) },
   ];
 
   return (
-    <Panel title="Standing meetings, every client">
-      <DataView< AllClientsMeeting >
+    <Panel title="Meetings, every client">
+      <DataView< AllClientsRow >
         columns={ columns }
-        rows={ answer.meetings }
+        rows={ answer.clients.map( ( one ) => ( { ...one, id: one.client_site_id } ) ) }
         sortable={ false }
         fixed
         testId="bwx-meetings-all"
-        empty="No client has a standing meeting."
+        empty="No client has any meetings yet."
         onRowClick={ ( row ) => onPick( row.client_site_id ) }
       />
     </Panel>

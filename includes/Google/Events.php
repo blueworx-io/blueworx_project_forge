@@ -62,6 +62,7 @@ final class Events {
 		$out = array(
 			'event_id'      => $id,
 			'share_key'     => self::share_key( $item ),
+			'series_key'    => self::series_key( $item ),
 			'cancelled'     => $cancelled,
 			'title'         => '' === trim( (string) ( $item['summary'] ?? '' ) ) ? __( '(No title)', 'blueworx-forge' ) : mb_substr( trim( (string) $item['summary'] ), 0, 191 ),
 			'description'   => mb_substr( trim( wp_strip_all_tags( (string) ( $item['description'] ?? '' ) ) ), 0, self::MAX_DESCRIPTION ),
@@ -76,6 +77,8 @@ final class Events {
 			'counts'        => false,
 			'planned_hours' => 0.0,
 			'attendees'     => self::attendees( $item ),
+			// #657. Google hid who else is invited, so who is on it can't be known.
+			'guests_hidden' => ! empty( $item['attendeesOmitted'] ),
 		);
 
 		if ( $all_day ) {
@@ -139,6 +142,25 @@ final class Events {
 	}
 
 	/**
+	 * The key every meeting in one recurring series shares (#657), or '' for
+	 * a one-off: the share key without the instance's start.
+	 *
+	 * @param array<string, mixed> $item The event.
+	 * @return string 32 hex characters, or ''.
+	 */
+	private static function series_key( array $item ): string {
+		$series = (string) ( $item['recurringEventId'] ?? '' );
+
+		if ( '' === $series ) {
+			return '';
+		}
+
+		$uid = (string) ( $item['iCalUID'] ?? '' );
+
+		return md5( '' === $uid ? $series : $uid );
+	}
+
+	/**
 	 * How the calendar's owner answered: their own attendee entry, or
 	 * accepted when there is none (their own event).
 	 *
@@ -177,6 +199,18 @@ final class Events {
 			if ( count( $out ) >= 50 ) {
 				break;
 			}
+		}
+
+		// #657. The organiser is on the meeting too, even when the guest list
+		// leaves them out.
+		$organizer = is_array( $item['organizer'] ?? null ) ? $item['organizer'] : array();
+		$email     = mb_substr( (string) ( $organizer['email'] ?? '' ), 0, 191 );
+
+		if ( '' !== $email && empty( $organizer['self'] ) && ! in_array( strtolower( $email ), array_map( 'strtolower', array_column( $out, 'email' ) ), true ) ) {
+			$out[] = array(
+				'email' => $email,
+				'name'  => mb_substr( (string) ( $organizer['displayName'] ?? '' ), 0, 191 ),
+			);
 		}
 
 		return $out;

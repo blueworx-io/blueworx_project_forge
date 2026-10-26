@@ -12,6 +12,8 @@ const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
 const SECRET = `GOCSPX-secret-${RUN}`;
 const DAY = 86400000;
+// A client on the invitation, so a meeting is not studio time (#657).
+const GUEST = [{ email: `guest${RUN}@example.test`, responseStatus: 'accepted' }];
 
 /** A day some days from today, as YYYY-MM-DD. */
 function day(offset) {
@@ -27,6 +29,7 @@ test.describe.configure({ mode: 'serial' });
 
 let admin;
 let site;
+let client;
 let alice;
 let bob;
 let carol;
@@ -59,6 +62,7 @@ test.beforeAll(async ({ browser, baseURL }) => {
   admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   const where = await makeSite(admin.api, 'Google Calendar', RUN);
   site = where.site;
+  client = where.client;
   await onSupport(admin, site.id, 200);
 
   alice = await makePerson(admin.api, where.client.id, 'staff', who.alice);
@@ -105,7 +109,7 @@ test('a person connects their own calendar and every event comes across', async 
   test.slow();
 
   await putEvents(as.alice.context.request, who.alice, [
-    timedEvent(`a1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}` }),
+    timedEvent(`a1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}`, attendees: GUEST }),
     timedEvent(`a2${RUN}`, `u2${RUN}@google.com`, noon(-1, 14), 60, {
       summary: `Declined ${RUN}`,
       attendees: [{ email: `${who.alice}@studio.test`, self: true, responseStatus: 'declined' }],
@@ -163,7 +167,7 @@ test('the same invitation on two connected calendars is one meeting with both pe
   test.slow();
 
   await putEvents(as.bob.context.request, who.bob, [
-    timedEvent(`b1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}` }),
+    timedEvent(`b1${RUN}`, `u1${RUN}@google.com`, noon(-1), 70, { summary: `Kick-off ${RUN}`, attendees: GUEST }),
   ]);
 
   const page = await as.bob.context.newPage();
@@ -297,4 +301,253 @@ test('disconnecting stops the sync and removes only unsettled meetings', async (
   expect(titles).toContain(`Kick-off ${RUN}`);
   expect(titles).not.toContain(`Declined ${RUN}`);
   expect(titles).not.toContain(`Afterwards ${RUN}`);
+});
+
+test('a meeting before the person first connected never shows, even after reconnecting', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const handle = `gd${RUN}`;
+  const dave = await makePerson(admin.api, client.id, 'staff', handle);
+  const as_dave = await signedIn(browser, baseURL, dave.login, PASSWORD);
+
+  await putEvents(as_dave.context.request, handle, [
+    timedEvent(`d1${RUN}`, `ud1${RUN}@google.com`, noon(-3), 60, { summary: `Before ${RUN}` }),
+    timedEvent(`d2${RUN}`, `ud2${RUN}@google.com`, noon(1), 60, { summary: `After ${RUN}` }),
+  ]);
+
+  const titles = async () => (await googleEntries(admin.api, day(-5), day(5))).map((entry) => entry.title).filter((title) => title.endsWith(RUN) && (title.startsWith('Before') || title.startsWith('After')));
+
+  const page = await as_dave.context.newPage();
+  expect(await connectGoogle(page, as_dave.api, handle, { since: null })).toContain('google=connected');
+  expect(await titles()).toEqual([`After ${RUN}`]);
+
+  // A reconnect keeps the first day, so the earlier meeting stays away.
+  expect((await as_dave.api.del('/me/google')).status()).toBe(200);
+  expect(await connectGoogle(page, as_dave.api, handle, { since: null })).toContain('google=connected');
+  await syncNow(as_dave);
+  expect(await titles()).toEqual([`After ${RUN}`]);
+
+  await as_dave.context.close();
+});
+
+// #657. A recurring meeting remembers the client last picked for it.
+test.describe('a recurring meeting', () => {
+  const handle = `ge${RUN}`;
+  const title = `Sprint ${RUN}`;
+  let eve;
+  let other;
+
+  /** One weekly occurrence of the series, `week` weeks after tomorrow. */
+  const weekly = (week) => timedEvent(`s${week}x${RUN}`, `us${RUN}@google.com`, noon(1 + 7 * week, 9), 60, {
+    summary: title,
+    recurringEventId: `s${RUN}`,
+    originalStartTime: { dateTime: noon(1 + 7 * week, 9) },
+  });
+
+  /** The series' meetings, earliest first, as admin sees them. */
+  const weeks = async () => (await googleEntries(admin.api, day(0), day(40)))
+    .filter((entry) => entry.title === title)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const settle = async (meeting, body) => {
+    const answer = await admin.api.post(`/google-meetings/${meeting.google_id}/settle`, body);
+    expect(answer.status(), await answer.text()).toBe(200);
+  };
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    test.setTimeout(300000);
+    other = (await makeSite(admin.api, 'Google Calendar other', RUN)).site;
+    await onSupport(admin, other.id, 200);
+
+    const person = await makePerson(admin.api, client.id, 'staff', handle);
+    eve = await signedIn(browser, baseURL, person.login, PASSWORD);
+    await putEvents(eve.context.request, handle, [weekly(0), weekly(1), weekly(2)]);
+
+    const page = await eve.context.newPage();
+    expect(await connectGoogle(page, eve.api, handle)).toContain('google=connected');
+    await page.close();
+  });
+
+  test.afterAll(async () => {
+    await eve?.context.close();
+  });
+
+  test('picking a client for one meeting in a series fills in the later ones', async () => {
+    test.slow();
+
+    const [first] = await weeks();
+    await settle(first, { client_site_id: site.id, off_support: true });
+
+    const [, second, third] = await weeks();
+    for (const later of [second, third]) {
+      expect(later.site_id).toBe(site.id);
+      expect(later.off_support).toBe(true);
+      expect(later.status).toBe('scheduled');
+    }
+  });
+
+  test('a new meeting in the series arrives filled in', async () => {
+    test.slow();
+
+    await putEvents(eve.context.request, handle, [weekly(3)]);
+    await syncNow(eve);
+
+    const all = await weeks();
+    expect(all).toHaveLength(4);
+    expect(all[3].site_id).toBe(site.id);
+    expect(all[3].off_support).toBe(true);
+  });
+
+  test('changing only the support tick on one meeting stays on that meeting', async () => {
+    test.slow();
+
+    const [, second] = await weeks();
+    await settle(second, { client_site_id: site.id, off_support: false });
+
+    const [, again, third] = await weeks();
+    expect(again.off_support).toBe(false);
+    expect(third.off_support).toBe(true);
+  });
+
+  test('changing the client on a later meeting carries forward from there, and never moves a held one', async () => {
+    test.slow();
+
+    const [, second, third] = await weeks();
+    await settle(third, { client_site_id: site.id, off_support: true, status: 'held' });
+    await settle(second, { client_site_id: other.id, off_support: true });
+
+    const all = await weeks();
+    expect(all[0].site_id).toBe(site.id);
+    expect(all[1].site_id).toBe(other.id);
+    expect(all[2].site_id).toBe(site.id);
+    expect(all[2].status).toBe('held');
+    expect(all[3].site_id).toBe(other.id);
+  });
+});
+
+// #657. A meeting with only studio staff on it fills itself in as studio time.
+test('an all-staff meeting arrives as studio time, and goes back when a guest is added', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const handle = `gf${RUN}`;
+  const person = await makePerson(admin.api, client.id, 'staff', handle);
+  const fay = await signedIn(browser, baseURL, person.login, PASSWORD);
+  const title = `Studio huddle ${RUN}`;
+  const staffOnly = [
+    { email: `${handle}@studio.test`, self: true, responseStatus: 'accepted' },
+    { email: `${who.bob}@studio.test`, responseStatus: 'accepted' },
+  ];
+
+  await putEvents(fay.context.request, handle, [timedEvent(`f1${RUN}`, `uf1${RUN}@google.com`, noon(2), 60, { summary: title, attendees: staffOnly })]);
+  const page = await fay.context.newPage();
+  expect(await connectGoogle(page, fay.api, handle)).toContain('google=connected');
+
+  const studio = await meetingTitled(title, day(0), day(5));
+  expect(studio.site_id).not.toBe('');
+  expect(studio.site_id).not.toBe(site.id);
+  expect(studio.needs_settling).toBe(true);
+  expect(studio.status).toBe('scheduled');
+
+  await putEvents(fay.context.request, handle, [{ id: `f1${RUN}`, attendees: [...staffOnly, { email: `client${RUN}@example.test`, responseStatus: 'needsAction' }] }]);
+  await syncNow(fay);
+
+  expect((await meetingTitled(title, day(0), day(5))).site_id).toBe('');
+
+  await fay.context.close();
+});
+
+// #657. The Meetings page shows Google meetings beside manual ones.
+test.describe('the Meetings page', () => {
+  const handle = `gh${RUN}`;
+  let hal;
+  let page_site;
+
+  const manual = (title, startsOn, minutes) => ({
+    title,
+    frequency: 'weekly',
+    starts_on: startsOn,
+    ends_on: '',
+    time_of_day: '10:00',
+    duration_mins: minutes,
+    timezone: 'Europe/London',
+    host_user_id: alice.id,
+    attendees: '',
+    planned_hours: 0,
+  });
+
+  const settle = async (title, body) => {
+    const meeting = await meetingTitled(title, day(-6), day(6));
+    const answer = await admin.api.post(`/google-meetings/${meeting.google_id}/settle`, { client_site_id: page_site.id, off_support: false, ...body });
+    expect(answer.status(), await answer.text()).toBe(200);
+
+    return meeting;
+  };
+
+  test.beforeAll(async ({ browser, baseURL }) => {
+    test.setTimeout(300000);
+    const made = await makeSite(admin.api, 'Google page', RUN);
+    page_site = made.site;
+    // Carol works on this client, but is on none of its meetings.
+    const member = await admin.api.post(`/clients/${made.client.id}/memberships`, { user_id: carol.id, role: 'staff' });
+    expect(member.status(), await member.text()).toBeLessThan(300);
+    await onSupport(admin, page_site.id, 200);
+
+    const person = await makePerson(admin.api, client.id, 'staff', handle);
+    hal = await signedIn(browser, baseURL, person.login, PASSWORD);
+    await putEvents(hal.context.request, handle, [
+      timedEvent(`h1${RUN}`, `uh1${RUN}@google.com`, noon(1), 60, { summary: `Coming review ${RUN}`, attendees: GUEST }),
+      timedEvent(`h2${RUN}`, `uh2${RUN}@google.com`, noon(-3), 30, { summary: `Past review ${RUN}`, attendees: GUEST }),
+      timedEvent(`h3${RUN}`, `uh3${RUN}@google.com`, noon(2), 60, { summary: `Private chat ${RUN}`, attendees: GUEST, visibility: 'private' }),
+    ]);
+
+    const page = await hal.context.newPage();
+    expect(await connectGoogle(page, hal.api, handle)).toContain('google=connected');
+    await page.close();
+
+    await settle(`Coming review ${RUN}`, {});
+    await settle(`Past review ${RUN}`, { status: 'held' });
+    await settle(`Private chat ${RUN}`, {});
+  });
+
+  test.afterAll(async () => {
+    await hal?.context.close();
+  });
+
+  test('a site\'s meetings include its Google meetings', async () => {
+    const answer = await admin.api.get(`/client-sites/${page_site.id}/meetings`);
+
+    const coming = answer.meetings.find((one) => one.title === `Coming review ${RUN}`);
+    expect(coming.source).toBe('google');
+    expect(coming.on).toBe(day(1));
+    expect(coming.status).toBe('scheduled');
+
+    const past = answer.past.meetings.find((one) => one.title === `Past review ${RUN}`);
+    expect(past.source).toBe('google');
+    expect(past.status).toBe('held');
+  });
+
+  test('every client lists its all-time held meeting hours', async () => {
+    const started = day(-7);
+    const made = await admin.api.post(`/client-sites/${page_site.id}/meetings/series`, manual(`Manual ${RUN}`, started, 60));
+    expect(made.status(), await made.text()).toBe(200);
+    const series = (await made.json()).added;
+    const held = await admin.api.post(`/client-sites/${page_site.id}/meetings/${series.id}/${started}/settle`, { status: 'held' });
+    expect(held.status(), await held.text()).toBe(200);
+
+    const all = await admin.api.get('/meetings');
+    expect(all.ok).toBe(true);
+    const row = all.clients.find((one) => one.client_site_id === page_site.id);
+    expect(row.held_hours).toBe(1.5);
+    expect(row.site_name).toBe(page_site.name);
+  });
+
+  test('a private Google meeting reads Busy to somebody not on it', async () => {
+    const read = await as.carol.api.request.get(`/wp-json/blueworx-forge/v1/client-sites/${page_site.id}/meetings`, { headers: as.carol.api.headers });
+    expect(read.status(), await read.text()).toBe(200);
+
+    const titles = (await read.json()).meetings.filter((one) => 'google' === one.source).map((one) => one.title);
+    expect(titles).toContain(`Coming review ${RUN}`);
+    expect(titles).toContain('Busy');
+    expect(titles).not.toContain(`Private chat ${RUN}`);
+  });
 });

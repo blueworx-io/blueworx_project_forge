@@ -160,9 +160,11 @@ test.describe('deleting a client', () => {
     expect(await status(`/clients/${kept.client.id}`)).toBe(200);
     expect(await status(`/work-items/${kept.item.id}`)).toBe(200);
     expect(await status(`/users/${kept.own.id}`)).toBe(200);
-    for (const id of [kept.client.id, kept.site.id, kept.submission.id, kept.source.id, kept.reminder.id, kept.series.id]) {
+    for (const id of [kept.client.id, kept.site.id, kept.submission.id, kept.source.id, kept.reminder.id]) {
       expect(everywhere, `${id} was lost`).toContain(id);
     }
+    // "All clients" lists sites, not series (#657): the series is on its site.
+    expect(JSON.stringify(await admin.api.get(`/client-sites/${kept.site.id}/meetings`)), 'the series was lost').toContain(kept.series.id);
     expect(await hourLedger(admin, kept.site.id)).toEqual(keptLedger);
     expect((await admin.api.get(`/reports?from=${YEAR_AGO}&to=${TODAY}&client_site_id=${kept.site.id}`)).reports.stage_distribution).toEqual(keptReport.stage_distribution);
 
