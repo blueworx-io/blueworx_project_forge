@@ -162,6 +162,19 @@ test('opening the list clears the count, and the rows stay', async ({ browser, b
 
   await expect(count).toBeVisible({ timeout: 30_000 });
 
+  // #647. The server is single-threaded, and on a busy page "seen" queues
+  // behind slower reads. Hold it back on purpose: the count must go when the
+  // list opens, not when the server gets round to answering.
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+
+  await page.route('**/signals/seen', async (route) => {
+    await held;
+    await route.continue();
+  });
+
   await page.getByTestId('bwx-signals-open').click();
 
   const row = page.locator(`[data-testid="bwx-signal"][data-subject="${theirs.id}"]`);
@@ -172,8 +185,12 @@ test('opening the list clears the count, and the rows stay', async ({ browser, b
   // The count goes because it has been read, not because the rows have gone.
   // Removing them would make the panel useless the second time somebody opens
   // it in a morning.
-  await expect(count).toHaveCount(0);
+  await expect(count).toHaveCount(0, { timeout: 2_000 });
   await expect(row).toHaveAttribute('data-unread', 'false');
+
+  const stored = page.waitForResponse((response) => response.url().includes('/signals/seen'));
+  release();
+  await stored;
 
   // Still read after a reload, which is the only part of this that is stored —
   // one number saying how far this person got.

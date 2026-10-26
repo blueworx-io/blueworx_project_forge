@@ -84,6 +84,11 @@ export function Signals() {
       return;
     }
 
+    // Read the moment it opens (#647), not when the server gets round to
+    // saying so: on a busy page the write below can queue for seconds. What is
+    // marked here is exactly what is marked there, the list in front of them.
+    setList( { ...list, unread: 0, signals: list.signals.map( ( signal ) => ( { ...signal, unread: false } ) ) } );
+
     try {
       /*
        * The moment the list was worked out, handed back rather than left to the
@@ -95,6 +100,8 @@ export function Signals() {
       await load();
     } catch ( failure ) {
       setNotice( messageFor( failure, 'That could not be recorded.' ) );
+      // Not stored, so not read: put the count back as the server has it.
+      void load();
     }
   }
 
