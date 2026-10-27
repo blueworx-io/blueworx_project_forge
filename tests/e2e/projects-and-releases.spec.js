@@ -153,10 +153,11 @@ test('changing level is checked against parent and children', async () => {
   // Nor become a bug: a release always holds work, so it stays a feature (#665).
   const leaf = await admin.api.patch(`/work-items/${release.id}`, { work_type: 'bug', record_version: release.record_version });
   expect(leaf.status(), await leaf.text()).toBe(200);
-  expect((await leaf.json()).item.work_type).toBe('feature');
+  const kept = (await leaf.json()).item;
+  expect(kept.work_type).toBe('feature');
 
   // Nor move under its own feature.
-  const looped = await admin.api.patch(`/work-items/${release.id}`, { parent_id: feature.id, record_version: release.record_version });
+  const looped = await admin.api.patch(`/work-items/${release.id}`, { parent_id: feature.id, record_version: kept.record_version });
   expect(looped.status()).toBe(400);
   expect((await looped.json()).message).toBe('Work cannot sit under work beneath it.');
 
