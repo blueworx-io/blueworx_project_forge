@@ -150,19 +150,37 @@ test('changing level is checked against parent and children', async () => {
   expect(dropped.status()).toBe(400);
   expect((await dropped.json()).code).toBe('bwx_forge_invalid_level');
 
-  // Nor become a bug while it holds work: bugs hold nothing.
+  // Nor become a bug: a release always holds work, so it stays a feature (#665).
   const leaf = await admin.api.patch(`/work-items/${release.id}`, { work_type: 'bug', record_version: release.record_version });
-  expect(leaf.status()).toBe(400);
-  expect((await leaf.json()).code).toBe('bwx_forge_invalid_work_type');
+  expect(leaf.status(), await leaf.text()).toBe(200);
+  const kept = (await leaf.json()).item;
+  expect(kept.work_type).toBe('feature');
 
   // Nor move under its own feature.
-  const looped = await admin.api.patch(`/work-items/${release.id}`, { parent_id: feature.id, record_version: release.record_version });
+  const looped = await admin.api.patch(`/work-items/${release.id}`, { parent_id: feature.id, record_version: kept.record_version });
   expect(looped.status()).toBe(400);
   expect((await looped.json()).message).toBe('Work cannot sit under work beneath it.');
 
   // A level that still fits is fine.
   const fine = await admin.api.patch(`/work-items/${feature.id}`, { level: 'sub-feature', record_version: feature.record_version });
   expect(fine.status(), await fine.text()).toBe(200);
+});
+
+test('a project or release is always a feature, so it holds work whatever type it was given (#665)', async () => {
+  const project = await made({ title: `Typed as a task ${RUN_ID}`, level: 'project', work_type: 'task' });
+  expect(project.work_type).toBe('feature');
+
+  const release = await made({ title: `Typed as a bug ${RUN_ID}`, level: 'milestone', work_type: 'bug', parent_id: project.id });
+  expect(release.work_type).toBe('feature');
+
+  const feature = await made({ title: `Held ${RUN_ID}`, level: 'feature', parent_id: release.id });
+  expect(feature.parent_id).toBe(release.id);
+
+  // A feature raised to a project becomes one, type and all.
+  const loose = await made({ title: `Raised task ${RUN_ID}`, level: 'feature', work_type: 'task' });
+  const raised = await admin.api.patch(`/work-items/${loose.id}`, { level: 'project', record_version: loose.record_version });
+  expect(raised.status(), await raised.text()).toBe(200);
+  expect((await raised.json()).item.work_type).toBe('feature');
 });
 
 test('a bug holds nothing, and can sit under a sub-feature', async () => {

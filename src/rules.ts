@@ -35,7 +35,7 @@ export const RULES: RuleSection[] = [
         why: 'Waiting for the whole board to reload after every move made moving work slow, and a second quick move could be refused.',
       },
       {
-        what: 'Projects, releases and features nest inside each other, and bugs, tasks and feedback can sit under any of them or on their own. Bugs, tasks and feedback never have anything under them, and a level can only be changed if it still fits what it sits under and what sits under it.',
+        what: 'Projects, releases and features nest inside each other, and bugs, tasks and feedback can sit under any of them or on their own. Bugs, tasks and feedback never have anything under them. A project or release is always a feature, whatever type it was given, so it can always hold work. A level can only be changed if it still fits what it sits under and what sits under it.',
         why: 'A client\'s work reads as projects made of releases, and the order of the levels keeps anything from ending up inside itself.',
       },
       {

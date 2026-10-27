@@ -145,6 +145,12 @@ final class Validate {
 			}
 		}
 
+		// #665. A project or release is a Feature, so it is checked as one. An
+		// edit naming only one of the two is settled when it is written.
+		if ( isset( $values['level'], $values['work_type'] ) ) {
+			$values['work_type'] = Types::for_level( (string) $values['level'], (string) $values['work_type'] );
+		}
+
 		if ( array_key_exists( 'parent_id', $input ) ) {
 			// An empty parent is a real answer — a Bug standing alone, a Project
 			// at the top — so it is stored rather than treated as missing.

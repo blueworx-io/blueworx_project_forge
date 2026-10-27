@@ -71,6 +71,19 @@ final class Types {
 	}
 
 	/**
+	 * #665. The type an item at a level is kept as. A project or release
+	 * always holds work, so it is always a Feature, whatever it was given;
+	 * anything lower keeps its own.
+	 *
+	 * @param string $level Level.
+	 * @param string $type  Work type asked for.
+	 * @return string
+	 */
+	public static function for_level( string $level, string $type ): string {
+		return in_array( $level, array( Levels::PROJECT, Levels::MILESTONE ), true ) ? self::FEATURE : $type;
+	}
+
+	/**
 	 * Whether a string is a work type at all.
 	 *
 	 * @param string $type Candidate.

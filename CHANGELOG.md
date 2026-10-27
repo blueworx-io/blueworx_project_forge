@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.215.1] - 2026-10-27
+
+### Fixed
+
+- New projects and releases can hold work again. They were being saved as a Task, which can't have anything under it. A project or release is now always a Feature, and ones already saved wrongly are put right when this update installs.
+
 ## [2.215.0] - 2026-10-26
 
 ### Added

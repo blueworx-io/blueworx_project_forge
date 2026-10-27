@@ -133,4 +133,17 @@ final class WorkHierarchyTest extends TestCase {
 	public function test_a_milestone_reads_as_a_release(): void {
 		$this->assertSame( 'Release', Levels::label( Levels::MILESTONE ) );
 	}
+
+	/**
+	 * #665. A project or release always holds work, so it is kept as a Feature
+	 * whatever type it is given; a lower level keeps the type it was given.
+	 */
+	public function test_a_project_or_release_is_always_a_feature(): void {
+		foreach ( Types::ALL as $type ) {
+			$this->assertSame( Types::FEATURE, Types::for_level( Levels::PROJECT, $type ) );
+			$this->assertSame( Types::FEATURE, Types::for_level( Levels::MILESTONE, $type ) );
+			$this->assertSame( $type, Types::for_level( Levels::FEATURE, $type ) );
+			$this->assertSame( $type, Types::for_level( Levels::SUB_FEATURE, $type ) );
+		}
+	}
 }
