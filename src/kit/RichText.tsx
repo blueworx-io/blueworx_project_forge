@@ -104,6 +104,7 @@ export function RichText( {
   label,
   testId,
   minHeight = 96,
+  readOnly = false,
 }: {
   id?: string;
   value: string;
@@ -111,6 +112,8 @@ export function RichText( {
   label?: string;
   testId?: string;
   minHeight?: number;
+  /** Shown, not changed: no tools and nothing to type into. */
+  readOnly?: boolean;
 } ) {
   const area = useRef< HTMLDivElement >( null );
 
@@ -175,7 +178,7 @@ export function RichText( {
 
   return (
     <div className="fk-rich">
-      <div className="fk-rich-tools" role="toolbar" aria-label={ label ? `${ label } formatting` : 'Formatting' }>
+      { ! readOnly && <div className="fk-rich-tools" role="toolbar" aria-label={ label ? `${ label } formatting` : 'Formatting' }>
         { TOOLS.map( ( tool ) => (
           <button
             key={ tool.command }
@@ -189,15 +192,16 @@ export function RichText( {
             <tool.icon size={ 15 } strokeWidth={ 1.75 } aria-hidden="true" />
           </button>
         ) ) }
-      </div>
+      </div> }
       <div
         ref={ area }
         id={ id }
         className="fk-rich-area"
-        contentEditable
+        contentEditable={ ! readOnly }
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
+        aria-readonly={ readOnly || undefined }
         aria-label={ label }
         data-testid={ testId }
         style={ { minHeight } }

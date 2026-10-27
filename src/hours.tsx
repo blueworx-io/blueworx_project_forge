@@ -43,6 +43,7 @@ export function HoursSelect( {
   testId,
   label,
   className,
+  disabled = false,
 }: {
   id?: string;
   value: string;
@@ -50,6 +51,7 @@ export function HoursSelect( {
   testId?: string;
   label?: string;
   className?: string;
+  disabled?: boolean;
 } ) {
-  return <Select id={ id } className={ className } data-testid={ testId } aria-label={ label } value={ value } options={ hourOptions( value ) } onChange={ ( event ) => onChange( event.target.value ) } />;
+  return <Select id={ id } className={ className } disabled={ disabled } data-testid={ testId } aria-label={ label } value={ value } options={ hourOptions( value ) } onChange={ ( event ) => onChange( event.target.value ) } />;
 }

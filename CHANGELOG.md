@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.216.0] - 2026-10-27
+
+### Changed
+
+- A reminder is edited right where you open it, the same way as a task, from My tasks, the calendar or the Reminders page. There is no separate edit screen any more. Anyone who can't change it sees the same details, read-only.
+
 ## [2.215.1] - 2026-10-27
 
 ### Fixed
