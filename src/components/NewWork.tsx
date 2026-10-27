@@ -64,6 +64,9 @@ export function NewWork( {
   const [ problem, setProblem ] = useState( '' );
   const [ level, setLevel ] = useState( preset?.level ?? 'feature' );
   const [ workType, setWorkType ] = useState( preset?.workType ?? 'task' );
+  // #665. A project or release always holds work, so it is always a Feature.
+  const container = [ 'project', 'milestone' ].includes( level );
+  const type = container ? 'feature' : workType;
   // A release has dates of its own (#562); its weeks are read from them.
   const dated = 'milestone' === preset?.level;
   const [ start, setStart ] = useState( '' );
@@ -84,7 +87,7 @@ export function NewWork( {
           title,
           problem,
           level,
-          work_type: workType,
+          work_type: type,
           ...( preset?.parentId ? { parent_id: preset.parentId } : {} ),
           ...( preset?.reviewOf ? { review_of: preset.reviewOf } : {} ),
           ...( dated && '' !== start ? { planned_start: start } : {} ),
@@ -201,10 +204,10 @@ export function NewWork( {
         </div>
         ) }
 
-        { preset?.workType ? (
+        { preset?.workType || container ? (
           <div className="bwx-field">
             <label htmlFor="bwx-new-type">Type</label>
-            <input id="bwx-new-type" className="bwx-input" readOnly data-testid="bwx-new-type-fixed" value={ fixed( TYPES, workType ) } />
+            <input id="bwx-new-type" className="bwx-input" readOnly data-testid="bwx-new-type-fixed" value={ fixed( TYPES, type ) } />
           </div>
         ) : (
         <div className="bwx-field">

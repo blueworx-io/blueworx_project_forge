@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 51;
+	public const VERSION = 52;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1847,6 +1847,12 @@ final class Schema {
 			// hours it already spent, gives them back.
 			if ( null !== $installed && $installed < 48 ) {
 				\Blueworx\Forge\Commerce\SettleReservations::run();
+			}
+
+			// #665. Once: projects and releases stored as a task, bug or
+			// feedback item become features, so work can go beneath them.
+			if ( null !== $installed && $installed < 52 ) {
+				\Blueworx\Forge\Work\ProjectTypeUpgrade::run();
 			}
 
 			update_option( self::OPTION, self::VERSION );

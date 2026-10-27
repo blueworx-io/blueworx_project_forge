@@ -61,7 +61,7 @@ final class Items {
 			// hours and no stand-in, as on an edit.
 			// #513. The start, from the earliest date, unless a chore names its own.
 			StartDate::settle(
-				ClientReviewer::settle( RoleHours::seed( self::writable( $values ) ) ),
+				ClientReviewer::settle( RoleHours::seed( self::typed( self::writable( $values ) ) ) ),
 				array( 'assignees' => (array) ( $values['assignees'] ?? array() ) )
 			),
 			$confirmed ? array(
@@ -300,7 +300,7 @@ final class Items {
 		$current = (array) self::get( $id );
 
 		// #391. With the client reviewing, no review hours and no stand-in.
-		$changes = ClientReviewer::settle( RoleHours::seed( self::writable( $values ), $current ), $current );
+		$changes = ClientReviewer::settle( RoleHours::seed( self::typed( self::writable( $values ), $current ), $current ), $current );
 
 		// #513. The start follows the earliest date.
 		$changes = StartDate::settle( $changes, $current );
@@ -484,6 +484,26 @@ final class Items {
 		);
 
 		return $changed ? self::get( $id ) : null;
+	}
+
+	/**
+	 * #665. The type a write leaves an item with: a project or release is
+	 * always a Feature, so one made, raised or retyped as anything else is
+	 * written as one, and one stored wrongly is put right by its next edit.
+	 *
+	 * @param array<string, mixed> $changes The columns being written.
+	 * @param array<string, mixed> $current The item as stored; empty for a new one.
+	 * @return array<string, mixed>
+	 */
+	private static function typed( array $changes, array $current = array() ): array {
+		$type    = (string) ( $changes['work_type'] ?? $current['work_type'] ?? Types::TASK );
+		$settled = Types::for_level( (string) ( $changes['level'] ?? $current['level'] ?? Levels::SUB_FEATURE ), $type );
+
+		if ( array_key_exists( 'work_type', $changes ) || (string) ( $current['work_type'] ?? '' ) !== $settled ) {
+			$changes['work_type'] = $settled;
+		}
+
+		return $changes;
 	}
 
 	/**

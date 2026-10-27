@@ -2876,7 +2876,7 @@ final class WorkItemsController {
 	private static function hierarchy_error( array $item, array $values ) {
 		$parent_sent = array_key_exists( 'parent_id', $values );
 		$level       = (string) ( $values['level'] ?? $item['level'] );
-		$type        = (string) ( $values['work_type'] ?? $item['work_type'] );
+		$type        = Types::for_level( $level, (string) ( $values['work_type'] ?? $item['work_type'] ) );
 		$reshaped    = $level !== (string) $item['level'] || $type !== (string) $item['work_type'];
 
 		if ( ! $parent_sent && ! $reshaped ) {
@@ -2986,8 +2986,9 @@ final class WorkItemsController {
 			}
 		}
 
-		// #562. A bug, task or feedback item never holds work.
-		if ( Types::is_leaf( (string) $parent['work_type'] ) ) {
+		// #562. A bug, task or feedback item never holds work. #665: a project
+		// or release always does, whatever type it was stored with.
+		if ( Types::is_leaf( Types::for_level( (string) $parent['level'], (string) $parent['work_type'] ) ) ) {
 			return Errors::rest( 'invalid_parent', __( "Bugs, tasks and feedback can't have work beneath them.", 'blueworx-forge' ), 400 );
 		}
 
