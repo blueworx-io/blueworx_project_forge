@@ -296,12 +296,15 @@ test('a reminder added on its page is titled with its type in front', async ({ b
   const saved = async () => (await admin.api.get('/reminders')).reminders.find((one) => one.client_site_id === site.id);
   await expect.poll(async () => (await saved())?.title, { timeout: 30_000 }).toBe(`General: ${title}`);
 
-  // Editing shows the bare title, and a new type replaces the old prefix.
+  // Edit opens the same panel as anywhere else (#662): the bare title, and a
+  // new type replaces the old prefix.
   const row = page.getByTestId('bwx-reminders-table').locator('tbody tr', { hasText: title });
   await row.getByTestId('bwx-reminder-edit').click();
-  await expect(page.getByTestId('bwx-reminder-title')).toHaveValue(title);
-  await page.getByTestId('bwx-reminder-category').selectOption('sales');
-  await page.getByTestId('bwx-reminder-save').click();
+  const task = page.getByTestId('bwx-panel').getByTestId('bwx-task');
+  await expect(task.getByTestId('bwx-reminder-title')).toHaveValue(title, { timeout: 30_000 });
+  await expect(page.getByTestId('bwx-reminder-form')).toHaveCount(0);
+  await task.getByTestId('bwx-reminder-category').selectOption('sales');
+  await page.getByTestId('bwx-save').click();
   await expect.poll(async () => (await saved())?.title, { timeout: 30_000 }).toBe(`Sales: ${title}`);
   await page.close();
 });
@@ -691,31 +694,29 @@ test('an opened reminder can be edited and turned into a task by its author, and
   const theirs = await asOther.context.newPage();
   await theirs.goto('/blueworx-forge/#screen=mytasks');
   await theirs.getByTestId('bwx-mytasks').locator('tbody tr, [data-testid="bwx-day-block"]', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
-  await expect(theirs.getByTestId('bwx-reminder-actions')).toBeVisible({ timeout: 30_000 });
-  await expect(theirs.getByTestId('bwx-reminder-actions').getByTestId('bwx-reminder-edit')).toHaveCount(0);
-  await expect(theirs.getByTestId('bwx-reminder-actions').getByTestId('bwx-reminder-convert')).toHaveCount(0);
+  await expect(theirs.getByTestId('bwx-reminder-note')).toBeVisible({ timeout: 30_000 });
+  await expect(theirs.getByTestId('bwx-task').getByTestId('bwx-reminder-title')).toBeDisabled();
+  await expect(theirs.getByTestId('bwx-reminder-convert')).toHaveCount(0);
   await theirs.close();
 
-  // Its author opens it and changes it there.
+  // Its author opens it and changes it right there, as they would a task (#662).
   const page = await asAuthor.context.newPage();
   await page.goto('/blueworx-forge/#screen=mytasks');
   await page.getByTestId('bwx-mytasks').locator('tbody tr, [data-testid="bwx-day-block"]', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
-  const actions = page.getByTestId('bwx-reminder-actions');
-  await expect(actions.getByTestId('bwx-reminder-edit')).toBeVisible({ timeout: 30_000 });
-  await actions.getByTestId('bwx-reminder-edit').click();
-  const form = page.getByTestId('bwx-reminder-form');
-  await expect(form).toBeVisible();
-  await form.getByTestId('bwx-reminder-ends').fill(plus(today, 2));
-  await form.getByTestId('bwx-reminder-hours').selectOption('1');
-  await form.getByTestId('bwx-reminder-save').click();
-  await expect(form).toHaveCount(0, { timeout: 30_000 });
+  const foot = page.getByTestId('bwx-panel-foot');
+  const task = page.getByTestId('bwx-task');
+  await expect(task.getByTestId('bwx-reminder-title')).toHaveValue(title, { timeout: 30_000 });
+  await expect(page.getByTestId('bwx-reminder-edit')).toHaveCount(0);
+  await task.getByTestId('bwx-reminder-ends').fill(plus(today, 2));
+  await task.getByTestId('bwx-reminder-hours').selectOption('1');
+  await page.getByTestId('bwx-save').click();
+  await expect.poll(async () => (await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id)?.ends_on, { timeout: 30_000 }).toBe(plus(today, 2));
   const edited = (await admin.api.get('/reminders')).reminders.find((r) => r.id === reminder.id);
-  expect(edited.ends_on).toBe(plus(today, 2));
   expect(edited.hours_each).toBe(1);
 
   // And turns it into a task from the same place.
   page.once('dialog', (dialog) => dialog.accept());
-  await actions.getByTestId('bwx-reminder-convert').click();
+  await foot.getByTestId('bwx-reminder-convert').click();
   await expect.poll(async () => (await admin.api.get('/reminders')).reminders.some((r) => r.id === reminder.id), { timeout: 30_000 }).toBe(false);
   const work = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items;
   expect(work.filter((item) => item.title.endsWith(title) && '' === (item.recurring_id ?? ''))).toHaveLength(1);

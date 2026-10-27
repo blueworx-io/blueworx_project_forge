@@ -45,7 +45,7 @@ export function RemindersScreen() {
   const [ people, setPeople ] = useState< Person[] >( [] );
   const [ sites, setSites ] = useState< Site[] >( [] );
   const [ stages, setStages ] = useState< Stage[] >( [] );
-  const [ editing, setEditing ] = useState< Reminder | 'new' | null >( null );
+  const [ adding, setAdding ] = useState( false );
   const [ opened, setOpened ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
   // A reminder everybody has ticked is finished, and leaves the list unless asked for (2026-10-05).
@@ -156,9 +156,12 @@ export function RemindersScreen() {
                 Convert to task
               </button>
             ) }
-            <button type="button" className="bwx-button" data-variant="quiet" data-testid="bwx-reminder-edit" disabled={ busy } onClick={ () => setEditing( r ) }>
-              Edit
-            </button>
+            { /* #662. Changed in the same panel as anywhere else it is opened. */ }
+            { r.copies[ 0 ] && (
+              <button type="button" className="bwx-button" data-variant="quiet" data-testid="bwx-reminder-edit" disabled={ busy } onClick={ () => setOpened( r.copies[ 0 ].item_id ) }>
+                Edit
+              </button>
+            ) }
             <button type="button" className="bwx-button" data-variant="quiet" data-testid="bwx-reminder-delete" disabled={ busy } onClick={ () => void remove( r ) }>
               Delete
             </button>
@@ -194,7 +197,7 @@ export function RemindersScreen() {
                 >
                   { showCompleted ? 'Hide completed' : `Show completed${ 0 < completed ? ` (${ completed })` : '' }` }
                 </button>
-                <button type="button" className="bwx-button" data-testid="bwx-reminders-add" disabled={ busy } onClick={ () => setEditing( 'new' ) }>
+                <button type="button" className="bwx-button" data-testid="bwx-reminders-add" disabled={ busy } onClick={ () => setAdding( true ) }>
                   Add reminder
                 </button>
               </>
@@ -216,15 +219,14 @@ export function RemindersScreen() {
         </div>
       ) }
 
-      { null !== editing && (
+      { adding && (
         <ReminderForm
-          reminder={ 'new' === editing ? null : editing }
           people={ people }
           sites={ sites }
           site={ ALL_SITES === siteId ? '' : siteId }
-          onClose={ () => setEditing( null ) }
+          onClose={ () => setAdding( false ) }
           onSaved={ () => {
-            setEditing( null );
+            setAdding( false );
             void load();
           } }
         />

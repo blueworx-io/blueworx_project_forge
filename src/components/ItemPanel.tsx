@@ -27,7 +27,8 @@ import { RichText, Select } from '../kit';
 import type { SiteOption } from '../sites';
 import { Inline, NOTHING_SAID, Notice, Screen } from './States';
 import type { Said, SaidTone } from './States';
-import { ReminderActions } from './ReminderForm';
+import { convertReminder, fromReminder, hasOpen, ReminderFields, ReminderNote, saveReminder, useReminder } from './ReminderForm';
+import type { ReminderDraft } from './ReminderForm';
 
 interface Detail {
   item: WorkItem;
@@ -479,6 +480,17 @@ export function ItemPanel( {
   const label = ( id: string ) => stages.find( ( stage ) => stage.id === id )?.label ?? id;
   const staff = 'staff' === detail?.scope;
 
+  // #662. A reminder's copy is changed as the reminder itself: its fields in
+  // Task, saved by Save changes, and every unticked copy follows.
+  const reminderId = staff && ( detail?.item.recurring_id ?? '' ).startsWith( 'rem_' ) ? detail?.item.recurring_id ?? '' : '';
+  const { reminder, reload: reloadReminder } = useReminder( reminderId );
+  const [ reminderDraft, setReminderDraft ] = useState< ReminderDraft | null >( null );
+
+  useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReminderDraft( reminder ? fromReminder( reminder ) : null );
+  }, [ reminder ] );
+
   async function load( fresh = false ) {
     try {
       // After a write the kept answer is behind: read past it (#544).
@@ -924,6 +936,27 @@ export function ItemPanel( {
     }
   }
 
+  /** #574. This copy's reminder, turned into one task once asked; the panel closes on it. */
+  async function convert() {
+    if ( ! reminder ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      if ( '' !== await convertReminder( reminder ) ) {
+        onChanged();
+        onClose();
+      }
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That did not work.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
   async function save() {
     if ( ! detail ) {
       return;
@@ -931,6 +964,28 @@ export function ItemPanel( {
 
     setBusy( true );
     setNotice( '' );
+
+    // #662. A reminder's copy saves the reminder, and nothing else here is
+    // edited on one. Whoever is taken off it loses this copy with it.
+    if ( reminder && reminderDraft ) {
+      const why = reminder.can_edit ? await saveReminder( reminder, reminderDraft ) : '';
+
+      if ( '' !== why ) {
+        setNotice( why );
+      } else if ( ! reminderDraft.assignees.includes( detail.item.assignees?.[ 0 ] ?? '' ) ) {
+        onChanged();
+        onClose();
+      } else {
+        await reloadReminder();
+        await load( true );
+        onChanged();
+        setNotice( SAVED, 'ok' );
+      }
+
+      setBusy( false );
+
+      return;
+    }
 
     // A checklist change still on its way to the server lands first, so this
     // save quotes the version it left.
@@ -1869,21 +1924,8 @@ export function ItemPanel( {
               />
             ) ) }
 
-            { /* #610. A reminder's copy: the reminder itself, changed or turned into a task here. */ }
-            { staff && ( item.recurring_id ?? '' ).startsWith( 'rem_' ) && (
-              <ReminderActions
-                reminderId={ item.recurring_id ?? '' }
-                people={ staffList }
-                onChanged={ () => {
-                  void load( true );
-                  onChanged();
-                } }
-                onConverted={ () => {
-                  onChanged();
-                  onClose();
-                } }
-              />
-            ) }
+            { /* #610. A reminder's copy, for anyone who cannot change it: whose it is. */ }
+            { reminder && <ReminderNote reminder={ reminder } /> }
 
             { /*
                 One place for everything that moves the work (2026-09-19):
@@ -2261,7 +2303,10 @@ export function ItemPanel( {
 
             <div className="bwx-task" data-testid="bwx-task" data-collapsed={ isFolded( 'task' ) ? 'true' : 'false' }>
             { head( 'task', 'Task' ) }
-            { EDITABLE.map( ( { field, label: name, lines } ) => (
+            { reminder && reminderDraft && (
+              <ReminderFields draft={ reminderDraft } onChange={ setReminderDraft } people={ staffList } readOnly={ ! reminder.can_edit } />
+            ) }
+            { ! reminder && EDITABLE.map( ( { field, label: name, lines } ) => (
               <div className="bwx-field" key={ field }>
                 <label htmlFor={ `bwx-${ field }` }>{ name }</label>
                 { 1 === lines ? (
@@ -2288,7 +2333,7 @@ export function ItemPanel( {
                 change (#451), unlike the rest. Enter on a line starts the next; the
                 count says how many of the ten are used.
              */ }
-            <LineList name="Checklist" testId="bwx-checklist" rows={ checklist } onChange={ setChecklist } onCommit={ saveChecklist } />
+            { ! reminder && <LineList name="Checklist" testId="bwx-checklist" rows={ checklist } onChange={ setChecklist } onCommit={ saveChecklist } /> }
 
             { /*
                 The definition boxes, once the item has got as far as the
@@ -3003,15 +3048,30 @@ export function ItemPanel( {
             <span />
           ) }
           { detail && item && staff && ! ended && (
-            <button
-              type="button"
-              className="bwx-button"
-              data-testid="bwx-save"
-              disabled={ busy }
-              onClick={ () => void save() }
-            >
-              Save changes
-            </button>
+            <div className="bwx-moves">
+              { /* #662. A reminder is turned into a task from beside its Save. */ }
+              { reminder?.can_edit && hasOpen( reminder ) && (
+                <button
+                  type="button"
+                  className="bwx-button"
+                  data-variant="quiet"
+                  data-testid="bwx-reminder-convert"
+                  disabled={ busy }
+                  onClick={ () => void convert() }
+                >
+                  Convert to task
+                </button>
+              ) }
+              <button
+                type="button"
+                className="bwx-button"
+                data-testid="bwx-save"
+                disabled={ busy }
+                onClick={ () => void save() }
+              >
+                Save changes
+              </button>
+            </div>
           ) }
         </footer>
       </aside>

@@ -611,7 +611,7 @@ export const RULES: RuleSection[] = [
         why: 'It is visible ahead of time and becomes a to-do when it matters.',
       },
       {
-        what: 'A reminder opened anywhere, from My tasks, the calendar or its own page, can be edited or turned into a task right there by whoever added it or an administrator. Anyone else sees whose it is to change.',
+        what: 'A reminder opened anywhere, from My tasks, the calendar or its own page, opens in the same panel, where whoever added it or an administrator edits its fields in place and saves them with Save changes, or turns it into a task. Anyone else sees the same fields read-only, and whose it is to change.',
         why: 'Nobody should have to go to the Reminders page to change something they already have open.',
       },
       {
