@@ -2,7 +2,7 @@ name: CI
 on: pull_request
 jobs:
   guardrails:
-    uses: blueworx-io/bluegroup_core_foundation/.github/workflows/ci-wordpress.yml@cache-playwright-browsers
+    uses: blueworx-io/bluegroup_core_foundation/.github/workflows/ci-wordpress.yml@test-site-workers
     with:
       # Tests run against a disposable real WordPress the run provisions itself
       # (PHP + SQLite, no Docker, no hosting). Never a hosted staging site: a
@@ -11,7 +11,7 @@ jobs:
       plugin_slug: blueworx-forge
       # Must match the @ref above. This input defaults to `main`, so pinning only
       # the @ref would run the v1 workflow against the foundation's main branch.
-      foundation_ref: cache-playwright-browsers
+      foundation_ref: test-site-workers
       # Forge's front end is a Vite app: the built bundle in assets/ is what
       # WordPress serves, so the TypeScript source and the build tooling that
       # produces it have no business on a live site. Keep this identical to
