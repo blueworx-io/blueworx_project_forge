@@ -487,7 +487,6 @@ export function ItemPanel( {
   const [ reminderDraft, setReminderDraft ] = useState< ReminderDraft | null >( null );
 
   useEffect( () => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReminderDraft( reminder ? fromReminder( reminder ) : null );
   }, [ reminder ] );
 
@@ -589,7 +588,6 @@ export function ItemPanel( {
     // Every state change inside load() happens after an await, which the rule
     // cannot see. Reading the item when the panel opens is what an effect is
     // for.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
 
     // The people who could hold a seat, so the pickers have names in them.
