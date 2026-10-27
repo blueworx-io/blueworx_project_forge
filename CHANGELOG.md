@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.216.1] - 2026-10-27
+
+### Changed
+
+- Nothing changes in the plugin. Claude Code sessions on Forge now load the Ponytail plugin, as a trial of whether it keeps new code smaller.
+
 ## [2.216.0] - 2026-10-27
 
 ### Changed
