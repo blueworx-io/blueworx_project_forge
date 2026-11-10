@@ -120,6 +120,20 @@ test('scope keeps only the work under the item and totals it', () => {
   assert.ok(rows.every((r) => null === r.balance));
 });
 
+test('the scope total counts hours used, not hours still held', () => {
+  const rows = statementRows(answer({
+    scope: { id: 'm1', title: 'Phase one', level: 'milestone' },
+    entries: [
+      work('work-usage', -1, 'wi_1', 'One'),
+      work('work-usage', -2, 'wi_2', 'Two'),
+      work('work-reservation', -1, 'wi_2', 'Two'),
+    ],
+  }));
+
+  assert.equal(rows[rows.length - 1].what, 'Total');
+  assert.equal(rows[rows.length - 1].hours, 3);
+});
+
 test('cells with commas and quotes stay one cell', () => {
   const text = csvText(statementRows(answer({
     opening: 5,

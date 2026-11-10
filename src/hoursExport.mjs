@@ -80,7 +80,7 @@ export function statementRows(answer) {
   }
 
   if (scoped) {
-    rows.push(row(answer.to, 'Total', { hours: round(-lines.reduce((sum, line) => sum + (Number(line.hours) || 0), 0)) }));
+    rows.push(row(answer.to, 'Total', { hours: round(lines.reduce((sum, line) => sum + (Number(line.used) || 0), 0)) }));
 
     return rows;
   }
