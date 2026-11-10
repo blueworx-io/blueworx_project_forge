@@ -68,12 +68,15 @@ export function statementRows(answer) {
     const hours = round(Number(line.hours) || 0);
     const detail = line.history.find((entry) => entry.task)?.task;
 
+    const refund = 'work' === line.kind && 0 >= (Number(line.used) || 0) && 0 < hours;
+    const reasons = [...new Set(line.history.filter((entry) => 'adjustment' === entry.event_type).map((entry) => entry.reason).filter(Boolean))].join('; ');
+
     balance += hours;
-    rows.push(row(line.when, whatFor(line), {
-      task: detail?.title ?? '',
+    rows.push(row(line.when, refund ? 'Hours given back' : whatFor(line), {
+      task: detail?.title ?? line.about ?? '',
       milestone: detail?.milestone?.title ?? '',
       project: detail?.project?.title ?? '',
-      note: line.history.length ? '' : (line.reason ?? ''),
+      note: line.history.length ? reasons : (line.reason ?? ''),
       hours,
       balance: scoped ? null : round(balance),
     }));
@@ -94,8 +97,13 @@ export function statementRows(answer) {
   return rows;
 }
 
-function cell(value) {
-  const text = null === value || undefined === value ? '' : String(value);
+function cell(value, guard = false) {
+  let text = null === value || undefined === value ? '' : String(value);
+
+  // A spreadsheet runs a cell that starts with one of these as a formula.
+  if (guard && /^[=+\-@\t\r]/.test(text)) {
+    text = `'${text}`;
+  }
 
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
@@ -108,7 +116,7 @@ function cell(value) {
  */
 export function csvText(rows) {
   const number = (value) => (null === value ? '' : value.toFixed(2));
-  const lines = rows.map((r) => [r.date, r.what, r.task, r.milestone, r.project, r.note, number(r.hours), number(r.balance)].map(cell).join(','));
+  const lines = rows.map((r) => [cell(r.date), cell(r.what, true), cell(r.task, true), cell(r.milestone, true), cell(r.project, true), cell(r.note, true), cell(number(r.hours)), cell(number(r.balance))].join(','));
 
   return `\uFEFF${[HEADER.join(','), ...lines].join('\r\n')}\r\n`;
 }

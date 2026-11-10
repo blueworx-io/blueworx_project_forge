@@ -59,6 +59,6 @@ final class StatementTest extends TestCase {
 		$this->assertSame( strtotime( '2026-03-31 23:59:59 UTC' ), $range['to'] );
 		$this->assertInstanceOf( WP_Error::class, Statement::range( '2026-03-31', '2026-03-01' ) );
 		$this->assertInstanceOf( WP_Error::class, Statement::range( '2026-02-30', '2026-03-01' ) );
-		$this->assertInstanceOf( WP_Error::class, Statement::range( '2025-01-01', '2026-01-03' ) );
+		$this->assertIsArray( Statement::range( '2015-01-01', '2026-01-03' ) );
 	}
 }

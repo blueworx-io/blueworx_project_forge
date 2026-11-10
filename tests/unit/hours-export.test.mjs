@@ -97,7 +97,7 @@ test('a refund folds under its task', () => {
   assert.equal(lines.length, 1);
   assert.equal(lines[0].what, 'Work done');
   assert.equal(lines[0].hours, -2.5);
-  assert.equal(lines[0].note, '');
+  assert.equal(lines[0].note, 'Hours lowered');
 });
 
 test('a range with nothing in it still reconciles', () => {
@@ -157,4 +157,34 @@ test('the text starts with a byte-order mark and uses CRLF', () => {
   assert.ok(text.startsWith('﻿Date,What,Task,Milestone,Project,Note,Hours,Balance after\r\n'));
   assert.ok(text.includes('\r\n2026-02-28,Balance brought forward,,,,,,1.00\r\n'));
   assert.ok(!/[^\r]\n/.test(text));
+});
+
+test('a meeting row names the meeting in the Task column', () => {
+  const meeting = entry('meeting-usage', -1, { source_type: 'meeting-occurrence', source_id: 'mtg_1', about: 'Weekly call on 2026-03-05' });
+  const rows = statementRows(answer({ entries: [meeting], scope: null }));
+  const line = rows.find((r) => 'Meeting held' === r.what);
+
+  assert.equal(line.task, 'Weekly call on 2026-03-05');
+});
+
+test('a refund on its own reads as hours given back, with its reason', () => {
+  const refund = entry('adjustment', 0.5, { source_type: 'work-item', source_id: 'wi_9', about: 'Build the header', reason: 'Scope reduced' });
+  const rows = statementRows(answer({ entries: [refund], scope: { id: 'p1', title: 'Rebuild', level: 'project' } }));
+  const line = rows.find((r) => 'Hours given back' === r.what);
+
+  assert.equal(rows.length, 2);
+  assert.equal(line.hours, 0.5);
+  assert.equal(line.note, 'Scope reduced');
+});
+
+test('text that a spreadsheet would run as a formula is made plain', () => {
+  const rows = [
+    { date: '2026-03-01', what: 'Work done', task: '=HYPERLINK("x")', milestone: '', project: '', note: '', hours: 1, balance: 1 },
+    { date: '2026-03-02', what: 'Work done', task: '- fix header', milestone: '', project: '', note: '', hours: -1, balance: 0 },
+  ];
+  const text = csvText(rows);
+
+  assert.ok(text.includes(`,"'=HYPERLINK(""x"")",`));
+  assert.ok(text.includes(",'- fix header,"));
+  assert.ok(text.includes(',-1.00,'));
 });

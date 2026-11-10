@@ -22,11 +22,6 @@ use WP_Error;
 final class Statement {
 
 	/**
-	 * Longest range a statement may cover, in days.
-	 */
-	public const MAX_DAYS = 366;
-
-	/**
 	 * The entry types that only hold hours.
 	 *
 	 * @var array<int, string>
@@ -103,10 +98,10 @@ final class Statement {
 		$start = self::day( $from );
 		$end   = self::day( $to );
 
-		if ( null === $start || null === $end || $end < $start || ( $end - $start ) / DAY_IN_SECONDS > self::MAX_DAYS ) {
+		if ( null === $start || null === $end || $end < $start ) {
 			return new WP_Error(
 				'bwx_forge_invalid_range',
-				'Choose two valid dates, the first no later than the second and no more than a year apart.',
+				'Choose two valid dates, the first no later than the second.',
 				array( 'status' => 400 )
 			);
 		}

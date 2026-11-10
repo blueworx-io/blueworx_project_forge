@@ -9,7 +9,6 @@ const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
 const BASE = '/wp-json/blueworx-forge/v1';
 const TODAY = new Date().toISOString().slice(0, 10);
-const AGO = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
 const round = (n) => Math.round(n * 100) / 100;
 
@@ -53,7 +52,7 @@ test('the export reads a range, names each task, scopes to a release and refuses
   const loose = await startedTask(admin, crew, site.id, `Loose ${RUN_ID}`, 1, '');
 
   const get = async (query) => admin.api.request.get(`${BASE}/client-sites/${site.id}/support/export?${query}`, { headers: admin.api.headers });
-  const range = `from=${AGO}&to=${TODAY}`;
+  const range = `from=2020-01-01&to=${TODAY}`;
 
   const whole = await get(range);
   expect(whole.status(), await whole.text()).toBe(200);
@@ -98,7 +97,7 @@ test('the export reads a range, names each task, scopes to a release and refuses
   expect((await get(`${range}&under=${foreign.id}`)).status()).toBe(400);
 
   expect((await get(`from=${TODAY}&to=2020-01-01`)).status()).toBe(400);
-  expect((await get('from=2020-01-01&to=2021-02-05')).status()).toBe(400);
+  expect((await get('from=2000-01-01&to=2026-01-01')).status()).toBe(200);
 
   await crew.close();
   await admin.context.close();

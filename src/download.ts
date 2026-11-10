@@ -8,5 +8,5 @@ export function downloadText( name: string, text: string, type = 'text/csv;chars
   document.body.appendChild( link );
   link.click();
   link.remove();
-  URL.revokeObjectURL( url );
+  setTimeout( () => URL.revokeObjectURL( url ), 1000 );
 }

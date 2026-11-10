@@ -721,6 +721,7 @@ function ExportDialog( { siteId, onClose }: { siteId: string; onClose: () => voi
   const [ scope, setScope ] = useState( '' );
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
+  const touched = useRef( false );
 
   // One read with no range: the work to pick from, and where the dates start.
   useEffect( () => {
@@ -735,7 +736,9 @@ function ExportDialog( { siteId, onClose }: { siteId: string; onClose: () => voi
         setItems( start.items );
         setPeriodFrom( start.period_starts_on ?? '' );
         setFirstEntry( start.first_entry_on );
-        setFrom( start.period_starts_on || start.first_entry_on || today() );
+        if ( ! touched.current ) {
+          setFrom( start.period_starts_on || start.first_entry_on || today() );
+        }
         setReady( true );
       } )
       .catch( ( error: unknown ) => {
@@ -751,6 +754,7 @@ function ExportDialog( { siteId, onClose }: { siteId: string; onClose: () => voi
 
   /** A project or release starts from its first entry; all work, from the period. */
   function pickScope( value: string ) {
+    touched.current = true;
     setScope( value );
     setFrom( '' === value ? periodFrom || firstEntry || today() : firstEntry || from );
   }
@@ -812,7 +816,7 @@ function ExportDialog( { siteId, onClose }: { siteId: string; onClose: () => voi
       ) }
 
       <Field label="From" required>
-        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-export-from" value={ from } onChange={ ( event ) => setFrom( event.target.value ) } /> }
+        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-export-from" value={ from } onChange={ ( event ) => { touched.current = true; setFrom( event.target.value ); } } /> }
       </Field>
       <Field label="To" required>
         { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-export-to" value={ to } onChange={ ( event ) => setTo( event.target.value ) } /> }

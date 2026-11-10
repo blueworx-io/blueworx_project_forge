@@ -141,8 +141,8 @@ or newline.
   - the site's projects and milestones for the picker (id, title, level,
     parent, archived), and the first ledger entry's date for the whole-ledger
     default.
-  - `from`/`to` are validated as dates, `to` not before `from`, at most 366
-    days apart (the same bound `ReportsController` uses); `under` must be a
+  - `from`/`to` are validated as dates, `to` not before `from`, with no upper
+    bound on the span; `under` must be a
     project or milestone on this site, or the route refuses.
   - Walking a task up to its milestone and project uses `parent_id` on
     `Items`, following the tree as it is now (a task moved under another
