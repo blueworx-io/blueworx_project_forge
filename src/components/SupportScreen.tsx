@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { alphabetical } from '../alphabetical.mjs';
 import { ledgerLines } from '../ledgerLines.mjs';
+import { csvText, fileName, statementRows } from '../hoursExport.mjs';
+import { downloadText } from '../download';
 import { LifeBuoy, Receipt } from 'lucide-react';
-import type { LedgerEntry, SupportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState, SupportSummaryAnswer, SupportSummaryRow } from '../types';
+import type { LedgerEntry, SupportAnswer, SupportExportAnswer, SupportOffer, SupportPeriod, SupportPreview, SupportState, SupportSummaryAnswer, SupportSummaryRow } from '../types';
 import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Stat, Tag, TextArea, TextInput } from '../kit';
@@ -93,7 +95,7 @@ export function SupportScreen() {
   // The last site asked for; an answer for another is dropped (#402).
   const latest = useRef( '' );
   const [ notice, setNotice ] = useState< Said >( NOTHING_SAID );
-  const [ panel, setPanel ] = useState< 'assign' | 'topup' | 'adjust' | 'suspend' | null >( null );
+  const [ panel, setPanel ] = useState< 'assign' | 'topup' | 'adjust' | 'suspend' | 'export' | null >( null );
   const [ busy, setBusy ] = useState( false );
 
   /** A write's answer is the whole picture, so it is shown rather than re-read. */
@@ -304,7 +306,15 @@ export function SupportScreen() {
             />
           </Panel>
 
-          <Panel title="Every hour" flush>
+          <Panel
+            title="Every hour"
+            flush
+            right={ (
+              <Button size="sm" variant="secondary" data-testid="bwx-support-export" onClick={ () => setPanel( 'export' ) }>
+                Export CSV
+              </Button>
+            ) }
+          >
             <DataView< LedgerLine >
               bare
               fixed
@@ -321,6 +331,7 @@ export function SupportScreen() {
           { 'topup' === panel && <TopUpForm siteId={ siteId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
           { 'adjust' === panel && <AdjustForm siteId={ siteId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
           { 'suspend' === panel && <SuspendForm siteId={ siteId } onClose={ () => setPanel( null ) } onSaved={ landed } /> }
+          { 'export' === panel && <ExportDialog siteId={ siteId } onClose={ () => setPanel( null ) } /> }
         </>
       ) }
     </div>
@@ -691,6 +702,127 @@ function SuspendForm( { siteId, onClose, onSaved }: { siteId: string; onClose: (
       </Field>
       <Field label="Note">
         { ( id ) => <TextArea id={ id } rows={ 3 } maxLength={ 2000 } data-testid="bwx-support-suspend-note" value={ note } onChange={ ( event ) => setNote( event.target.value ) } /> }
+      </Field>
+    </Modal>
+  );
+}
+
+/**
+ * A statement of the site's hours for a date range, saved as a CSV (#669).
+ * The route does the sums; this picks the range and the work to look at.
+ */
+function ExportDialog( { siteId, onClose }: { siteId: string; onClose: () => void } ) {
+  const [ items, setItems ] = useState< SupportExportAnswer[ 'items' ] >( [] );
+  const [ ready, setReady ] = useState( false );
+  const [ periodFrom, setPeriodFrom ] = useState( '' );
+  const [ firstEntry, setFirstEntry ] = useState( '' );
+  const [ from, setFrom ] = useState( '' );
+  const [ to, setTo ] = useState( today() );
+  const [ scope, setScope ] = useState( '' );
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const touched = useRef( false );
+
+  // One read with no range: the work to pick from, and where the dates start.
+  useEffect( () => {
+    let live = true;
+
+    api< SupportExportAnswer >( `/client-sites/${ siteId }/support/export`, { cache: 'fresh' } )
+      .then( ( start ) => {
+        if ( ! live ) {
+          return;
+        }
+
+        setItems( start.items );
+        setPeriodFrom( start.period_starts_on ?? '' );
+        setFirstEntry( start.first_entry_on );
+        if ( ! touched.current ) {
+          setFrom( start.period_starts_on || start.first_entry_on || today() );
+        }
+        setReady( true );
+      } )
+      .catch( ( error: unknown ) => {
+        if ( live ) {
+          setNotice( messageFor( error, 'The hours could not be read.' ) );
+        }
+      } );
+
+    return () => {
+      live = false;
+    };
+  }, [ siteId ] );
+
+  /** A project or release starts from its first entry; all work, from the period. */
+  function pickScope( value: string ) {
+    touched.current = true;
+    setScope( value );
+    setFrom( '' === value ? periodFrom || firstEntry || today() : firstEntry || from );
+  }
+
+  const projects = items.filter( ( one ) => 'project' === one.level );
+  const milestones = items.filter( ( one ) => 'milestone' === one.level );
+  const named = ( one: { title: string; archived: boolean } ) => `${ one.title }${ one.archived ? ' (archived)' : '' }`;
+  const options = [
+    { value: '', label: 'All work' },
+    ...projects.flatMap( ( project ) => [
+      { value: project.id, label: named( project ) },
+      ...milestones.filter( ( one ) => one.parent_id === project.id ).map( ( one ) => ( { value: one.id, label: `— ${ named( one ) }` } ) ),
+    ] ),
+    ...milestones.filter( ( one ) => ! projects.some( ( project ) => project.id === one.parent_id ) ).map( ( one ) => ( { value: one.id, label: named( one ) } ) ),
+  ];
+
+  async function download() {
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      const query = new URLSearchParams( { from, to } );
+
+      if ( '' !== scope ) {
+        query.set( 'under', scope );
+      }
+
+      const statement = await api< SupportExportAnswer >( `/client-sites/${ siteId }/support/export?${ query.toString() }`, { cache: 'fresh' } );
+
+      downloadText( fileName( statement ), csvText( statementRows( statement ) ) );
+      onClose();
+    } catch ( error ) {
+      setNotice( messageFor( error, 'The statement could not be made.' ) );
+      setBusy( false );
+    }
+  }
+
+  return (
+    <Modal
+      title="Export hours as CSV"
+      description="A statement of the hours added and used in a date range."
+      testId="bwx-support-export-form"
+      onClose={ onClose }
+      footer={
+        <div className="bwx-moves">
+          <Button data-testid="bwx-export-download" disabled={ busy || ! ready || '' === from || '' === to } onClick={ () => void download() }>
+            Download
+          </Button>
+          <Button variant="ghost" data-testid="bwx-export-cancel" onClick={ onClose }>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      { '' !== notice && (
+        <p className="bwx-notice" data-testid="bwx-export-error" role="status">
+          { notice }
+        </p>
+      ) }
+
+      <Field label="From" required>
+        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-export-from" value={ from } onChange={ ( event ) => { touched.current = true; setFrom( event.target.value ); } } /> }
+      </Field>
+      <Field label="To" required>
+        { ( id ) => <TextInput id={ id } type="date" data-testid="bwx-export-to" value={ to } onChange={ ( event ) => setTo( event.target.value ) } /> }
+      </Field>
+      <Field label="Scope">
+        { ( id ) => <Select id={ id } data-testid="bwx-export-scope" value={ scope } onChange={ ( event ) => pickScope( event.target.value ) } options={ options } /> }
       </Field>
     </Modal>
   );

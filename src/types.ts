@@ -1246,6 +1246,31 @@ export interface SupportAnswer {
   entry?: LedgerEntry;
 }
 
+/** A project or milestone on a site, as the export's scope picker lists it (#669). */
+export interface SupportExportItem {
+  id: string;
+  title: string;
+  level: 'project' | 'milestone';
+  parent_id: string;
+  archived: boolean;
+}
+
+/** What `/client-sites/<id>/support/export` answers (#669). `first_entry_on` is '' on an empty ledger; `period_starts_on` is null with no period. */
+export interface SupportExportAnswer {
+  site: { id: string; name: string };
+  client: { id: string; name: string };
+  from: string;
+  to: string;
+  opening: number;
+  closing: number;
+  held: number;
+  first_entry_on: string;
+  period_starts_on: string | null;
+  scope: { id: string; title: string; level: string } | null;
+  entries: Array< LedgerEntry & { task?: { id: string; title: string; milestone?: { title: string } | null; project?: { title: string } | null } } >;
+  items: SupportExportItem[];
+}
+
 /** One site's hours, as the All clients table on Support shows them (#402). */
 export interface SupportSummaryRow {
   site_id: string;

@@ -21,8 +21,8 @@ const TO_UP_NEXT = ['triage', 'documentation-period', 'up-next'];
 
 // A fixed week in the future, so the arithmetic is the same whichever day the
 // suite runs on.
-const FROM = '2026-11-02';
-const TO = '2026-11-06';
+const FROM = '2028-11-06';
+const TO = '2028-11-10';
 
 /**
  * A site, hours on its package, and three people to fill the seats.

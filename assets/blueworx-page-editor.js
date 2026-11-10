@@ -1403,11 +1403,9 @@
       if (!mount) return;
       const props = { slug: mount.getAttribute('data-screen'), id: Number(mount.getAttribute('data-record') || 0) };
       const el = window.wp.element;
-      if (el.createRoot) {
-        el.createRoot(mount).render(el.createElement(Editor, props));
-      } else {
-        el.render(el.createElement(Editor, props), mount);
-      }
+      // createRoot has been in wp.element since WordPress 6.2, and React 19
+      // removed the old render() entirely, so there is nothing to fall back to.
+      el.createRoot(mount).render(el.createElement(Editor, props));
       // The self-hosted icon module (assets/blueworx-admin-icons.js) exposes
       // window.BWLucide, not the npm "lucide" package's window.lucide — that
       // global never exists here, so calling it was always a no-op. The

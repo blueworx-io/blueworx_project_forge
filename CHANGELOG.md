@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.217.0] - 2026-11-10
+
+### Added
+
+- Export a client's hours as CSV from Support, for a date range or one project or release. The sheet shows hours added and hours used with opening and closing balances, and one line for hours held for work in progress; holds themselves are never on it.
+
 ## [2.216.1] - 2026-10-27
 
 ### Changed
