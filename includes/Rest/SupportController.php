@@ -14,6 +14,7 @@ use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\Packages;
 use Blueworx\Forge\Commerce\ProRata;
 use Blueworx\Forge\Commerce\Sales;
+use Blueworx\Forge\Commerce\Statement;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\Terms;
 use Blueworx\Forge\Commerce\WorkHours;
@@ -26,6 +27,7 @@ use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\Lineage;
 use WP_REST_Request;
 
 /**
@@ -73,6 +75,7 @@ final class SupportController {
 		$routes = array(
 			array( 'GET', '', 'read' ),
 			array( 'GET', '/preview', 'preview' ),
+			array( 'GET', '/export', 'export' ),
 			array( 'POST', '', 'assign' ),
 			array( 'POST', '/top-up', 'top_up' ),
 			array( 'POST', '/adjust', 'adjust' ),
@@ -84,7 +87,7 @@ final class SupportController {
 		foreach ( $routes as list( $method, $path, $callback ) ) {
 			// #406. A Manager reads the hours of a site they reach; every
 			// change here stays the administrator's.
-			$read = 'read' === $callback;
+			$read = in_array( $callback, array( 'read', 'export' ), true );
 
 			Server::register_route(
 				$route_namespace,
@@ -136,6 +139,127 @@ final class SupportController {
 		}
 
 		return rest_ensure_response( self::answer( $site ) );
+	}
+
+	/**
+	 * A site's ledger over a range, for the hours statement (#669): holds
+	 * left out, each task named with the milestone and project above it, and
+	 * optionally only the work under one project or release.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function export( WP_REST_Request $request ) {
+		$site = ClientSites::get( (string) $request['site_id'] );
+
+		if ( null === $site ) {
+			return Boundary::absent( 'client_site' );
+		}
+
+		$id     = (string) $site['id'];
+		$today  = gmdate( 'Y-m-d', bwx_forge_now() );
+		$all    = Ledger::for_site( $id );
+		$period = Support::entitlement_on( Assignments::for_site( $id ), $today );
+		$starts = (string) $period['starts_on'];
+		$first  = array() === $all ? '' : gmdate( 'Y-m-d', (int) $all[0]['occurred_at'] );
+		$from   = sanitize_text_field( (string) $request->get_param( 'from' ) );
+		$to     = sanitize_text_field( (string) $request->get_param( 'to' ) );
+
+		if ( '' === $from ) {
+			$from = '' !== $starts ? $starts : ( '' !== $first ? $first : $today );
+		}
+
+		if ( '' === $to ) {
+			$to = $today;
+		}
+
+		$range = Statement::range( $from, $to );
+
+		if ( is_wp_error( $range ) ) {
+			return $range;
+		}
+
+		$rows  = Lineage::for_site( $id );
+		$items = array();
+
+		foreach ( $rows as $row ) {
+			if ( in_array( $row['level'], array( 'project', 'milestone' ), true ) ) {
+				$items[] = array(
+					'id'        => $row['id'],
+					'title'     => $row['title'],
+					'level'     => $row['level'],
+					'parent_id' => $row['parent_id'],
+					'archived'  => $row['archived'],
+				);
+			}
+		}
+
+		$under = sanitize_text_field( (string) $request->get_param( 'under' ) );
+		$scope = null;
+
+		if ( '' !== $under ) {
+			$root = $rows[ $under ] ?? null;
+
+			if ( null === $root || ! in_array( $root['level'], array( 'project', 'milestone' ), true ) ) {
+				return new \WP_Error( 'bwx_forge_invalid_scope', 'Pick a project or release on this site.', array( 'status' => 400 ) );
+			}
+
+			$scope = array(
+				'id'    => $root['id'],
+				'title' => $root['title'],
+				'level' => $root['level'],
+			);
+		}
+
+		$entries = array();
+
+		foreach ( Statement::in_range( $all, $range['from'], $range['to'] ) as $entry ) {
+			$is_task = WorkHours::SOURCE === (string) $entry['source_type'];
+
+			if ( null !== $scope && ( ! $is_task || ! Lineage::under( $rows, $under, (string) $entry['source_id'] ) ) ) {
+				continue;
+			}
+
+			$shaped = self::entry( $entry );
+
+			if ( $is_task ) {
+				$source_id      = (string) $entry['source_id'];
+				$shaped['task'] = array_merge(
+					array(
+						'id'    => $source_id,
+						'title' => (string) ( $rows[ $source_id ]['title'] ?? '' ),
+					),
+					Lineage::of( $rows, $source_id )
+				);
+			}
+
+			$entries[] = $shaped;
+		}
+
+		$client = Clients::get( (string) $site['client_id'] );
+
+		return rest_ensure_response(
+			array(
+				'site'             => array(
+					'id'   => $id,
+					'name' => (string) $site['name'],
+				),
+				'client'           => array(
+					'id'   => (string) $site['client_id'],
+					'name' => null === $client ? '' : (string) $client['display_name'],
+				),
+				'from'             => $from,
+				'to'               => $to,
+				'opening'          => Statement::sum_through( $all, $range['from'] - 1 ),
+				'closing'          => Statement::sum_through( $all, $range['to'] ),
+				'held'             => Statement::held_at( $all, $range['to'] ),
+				'first_entry_on'   => $first,
+				'period_starts_on' => '' !== $starts ? $starts : null,
+				'scope'            => $scope,
+				'entries'          => $entries,
+				'items'            => $items,
+			)
+		);
 	}
 
 	/**
