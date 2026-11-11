@@ -1967,6 +1967,41 @@ body {
   white-space: nowrap;
 }
 
+/* #675. "Link copied", said under the button that copied it. Always in the
+   page so it is read out; only seen while it has something to say. */
+.bwx-copy-link {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.bwx-copy-link .fk-icon-btn[data-copied] {
+  color: var( --state-ok );
+}
+.bwx-copy-said {
+  position: absolute;
+  top: calc( 100% + 6px );
+  right: 0;
+  z-index: 5;
+  padding: 4px 10px;
+  border-radius: var( --radius-xs );
+  background: var( --ink-000 );
+  color: var( --text-on-dark );
+  font-size: var( --text-small );
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: var( --shadow-raised );
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.bwx-copy-said:empty {
+  opacity: 0;
+}
+@media ( prefers-reduced-motion: reduce ) {
+  .bwx-copy-said {
+    transition: none;
+  }
+}
+
 .bwx-field-inline {
   display: flex;
   align-items: center;
