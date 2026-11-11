@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.218.0] - 2026-11-11
+
+### Added
+
+- Clients can open any item on their site and see what it is: its description, type, stage, dates, checklist and who it is waiting on. It opens as a side panel and is read-only; the conversation underneath works as before. Hours and internal notes are never shown.
+- A Copy client link button on a task, beside Copy link. The link takes the client to that item on their own site, after signing in if they need to.
+
 ## [2.217.0] - 2026-11-10
 
 ### Added

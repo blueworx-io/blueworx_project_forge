@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { DragEvent, FormEvent } from 'react';
-import { CloudOff, Inbox, X } from 'lucide-react';
-import { Button, Card, DataView, EmptyState, Field, Modal, StageChip, Tag, TextArea, TextInput, useToast } from '../../kit';
+import { Check, Circle, CloudOff, Inbox, X } from 'lucide-react';
+import { Button, Card, cleanHtml, DataView, EmptyState, Eyebrow, Field, Modal, StageChip, Tag, TextArea, TextInput, useToast } from '../../kit';
 import type { Column } from '../../kit';
 import { api, day } from '../api';
 import type { BoardView, Comment, DiscussionView, WorkItem } from '../api';
@@ -16,7 +16,9 @@ import { useView } from '../useView';
  * board's own record and every column is one of the studio's stages; nothing
  * here can move a card, and a drag says so rather than pretending.
  *
- * Opening a card shows the conversation on it — questions the studio is
+ * Opening a card shows what the work is (#671) — its description, type,
+ * stage, dates and checklist, none of which can be changed here — and then
+ * the conversation on it — questions the studio is
  * waiting on first, then everything said in order — and the two things a
  * client may add: a comment, or a link to evidence. Both go to the same route
  * the wp-admin item screen posts to, and neither names a stage.
@@ -469,6 +471,60 @@ function NeedsReview( { items, onDecided }: { items: WorkItem[]; onDecided: () =
   );
 }
 
+/**
+ * What the work is (#671): everything somebody needs to understand it, and
+ * nothing they can change. An older studio sends no description or checklist,
+ * and those parts are simply not drawn.
+ */
+function Details( { item }: { item: WorkItem } ) {
+  const description = cleanHtml( item.description ?? '' );
+  const checklist = item.checklist ?? [];
+  const done = checklist.filter( ( line ) => line.done ).length;
+
+  return (
+    <section className="fc-details" data-testid="bwx-item-details" aria-label="About this work">
+      { '' !== description ? (
+        // Reduced to the editor's own tags by the studio, and again here.
+        <div className="fk-rich-area fc-details-text" data-testid="bwx-item-description" dangerouslySetInnerHTML={ { __html: description } } />
+      ) : (
+        <p className="fc-muted" data-testid="bwx-item-description">
+          The studio has not written a description for this yet.
+        </p>
+      ) }
+
+      <div className="fc-facts fc-details-facts">
+        <div>
+          <Eyebrow>Type</Eyebrow>
+          <div>{ kind( item ) || '—' }</div>
+        </div>
+        { DATE_LABEL.map( ( [ key, what ] ) => (
+          <div key={ key }>
+            <Eyebrow>{ what }</Eyebrow>
+            <div>{ day( String( item[ key ] ?? '' ) ) || 'Not set' }</div>
+          </div>
+        ) ) }
+      </div>
+
+      { checklist.length > 0 && (
+        <div>
+          <h3 className="fc-h3">
+            Checklist <span className="fc-muted">{ done } of { checklist.length } done</span>
+          </h3>
+          <ul className="fc-checklist" data-testid="bwx-item-checklist">
+            { checklist.map( ( line, index ) => (
+              <li key={ index } data-done={ line.done ? 'true' : undefined }>
+                { line.done ? <Check size={ 16 } strokeWidth={ 2 } aria-hidden="true" /> : <Circle size={ 16 } strokeWidth={ 1.5 } aria-hidden="true" /> }
+                <span className="fc-hidden">{ line.done ? 'Done: ' : 'To do: ' }</span>
+                <span>{ line.text }</span>
+              </li>
+            ) ) }
+          </ul>
+        </div>
+      ) }
+    </section>
+  );
+}
+
 function ItemRecord( { id, onClose }: { id: string; onClose: () => void } ) {
   const [ view, setView ] = useState< DiscussionView | null >( null );
   const [ failed, setFailed ] = useState( false );
@@ -495,7 +551,7 @@ function ItemRecord( { id, onClose }: { id: string; onClose: () => void } ) {
   const description = item ? [ item.id, kind( item ), item.planned_due ? `due ${ day( item.planned_due ) }` : '' ].filter( Boolean ).join( ' · ' ) : id;
 
   return (
-    <Modal title={ title } description={ description } width={ 640 } onClose={ onClose }>
+    <Modal side title={ title } description={ description } width={ 720 } onClose={ onClose }>
       <div data-testid="bwx-item-record" data-item={ id }>
         { ! view && ! failed && (
           <p className="fc-muted" role="status" aria-busy="true">
@@ -516,8 +572,20 @@ function ItemRecord( { id, onClose }: { id: string; onClose: () => void } ) {
             <div className="fc-tags">
               <StageChip stage={ item.stage } />
               <Standing item={ item } />
-              <Tag>Read-only for workflow movement</Tag>
+              { item.awaiting_review ? (
+                <span className="fc-waiting" data-testid="bwx-item-waiting">
+                  Waiting on <strong>you</strong>
+                </span>
+              ) : (
+                item.waiting_on && (
+                  <span className="fc-waiting" data-testid="bwx-item-waiting">
+                    Waiting on <strong>{ item.waiting_on }</strong>
+                  </span>
+                )
+              ) }
             </div>
+
+            <Details item={ item } />
 
             { item.awaiting_review ? (
               <p className="fc-note" data-testid="bwx-awaiting-review">
@@ -526,8 +594,8 @@ function ItemRecord( { id, onClose }: { id: string; onClose: () => void } ) {
               </p>
             ) : (
               <p className="fc-note" data-testid="bwx-no-moves">
-                You cannot change the stage of this item. You can comment, attach evidence and answer questions — all of
-                which the studio team sees immediately.
+                The studio keeps these details up to date. You can comment, attach evidence and answer questions — all
+                of which the studio team sees immediately.
               </p>
             ) }
 

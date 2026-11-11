@@ -7,6 +7,8 @@ import type { ClientSite } from './types';
 export interface SiteOption extends ClientSite {
   client_name: string;
   studio?: boolean;
+  /** The site's own address, where it has one (#671). */
+  url?: string;
 }
 
 /** The picker's value for "every site at once". */

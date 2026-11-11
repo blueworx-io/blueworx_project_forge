@@ -1055,7 +1055,7 @@ final class ClientController {
 			array(
 				'ok'          => true,
 				'generated'   => bwx_forge_now(),
-				'item'        => ClientView::item( $item, array( Users::class, 'get' ) ),
+				'item'        => ClientView::detail( $item, array( Users::class, 'get' ) ),
 				'comments'    => Comments::for_item( (string) $item['id'], Comments::SCOPE_CLIENT ),
 				'outstanding' => Comments::outstanding( (string) $item['id'] ),
 

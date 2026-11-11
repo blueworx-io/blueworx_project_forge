@@ -575,6 +575,74 @@ p.fc-muted + p.fc-muted,
   line-height: 1.5;
   color: var( --ink-700 );
 }
+/* What an opened item is (#671): read, never edited. */
+.fc-details {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.fc-details-text {
+  max-width: 68ch;
+  font-size: var( --text-body-sm );
+  line-height: 1.6;
+  color: var( --ink-900 );
+}
+.fc-details-facts {
+  margin-top: 0;
+  padding: 14px 0;
+  border-top: 1px solid var( --border-hairline );
+  border-bottom: 1px solid var( --border-hairline );
+}
+@media ( max-width: 640px ) {
+  .fc-details-facts {
+    grid-template-columns: repeat( 2, 1fr );
+  }
+}
+.fc-h3 > .fc-muted {
+  margin-left: 6px;
+  font-weight: 400;
+}
+.fc-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var( --text-body-sm );
+  color: var( --ink-900 );
+}
+.fc-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.45;
+}
+.fc-checklist svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var( --ink-500 );
+}
+.fc-checklist li[data-done] {
+  color: var( --ink-500 );
+}
+.fc-waiting {
+  font-size: var( --text-small );
+  color: var( --ink-500 );
+}
+.fc-waiting strong {
+  color: var( --ink-900 );
+  font-weight: var( --weight-medium );
+}
+.fc-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset( 50% );
+  white-space: nowrap;
+}
+
 .fc-h3,
 .fc-questions h3 {
   margin: 0 0 10px;

@@ -67,6 +67,11 @@ export interface WorkItem {
   children_finished?: number;
   /** #565. It ended without being done, so no count includes it; an older studio sends nothing. */
   ended?: boolean;
+  /** #671. Sent when one item is opened, never on a board; an older studio sends none of these. */
+  description?: string;
+  checklist?: Array< { text: string; done: boolean } >;
+  /** Whose turn it is at the studio, by name, or '' for nobody. */
+  waiting_on?: string;
 }
 
 export interface BoardView {

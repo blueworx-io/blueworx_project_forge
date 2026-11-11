@@ -1343,6 +1343,7 @@ export function ItemPanel( {
     .reduce( ( latest, event ) => Math.max( latest, event.occurred_at ), 0 );
   // #420. Who it waits on, read-only, while it still has somewhere to go.
   const names: Record< string, string > = { ...Object.fromEntries( staffList.map( ( person ) => [ person.id, person.display_name ] ) ), ...detail?.seat_names };
+  const clientSite = ( sites ?? [] ).find( ( site ) => site.id === item?.client_site_id && ! site.studio && '' !== ( site.url ?? '' ) );
   let waitingFor: string | null = null;
   if ( item && ! ended && chore ) {
     // #462. A recurring task waits on whoever on it has not done it yet.
@@ -1728,6 +1729,8 @@ export function ItemPanel( {
             </div>
           </div>
           { item && <CopyLink itemId={ item.id } /> }
+          { /* #671. The link to send the client, when the task is on a client's site. */ }
+          { item && clientSite && <CopyLink itemId={ item.id } clientSiteUrl={ clientSite.url } /> }
           <button
             type="button"
             className="bwx-icon-button"
