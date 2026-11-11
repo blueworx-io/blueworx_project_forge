@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.220.0] - 2026-11-11
+
+### Added
+
+- Every hours export now ends with a "Total hours used" line: the work done and meetings held in the dates chosen. A project or release export already had a total; it now carries the same name.
+
 ## [2.219.1] - 2026-11-11
 
 ### Fixed

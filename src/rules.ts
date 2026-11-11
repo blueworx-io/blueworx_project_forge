@@ -695,7 +695,7 @@ export const RULES: RuleSection[] = [
     title: 'Support hours',
     rules: [
       {
-        what: 'From a site\'s Support screen, Export CSV downloads a statement of the client\'s hours for a date range: hours added and hours used, one line per task or meeting, opening and closing balances, and the hours held for work in progress. Pick a project or release to get only the work under it, with its total. Holds are never on the sheet.',
+        what: 'From a site\'s Support screen, Export CSV downloads a statement of the client\'s hours for a date range: hours added and hours used, one line per task or meeting, opening and closing balances, and the hours held for work in progress. Every sheet ends with the total hours used. Pick a project or release to get only the work under it; meetings, top-ups and adjustments are then left off. Holds are never on the sheet.',
         why: 'A client asking where their hours went needs something they can open and keep, and it has to add up to what the screen shows.',
       },
     ],

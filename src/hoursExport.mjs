@@ -82,8 +82,11 @@ export function statementRows(answer) {
     }));
   }
 
+  // #677. Every statement ends on what was used: work done and meetings held.
+  const total = row(answer.to, 'Total hours used', { hours: round(lines.reduce((sum, line) => sum + (Number(line.used) || 0), 0)) });
+
   if (scoped) {
-    rows.push(row(answer.to, 'Total', { hours: round(lines.reduce((sum, line) => sum + (Number(line.used) || 0), 0)) }));
+    rows.push(total);
 
     return rows;
   }
@@ -93,6 +96,8 @@ export function statementRows(answer) {
   if (0 !== (Number(answer.held) || 0)) {
     rows.push(row(answer.to, 'Held for work in progress', { hours: round(Number(answer.held)) }));
   }
+
+  rows.push(total);
 
   return rows;
 }

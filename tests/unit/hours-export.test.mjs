@@ -72,6 +72,7 @@ test('all-work rows open, run and close, and the lines account for the differenc
     ['Adjustment', 1, 23],
     ['Balance carried forward', null, 23],
     ['Held for work in progress', -2, null],
+    ['Total hours used', 3, null],
   ]);
   assert.deepEqual(Object.keys(rows[0]), ['date', 'what', 'task', 'milestone', 'project', 'note', 'hours', 'balance']);
   assert.equal(rows[0].date, '2026-02-28');
@@ -92,7 +93,7 @@ test('a refund folds under its task', () => {
       entry('adjustment', 0.5, { source_type: 'work-item', source_id: 'wi_1', reason: 'Hours lowered' }),
     ],
   }));
-  const lines = rows.slice(1, -1);
+  const lines = rows.slice(1, -2);
 
   assert.equal(lines.length, 1);
   assert.equal(lines[0].what, 'Work done');
@@ -106,6 +107,7 @@ test('a range with nothing in it still reconciles', () => {
   assert.deepEqual(rows.map((r) => [r.what, r.balance]), [
     ['Balance brought forward', 10],
     ['Balance carried forward', 10],
+    ['Total hours used', null],
   ]);
 });
 
@@ -115,7 +117,7 @@ test('scope keeps only the work under the item and totals it', () => {
     entries: [work('work-usage', -1, 'wi_1', 'One'), work('work-usage', -2, 'wi_2', 'Two')],
   }));
 
-  assert.deepEqual(rows.map((r) => r.what), ['Work done', 'Work done', 'Total']);
+  assert.deepEqual(rows.map((r) => r.what), ['Work done', 'Work done', 'Total hours used']);
   assert.equal(rows[2].hours, 3);
   assert.ok(rows.every((r) => null === r.balance));
 });
@@ -130,7 +132,7 @@ test('the scope total counts hours used, not hours still held', () => {
     ],
   }));
 
-  assert.equal(rows[rows.length - 1].what, 'Total');
+  assert.equal(rows[rows.length - 1].what, 'Total hours used');
   assert.equal(rows[rows.length - 1].hours, 3);
 });
 
