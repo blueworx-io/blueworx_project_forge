@@ -105,6 +105,10 @@ test('the hours export downloads the whole ledger and a single release', async (
   const held = row('Held for work in progress');
   const heldHours = held ? Number(held[6]) : 0;
   expect(round(Number(carried[7]) + heldHours)).toBe(ledger.balance);
+  // #677. All work ends on a total as well.
+  const total = all.lines[all.lines.length - 1];
+  expect(total[1]).toBe('Total hours used');
+  expect(total[6]).toBe(used.toFixed(2));
 
   // One release: the loose task is gone and the last line totals what the release used.
   const scoped = await downloadStatement(page, milestone.id);
@@ -112,7 +116,7 @@ test('the hours export downloads the whole ledger and a single release', async (
   expect(scoped.text).toContain(insideTitle);
   expect(scoped.text).not.toContain(looseTitle);
   const last = scoped.lines[scoped.lines.length - 1];
-  expect(last[1]).toBe('Total');
+  expect(last[1]).toBe('Total hours used');
   expect(last[6]).toBe(insideHours.toFixed(2));
   expect(scoped.name).toBe(`${slug(client.display_name, site.name, 'hours', scoped.from, 'to', scoped.to, milestone.title)}.csv`);
 
