@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.219.1] - 2026-11-11
+
+### Fixed
+
+- Copy link and Copy client link now show that they worked: the button turns to a tick and "Link copied" appears under it for a few seconds.
+
 ## [2.219.0] - 2026-11-11
 
 ### Added

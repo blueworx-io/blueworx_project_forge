@@ -31,6 +31,10 @@ test('copies a link that opens the item', async () => {
   const button = page.getByTestId('bwx-copy-link');
   await button.click();
   await expect(page.getByTestId('bwx-copy-link-done')).toHaveText('Link copied');
+  // #675. Said where it can be seen, not only read out, and on the screen.
+  await expect(page.getByTestId('bwx-copy-link-done')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId('bwx-copy-link-done')).toHaveCSS('opacity', '1');
+  expect((await page.getByTestId('bwx-copy-link-done').boundingBox()).width).toBeGreaterThan(40);
 
   const link = await button.getAttribute('data-link');
   expect(link).toMatch(new RegExp(`#item=${item.id}$`));

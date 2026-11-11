@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Send } from 'lucide-react';
+import { Check, Link, Send } from 'lucide-react';
 import { forgeData } from '../api';
 import { IconButton, TextInput } from '../kit';
 
@@ -46,15 +46,20 @@ export function CopyLink( { itemId, clientSiteUrl }: { itemId: string; clientSit
 
   return (
     <>
-      <IconButton
-        icon={ forClient ? Send : Link }
-        label={ forClient ? 'Copy client link' : 'Copy link' }
-        data-testid={ testId }
-        data-link={ url }
-        onClick={ () => void copy() }
-      />
-      <span className="bwx-visually-hidden" role="status" aria-live="polite" data-testid={ `${ testId }-done` }>
-        { done ? ( forClient ? 'Client link copied' : 'Link copied' ) : '' }
+      { /* #675. The button turns to a tick and says so beneath itself, where it can be seen. */ }
+      <span className="bwx-copy-link">
+        <IconButton
+          icon={ done ? Check : forClient ? Send : Link }
+          label={ forClient ? 'Copy client link' : 'Copy link' }
+          title={ forClient ? 'Copy client link' : 'Copy link' }
+          data-testid={ testId }
+          data-link={ url }
+          data-copied={ done ? 'yes' : undefined }
+          onClick={ () => void copy() }
+        />
+        <span className="bwx-copy-said" role="status" aria-live="polite" data-testid={ `${ testId }-done` }>
+          { done ? ( forClient ? 'Client link copied' : 'Link copied' ) : '' }
+        </span>
       </span>
       { manual && (
         <TextInput
