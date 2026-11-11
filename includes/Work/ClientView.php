@@ -119,6 +119,85 @@ final class ClientView {
 	}
 
 	/**
+	 * One item opened, as a client may see it (#671).
+	 *
+	 * The card, plus what somebody needs to understand the work: its
+	 * description, its checklist and whose turn it is. Sent only when one item
+	 * is opened, so a board of two hundred cards does not carry two hundred
+	 * descriptions. The other written fields (scope, requirements, how to
+	 * test) stay ours until somebody decides otherwise.
+	 *
+	 * @param array<string, mixed> $row    A work item row.
+	 * @param callable             $lookup Takes a user id, returns the person
+	 *                                     or null.
+	 * @return array<string, mixed>
+	 */
+	public static function detail( array $row, callable $lookup ): array {
+		$checklist = array();
+
+		foreach ( is_array( $row['checklist'] ?? null ) ? $row['checklist'] : array() as $line ) {
+			if ( is_array( $line ) ) {
+				$checklist[] = array(
+					'text' => (string) ( $line['text'] ?? '' ),
+					'done' => ! empty( $line['done'] ),
+				);
+			}
+		}
+
+		return array_merge(
+			self::item( $row, $lookup ),
+			array(
+				// Reduced to the editor's own tags again on the way out, so
+				// nothing older than that rule reaches a client's page.
+				'description' => wp_kses( (string) ( $row['problem'] ?? '' ), Fields::ALLOWED_HTML ),
+				'checklist'   => $checklist,
+				'waiting_on'  => self::waiting_on( $row, $lookup ),
+			)
+		);
+	}
+
+	/**
+	 * Whose turn the work is, by name, or '' for nobody.
+	 *
+	 * The studio panel's rule (src/turn.ts): the reviewer in review, the
+	 * deliverer once completed, the designer at design when there is one, the
+	 * owner otherwise, and for blocked work whoever's stage it was blocked
+	 * from. Empty where the studio would say "Pending" or name the client:
+	 * the client's own screen says "you" from `awaiting_review`.
+	 *
+	 * @param array<string, mixed> $row    A work item row.
+	 * @param callable             $lookup Takes a user id, returns the person
+	 *                                     or null.
+	 * @return string
+	 */
+	private static function waiting_on( array $row, callable $lookup ): string {
+		$stage = (string) ( $row['stage'] ?? '' );
+		$stage = 'blocked' === $stage ? (string) ( $row['prior_stage'] ?? '' ) : $stage;
+
+		if ( 'released' === $stage || '' !== (string) ( $row['terminal_outcome'] ?? '' ) || '' !== (string) ( $row['recurring_id'] ?? '' ) ) {
+			return '';
+		}
+
+		$column = 'primary_user_id';
+
+		if ( 'in-review' === $stage ) {
+			$column = 'reviewer_id';
+		} elseif ( 'completed' === $stage ) {
+			$column = 'deliverer_id';
+		} elseif ( 'design-process' === $stage && '' !== (string) ( $row['designer_id'] ?? '' ) ) {
+			$column = 'designer_id';
+		}
+
+		$id = (string) ( $row[ $column ] ?? '' );
+
+		if ( '' === $id || ClientReviewer::ID === $id ) {
+			return '';
+		}
+
+		return (string) ( Contacts::for_client( $lookup( $id ) )['display_name'] ?? '' );
+	}
+
+	/**
 	 * A list of submissions, as the client who sent them may see them (#130).
 	 *
 	 * @param array<int, array<string, mixed>> $rows   Submission rows.

@@ -16,6 +16,7 @@ export function Modal( {
   footer,
   onClose,
   testId,
+  side = false,
 }: {
   title: ReactNode;
   description?: ReactNode;
@@ -24,6 +25,8 @@ export function Modal( {
   footer?: ReactNode;
   onClose: () => void;
   testId?: string;
+  /** Drawn as a panel down the right-hand side rather than in the middle (#671). */
+  side?: boolean;
 } ) {
   const titleId = useId();
   const descriptionId = useId();
@@ -67,7 +70,7 @@ export function Modal( {
   }, [ onClose ] );
 
   return (
-    <div className="fk-scrim" onClick={ onClose }>
+    <div className="fk-scrim" data-side={ side || undefined } onClick={ onClose }>
       <div
         ref={ dialogRef }
         role="dialog"
@@ -76,7 +79,7 @@ export function Modal( {
         aria-describedby={ description ? descriptionId : undefined }
         className="fk-dialog"
         data-testid={ testId }
-        style={ { width } }
+        style={ { width: side ? `min(${ width }px, 100%)` : width } }
         onClick={ ( event ) => event.stopPropagation() }
       >
         <div className="fk-dialog-head">

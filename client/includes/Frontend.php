@@ -33,6 +33,12 @@ final class Frontend {
 	public const PAGE_SLUG = 'forge';
 
 	/**
+	 * The query argument a link to one item carries (#671). The studio's
+	 * Copy client link button writes the same word.
+	 */
+	public const ITEM_QUERY = 'forge_item';
+
+	/**
 	 * The script and style handle.
 	 */
 	public const HANDLE = 'blueworx-forge-client';
@@ -81,6 +87,7 @@ final class Frontend {
 	 */
 	public function boot(): void {
 		add_filter( 'template_include', array( $this, 'use_app_template' ) );
+		add_action( 'template_redirect', array( $this, 'follow_item_link' ), 1 );
 		add_action( 'template_redirect', array( $this, 'require_sign_in' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 		add_shortcode( 'blueworx_forge_client', array( $this, 'render_mount_point' ) );
@@ -243,6 +250,56 @@ final class Frontend {
 		}
 
 		return $signed_in ? self::GATE_REFUSE : self::GATE_SIGN_IN;
+	}
+
+	/**
+	 * The item a link names (#671), or '' when it names none.
+	 *
+	 * Pure. Only something shaped like an item id is taken, because it ends up
+	 * in an address.
+	 *
+	 * @param string $raw What the address carried.
+	 * @return string
+	 */
+	public static function linked_item( string $raw ): string {
+		return 1 === preg_match( '/^wrk_[A-Za-z0-9]+$/', $raw ) ? $raw : '';
+	}
+
+	/**
+	 * Where on the workspace page one item opens. Pure.
+	 *
+	 * @param string $app_url The workspace page.
+	 * @param string $item_id The item.
+	 * @return string
+	 */
+	public static function item_address( string $app_url, string $item_id ): string {
+		return $app_url . '#board/' . $item_id;
+	}
+
+	/**
+	 * Takes somebody who followed a link to an item to that item (#671).
+	 *
+	 * The link the studio copies is the site's address with the item in the
+	 * query, `?forge_item=wrk_…`, because that survives signing in and the
+	 * part after a `#` does not. Whoever is not signed in signs in first and
+	 * comes back to the same link; everybody else goes through the workspace
+	 * page's own door, which refuses anybody without access.
+	 */
+	public function follow_item_link(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- a link somebody was sent; it reads nothing but where to go.
+		$item_id = self::linked_item( isset( $_GET[ self::ITEM_QUERY ] ) ? sanitize_text_field( wp_unslash( (string) $_GET[ self::ITEM_QUERY ] ) ) : '' );
+
+		if ( '' === $item_id || 0 === $this->app_page_id() ) {
+			return;
+		}
+
+		if ( ! is_user_logged_in() ) {
+			wp_safe_redirect( wp_login_url( add_query_arg( self::ITEM_QUERY, $item_id, home_url( '/' ) ) ) );
+			exit;
+		}
+
+		wp_safe_redirect( self::item_address( $this->app_page_url(), $item_id ) );
+		exit;
 	}
 
 	/**

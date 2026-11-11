@@ -39,4 +39,23 @@ final class ClientFrontendTest extends TestCase {
 		$this->assertSame( Frontend::GATE_SIGN_IN, Frontend::gate( false, false ) );
 		$this->assertSame( Frontend::GATE_REFUSE, Frontend::gate( true, false ) );
 	}
+
+	/**
+	 * #671. A link the studio sends names an item in the address, and only
+	 * something shaped like an item id is taken from it.
+	 */
+	public function test_which_item_a_link_names(): void {
+		$this->assertSame( 'wrk_065c679d18', Frontend::linked_item( 'wrk_065c679d18' ) );
+		$this->assertSame( '', Frontend::linked_item( '' ) );
+		$this->assertSame( '', Frontend::linked_item( 'sub_1' ) );
+		$this->assertSame( '', Frontend::linked_item( 'wrk_1"><script>' ) );
+		$this->assertSame( '', Frontend::linked_item( 'wrk_1/../../x' ) );
+	}
+
+	public function test_where_a_link_to_an_item_lands(): void {
+		$this->assertSame(
+			'https://client.example/forge/#board/wrk_1',
+			Frontend::item_address( 'https://client.example/forge/', 'wrk_1' )
+		);
+	}
 }
