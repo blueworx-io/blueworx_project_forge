@@ -418,8 +418,11 @@ final class Transition {
 			$item,
 			Stages::BLOCKED,
 			array(
-				'prior_stage' => $from,
-				'blocked_at'  => bwx_forge_now(),
+				'prior_stage'       => $from,
+				'blocked_at'        => bwx_forge_now(),
+
+				// #673. Kept so the client can be told it waits on them.
+				'blocked_on_client' => empty( $details['owner_is_client'] ) ? 0 : 1,
 			),
 			array(
 				'action' => Events::BLOCKED,
@@ -491,9 +494,10 @@ final class Transition {
 			$item,
 			$back,
 			array(
-				'prior_stage'     => '',
-				'blocked_at'      => 0,
-				'blocked_elapsed' => $elapsed,
+				'prior_stage'       => '',
+				'blocked_at'        => 0,
+				'blocked_elapsed'   => $elapsed,
+				'blocked_on_client' => 0,
 			),
 			array(
 				'action' => Events::UNBLOCKED,

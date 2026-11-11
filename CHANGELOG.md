@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.219.0] - 2026-11-11
+
+### Added
+
+- A Client email on each client, on the Clients screen. Clients with one get two new emails; clients without get neither.
+- A daily email, on weekday mornings from 8am the client's time, sent only when the studio has work booked for them that day or something is waiting on them: questions to answer, work to review, work on hold until they reply, or onboarding steps due or overdue. Each task has a link that opens it on their site.
+- A weekly email at the start of each week: what was finished last week, what is booked or due this week, and their support hours left. It is skipped when there is nothing to say.
+- Blocking a task now remembers when the client owns the blocker, so the daily email can tell them. Tasks blocked before this update are not included until they are blocked again.
+
 ## [2.218.0] - 2026-11-11
 
 ### Added

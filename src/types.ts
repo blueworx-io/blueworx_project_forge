@@ -613,6 +613,8 @@ export interface ClientRow extends Client {
   email_domains: string[];
   /** Every studio person works on it (#405), rather than the staff chosen. */
   staff_all: boolean;
+  /** Where the client's daily and weekly emails go (#673); '' for none. */
+  contact_email?: string;
   record_version: number;
 }
 

@@ -458,6 +458,7 @@ export function ClientsScreen( { onOpen }: { onOpen?: ( clientId: string ) => vo
                       { selected.contact.needs_reassignment && ' — needs reassigning; until then the client\'s contact is the studio.' }
                       { ' · ' }
                       { selected.timezone }
+                      { selected.contact_email && <span data-testid="bwx-clients-selected-email">{ ` · Emails to ${ selected.contact_email }` }</span> }
                       { selected.email_domains.length > 0 && ` · ${ selected.email_domains.join( ', ' ) }` }
                       { ' · ' }
                       <span data-testid="bwx-clients-selected-staff">{ selected.staff_all ? 'All staff' : 'Chosen staff' }</span>
@@ -529,6 +530,7 @@ function ClientForm( {
   const [ legal, setLegal ] = useState( editing?.legal_name ?? '' );
   const [ timezone, setTimezone ] = useState( editing?.timezone ?? 'Europe/London' );
   const [ domains, setDomains ] = useState( editing?.email_domains.join( ', ' ) ?? '' );
+  const [ email, setEmail ] = useState( editing?.contact_email ?? '' );
   const [ status, setStatus ] = useState( editing?.status ?? 'active' );
   // #405. A new client is worked on by all staff, so it is workable at once.
   const [ staffAll, setStaffAll ] = useState( editing?.staff_all ?? true );
@@ -583,7 +585,7 @@ function ClientForm( {
       } else if ( editing ) {
         const answer = await api< { ok: true; client: ClientRow } >( `/clients/${ editing.id }`, {
           method: 'PATCH',
-          body: { display_name: name, legal_name: legal, timezone, email_domains: domains, status, staff_all: staffAll, record_version: editing.record_version },
+          body: { display_name: name, legal_name: legal, timezone, email_domains: domains, contact_email: email, status, staff_all: staffAll, record_version: editing.record_version },
         } );
 
         if ( 'active' === status ) {
@@ -592,7 +594,7 @@ function ClientForm( {
 
         onSaved( answer.client, 'inactive' === status && 'active' === editing.status ? `${ name } has been deactivated, and every site under it.` : '' );
       } else {
-        const answer = await api< { ok: true; client: ClientRow } >( '/clients', { method: 'POST', body: { display_name: name, legal_name: legal, timezone, email_domains: domains, staff_all: staffAll } } );
+        const answer = await api< { ok: true; client: ClientRow } >( '/clients', { method: 'POST', body: { display_name: name, legal_name: legal, timezone, email_domains: domains, contact_email: email, staff_all: staffAll } } );
 
         await saveStaff( answer.client.id );
 
@@ -640,6 +642,9 @@ function ClientForm( {
           </Field>
           <Field label="Timezone" required help="As the tz database names it, such as Europe/London.">
             { ( id ) => <TextInput id={ id } maxLength={ 64 } data-testid="bwx-clients-form-timezone" value={ timezone } onChange={ ( event ) => setTimezone( event.target.value ) } /> }
+          </Field>
+          <Field label="Client email" help="Their daily and weekly emails go here. Leave it empty and they get neither.">
+            { ( id ) => <TextInput id={ id } type="email" maxLength={ 191 } placeholder="name@client.com" data-testid="bwx-clients-form-email" value={ email } onChange={ ( event ) => setEmail( event.target.value ) } /> }
           </Field>
           <Field label="Permitted email domains" help="Each one a domain on its own, separated by commas, such as acme.co.uk, acme.com.">
             { ( id ) => <TextInput id={ id } maxLength={ 1000 } placeholder="acme.co.uk, acme.com" data-testid="bwx-clients-form-domains" value={ domains } onChange={ ( event ) => setDomains( event.target.value ) } /> }

@@ -17,6 +17,7 @@ use Blueworx\Forge\Commerce\Packages;
 use Blueworx\Forge\Commerce\Restrictions;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\Terms;
+use Blueworx\Forge\Notifications\DigestRun;
 use Blueworx\Forge\Notifications\Log as NotificationLog;
 use Blueworx\Forge\Notifications\Outbox;
 use Blueworx\Forge\Notifications\Register as Notifications;
@@ -612,6 +613,10 @@ final class ClientController {
 		if ( ! is_array( $integration ) ) {
 			return $integration;
 		}
+
+		// #673. A site asking what to send is also the moment its daily and
+		// weekly emails are raised, if either is due and has not gone.
+		DigestRun::raise_for_site( (string) $integration['client_id'], (string) $integration['client_site_id'] );
 
 		return rest_ensure_response(
 			array(

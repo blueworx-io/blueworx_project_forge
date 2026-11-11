@@ -536,4 +536,13 @@ final class SchemaTest extends TestCase {
 
 		$this->assertFalse( get_option( Schema::OPTION, false ) );
 	}
+
+	/**
+	 * #673. A client has an address for its daily and weekly emails, and a
+	 * blocked task says whether it waits on the client.
+	 */
+	public function test_a_client_has_an_email_and_a_block_says_if_it_is_the_clients(): void {
+		$this->assertStringContainsString( "contact_email varchar(191) NOT NULL DEFAULT ''", Schema::definitions()[ Schema::clients_table() ] );
+		$this->assertStringContainsString( 'blocked_on_client tinyint(1) NOT NULL DEFAULT 0', Schema::definitions()[ Schema::work_items_table() ] );
+	}
 }

@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 52;
+	public const VERSION = 53;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -556,6 +556,7 @@ final class Schema {
 	timezone varchar(64) NOT NULL DEFAULT 'UTC',
 	email_domains text NOT NULL,
 	staff_all tinyint(1) NOT NULL DEFAULT 0,
+	contact_email varchar(191) NOT NULL DEFAULT '',
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -763,6 +764,7 @@ final class Schema {
 	prior_stage varchar(32) NOT NULL DEFAULT '',
 	blocked_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	blocked_elapsed bigint(20) unsigned NOT NULL DEFAULT 0,
+	blocked_on_client tinyint(1) NOT NULL DEFAULT 0,
 	terminal_outcome varchar(20) NOT NULL DEFAULT '',
 	duplicate_of varchar(32) NOT NULL DEFAULT '',
 	archived tinyint(1) NOT NULL DEFAULT 0,

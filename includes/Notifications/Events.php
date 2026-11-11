@@ -74,6 +74,25 @@ final class Events {
 	public const REVIEW_REQUESTED = 'review-requested';
 
 	/**
+	 * The day's email (#673): what the studio is working on for them today and
+	 * what is waiting on them. About a client site rather than one record, and
+	 * numbered by its day, so each day's goes once.
+	 */
+	public const DAILY = 'client-daily';
+
+	/**
+	 * The week's round-up (#673), numbered by its Monday.
+	 */
+	public const WEEKLY = 'client-weekly';
+
+	/**
+	 * The two that are about a site and a date rather than one record.
+	 *
+	 * @var array<int, string>
+	 */
+	public const DIGESTS = array( self::DAILY, self::WEEKLY );
+
+	/**
 	 * The events that send a client an email.
 	 *
 	 * @var array<int, string>
@@ -83,7 +102,14 @@ final class Events {
 		self::COMPLETED,
 		self::RELEASED,
 		self::REVIEW_REQUESTED,
+		self::DAILY,
+		self::WEEKLY,
 	);
+
+	/**
+	 * Subject type: a client site, for the daily and weekly emails.
+	 */
+	public const CLIENT_SITE = 'client_site';
 
 	/**
 	 * A record a notification can be about.
@@ -190,6 +216,10 @@ final class Events {
 	 * @return string
 	 */
 	public static function subject_type( string $kind ): string {
+		if ( in_array( $kind, self::DIGESTS, true ) ) {
+			return self::CLIENT_SITE;
+		}
+
 		return self::RECEIVED === $kind ? self::SUBMISSION : self::WORK_ITEM;
 	}
 }

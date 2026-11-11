@@ -816,6 +816,7 @@ final class Items {
 			'prior_stage'              => '',
 			'blocked_at'               => 0,
 			'blocked_elapsed'          => 0,
+			'blocked_on_client'        => 0,
 			'terminal_outcome'         => '',
 			'duplicate_of'             => '',
 			'archived'                 => 0,
@@ -889,6 +890,9 @@ final class Items {
 			'prior_stage'              => (string) $row['prior_stage'],
 			'blocked_at'               => (int) $row['blocked_at'],
 			'blocked_elapsed'          => (int) $row['blocked_elapsed'],
+
+			// #673. Whether the blocker is the client's to clear.
+			'blocked_on_client'        => ! empty( $row['blocked_on_client'] ),
 			'terminal_outcome'         => (string) $row['terminal_outcome'],
 			'terminal_label'           => Outcomes::label( (string) $row['terminal_outcome'] ),
 			'duplicate_of'             => (string) $row['duplicate_of'],
