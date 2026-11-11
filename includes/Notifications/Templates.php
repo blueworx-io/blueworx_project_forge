@@ -51,6 +51,10 @@ final class Templates {
 	 * @return array{subject: string, body: string} Empty strings for an unknown kind.
 	 */
 	public static function render( string $kind, array $about ): array {
+		if ( in_array( $kind, Events::DIGESTS, true ) ) {
+			return self::digest( $kind, $about );
+		}
+
 		$title  = self::plain( (string) ( $about['title'] ?? '' ) );
 		$client = self::plain( (string) ( $about['client_name'] ?? '' ) );
 		$ref    = self::plain( (string) ( $about['reference'] ?? '' ) );
@@ -114,6 +118,98 @@ final class Templates {
 			'subject' => '',
 			'body'    => '',
 		);
+	}
+
+	/**
+	 * The daily or the weekly email (#673).
+	 *
+	 * Lists rather than sentences, because each line is a piece of work and
+	 * the reader is scanning for theirs. Each item carries the link that opens
+	 * it on the client's own site; an onboarding step has no item to open.
+	 *
+	 * @param string               $kind  Events::DAILY or Events::WEEKLY.
+	 * @param array<string, mixed> $about day (YYYY-MM-DD: the day, or the
+	 *                                    week's Monday), site_url, and digest
+	 *                                    as Digests made it.
+	 * @return array{subject: string, body: string} Empty strings where there
+	 *                                              is nothing to say.
+	 */
+	private static function digest( string $kind, array $about ): array {
+		$digest = is_array( $about['digest'] ?? null ) ? $about['digest'] : array();
+		$site   = rtrim( self::plain( (string) ( $about['site_url'] ?? '' ) ), '/' );
+		$day    = \DateTimeImmutable::createFromFormat( '!Y-m-d', (string) ( $about['day'] ?? '' ) );
+
+		if ( false === $day || Digests::is_empty( $digest ) ) {
+			return array(
+				'subject' => '',
+				'body'    => '',
+			);
+		}
+
+		$when = $day->format( 'l j F' );
+
+		if ( Events::DAILY === $kind ) {
+			$working = self::listed( (array) ( $digest['working'] ?? array() ), $site );
+			$waiting = self::listed( (array) ( $digest['waiting'] ?? array() ), $site );
+			$lines   = array();
+
+			if ( array() !== $working ) {
+				$lines = array_merge( $lines, array( 'Being worked on today', '' ), $working, array( '' ) );
+			}
+
+			if ( array() !== $waiting ) {
+				$lines = array_merge( $lines, array( 'Waiting on you', '' ), $waiting, array( '' ) );
+			}
+
+			$lines[] = 'Open any link to see the details or leave a comment.';
+
+			return self::email( ( array() === $working ? 'Waiting on you today, ' : 'Your work today, ' ) . $when, $lines, '' );
+		}
+
+		$finished = self::listed( (array) ( $digest['finished'] ?? array() ), $site );
+		$coming   = self::listed( (array) ( $digest['coming'] ?? array() ), $site );
+
+		$lines = array_merge(
+			array( 'Last week', '' ),
+			array() === $finished ? array( 'Nothing was finished last week.' ) : $finished,
+			array( '', 'This week', '' ),
+			array() === $coming ? array( 'Nothing is booked for this week yet.' ) : $coming
+		);
+
+		if ( isset( $digest['hours'] ) ) {
+			$lines[] = '';
+			$lines[] = 'Support hours left: ' . rtrim( rtrim( number_format( (float) $digest['hours'], 2, '.', '' ), '0' ), '.' );
+		}
+
+		return self::email( 'Your week, from ' . $when, $lines, '' );
+	}
+
+	/**
+	 * A digest's lines as a list: the title, why it is there, and its link.
+	 *
+	 * @param array<int, mixed> $lines id, title and optionally why.
+	 * @param string            $site  The client site's address, no trailing slash.
+	 * @return array<int, string>
+	 */
+	private static function listed( array $lines, string $site ): array {
+		$out = array();
+
+		foreach ( $lines as $line ) {
+			if ( ! is_array( $line ) ) {
+				continue;
+			}
+
+			$why   = self::plain( (string) ( $line['why'] ?? '' ) );
+			$out[] = '- ' . self::plain( (string) ( $line['title'] ?? '' ) ) . ( '' === $why ? '' : ' (' . $why . ')' );
+			$id    = (string) ( $line['id'] ?? '' );
+
+			if ( '' !== $id && '' !== $site ) {
+				// The address the client site turns into the item (#671).
+				$out[] = '  ' . $site . '/?forge_item=' . rawurlencode( $id );
+			}
+		}
+
+		return $out;
 	}
 
 	/**

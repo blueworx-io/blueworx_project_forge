@@ -42,7 +42,9 @@ final class NotificationTemplatesTest extends TestCase {
 	/* -------------------------------------------------- the three, and no more */
 
 	public function test_each_of_the_three_says_something(): void {
-		foreach ( Events::ALL as $kind ) {
+		// The daily and weekly are about a site, not one record (#673), and
+		// have their own tests.
+		foreach ( array_diff( Events::ALL, Events::DIGESTS ) as $kind ) {
 			$email = Templates::render( $kind, $this->about() );
 
 			$this->assertNotSame( '', $email['subject'], $kind . ' needs a subject' );
@@ -115,7 +117,7 @@ final class NotificationTemplatesTest extends TestCase {
 	public function test_every_email_carries_the_reference(): void {
 		// The first thing anybody does with a confusing email is forward it and
 		// ask what it is about.
-		foreach ( Events::ALL as $kind ) {
+		foreach ( array_diff( Events::ALL, Events::DIGESTS ) as $kind ) {
 			$this->assertStringContainsString(
 				'Reference: wrk_abc123',
 				Templates::render( $kind, $this->about() )['body'],

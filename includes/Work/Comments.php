@@ -388,4 +388,40 @@ final class Comments {
 			'created_at'  => (int) $row['created_at'],
 		);
 	}
+
+	/**
+	 * How many questions to the client are unanswered on each of a site's
+	 * items (#673), in one read.
+	 *
+	 * The same rule as {@see self::outstanding()}: a question nobody's comment
+	 * answers.
+	 *
+	 * @param string $client_site_id The site.
+	 * @return array<string, int> Count, keyed by item id; items with none are absent.
+	 */
+	public static function unanswered_for_site( string $client_site_id ): array {
+		global $wpdb;
+
+		if ( '' === $client_site_id ) {
+			return array();
+		}
+
+		$table = Schema::comments_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, item_id, kind, answers FROM {$table} WHERE client_site_id = %s AND visibility = %s", $client_site_id, self::CLIENT ), ARRAY_A );
+		$rows = is_array( $rows ) ? $rows : array();
+
+		$answered = array_filter( array_map( 'strval', array_column( $rows, 'answers' ) ) );
+		$counts   = array();
+
+		foreach ( $rows as $row ) {
+			if ( self::QUESTION === (string) $row['kind'] && ! in_array( (string) $row['id'], $answered, true ) ) {
+				$item            = (string) $row['item_id'];
+				$counts[ $item ] = ( $counts[ $item ] ?? 0 ) + 1;
+			}
+		}
+
+		return $counts;
+	}
 }

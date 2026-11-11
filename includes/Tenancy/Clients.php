@@ -104,6 +104,7 @@ final class Clients {
 			'timezone'       => (string) ( $values['timezone'] ?? 'UTC' ),
 			'email_domains'  => wp_json_encode( $values['email_domains'] ?? array() ),
 			'staff_all'      => empty( $values['staff_all'] ) ? 0 : 1,
+			'contact_email'  => (string) ( $values['contact_email'] ?? '' ),
 			'created_at'     => $now,
 			'updated_at'     => $now,
 			'created_by'     => $author,
@@ -264,7 +265,7 @@ final class Clients {
 	private static function writable( array $values ): array {
 		$changes = array();
 
-		foreach ( array( 'display_name', 'legal_name', 'status', 'timezone' ) as $field ) {
+		foreach ( array( 'display_name', 'legal_name', 'status', 'timezone', 'contact_email' ) as $field ) {
 			if ( array_key_exists( $field, $values ) ) {
 				$changes[ $field ] = (string) $values[ $field ];
 			}
@@ -298,6 +299,9 @@ final class Clients {
 			'timezone'       => (string) $row['timezone'],
 			'email_domains'  => is_array( $domains ) ? $domains : array(),
 			'staff_all'      => ! empty( $row['staff_all'] ),
+
+			// #673. Where the client's daily and weekly emails go; '' for none.
+			'contact_email'  => (string) ( $row['contact_email'] ?? '' ),
 			'created_at'     => (int) $row['created_at'],
 			'updated_at'     => (int) $row['updated_at'],
 			'created_by'     => (int) $row['created_by'],

@@ -226,6 +226,18 @@ export const RULES: RuleSection[] = [
         what: 'The client is emailed when their task reaches Completed, worded as approved and ready, and again when it is Released, which is the final confirmation.',
         why: 'Clients only hear that work is done once it is actually live.',
       },
+      {
+        what: 'A client with a Client email on their record gets a daily email on weekdays, from 8am their time, but only on days when we have work booked for them or something is waiting on them: a question to answer, work to review, work on hold until they reply, or an onboarding step due or overdue. A day with neither sends nothing.',
+        why: 'An email every morning stops being read, so it only arrives when the day involves them.',
+      },
+      {
+        what: 'The same client gets a weekly email at the start of each week: what was finished last week, what is booked or due this week, and their support hours left. It is skipped only when all of that is empty.',
+        why: 'So a client always knows where things stand without having to ask.',
+      },
+      {
+        what: 'The daily and weekly emails go only to the Client email, which we set on the Clients screen, and are sent by the client\'s own site like every other client email. A client with no Client email gets neither.',
+        why: 'Who the studio writes to at a client is ours to decide, and nobody is emailed by accident.',
+      },
     ],
   },
   {

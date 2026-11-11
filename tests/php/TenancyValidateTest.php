@@ -255,4 +255,23 @@ final class TenancyValidateTest extends TestCase {
 
 		$this->assertArrayHasKey( 'grants', $checked['errors'] );
 	}
+
+	/**
+	 * #673. The address a client's daily and weekly emails go to. Optional,
+	 * and an address or nothing.
+	 */
+	public function test_a_client_email_is_an_address_or_nothing(): void {
+		$good = Validate::client( array( 'contact_email' => ' Jo@Client.example ' ), true );
+		$this->assertSame( array(), $good['errors'] );
+		$this->assertSame( 'Jo@Client.example', $good['values']['contact_email'] );
+
+		$none = Validate::client( array( 'contact_email' => '' ), true );
+		$this->assertSame( array(), $none['errors'] );
+		$this->assertSame( '', $none['values']['contact_email'] );
+
+		$bad = Validate::client( array( 'contact_email' => 'jo at client' ), true );
+		$this->assertArrayHasKey( 'contact_email', $bad['errors'] );
+
+		$this->assertArrayNotHasKey( 'contact_email', Validate::client( array( 'legal_name' => 'x' ), true )['values'] );
+	}
 }

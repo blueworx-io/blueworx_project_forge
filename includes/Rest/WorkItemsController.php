@@ -2495,10 +2495,11 @@ final class WorkItemsController {
 			Transition::block(
 				$ready['item'],
 				array(
-					'reason'      => $reason,
-					'owner'       => self::person_label( (string) ( $body['owner'] ?? '' ) ),
-					'dependency'  => $dependency,
-					'target_date' => (string) ( $body['target_date'] ?? '' ),
+					'reason'          => $reason,
+					'owner'           => self::person_label( (string) ( $body['owner'] ?? '' ) ),
+					'owner_is_client' => 'client' === (string) ( $body['owner'] ?? '' ),
+					'dependency'      => $dependency,
+					'target_date'     => (string) ( $body['target_date'] ?? '' ),
 				),
 				$ready['version'],
 				get_current_user_id()

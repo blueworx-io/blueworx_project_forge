@@ -71,7 +71,12 @@ final class Outbox {
 				 * failed, because "there was nobody to write to" and "we tried
 				 * and it bounced" need different things done about them.
 				 */
-				Log::suppressed( (string) $event['id'], 'Nobody on this client to write to.' );
+				Log::suppressed(
+					(string) $event['id'],
+					Events::CLIENT_SITE === (string) $event['subject_type']
+						? 'Nothing left to say, or no client email to send it to.'
+						: 'Nobody on this client to write to.'
+				);
 				continue;
 			}
 
@@ -88,7 +93,14 @@ final class Outbox {
 	 * @return array<string, mixed>
 	 */
 	private static function envelope( array $event ): array {
-		$kind    = (string) $event['event_kind'];
+		$kind = (string) $event['event_kind'];
+
+		// #673. The daily and weekly are about a site, go to the client's own
+		// address, and are written from several records rather than one.
+		if ( Events::CLIENT_SITE === (string) $event['subject_type'] ) {
+			return DigestRun::envelope( $event );
+		}
+
 		$subject = self::subject_of( $event );
 
 		if ( array() === $subject ) {

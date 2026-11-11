@@ -104,6 +104,18 @@ final class Validate {
 			$values['staff_all'] = false;
 		}
 
+		// #673. Where the client's daily and weekly emails go. Optional: no
+		// address means no emails, which is a choice and not a mistake.
+		if ( array_key_exists( 'contact_email', $input ) ) {
+			$email = trim( (string) $input['contact_email'] );
+
+			if ( '' !== $email && ( ! is_email( $email ) || mb_strlen( $email ) > self::MAX_NAME ) ) {
+				$errors['contact_email'] = 'That is not an email address.';
+			} else {
+				$values['contact_email'] = $email;
+			}
+		}
+
 		$status = self::status( $input, $partial );
 
 		if ( null === $status['error'] ) {

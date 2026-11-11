@@ -109,7 +109,7 @@ final class NotificationEventsTest extends TestCase {
 
 	public function test_the_three_are_the_three(): void {
 		$this->assertSame(
-			array( Events::RECEIVED, Events::COMPLETED, Events::RELEASED, Events::REVIEW_REQUESTED ),
+			array( Events::RECEIVED, Events::COMPLETED, Events::RELEASED, Events::REVIEW_REQUESTED, Events::DAILY, Events::WEEKLY ),
 			Events::ALL
 		);
 

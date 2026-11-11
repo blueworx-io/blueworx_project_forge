@@ -446,4 +446,40 @@ final class Events {
 
 		return $entered;
 	}
+
+	/**
+	 * Which of a site's items reached one of some stages between two moments
+	 * (#673), and the stage each reached last.
+	 *
+	 * @param string             $client_site_id The site.
+	 * @param array<int, string> $stages         The stages that count.
+	 * @param int                $from           Unix time, inclusive.
+	 * @param int                $to             Unix time, exclusive.
+	 * @return array<string, string> Stage, keyed by item id.
+	 */
+	public static function reached_between( string $client_site_id, array $stages, int $from, int $to ): array {
+		global $wpdb;
+
+		$kept = array_values( array_unique( array_filter( array_map( 'strval', $stages ) ) ) );
+
+		if ( '' === $client_site_id || array() === $kept ) {
+			return array();
+		}
+
+		$table = Schema::work_events_table();
+		$among = implode( ', ', array_fill( 0, count( $kept ), '%s' ) );
+		$args  = array_merge( array( $client_site_id ), $kept, array( $from, $to ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder, and the stage placeholders are built above from the values themselves; every value is still prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, to_stage FROM {$table} WHERE client_site_id = %s AND to_stage IN ({$among}) AND occurred_at >= %d AND occurred_at < %d ORDER BY occurred_at ASC, id ASC", $args ), ARRAY_A );
+
+		$reached = array();
+
+		// Oldest first, so the last stage an item reached in the window wins.
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$reached[ (string) $row['item_id'] ] = (string) $row['to_stage'];
+		}
+
+		return $reached;
+	}
 }
