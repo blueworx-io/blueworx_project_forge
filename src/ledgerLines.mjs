@@ -103,7 +103,10 @@ export function ledgerLines(entries) {
       line.used += size;
     }
 
-    line.about = line.about || entry.about || '';
+    // A meeting's entries carry its name and date as their reason, and the
+    // server leaves `about` empty rather than say it twice; a task's reasons
+    // are about its hours, never its name.
+    line.about = line.about || entry.about || ('meeting' === kind ? entry.reason : '') || '';
     line.history.push(entry);
     line.when = entry.when;
     line.last = entry.occurred_at;

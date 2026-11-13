@@ -136,3 +136,17 @@ test('hours given back when a task was lowered sit under that task and come off 
   assert.equal(task.history.length, 4);
   assert.equal(lines[2].event_type, 'adjustment');
 });
+
+test('a calendar meeting is named by its own entries, so its line never reads blank', () => {
+  // The server leaves `about` empty where the entry's reason already names it.
+  const google = (event_type, hours) => entry(event_type, hours, { source_type: 'google-meeting', source_id: 'gmt_one', reason: 'Catchup on 2026-12-09' });
+  const lines = ledgerLines([google('meeting-reservation', -1)]);
+
+  assert.equal(lines[0].about, 'Catchup on 2026-12-09');
+});
+
+test('a task line is never named by an adjustment reason', () => {
+  const lines = ledgerLines([work('adjustment', 0.5, 'wrk_unnamed'), work('work-usage', -1, 'wrk_unnamed')].map((one) => ({ ...one, about: '', reason: one.event_type === 'adjustment' ? 'Hours lowered' : '' })));
+
+  assert.equal(lines[0].about, '');
+});
