@@ -34,8 +34,9 @@ test('with no designer the next step from Up Next is In Development, and the cap
   const seats = { ...(await Forge.seatsFor(admin.api, made)), primary_user_id: doer.id };
 
   // One hour a day for the doer, and five hours of work on one day: over-booked.
+  // A day well ahead, as a day already past books nobody's time.
   await Forge.setHours(admin.api, doer.id, 1);
-  const parked = await Forge.walkTo(admin.api, made, TO_UP_NEXT, { seats: { ...seats, hours_primary: 5, planned_due: '2026-11-10' } });
+  const parked = await Forge.walkTo(admin.api, made, TO_UP_NEXT, { seats: { ...seats, hours_primary: 5, planned_due: '2027-10-11' } });
 
   const detail = await admin.api.get(`/work-items/${parked.id}`);
   expect(detail.item.designer_id).toBe('');
