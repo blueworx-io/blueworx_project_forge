@@ -46,6 +46,7 @@ function bwx_forge_github_stub_state(): array {
 			'issues_refused'     => false,
 			'lose_create_answer' => false,
 			'issues'             => array(),
+			'comments'           => array(),
 			'next_issue'         => array(),
 			// Far above the ids the specs make up for their own links.
 			'next_issue_id'      => 50000000,
@@ -251,9 +252,20 @@ add_filter(
 			// Newest first, as GitHub lists them; the filters are not modelled.
 			$answer = bwx_forge_github_stub_response( array_reverse( (array) ( $state['issues'][ strtolower( $found[1] ) ] ?? array() ) ) );
 		} elseif ( 'POST' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)/comments$#', $path, $found ) ) {
-			$answer = in_array( strtolower( $found[1] ), (array) $state['repos'], true )
-				? bwx_forge_github_stub_response( array( 'id' => (int) $state['next_issue_id']++ ), 201 )
-				: bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
+			$sent    = json_decode( (string) ( $args['body'] ?? '' ), true );
+			$comment = array(
+				'id'   => (int) $state['next_issue_id']++,
+				'body' => is_array( $sent ) ? (string) ( $sent['body'] ?? '' ) : '',
+			);
+
+			if ( in_array( strtolower( $found[1] ), (array) $state['repos'], true ) ) {
+				$state['comments'][ strtolower( $found[1] ) . '#' . $found[2] ][] = $comment;
+				$answer = bwx_forge_github_stub_response( $comment, 201 );
+			} else {
+				$answer = bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
+			}
+		} elseif ( 'GET' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)/comments\?#', $path, $found ) ) {
+			$answer = bwx_forge_github_stub_response( array_values( (array) ( $state['comments'][ strtolower( $found[1] ) . '#' . $found[2] ] ?? array() ) ) );
 		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/hooks(?:/(\d+))?(?:\?.*)?$#', $path, $found ) ) {
 			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
 			$answer = bwx_forge_github_stub_hooks( $state, $method, strtolower( $found[1] ), (int) ( $found[2] ?? 0 ), is_array( $sent ) ? $sent : array() );
@@ -292,6 +304,7 @@ add_action(
 						$state['calls']      = array();
 						$state['next_issue'] = array();
 						$state['issues']     = array();
+						$state['comments']   = array();
 					}
 
 					update_option( BWX_FORGE_GITHUB_STUB_OPTION, $state, false );

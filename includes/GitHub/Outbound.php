@@ -176,12 +176,29 @@ final class Outbound {
 			return true;
 		}
 
-		$said = Client::request(
-			'POST',
-			'/repos/' . (string) $link['repo'] . '/issues/' . (int) $link['issue_number'] . '/comments',
-			/* translators: %s: where the task is in Forge. */
-			array( 'body' => sprintf( __( 'Tracked in Forge: %s', 'blueworx-forge' ), Notify::link( $item ) ) )
-		);
+		$path = '/repos/' . (string) $link['repo'] . '/issues/' . (int) $link['issue_number'] . '/comments';
+		$url  = Notify::link( $item );
+		$mark = '<!-- forge:' . (string) $item['id'] . ' -->';
+
+		// The one comment Forge writes: a lost answer or a reopened job must
+		// not make a second, so look for it first.
+		$listed = Client::request( 'GET', $path . '?per_page=100' );
+
+		if ( is_wp_error( $listed ) ) {
+			return $listed;
+		}
+
+		foreach ( $listed as $comment ) {
+			$text = is_array( $comment ) ? (string) ( $comment['body'] ?? '' ) : '';
+
+			if ( false !== strpos( $text, $mark ) || false !== strpos( $text, $url ) ) {
+				return true;
+			}
+		}
+
+		/* translators: %s: where the task is in Forge. */
+		$words = sprintf( __( 'Tracked in Forge: %s', 'blueworx-forge' ), $url );
+		$said  = Client::request( 'POST', $path, array( 'body' => $words . "\n\n" . $mark ) );
 
 		return is_wp_error( $said ) ? $said : true;
 	}

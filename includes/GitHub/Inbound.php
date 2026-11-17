@@ -35,7 +35,7 @@ final class Inbound {
 	 *
 	 * @param string               $event   The X-GitHub-Event name.
 	 * @param array<string, mixed> $payload The decoded body.
-	 * @return string The outcome: pong, ignored, duplicate, created or failed.
+	 * @return string The outcome: pong, ignored, duplicate, created, linked or failed.
 	 */
 	public static function handle( string $event, array $payload ): string {
 		if ( 'ping' === $event ) {
@@ -89,6 +89,14 @@ final class Inbound {
 
 		if ( '' === $site_id || 0 >= $issue_id ) {
 			return 'ignored';
+		}
+
+		// An issue Forge made for an item: GitHub's message can beat Forge's own
+		// create call, and it must link that item, never make another.
+		$own = Items::get( IssueText::marker_in( (string) ( $issue['body'] ?? '' ) ) );
+
+		if ( null !== $own ) {
+			return self::linked( $own, $issue, $repo, $number );
 		}
 
 		if ( null !== Links::for_issue( $issue_id ) ) {
@@ -149,6 +157,28 @@ final class Inbound {
 			)
 		);
 
+		// One comment with the way to the task, and never an edit to the issue.
+		Jobs::queue( Outbound::LINK_COMMENT, (string) $item['id'], array(), true );
+
 		return 'created';
+	}
+
+	/**
+	 * Links an item to the issue Forge made for it.
+	 *
+	 * @param array<string, mixed> $item   The item the marker names.
+	 * @param array<string, mixed> $issue  The issue, as GitHub sends it.
+	 * @param string               $repo   Its repository.
+	 * @param int                  $number Its number there.
+	 * @return string linked or duplicate.
+	 */
+	private static function linked( array $item, array $issue, string $repo, int $number ): string {
+		if ( null !== Links::for_item( (string) $item['id'] ) || null !== Links::for_issue( (int) $issue['id'] ) ) {
+			return 'duplicate';
+		}
+
+		$body = (string) ( $issue['body'] ?? '' );
+
+		return Links::add( (string) $item['id'], $repo, $number, (int) $issue['id'], 'forge', (string) $item['title'], hash( 'sha256', $body ) ) ? 'linked' : 'duplicate';
 	}
 }

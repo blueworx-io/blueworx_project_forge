@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, request as pwRequest } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
 import { signIn } from '../helpers/sign-in.js';
-import { installGitHubStub, removeGitHubStub, githubSays, githubCalls, githubState, runGitHubJobs, issueJob } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubCalls, githubState, githubSecret, sendHook, runGitHubJobs, issueJob } from './helpers/github.js';
 
 // #681. Choosing a repo for a task makes its GitHub issue, once, after the
 // save has answered. A GitHub that is down never stops the save: the issue is
@@ -252,4 +252,50 @@ test('work added with its repo already chosen gets its issue', async () => {
 
   await expect.poll(async () => (await linkOf(item.id))?.repo ?? null, { timeout: 30000 }).toBe(ALPHA);
   expect(await createsFor(item.id)).toHaveLength(1);
+});
+
+test("GitHub's message about our own issue links it, never a new task", async () => {
+  test.slow();
+  const item = await feature('Our own issue');
+  const bare = await pwRequest.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8892' });
+
+  try {
+    const secret = await githubSecret(admin.api.request);
+    const id = Date.now() * 100 + Math.floor(Math.random() * 100);
+    const before = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items.length;
+
+    // GitHub's message beats Forge's own create call.
+    const sent = await sendHook(
+      bare,
+      'issues',
+      {
+        action: 'opened',
+        issue: { id, number: 4242, title: item.title, body: `Something.
+
+<!-- forge:${item.id} -->`, labels: [], user: { login: 'blueworx-io' } },
+        repository: { full_name: ALPHA },
+      },
+      { secret },
+    );
+    expect(sent.status(), await sent.text()).toBe(200);
+    expect((await sent.json()).outcome).toBe('linked');
+
+    const link = await linkOf(item.id);
+    expect(link.repo).toBe(ALPHA);
+    expect(link.number).toBe(4242);
+
+    // The create job now finds the link and makes nothing.
+    expect((await chooseRepo(item.id, ALPHA)).status()).toBe(200);
+    await runGitHubJobs(admin.api.request);
+    expect(await createsFor(item.id)).toHaveLength(0);
+    expect(await issuesFor(item.id)).toHaveLength(0);
+    expect((await linkOf(item.id)).number).toBe(4242);
+
+    // Sent again, it is a repeat; and no new task came in.
+    const again = await sendHook(bare, 'issues', { action: 'opened', issue: { id, number: 4242, title: item.title, body: `<!-- forge:${item.id} -->`, labels: [] }, repository: { full_name: ALPHA } }, { secret });
+    expect((await again.json()).outcome).toBe('duplicate');
+    expect((await admin.api.get(`/work-items?client_site_id=${site.id}`)).items).toHaveLength(before);
+  } finally {
+    await bare.dispose();
+  }
 });
