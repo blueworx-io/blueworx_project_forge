@@ -41,6 +41,30 @@ final class GitHubIssueTextTest extends TestCase {
 		self::assertSame( '', IssueText::to_html( "  \n\n " ) );
 	}
 
+	public function test_runs_of_blank_lines_make_no_empty_paragraphs(): void {
+		self::assertSame( '<p>One</p><p>Two</p>', IssueText::to_html( "One\n\n\n\nTwo" ) );
+		self::assertSame( '<p>One</p><p>Two</p>', IssueText::to_html( "One\n\n \n\n\n\t\n\nTwo" ) );
+	}
+
+	public function test_a_huge_body_is_cut_to_fit_with_a_note(): void {
+		$body = implode( "\n\n", array_fill( 0, 4000, str_repeat( 'Words & <more> words. ', 4 ) ) );
+		$html = IssueText::to_html( $body );
+
+		self::assertLessThan( 60000, strlen( $html ) );
+		self::assertGreaterThan( 50000, strlen( $html ) );
+		self::assertStringEndsWith( '<p>' . IssueText::CUT_NOTE . '</p>', $html );
+		self::assertSame( $html, wp_kses( $html, Fields::ALLOWED_HTML ) );
+	}
+
+	public function test_one_huge_paragraph_is_cut_too(): void {
+		$html = IssueText::to_html( str_repeat( '<é> ', 40000 ) );
+
+		self::assertLessThan( 60000, strlen( $html ) );
+		self::assertTrue( mb_check_encoding( $html, 'UTF-8' ) );
+		self::assertStringStartsWith( '<p>&lt;é&gt;', $html );
+		self::assertStringEndsWith( '<p>' . IssueText::CUT_NOTE . '</p>', $html );
+	}
+
 	public function test_long_titles_are_cut_to_fit(): void {
 		$title = IssueText::title( str_repeat( 'é', 300 ) );
 

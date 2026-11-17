@@ -1,15 +1,14 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import { signedIn, makeSite, asClientSite } from './helpers/forge.js';
-import { installGitHubStub, removeGitHubStub, githubSays, sendHook } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubSecret, sendHook } from './helpers/github.js';
 
 // #680. A new issue in a repository linked to a client's site comes into Forge
 // as a loose item in Future Idea on that site, once, however often GitHub sends
 // it. GitHub is the stand-in from tests/support/github-stub.php; the hook is
-// signed as GitHub signs it.
+// signed as GitHub signs it, with the secret Forge made.
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const RUN = `${Date.now()}${Math.floor(Math.random() * 1e4)}`;
-const SECRET = 'whsec-inbound-test';
 const ALPHA = 'blueworx-io/alpha';
 const BETA = 'blueworx-io/beta';
 
@@ -22,6 +21,7 @@ test.describe.configure({ mode: 'serial' });
 let admin;
 let bare;
 let made;
+let SECRET;
 
 /** Unlinks repos from whichever site holds them, so this spec can link them its own way. */
 async function freeRepos(repos) {
@@ -53,9 +53,10 @@ test.beforeAll(async ({ browser, baseURL }) => {
   admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   made = await makeSite(admin.api, 'Inbound', RUN);
 
-  await githubSays(admin.api.request, { down: false, denied: false, reset: true, repos: [ALPHA, BETA] });
-  const connected = await admin.api.post('/connections/github', { token: 'good-token-7007', org: 'blueworx-io', secret: SECRET });
+  await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, reset: true, repos: [ALPHA, BETA] });
+  const connected = await admin.api.post('/connections/github', { token: 'good-token-7007' });
   expect(connected.ok()).toBe(true);
+  SECRET = await githubSecret(admin.api.request);
 
   await freeRepos([ALPHA, BETA]);
   const linked = await admin.api.put(`/client-sites/${made.site.id}/github-repos`, { repos: [ALPHA] });
@@ -146,6 +147,10 @@ test('an issue Forge cannot take in is a failure, and can be sent again', async 
   const again = await sendHook(bare, 'issues', blank, { secret: SECRET, delivery });
   expect(again.status()).toBe(500);
   expect(await items()).toHaveLength(before);
+
+  // The GitHub row on the Connections page says so.
+  const github = (await admin.api.get('/connections')).services.find((service) => service.id === 'github');
+  expect(github.error).toContain('could not take in a message from GitHub');
 });
 
 test('clients see it on their board', async ({ request }) => {
@@ -155,4 +160,32 @@ test('clients see it on their board', async ({ request }) => {
 
   expect(board.items.map((one) => one.id)).toContain(mine.id);
   expect(board.items.find((one) => one.id === mine.id).title).toBe('Fix the footer');
+});
+
+test('a huge issue still comes across, cut to fit', async () => {
+  const body = Array.from({ length: 6000 }, (_, i) => `Paragraph ${i} & <more> words to fill it out.`).join('\n\n');
+  const answer = await sendHook(bare, 'issues', opened(12, IDS + 12, { title: `Huge ${RUN}`, body }), { secret: SECRET });
+
+  expect(answer.status(), await answer.text()).toBe(200);
+  expect((await answer.json()).outcome).toBe('created');
+
+  const found = (await items()).find((one) => one.title === `Huge ${RUN}`);
+  expect(Buffer.byteLength(found.problem)).toBeLessThan(60000);
+  expect(found.problem).toMatch(/The rest is on GitHub\.<\/p>$/);
+});
+
+test('deleting an item lets its issue come in again', async () => {
+  const title = `Delete me ${RUN}`;
+  const issue = opened(11, IDS + 11, { title });
+  const first = await sendHook(bare, 'issues', issue, { secret: SECRET });
+  expect((await first.json()).outcome).toBe('created');
+
+  const mine = (await items()).find((one) => one.title === title);
+  const deleted = await admin.api.del(`/work-items/${mine.id}`);
+  expect(deleted.status(), await deleted.text()).toBe(200);
+
+  // Its link went with it, so the issue is not mistaken for one already in.
+  const again = await sendHook(bare, 'issues', issue, { secret: SECRET });
+  expect((await again.json()).outcome).toBe('created');
+  expect((await items()).filter((one) => one.title === title)).toHaveLength(1);
 });

@@ -20,6 +20,17 @@ use Blueworx\Forge\Work\Validate;
 final class IssueText {
 
 	/**
+	 * The most a description may hold, in bytes. The column takes 65,535; this
+	 * leaves room, so a huge issue is cut rather than failing every time.
+	 */
+	public const MAX_HTML = 60000;
+
+	/**
+	 * What ends a description that had to be cut.
+	 */
+	public const CUT_NOTE = 'This issue was too long to bring across in full. The rest is on GitHub.';
+
+	/**
 	 * An issue body as a description.
 	 *
 	 * @param string $markdown The body as GitHub sent it.
@@ -27,7 +38,34 @@ final class IssueText {
 	 */
 	public static function to_html( string $markdown ): string {
 		$text = trim( str_replace( array( "\r\n", "\r" ), "\n", $markdown ) );
+		$html = self::convert( $text );
 
+		if ( strlen( $html ) <= self::MAX_HTML ) {
+			return $html;
+		}
+
+		$note  = '<p>' . esc_html( self::CUT_NOTE ) . '</p>';
+		$room  = self::MAX_HTML - strlen( $note );
+		$chars = mb_strlen( $text );
+
+		// Escaping makes the HTML longer than the words, by an amount that
+		// depends on them: cut the words in proportion until it fits.
+		do {
+			$chars = (int) floor( $chars * $room / strlen( $html ) * 0.95 );
+			$html  = self::convert( trim( mb_substr( $text, 0, $chars ) ) );
+			$size  = strlen( $html );
+		} while ( $size > $room && $chars > 0 );
+
+		return $html . $note;
+	}
+
+	/**
+	 * Markdown as HTML, whatever its length.
+	 *
+	 * @param string $text Trimmed, with plain newlines.
+	 * @return string
+	 */
+	private static function convert( string $text ): string {
 		if ( '' === $text ) {
 			return '';
 		}
@@ -35,6 +73,11 @@ final class IssueText {
 		$html = '';
 
 		foreach ( preg_split( '/\n[ \t]*\n/', $text ) as $block ) {
+			// A run of blank lines splits into empty blocks: they are not paragraphs.
+			if ( '' === trim( $block ) ) {
+				continue;
+			}
+
 			$lines = array();
 			$items = array();
 
