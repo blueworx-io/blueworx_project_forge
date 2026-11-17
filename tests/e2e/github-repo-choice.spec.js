@@ -152,10 +152,36 @@ test.describe('the repo picker', () => {
     await expect.poll(async () => (await admin.api.get(`/work-items/${feature.id}`)).item.github_repo, { timeout: 30000 }).toBe(BETA);
   });
 
-  test('without GitHub only No repo needed is offered', async ({ page }) => {
+  test('a feature-level task is offered the picker too', async ({ page }) => {
+    test.slow();
+    const made = (await (await Forge.makeItem(admin.api, pickSite.id, { title: `Task picker ${RUN_ID}`, level: 'feature', work_type: 'task' })).json()).item;
+    const bug = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period']);
+
+    await signIn(page, ADMIN_USER, ADMIN_PASS);
+    await page.goto('about:blank');
+    await page.goto(`/blueworx-forge/#item=${bug.id}`);
+    await expect(page.getByTestId('bwx-item-repo')).toBeVisible({ timeout: 60000 });
+  });
+
+  test('with GitHub off, a saved repo is still shown but cannot be picked again', async ({ page }) => {
     test.slow();
     expect((await admin.api.del('/connections/github')).ok()).toBe(true);
     await openPanel(page);
+
+    const picker = page.getByTestId('bwx-item-repo');
+    await expect(picker).toBeVisible({ timeout: 60000 });
+    await expect(picker).toHaveValue(BETA);
+    await expect(picker.locator('option')).toHaveText([BETA, 'No repo needed']);
+  });
+
+  test('without GitHub and no repo chosen only No repo needed is offered', async ({ page }) => {
+    test.slow();
+    const made = (await (await Forge.makeItem(admin.api, pickSite.id, { title: `Bare picker ${RUN_ID}`, level: 'feature' })).json()).item;
+    const bare = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period']);
+
+    await signIn(page, ADMIN_USER, ADMIN_PASS);
+    await page.goto('about:blank');
+    await page.goto(`/blueworx-forge/#item=${bare.id}`);
 
     const picker = page.getByTestId('bwx-item-repo');
     await expect(picker).toBeVisible({ timeout: 60000 });

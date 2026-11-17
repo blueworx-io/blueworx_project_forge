@@ -2615,7 +2615,7 @@ export function ItemPanel( {
               </div>
 
               { /* #681. Next to the links: the repo, or the issue once there is one. */ }
-              { detail.github && 'feature' === item.work_type && [ 'feature', 'sub-feature' ].includes( item.level ) && (
+              { detail.github && [ 'feature', 'sub-feature' ].includes( item.level ) && (
                 <RepoPicker repo={ item.github_repo } github={ detail.github } save={ saveRepo } />
               ) }
               </div>

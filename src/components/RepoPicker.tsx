@@ -62,7 +62,7 @@ export function RepoPicker( {
   const site = github.connected ? github.site_repos : [];
   const others = github.connected ? github.repos.filter( ( one ) => ! site.includes( one ) ) : [];
   // A repo chosen earlier that has since left the account is still where this sits.
-  const kept = github.connected && '' !== value && NONE !== value && ! site.includes( value ) && ! others.includes( value ) ? [ value ] : [];
+  const kept = '' !== value && NONE !== value && ! site.includes( value ) && ! others.includes( value ) ? [ value ] : [];
 
   async function pick( next: string ) {
     const was = value;
@@ -92,9 +92,9 @@ export function RepoPicker( {
           </optgroup>
         ) }
         { ( 0 < others.length || 0 < kept.length ) && (
-          <optgroup label="Other repos on the account">
+          <optgroup label={ github.connected ? 'Other repos on the account' : 'Chosen repo' }>
             { [ ...kept, ...others ].map( ( one ) => (
-              <option key={ one } value={ one }>
+              <option key={ one } value={ one } disabled={ ! github.connected }>
                 { one }
               </option>
             ) ) }
