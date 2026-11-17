@@ -212,9 +212,10 @@ final class Events {
 	public const VIA_CLIENT = 'client';
 
 	/**
-	 * Came in from GitHub (#680): an issue opened in a linked repository. The
-	 * actor is the administrator who connected GitHub, so this is what says
-	 * nobody in Forge did it by hand.
+	 * Came in from GitHub (#680): an issue opened in a linked repository, or
+	 * the move to In review when its issue was closed (#682). The actor is
+	 * the administrator who connected GitHub, so this is what says nobody in
+	 * Forge did it by hand.
 	 */
 	public const VIA_GITHUB = 'github';
 

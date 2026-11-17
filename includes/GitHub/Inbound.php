@@ -15,6 +15,8 @@ use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Events;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Levels;
+use Blueworx\Forge\Work\Stages;
+use Blueworx\Forge\Work\Transition;
 use Blueworx\Forge\Work\Transitions;
 use Blueworx\Forge\Work\Types;
 use Blueworx\Forge\Work\Validate;
@@ -26,7 +28,9 @@ use Blueworx\Forge\Work\Validate;
  * Feature in Future Idea on that site, recorded under the administrator who
  * connected GitHub. A linked issue renamed in GitHub renames its task, and
  * a description edited there follows into the task when the issue was
- * raised in GitHub (#682).
+ * raised in GitHub (#682). Closing a linked issue moves finished development
+ * on to In review and no further; anything else it would change is left
+ * alone, with a note to the team.
  *
  * The delivery id stops one message being handled twice, but GitHub's event
  * and delivery headers are not signed, so the issue id is checked as well:
@@ -40,7 +44,7 @@ final class Inbound {
 	 * @param string               $event   The X-GitHub-Event name.
 	 * @param array<string, mixed> $payload The decoded body.
 	 * @return string The outcome: pong, ignored, duplicate, created, linked,
-	 *                updated, noted, unchanged or failed.
+	 *                updated, moved, noted, nothing, unchanged or failed.
 	 */
 	public static function handle( string $event, array $payload ): string {
 		if ( 'ping' === $event ) {
@@ -56,9 +60,41 @@ final class Inbound {
 				return self::opened( $payload );
 			case 'edited':
 				return self::edited( $payload );
+			case 'closed':
+				return self::closed( $payload );
+			case 'reopened':
+				return self::reopened( $payload );
 			default:
 				return 'ignored';
 		}
+	}
+
+	/**
+	 * What closing a linked issue in GitHub does to its task (#682).
+	 *
+	 * Finished development goes on to In review, and nothing from GitHub
+	 * ever takes a task further: review is a person's decision. Anything
+	 * else is left where it is and the team is told.
+	 *
+	 * @param array<string, mixed> $item   The task.
+	 * @param string               $reason GitHub's state_reason.
+	 * @return string move, note or nothing.
+	 */
+	public static function on_close( array $item, string $reason ): string {
+		// Forge closed it, and this is GitHub saying so.
+		if ( 'closed' === Sync::state_for( $item )['state'] ) {
+			return 'nothing';
+		}
+
+		if ( in_array( (string) ( $item['stage'] ?? '' ), array( 'in-review', Stages::COMPLETED, Stages::RELEASED ), true ) ) {
+			return 'nothing';
+		}
+
+		if ( 'not_planned' === $reason ) {
+			return 'note';
+		}
+
+		return 'in-development' === (string) ( $item['stage'] ?? '' ) ? 'move' : 'note';
 	}
 
 	/**
@@ -267,7 +303,8 @@ final class Inbound {
 			$outcome = 'updated';
 		}
 
-		if ( $note && null === self::note( $item, (string) ( $payload['sender']['login'] ?? '' ) ) ) {
+		/* translators: %s: who changed the description, as their GitHub login. */
+		if ( $note && null === self::note( $item, sprintf( __( 'The issue\'s description was changed in GitHub by %s. Forge kept its own; copy anything you need across.', 'blueworx-forge' ), self::sender( $payload ) ) ) ) {
 			return 'failed';
 		}
 
@@ -330,14 +367,151 @@ final class Inbound {
 	}
 
 	/**
-	 * Tells the team, internally, that a Forge-made issue's description was
-	 * changed in GitHub. Never shown to the client.
+	 * A linked issue was closed in GitHub (#682).
 	 *
-	 * @param array<string, mixed> $item  The item.
-	 * @param string               $login Who changed it on GitHub.
+	 * The move goes through Transition::move() like anybody's, so the In
+	 * development check and every other rule still decide; when they say no,
+	 * the team gets a note instead. GitHub's state is recorded as seen, so a
+	 * second message about the same close does nothing.
+	 *
+	 * @param array<string, mixed> $payload The decoded body.
+	 * @return string moved, noted, nothing, ignored or failed.
+	 */
+	private static function closed( array $payload ): string {
+		$issue = (array) ( $payload['issue'] ?? array() );
+		$link  = Links::for_issue( (int) ( $issue['id'] ?? 0 ) );
+		$item  = null === $link ? null : Items::get( (string) $link['item_id'] );
+
+		if ( null === $link || null === $item ) {
+			return 'ignored';
+		}
+
+		if ( 'closed' === (string) $link['state_seen'] ) {
+			return 'nothing';
+		}
+
+		$reason   = (string) ( $issue['state_reason'] ?? '' );
+		$decision = self::on_close( $item, $reason );
+		$outcome  = 'nothing';
+
+		// A refusal is a note: GitHub never works round a rule.
+		if ( 'move' === $decision ) {
+			$decision = self::to_review( (string) $item['id'] ) ? 'moved' : 'note';
+		}
+
+		if ( 'moved' === $decision ) {
+			$outcome = 'moved';
+		}
+
+		if ( 'note' === $decision ) {
+			$body = 'not_planned' === $reason
+				/* translators: %s: who closed the issue, as their GitHub login. */
+				? sprintf( __( 'The issue was closed in GitHub by %s as not planned. Forge has left this task where it is.', 'blueworx-forge' ), self::sender( $payload ) )
+				/* translators: %s: who closed the issue, as their GitHub login. */
+				: sprintf( __( 'The issue was closed in GitHub by %s. Forge has left this task where it is.', 'blueworx-forge' ), self::sender( $payload ) );
+
+			if ( null === self::note( $item, $body ) ) {
+				return 'failed';
+			}
+
+			$outcome = 'noted';
+		}
+
+		Links::seen( (string) $item['id'], array( 'state_seen' => 'closed' ) );
+
+		return $outcome;
+	}
+
+	/**
+	 * A linked issue was reopened in GitHub (#682). Forge never reopens a
+	 * task for it: when the task is finished in Forge the team is told, and
+	 * otherwise this is GitHub answering Forge's own reopen.
+	 *
+	 * @param array<string, mixed> $payload The decoded body.
+	 * @return string noted, nothing, ignored or failed.
+	 */
+	private static function reopened( array $payload ): string {
+		$issue = (array) ( $payload['issue'] ?? array() );
+		$link  = Links::for_issue( (int) ( $issue['id'] ?? 0 ) );
+		$item  = null === $link ? null : Items::get( (string) $link['item_id'] );
+
+		if ( null === $link || null === $item ) {
+			return 'ignored';
+		}
+
+		if ( 'open' === (string) $link['state_seen'] ) {
+			return 'nothing';
+		}
+
+		$outcome = 'nothing';
+
+		if ( 'closed' === Sync::state_for( $item )['state'] ) {
+			/* translators: %s: who reopened the issue, as their GitHub login. */
+			$body = sprintf( __( 'The issue was reopened in GitHub by %s. Forge has left this task where it is.', 'blueworx-forge' ), self::sender( $payload ) );
+
+			if ( null === self::note( $item, $body ) ) {
+				return 'failed';
+			}
+
+			$outcome = 'noted';
+		}
+
+		Links::seen( (string) $item['id'], array( 'state_seen' => 'open' ) );
+
+		return $outcome;
+	}
+
+	/**
+	 * Moves a task on to In review for a closed issue, with every check a
+	 * person's move has. Someone may save the task at the same moment, so a
+	 * version that has moved is read again and tried once more.
+	 *
+	 * @param string $id The task.
+	 * @return bool Whether it moved.
+	 */
+	private static function to_review( string $id ): bool {
+		for ( $try = 0; $try < 2; $try++ ) {
+			$item = Items::get( $id );
+
+			if ( null === $item ) {
+				return false;
+			}
+
+			$moved = Transition::move( $item, 'in-review', (int) $item['record_version'], Settings::actor(), Events::VIA_GITHUB );
+
+			if ( ! is_wp_error( $moved ) ) {
+				return true;
+			}
+
+			if ( 'bwx_forge_stale_version' !== $moved->get_error_code() ) {
+				return false;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Who did it on GitHub, as their login.
+	 *
+	 * @param array<string, mixed> $payload The decoded body.
+	 * @return string
+	 */
+	private static function sender( array $payload ): string {
+		$login = (string) ( $payload['sender']['login'] ?? '' );
+
+		return '' === $login ? __( 'someone', 'blueworx-forge' ) : $login;
+	}
+
+	/**
+	 * Tells the team, internally, about something done in GitHub that Forge
+	 * did not follow. Never shown to the client.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @param string               $body What to tell them.
 	 * @return array<string, mixed>|null The note, or null when it could not be written.
 	 */
-	private static function note( array $item, string $login ): ?array {
+	private static function note( array $item, string $body ): ?array {
 		return Comments::add(
 			array(
 				'item_id'        => (string) $item['id'],
@@ -345,8 +519,7 @@ final class Inbound {
 				'client_id'      => (string) $item['client_id'],
 				'kind'           => Comments::COMMENT,
 				'visibility'     => Comments::INTERNAL,
-				/* translators: %s: who changed the description, as their GitHub login. */
-				'body'           => sprintf( __( 'The issue\'s description was changed in GitHub by %s. Forge kept its own; copy anything you need across.', 'blueworx-forge' ), '' === $login ? __( 'someone', 'blueworx-forge' ) : $login ),
+				'body'           => $body,
 				'author'         => Settings::actor(),
 				'author_name'    => 'GitHub',
 			),

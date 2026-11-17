@@ -339,7 +339,14 @@ final class Outbound {
 
 		$changed = Client::request( 'PATCH', $path, $body );
 
-		return is_wp_error( $changed ) ? $changed : true;
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+
+		// GitHub's message about it is then Forge's own, and changes nothing.
+		Links::seen( (string) $item['id'], array( 'state_seen' => $state ) );
+
+		return true;
 	}
 
 	/**

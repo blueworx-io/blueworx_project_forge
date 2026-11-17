@@ -130,4 +130,42 @@ final class GitHubInboundTest extends TestCase {
 			)
 		);
 	}
+
+	/**
+	 * A task at a stage, as on_close() reads it.
+	 *
+	 * @param string $stage   The stage.
+	 * @param string $outcome Its terminal outcome, if any.
+	 * @return array<string, mixed>
+	 */
+	private static function at( string $stage, string $outcome = '' ): array {
+		return array(
+			'stage'            => $stage,
+			'terminal_outcome' => $outcome,
+		);
+	}
+
+	public function test_closing_in_development_moves_to_review(): void {
+		self::assertSame( 'move', Inbound::on_close( self::at( 'in-development' ), 'completed' ) );
+	}
+
+	public function test_closing_earlier_leaves_a_note(): void {
+		self::assertSame( 'note', Inbound::on_close( self::at( 'up-next' ), 'completed' ) );
+		self::assertSame( 'note', Inbound::on_close( self::at( 'future-idea' ), '' ) );
+		self::assertSame( 'note', Inbound::on_close( self::at( 'blocked' ), 'completed' ) );
+	}
+
+	public function test_not_planned_only_ever_notes(): void {
+		self::assertSame( 'note', Inbound::on_close( self::at( 'in-development' ), 'not_planned' ) );
+	}
+
+	public function test_closing_after_forge_closed_does_nothing(): void {
+		self::assertSame( 'nothing', Inbound::on_close( self::at( 'released' ), 'completed' ) );
+		self::assertSame( 'nothing', Inbound::on_close( self::at( 'up-next', 'cancelled' ), 'not_planned' ) );
+	}
+
+	public function test_closing_in_review_does_nothing(): void {
+		self::assertSame( 'nothing', Inbound::on_close( self::at( 'in-review' ), 'completed' ) );
+		self::assertSame( 'nothing', Inbound::on_close( self::at( 'completed' ), 'completed' ) );
+	}
 }

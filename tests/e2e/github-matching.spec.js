@@ -281,3 +281,115 @@ test('renaming an issue with a very long title still renames the task', async ()
   expect(await hook(edited({ ...raised, title: renamed }, { title: { from: long } }))).toBe('updated');
   expect((await current(task.id)).title).toBe(renamed.slice(0, 191));
 });
+
+/** What GitHub sends when an issue is closed or reopened. */
+function stateChange(action, issue, { reason = 'completed', login = 'octo' } = {}) {
+  return {
+    action,
+    issue: { id: issue.id, number: issue.number, title: issue.title, body: issue.body, state: 'closed' === action ? 'closed' : 'open', state_reason: 'closed' === action ? reason : null, labels: [], user: { login: 'octo' } },
+    repository: { full_name: ALPHA },
+    sender: { login },
+  };
+}
+
+async function notesBy(id, words) {
+  const { comments } = await admin.api.get(`/work-items/${id}/comments`);
+
+  return comments.filter((one) => one.body.includes(words));
+}
+
+let echoed;
+
+test('closing the issue moves finished development to review', async () => {
+  test.slow();
+  const task = await linkedTask('Close to review');
+  const developed = await Forge.walkTo(admin.api, task, ['up-next', 'in-development']);
+  await Forge.satisfy(admin.api, developed, 'in-review');
+  await runGitHubJobs(admin.api.request);
+  const issue = await issueOf(task.id);
+
+  expect(await hook(stateChange('closed', issue))).toBe('moved');
+  expect((await current(task.id)).stage).toBe('in-review');
+
+  const { history } = await admin.api.get(`/work-items/${task.id}`);
+  const move = history.find((entry) => entry.action === 'moved' && entry.to_stage === 'in-review');
+  expect(move.via).toBe('github');
+
+  // The issue shows the new stage, and nothing reopens or closes it.
+  const before = (await githubCalls(admin.api.request)).length;
+  await runGitHubJobs(admin.api.request);
+  const sent = (await githubCalls(admin.api.request)).slice(before);
+  expect(sent.filter((call) => call.body.includes('"state"'))).toEqual([]);
+  expect(await labelsOf(task.id)).toContain('forge: In review');
+
+  // Nothing from GitHub takes it further, however often it is said.
+  expect(await hook(stateChange('closed', issue))).toBe('nothing');
+  expect((await current(task.id)).stage).toBe('in-review');
+});
+
+test('closing the issue early leaves one note', async ({ request }) => {
+  test.slow();
+  const task = await linkedTask('Close early');
+  const planned = await Forge.walkTo(admin.api, task, ['up-next']);
+  const issue = await issueOf(task.id);
+  const closed = stateChange('closed', issue, { login: 'octo-closer' });
+
+  // Two deliveries of the same close.
+  expect(await hook(closed)).toBe('noted');
+  expect(await hook(closed)).toBe('nothing');
+
+  expect((await current(task.id)).stage).toBe(planned.stage);
+  const notes = await notesBy(task.id, 'closed in GitHub by octo-closer');
+  expect(notes).toHaveLength(1);
+  expect(notes[0].visibility).toBe('internal');
+  expect(notes[0].author_name).toBe('GitHub');
+  expect(notes[0].body).toBe('The issue was closed in GitHub by octo-closer. Forge has left this task where it is.');
+
+  // The client never sees it.
+  const theirs = await Forge.asClientSite(admin.api, site.id, request);
+  const answer = await theirs.get(`/client/work-items/${task.id}/comments`);
+  expect(answer.status(), await answer.text()).toBe(200);
+  expect((await answer.json()).comments.filter((one) => one.body.includes('closed in GitHub'))).toEqual([]);
+});
+
+test("the echo of Forge's own close says nothing", async () => {
+  test.slow();
+  const task = await linkedTask('Close echo');
+  const released = await admin.api.post(`/work-items/${task.id}/override`, { to: 'released', reason: 'Set up for the test.', record_version: task.record_version });
+  expect(released.status(), await released.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+
+  const issue = await issueOf(task.id);
+  expect(issue.state).toBe('closed');
+  const said = (await admin.api.get(`/work-items/${task.id}/comments`)).comments.length;
+
+  expect(await hook(stateChange('closed', issue))).toBe('nothing');
+  expect((await admin.api.get(`/work-items/${task.id}/comments`)).comments).toHaveLength(said);
+
+  echoed = task.id;
+});
+
+test("reopening in GitHub after release leaves a note; Forge's own reopen doesn't", async () => {
+  test.slow();
+  const task = await linkedTask('Reopen there');
+  const released = await admin.api.post(`/work-items/${task.id}/override`, { to: 'released', reason: 'Set up for the test.', record_version: task.record_version });
+  expect(released.status(), await released.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+
+  const reopened = stateChange('reopened', await issueOf(task.id), { login: 'octo-opener' });
+  expect(await hook(reopened)).toBe('noted');
+  expect(await hook(reopened)).toBe('nothing');
+  expect(await notesBy(task.id, 'reopened in GitHub by octo-opener')).toHaveLength(1);
+  expect((await current(task.id)).stage).toBe('released');
+
+  // Forge's own reopen, and GitHub saying so.
+  expect(echoed, 'needs the released task from the test before').toBeTruthy();
+  const mine = await current(echoed);
+  const again = await admin.api.post(`/work-items/${mine.id}/reopen`, { to: 'in-development', reason: 'A case was missed.', record_version: mine.record_version });
+  expect(again.status(), await again.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+
+  const said = (await admin.api.get(`/work-items/${mine.id}/comments`)).comments.length;
+  expect(await hook(stateChange('reopened', await issueOf(mine.id)))).toBe('nothing');
+  expect((await admin.api.get(`/work-items/${mine.id}/comments`)).comments).toHaveLength(said);
+});

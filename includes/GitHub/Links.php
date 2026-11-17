@@ -100,12 +100,12 @@ final class Links {
 	 * Records what was last seen of the issue.
 	 *
 	 * @param string               $item_id The item.
-	 * @param array<string, mixed> $fields  title_seen and body_hash; anything else is left alone.
+	 * @param array<string, mixed> $fields  title_seen, body_hash and state_seen; anything else is left alone.
 	 */
 	public static function seen( string $item_id, array $fields ): void {
 		global $wpdb;
 
-		$changes = array_intersect_key( $fields, array_flip( array( 'title_seen', 'body_hash' ) ) );
+		$changes = array_intersect_key( $fields, array_flip( array( 'title_seen', 'body_hash', 'state_seen' ) ) );
 
 		if ( array() === $changes ) {
 			return;
@@ -154,6 +154,7 @@ final class Links {
 			'origin'       => (string) $row['origin'],
 			'title_seen'   => (string) $row['title_seen'],
 			'body_hash'    => (string) $row['body_hash'],
+			'state_seen'   => (string) ( $row['state_seen'] ?? '' ),
 			'created_at'   => (int) $row['created_at'],
 		);
 	}
