@@ -36,7 +36,7 @@ test('the stage is gone from the list, the board and the journey', async () => {
   // The next step is Up Next, through the documentation gate alone.
   const detail = await admin.api.get(`/work-items/${documented.id}`);
   expect(detail.available).toEqual(['up-next']);
-  expect(detail.readiness['up-next'].all.map((row) => row.id)).toEqual(['G-DOCUMENTATION-1', 'G-DOCUMENTATION-9']);
+  expect(detail.readiness['up-next'].all.map((row) => row.id)).toEqual(['G-DOCUMENTATION-1', 'G-DOCUMENTATION-10', 'G-DOCUMENTATION-9']);
 
   const page = await admin.context.newPage();
   await page.goto('/blueworx-forge/');
