@@ -9,7 +9,6 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\GitHub;
 
-use BlueworxForgeRestErrors;
 use Blueworx\Forge\Rest\Errors;
 use WP_Error;
 
