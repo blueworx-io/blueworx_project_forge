@@ -27,8 +27,10 @@ export function removeGitHubStub() {
 
 /**
  * Sets what the stand-in answers: `repos`, `hooks`, `down`, `denied`,
- * `hooks_denied`, `issues_refused`, `lose_create_answer`, and `reset` to clear
- * the call log and the issues made, and number issues from 1 again.
+ * `hooks_denied`, `issues_refused`, `lose_create_answer`, `rename_during_patch`
+ * ({ item_id, title }: rename that task while the next title is being sent),
+ * `forget_issue` ({ repo, number }: delete an issue), and `reset` to clear the
+ * call log and the issues made, and number issues from 1 again.
  */
 export async function githubSays(request, state) {
   const answer = await request.post(STUB, { data: state });

@@ -14,8 +14,12 @@
  * `lose_create_answer` (GitHub makes the issue but its answer never arrives,
  * like a reply that times out), `issues` (each repo's issues as made),
  * `next_issue` (each repo's next issue number; each issue keeps its `labels`,
- * starting with `bug`, and its `state` and `state_reason`) and `calls`, a log of method,
- * path and body. `reset` clears the log and starts issue numbers at 1 again.
+ * starting with `bug`, its `state` and `state_reason`, and an `updated_at`
+ * that moves on with every change), `rename_during_patch` (`item_id` and
+ * `title`: the next title sent to GitHub is answered after that task is
+ * renamed, as if someone saved it while the job ran) and `calls`, a log of
+ * method, path and body. `forget_issue` (`repo` and `number`) deletes an
+ * issue. `reset` clears the log and starts issue numbers at 1 again.
  *
  * It answers inside the same request rather than over HTTP: the suite blocks
  * outbound requests (tests/global-setup.js).
@@ -37,24 +41,39 @@ function bwx_forge_github_stub_state(): array {
 
 	return array_merge(
 		array(
-			'login'              => 'blueworx-io',
-			'repos'              => array(),
-			'hooks'              => array(),
-			'next_hook'          => 1000,
-			'down'               => false,
-			'denied'             => false,
-			'hooks_denied'       => false,
-			'issues_refused'     => false,
-			'lose_create_answer' => false,
-			'issues'             => array(),
-			'comments'           => array(),
-			'next_issue'         => array(),
+			'login'               => 'blueworx-io',
+			'repos'               => array(),
+			'hooks'               => array(),
+			'next_hook'           => 1000,
+			'down'                => false,
+			'denied'              => false,
+			'hooks_denied'        => false,
+			'issues_refused'      => false,
+			'lose_create_answer'  => false,
+			'issues'              => array(),
+			'comments'            => array(),
+			'next_issue'          => array(),
 			// Far above the ids the specs make up for their own links.
-			'next_issue_id'      => 50000000,
-			'calls'              => array(),
+			'next_issue_id'       => 50000000,
+			'clock'               => 0,
+			'rename_during_patch' => null,
+			'calls'               => array(),
 		),
 		is_array( $state ) ? $state : array()
 	);
+}
+
+/**
+ * GitHub's time for a change (#682): never the same twice, so every change
+ * is later than the one before, as GitHub's own clock would make it.
+ *
+ * @param array<string, mixed> $state The stub's state, changed in place.
+ * @return string
+ */
+function bwx_forge_github_stub_tick( array &$state ): string {
+	$state['clock'] = max( time(), (int) $state['clock'] + 1 );
+
+	return gmdate( 'Y-m-d\TH:i:s\Z', (int) $state['clock'] );
 }
 
 /**
@@ -182,16 +201,18 @@ function bwx_forge_github_stub_issue( array &$state, string $repo, array $sent )
 	$id                           = (int) $state['next_issue_id'];
 	$state['next_issue_id']       = $id + 1;
 	$issue                        = array(
-		'number'       => $number,
-		'id'           => $id,
-		'title'        => (string) ( $sent['title'] ?? '' ),
-		'body'         => (string) ( $sent['body'] ?? '' ),
-		'user'         => array( 'login' => (string) $state['login'] ),
-		'html_url'     => 'https://github.com/' . $repo . '/issues/' . $number,
+		'number'             => $number,
+		'id'                 => $id,
+		'title'              => (string) ( $sent['title'] ?? '' ),
+		'body'               => (string) ( $sent['body'] ?? '' ),
+		'user'               => array( 'login' => (string) $state['login'] ),
+		'author_association' => 'OWNER',
+		'html_url'           => 'https://github.com/' . $repo . '/issues/' . $number,
 		// Someone in GitHub labelled it already (#682): Forge must leave this one alone.
-		'labels'       => array( array( 'name' => 'bug' ) ),
-		'state'        => 'open',
-		'state_reason' => null,
+		'labels'             => array( array( 'name' => 'bug' ) ),
+		'state'              => 'open',
+		'state_reason'       => null,
+		'updated_at'         => bwx_forge_github_stub_tick( $state ),
 	);
 	$state['issues'][ $repo ][]   = $issue;
 
@@ -254,6 +275,7 @@ function bwx_forge_github_stub_one_issue( array &$state, string $method, string 
 			}
 		}
 
+		$issue['updated_at']             = bwx_forge_github_stub_tick( $state );
 		$state['issues'][ $repo ][ $at ] = $issue;
 
 		return bwx_forge_github_stub_response( $issue );
@@ -280,6 +302,7 @@ function bwx_forge_github_stub_one_issue( array &$state, string $method, string 
 	}
 
 	$issue['labels']                 = array_map( static fn( string $name ): array => array( 'name' => $name ), $names );
+	$issue['updated_at']             = bwx_forge_github_stub_tick( $state );
 	$state['issues'][ $repo ][ $at ] = $issue;
 
 	return bwx_forge_github_stub_response( $issue['labels'] );
@@ -362,6 +385,17 @@ add_filter(
 		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)(?:/(labels)(?:/([^/?]+))?)?$#', $path, $found ) ) {
 			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
 			$answer = bwx_forge_github_stub_one_issue( $state, $method, strtolower( $found[1] ), (int) $found[2], (string) ( $found[3] ?? '' ), (string) ( $found[4] ?? '' ), is_array( $sent ) ? $sent : array() );
+
+			// Someone saves the task while Forge's title job is still running.
+			if ( 'PATCH' === $method && is_array( $sent ) && isset( $sent['title'] ) && is_array( $state['rename_during_patch'] ) ) {
+				$rename                       = $state['rename_during_patch'];
+				$state['rename_during_patch'] = null;
+				$item                         = Blueworx\Forge\Work\Items::get( (string) ( $rename['item_id'] ?? '' ) );
+
+				if ( null !== $item ) {
+					Blueworx\Forge\Work\Items::update( (string) $item['id'], array( 'title' => (string) ( $rename['title'] ?? '' ) ), (int) $item['record_version'] );
+				}
+			}
 		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/hooks(?:/(\d+))?(?:\?.*)?$#', $path, $found ) ) {
 			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
 			$answer = bwx_forge_github_stub_hooks( $state, $method, strtolower( $found[1] ), (int) ( $found[2] ?? 0 ), is_array( $sent ) ? $sent : array() );
@@ -390,9 +424,20 @@ add_action(
 					$body  = (array) $request->get_json_params();
 					$state = bwx_forge_github_stub_state();
 
-					foreach ( array( 'login', 'repos', 'hooks', 'down', 'denied', 'hooks_denied', 'issues_refused', 'lose_create_answer' ) as $field ) {
+					foreach ( array( 'login', 'repos', 'hooks', 'down', 'denied', 'hooks_denied', 'issues_refused', 'lose_create_answer', 'rename_during_patch' ) as $field ) {
 						if ( array_key_exists( $field, $body ) ) {
 							$state[ $field ] = $body[ $field ];
+						}
+					}
+
+					// An issue deleted in GitHub, or moved to another repo.
+					if ( is_array( $body['forget_issue'] ?? null ) ) {
+						$repo = strtolower( (string) ( $body['forget_issue']['repo'] ?? '' ) );
+						$at   = bwx_forge_github_stub_find( $state, $repo, (int) ( $body['forget_issue']['number'] ?? 0 ) );
+
+						if ( null !== $at ) {
+							unset( $state['issues'][ $repo ][ $at ] );
+							$state['issues'][ $repo ] = array_values( $state['issues'][ $repo ] );
 						}
 					}
 

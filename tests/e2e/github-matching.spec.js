@@ -34,6 +34,8 @@ async function linkedTask(title) {
   const saved = await admin.api.patch(`/work-items/${item.id}`, { github_repo: ALPHA, record_version: item.record_version });
   expect(saved.status(), await saved.text()).toBe(200);
 
+  // The second run sends what linking asked for: the stage label.
+  await runGitHubJobs(admin.api.request);
   await runGitHubJobs(admin.api.request);
 
   const detail = await admin.api.get(`/work-items/${item.id}`);
@@ -58,15 +60,38 @@ async function current(id) {
   return (await admin.api.get(`/work-items/${id}`)).item;
 }
 
+/**
+ * The issue as GitHub sends it in a message. Unless the spec says otherwise,
+ * its author is someone on the repo, and it last changed when the stand-in
+ * says it did, or now.
+ */
+function asSent(issue) {
+  return {
+    id: issue.id,
+    number: issue.number,
+    title: issue.title,
+    body: issue.body,
+    labels: [],
+    user: issue.user ?? { login: 'octo' },
+    author_association: issue.author_association ?? 'MEMBER',
+    updated_at: issue.updated_at ?? new Date().toISOString(),
+  };
+}
+
 /** What GitHub sends when an issue is edited: the issue as it is now, and which fields changed. */
 function edited(issue, changes, login = 'octo') {
   return {
     action: 'edited',
-    issue: { id: issue.id, number: issue.number, title: issue.title, body: issue.body, labels: [], user: { login: 'octo' } },
+    issue: asSent(issue),
     changes,
     repository: { full_name: ALPHA },
     sender: { login },
   };
+}
+
+/** An issue's time in GitHub, moved on by some seconds. */
+function later(issue, seconds) {
+  return new Date(Date.parse(issue.updated_at) + seconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
 }
 
 async function hook(payload) {
@@ -102,8 +127,8 @@ test('the issue shows the stage as one label', async () => {
   test.slow();
   const task = await linkedTask('Stage label');
 
-  // Nothing of Forge's on it until the task moves.
-  expect(await labelsOf(task.id)).toEqual(['bug']);
+  // Its stage from the moment it is linked.
+  expect(await labelsOf(task.id)).toEqual(['bug', 'forge: Documentation period']);
 
   await Forge.walkTo(admin.api, task, ['up-next']);
   await runGitHubJobs(admin.api.request);
@@ -268,6 +293,80 @@ test("an older rename's late message leaves the newest title", async () => {
   expect(after.record_version).toBe(version);
 });
 
+test("a lost message from GitHub doesn't stop the next edit", async () => {
+  test.slow();
+  const task = await linkedTask('Lost message');
+  const issue = await issueOf(task.id);
+  const first = `Renamed once ${RUN_ID}`;
+  const second = `Renamed twice ${RUN_ID}`;
+
+  // GitHub's message about the first rename never arrives; the second does.
+  expect(await hook(edited({ ...issue, title: second, updated_at: later(issue, 2) }, { title: { from: first } }))).toBe('updated');
+  expect((await current(task.id)).title).toBe(second);
+});
+
+test('a save made while the title is being sent still reaches GitHub', async () => {
+  test.slow();
+  const task = await linkedTask('Busy rename');
+  const first = `Sent first ${RUN_ID}`;
+  const meanwhile = `Saved meanwhile ${RUN_ID}`;
+
+  // Someone saves the task again while Forge is sending the first rename.
+  await githubSays(admin.api.request, { rename_during_patch: { item_id: task.id, title: meanwhile } });
+  const saved = await admin.api.patch(`/work-items/${task.id}`, { title: first, record_version: task.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  await runGitHubJobs(admin.api.request);
+  await runGitHubJobs(admin.api.request);
+  expect((await current(task.id)).title).toBe(meanwhile);
+  expect((await issueOf(task.id)).title).toBe(meanwhile);
+});
+
+test('a task that ended while its issue waited gets a closed issue', async () => {
+  test.slow();
+  const made = (await (await Forge.makeItem(admin.api, site.id, { title: `Ended while waiting ${RUN_ID}`, level: 'feature' })).json()).item;
+  const item = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period']);
+
+  await githubSays(admin.api.request, { down: true });
+  const saved = await admin.api.patch(`/work-items/${item.id}`, { github_repo: ALPHA, record_version: item.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+
+  const ended = await admin.api.post(`/work-items/${item.id}/outcome`, { outcome: 'cancelled', reason: 'Not needed.', record_version: (await saved.json()).item.record_version });
+  expect(ended.status(), await ended.text()).toBe(200);
+
+  await githubSays(admin.api.request, { down: false });
+  await runGitHubJobs(admin.api.request);
+  await runGitHubJobs(admin.api.request);
+
+  const issue = await issueOf(item.id);
+  expect(issue.state).toBe('closed');
+  expect(issue.state_reason).toBe('not_planned');
+  expect(issue.labels.map((label) => label.name)).toContain('forge: Documentation period');
+});
+
+test('an issue deleted in GitHub stops its changes, and says so', async () => {
+  test.slow();
+  const task = await linkedTask('Deleted issue');
+  const { link } = (await admin.api.get(`/work-items/${task.id}`)).github;
+  const title = `Renamed after delete ${RUN_ID}`;
+
+  await githubSays(admin.api.request, { forget_issue: { repo: link.repo, number: link.number } });
+  const saved = await admin.api.patch(`/work-items/${task.id}`, { title, record_version: task.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+
+  const github = (await admin.api.get('/connections')).services.find((one) => one.id === 'github');
+  expect(github.error).toContain(`The GitHub issue for ${title} is gone.`);
+
+  // Not tried again.
+  const path = `/repos/${link.repo}/issues/${link.number}`;
+  const before = (await githubCalls(admin.api.request)).length;
+  await runGitHubJobs(admin.api.request);
+  const sent = (await githubCalls(admin.api.request)).slice(before);
+  expect(sent.filter((call) => call.path.startsWith(path))).toEqual([]);
+});
+
 test('renaming an issue with a very long title still renames the task', async () => {
   test.slow();
   const long = `Long title ${RUN_ID} ${'x'.repeat(250)}`.slice(0, 250);
@@ -286,7 +385,7 @@ test('renaming an issue with a very long title still renames the task', async ()
 function stateChange(action, issue, { reason = 'completed', login = 'octo' } = {}) {
   return {
     action,
-    issue: { id: issue.id, number: issue.number, title: issue.title, body: issue.body, state: 'closed' === action ? 'closed' : 'open', state_reason: 'closed' === action ? reason : null, labels: [], user: { login: 'octo' } },
+    issue: { ...asSent(issue), state: 'closed' === action ? 'closed' : 'open', state_reason: 'closed' === action ? reason : null },
     repository: { full_name: ALPHA },
     sender: { login },
   };
@@ -322,7 +421,7 @@ test('closing the issue moves finished development to review', async () => {
   await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
   await page.getByTestId('bwx-card').filter({ hasText: task.title }).click();
   await page.getByTestId('bwx-history-wrap').locator('summary').click();
-  await expect(page.locator('[data-testid="bwx-history"]')).toContainText('In development → In review, from GitHub');
+  await expect(page.locator('[data-testid="bwx-history"]')).toContainText('In development → In review. Closed in GitHub by octo.');
   await page.close();
 
   // The issue shows the new stage, and nothing reopens or closes it.
@@ -360,6 +459,66 @@ test('closing the issue early leaves one note', async ({ request }) => {
   const answer = await theirs.get(`/client/work-items/${task.id}/comments`);
   expect(answer.status(), await answer.text()).toBe(200);
   expect((await answer.json()).comments.filter((one) => one.body.includes('closed in GitHub'))).toEqual([]);
+
+  // Reopened there by a person: Forge never closed it, so that is a note too.
+  expect(await hook(stateChange('reopened', issue, { login: 'octo-reopener' }))).toBe('noted');
+  expect(await notesBy(task.id, 'reopened in GitHub by octo-reopener')).toHaveLength(1);
+});
+
+test('sending work back from review reopens an issue closed in GitHub', async () => {
+  test.slow();
+  const task = await linkedTask('Back from review');
+  const developed = await Forge.walkTo(admin.api, task, ['up-next', 'in-development']);
+  await Forge.satisfy(admin.api, developed, 'in-review');
+  await runGitHubJobs(admin.api.request);
+
+  expect(await hook(stateChange('closed', await issueOf(task.id)))).toBe('moved');
+  const review = await current(task.id);
+  expect(review.stage).toBe('in-review');
+
+  const before = (await githubCalls(admin.api.request)).length;
+  const back = await admin.api.post(`/work-items/${task.id}/return`, { to: 'in-development', reason: 'One more thing to change.', feedback: 'One more thing to change.', record_version: review.record_version });
+  expect(back.status(), await back.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+
+  const sent = (await githubCalls(admin.api.request)).slice(before);
+  expect(sent.filter((call) => call.method === 'PATCH' && call.body.includes('"state":"open"'))).toHaveLength(1);
+
+  // GitHub's message about it is Forge's own reopen, and says nothing.
+  expect(await hook(stateChange('reopened', await issueOf(task.id)))).toBe('nothing');
+});
+
+test("someone who isn't on the repo can't change the task from GitHub", async () => {
+  test.slow();
+  const raised = { id: IDS + 3, number: 9003, title: `A stranger's issue ${RUN_ID}`, body: 'Please help.', user: { login: 'stranger' }, author_association: 'NONE' };
+
+  expect(await hook({ ...edited(raised, {}, 'stranger'), action: 'opened' })).toBe('created');
+  const made = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items.find((one) => one.title === raised.title);
+  expect(made, 'the issue should have come in').toBeTruthy();
+
+  // Far enough along that a close by someone on the repo would move it.
+  const developed = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period', 'up-next', 'in-development']);
+  await Forge.satisfy(admin.api, developed, 'in-review');
+
+  const renamed = { ...raised, title: `Renamed by a stranger ${RUN_ID}`, body: 'Do it my way.' };
+  const edit = edited(renamed, { title: { from: raised.title }, body: { from: raised.body } }, 'stranger');
+
+  // Two deliveries of the same edit.
+  expect(await hook(edit)).toBe('noted');
+  expect(await hook(edit)).toBe('unchanged');
+
+  const after = await current(made.id);
+  expect(after.title).toBe(raised.title);
+  expect(after.problem).toBe('<p>Please help.</p>');
+
+  const notes = await notesBy(made.id, 'changed in GitHub by stranger');
+  expect(notes).toHaveLength(1);
+  expect(notes[0].visibility).toBe('internal');
+  expect(notes[0].body).toContain(`The issue's title was changed in GitHub by stranger to "${renamed.title}". Forge kept its own.`);
+
+  expect(await hook(stateChange('closed', renamed, { login: 'stranger' }))).toBe('noted');
+  expect((await current(made.id)).stage).toBe('in-development');
+  expect(await notesBy(made.id, 'closed in GitHub by stranger')).toHaveLength(1);
 });
 
 test("the echo of Forge's own close says nothing", async () => {
