@@ -67,6 +67,7 @@ final class ClientErasure {
 		return array(
 			array( Schema::slack_events_table(), 'subject_id', self::BY_ITEM ),
 			array( Schema::github_links_table(), 'item_id', self::BY_ITEM ),
+			array( Schema::github_jobs_table(), 'item_id', self::BY_ITEM ),
 			array( Schema::github_repos_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::recurring_occurrences_table(), 'recurring_id', self::BY_SOURCE ),
 			array( Schema::recurring_table(), 'client_site_id', self::BY_SITE ),

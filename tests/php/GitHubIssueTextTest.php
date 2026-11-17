@@ -72,4 +72,42 @@ final class GitHubIssueTextTest extends TestCase {
 		self::assertTrue( mb_check_encoding( $title, 'UTF-8' ) );
 		self::assertSame( 'Fix it', IssueText::title( "  Fix it \n" ) );
 	}
+
+	/**
+	 * #681. The issue Forge makes: the item's words under headings, only the
+	 * ones it has, then the way back to Forge and the marker that names the item.
+	 */
+	public function test_the_issue_body_has_its_sections_and_marker(): void {
+		$body = IssueText::issue_body(
+			array(
+				'id'                  => 'wrk_1',
+				'problem'             => '<p>Fix it</p>',
+				'scope'               => '',
+				'acceptance_criteria' => '<ul><li>Works</li></ul>',
+			),
+			'https://x/#item=wrk_1'
+		);
+
+		self::assertStringContainsString( "## Description\n\nFix it", $body );
+		self::assertStringNotContainsString( '## Scope', $body );
+		self::assertStringNotContainsString( '## Requirements', $body );
+		self::assertStringContainsString( "## Acceptance criteria\n\n- Works", $body );
+		self::assertStringContainsString( 'Tracked in Forge: https://x/#item=wrk_1', $body );
+		self::assertStringEndsWith( '<!-- forge:wrk_1 -->', $body );
+		self::assertLessThan( strpos( $body, '## Acceptance criteria' ), strpos( $body, '## Description' ) );
+	}
+
+	public function test_html_becomes_markdown(): void {
+		self::assertSame(
+			"A **b** [d](https://c)\n\nE\nF",
+			IssueText::to_markdown( '<p>A <strong>b</strong> <a href="https://c">d</a></p><p>E<br>F</p>' )
+		);
+		self::assertSame( "- one\n- two &", IssueText::to_markdown( '<ul><li>one</li><li>two &amp;</li></ul>' ) );
+		self::assertSame( 'gone', IssueText::to_markdown( '<script>x</script><em>gone</em>' ) );
+	}
+
+	public function test_the_marker_is_found(): void {
+		self::assertSame( 'wrk_abc', IssueText::marker_in( "x\n<!-- forge:wrk_abc -->" ) );
+		self::assertSame( '', IssueText::marker_in( 'Just words.' ) );
+	}
 }

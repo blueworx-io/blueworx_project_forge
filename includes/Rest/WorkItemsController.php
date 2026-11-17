@@ -16,7 +16,10 @@ use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\GitHub\Client as GitHubClient;
+use Blueworx\Forge\GitHub\Jobs as GitHubJobs;
 use Blueworx\Forge\GitHub\Links as GitHubLinks;
+use Blueworx\Forge\GitHub\Outbound as GitHubOutbound;
+use Blueworx\Forge\GitHub\RepoChoice;
 use Blueworx\Forge\GitHub\Repos as GitHubRepos;
 use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\Notifications\Register as Notifications;
@@ -1850,12 +1853,35 @@ final class WorkItemsController {
 		// undo a save.
 		Notify::assigned( $item, $updated );
 
+		self::queue_issue( $item, $updated );
+
 		return rest_ensure_response(
 			array(
 				'ok'   => true,
 				'item' => $updated,
 			)
 		);
+	}
+
+	/**
+	 * #681. A repo chosen for work that has no issue yet asks for one. It is
+	 * made after the answer has gone, so a slow or broken GitHub never stops
+	 * the save; and it is one job per item, made once, however often the
+	 * repo is saved.
+	 *
+	 * @param array<string, mixed> $before The item before the save.
+	 * @param array<string, mixed> $after  The item as saved.
+	 */
+	private static function queue_issue( array $before, array $after ): void {
+		$repo = (string) ( $after['github_repo'] ?? '' );
+
+		if ( (string) ( $before['github_repo'] ?? '' ) === $repo || '' === $repo || RepoChoice::NONE === $repo ) {
+			return;
+		}
+
+		if ( null === GitHubLinks::for_item( (string) $after['id'] ) ) {
+			GitHubJobs::queue( GitHubOutbound::CREATE_ISSUE, (string) $after['id'], array(), true );
+		}
 	}
 
 	/**

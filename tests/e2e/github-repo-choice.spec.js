@@ -121,7 +121,9 @@ test.describe('the repo picker', () => {
     installGitHubStub();
     ({ site: pickSite } = await Forge.makeSite(admin.api, 'Picker Co', RUN_ID));
 
-    await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, reset: true, hooks: {}, repos: [ALPHA, BETA] });
+    // #681. Choosing a repo here would make its issue and hide the picker these
+    // tests are about, so GitHub refuses to make one; github-create-issue covers it.
+    await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, issues_refused: true, reset: true, hooks: {}, repos: [ALPHA, BETA] });
     expect((await admin.api.post('/connections/github', { token: 'good-token-4321' })).ok()).toBe(true);
     expect((await admin.api.put(`/client-sites/${pickSite.id}/github-repos`, { repos: [ALPHA] })).status()).toBe(200);
 
@@ -130,6 +132,7 @@ test.describe('the repo picker', () => {
   });
 
   test.afterAll(async () => {
+    await githubSays(admin.api.request, { issues_refused: false });
     await admin.api.put(`/client-sites/${pickSite.id}/github-repos`, { repos: [] });
     await admin.api.del('/connections/github');
     removeGitHubStub();

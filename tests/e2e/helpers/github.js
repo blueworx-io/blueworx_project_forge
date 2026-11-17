@@ -27,7 +27,8 @@ export function removeGitHubStub() {
 
 /**
  * Sets what the stand-in answers: `repos`, `hooks`, `down`, `denied`,
- * `hooks_denied`, and `reset` to clear the call log.
+ * `hooks_denied`, `issues_refused`, and `reset` to clear the call log and
+ * number issues from 1 again.
  */
 export async function githubSays(request, state) {
   const answer = await request.post(STUB, { data: state });
@@ -42,6 +43,16 @@ export async function githubState(request) {
 /** Every call Forge has made to the stand-in: `{ method, path, body }`. */
 export async function githubCalls(request) {
   return (await githubState(request)).calls;
+}
+
+/**
+ * Runs the GitHub outbox as its five-minute cron would, with every waiting job
+ * made due first (#681). Answers how many jobs went.
+ */
+export async function runGitHubJobs(request) {
+  const answer = await request.post(`${STUB}/run`);
+  if (!answer.ok()) throw new Error(await answer.text());
+  return (await answer.json()).sent;
 }
 
 /**

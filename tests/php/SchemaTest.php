@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 43, $definitions );
+		$this->assertCount( 44, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -151,6 +151,14 @@ final class SchemaTest extends TestCase {
 			 */
 			Schema::google_connections_table(),
 			Schema::google_people_table(),
+
+			/*
+			 * #681. A GitHub job is written by nobody but Forge: a save asks
+			 * for it and the runner records each try. The one race, two
+			 * runners taking the same job, is settled by the runner's claim,
+			 * not by a version anybody quotes.
+			 */
+			Schema::github_jobs_table(),
 		);
 
 		// The GitHub tables (#680) are keyed by what they hold — a repo, an item,
@@ -186,7 +194,11 @@ final class SchemaTest extends TestCase {
 	public function test_github_tables_are_defined(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertSame( 54, Schema::VERSION );
+		$this->assertSame( 55, Schema::VERSION );
+		// #681. The outbox, found by what is due and by item.
+		$this->assertArrayHasKey( Schema::github_jobs_table(), $definitions );
+		$this->assertStringContainsString( 'KEY status_run (status, run_after)', $definitions[ Schema::github_jobs_table() ] );
+		$this->assertStringContainsString( 'KEY item_id (item_id)', $definitions[ Schema::github_jobs_table() ] );
 		$this->assertArrayHasKey( Schema::github_repos_table(), $definitions );
 		$this->assertArrayHasKey( Schema::github_links_table(), $definitions );
 		$this->assertArrayHasKey( Schema::github_deliveries_table(), $definitions );

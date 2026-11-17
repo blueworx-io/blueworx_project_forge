@@ -13,6 +13,7 @@ use Blueworx\Forge\Admin\ConnectionsScreen;
 use Blueworx\Forge\Cloudways\Client as Cloudways;
 use Blueworx\Forge\Cloudways\Settings as CloudwaysSettings;
 use Blueworx\Forge\Cloudways\Status;
+use Blueworx\Forge\GitHub\Jobs as GitHubJobs;
 use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\Network\Client as NetworkClient;
 use Blueworx\Forge\Network\Deploys;
@@ -335,6 +336,8 @@ final class ConnectionsController {
 					// What last went wrong, in plain words, until the next good connect.
 					'error'        => GitHubSettings::problem()['what'],
 					'error_at'     => GitHubSettings::problem()['at'],
+					// #681. Changes still waiting to go, or that gave up.
+					'outbox'       => GitHubJobs::describe( GitHubJobs::failures(), GitHubJobs::waiting() ),
 				),
 				array(
 					'id'   => 'surecart',
