@@ -95,7 +95,19 @@ final class Inbound {
 		// create call, and it must link that item, never make another.
 		$own = Items::get( IssueText::marker_in( (string) ( $issue['body'] ?? '' ) ) );
 
-		if ( null !== $own ) {
+		// Item ids are not secret, so a marker alone proves nothing: it counts
+		// only on an issue the connected account opened, in the item's own
+		// repo, for an item with no issue yet. Anything else is taken in as
+		// any other new issue.
+		$login = Settings::login();
+
+		if (
+			null !== $own
+			&& '' !== $login
+			&& 0 === strcasecmp( $login, (string) ( $issue['user']['login'] ?? '' ) )
+			&& Repos::normalise( (string) $own['github_repo'] ) === $repo
+			&& null === Links::for_item( (string) $own['id'] )
+		) {
 			return self::linked( $own, $issue, $repo, $number );
 		}
 

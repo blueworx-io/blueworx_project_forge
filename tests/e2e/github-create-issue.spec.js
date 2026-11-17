@@ -264,7 +264,12 @@ test("GitHub's message about our own issue links it, never a new task", async ()
     const id = Date.now() * 100 + Math.floor(Math.random() * 100);
     const before = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items.length;
 
-    // GitHub's message beats Forge's own create call.
+    // GitHub's message beats Forge's own create call: the repo is chosen
+    // while GitHub cannot be reached, so no issue has been made yet.
+    await githubSays(admin.api.request, { down: true });
+    expect((await chooseRepo(item.id, ALPHA)).status()).toBe(200);
+    await githubSays(admin.api.request, { down: false });
+
     const sent = await sendHook(
       bare,
       'issues',
@@ -285,7 +290,6 @@ test("GitHub's message about our own issue links it, never a new task", async ()
     expect(link.number).toBe(4242);
 
     // The create job now finds the link and makes nothing.
-    expect((await chooseRepo(item.id, ALPHA)).status()).toBe(200);
     await runGitHubJobs(admin.api.request);
     expect(await createsFor(item.id)).toHaveLength(0);
     expect(await issuesFor(item.id)).toHaveLength(0);
@@ -295,6 +299,42 @@ test("GitHub's message about our own issue links it, never a new task", async ()
     const again = await sendHook(bare, 'issues', { action: 'opened', issue: { id, number: 4242, title: item.title, body: `<!-- forge:${item.id} -->`, labels: [] }, repository: { full_name: ALPHA } }, { secret });
     expect((await again.json()).outcome).toBe('duplicate');
     expect((await admin.api.get(`/work-items?client_site_id=${site.id}`)).items).toHaveLength(before);
+  } finally {
+    await bare.dispose();
+  }
+});
+
+test('a Forge marker from another account, or in another repo, links nothing', async () => {
+  test.slow();
+  const item = await feature('Copied marker');
+  const bare = await pwRequest.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8892' });
+
+  try {
+    await githubSays(admin.api.request, { down: true });
+    expect((await chooseRepo(item.id, ALPHA)).status()).toBe(200);
+    await githubSays(admin.api.request, { down: false });
+
+    const secret = await githubSecret(admin.api.request);
+    const base = Date.now() * 100 + Math.floor(Math.random() * 100);
+    const send = (n, login, repo) =>
+      sendHook(bare, 'issues', { action: 'opened', issue: { id: base + n, number: 5000 + n, title: `Stranger ${n} ${RUN_ID}`, body: `Hello
+
+<!-- forge:${item.id} -->`, labels: [], user: { login } }, repository: { full_name: repo } }, { secret });
+
+    // A stranger copying the marker is taken in as a new issue, not linked.
+    const stranger = await send(1, 'someone-else', ALPHA);
+    expect((await stranger.json()).outcome).toBe('created');
+    expect(await linkOf(item.id)).toBeNull();
+
+    // Our own account, but not the item's repo: also taken in as new.
+    expect((await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [ALPHA, BETA] })).status()).toBe(200);
+    try {
+      const elsewhere = await send(2, 'blueworx-io', BETA);
+      expect((await elsewhere.json()).outcome).toBe('created');
+      expect(await linkOf(item.id)).toBeNull();
+    } finally {
+      await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [ALPHA] });
+    }
   } finally {
     await bare.dispose();
   }

@@ -185,6 +185,7 @@ function bwx_forge_github_stub_issue( array &$state, string $repo, array $sent )
 		'id'       => $id,
 		'title'    => (string) ( $sent['title'] ?? '' ),
 		'body'     => (string) ( $sent['body'] ?? '' ),
+		'user'     => array( 'login' => (string) $state['login'] ),
 		'html_url' => 'https://github.com/' . $repo . '/issues/' . $number,
 	);
 	$state['issues'][ $repo ][]   = $issue;

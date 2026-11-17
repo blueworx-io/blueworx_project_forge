@@ -91,7 +91,7 @@ final class Outbound {
 			return $listed;
 		}
 
-		$found = self::marked( $listed, $id );
+		$found = self::marked( $listed, $id, Settings::login() );
 
 		if ( null !== $found ) {
 			Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ) );
@@ -145,13 +145,17 @@ final class Outbound {
 	 *
 	 * @param array<mixed> $issues  Issues as GitHub lists them.
 	 * @param string       $item_id The item.
+	 * @param string       $login   The account Forge is connected as: only its issues count,
+	 *                              so a stranger's copy of the marker never wins.
 	 * @return array<string, mixed>|null
 	 */
-	public static function marked( array $issues, string $item_id ): ?array {
+	public static function marked( array $issues, string $item_id, string $login ): ?array {
 		foreach ( $issues as $issue ) {
 			if (
 				is_array( $issue )
 				&& ! isset( $issue['pull_request'] )
+				&& '' !== $login
+				&& 0 === strcasecmp( $login, (string) ( $issue['user']['login'] ?? '' ) )
 				&& 0 < (int) ( $issue['number'] ?? 0 )
 				&& 0 < (int) ( $issue['id'] ?? 0 )
 				&& IssueText::marker_in( (string) ( $issue['body'] ?? '' ) ) === $item_id

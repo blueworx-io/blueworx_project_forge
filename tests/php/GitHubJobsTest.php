@@ -54,23 +54,32 @@ final class GitHubJobsTest extends TestCase {
 				'number' => 3,
 				'id'     => 30,
 				'body'   => "Someone else's\n<!-- forge:wrk_other -->",
+				'user'   => array( 'login' => 'blueworx-io' ),
 			),
 			array(
 				'number'       => 4,
 				'id'           => 40,
 				'body'         => "A pull request\n<!-- forge:wrk_mine -->",
+				'user'         => array( 'login' => 'blueworx-io' ),
 				'pull_request' => array(),
 			),
 			array(
 				'number' => 5,
 				'id'     => 50,
 				'body'   => "Ours\n<!-- forge:wrk_mine -->",
+				'user'   => array( 'login' => 'Blueworx-IO' ),
+			),
+			array(
+				'number' => 6,
+				'id'     => 60,
+				'body'   => "A stranger's copy\n<!-- forge:wrk_mine -->",
+				'user'   => array( 'login' => 'stranger' ),
 			),
 		);
 
-		self::assertSame( 5, Outbound::marked( $issues, 'wrk_mine' )['number'] );
-		self::assertNull( Outbound::marked( $issues, 'wrk_none' ) );
-		self::assertNull( Outbound::marked( array( array( 'body' => null ) ), 'wrk_mine' ) );
+		self::assertSame( 5, Outbound::marked( $issues, 'wrk_mine', 'blueworx-io' )['number'] );
+		self::assertNull( Outbound::marked( $issues, 'wrk_none', 'blueworx-io' ) );
+		self::assertNull( Outbound::marked( array( array( 'body' => null ) ), 'wrk_mine', 'blueworx-io' ) );
 	}
 
 	/**
