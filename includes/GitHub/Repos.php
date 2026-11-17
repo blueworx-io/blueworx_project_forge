@@ -138,31 +138,29 @@ final class Repos {
 		}
 
 		foreach ( self::conflicts( $wanted, $site_id, self::all() ) as $repo => $other ) {
-			$site = ClientSites::get( $other );
-			$name = is_array( $site ) ? (string) $site['name'] : $other;
-
-			return Errors::rest(
-				'github_repo_taken',
-				/* translators: 1: the repository, 2: the site it is linked to. */
-				sprintf( __( '%1$s is already linked to %2$s. Unlink it there first.', 'blueworx-forge' ), $repo, $name ),
-				409,
-				array(
-					'repo'      => $repo,
-					'site_id'   => $other,
-					'site_name' => $name,
-				)
-			);
+			return self::taken( $repo, $other );
 		}
 
 		global $wpdb;
 
-		$table = Schema::github_repos_table();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->delete( $table, array( 'client_site_id' => $site_id ) );
+		$table   = Schema::github_repos_table();
+		$current = self::for_site( $site_id );
 
-		foreach ( $wanted as $repo ) {
+		// Only what changes is touched, so a refused add leaves the rest as it was.
+		foreach ( array_diff( $current, $wanted ) as $repo ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->insert(
+			$wpdb->delete(
+				$table,
+				array(
+					'repo'           => $repo,
+					'client_site_id' => $site_id,
+				)
+			);
+		}
+
+		foreach ( array_diff( $wanted, $current ) as $repo ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$added = $wpdb->insert(
 				$table,
 				array(
 					'repo'           => $repo,
@@ -171,8 +169,49 @@ final class Repos {
 					'created_by'     => $by,
 				)
 			);
+
+			if ( false === $added ) {
+				// Someone linked it first: the repo is the table's key.
+				return self::taken( $repo, self::all()[ $repo ] ?? '' );
+			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * The name of a site, for telling a person who holds a repository.
+	 *
+	 * @param string $site_id The site.
+	 * @return string The name, or an empty string if there is no such site.
+	 */
+	public static function site_name( string $site_id ): string {
+		$site = '' === $site_id ? null : ClientSites::get( $site_id );
+
+		return is_array( $site ) ? (string) $site['name'] : '';
+	}
+
+	/**
+	 * The refusal for a repository another site holds.
+	 *
+	 * @param string $repo  The repository.
+	 * @param string $other The site that holds it.
+	 * @return WP_Error
+	 */
+	private static function taken( string $repo, string $other ): WP_Error {
+		$name = self::site_name( $other );
+		$name = '' === $name ? __( 'another site', 'blueworx-forge' ) : $name;
+
+		return Errors::rest(
+			'github_repo_taken',
+			/* translators: 1: the repository, 2: the site it is linked to. */
+			sprintf( __( '%1$s is already linked to %2$s. Unlink it there first.', 'blueworx-forge' ), $repo, $name ),
+			409,
+			array(
+				'repo'      => $repo,
+				'site_id'   => $other,
+				'site_name' => $name,
+			)
+		);
 	}
 }

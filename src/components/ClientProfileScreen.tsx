@@ -16,7 +16,7 @@ const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateSt
 
 interface RepoList {
   connected: boolean;
-  repos: Array< { repo: string; site_id: string } >;
+  repos: Array< { repo: string; site_id: string; site_name: string } >;
 }
 
 /**
@@ -24,7 +24,7 @@ interface RepoList {
  * Ticking or unticking saves at once. A repository another site holds is
  * shown but cannot be ticked here, with that site's name.
  */
-function SiteRepos( { siteId, list, names, onChanged }: { siteId: string; list: RepoList; names: Record< string, string >; onChanged: () => void } ) {
+function SiteRepos( { siteId, list, onChanged }: { siteId: string; list: RepoList; onChanged: () => void } ) {
   const [ notice, setNotice ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
   const saved = list.repos.filter( ( one ) => one.site_id === siteId ).map( ( one ) => one.repo );
@@ -70,7 +70,7 @@ function SiteRepos( { siteId, list, names, onChanged }: { siteId: string; list: 
               onChange={ ( event ) => void toggle( one.repo, event.target.checked ) }
             />
             { one.repo }
-            { elsewhere && <span className="bwx-hint">{ ` linked to ${ names[ one.site_id ] ?? "another client's site" }` }</span> }
+            { elsewhere && <span className="bwx-hint">{ ` linked to ${ one.site_name || 'another site' }` }</span> }
           </label>
         );
       } ) }
@@ -180,7 +180,7 @@ export function ClientProfileScreen( {
                     { admin && 'active' === site.status && <CreateSite siteId={ site.id } siteName={ site.name } /> }
                     { /* #680. The GitHub repositories whose issues belong to this site. */ }
                     { github && 'active' === site.status && (
-                      <SiteRepos siteId={ site.id } list={ github } names={ Object.fromEntries( sites.map( ( one ) => [ one.id, one.name ] ) ) } onChanged={ loadRepos } />
+                      <SiteRepos siteId={ site.id } list={ github } onChanged={ loadRepos } />
                     ) }
                   </li>
                 ) ) }

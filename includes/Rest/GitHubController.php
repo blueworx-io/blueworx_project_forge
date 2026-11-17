@@ -164,8 +164,9 @@ final class GitHubController {
 				'connected' => true,
 				'repos'     => array_map(
 					static fn( string $name ): array => array(
-						'repo'    => $name,
-						'site_id' => $sites[ $name ] ?? '',
+						'repo'      => $name,
+						'site_id'   => $sites[ $name ] ?? '',
+						'site_name' => Repos::site_name( $sites[ $name ] ?? '' ),
 					),
 					$names
 				),

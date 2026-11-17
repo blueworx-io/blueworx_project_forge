@@ -74,6 +74,9 @@ test('a repo linked elsewhere is refused by name', async ({ page }) => {
   await page.goto(`/blueworx-forge/#screen=client&client=${two.client.id}`);
   const box = page.getByTestId(`bwx-site-repo-${two.site.id}-${ALPHA}`);
   await expect(box).toBeDisabled({ timeout: 60000 });
+  await expect(page.getByTestId('bwx-site-repos')).toContainText(`linked to ${one.site.name}`);
+  const listed = (await admin.api.get('/github/repos')).repos.find((row) => row.repo === ALPHA);
+  expect(listed).toEqual({ repo: ALPHA, site_id: one.site.id, site_name: one.site.name });
   await expect(page.getByTestId(`bwx-site-repo-${two.site.id}-${BETA}`)).toBeEnabled();
 
   // Nothing was linked to the second site.

@@ -83,7 +83,7 @@ test('connects with a good token and shows it only by its last four', async ({ p
 
   const repos = await admin.api.get('/github/repos');
   expect(repos.connected).toBe(true);
-  expect(repos.repos).toEqual([{ repo: 'blueworx-io/site-a', site_id: '' }]);
+  expect(repos.repos).toEqual([{ repo: 'blueworx-io/site-a', site_id: '', site_name: '' }]);
 });
 
 test('disconnecting forgets the token', async ({ page }) => {
