@@ -177,6 +177,19 @@ final class Jobs {
 	}
 
 	/**
+	 * Where an item's job of one kind stands.
+	 *
+	 * @param string $kind    What it does.
+	 * @param string $item_id The item it is for.
+	 * @return string One of the states, or '' when there is no such job.
+	 */
+	public static function status( string $kind, string $item_id ): string {
+		$row = self::get( self::id_for( $kind, $item_id ) );
+
+		return null === $row ? '' : (string) $row['status'];
+	}
+
+	/**
 	 * Drops a job, so asking for it later starts afresh.
 	 *
 	 * @param string $kind    What it does.

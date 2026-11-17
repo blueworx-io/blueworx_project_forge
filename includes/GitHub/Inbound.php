@@ -133,7 +133,6 @@ final class Inbound {
 			return 'failed';
 		}
 
-		// Not a field anyone edits, so the rules above never pass it through.
 		$values                = $checked['values'];
 		$values['github_repo'] = $repo;
 

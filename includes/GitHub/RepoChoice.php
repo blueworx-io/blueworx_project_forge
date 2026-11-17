@@ -10,7 +10,8 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\GitHub;
 
 /**
- * #681. Pure: the caller reads the connection and the repo list.
+ * #681. check() is pure: the caller reads the connection and the repo list.
+ * refusal() reads them, for the routes that save a repo.
  */
 final class RepoChoice {
 
@@ -44,5 +45,27 @@ final class RepoChoice {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Checks a repo being saved against the connected account.
+	 *
+	 * Only a change is checked, so work already filed under a repo is never
+	 * held up by GitHub being slow, or by the repo having since left the
+	 * account. And a list GitHub would not give is no reason to refuse a
+	 * well-formed name.
+	 *
+	 * @param string $value    Normalised: '', 'none' or owner/name.
+	 * @param string $existing The repo as stored; '' for new work.
+	 * @return string|null An error message, or null when it is fine.
+	 */
+	public static function refusal( string $value, string $existing ): ?string {
+		if ( $existing === $value || '' === $value || self::NONE === $value ) {
+			return null;
+		}
+
+		$connected = Settings::connected();
+
+		return self::check( $value, $connected, $connected ? Client::known_repos() : array() );
 	}
 }

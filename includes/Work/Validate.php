@@ -9,10 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Work;
 
-use Blueworx\Forge\GitHub\Client;
 use Blueworx\Forge\GitHub\RepoChoice;
 use Blueworx\Forge\GitHub\Repos;
-use Blueworx\Forge\GitHub\Settings;
 
 /**
  * Plain PHP, no WordPress, no database — the same shape as Tenancy\Validate and
@@ -102,14 +100,12 @@ final class Validate {
 	/**
 	 * Checks a work item.
 	 *
-	 * @param array<string, mixed> $input    Raw input.
-	 * @param bool                 $partial  True for an edit, which may mention
-	 *                                       only the fields it changes.
-	 * @param array<string, mixed> $existing The item as stored, for an edit. A repo
-	 *                                       is only checked when it changes.
+	 * @param array<string, mixed> $input   Raw input.
+	 * @param bool                 $partial True for an edit, which may mention
+	 *                                      only the fields it changes.
 	 * @return array{values: array<string, mixed>, errors: array<string, string>}
 	 */
-	public static function item( array $input, bool $partial, array $existing = array() ): array {
+	public static function item( array $input, bool $partial ): array {
 		$values = array();
 		$errors = array();
 
@@ -173,7 +169,7 @@ final class Validate {
 			$values['review_of'] = trim( (string) ( $input['review_of'] ?? '' ) );
 		}
 
-		self::repo_field( $input, $existing, $values, $errors );
+		self::repo_field( $input, $values, $errors );
 		self::seats( $input, $values, $errors );
 		self::text_fields( $input, $values, $errors );
 
@@ -192,20 +188,17 @@ final class Validate {
 	}
 
 	/**
-	 * #681. The repo the work belongs in: nothing, 'none', or one of the
-	 * connected account's repos.
+	 * #681. The repo the work belongs in: nothing, 'none', or owner/name.
 	 *
-	 * Only a change is checked, so work already filed under a repo is never
-	 * held up by GitHub being slow, or by the repo having since left the
-	 * account. And a list GitHub would not give is no reason to refuse a
-	 * well-formed name.
+	 * Only the shape is checked here. Whether it is one of the connected
+	 * account's repos needs GitHub, so the route that saves it asks
+	 * (RepoChoice::refusal), and only once it knows the caller may set it.
 	 *
-	 * @param array<string, mixed>  $input    Raw input.
-	 * @param array<string, mixed>  $existing The item as stored; empty for a new one.
-	 * @param array<string, mixed>  $values   Cleaned values, by reference.
-	 * @param array<string, string> $errors   Errors, by reference.
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
 	 */
-	private static function repo_field( array $input, array $existing, array &$values, array &$errors ): void {
+	private static function repo_field( array $input, array &$values, array &$errors ): void {
 		if ( ! array_key_exists( 'github_repo', $input ) ) {
 			return;
 		}
@@ -219,17 +212,6 @@ final class Validate {
 		}
 
 		$values['github_repo'] = $value;
-
-		if ( (string) ( $existing['github_repo'] ?? '' ) === $value || '' === $value || RepoChoice::NONE === $value ) {
-			return;
-		}
-
-		$repos = Settings::connected() ? Client::repos() : array();
-		$error = RepoChoice::check( $value, Settings::connected(), is_wp_error( $repos ) ? null : $repos );
-
-		if ( null !== $error ) {
-			$errors['github_repo'] = $error;
-		}
 	}
 
 	/**

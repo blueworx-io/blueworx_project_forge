@@ -13,6 +13,7 @@ commits and pull requests.
 ### Added
 
 - Tasks now ask which GitHub repo they belong in before they leave Documentation period, or you can choose No repo needed. Choosing a repo creates the GitHub issue and links it to the task.
+- The task shows when its GitHub issue is still being made, or couldn't be made, and repos linked to another client's site are named with that site.
 
 ## [2.221.0] - 2026-11-17
 

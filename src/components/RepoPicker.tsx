@@ -6,8 +6,12 @@ import { messageFor } from '../api';
 export interface GitHubView {
   connected: boolean;
   link: { repo: string; number: number; url: string } | null;
+  /** Where making the issue has got to while there is none. */
+  issue?: 'waiting' | 'failed' | null;
   site_repos: string[];
   repos: string[];
+  /** The account's repos linked to another site, with that site's name. */
+  linked_elsewhere?: Record< string, string >;
 }
 
 const NONE = 'none';
@@ -78,10 +82,13 @@ export function RepoPicker( {
     }
   }
 
+  const elsewhere = github.linked_elsewhere ?? {};
+  const chosen = '' !== repo && NONE !== repo;
+
   return (
     <div className="bwx-field">
-      <label htmlFor="bwx-item-repo">Repo</label>
-      <select id="bwx-item-repo" ref={ select } className="fk-input" data-testid="bwx-item-repo" value={ value } onChange={ ( event ) => void pick( event.target.value ) }>
+      <label htmlFor="bwx-github_repo">Repo</label>
+      <select id="bwx-github_repo" ref={ select } className="fk-input" data-testid="bwx-item-repo" value={ value } onChange={ ( event ) => void pick( event.target.value ) }>
         { 0 < site.length && (
           <optgroup label="This site's repos">
             { site.map( ( one ) => (
@@ -95,13 +102,23 @@ export function RepoPicker( {
           <optgroup label={ github.connected ? 'Other repos on the account' : 'Chosen repo' }>
             { [ ...kept, ...others ].map( ( one ) => (
               <option key={ one } value={ one } disabled={ ! github.connected }>
-                { one }
+                { elsewhere[ one ] ? `${ one } — linked to ${ elsewhere[ one ] }` : one }
               </option>
             ) ) }
           </optgroup>
         ) }
         <option value={ NONE }>No repo needed</option>
       </select>
+      { chosen && 'waiting' === github.issue && (
+        <p className="bwx-hint" data-testid="bwx-item-issue-state">
+          Making the GitHub issue…
+        </p>
+      ) }
+      { chosen && 'failed' === github.issue && (
+        <p className="bwx-hint" data-testid="bwx-item-issue-state">
+          { "The GitHub issue couldn't be made. See Settings → Connections." }
+        </p>
+      ) }
       { '' !== error && (
         <p className="bwx-hint bwx-field-error" role="alert" data-testid="bwx-field-error" data-field="github_repo">
           { error }

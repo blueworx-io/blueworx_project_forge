@@ -142,7 +142,12 @@ test('a GitHub that is down still saves, and catches up', async ({ page }) => {
   const saved = await chooseRepo(item.id, ALPHA);
   expect(saved.status(), await saved.text()).toBe(200);
   expect((await saved.json()).item.github_repo).toBe(ALPHA);
-  expect((await admin.api.get(`/work-items/${item.id}`)).github.link).toBeNull();
+  const waiting = (await admin.api.get(`/work-items/${item.id}`)).github;
+  expect(waiting.link).toBeNull();
+  expect(waiting.issue).toBe('waiting');
+
+  // The job carries the repo, so a change while it runs is noticed.
+  expect(JSON.parse((await issueJob(admin.api.request, item.id)).payload)).toEqual({ repo: ALPHA });
 
   // The try made after the save failed, and the GitHub row says so.
   await signIn(page, ADMIN_USER, ADMIN_PASS);
@@ -195,7 +200,7 @@ test('a token that runs out uses up no tries, and the change goes after reconnec
   expect(await issuesFor(item.id)).toHaveLength(1);
 });
 
-test('a change that gave up goes again after reconnecting', async () => {
+test('a change that gave up goes again after reconnecting', async ({ page }) => {
   test.slow();
   const item = await feature('Gave up');
 
@@ -211,6 +216,13 @@ test('a change that gave up goes again after reconnecting', async () => {
   const row = (await admin.api.get('/connections')).services.find((service) => 'github' === service.id);
   expect(row.outbox).toContain("couldn't be sent to GitHub");
   expect(row.error).toContain("couldn't be sent to GitHub");
+
+  // The task says so too.
+  expect((await admin.api.get(`/work-items/${item.id}`)).github.issue).toBe('failed');
+  await signIn(page, ADMIN_USER, ADMIN_PASS);
+  await page.goto('about:blank');
+  await page.goto(`/blueworx-forge/#item=${item.id}`);
+  await expect(page.getByTestId('bwx-item-issue-state')).toHaveText("The GitHub issue couldn't be made. See Settings → Connections.", { timeout: 60000 });
 
   await githubSays(admin.api.request, { issues_refused: false });
   await reconnect();

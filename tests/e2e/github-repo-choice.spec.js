@@ -108,7 +108,18 @@ test.describe('the repo picker', () => {
   const BETA = 'blueworx-io/beta';
   const LOCKED = "This task already has a GitHub issue, so its repo can't change. Move the issue in GitHub if it needs to go elsewhere.";
   let pickSite;
+  let pickClient;
   let feature;
+  let clientAdmin;
+
+  /** A client admin of the picker's client, signed in. */
+  async function asClientAdmin(browser, baseURL) {
+    if (!clientAdmin) {
+      const person = await Forge.makePerson(admin.api, pickClient.id, 'client_admin', 'repoadmin');
+      clientAdmin = await Forge.signedIn(browser, baseURL, person.login, Forge.PASSWORD);
+    }
+    return clientAdmin.api;
+  }
 
   async function openPanel(page) {
     await signIn(page, ADMIN_USER, ADMIN_PASS);
@@ -119,7 +130,7 @@ test.describe('the repo picker', () => {
   test.beforeAll(async () => {
     test.setTimeout(600000);
     installGitHubStub();
-    ({ site: pickSite } = await Forge.makeSite(admin.api, 'Picker Co', RUN_ID));
+    ({ client: pickClient, site: pickSite } = await Forge.makeSite(admin.api, 'Picker Co', RUN_ID));
 
     // #681. Choosing a repo here would make its issue and hide the picker these
     // tests are about, so GitHub refuses to make one; github-create-issue covers it.
@@ -132,6 +143,7 @@ test.describe('the repo picker', () => {
   });
 
   test.afterAll(async () => {
+    await clientAdmin?.context.close();
     await githubSays(admin.api.request, { issues_refused: false });
     await admin.api.put(`/client-sites/${pickSite.id}/github-repos`, { repos: [] });
     await admin.api.del('/connections/github');
@@ -153,6 +165,60 @@ test.describe('the repo picker', () => {
 
     await page.getByTestId('bwx-item-repo').selectOption(BETA);
     await expect.poll(async () => (await admin.api.get(`/work-items/${feature.id}`)).item.github_repo, { timeout: 30000 }).toBe(BETA);
+
+    // GitHub won't make the issue in this suite, so it is still on its way.
+    expect((await admin.api.get(`/work-items/${feature.id}`)).github.issue).toBe('waiting');
+    await expect(page.getByTestId('bwx-item-issue-state')).toHaveText('Making the GitHub issue…', { timeout: 30000 });
+  });
+
+  test('the Repo gate row goes to the picker', async ({ page }) => {
+    test.slow();
+    const made = (await (await Forge.makeItem(admin.api, pickSite.id, { title: `Go to picker ${RUN_ID}`, level: 'feature' })).json()).item;
+    const bare = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period']);
+
+    await signIn(page, ADMIN_USER, ADMIN_PASS);
+    await page.goto('about:blank');
+    await page.goto(`/blueworx-forge/#item=${bare.id}`);
+
+    const picker = page.getByTestId('bwx-item-repo');
+    await expect(picker).toBeVisible({ timeout: 60000 });
+    await expect(page.getByLabel('Repo', { exact: true })).toHaveAttribute('data-testid', 'bwx-item-repo');
+
+    await page.locator('[data-requirement="G-DOCUMENTATION-10"] [data-testid="bwx-unmet-go"]').click();
+    await expect(picker).toBeFocused();
+  });
+
+  test("a repo linked to another client's site is named with it", async ({ page }) => {
+    test.slow();
+    expect((await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [BETA] })).status()).toBe(200);
+
+    try {
+      await openPanel(page);
+
+      const picker = page.getByTestId('bwx-item-repo');
+      await expect(picker).toBeVisible({ timeout: 60000 });
+      await expect(picker.locator('option')).toHaveText([ALPHA, `${BETA} — linked to ${site.name}`, 'No repo needed']);
+    } finally {
+      await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [] });
+    }
+  });
+
+  test('a client admin is refused the repo the same way, whatever its name', async ({ browser, baseURL }) => {
+    test.slow();
+    const theirs = await asClientAdmin(browser, baseURL);
+
+    const tryRepo = async (repo) => {
+      const current = (await admin.api.get(`/work-items/${feature.id}`)).item;
+      return theirs.patch(`/work-items/${feature.id}`, { github_repo: repo, record_version: current.record_version });
+    };
+
+    const known = await tryRepo(ALPHA);
+    const unknown = await tryRepo('someone/not-on-the-account');
+
+    expect(known.status(), await known.text()).toBe(403);
+    expect(unknown.status(), await unknown.text()).toBe(403);
+    expect(await unknown.json()).toEqual(await known.json());
+    expect((await admin.api.get(`/work-items/${feature.id}`)).item.github_repo).toBe(BETA);
   });
 
   test('a feature-level task is offered the picker too', async ({ page }) => {
@@ -191,7 +257,7 @@ test.describe('the repo picker', () => {
     await expect(picker.locator('option')).toHaveText(['No repo needed']);
   });
 
-  test('a linked task shows its issue and its repo cannot change', async ({ page }) => {
+  test('a linked task shows its issue and its repo cannot change', async ({ page, browser, baseURL }) => {
     test.slow();
     expect((await admin.api.post('/connections/github', { token: 'good-token-4321' })).ok()).toBe(true);
 
@@ -212,5 +278,10 @@ test.describe('the repo picker', () => {
     const body = await refused.json();
     expect(body.code).toBe('bwx_forge_github_repo_locked');
     expect(body.message).toBe(LOCKED);
+
+    // Somebody who may not choose the repo isn't told which one the issue is in.
+    const theirs = await asClientAdmin(browser, baseURL);
+    const probed = await theirs.patch(`/work-items/${feature.id}`, { github_repo: BETA, record_version: current.record_version });
+    expect(probed.status(), await probed.text()).toBe(403);
   });
 });

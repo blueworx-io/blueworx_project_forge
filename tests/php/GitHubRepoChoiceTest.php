@@ -35,49 +35,65 @@ final class GitHubRepoChoiceTest extends TestCase {
 	protected function tearDown(): void {
 		Settings::forget();
 		delete_transient( Settings::REPOS );
+		delete_transient( Settings::REPOS_DOWN );
 		$GLOBALS['bwx_forge_test_http'] = array();
 	}
 
 	/**
-	 * @param string $repo     What was sent.
-	 * @param string $existing What is stored.
+	 * @param string $repo What was sent.
 	 * @return array<string, string>
 	 */
-	private function errors_for( string $repo, string $existing = '' ): array {
+	private function errors_for( string $repo ): array {
 		$base = array(
 			'title'     => 'T',
 			'level'     => 'feature',
 			'work_type' => 'feature',
 		);
 
-		return Validate::item( array_merge( $base, array( 'github_repo' => $repo ) ), false, array( 'github_repo' => $existing ) )['errors'];
+		return Validate::item( array_merge( $base, array( 'github_repo' => $repo ) ), false )['errors'];
+	}
+
+	public function test_validate_checks_the_shape_and_tidies_the_name(): void {
+		self::assertSame( array(), $this->errors_for( 'Blueworx-IO/Alpha' ) );
+		self::assertSame( array(), $this->errors_for( 'none' ) );
+		self::assertArrayHasKey( 'github_repo', $this->errors_for( 'not a repo' ) );
+
+		$checked = Validate::item( array( 'github_repo' => ' Blueworx-IO/Alpha ' ), true );
+		self::assertSame( 'blueworx-io/alpha', $checked['values']['github_repo'] );
+	}
+
+	public function test_validate_never_asks_github(): void {
+		$GLOBALS['bwx_forge_test_http_requests'] = array();
+
+		self::assertSame( array(), $this->errors_for( 'someone/else' ) );
+		self::assertSame( array(), $GLOBALS['bwx_forge_test_http_requests'] );
 	}
 
 	public function test_a_repo_is_checked_against_the_account_when_it_changes(): void {
 		Settings::save( 'ghp_abcd1234', 's3cret', 'blueworx-io', 1 );
 		set_transient( Settings::REPOS, array( 'blueworx-io/alpha' ), 600 );
 
-		self::assertSame( array(), $this->errors_for( 'Blueworx-IO/Alpha' ) );
-		self::assertArrayHasKey( 'github_repo', $this->errors_for( 'someone/else' ) );
-		self::assertArrayHasKey( 'github_repo', $this->errors_for( 'not a repo' ) );
-		self::assertSame( array(), $this->errors_for( 'none' ) );
+		self::assertNull( RepoChoice::refusal( 'blueworx-io/alpha', '' ) );
+		self::assertNotNull( RepoChoice::refusal( 'someone/else', '' ) );
+		self::assertNull( RepoChoice::refusal( 'none', '' ) );
+		self::assertNull( RepoChoice::refusal( '', 'blueworx-io/alpha' ) );
 	}
 
 	public function test_a_repo_left_as_it_was_is_not_checked_again(): void {
 		Settings::save( 'ghp_abcd1234', 's3cret', 'blueworx-io', 1 );
 		set_transient( Settings::REPOS, array(), 600 );
 
-		self::assertSame( array(), $this->errors_for( 'someone/else', 'someone/else' ) );
+		self::assertNull( RepoChoice::refusal( 'someone/else', 'someone/else' ) );
 	}
 
 	public function test_github_being_down_does_not_stop_a_save(): void {
 		Settings::save( 'ghp_abcd1234', 's3cret', 'blueworx-io', 1 );
 		$GLOBALS['bwx_forge_test_http'] = array();
 
-		self::assertSame( array(), $this->errors_for( 'blueworx-io/alpha' ) );
+		self::assertNull( RepoChoice::refusal( 'blueworx-io/alpha', '' ) );
 	}
 
 	public function test_a_repo_with_github_not_connected_is_refused(): void {
-		self::assertArrayHasKey( 'github_repo', $this->errors_for( 'blueworx-io/alpha' ) );
+		self::assertNotNull( RepoChoice::refusal( 'blueworx-io/alpha', '' ) );
 	}
 }

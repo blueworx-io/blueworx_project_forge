@@ -869,6 +869,10 @@ export const RULES: RuleSection[] = [
         why: 'So the work can start from it.',
       },
       {
+        what: 'A repo linked to another client\'s site can still be chosen, but it is shown with that site\'s name.',
+        why: 'So nobody puts one client\'s task in another client\'s repo without seeing it.',
+      },
+      {
         what: 'Once the issue exists, the repo can\'t be changed.',
         why: 'Moving issues is GitHub\'s job.',
       },
@@ -877,7 +881,7 @@ export const RULES: RuleSection[] = [
         why: 'Their words stay theirs.',
       },
       {
-        what: 'If GitHub is down, changes wait and are retried, and the Connections page shows any that failed.',
+        what: 'If GitHub is down, changes wait and are retried. The task says while its issue is being made, and the Connections page shows any that failed.',
         why: 'A slow GitHub must never stop work being saved.',
       },
       {

@@ -79,8 +79,9 @@ final class Items {
 				// naming a release it no longer sits under, which is what
 				// stops it holding that review.
 				'review_of'      => (string) ( $values['review_of'] ?? '' ),
-				// #680. Named only by an issue brought in from GitHub: the
-				// repository it came from. No request body can set it.
+				// #680, #681. The repo the work belongs in: the one an issue
+				// brought in from GitHub came from, or the one somebody who may
+				// plan the work chose when adding it.
 				'github_repo'    => (string) ( $values['github_repo'] ?? '' ),
 				'assignees'      => (string) wp_json_encode( array_values( array_map( 'strval', (array) ( $values['assignees'] ?? array() ) ) ) ),
 				'hours_each'     => (string) (float) ( $values['hours_each'] ?? 0 ),
