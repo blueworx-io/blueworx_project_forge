@@ -8,11 +8,11 @@
 
 **Tech Stack:** PHP 8 WordPress plugin, PHPUnit, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-11-16-github-issue-sync-design.md` (section Keeping them matching). Issue #608. Builds on parts 1 and 2, which must be merged first.
+**Spec:** `docs/superpowers/specs/2026-11-16-github-issue-sync-design.md` (section Keeping them matching). Issues #682 (this part) and #608. Builds on parts 1 and 2, which must be merged first.
 
 ## Global Constraints
 
-- Branch: `github-issue-sync-3`, from `main` after part 2 is merged. Draft pull request linked to #608. Never auto-merge.
+- Branch: `github-issue-sync-3`, from `main` after part 2 is merged. Draft pull request linked to #682 (part of #608). Never auto-merge.
 - Minor version bump and changelog entry; `src/rules.ts` updated in the same pull request.
 - No new dependencies.
 - Nothing from GitHub ever moves a task past In review, and the reviewer rule is never worked around.
@@ -41,7 +41,7 @@
 
 - [ ] **Step 1: Add both actions** with a one-line comment each on why they sit where they do.
 - [ ] **Step 2: Run the full PHPUnit suite and Playwright suite** → unchanged results.
-- [ ] **Step 3: Commit** — `Announce task saves and moves to listeners (#608)`.
+- [ ] **Step 3: Commit** — `Announce task saves and moves to listeners (#682)`.
 
 ### Task 2: Stage labels, closing and reopening from Forge
 
@@ -74,7 +74,7 @@
   - `cancelling closes it as not planned` — end a task as cancelled → `closed`, `not_planned`.
   - `reopening the task reopens the issue` — reopen a released task → `open`.
 - [ ] **Step 6: Run** → PASS.
-- [ ] **Step 7: Commit** — `Show the Forge stage on the issue, and close and reopen it with the task (#608)`.
+- [ ] **Step 7: Commit** — `Show the Forge stage on the issue, and close and reopen it with the task (#682)`.
 
 ### Task 3: Titles and descriptions
 
@@ -107,7 +107,7 @@
   - `editing a GitHub-raised issue's description updates the task` — on an item from part 1's flow → description matches.
   - `editing a Forge-made issue's description leaves a note, once` — send `edited` with a new body twice (two deliveries) → one internal comment, the task's description unchanged.
 - [ ] **Step 6: Run** → PASS.
-- [ ] **Step 7: Commit** — `Keep titles and descriptions matching (#608)`.
+- [ ] **Step 7: Commit** — `Keep titles and descriptions matching (#682)`.
 
 ### Task 4: Closing and reopening in GitHub
 
@@ -141,7 +141,7 @@
   - `the echo of Forge's own close says nothing` — release a task, run the queue, send the `closed` hook back → no new comment.
   - `reopening in GitHub after release leaves a note; Forge's own reopen doesn't` — send `reopened` on a released task → one comment; reopen a task in Forge, send `reopened` back → no comment.
 - [ ] **Step 6: Run** → PASS.
-- [ ] **Step 7: Commit** — `Closing an issue in GitHub moves finished work to review (#608)`.
+- [ ] **Step 7: Commit** — `Closing an issue in GitHub moves finished work to review (#682)`.
 
 ### Task 5: Rules, version and changelog
 
@@ -151,4 +151,4 @@
 - [ ] **Step 1: Add rules** to the `github` section: the issue carries one `forge:` label naming the stage (why: anyone in GitHub can see where the work is); releasing closes the issue, ending a task any other way closes it as not planned, and reopening the task reopens it (why: Forge decides the stage); closing the issue in GitHub moves work from In development to In review, never further, and otherwise leaves a note (why: only the reviewer can release work); title edits cross both ways; description edits from GitHub only reach tasks that came from GitHub (why: a Forge task's description is several fields, and one block of text can't safely overwrite them); comments never sync.
 - [ ] **Step 2: Bump the minor version**; changelog under `### Added`: "Linked GitHub issues now stay in step with their tasks: the issue shows the Forge stage, closes when the work is released and reopens with it, and titles match on both sides. Closing an issue in GitHub moves finished development to In review."
 - [ ] **Step 3: Run every check** → all pass.
-- [ ] **Step 4: Commit** — `Version for keeping GitHub in step (#608)`. Draft pull request linked to #608, saying what wasn't tested (a real GitHub; the stub stands in).
+- [ ] **Step 4: Commit** — `Version for keeping GitHub in step (#682)`. Draft pull request linked to #682 (part of #608), saying what wasn't tested (a real GitHub; the stub stands in).

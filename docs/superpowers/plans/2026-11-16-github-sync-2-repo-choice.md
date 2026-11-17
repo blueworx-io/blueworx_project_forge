@@ -8,11 +8,11 @@
 
 **Tech Stack:** PHP 8 WordPress plugin, React + Vite app, PHPUnit, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-11-16-github-issue-sync-design.md` (sections Repo choice in Documentation period, Creating the issue, the link comment under From GitHub into Forge). Issue #608. Builds on part 1 (`docs/superpowers/plans/2026-11-16-github-sync-1-connect.md`), which must be merged first.
+**Spec:** `docs/superpowers/specs/2026-11-16-github-issue-sync-design.md` (sections Repo choice in Documentation period, Creating the issue, the link comment under From GitHub into Forge). Issues #681 (this part) and #608. Builds on part 1 (`docs/superpowers/plans/2026-11-16-github-sync-1-connect.md`), which must be merged first.
 
 ## Global Constraints
 
-- Branch: `github-issue-sync-2`, from `main` after part 1 is merged. Draft pull request linked to #608. Never auto-merge.
+- Branch: `github-issue-sync-2`, from `main` after part 1 is merged. Draft pull request linked to #681 (part of #608). Never auto-merge.
 - Minor version bump from whatever part 1 shipped (expected 2.221.0 → 2.222.0) in `package.json`, both plugin headers and `BWX_FORGE_VERSION`. Changelog entry for the person using Forge.
 - `src/rules.ts` updated in the same pull request.
 - No new dependencies.
@@ -51,7 +51,7 @@
 - [ ] **Step 3: Implement** the requirement, the flag, the field group, `RepoChoice`, the validation.
 - [ ] **Step 4: Run** → PASS. Update `answerFor()` and the expected rows in `documentation-period.spec.js` to `['G-DOCUMENTATION-1', 'G-DOCUMENTATION-10', 'G-DOCUMENTATION-9']`. Run the whole Playwright suite: any spec walking work past Documentation period should now pass through `satisfy()` answering `'none'`.
 - [ ] **Step 5: Write and run the failing spec** in `tests/e2e/github-repo-choice.spec.js`: `a feature cannot reach Up Next without a repo answer` — walk a feature to Documentation period, approve the documentation and fill the description only; the move to `up-next` is refused naming "Repo"; set `github_repo: 'none'`; the move succeeds. And `a release is never asked` — a `milestone` item's readiness for `up-next` has no `G-DOCUMENTATION-10`.
-- [ ] **Step 6: Commit** — `Ask for a repo before work leaves Documentation period (#608)`.
+- [ ] **Step 6: Commit** — `Ask for a repo before work leaves Documentation period (#681)`.
 
 ### Task 2: The repo picker on the item
 
@@ -71,7 +71,7 @@
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement** the detail answer, the lock and the picker (follow the `frontend-design` skill and the kit).
 - [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** — `Choose a task's repo from its panel (#608)`.
+- [ ] **Step 5: Commit** — `Choose a task's repo from its panel (#681)`.
 
 ### Task 3: The outbox, and creating the issue
 
@@ -112,7 +112,7 @@
   - `No repo needed makes no issue` — stub logs no create call.
   - `a GitHub that is down still saves, and catches up` — stub `down: true`; the PATCH answers 200; no link yet; the Connections row shows a failure after the job tries; stub back up; run the queue (a test route in the stub calling `Jobs::run()`, standing in for cron) → one issue, linked.
 - [ ] **Step 6: Run** → PASS.
-- [ ] **Step 7: Commit** — `Create the GitHub issue when a task's repo is chosen (#608)`.
+- [ ] **Step 7: Commit** — `Create the GitHub issue when a task's repo is chosen (#681)`.
 
 ### Task 4: Issues Forge made, and issues people made, link up properly
 
@@ -133,7 +133,7 @@
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement**.
 - [ ] **Step 4: Run** → PASS.
-- [ ] **Step 5: Commit** — `Link Forge's own issues back, and comment once on issues raised in GitHub (#608)`.
+- [ ] **Step 5: Commit** — `Link Forge's own issues back, and comment once on issues raised in GitHub (#681)`.
 
 ### Task 5: Rules, version and changelog
 
@@ -143,4 +143,4 @@
 - [ ] **Step 1: Add rules** to the `github` section: a feature or sub-feature needs a repo, or No repo needed, before it leaves Documentation period (why: every build starts from a GitHub issue, and not every task is a build); choosing a repo creates the issue straight away (why: so the work can start from it); once the issue exists the repo can't change (why: moving issues is GitHub's job); Forge comments once on an issue raised in GitHub with a link back, and never edits what the person wrote (why: their words stay theirs); if GitHub is down, changes wait and are retried, and the Connections page shows any that failed (why: a slow GitHub must never stop work being saved).
 - [ ] **Step 2: Bump the minor version** in all four places; changelog under `### Added`: "Tasks now ask which GitHub repo they belong in before they leave Documentation period, or you can choose No repo needed. Choosing a repo creates the GitHub issue and links it to the task."
 - [ ] **Step 3: Run every check** → all pass.
-- [ ] **Step 4: Commit** — `Version for repo choice (#608)`. Draft pull request linked to #608, saying what wasn't tested (a real GitHub; the stub stands in).
+- [ ] **Step 4: Commit** — `Version for repo choice (#681)`. Draft pull request linked to #681 (part of #608), saying what wasn't tested (a real GitHub; the stub stands in).

@@ -8,11 +8,11 @@
 
 **Tech Stack:** PHP 8 WordPress plugin (namespaced, autoloaded), React + Vite app, PHPUnit (no WordPress runtime), Playwright against the local WordPress harness.
 
-**Spec:** `docs/superpowers/specs/2026-11-16-github-issue-sync-design.md` (sections Connecting, Linking repos to sites, From GitHub into Forge). Issue #608.
+**Spec:** `docs/superpowers/specs/2026-11-16-github-issue-sync-design.md` (sections Connecting, Linking repos to sites, From GitHub into Forge). Issues #680 (this part) and #608.
 
 ## Global Constraints
 
-- Branch: `github-issue-sync-1`. One pull request, draft, linked to #608. Never auto-merge.
+- Branch: `github-issue-sync-1`. One pull request, draft, linked to #680 (part of #608). Never auto-merge.
 - Minor version bump: 2.220.0 → 2.221.0 in `package.json`, both plugin headers and `BWX_FORGE_VERSION` (`blueworx-forge.php`, `client/blueworx-forge-client.php`). Changelog entry in `CHANGELOG.md`, written for the person using Forge.
 - `src/rules.ts` gets the new rules in the same pull request (a new section `github`, title "GitHub").
 - No new dependencies.
@@ -69,7 +69,7 @@ work_items (add):  github_repo varchar(191) NOT NULL DEFAULT ''
 - [ ] **Step 2: Run it** — `vendor/bin/phpunit --filter test_github_tables_are_defined` → FAIL.
 - [ ] **Step 3: Implement** the table methods, statements, VERSION bump, `github_repo` in `Items::defaults()` (`''`) and `hydrate()` (string), and the TypeScript field. Also add the three tables to whatever `tables_exist()` and `uninstall.php` walk (follow how `slack_events` is listed).
 - [ ] **Step 4: Run it** → PASS. Run the full PHPUnit suite → PASS.
-- [ ] **Step 5: Commit** — `Add the GitHub tables (#608)`.
+- [ ] **Step 5: Commit** — `Add the GitHub tables (#680)`.
 
 ### Task 2: Settings and the GitHub client
 
@@ -100,7 +100,7 @@ work_items (add):  github_repo varchar(191) NOT NULL DEFAULT ''
 - [ ] **Step 2: Run them** → FAIL (classes missing).
 - [ ] **Step 3: Implement** both classes, following `Cloudways\Settings` and `Cloudways\Client`.
 - [ ] **Step 4: Run them** → PASS.
-- [ ] **Step 5: Commit** — `Keep the GitHub connection and talk to GitHub (#608)`.
+- [ ] **Step 5: Commit** — `Keep the GitHub connection and talk to GitHub (#680)`.
 
 ### Task 3: Connect GitHub on the Connections page
 
@@ -126,7 +126,7 @@ work_items (add):  github_repo varchar(191) NOT NULL DEFAULT ''
 - [ ] **Step 2: Run it** (`npx playwright test tests/e2e/github-connect.spec.js`) → FAIL.
 - [ ] **Step 3: Implement** the controller, the service row and the form (copy `CloudwaysForm`'s shape, three fields, `data-testid="bwx-github-form"`, `bwx-github-token`, `bwx-github-org`, `bwx-github-secret`, `bwx-github-save`).
 - [ ] **Step 4: Run it** → PASS.
-- [ ] **Step 5: Commit** — `Connect GitHub from the Connections page (#608)`.
+- [ ] **Step 5: Commit** — `Connect GitHub from the Connections page (#680)`.
 
 ### Task 4: Link repos to client sites
 
@@ -155,7 +155,7 @@ work_items (add):  github_repo varchar(191) NOT NULL DEFAULT ''
   - `a repo linked elsewhere is refused by name` — with `alpha` on site A, PUT `alpha` for site B → 409, message names site A.
 - [ ] **Step 6: Implement** the chooser: under each active site in the Sites panel, a "GitHub repos" multi-select from `GET /github/repos` (repos linked to another site shown disabled with that site's name), saved with PUT. Hidden when GitHub is not connected. Use the kit's existing pieces; follow the `frontend-design` skill.
 - [ ] **Step 7: Run** → PASS.
-- [ ] **Step 8: Commit** — `Link GitHub repos to client sites (#608)`.
+- [ ] **Step 8: Commit** — `Link GitHub repos to client sites (#680)`.
 
 ### Task 5: The webhook route
 
@@ -185,7 +185,7 @@ work_items (add):  github_repo varchar(191) NOT NULL DEFAULT ''
   - `a message signed with the wrong secret is refused` → 401.
   - `a ping is answered` → 200, outcome `pong`; the GitHub row's "Last checked in" is no longer Never.
 - [ ] **Step 6: Run** → PASS.
-- [ ] **Step 7: Commit** — `Receive GitHub's organisation hook, signed (#608)`.
+- [ ] **Step 7: Commit** — `Receive GitHub's organisation hook, signed (#680)`.
 
 ### Task 6: New issues become items in Future Idea
 
@@ -225,7 +225,7 @@ Rules for `opened`: repo = `Repos::normalise( repository.full_name )`; no site f
   - `clients see it on their board` — the client's board route lists the item (nothing hidden).
 - [ ] **Step 6: Implement** `Inbound::handle` and wire it into the route.
 - [ ] **Step 7: Run** → PASS.
-- [ ] **Step 8: Commit** — `Bring new GitHub issues into Future Idea (#608)`.
+- [ ] **Step 8: Commit** — `Bring new GitHub issues into Future Idea (#680)`.
 
 ### Task 7: Setup note, rules, version and changelog
 
@@ -238,4 +238,4 @@ Rules for `opened`: repo = `Repos::normalise( repository.full_name )`; no site f
 - [ ] **Step 3: Bump to 2.221.0** in all four places and add the changelog entry under `### Added`: "Connect GitHub from Settings → Connections and link repos to each client's sites. New issues raised in a linked repo now appear in Forge in Future Idea, ready to triage."
 - [ ] **Step 4: Run every check** — `npm run lint`, `npm run build`, `composer lint`, `vendor/bin/phpunit`, `npm test` → all pass (report lint findings, don't loop).
 - [ ] **Step 5: Run the `security-review` skill** on the branch and act on anything real.
-- [ ] **Step 6: Commit** — `Note how to set up GitHub, and version 2.221.0 (#608)`. Open a draft pull request linked to #608 saying what it does and what wasn't tested (no real GitHub organisation hook was exercised; the stub stands in for GitHub).
+- [ ] **Step 6: Commit** — `Note how to set up GitHub, and version 2.221.0 (#680)`. Open a draft pull request linked to #680 (part of #608) saying what it does and what wasn't tested (no real GitHub organisation hook was exercised; the stub stands in for GitHub).
