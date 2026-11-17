@@ -16,7 +16,8 @@ use WP_Error;
 
 /**
  * #680. A repository belongs to one client site at most; a site can have
- * several. Only repositories in the connected organisation can be linked.
+ * several. Only repositories the connected GitHub account owns can be linked,
+ * and linking one adds Forge's webhook to it (see Hooks).
  */
 final class Repos {
 
@@ -119,10 +120,14 @@ final class Repos {
 		$wanted = array_values( $wanted );
 
 		if ( array() !== $wanted ) {
-			$known = Client::org_repos( Settings::org() );
+			$known = self::known( $wanted );
 
 			if ( is_wp_error( $known ) ) {
-				return Errors::rest( 'github_unreachable', __( 'GitHub could not be reached, so the repositories could not be checked. Try again.', 'blueworx-forge' ), 502 );
+				return Client::refusal(
+					$known,
+					__( 'GitHub could not be reached, so the repositories could not be checked. Try again.', 'blueworx-forge' ),
+					__( 'GitHub would not list the repositories, so they could not be checked. Try again.', 'blueworx-forge' )
+				);
 			}
 
 			foreach ( $wanted as $repo ) {
@@ -130,7 +135,7 @@ final class Repos {
 					return Errors::rest(
 						'github_repo_unknown',
 						/* translators: %s: the repository. */
-						sprintf( __( '%s is not in the connected GitHub organisation.', 'blueworx-forge' ), $repo ),
+						sprintf( __( '%s is not one of the connected GitHub account\'s repositories.', 'blueworx-forge' ), $repo ),
 						400
 					);
 				}
@@ -148,6 +153,13 @@ final class Repos {
 
 		// Only what changes is touched, so a refused add leaves the rest as it was.
 		foreach ( array_diff( $current, $wanted ) as $repo ) {
+			// Unlinked whatever GitHub says: a hook left behind only sends
+			// messages Forge ignores, and the failure is shown on Connections.
+			if ( is_wp_error( Hooks::remove( $repo, self::hook_id( $repo ) ) ) ) {
+				/* translators: %s: the repository. */
+				Settings::failed( sprintf( __( 'Forge could not take its webhook off %s when it was unlinked. Delete it in the repo\'s settings on GitHub.', 'blueworx-forge' ), $repo ) );
+			}
+
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->delete(
 				$table,
@@ -165,6 +177,7 @@ final class Repos {
 				array(
 					'repo'           => $repo,
 					'client_site_id' => $site_id,
+					'hook_id'        => 0,
 					'created_at'     => bwx_forge_now(),
 					'created_by'     => $by,
 				)
@@ -174,9 +187,106 @@ final class Repos {
 				// Someone linked it first: the repo is the table's key.
 				return self::taken( $repo, self::all()[ $repo ] ?? '' );
 			}
+
+			// The link is claimed first, then the hook added. A repo GitHub's
+			// messages would never reach is not linked at all.
+			$hook = Hooks::put( $repo, (string) Settings::secret() );
+
+			if ( is_wp_error( $hook ) ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->delete( $table, array( 'repo' => $repo ) );
+
+				$refusal = Client::refusal(
+					$hook,
+					/* translators: %s: the repository. */
+					sprintf( __( 'GitHub could not be reached, so %s wasn\'t linked. Try again.', 'blueworx-forge' ), $repo ),
+					/* translators: %s: the repository. */
+					sprintf( __( 'GitHub didn\'t let Forge add its webhook to %s, so it wasn\'t linked. Check the token can manage webhooks.', 'blueworx-forge' ), $repo )
+				);
+
+				Settings::failed( $refusal->get_error_message() );
+
+				return $refusal;
+			}
+
+			self::keep_hook( $repo, $hook );
 		}
 
 		return true;
+	}
+
+	/**
+	 * After a reconnect, signs every linked repo's hook with the new secret.
+	 * A repo whose hook could not be updated stays linked; the failure is
+	 * shown on the Connections page.
+	 *
+	 * @param string $secret The new secret.
+	 * @return int How many could not be updated.
+	 */
+	public static function refresh_hooks( string $secret ): int {
+		$failed = 0;
+
+		foreach ( array_keys( self::all() ) as $repo ) {
+			$hook = Hooks::put( $repo, $secret );
+
+			if ( is_wp_error( $hook ) ) {
+				++$failed;
+				/* translators: %s: the repository. */
+				Settings::failed( sprintf( __( 'Forge could not update its webhook on %s, so GitHub\'s messages from it will be refused. Unlink the repo and link it again.', 'blueworx-forge' ), $repo ) );
+				continue;
+			}
+
+			self::keep_hook( $repo, $hook );
+		}
+
+		return $failed;
+	}
+
+	/**
+	 * The repositories GitHub lists, asked again once if any wanted is missing:
+	 * the list is kept for ten minutes and a repo may have been made since.
+	 *
+	 * @param array<int, string> $wanted Repositories to link.
+	 * @return array<int, string>|WP_Error
+	 */
+	public static function known( array $wanted ) {
+		$known = Client::repos();
+
+		if ( is_wp_error( $known ) || array() === array_diff( $wanted, $known ) ) {
+			return $known;
+		}
+
+		delete_transient( Settings::REPOS );
+
+		return Client::repos();
+	}
+
+	/**
+	 * The id of the hook Forge added to a repo.
+	 *
+	 * @param string $repo The repository.
+	 * @return int 0 when none is recorded.
+	 */
+	private static function hook_id( string $repo ): int {
+		global $wpdb;
+
+		$table = Schema::github_repos_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT hook_id FROM {$table} WHERE repo = %s", $repo ) );
+	}
+
+	/**
+	 * Records the hook Forge added to a repo.
+	 *
+	 * @param string $repo The repository.
+	 * @param int    $id   The hook's id on GitHub.
+	 */
+	private static function keep_hook( string $repo, int $id ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->update( Schema::github_repos_table(), array( 'hook_id' => $id ), array( 'repo' => $repo ), array( '%d' ), array( '%s' ) );
 	}
 
 	/**

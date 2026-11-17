@@ -192,6 +192,8 @@ final class SchemaTest extends TestCase {
 		$this->assertArrayHasKey( Schema::github_deliveries_table(), $definitions );
 		$this->assertStringContainsString( "github_repo varchar(191) NOT NULL DEFAULT ''", $definitions[ Schema::work_items_table() ] );
 		$this->assertStringContainsString( 'UNIQUE KEY issue_id (issue_id)', $definitions[ Schema::github_links_table() ] );
+		// The webhook Forge added to each linked repo, so unlinking can take it off.
+		$this->assertStringContainsString( 'hook_id bigint(20) unsigned NOT NULL DEFAULT 0', $definitions[ Schema::github_repos_table() ] );
 	}
 
 	/**

@@ -332,6 +332,9 @@ final class ConnectionsController {
 					'hint'         => GitHubSettings::token_hint(),
 					'connected_at' => GitHubSettings::connected_at(),
 					'last_checked' => GitHubSettings::last_heard(),
+					// What last went wrong, in plain words, until the next good connect.
+					'error'        => GitHubSettings::problem()['what'],
+					'error_at'     => GitHubSettings::problem()['at'],
 				),
 				array(
 					'id'   => 'surecart',

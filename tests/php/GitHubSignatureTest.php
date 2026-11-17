@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 final class GitHubSignatureTest extends TestCase {
 
 	/**
-	 * A message signed with the shared secret is accepted.
+	 * A message signed with the secret is accepted.
 	 */
 	public function test_a_correct_signature_is_valid(): void {
 		$header = 'sha256=' . hash_hmac( 'sha256', '{"a":1}', 's' );

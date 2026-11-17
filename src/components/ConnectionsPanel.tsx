@@ -11,6 +11,9 @@ export interface Service {
   connected_at?: number;
   last_checked?: number;
   link?: string;
+  /** What last went wrong, in plain words; empty when nothing has. */
+  error?: string;
+  error_at?: number;
 }
 
 interface Connections {
@@ -77,11 +80,12 @@ function CloudwaysForm( { onDone, onCancel }: { onDone: ( next: Connections ) =>
   );
 }
 
-/** GitHub: a token, the organisation to watch and the webhook secret, checked with GitHub before they are kept. */
+/**
+ * GitHub: a token only, checked with GitHub before it is kept. Forge makes the
+ * webhook secret itself and adds the webhook to each repo it links.
+ */
 function GitHubForm( { onDone, onCancel }: { onDone: ( next: Connections ) => void; onCancel: () => void } ) {
   const [ token, setToken ] = useState( '' );
-  const [ org, setOrg ] = useState( 'blueworx-io' );
-  const [ secret, setSecret ] = useState( '' );
   const [ busy, setBusy ] = useState( false );
   const [ notice, setNotice ] = useState( '' );
 
@@ -89,7 +93,7 @@ function GitHubForm( { onDone, onCancel }: { onDone: ( next: Connections ) => vo
     setBusy( true );
     setNotice( '' );
     try {
-      onDone( await api< Connections >( '/connections/github', { method: 'POST', body: { token, org, secret } } ) );
+      onDone( await api< Connections >( '/connections/github', { method: 'POST', body: { token } } ) );
     } catch ( error ) {
       setNotice( messageFor( error, 'GitHub could not be connected.' ) );
     } finally {
@@ -107,16 +111,10 @@ function GitHubForm( { onDone, onCancel }: { onDone: ( next: Connections ) => vo
       } }
     >
       <p className="bwx-hint">
-        A fine-grained token from the blueworx-io account with Issues (read and write) and Metadata (read) on the organisation&apos;s repos. The secret is the one you&apos;ll paste into the organisation&apos;s webhook. Both are kept sealed and never shown again.
+        A fine-grained token from the blueworx-io account with access to all its repositories: Issues (read and write), Webhooks (read and write) and Metadata (read). It is kept sealed and never shown again.
       </p>
       <Field label="Token">
         { ( id ) => <TextInput id={ id } type="password" autoComplete="off" data-testid="bwx-github-token" value={ token } onChange={ ( event ) => setToken( event.target.value ) } /> }
-      </Field>
-      <Field label="Organisation">
-        { ( id ) => <TextInput id={ id } autoComplete="off" data-testid="bwx-github-org" value={ org } onChange={ ( event ) => setOrg( event.target.value ) } /> }
-      </Field>
-      <Field label="Webhook secret">
-        { ( id ) => <TextInput id={ id } type="password" autoComplete="off" data-testid="bwx-github-secret" value={ secret } onChange={ ( event ) => setSecret( event.target.value ) } /> }
       </Field>
       { '' !== notice && (
         <p className="bwx-notice" role="alert" data-testid="bwx-github-notice">
@@ -264,6 +262,11 @@ export function ConnectionsPanel( { onOpenServers }: { onOpenServers?: () => voi
             ) }
             { service.connected && 'github' === service.id && '' !== ( service.hint ?? '' ) && (
               <p className="bwx-hint">{ `Token ${ service.hint }` }</p>
+            ) }
+            { 'github' === service.id && '' !== ( service.error ?? '' ) && (
+              <p className="bwx-notice" role="status" data-testid="bwx-connection-github-problem">
+                { `Last problem (${ since( service.error_at ) }): ${ service.error }` }
+              </p>
             ) }
             { undefined !== service.link && <p className="bwx-hint">Stores and the Slack app are still set up on the WordPress admin Connections screen.</p> }
             { editing === service.id && 'cloudways' === service.id && <CloudwaysForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }

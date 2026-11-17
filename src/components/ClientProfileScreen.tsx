@@ -20,9 +20,10 @@ interface RepoList {
 }
 
 /**
- * #680. Which of the organisation's GitHub repositories belong to one site.
- * Ticking or unticking saves at once. A repository another site holds is
- * shown but cannot be ticked here, with that site's name.
+ * #680. Which of the GitHub account's repositories belong to one site.
+ * Ticking or unticking saves at once, and Forge adds or removes its webhook
+ * on that repo. A repository another site holds is shown but cannot be
+ * ticked here, with that site's name.
  */
 function SiteRepos( { siteId, list, onChanged }: { siteId: string; list: RepoList; onChanged: () => void } ) {
   const [ notice, setNotice ] = useState( '' );
@@ -56,7 +57,7 @@ function SiteRepos( { siteId, list, onChanged }: { siteId: string; list: RepoLis
   return (
     <fieldset className="bwx-field bwx-site-repos" data-testid="bwx-site-repos" data-site={ siteId } disabled={ busy }>
       <legend>GitHub repos</legend>
-      { 0 === list.repos.length && <span className="bwx-hint">The organisation has no repositories yet.</span> }
+      { 0 === list.repos.length && <span className="bwx-hint">The GitHub account has no repositories yet.</span> }
       { list.repos.map( ( one ) => {
         const elsewhere = '' !== one.site_id && one.site_id !== siteId;
 
@@ -105,13 +106,22 @@ export function ClientProfileScreen( {
   const [ projectSite, setProjectSite ] = useState( '' );
   const [ adding, setAdding ] = useState( '' );
   const [ github, setGitHub ] = useState< RepoList | null >( null );
+  const [ githubError, setGitHubError ] = useState( '' );
 
-  // #680. Only an administrator links repositories, and only once GitHub is connected.
+  // #680. Only an administrator links repositories, and only once GitHub is
+  // connected. When GitHub can't list them, the chooser says why instead of
+  // disappearing.
   function loadRepos() {
     if ( ! admin ) return;
     void api< RepoList >( '/github/repos', { cache: 'fresh' } )
-      .then( ( next ) => setGitHub( next.connected ? next : null ) )
-      .catch( () => setGitHub( null ) );
+      .then( ( next ) => {
+        setGitHub( next.connected ? next : null );
+        setGitHubError( '' );
+      } )
+      .catch( ( error ) => {
+        setGitHub( null );
+        setGitHubError( messageFor( error, 'The GitHub repos could not be read. Try again.' ) );
+      } );
   }
 
   async function load() {
@@ -181,6 +191,14 @@ export function ClientProfileScreen( {
                     { /* #680. The GitHub repositories whose issues belong to this site. */ }
                     { github && 'active' === site.status && (
                       <SiteRepos siteId={ site.id } list={ github } onChanged={ loadRepos } />
+                    ) }
+                    { '' !== githubError && 'active' === site.status && (
+                      <fieldset className="bwx-field bwx-site-repos" data-site={ site.id }>
+                        <legend>GitHub repos</legend>
+                        <p className="bwx-notice" role="alert" data-testid="bwx-site-repos-error">
+                          { githubError }
+                        </p>
+                      </fieldset>
                     ) }
                   </li>
                 ) ) }

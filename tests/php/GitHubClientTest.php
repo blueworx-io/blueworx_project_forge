@@ -20,9 +20,9 @@ final class GitHubClientTest extends TestCase {
 	protected function setUp(): void {
 		$GLOBALS['bwx_forge_test_http']          = array();
 		$GLOBALS['bwx_forge_test_http_requests'] = array();
-		unset( $GLOBALS['bwx_forge_test_options'][ Settings::OPTION ] );
+		unset( $GLOBALS['bwx_forge_test_options'][ Settings::OPTION ], $GLOBALS['bwx_forge_test_options'][ Settings::STATUS ] );
 		delete_transient( 'bwx_forge_github_repos' );
-		Settings::save( 'ghp_abcd1234', 'blueworx-io', 's3cret', 'blueworx-io', 1 );
+		Settings::save( 'ghp_abcd1234', 's3cret', 'blueworx-io', 1 );
 	}
 
 	/**
@@ -47,6 +47,36 @@ final class GitHubClientTest extends TestCase {
 		$this->assertInstanceOf( WP_Error::class, $answer );
 		$this->assertSame( Client::DENIED, $answer->get_error_code() );
 		$this->assertStringNotContainsString( 'ghp_nope', $answer->get_error_message() );
+		// A token being tried out is not the saved one: nothing is recorded.
+		$this->assertSame( '', Settings::problem()['what'] );
+	}
+
+	public function test_the_saved_token_refused_is_recorded(): void {
+		$GLOBALS['bwx_forge_test_http'][] = $this->answer( 401, array( 'message' => 'Bad credentials' ) );
+
+		$this->assertSame( Client::DENIED, Client::request( 'GET', '/user/repos' )->get_error_code() );
+		$this->assertStringContainsString( 'no longer accepts the token', Settings::problem()['what'] );
+	}
+
+	public function test_a_forbidden_call_is_refused_not_denied(): void {
+		// GitHub answers 403 when the token works but lacks a permission, such as webhooks.
+		$GLOBALS['bwx_forge_test_http'][] = $this->answer( 403, array( 'message' => 'Resource not accessible by personal access token' ) );
+
+		$answer = Client::request( 'POST', '/repos/blueworx-io/a/hooks', array( 'name' => 'web' ) );
+
+		$this->assertSame( Client::REFUSED, $answer->get_error_code() );
+		$this->assertSame( 403, $answer->get_error_data()['github_status'] );
+		$this->assertSame( '', Settings::problem()['what'] );
+	}
+
+	public function test_a_denial_reads_as_reconnect(): void {
+		$denied = Client::refusal( new WP_Error( Client::DENIED, 'x' ), 'Unreachable words.', 'Refused words.' );
+
+		$this->assertSame( 'bwx_forge_github_denied', $denied->get_error_code() );
+		$this->assertSame( 422, $denied->get_error_data()['status'] );
+		$this->assertStringContainsString( 'Reconnect it on the Connections page', $denied->get_error_message() );
+		$this->assertSame( 'Unreachable words.', Client::refusal( new WP_Error( Client::UNREACHABLE, 'x' ), 'Unreachable words.', 'Refused words.' )->get_error_message() );
+		$this->assertSame( 'Refused words.', Client::refusal( new WP_Error( Client::REFUSED, 'x' ), 'Unreachable words.', 'Refused words.' )->get_error_message() );
 	}
 
 	public function test_other_errors_are_refused_with_githubs_words_cut_short(): void {
@@ -83,16 +113,16 @@ final class GitHubClientTest extends TestCase {
 		$GLOBALS['bwx_forge_test_http'][] = $this->answer( 200, $first );
 		$GLOBALS['bwx_forge_test_http'][] = $this->answer( 200, array( array( 'full_name' => 'Blueworx-IO/Aaa' ), array( 'full_name' => 'Blueworx-IO/Zzz' ) ) );
 
-		$repos = Client::org_repos( 'blueworx-io' );
+		$repos = Client::repos();
 
 		$this->assertCount( 102, $repos );
 		$this->assertSame( 'blueworx-io/aaa', $repos[0] );
 		$this->assertSame( 'blueworx-io/zzz', $repos[101] );
+		$this->assertSame( 'https://api.github.com/user/repos?affiliation=owner&per_page=100&page=1', $GLOBALS['bwx_forge_test_http_requests'][0]['url'] );
 		$this->assertStringContainsString( 'page=2', $GLOBALS['bwx_forge_test_http_requests'][1]['url'] );
-		$this->assertStringContainsString( '/orgs/blueworx-io/repos', $GLOBALS['bwx_forge_test_http_requests'][0]['url'] );
 
 		// Cached: a second read asks nobody.
-		Client::org_repos( 'blueworx-io' );
+		Client::repos();
 		$this->assertCount( 2, $GLOBALS['bwx_forge_test_http_requests'] );
 	}
 

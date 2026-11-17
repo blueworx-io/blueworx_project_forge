@@ -659,6 +659,16 @@ function wp_remote_post( string $url, array $args = array() ) {
 }
 
 /**
+ * Stub. Where a REST route of this site answers.
+ *
+ * @param string $path Route path.
+ * @return string
+ */
+function rest_url( string $path = '' ): string {
+	return 'https://forge.test/wp-json/' . ltrim( $path, '/' );
+}
+
+/**
  * Stub. Any method, drawing on the same queue as the pair above.
  *
  * @param string               $url  Request URL.

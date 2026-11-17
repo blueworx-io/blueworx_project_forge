@@ -12,10 +12,11 @@ namespace Blueworx\Forge\GitHub;
 use Blueworx\Forge\Tenancy\Secrets;
 
 /**
- * #680. Entered once by an administrator: a GitHub token, the organisation to
- * watch, and the secret GitHub signs its messages with. The token and secret
- * are sealed at rest and never handed back — only the last four characters of
- * the token, so an administrator can tell which one is in.
+ * #680. Entered once by an administrator: a GitHub token. The account it
+ * belongs to is the owner whose repos Forge lists, and Forge makes the secret
+ * GitHub signs its messages with itself. The token and secret are sealed at
+ * rest and never handed back — only the last four characters of the token,
+ * so an administrator can tell which one is in.
  */
 final class Settings {
 
@@ -25,25 +26,30 @@ final class Settings {
 	public const OPTION = 'bwx_forge_github';
 
 	/**
-	 * Where the last check is kept.
+	 * Where the last thing that went wrong is kept.
 	 */
 	public const STATUS = 'bwx_forge_github_status';
 
 	/**
-	 * Where the organisation's repository list is cached.
+	 * When the last signed message arrived. Kept apart from the connection,
+	 * so a delivery never rewrites the sealed settings.
+	 */
+	public const HEARD = 'bwx_forge_github_heard';
+
+	/**
+	 * Where the account's repository list is cached.
 	 */
 	public const REPOS = 'bwx_forge_github_repos';
 
 	/**
-	 * Saves the connection.
+	 * Saves the connection, and clears what last went wrong.
 	 *
 	 * @param string $token  The GitHub token.
-	 * @param string $org    The organisation Forge watches.
 	 * @param string $secret The secret GitHub signs its messages with.
-	 * @param string $login  Who the token belongs to.
+	 * @param string $login  Who the token belongs to: the account whose repos are listed.
 	 * @param int    $by     The WordPress user connecting it.
 	 */
-	public static function save( string $token, string $org, string $secret, string $login, int $by ): void {
+	public static function save( string $token, string $secret, string $login, int $by ): void {
 		$token = trim( $token );
 
 		update_option(
@@ -52,14 +58,15 @@ final class Settings {
 				'token'        => Secrets::seal( $token ),
 				'hint'         => substr( $token, -4 ),
 				'secret'       => Secrets::seal( trim( $secret ) ),
-				'org'          => strtolower( trim( $org ) ),
+				'owner'        => strtolower( trim( $login ) ),
 				'login'        => trim( $login ),
 				'connected_at' => bwx_forge_now(),
 				'connected_by' => $by,
-				'heard'        => (int) ( self::stored()['heard'] ?? 0 ),
 			),
 			false
 		);
+
+		delete_option( self::STATUS );
 	}
 
 	/**
@@ -81,16 +88,19 @@ final class Settings {
 	}
 
 	/**
-	 * The organisation Forge watches.
+	 * The account whose repos Forge lists, lower case.
 	 *
 	 * @return string
 	 */
-	public static function org(): string {
-		return (string) ( self::stored()['org'] ?? '' );
+	public static function owner(): string {
+		$stored = self::stored();
+
+		// Saved as org before the account turned out to be a person's.
+		return (string) ( $stored['owner'] ?? $stored['org'] ?? '' );
 	}
 
 	/**
-	 * Who the token belongs to.
+	 * Who the token belongs to, as GitHub spells it.
 	 *
 	 * @return string
 	 */
@@ -104,7 +114,7 @@ final class Settings {
 	 * @return bool
 	 */
 	public static function connected(): bool {
-		return null !== self::token() && null !== self::secret() && '' !== self::org();
+		return null !== self::token() && null !== self::secret() && '' !== self::owner();
 	}
 
 	/**
@@ -142,15 +152,7 @@ final class Settings {
 	 * @param int $at Unix time.
 	 */
 	public static function heard( int $at ): void {
-		$stored = self::stored();
-
-		if ( array() === $stored ) {
-			return;
-		}
-
-		$stored['heard'] = $at;
-
-		update_option( self::OPTION, $stored, false );
+		update_option( self::HEARD, $at, false );
 	}
 
 	/**
@@ -159,7 +161,38 @@ final class Settings {
 	 * @return int 0 when none has.
 	 */
 	public static function last_heard(): int {
-		return (int) ( self::stored()['heard'] ?? 0 );
+		return (int) get_option( self::HEARD, 0 );
+	}
+
+	/**
+	 * Records what last went wrong, in words an administrator can act on.
+	 *
+	 * @param string $what What happened.
+	 */
+	public static function failed( string $what ): void {
+		update_option(
+			self::STATUS,
+			array(
+				'at'   => bwx_forge_now(),
+				'what' => $what,
+			),
+			false
+		);
+	}
+
+	/**
+	 * What last went wrong, if anything has since the last good connect.
+	 *
+	 * @return array{at: int, what: string}
+	 */
+	public static function problem(): array {
+		$status = get_option( self::STATUS, array() );
+		$status = is_array( $status ) ? $status : array();
+
+		return array(
+			'at'   => (int) ( $status['at'] ?? 0 ),
+			'what' => (string) ( $status['what'] ?? '' ),
+		);
 	}
 
 	/**
@@ -168,6 +201,7 @@ final class Settings {
 	public static function forget(): void {
 		delete_option( self::OPTION );
 		delete_option( self::STATUS );
+		delete_option( self::HEARD );
 		delete_transient( self::REPOS );
 	}
 

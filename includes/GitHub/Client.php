@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\GitHub;
 
+use BlueworxForgeRestErrors;
+use Blueworx\Forge\Rest\Errors;
 use WP_Error;
 
 /**
@@ -23,7 +25,7 @@ final class Client {
 	public const API = 'https://api.github.com';
 
 	/**
-	 * GitHub refused the token.
+	 * GitHub refused the token: it has expired or been revoked.
 	 */
 	public const DENIED = 'bwx_forge_github_denied';
 
@@ -57,6 +59,7 @@ final class Client {
 	 * @return array<mixed>|WP_Error The decoded answer.
 	 */
 	public static function request( string $method, string $path, array $body = array(), ?string $token = null ) {
+		$saved = null === $token;
 		$token = $token ?? Settings::token();
 
 		if ( null === $token || '' === $token ) {
@@ -88,7 +91,13 @@ final class Client {
 		$code    = wp_remote_retrieve_response_code( $response );
 		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
 
-		if ( 401 === $code || 403 === $code ) {
+		// 401 is the token itself refused. A 403 is a token GitHub knows but
+		// that lacks a permission for this one call, so it is a refusal.
+		if ( 401 === $code ) {
+			if ( $saved ) {
+				Settings::failed( __( 'GitHub no longer accepts the token. Reconnect it on the Connections page.', 'blueworx-forge' ) );
+			}
+
 			return new WP_Error( self::DENIED, __( 'GitHub did not accept that token. It may have expired or lack access: make a new one in GitHub and connect again.', 'blueworx-forge' ) );
 		}
 
@@ -102,7 +111,8 @@ final class Client {
 					sprintf( __( 'GitHub answered with an error (%1$d): %2$s', 'blueworx-forge' ), $code, $said ),
 					0,
 					120
-				)
+				),
+				array( 'github_status' => $code )
 			);
 		}
 
@@ -126,14 +136,31 @@ final class Client {
 	}
 
 	/**
-	 * Every repository in an organisation, as lower-case owner/name, sorted.
+	 * The answer to give a person when a call to GitHub went wrong.
 	 *
-	 * @param string      $org   The organisation.
+	 * @param WP_Error $error       What the call gave back.
+	 * @param string   $unreachable What to say when GitHub could not be reached.
+	 * @param string   $refused     What to say when GitHub refused for any other reason.
+	 * @return WP_Error
+	 */
+	public static function refusal( WP_Error $error, string $unreachable, string $refused ): WP_Error {
+		if ( self::DENIED === $error->get_error_code() ) {
+			return Errors::rest( 'github_denied', __( 'GitHub no longer accepts the token. Reconnect it on the Connections page.', 'blueworx-forge' ), 422 );
+		}
+
+		return self::UNREACHABLE === $error->get_error_code()
+			? Errors::rest( 'github_unreachable', $unreachable, 502 )
+			: Errors::rest( 'github_refused', $refused, 502 );
+	}
+
+	/**
+	 * Every repository the token's own account owns, as lower-case owner/name, sorted.
+	 *
 	 * @param string|null $token A token to check, or null for the saved one. A token given is
 	 *                           not saved yet, so nothing is read from or kept in the cache.
 	 * @return array<int, string>|WP_Error
 	 */
-	public static function org_repos( string $org, ?string $token = null ) {
+	public static function repos( ?string $token = null ) {
 		$cached = null === $token ? get_transient( Settings::REPOS ) : false;
 
 		if ( is_array( $cached ) ) {
@@ -144,7 +171,7 @@ final class Client {
 		$page  = 1;
 
 		do {
-			$answer = self::request( 'GET', '/orgs/' . rawurlencode( $org ) . '/repos?per_page=100&page=' . $page, array(), $token );
+			$answer = self::request( 'GET', '/user/repos?affiliation=owner&per_page=100&page=' . $page, array(), $token );
 
 			if ( is_wp_error( $answer ) ) {
 				return $answer;

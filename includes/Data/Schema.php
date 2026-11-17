@@ -1707,6 +1707,7 @@ final class Schema {
 			$github_repos     => "CREATE TABLE {$github_repos} (
 	repo varchar(191) NOT NULL,
 	client_site_id varchar(32) NOT NULL,
+	hook_id bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (repo),

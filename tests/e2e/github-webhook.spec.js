@@ -1,18 +1,18 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import { signedIn } from './helpers/forge.js';
 import { signIn } from '../helpers/sign-in.js';
-import { installGitHubStub, removeGitHubStub, githubSays, sendHook } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubSecret, sendHook } from './helpers/github.js';
 
-// #680. GitHub's organisation hook is public, so it must refuse anything that is
-// not signed with the shared secret, and say nothing about why.
+// #680. The webhook route is public, so it must refuse anything that is not
+// signed with the secret Forge made when it connected, and say nothing about why.
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
-const SECRET = 'whsec-hook-test';
 
 test.describe.configure({ mode: 'serial' });
 
 let admin;
 let bare;
+let SECRET;
 
 async function lastChecked() {
   const answer = await admin.api.get('/connections');
@@ -27,10 +27,11 @@ test.beforeAll(async ({ browser, baseURL }) => {
   bare = await pwRequest.newContext({ baseURL });
   admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   await admin.api.del('/connections/github');
-  await githubSays(admin.api.request, { down: false, denied: false, reset: true, repos: ['blueworx-io/site-a'] });
+  await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, reset: true, repos: ['blueworx-io/site-a'] });
 
-  const connected = await admin.api.post('/connections/github', { token: 'good-token-1234', org: 'blueworx-io', secret: SECRET });
+  const connected = await admin.api.post('/connections/github', { token: 'good-token-1234' });
   expect(connected.ok()).toBe(true);
+  SECRET = await githubSecret(admin.api.request);
 });
 
 test.afterAll(async () => {
@@ -84,4 +85,11 @@ test('an event Forge does not use is ignored', async () => {
 
   expect(answer.status()).toBe(200);
   expect((await answer.json()).outcome).toBe('ignored');
+});
+
+test('a signed message that is not JSON is refused, so GitHub shows it failed', async () => {
+  const answer = await sendHook(bare, 'ping', { zen: 'x' }, { secret: SECRET, form: true });
+
+  expect(answer.status()).toBe(400);
+  expect((await answer.json()).message).toContain('application/json');
 });

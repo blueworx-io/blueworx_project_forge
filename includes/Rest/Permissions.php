@@ -184,7 +184,7 @@ final class Permissions {
 	 * A message from GitHub, proven by its signature (#680).
 	 *
 	 * GitHub is a machine, not a user: it proves the message is its own by
-	 * signing the body with the secret an administrator shared. Nothing else
+	 * signing the body with the secret Forge made when it was connected. Nothing else
 	 * is asked, and an unconnected site refuses everything.
 	 *
 	 * @param WP_REST_Request $request Request.
