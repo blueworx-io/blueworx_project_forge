@@ -3241,6 +3241,14 @@ function describe( event: WorkEvent, label: ( id: string ) => string ): string {
       // was done and the reason says why.
       return 'Somebody was over-booked on purpose';
     default:
+      // #682. A move GitHub made, by the issue being closed: the detail
+      // says who closed it.
+      if ( 'github' === event.via ) {
+        return event.detail
+          ? `${ label( event.from_stage ) } → ${ label( event.to_stage ) }. ${ event.detail }`
+          : `${ label( event.from_stage ) } → ${ label( event.to_stage ) }, from GitHub`;
+      }
+
       return `${ label( event.from_stage ) } → ${ label( event.to_stage ) }`;
   }
 }

@@ -194,7 +194,7 @@ final class SchemaTest extends TestCase {
 	public function test_github_tables_are_defined(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertSame( 55, Schema::VERSION );
+		$this->assertSame( 56, Schema::VERSION );
 		// #681. The outbox, found by what is due and by item.
 		$this->assertArrayHasKey( Schema::github_jobs_table(), $definitions );
 		$this->assertStringContainsString( 'KEY status_run (status, run_after)', $definitions[ Schema::github_jobs_table() ] );
@@ -204,6 +204,10 @@ final class SchemaTest extends TestCase {
 		$this->assertArrayHasKey( Schema::github_deliveries_table(), $definitions );
 		$this->assertStringContainsString( "github_repo varchar(191) NOT NULL DEFAULT ''", $definitions[ Schema::work_items_table() ] );
 		$this->assertStringContainsString( 'UNIQUE KEY issue_id (issue_id)', $definitions[ Schema::github_links_table() ] );
+		// #682. Whether the issue was last open or closed, so a close is acted on once.
+		$this->assertStringContainsString( "state_seen varchar(10) NOT NULL DEFAULT ''", $definitions[ Schema::github_links_table() ] );
+		// And when the issue last changed, so a late message about an older change does nothing.
+		$this->assertStringContainsString( 'updated_seen bigint(20) unsigned NOT NULL DEFAULT 0', $definitions[ Schema::github_links_table() ] );
 		// The webhook Forge added to each linked repo, so unlinking can take it off.
 		$this->assertStringContainsString( 'hook_id bigint(20) unsigned NOT NULL DEFAULT 0', $definitions[ Schema::github_repos_table() ] );
 	}

@@ -32,6 +32,26 @@ final class Outbound {
 	public const LINK_COMMENT = 'link_comment';
 
 	/**
+	 * Shows the item's stage on its issue as one `forge:` label (#682).
+	 */
+	public const SET_LABEL = 'set_label';
+
+	/**
+	 * Closes or reopens the item's issue with the item (#682).
+	 */
+	public const SET_STATE = 'set_state';
+
+	/**
+	 * Gives the item's issue the item's title (#682).
+	 */
+	public const SET_TITLE = 'set_title';
+
+	/**
+	 * Rewrites a Forge-made issue's description from the item (#682).
+	 */
+	public const SET_BODY = 'set_body';
+
+	/**
 	 * Does one job.
 	 *
 	 * @param array<string, mixed> $job The job, as claimed.
@@ -49,9 +69,98 @@ final class Outbound {
 			case self::CREATE_ISSUE:
 				return self::create_issue( $item, $job );
 			case self::LINK_COMMENT:
-				return self::link_comment( $item );
+				$result = self::link_comment( $item );
+				break;
+			case self::SET_LABEL:
+				$result = self::set_label( $item, self::payload( $job ) );
+				break;
+			case self::SET_STATE:
+				$result = self::set_state( $item, self::payload( $job ) );
+				break;
+			case self::SET_TITLE:
+				$result = self::set_title( $item );
+				break;
+			case self::SET_BODY:
+				$result = self::set_body( $item );
+				break;
 			default:
 				return new WP_Error( Client::REFUSED, __( 'Forge doesn\'t know how to send that change to GitHub.', 'blueworx-forge' ) );
+		}
+
+		// The issue was deleted, or moved to another repo: every later try
+		// would fail the same way. The job is done, and the GitHub row on
+		// Connections says which task lost its issue.
+		$missing = 404 === self::status_of( $result );
+
+		if ( self::gone( $result, $missing && self::repo_answers( $item ) ) ) {
+			/* translators: %s: the task's title. */
+			Settings::failed( sprintf( __( 'The GitHub issue for %s is gone.', 'blueworx-forge' ), (string) $item['title'] ) );
+
+			return true;
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Whether GitHub said an issue is no longer there for good. GitHub
+	 * answers 410 for a deleted issue. It answers 404 both for an issue that
+	 * is gone and for a repo the token can no longer reach, so a 404 only
+	 * counts when the repo itself still answers; otherwise the job waits,
+	 * and reconnecting brings it back.
+	 *
+	 * @param mixed $result       What a job gave back.
+	 * @param bool  $repo_answers Whether the issue's repo still answers.
+	 * @return bool
+	 */
+	public static function gone( $result, bool $repo_answers ): bool {
+		$status = self::status_of( $result );
+
+		return 410 === $status || ( 404 === $status && $repo_answers );
+	}
+
+	/**
+	 * The HTTP status GitHub refused with, or 0.
+	 *
+	 * @param mixed $result What a job gave back.
+	 * @return int
+	 */
+	private static function status_of( $result ): int {
+		if ( ! is_wp_error( $result ) ) {
+			return 0;
+		}
+
+		$data = $result->get_error_data();
+
+		return is_array( $data ) ? (int) ( $data['github_status'] ?? 0 ) : 0;
+	}
+
+	/**
+	 * Whether the repo of an item's issue still answers.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return bool
+	 */
+	private static function repo_answers( array $item ): bool {
+		$link = Links::for_item( (string) $item['id'] );
+
+		return null !== $link && ! is_wp_error( Client::request( 'GET', '/repos/' . (string) $link['repo'] ) );
+	}
+
+	/**
+	 * Records GitHub's time from its answer to Forge's own change, so a late
+	 * message from before it changes nothing. Only when the answer shows
+	 * nothing Forge hasn't seen: otherwise someone changed the issue just
+	 * before, and the message about that must still be taken in.
+	 *
+	 * @param string               $item_id The item.
+	 * @param array<string, mixed> $issue   The issue, as GitHub answered.
+	 */
+	private static function settled( string $item_id, array $issue ): void {
+		$link = Links::for_item( $item_id );
+
+		if ( null !== $link && Links::matches( $link, $issue ) ) {
+			Links::updated( $item_id, Links::time_of( $issue ) );
 		}
 	}
 
@@ -94,7 +203,9 @@ final class Outbound {
 		$found = self::marked( $listed, $id, Settings::login() );
 
 		if ( null !== $found ) {
-			Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ) );
+			if ( Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ), Links::time_of( $found ) ) ) {
+				Sync::linked( $item );
+			}
 
 			return true;
 		}
@@ -119,8 +230,11 @@ final class Outbound {
 			return new WP_Error( Client::REFUSED, __( 'GitHub did not say which issue it made.', 'blueworx-forge' ) );
 		}
 
-		// False when GitHub's own message about this issue linked it first.
-		Links::add( $id, $repo, $number, $issue_id, 'forge', $title, hash( 'sha256', $body ) );
+		// False when GitHub's own message about this issue linked it first,
+		// and that link asked for the label and state itself.
+		if ( Links::add( $id, $repo, $number, $issue_id, 'forge', $title, hash( 'sha256', $body ), Links::time_of( $made ) ) ) {
+			Sync::linked( $item );
+		}
 
 		return true;
 	}
@@ -205,5 +319,194 @@ final class Outbound {
 		$said  = Client::request( 'POST', $path, array( 'body' => $words . "\n\n" . $mark ) );
 
 		return is_wp_error( $said ) ? $said : true;
+	}
+
+	/**
+	 * What a job was asked to send. A pending job's payload is replaced when
+	 * it is asked for again, so this is always the latest.
+	 *
+	 * @param array<string, mixed> $job The job, as claimed.
+	 * @return array<string, mixed>
+	 */
+	private static function payload( array $job ): array {
+		$decoded = json_decode( (string) ( $job['payload'] ?? '' ), true );
+
+		return is_array( $decoded ) ? $decoded : array();
+	}
+
+	/**
+	 * Where the item's linked issue is, or '' when it has none.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return string
+	 */
+	private static function issue_path( array $item ): string {
+		$link = Links::for_item( (string) $item['id'] );
+
+		return null === $link ? '' : '/repos/' . (string) $link['repo'] . '/issues/' . (int) $link['issue_number'];
+	}
+
+	/**
+	 * Leaves the issue with one `forge:` label, the stage's. Reads the labels
+	 * first, so a second run after a lost answer changes nothing, and leaves
+	 * every label that is not Forge's alone.
+	 *
+	 * @param array<string, mixed> $item    The item.
+	 * @param array<string, mixed> $payload The stage to show.
+	 * @return true|WP_Error
+	 */
+	private static function set_label( array $item, array $payload ) {
+		$path  = self::issue_path( $item );
+		$stage = (string) ( $payload['stage'] ?? '' );
+
+		if ( '' === $path || '' === $stage ) {
+			return true;
+		}
+
+		$issue = Client::request( 'GET', $path );
+
+		if ( is_wp_error( $issue ) ) {
+			return $issue;
+		}
+
+		$wanted = Sync::label_for( $stage );
+		$has    = false;
+
+		foreach ( (array) ( $issue['labels'] ?? array() ) as $label ) {
+			$name = is_array( $label ) ? (string) ( $label['name'] ?? '' ) : (string) $label;
+
+			if ( $wanted === $name ) {
+				$has = true;
+				continue;
+			}
+
+			if ( 0 !== strpos( $name, Sync::LABEL_PREFIX ) ) {
+				continue;
+			}
+
+			$gone = Client::request( 'DELETE', $path . '/labels/' . rawurlencode( $name ) );
+
+			// Already taken off, by someone else or an earlier try.
+			if ( is_wp_error( $gone ) && ! self::not_found( $gone ) ) {
+				return $gone;
+			}
+		}
+
+		if ( $has ) {
+			return true;
+		}
+
+		// GitHub makes the label the first time it is used.
+		$added = Client::request( 'POST', $path . '/labels', array( 'labels' => array( $wanted ) ) );
+
+		return is_wp_error( $added ) ? $added : true;
+	}
+
+	/**
+	 * Opens or closes the issue. Saying the same thing twice is harmless.
+	 *
+	 * @param array<string, mixed> $item    The item.
+	 * @param array<string, mixed> $payload state, and reason when closing.
+	 * @return true|WP_Error
+	 */
+	private static function set_state( array $item, array $payload ) {
+		$path  = self::issue_path( $item );
+		$state = (string) ( $payload['state'] ?? '' );
+
+		if ( '' === $path || ! in_array( $state, array( 'open', 'closed' ), true ) ) {
+			return true;
+		}
+
+		$body = array( 'state' => $state );
+
+		if ( 'closed' === $state && '' !== (string) ( $payload['reason'] ?? '' ) ) {
+			$body['state_reason'] = (string) $payload['reason'];
+		}
+
+		$changed = Client::request( 'PATCH', $path, $body );
+
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+
+		// GitHub's message about it is then Forge's own, and changes nothing.
+		Links::seen( (string) $item['id'], array( 'state_seen' => $state ) );
+		self::settled( (string) $item['id'], $changed );
+
+		return true;
+	}
+
+	/**
+	 * Gives the issue the item's title as it is now, and notes it as seen so
+	 * GitHub's message about the rename changes nothing. Sending the same
+	 * title twice is harmless.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return true|WP_Error
+	 */
+	private static function set_title( array $item ) {
+		$path  = self::issue_path( $item );
+		$title = (string) $item['title'];
+
+		if ( '' === $path || '' === $title ) {
+			return true;
+		}
+
+		$changed = Client::request( 'PATCH', $path, array( 'title' => $title ) );
+
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+
+		Links::seen( (string) $item['id'], array( 'title_seen' => $title ) );
+		self::settled( (string) $item['id'], $changed );
+
+		return true;
+	}
+
+	/**
+	 * Rewrites a Forge-made issue's description from the item as it is now.
+	 * Nothing is sent when the issue already says it, so a second run
+	 * changes nothing. An issue raised in GitHub is never written.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return true|WP_Error
+	 */
+	private static function set_body( array $item ) {
+		$link = Links::for_item( (string) $item['id'] );
+
+		if ( null === $link || 'forge' !== (string) $link['origin'] ) {
+			return true;
+		}
+
+		$body = IssueText::issue_body( $item, Notify::link( $item ) );
+		$hash = hash( 'sha256', $body );
+
+		if ( (string) $link['body_hash'] === $hash ) {
+			return true;
+		}
+
+		$changed = Client::request( 'PATCH', '/repos/' . (string) $link['repo'] . '/issues/' . (int) $link['issue_number'], array( 'body' => $body ) );
+
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+
+		Links::seen( (string) $item['id'], array( 'body_hash' => $hash ) );
+		self::settled( (string) $item['id'], $changed );
+
+		return true;
+	}
+
+	/**
+	 * Whether GitHub said the thing asked about is not there.
+	 *
+	 * @param WP_Error $error The refusal.
+	 * @return bool
+	 */
+	private static function not_found( WP_Error $error ): bool {
+		$data = $error->get_error_data();
+
+		return is_array( $data ) && 404 === (int) ( $data['github_status'] ?? 0 );
 	}
 }

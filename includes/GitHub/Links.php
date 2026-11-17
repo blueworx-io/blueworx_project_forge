@@ -28,9 +28,10 @@ final class Links {
 	 * @param string $origin    Where it started: github or forge.
 	 * @param string $title     The title as last seen.
 	 * @param string $body_hash The body's sha256 as last seen.
+	 * @param int    $updated   When GitHub last changed the issue, as last seen.
 	 * @return bool False when the item or the issue is linked already.
 	 */
-	public static function add( string $item_id, string $repo, int $number, int $issue_id, string $origin, string $title, string $body_hash ): bool {
+	public static function add( string $item_id, string $repo, int $number, int $issue_id, string $origin, string $title, string $body_hash, int $updated = 0 ): bool {
 		global $wpdb;
 
 		// The issue id is unique and defaults to 0: a link without a real one
@@ -52,9 +53,10 @@ final class Links {
 				'origin'       => $origin,
 				'title_seen'   => mb_substr( $title, 0, 191 ),
 				'body_hash'    => $body_hash,
+				'updated_seen' => max( 0, $updated ),
 				'created_at'   => bwx_forge_now(),
 			),
-			array( '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%d' )
+			array( '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%d', '%d' )
 		);
 
 		$wpdb->suppress_errors( $suppress );
@@ -100,12 +102,12 @@ final class Links {
 	 * Records what was last seen of the issue.
 	 *
 	 * @param string               $item_id The item.
-	 * @param array<string, mixed> $fields  title_seen and body_hash; anything else is left alone.
+	 * @param array<string, mixed> $fields  title_seen, body_hash and state_seen; anything else is left alone.
 	 */
 	public static function seen( string $item_id, array $fields ): void {
 		global $wpdb;
 
-		$changes = array_intersect_key( $fields, array_flip( array( 'title_seen', 'body_hash' ) ) );
+		$changes = array_intersect_key( $fields, array_flip( array( 'title_seen', 'body_hash', 'state_seen' ) ) );
 
 		if ( array() === $changes ) {
 			return;
@@ -123,6 +125,57 @@ final class Links {
 			array_fill( 0, count( $changes ), '%s' ),
 			array( '%s' )
 		);
+	}
+
+	/**
+	 * Records when GitHub last changed the issue, as far as Forge has seen.
+	 * Only ever moves forward, so an older answer arriving late can't undo
+	 * a newer one.
+	 *
+	 * @param string $item_id The item.
+	 * @param int    $at      GitHub's time for the change, in seconds.
+	 */
+	public static function updated( string $item_id, int $at ): void {
+		global $wpdb;
+
+		if ( 0 >= $at ) {
+			return;
+		}
+
+		$table = Schema::github_links_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own table; the name cannot be a placeholder.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET updated_seen = %d WHERE item_id = %s AND updated_seen < %d", $at, $item_id, $at ) );
+	}
+
+	/**
+	 * Whether an issue, as GitHub sends it, shows nothing Forge hasn't seen:
+	 * its title, description and state are the ones last seen. A link with
+	 * no state seen yet was made with its issue open.
+	 *
+	 * @param array<string, mixed> $link  The link, as read.
+	 * @param array<string, mixed> $issue The issue, as GitHub sends it.
+	 * @return bool
+	 */
+	public static function matches( array $link, array $issue ): bool {
+		$state = (string) ( $link['state_seen'] ?? '' );
+
+		return IssueText::title( (string) ( $issue['title'] ?? '' ) ) === IssueText::title( (string) ( $link['title_seen'] ?? '' ) )
+			&& hash( 'sha256', (string) ( $issue['body'] ?? '' ) ) === (string) ( $link['body_hash'] ?? '' )
+			&& (string) ( $issue['state'] ?? '' ) === ( '' === $state ? 'open' : $state );
+	}
+
+	/**
+	 * When GitHub last changed an issue, in seconds, from the issue as it
+	 * sends it. 0 when it doesn't say.
+	 *
+	 * @param array<string, mixed> $issue The issue, as GitHub sends it.
+	 * @return int
+	 */
+	public static function time_of( array $issue ): int {
+		$at = strtotime( (string) ( $issue['updated_at'] ?? '' ) );
+
+		return false === $at ? 0 : max( 0, $at );
 	}
 
 	/**
@@ -154,6 +207,8 @@ final class Links {
 			'origin'       => (string) $row['origin'],
 			'title_seen'   => (string) $row['title_seen'],
 			'body_hash'    => (string) $row['body_hash'],
+			'state_seen'   => (string) ( $row['state_seen'] ?? '' ),
+			'updated_seen' => (int) ( $row['updated_seen'] ?? 0 ),
 			'created_at'   => (int) $row['created_at'],
 		);
 	}

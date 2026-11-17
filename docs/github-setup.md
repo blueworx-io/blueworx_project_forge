@@ -11,3 +11,9 @@ New issues in a linked repo then appear in Future Idea. Only issues opened after
 If something goes wrong later, such as GitHub no longer accepting the token, it shows on the GitHub row on the Connections page. Connecting again with a new token fixes the webhooks on every linked repo.
 
 If a delivery fails, press **Redeliver** on it in the repo's webhook settings on GitHub. It is safe: the same issue is never added twice.
+
+## What each side changes
+
+Forge decides the stage. The issue shows it as a "forge:" label, closes when the work is released, closes as not planned if the task ends any other way, and reopens if the task does.
+
+In GitHub you can edit the title (it changes the task too), and the description of an issue that started in GitHub. Closing an issue moves work from In development to In review and no further; at any other stage Forge leaves a note. Comments never cross.

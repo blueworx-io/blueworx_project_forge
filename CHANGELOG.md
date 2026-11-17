@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.223.0] - 2026-11-17
+
+### Added
+
+- Linked GitHub issues now stay in step with their tasks: the issue shows the Forge stage, closes when the work is released and reopens with it, and titles match on both sides. Closing an issue in GitHub moves finished development to In review.
+- Sending work back from review reopens its GitHub issue, even when the issue was closed in GitHub.
+- Changes made in GitHub by people who aren't on the repo never change a task. The team gets a note saying what they changed.
+- A move made from GitHub says who closed the issue, in the task's history.
+- If a task's GitHub issue is deleted or moved, the Connections page says so.
+
 ## [2.222.0] - 2026-11-17
 
 ### Added

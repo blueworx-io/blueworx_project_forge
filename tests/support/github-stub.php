@@ -13,8 +13,15 @@
  * may not manage webhooks), `issues_refused` (GitHub will not make an issue),
  * `lose_create_answer` (GitHub makes the issue but its answer never arrives,
  * like a reply that times out), `issues` (each repo's issues as made),
- * `next_issue` (each repo's next issue number) and `calls`, a log of method,
- * path and body. `reset` clears the log and starts issue numbers at 1 again.
+ * `next_issue` (each repo's next issue number; each issue keeps its `labels`,
+ * starting with `bug`, its `state` and `state_reason`, and an `updated_at`
+ * that moves on with every change), `rename_during_patch` (`item_id` and
+ * `title`: the next title sent to GitHub is answered after that task is
+ * renamed, as if someone saved it while the job ran) and `calls`, a log of
+ * method, path and body. `forget_issue` (`repo` and `number`) deletes an
+ * issue, and `edit_issue` (`repo`, `number`, `title`, `body`) changes one
+ * as someone in GitHub would. A repo not in `repos` answers 404, and so do
+ * its issues. `reset` clears the log and starts issue numbers at 1 again.
  *
  * It answers inside the same request rather than over HTTP: the suite blocks
  * outbound requests (tests/global-setup.js).
@@ -36,24 +43,39 @@ function bwx_forge_github_stub_state(): array {
 
 	return array_merge(
 		array(
-			'login'              => 'blueworx-io',
-			'repos'              => array(),
-			'hooks'              => array(),
-			'next_hook'          => 1000,
-			'down'               => false,
-			'denied'             => false,
-			'hooks_denied'       => false,
-			'issues_refused'     => false,
-			'lose_create_answer' => false,
-			'issues'             => array(),
-			'comments'           => array(),
-			'next_issue'         => array(),
+			'login'               => 'blueworx-io',
+			'repos'               => array(),
+			'hooks'               => array(),
+			'next_hook'           => 1000,
+			'down'                => false,
+			'denied'              => false,
+			'hooks_denied'        => false,
+			'issues_refused'      => false,
+			'lose_create_answer'  => false,
+			'issues'              => array(),
+			'comments'            => array(),
+			'next_issue'          => array(),
 			// Far above the ids the specs make up for their own links.
-			'next_issue_id'      => 50000000,
-			'calls'              => array(),
+			'next_issue_id'       => 50000000,
+			'clock'               => 0,
+			'rename_during_patch' => null,
+			'calls'               => array(),
 		),
 		is_array( $state ) ? $state : array()
 	);
+}
+
+/**
+ * GitHub's time for a change (#682): never the same twice, so every change
+ * is later than the one before, as GitHub's own clock would make it.
+ *
+ * @param array<string, mixed> $state The stub's state, changed in place.
+ * @return string
+ */
+function bwx_forge_github_stub_tick( array &$state ): string {
+	$state['clock'] = max( time(), (int) $state['clock'] + 1 );
+
+	return gmdate( 'Y-m-d\TH:i:s\Z', (int) $state['clock'] );
 }
 
 /**
@@ -181,16 +203,112 @@ function bwx_forge_github_stub_issue( array &$state, string $repo, array $sent )
 	$id                           = (int) $state['next_issue_id'];
 	$state['next_issue_id']       = $id + 1;
 	$issue                        = array(
-		'number'   => $number,
-		'id'       => $id,
-		'title'    => (string) ( $sent['title'] ?? '' ),
-		'body'     => (string) ( $sent['body'] ?? '' ),
-		'user'     => array( 'login' => (string) $state['login'] ),
-		'html_url' => 'https://github.com/' . $repo . '/issues/' . $number,
+		'number'             => $number,
+		'id'                 => $id,
+		'title'              => (string) ( $sent['title'] ?? '' ),
+		'body'               => (string) ( $sent['body'] ?? '' ),
+		'user'               => array( 'login' => (string) $state['login'] ),
+		'author_association' => 'OWNER',
+		'html_url'           => 'https://github.com/' . $repo . '/issues/' . $number,
+		// Someone in GitHub labelled it already (#682): Forge must leave this one alone.
+		'labels'             => array( array( 'name' => 'bug' ) ),
+		'state'              => 'open',
+		'state_reason'       => null,
+		'updated_at'         => bwx_forge_github_stub_tick( $state ),
 	);
 	$state['issues'][ $repo ][]   = $issue;
 
 	return bwx_forge_github_stub_response( $issue, 201 );
+}
+
+/**
+ * Where an issue is in a repo's list, or null (#682).
+ *
+ * @param array<string, mixed> $state  The stub's state.
+ * @param string               $repo   owner/name.
+ * @param int                  $number The issue's number.
+ * @return int|null
+ */
+function bwx_forge_github_stub_find( array $state, string $repo, int $number ): ?int {
+	foreach ( (array) ( $state['issues'][ $repo ] ?? array() ) as $index => $issue ) {
+		if ( (int) $issue['number'] === $number ) {
+			return (int) $index;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Answers a call about one issue (#682): read it, change its state, title or
+ * body, add a label or take one off. `$label` is the label named in the path, still encoded.
+ *
+ * @param array<string, mixed> $state  The stub's state, changed in place.
+ * @param string               $method The HTTP method.
+ * @param string               $repo   owner/name.
+ * @param int                  $number The issue's number.
+ * @param string               $what   '' for the issue, 'labels' for its labels.
+ * @param string               $label  The label named in the path, or ''.
+ * @param array<string, mixed> $sent   The decoded body.
+ * @return array<string, mixed>
+ */
+function bwx_forge_github_stub_one_issue( array &$state, string $method, string $repo, int $number, string $what, string $label, array $sent ): array {
+	$at = bwx_forge_github_stub_find( $state, $repo, $number );
+
+	// A repo the token can't reach answers 404 for its issues too.
+	if ( null === $at || ! in_array( $repo, (array) $state['repos'], true ) ) {
+		return bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
+	}
+
+	$issue = $state['issues'][ $repo ][ $at ];
+
+	if ( '' === $what && 'GET' === $method ) {
+		return bwx_forge_github_stub_response( $issue );
+	}
+
+	if ( '' === $what && 'PATCH' === $method ) {
+		if ( isset( $sent['state'] ) ) {
+			$issue['state']        = (string) $sent['state'];
+			$issue['state_reason'] = 'closed' === $issue['state'] ? ( $sent['state_reason'] ?? 'completed' ) : null;
+		}
+
+		foreach ( array( 'title', 'body' ) as $field ) {
+			if ( isset( $sent[ $field ] ) ) {
+				$issue[ $field ] = (string) $sent[ $field ];
+			}
+		}
+
+		$issue['updated_at']             = bwx_forge_github_stub_tick( $state );
+		$state['issues'][ $repo ][ $at ] = $issue;
+
+		return bwx_forge_github_stub_response( $issue );
+	}
+
+	$names = array_map( static fn( $each ): string => (string) $each['name'], (array) ( $issue['labels'] ?? array() ) );
+
+	if ( 'labels' === $what && 'POST' === $method && '' === $label ) {
+		foreach ( (array) ( $sent['labels'] ?? array() ) as $name ) {
+			if ( ! in_array( (string) $name, $names, true ) ) {
+				$names[] = (string) $name;
+			}
+		}
+	} elseif ( 'labels' === $what && 'DELETE' === $method && '' !== $label ) {
+		$name = rawurldecode( $label );
+
+		if ( ! in_array( $name, $names, true ) ) {
+			return bwx_forge_github_stub_response( array( 'message' => 'Label does not exist' ), 404 );
+		}
+
+		$names = array_values( array_diff( $names, array( $name ) ) );
+	} else {
+		return bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
+	}
+
+	$issue['labels']                 = array_map( static fn( string $name ): array => array( 'name' => $name ), $names );
+	$issue['updated_at']             = bwx_forge_github_stub_tick( $state );
+	$state['issues'][ $repo ][ $at ] = $issue;
+
+	return bwx_forge_github_stub_response( $issue['labels'] );
 }
 
 add_filter(
@@ -267,6 +385,24 @@ add_filter(
 			}
 		} elseif ( 'GET' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)/comments\?#', $path, $found ) ) {
 			$answer = bwx_forge_github_stub_response( array_values( (array) ( $state['comments'][ strtolower( $found[1] ) . '#' . $found[2] ] ?? array() ) ) );
+		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)(?:/(labels)(?:/([^/?]+))?)?$#', $path, $found ) ) {
+			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
+			$answer = bwx_forge_github_stub_one_issue( $state, $method, strtolower( $found[1] ), (int) $found[2], (string) ( $found[3] ?? '' ), (string) ( $found[4] ?? '' ), is_array( $sent ) ? $sent : array() );
+
+			// Someone saves the task while Forge's title job is still running.
+			if ( 'PATCH' === $method && is_array( $sent ) && isset( $sent['title'] ) && is_array( $state['rename_during_patch'] ) ) {
+				$rename                       = $state['rename_during_patch'];
+				$state['rename_during_patch'] = null;
+				$item                         = Blueworx\Forge\Work\Items::get( (string) ( $rename['item_id'] ?? '' ) );
+
+				if ( null !== $item ) {
+					Blueworx\Forge\Work\Items::update( (string) $item['id'], array( 'title' => (string) ( $rename['title'] ?? '' ) ), (int) $item['record_version'] );
+				}
+			}
+		} elseif ( 'GET' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)$#', $path, $found ) ) {
+			$answer = in_array( strtolower( $found[1] ), (array) $state['repos'], true )
+				? bwx_forge_github_stub_response( array( 'full_name' => strtolower( $found[1] ) ) )
+				: bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
 		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/hooks(?:/(\d+))?(?:\?.*)?$#', $path, $found ) ) {
 			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
 			$answer = bwx_forge_github_stub_hooks( $state, $method, strtolower( $found[1] ), (int) ( $found[2] ?? 0 ), is_array( $sent ) ? $sent : array() );
@@ -295,9 +431,34 @@ add_action(
 					$body  = (array) $request->get_json_params();
 					$state = bwx_forge_github_stub_state();
 
-					foreach ( array( 'login', 'repos', 'hooks', 'down', 'denied', 'hooks_denied', 'issues_refused', 'lose_create_answer' ) as $field ) {
+					foreach ( array( 'login', 'repos', 'hooks', 'down', 'denied', 'hooks_denied', 'issues_refused', 'lose_create_answer', 'rename_during_patch' ) as $field ) {
 						if ( array_key_exists( $field, $body ) ) {
 							$state[ $field ] = $body[ $field ];
+						}
+					}
+
+					// Someone edits an issue in GitHub, and its message is not sent yet.
+					if ( is_array( $body['edit_issue'] ?? null ) ) {
+						$repo = strtolower( (string) ( $body['edit_issue']['repo'] ?? '' ) );
+						$at   = bwx_forge_github_stub_find( $state, $repo, (int) ( $body['edit_issue']['number'] ?? 0 ) );
+
+						if ( null !== $at ) {
+							$state['issues'][ $repo ][ $at ] = array_merge(
+								$state['issues'][ $repo ][ $at ],
+								array_intersect_key( $body['edit_issue'], array_flip( array( 'title', 'body' ) ) ),
+								array( 'updated_at' => bwx_forge_github_stub_tick( $state ) )
+							);
+						}
+					}
+
+					// An issue deleted in GitHub, or moved to another repo.
+					if ( is_array( $body['forget_issue'] ?? null ) ) {
+						$repo = strtolower( (string) ( $body['forget_issue']['repo'] ?? '' ) );
+						$at   = bwx_forge_github_stub_find( $state, $repo, (int) ( $body['forget_issue']['number'] ?? 0 ) );
+
+						if ( null !== $at ) {
+							unset( $state['issues'][ $repo ][ $at ] );
+							$state['issues'][ $repo ] = array_values( $state['issues'][ $repo ] );
 						}
 					}
 
@@ -366,7 +527,7 @@ add_action(
 			)
 		);
 
-		// An item's create_issue job as stored, so a spec can see its tries.
+		// An item's job as stored, create_issue unless `kind` says, so a spec can see its tries.
 		register_rest_route(
 			'bwx-forge-test/v1',
 			'/github/job',
@@ -377,7 +538,7 @@ add_action(
 					global $wpdb;
 
 					$table = Blueworx\Forge\Data\Schema::github_jobs_table();
-					$id    = Blueworx\Forge\GitHub\Jobs::id_for( 'create_issue', (string) $request->get_param( 'item_id' ) );
+					$id    = Blueworx\Forge\GitHub\Jobs::id_for( (string) ( $request->get_param( 'kind' ) ?? 'create_issue' ), (string) $request->get_param( 'item_id' ) );
 
 					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Test-only read.
 					return rest_ensure_response( array( 'job' => $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %s", $id ), ARRAY_A ) ) );

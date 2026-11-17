@@ -80,9 +80,12 @@ final class Transition {
 	 *                                           the move rather than remembered
 	 *                                           from the item, because it answers
 	 *                                           the picture as it is now.
+	 * @param string               $detail       What else the history should say
+	 *                                           about the move: who closed the
+	 *                                           GitHub issue behind it (#682).
 	 * @return array<string, mixed>|WP_Error The item as it now stands.
 	 */
-	public static function move( array $item, string $to, int $sent_version, int $actor, string $via = '', string $reason = '' ) {
+	public static function move( array $item, string $to, int $sent_version, int $actor, string $via = '', string $reason = '', string $detail = '' ) {
 		$from = (string) $item['stage'];
 
 		$refusal = self::refuse_bad_target( $item, $to );
@@ -134,6 +137,7 @@ final class Transition {
 				// AUTH-4: a review approved by a stand-in is still approved, and
 				// the changelog says which it was.
 				'via'    => $via,
+				'detail' => $detail,
 			),
 			$sent_version,
 			$actor
@@ -1566,6 +1570,9 @@ final class Transition {
 		// Slack must not hold the move open, and a failed ping is not a
 		// failed move.
 		Notify::moved( $moved_item );
+
+		// #682. Told after COMMIT for the same reason: a slow listener must not hold the move open.
+		do_action( 'bwx_forge_item_moved', $item, $moved_item );
 
 		return $moved_item;
 	}

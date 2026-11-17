@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 55;
+	public const VERSION = 56;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -1734,6 +1734,8 @@ final class Schema {
 	origin varchar(10) NOT NULL DEFAULT 'forge',
 	title_seen varchar(191) NOT NULL DEFAULT '',
 	body_hash varchar(64) NOT NULL DEFAULT '',
+	state_seen varchar(10) NOT NULL DEFAULT '',
+	updated_seen bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (item_id),
 	UNIQUE KEY issue_id (issue_id)
