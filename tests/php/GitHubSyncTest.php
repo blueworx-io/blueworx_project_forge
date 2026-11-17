@@ -67,4 +67,115 @@ final class GitHubSyncTest extends TestCase {
 			)
 		);
 	}
+
+	/**
+	 * A link as read, for the tests below.
+	 *
+	 * @param string $origin     Where the issue started.
+	 * @param string $title_seen The title Forge last saw on it.
+	 * @return array<string, mixed>
+	 */
+	private static function link( string $origin, string $title_seen = 'Old' ): array {
+		return array(
+			'item_id'    => 'itm_1',
+			'origin'     => $origin,
+			'title_seen' => $title_seen,
+			'body_hash'  => '',
+		);
+	}
+
+	public function test_a_title_forge_already_sent_is_not_sent_again(): void {
+		$this->assertSame(
+			array(),
+			Sync::wanted(
+				array(
+					'id'    => 'itm_1',
+					'title' => 'Old',
+				),
+				array(
+					'id'    => 'itm_1',
+					'title' => 'New',
+				),
+				self::link( 'forge', 'New' )
+			)
+		);
+	}
+
+	public function test_a_new_title_is_sent(): void {
+		$this->assertSame(
+			array( 'set_title' ),
+			Sync::wanted(
+				array(
+					'id'    => 'itm_1',
+					'title' => 'Old',
+				),
+				array(
+					'id'    => 'itm_1',
+					'title' => 'New',
+				),
+				self::link( 'forge' )
+			)
+		);
+	}
+
+	public function test_nothing_is_sent_for_an_item_without_an_issue(): void {
+		$this->assertSame(
+			array(),
+			Sync::wanted(
+				array(
+					'id'      => 'itm_1',
+					'title'   => 'Old',
+					'problem' => 'a',
+				),
+				array(
+					'id'      => 'itm_1',
+					'title'   => 'New',
+					'problem' => 'b',
+				),
+				null
+			)
+		);
+	}
+
+	public function test_github_born_issues_never_get_their_body_written(): void {
+		$this->assertNotContains(
+			'set_body',
+			Sync::wanted(
+				array(
+					'id'      => 'itm_1',
+					'title'   => 'Same',
+					'problem' => '<p>Before</p>',
+				),
+				array(
+					'id'      => 'itm_1',
+					'title'   => 'Same',
+					'problem' => '<p>After</p>',
+				),
+				self::link( 'github', 'Same' )
+			)
+		);
+	}
+
+	public function test_forge_born_issues_get_their_body_rewritten(): void {
+		$this->assertContains(
+			'set_body',
+			Sync::wanted(
+				array(
+					'id'    => 'itm_1',
+					'title' => 'Same',
+					'scope' => '<p>Before</p>',
+				),
+				array(
+					'id'    => 'itm_1',
+					'title' => 'Same',
+					'scope' => '<p>After</p>',
+				),
+				self::link( 'forge', 'Same' )
+			)
+		);
+	}
+
+	public function test_the_body_fields_are_the_issue_body_sections(): void {
+		$this->assertSame( array( 'problem', 'scope', 'requirements', 'acceptance_criteria' ), Sync::BODY_FIELDS );
+	}
 }

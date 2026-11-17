@@ -9,7 +9,9 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\GitHub;
 
+use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Tenancy\ClientSites;
+use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\Events;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Levels;
@@ -22,7 +24,9 @@ use Blueworx\Forge\Work\Validate;
  *
  * A new issue in a repository linked to a client site becomes a loose
  * Feature in Future Idea on that site, recorded under the administrator who
- * connected GitHub. Nothing else GitHub sends is acted on yet.
+ * connected GitHub. A linked issue renamed in GitHub renames its task, and
+ * a description edited there follows into the task when the issue was
+ * raised in GitHub (#682).
  *
  * The delivery id stops one message being handled twice, but GitHub's event
  * and delivery headers are not signed, so the issue id is checked as well:
@@ -42,11 +46,18 @@ final class Inbound {
 			return 'pong';
 		}
 
-		if ( 'issues' !== $event || 'opened' !== ( $payload['action'] ?? '' ) ) {
+		if ( 'issues' !== $event ) {
 			return 'ignored';
 		}
 
-		return self::opened( $payload );
+		switch ( (string) ( $payload['action'] ?? '' ) ) {
+			case 'opened':
+				return self::opened( $payload );
+			case 'edited':
+				return self::edited( $payload );
+			default:
+				return 'ignored';
+		}
 	}
 
 	/**
@@ -172,6 +183,146 @@ final class Inbound {
 		Jobs::queue( Outbound::LINK_COMMENT, (string) $item['id'], array(), true );
 
 		return 'created';
+	}
+
+	/**
+	 * A linked issue was edited (#682).
+	 *
+	 * A new title renames the task. A new description replaces the task's
+	 * when the issue was raised in GitHub; on an issue Forge made, Forge's
+	 * own stands and the team gets an internal note instead.
+	 *
+	 * What is seen is noted before the task is written, so the save's own
+	 * listener knows the change came from GitHub and sends nothing back.
+	 *
+	 * @param array<string, mixed> $payload The decoded body.
+	 * @return string updated, noted, unchanged, ignored or failed.
+	 */
+	private static function edited( array $payload ): string {
+		$issue   = (array) ( $payload['issue'] ?? array() );
+		$changes = (array) ( $payload['changes'] ?? array() );
+		$link    = Links::for_issue( (int) ( $issue['id'] ?? 0 ) );
+		$item    = null === $link ? null : Items::get( (string) $link['item_id'] );
+
+		if ( null === $link || null === $item ) {
+			return 'ignored';
+		}
+
+		$id     = (string) $item['id'];
+		$values = array();
+		$seen   = array();
+		$note   = false;
+
+		if ( array_key_exists( 'title', $changes ) ) {
+			$title = IssueText::title( (string) ( $issue['title'] ?? '' ) );
+
+			if ( '' !== $title && (string) $item['title'] !== $title ) {
+				$values['title']    = $title;
+				$seen['title_seen'] = $title;
+			}
+		}
+
+		if ( array_key_exists( 'body', $changes ) ) {
+			$body = (string) ( $issue['body'] ?? '' );
+			$hash = hash( 'sha256', $body );
+
+			if ( (string) $link['body_hash'] !== $hash ) {
+				$seen['body_hash'] = $hash;
+
+				if ( 'github' === (string) $link['origin'] ) {
+					$values['problem'] = IssueText::to_html( $body );
+				} else {
+					// What Forge would write itself is Forge's own edit, come
+					// back before its job noted it as seen: not worth a note.
+					$note = hash( 'sha256', IssueText::issue_body( $item, Notify::link( $item ) ) ) !== $hash;
+				}
+			}
+		}
+
+		$outcome = 'unchanged';
+
+		if ( array() !== $values ) {
+			$checked = Validate::item( $values, true );
+
+			if ( array() !== $checked['errors'] ) {
+				return 'failed';
+			}
+
+			// Before the write, so the listener it fires sees the title as
+			// GitHub's already. The description is noted after: an issue
+			// raised in GitHub never has one sent back, and a failed write
+			// must leave GitHub's next try something to do.
+			if ( isset( $seen['title_seen'] ) ) {
+				Links::seen( $id, array( 'title_seen' => $seen['title_seen'] ) );
+			}
+
+			if ( ! self::write( $id, $checked['values'] ) ) {
+				return 'failed';
+			}
+
+			$outcome = 'updated';
+		}
+
+		if ( $note && null === self::note( $item, (string) ( $payload['sender']['login'] ?? '' ) ) ) {
+			return 'failed';
+		}
+
+		if ( isset( $seen['body_hash'] ) ) {
+			// The same edit is noted, or taken in, once.
+			Links::seen( $id, array( 'body_hash' => $seen['body_hash'] ) );
+		}
+
+		return $note && 'unchanged' === $outcome ? 'noted' : $outcome;
+	}
+
+	/**
+	 * Writes GitHub's change to the item. Someone may save the item at the
+	 * same moment, so a version that has moved is read again and tried once
+	 * more; GitHub sends again what still fails.
+	 *
+	 * @param string               $id     The item.
+	 * @param array<string, mixed> $values Checked values.
+	 * @return bool
+	 */
+	private static function write( string $id, array $values ): bool {
+		for ( $try = 0; $try < 2; $try++ ) {
+			$item = Items::get( $id );
+
+			if ( null === $item ) {
+				return false;
+			}
+
+			if ( null !== Items::update( $id, $values, (int) $item['record_version'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Tells the team, internally, that a Forge-made issue's description was
+	 * changed in GitHub. Never shown to the client.
+	 *
+	 * @param array<string, mixed> $item  The item.
+	 * @param string               $login Who changed it on GitHub.
+	 * @return array<string, mixed>|null The note, or null when it could not be written.
+	 */
+	private static function note( array $item, string $login ): ?array {
+		return Comments::add(
+			array(
+				'item_id'        => (string) $item['id'],
+				'client_site_id' => (string) $item['client_site_id'],
+				'client_id'      => (string) $item['client_id'],
+				'kind'           => Comments::COMMENT,
+				'visibility'     => Comments::INTERNAL,
+				/* translators: %s: who changed the description, as their GitHub login. */
+				'body'           => sprintf( __( 'The issue\'s description was changed in GitHub by %s. Forge kept its own; copy anything you need across.', 'blueworx-forge' ), '' === $login ? __( 'someone', 'blueworx-forge' ) : $login ),
+				'author'         => Settings::actor(),
+				'author_name'    => 'GitHub',
+			),
+			Comments::SCOPE_STAFF
+		);
 	}
 
 	/**

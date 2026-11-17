@@ -1,17 +1,24 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, request as pwRequest } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
-import { installGitHubStub, removeGitHubStub, githubSays, githubState, runGitHubJobs } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubState, githubCalls, githubSecret, runGitHubJobs, sendHook } from './helpers/github.js';
 
 // #682. A linked task's issue shows its Forge stage as one `forge:` label, and
 // closes and reopens with the task. Labels that are not Forge's stay put.
+// Titles match both ways; a description follows the side the issue started on.
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
 const ALPHA = 'blueworx-io/alpha';
 
+// The test site is reused, and an issue id is linked for good: each run uses
+// ids no earlier run did.
+const IDS = Date.now() * 100 + Math.floor(Math.random() * 100);
+
 let admin;
+let bare;
 let site;
+let SECRET;
 let releasedTask;
 
 test.describe.configure({ mode: 'serial' });
@@ -51,14 +58,34 @@ async function current(id) {
   return (await admin.api.get(`/work-items/${id}`)).item;
 }
 
+/** What GitHub sends when an issue is edited: the issue as it is now, and which fields changed. */
+function edited(issue, changes, login = 'octo') {
+  return {
+    action: 'edited',
+    issue: { id: issue.id, number: issue.number, title: issue.title, body: issue.body, labels: [], user: { login: 'octo' } },
+    changes,
+    repository: { full_name: ALPHA },
+    sender: { login },
+  };
+}
+
+async function hook(payload) {
+  const answer = await sendHook(bare, 'issues', payload, { secret: SECRET });
+  expect(answer.status(), await answer.text()).toBe(200);
+
+  return (await answer.json()).outcome;
+}
+
 test.beforeAll(async ({ browser, baseURL }) => {
   test.setTimeout(600000);
   installGitHubStub();
+  bare = await pwRequest.newContext({ baseURL });
   admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   ({ site } = await Forge.makeSite(admin.api, 'Match Co', RUN_ID));
 
   await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, issues_refused: false, lose_create_answer: false, reset: true, hooks: {}, repos: [ALPHA] });
   expect((await admin.api.post('/connections/github', { token: 'good-token-6802' })).ok()).toBe(true);
+  SECRET = await githubSecret(admin.api.request);
   expect((await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [ALPHA] })).status()).toBe(200);
 });
 
@@ -67,6 +94,7 @@ test.afterAll(async () => {
   await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [] });
   await admin.api.del('/connections/github');
   await admin?.context.close();
+  await bare?.dispose();
   removeGitHubStub();
 });
 
@@ -140,4 +168,76 @@ test('reopening the task reopens the issue', async () => {
 
   await runGitHubJobs(admin.api.request);
   expect((await issueOf(task.id)).state).toBe('open');
+});
+
+test('renaming the task renames the issue, and the echo changes nothing', async () => {
+  test.slow();
+  const task = await linkedTask('Rename here');
+  const title = `Renamed in Forge ${RUN_ID}`;
+
+  const saved = await admin.api.patch(`/work-items/${task.id}`, { title, record_version: task.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  await runGitHubJobs(admin.api.request);
+  const issue = await issueOf(task.id);
+  expect(issue.title).toBe(title);
+
+  // GitHub tells Forge about the rename Forge made.
+  const version = (await current(task.id)).record_version;
+  expect(await hook(edited(issue, { title: { from: task.title } }))).not.toBe('updated');
+  expect((await current(task.id)).record_version).toBe(version);
+});
+
+test('renaming the issue renames the task', async () => {
+  test.slow();
+  const task = await linkedTask('Rename there');
+  const issue = await issueOf(task.id);
+  const title = `Renamed in GitHub ${RUN_ID}`;
+
+  expect(await hook(edited({ ...issue, title }, { title: { from: issue.title } }))).toBe('updated');
+  expect((await current(task.id)).title).toBe(title);
+
+  // Nothing goes back: the new title is GitHub's already.
+  const before = (await githubCalls(admin.api.request)).length;
+  await runGitHubJobs(admin.api.request);
+  const sent = (await githubCalls(admin.api.request)).slice(before);
+  expect(sent.filter((call) => call.method === 'PATCH' && call.body.includes('"title"'))).toEqual([]);
+  expect((await issueOf(task.id)).title).toBe(task.title);
+});
+
+test("editing a GitHub-raised issue's description updates the task", async () => {
+  test.slow();
+  const raised = { id: IDS + 1, number: 9001, title: `Raised in GitHub ${RUN_ID}`, body: 'The first words.' };
+
+  expect(await hook({ ...edited(raised, {}), action: 'opened' })).toBe('created');
+  const task = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items.find((one) => one.title === raised.title);
+  expect(task, 'the issue should have come in').toBeTruthy();
+  expect(task.problem).toBe('<p>The first words.</p>');
+
+  expect(await hook(edited({ ...raised, body: 'Better words.' }, { body: { from: raised.body } }))).toBe('updated');
+  expect((await current(task.id)).problem).toBe('<p>Better words.</p>');
+
+  // An issue raised in GitHub is never written by Forge.
+  const before = (await githubCalls(admin.api.request)).length;
+  await runGitHubJobs(admin.api.request);
+  const sent = (await githubCalls(admin.api.request)).slice(before);
+  expect(sent.filter((call) => call.method === 'PATCH')).toEqual([]);
+});
+
+test("editing a Forge-made issue's description leaves a note, once", async () => {
+  test.slow();
+  const task = await linkedTask('Forge words');
+  const issue = await issueOf(task.id);
+  const changed = edited({ ...issue, body: 'Somebody rewrote this in GitHub.' }, { body: { from: issue.body } }, 'octo-editor');
+
+  // Two deliveries of the same edit.
+  expect(await hook(changed)).toBe('noted');
+  expect(await hook(changed)).toBe('unchanged');
+
+  const { comments } = await admin.api.get(`/work-items/${task.id}/comments`);
+  const notes = comments.filter((one) => one.body.includes('changed in GitHub by octo-editor'));
+  expect(notes).toHaveLength(1);
+  expect(notes[0].visibility).toBe('internal');
+  expect(notes[0].author_name).toBe('GitHub');
+  expect((await current(task.id)).problem).toBe(task.problem);
 });

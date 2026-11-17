@@ -217,8 +217,8 @@ function bwx_forge_github_stub_find( array $state, string $repo, int $number ): 
 }
 
 /**
- * Answers a call about one issue (#682): read it, change its state, add a
- * label or take one off. `$label` is the label named in the path, still encoded.
+ * Answers a call about one issue (#682): read it, change its state, title or
+ * body, add a label or take one off. `$label` is the label named in the path, still encoded.
  *
  * @param array<string, mixed> $state  The stub's state, changed in place.
  * @param string               $method The HTTP method.
@@ -246,6 +246,12 @@ function bwx_forge_github_stub_one_issue( array &$state, string $method, string 
 		if ( isset( $sent['state'] ) ) {
 			$issue['state']        = (string) $sent['state'];
 			$issue['state_reason'] = 'closed' === $issue['state'] ? ( $sent['state_reason'] ?? 'completed' ) : null;
+		}
+
+		foreach ( array( 'title', 'body' ) as $field ) {
+			if ( isset( $sent[ $field ] ) ) {
+				$issue[ $field ] = (string) $sent[ $field ];
+			}
 		}
 
 		$state['issues'][ $repo ][ $at ] = $issue;

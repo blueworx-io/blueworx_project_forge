@@ -42,6 +42,16 @@ final class Outbound {
 	public const SET_STATE = 'set_state';
 
 	/**
+	 * Gives the item's issue the item's title (#682).
+	 */
+	public const SET_TITLE = 'set_title';
+
+	/**
+	 * Rewrites a Forge-made issue's description from the item (#682).
+	 */
+	public const SET_BODY = 'set_body';
+
+	/**
 	 * Does one job.
 	 *
 	 * @param array<string, mixed> $job The job, as claimed.
@@ -64,6 +74,10 @@ final class Outbound {
 				return self::set_label( $item, self::payload( $job ) );
 			case self::SET_STATE:
 				return self::set_state( $item, self::payload( $job ) );
+			case self::SET_TITLE:
+				return self::set_title( $item );
+			case self::SET_BODY:
+				return self::set_body( $item );
 			default:
 				return new WP_Error( Client::REFUSED, __( 'Forge doesn\'t know how to send that change to GitHub.', 'blueworx-forge' ) );
 		}
@@ -326,6 +340,66 @@ final class Outbound {
 		$changed = Client::request( 'PATCH', $path, $body );
 
 		return is_wp_error( $changed ) ? $changed : true;
+	}
+
+	/**
+	 * Gives the issue the item's title as it is now, and notes it as seen so
+	 * GitHub's message about the rename changes nothing. Sending the same
+	 * title twice is harmless.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return true|WP_Error
+	 */
+	private static function set_title( array $item ) {
+		$path  = self::issue_path( $item );
+		$title = (string) $item['title'];
+
+		if ( '' === $path || '' === $title ) {
+			return true;
+		}
+
+		$changed = Client::request( 'PATCH', $path, array( 'title' => $title ) );
+
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+
+		Links::seen( (string) $item['id'], array( 'title_seen' => $title ) );
+
+		return true;
+	}
+
+	/**
+	 * Rewrites a Forge-made issue's description from the item as it is now.
+	 * Nothing is sent when the issue already says it, so a second run
+	 * changes nothing. An issue raised in GitHub is never written.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return true|WP_Error
+	 */
+	private static function set_body( array $item ) {
+		$link = Links::for_item( (string) $item['id'] );
+
+		if ( null === $link || 'forge' !== (string) $link['origin'] ) {
+			return true;
+		}
+
+		$body = IssueText::issue_body( $item, Notify::link( $item ) );
+		$hash = hash( 'sha256', $body );
+
+		if ( (string) $link['body_hash'] === $hash ) {
+			return true;
+		}
+
+		$changed = Client::request( 'PATCH', '/repos/' . (string) $link['repo'] . '/issues/' . (int) $link['issue_number'], array( 'body' => $body ) );
+
+		if ( is_wp_error( $changed ) ) {
+			return $changed;
+		}
+
+		Links::seen( (string) $item['id'], array( 'body_hash' => $hash ) );
+
+		return true;
 	}
 
 	/**

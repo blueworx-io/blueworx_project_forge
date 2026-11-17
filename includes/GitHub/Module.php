@@ -55,6 +55,7 @@ final class Module {
 		add_action( self::JOBS_HOOK, array( self::class, 'run_jobs' ) );
 		add_action( 'shutdown', array( self::class, 'after_request' ) );
 		add_action( 'bwx_forge_item_moved', array( Sync::class, 'moved' ), 10, 2 );
+		add_action( 'bwx_forge_item_updated', array( Sync::class, 'updated' ), 10, 2 );
 
 		// Scheduled lazily, like the morning message, so a site that updated
 		// into this feature gets its job without being reactivated.
