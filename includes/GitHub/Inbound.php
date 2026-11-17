@@ -103,7 +103,11 @@ final class Inbound {
 			return 'ignored';
 		}
 
-		$checked = Validate::item( self::values_for( $issue, $repo ), false );
+		// The repo is set below, not checked: it is where the issue came from.
+		$sent = self::values_for( $issue, $repo );
+		unset( $sent['github_repo'] );
+
+		$checked = Validate::item( $sent, false );
 
 		if ( array() !== $checked['errors'] || 0 >= $actor || false === get_userdata( $actor ) ) {
 			return 'failed';

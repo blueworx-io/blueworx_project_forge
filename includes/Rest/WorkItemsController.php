@@ -1597,6 +1597,12 @@ final class WorkItemsController {
 		// about the person's grants (AUTH-3), not a field they may send.
 		$body['self_review_permitted'] = ! empty( Access::context( (string) $site['client_id'] )['principal'] );
 
+		// #681. Which repo work belongs in is the studio's to say, so it is
+		// dropped, not refused, when a person without that permission sends it.
+		if ( null !== Access::refuse_unless( Capabilities::EDIT_PLANNING, (string) $site['client_id'] ) ) {
+			unset( $body['github_repo'] );
+		}
+
 		$checked = Validate::item( $body, false );
 		$errors  = array_merge(
 			$checked['errors'],
