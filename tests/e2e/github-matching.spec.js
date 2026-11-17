@@ -241,3 +241,43 @@ test("editing a Forge-made issue's description leaves a note, once", async () =>
   expect(notes[0].author_name).toBe('GitHub');
   expect((await current(task.id)).problem).toBe(task.problem);
 });
+
+test("an older rename's late message leaves the newest title", async () => {
+  test.slow();
+  const task = await linkedTask('Two renames');
+  const middle = `Second name ${RUN_ID}`;
+  const newest = `Third name ${RUN_ID}`;
+
+  let saved = await admin.api.patch(`/work-items/${task.id}`, { title: middle, record_version: task.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+  const named = await issueOf(task.id);
+
+  saved = await admin.api.patch(`/work-items/${task.id}`, { title: newest, record_version: (await saved.json()).item.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+  expect((await issueOf(task.id)).title).toBe(newest);
+
+  // GitHub's two messages, the older one last.
+  const version = (await current(task.id)).record_version;
+  expect(await hook(edited({ ...named, title: newest }, { title: { from: middle } }))).toBe('unchanged');
+  expect(await hook(edited({ ...named, title: middle }, { title: { from: task.title } }))).toBe('unchanged');
+
+  const after = await current(task.id);
+  expect(after.title).toBe(newest);
+  expect(after.record_version).toBe(version);
+});
+
+test('renaming an issue with a very long title still renames the task', async () => {
+  test.slow();
+  const long = `Long title ${RUN_ID} ${'x'.repeat(250)}`.slice(0, 250);
+  const raised = { id: IDS + 2, number: 9002, title: long, body: 'Words.' };
+
+  expect(await hook({ ...edited(raised, {}), action: 'opened' })).toBe('created');
+  const task = (await admin.api.get(`/work-items?client_site_id=${site.id}`)).items.find((one) => one.title === long.slice(0, 191));
+  expect(task, 'the issue should have come in, cut to length').toBeTruthy();
+
+  const renamed = `Longer still ${RUN_ID} ${'z'.repeat(250)}`.slice(0, 250);
+  expect(await hook(edited({ ...raised, title: renamed }, { title: { from: long } }))).toBe('updated');
+  expect((await current(task.id)).title).toBe(renamed.slice(0, 191));
+});

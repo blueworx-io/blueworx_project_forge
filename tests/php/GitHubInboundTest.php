@@ -81,4 +81,53 @@ final class GitHubInboundTest extends TestCase {
 		self::assertSame( 'ignored', Inbound::handle( 'issues', array( 'action' => 'edited' ) ) );
 		self::assertSame( 'ignored', Inbound::handle( 'star', array( 'action' => 'created' ) ) );
 	}
+
+	public function test_a_title_edit_counts_only_from_the_title_forge_last_saw(): void {
+		$link = array(
+			'title_seen' => 'Newest',
+			'body_hash'  => '',
+		);
+
+		// GitHub's message about an older rename, arriving late.
+		self::assertFalse( Inbound::starts_from_seen( 'title', array( 'title' => array( 'from' => 'Older' ) ), $link ) );
+		self::assertTrue( Inbound::starts_from_seen( 'title', array( 'title' => array( 'from' => 'Newest' ) ), $link ) );
+		self::assertFalse( Inbound::starts_from_seen( 'title', array(), $link ) );
+	}
+
+	public function test_a_long_title_is_compared_as_forge_keeps_it(): void {
+		$long = str_repeat( 'y', 250 );
+
+		self::assertTrue(
+			Inbound::starts_from_seen(
+				'title',
+				array( 'title' => array( 'from' => $long ) ),
+				array(
+					'title_seen' => str_repeat( 'y', 191 ),
+					'body_hash'  => '',
+				)
+			)
+		);
+	}
+
+	public function test_a_body_edit_counts_only_from_the_body_forge_last_saw(): void {
+		$link = array(
+			'title_seen' => '',
+			'body_hash'  => hash( 'sha256', 'Current words.' ),
+		);
+
+		self::assertTrue( Inbound::starts_from_seen( 'body', array( 'body' => array( 'from' => 'Current words.' ) ), $link ) );
+		self::assertFalse( Inbound::starts_from_seen( 'body', array( 'body' => array( 'from' => 'Old words.' ) ), $link ) );
+
+		// An issue that had no description before.
+		self::assertTrue(
+			Inbound::starts_from_seen(
+				'body',
+				array( 'body' => array( 'from' => null ) ),
+				array(
+					'title_seen' => '',
+					'body_hash'  => hash( 'sha256', '' ),
+				)
+			)
+		);
+	}
 }

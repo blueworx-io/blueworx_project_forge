@@ -39,7 +39,8 @@ final class Inbound {
 	 *
 	 * @param string               $event   The X-GitHub-Event name.
 	 * @param array<string, mixed> $payload The decoded body.
-	 * @return string The outcome: pong, ignored, duplicate, created, linked or failed.
+	 * @return string The outcome: pong, ignored, duplicate, created, linked,
+	 *                updated, noted, unchanged or failed.
 	 */
 	public static function handle( string $event, array $payload ): string {
 		if ( 'ping' === $event ) {
@@ -213,7 +214,10 @@ final class Inbound {
 		$seen   = array();
 		$note   = false;
 
-		if ( array_key_exists( 'title', $changes ) ) {
+		// An edit counts only when it starts from what Forge last saw: GitHub
+		// may deliver the message about an older rename after a newer one,
+		// and that one must not write the older title back.
+		if ( self::starts_from_seen( 'title', $changes, $link ) ) {
 			$title = IssueText::title( (string) ( $issue['title'] ?? '' ) );
 
 			if ( '' !== $title && (string) $item['title'] !== $title ) {
@@ -222,7 +226,7 @@ final class Inbound {
 			}
 		}
 
-		if ( array_key_exists( 'body', $changes ) ) {
+		if ( self::starts_from_seen( 'body', $changes, $link ) ) {
 			$body = (string) ( $issue['body'] ?? '' );
 			$hash = hash( 'sha256', $body );
 
@@ -273,6 +277,31 @@ final class Inbound {
 		}
 
 		return $note && 'unchanged' === $outcome ? 'noted' : $outcome;
+	}
+
+	/**
+	 * Whether GitHub's edit to a field starts from the value Forge last saw
+	 * there. A real edit in GitHub always does; the late message about an
+	 * older change does not. Titles are compared as Forge keeps them, cut
+	 * to length, so a long title still matches.
+	 *
+	 * @param string               $field   title or body.
+	 * @param array<string, mixed> $changes GitHub's `changes`.
+	 * @param array<string, mixed> $link    The link, as read.
+	 * @return bool
+	 */
+	public static function starts_from_seen( string $field, array $changes, array $link ): bool {
+		if ( ! isset( $changes[ $field ] ) || ! is_array( $changes[ $field ] ) || ! array_key_exists( 'from', $changes[ $field ] ) ) {
+			return false;
+		}
+
+		$from = (string) ( $changes[ $field ]['from'] ?? '' );
+
+		if ( 'title' === $field ) {
+			return IssueText::title( $from ) === (string) ( $link['title_seen'] ?? '' );
+		}
+
+		return hash( 'sha256', $from ) === (string) ( $link['body_hash'] ?? '' );
 	}
 
 	/**
