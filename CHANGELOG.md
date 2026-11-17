@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.220.1] - 2026-11-13
+
+### Fixed
+
+- Meetings from Google Calendar now show their name and date on a site's hours list and hours export, instead of a dash. Each upcoming meeting holds its hour from the day it is synced, so several can appear on the same day; the name says which meeting each one is for.
+
 ## [2.220.0] - 2026-11-11
 
 ### Added
