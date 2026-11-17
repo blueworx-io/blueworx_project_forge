@@ -845,6 +845,26 @@ export const RULES: RuleSection[] = [
         why: 'An issue has to land in one place.',
       },
       {
+        what: "The issue carries one \"forge:\" label naming the task's stage. Labels that aren't Forge's are left alone.",
+        why: 'Anyone in GitHub can see where the work is.',
+      },
+      {
+        what: 'Releasing the work closes the issue. Ending a task any other way closes it as not planned, and reopening the task reopens the issue.',
+        why: 'Forge decides the stage, and GitHub follows.',
+      },
+      {
+        what: 'Closing the issue in GitHub moves work from In development to In review, never further. At any other stage it leaves a note and nothing moves.',
+        why: 'Only the reviewer can release work.',
+      },
+      {
+        what: 'Title edits cross both ways.',
+        why: 'The two sides should always name the work the same.',
+      },
+      {
+        what: 'Description edits made in GitHub only reach tasks that came from GitHub.',
+        why: "A Forge task's description is several fields, and one block of text can't safely overwrite them.",
+      },
+      {
         what: 'Comments never sync.',
         why: 'Some Forge comments are internal.',
       },

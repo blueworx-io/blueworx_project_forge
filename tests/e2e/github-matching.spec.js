@@ -315,6 +315,16 @@ test('closing the issue moves finished development to review', async () => {
   const move = history.find((entry) => entry.action === 'moved' && entry.to_stage === 'in-review');
   expect(move.via).toBe('github');
 
+  // The task's history says the move came from GitHub.
+  const page = await admin.context.newPage();
+  await page.goto('/blueworx-forge/');
+  await page.waitForSelector('[data-testid="bwx-board"]');
+  await page.selectOption('[data-testid="bwx-client-choice"]', site.id);
+  await page.getByTestId('bwx-card').filter({ hasText: task.title }).click();
+  await page.getByTestId('bwx-history-wrap').locator('summary').click();
+  await expect(page.locator('[data-testid="bwx-history"]')).toContainText('In development → In review, from GitHub');
+  await page.close();
+
   // The issue shows the new stage, and nothing reopens or closes it.
   const before = (await githubCalls(admin.api.request)).length;
   await runGitHubJobs(admin.api.request);

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.223.0] - 2026-11-17
+
+### Added
+
+- Linked GitHub issues now stay in step with their tasks: the issue shows the Forge stage, closes when the work is released and reopens with it, and titles match on both sides. Closing an issue in GitHub moves finished development to In review.
+- A move made from GitHub reads "from GitHub" in the task's history.
+
 ## [2.222.0] - 2026-11-17
 
 ### Added
