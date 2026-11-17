@@ -860,6 +860,34 @@ export const RULES: RuleSection[] = [
         what: 'Forge makes the secret itself and adds its webhook to each repo you link, and takes it off when you unlink. A repo GitHub won\'t add the webhook to is not linked.',
         why: 'Nobody has to copy secrets or set up webhooks by hand, and a linked repo is always one Forge can hear from.',
       },
+      {
+        what: 'A feature or sub-feature needs a repo, or "No repo needed", before it leaves Documentation period.',
+        why: 'Every build starts from a GitHub issue, and not every task is a build.',
+      },
+      {
+        what: 'Choosing a repo creates the GitHub issue straight away.',
+        why: 'So the work can start from it.',
+      },
+      {
+        what: 'Once the issue exists, the repo can\'t be changed.',
+        why: 'Moving issues is GitHub\'s job.',
+      },
+      {
+        what: 'Forge comments once on an issue raised in GitHub, with a link back, and never edits what the person wrote.',
+        why: 'Their words stay theirs.',
+      },
+      {
+        what: 'If GitHub is down, changes wait and are retried, and the Connections page shows any that failed.',
+        why: 'A slow GitHub must never stop work being saved.',
+      },
+      {
+        what: 'Forge only links an issue back to a task when the connected account opened it in the task\'s own repo.',
+        why: 'Task numbers are not secret, so a copied marker must not move a task\'s issue.',
+      },
+      {
+        what: 'If GitHub refuses or the token has expired, changes wait, and reconnecting sends them.',
+        why: 'Nothing is lost when a token runs out.',
+      },
     ],
   },
 ];
