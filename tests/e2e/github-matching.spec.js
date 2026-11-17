@@ -1,0 +1,143 @@
+import { test, expect } from '@playwright/test';
+import * as Forge from './helpers/forge.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubState, runGitHubJobs } from './helpers/github.js';
+
+// #682. A linked task's issue shows its Forge stage as one `forge:` label, and
+// closes and reopens with the task. Labels that are not Forge's stay put.
+
+const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.WP_ADMIN_PASS || 'admin';
+const ALPHA = 'blueworx-io/alpha';
+
+let admin;
+let site;
+let releasedTask;
+
+test.describe.configure({ mode: 'serial' });
+
+/**
+ * A feature on this spec's site with its issue made, the way part 2 makes it:
+ * in Documentation period, a repo chosen, the outbox run.
+ */
+async function linkedTask(title) {
+  const made = (await (await Forge.makeItem(admin.api, site.id, { title: `${title} ${RUN_ID}`, level: 'feature' })).json()).item;
+  const item = await Forge.walkTo(admin.api, made, ['triage', 'documentation-period']);
+
+  const saved = await admin.api.patch(`/work-items/${item.id}`, { github_repo: ALPHA, record_version: item.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  await runGitHubJobs(admin.api.request);
+
+  const detail = await admin.api.get(`/work-items/${item.id}`);
+  expect(detail.github.link, 'the task should have its issue').not.toBeNull();
+
+  return detail.item;
+}
+
+/** The task's issue as the stand-in holds it. */
+async function issueOf(id) {
+  const { link } = (await admin.api.get(`/work-items/${id}`)).github;
+  const issues = (await githubState(admin.api.request)).issues?.[link.repo] ?? [];
+
+  return issues.find((issue) => issue.number === link.number);
+}
+
+async function labelsOf(id) {
+  return (await issueOf(id)).labels.map((label) => label.name).sort();
+}
+
+async function current(id) {
+  return (await admin.api.get(`/work-items/${id}`)).item;
+}
+
+test.beforeAll(async ({ browser, baseURL }) => {
+  test.setTimeout(600000);
+  installGitHubStub();
+  admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  ({ site } = await Forge.makeSite(admin.api, 'Match Co', RUN_ID));
+
+  await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, issues_refused: false, lose_create_answer: false, reset: true, hooks: {}, repos: [ALPHA] });
+  expect((await admin.api.post('/connections/github', { token: 'good-token-6802' })).ok()).toBe(true);
+  expect((await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [ALPHA] })).status()).toBe(200);
+});
+
+test.afterAll(async () => {
+  await githubSays(admin.api.request, { down: false });
+  await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [] });
+  await admin.api.del('/connections/github');
+  await admin?.context.close();
+  removeGitHubStub();
+});
+
+test('the issue shows the stage as one label', async () => {
+  test.slow();
+  const task = await linkedTask('Stage label');
+
+  // Nothing of Forge's on it until the task moves.
+  expect(await labelsOf(task.id)).toEqual(['bug']);
+
+  await Forge.walkTo(admin.api, task, ['up-next']);
+  await runGitHubJobs(admin.api.request);
+  expect(await labelsOf(task.id)).toEqual(['bug', 'forge: Up next']);
+
+  // The next stage takes the old label's place; `bug` is never touched.
+  await Forge.walkTo(admin.api, await current(task.id), ['in-development']);
+  await runGitHubJobs(admin.api.request);
+  expect(await labelsOf(task.id)).toEqual(['bug', 'forge: In development']);
+});
+
+test('quick moves while GitHub is down leave only the latest label', async () => {
+  test.slow();
+  const task = await linkedTask('Down label');
+
+  await githubSays(admin.api.request, { down: true });
+  await Forge.walkTo(admin.api, task, ['up-next', 'in-development']);
+  await githubSays(admin.api.request, { down: false });
+
+  await runGitHubJobs(admin.api.request);
+  const forgeLabels = (await labelsOf(task.id)).filter((name) => name.startsWith('forge: '));
+  expect(forgeLabels).toEqual(['forge: In development']);
+});
+
+test('releasing closes the issue as completed', async () => {
+  test.slow();
+  const task = await linkedTask('Release closes');
+
+  // An override reaches Released in one move; it is still a move.
+  const released = await admin.api.post(`/work-items/${task.id}/override`, { to: 'released', reason: 'Set up for the test.', record_version: task.record_version });
+  expect(released.status(), await released.text()).toBe(200);
+
+  await runGitHubJobs(admin.api.request);
+  const issue = await issueOf(task.id);
+  expect(issue.state).toBe('closed');
+  expect(issue.state_reason).toBe('completed');
+
+  // Reopened by the last test.
+  releasedTask = task.id;
+});
+
+test('cancelling closes it as not planned', async () => {
+  test.slow();
+  const task = await linkedTask('Cancel closes');
+
+  const ended = await admin.api.post(`/work-items/${task.id}/outcome`, { outcome: 'cancelled', reason: 'Not needed.', record_version: task.record_version });
+  expect(ended.status(), await ended.text()).toBe(200);
+
+  await runGitHubJobs(admin.api.request);
+  const issue = await issueOf(task.id);
+  expect(issue.state).toBe('closed');
+  expect(issue.state_reason).toBe('not_planned');
+});
+
+test('reopening the task reopens the issue', async () => {
+  test.slow();
+  expect(releasedTask, 'needs the released task from the test before').toBeTruthy();
+
+  const task = await current(releasedTask);
+  const reopened = await admin.api.post(`/work-items/${task.id}/reopen`, { to: 'in-development', reason: 'A case was missed.', record_version: task.record_version });
+  expect(reopened.status(), await reopened.text()).toBe(200);
+
+  await runGitHubJobs(admin.api.request);
+  expect((await issueOf(task.id)).state).toBe('open');
+});

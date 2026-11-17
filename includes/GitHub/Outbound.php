@@ -32,6 +32,16 @@ final class Outbound {
 	public const LINK_COMMENT = 'link_comment';
 
 	/**
+	 * Shows the item's stage on its issue as one `forge:` label (#682).
+	 */
+	public const SET_LABEL = 'set_label';
+
+	/**
+	 * Closes or reopens the item's issue with the item (#682).
+	 */
+	public const SET_STATE = 'set_state';
+
+	/**
 	 * Does one job.
 	 *
 	 * @param array<string, mixed> $job The job, as claimed.
@@ -50,6 +60,10 @@ final class Outbound {
 				return self::create_issue( $item, $job );
 			case self::LINK_COMMENT:
 				return self::link_comment( $item );
+			case self::SET_LABEL:
+				return self::set_label( $item, self::payload( $job ) );
+			case self::SET_STATE:
+				return self::set_state( $item, self::payload( $job ) );
 			default:
 				return new WP_Error( Client::REFUSED, __( 'Forge doesn\'t know how to send that change to GitHub.', 'blueworx-forge' ) );
 		}
@@ -205,5 +219,124 @@ final class Outbound {
 		$said  = Client::request( 'POST', $path, array( 'body' => $words . "\n\n" . $mark ) );
 
 		return is_wp_error( $said ) ? $said : true;
+	}
+
+	/**
+	 * What a job was asked to send. A pending job's payload is replaced when
+	 * it is asked for again, so this is always the latest.
+	 *
+	 * @param array<string, mixed> $job The job, as claimed.
+	 * @return array<string, mixed>
+	 */
+	private static function payload( array $job ): array {
+		$decoded = json_decode( (string) ( $job['payload'] ?? '' ), true );
+
+		return is_array( $decoded ) ? $decoded : array();
+	}
+
+	/**
+	 * Where the item's linked issue is, or '' when it has none.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return string
+	 */
+	private static function issue_path( array $item ): string {
+		$link = Links::for_item( (string) $item['id'] );
+
+		return null === $link ? '' : '/repos/' . (string) $link['repo'] . '/issues/' . (int) $link['issue_number'];
+	}
+
+	/**
+	 * Leaves the issue with one `forge:` label, the stage's. Reads the labels
+	 * first, so a second run after a lost answer changes nothing, and leaves
+	 * every label that is not Forge's alone.
+	 *
+	 * @param array<string, mixed> $item    The item.
+	 * @param array<string, mixed> $payload The stage to show.
+	 * @return true|WP_Error
+	 */
+	private static function set_label( array $item, array $payload ) {
+		$path  = self::issue_path( $item );
+		$stage = (string) ( $payload['stage'] ?? '' );
+
+		if ( '' === $path || '' === $stage ) {
+			return true;
+		}
+
+		$issue = Client::request( 'GET', $path );
+
+		if ( is_wp_error( $issue ) ) {
+			return $issue;
+		}
+
+		$wanted = Sync::label_for( $stage );
+		$has    = false;
+
+		foreach ( (array) ( $issue['labels'] ?? array() ) as $label ) {
+			$name = is_array( $label ) ? (string) ( $label['name'] ?? '' ) : (string) $label;
+
+			if ( $wanted === $name ) {
+				$has = true;
+				continue;
+			}
+
+			if ( 0 !== strpos( $name, Sync::LABEL_PREFIX ) ) {
+				continue;
+			}
+
+			$gone = Client::request( 'DELETE', $path . '/labels/' . rawurlencode( $name ) );
+
+			// Already taken off, by someone else or an earlier try.
+			if ( is_wp_error( $gone ) && ! self::not_found( $gone ) ) {
+				return $gone;
+			}
+		}
+
+		if ( $has ) {
+			return true;
+		}
+
+		// GitHub makes the label the first time it is used.
+		$added = Client::request( 'POST', $path . '/labels', array( 'labels' => array( $wanted ) ) );
+
+		return is_wp_error( $added ) ? $added : true;
+	}
+
+	/**
+	 * Opens or closes the issue. Saying the same thing twice is harmless.
+	 *
+	 * @param array<string, mixed> $item    The item.
+	 * @param array<string, mixed> $payload state, and reason when closing.
+	 * @return true|WP_Error
+	 */
+	private static function set_state( array $item, array $payload ) {
+		$path  = self::issue_path( $item );
+		$state = (string) ( $payload['state'] ?? '' );
+
+		if ( '' === $path || ! in_array( $state, array( 'open', 'closed' ), true ) ) {
+			return true;
+		}
+
+		$body = array( 'state' => $state );
+
+		if ( 'closed' === $state && '' !== (string) ( $payload['reason'] ?? '' ) ) {
+			$body['state_reason'] = (string) $payload['reason'];
+		}
+
+		$changed = Client::request( 'PATCH', $path, $body );
+
+		return is_wp_error( $changed ) ? $changed : true;
+	}
+
+	/**
+	 * Whether GitHub said the thing asked about is not there.
+	 *
+	 * @param WP_Error $error The refusal.
+	 * @return bool
+	 */
+	private static function not_found( WP_Error $error ): bool {
+		$data = $error->get_error_data();
+
+		return is_array( $data ) && 404 === (int) ( $data['github_status'] ?? 0 );
 	}
 }

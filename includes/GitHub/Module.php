@@ -15,7 +15,8 @@ use Throwable;
  * #680. Where the GitHub parts hook in: a daily job that forgets delivery ids
  * after 30 days, since GitHub does not resend that late; and (#681) the
  * outbox, run once a request that asked for a job has answered, and every
- * five minutes for whatever is still waiting.
+ * five minutes for whatever is still waiting; and (#682) a linked task's
+ * moves, passed on to its issue.
  */
 final class Module {
 
@@ -53,6 +54,7 @@ final class Module {
 		add_action( self::PRUNE_HOOK, array( self::class, 'prune' ) );
 		add_action( self::JOBS_HOOK, array( self::class, 'run_jobs' ) );
 		add_action( 'shutdown', array( self::class, 'after_request' ) );
+		add_action( 'bwx_forge_item_moved', array( Sync::class, 'moved' ), 10, 2 );
 
 		// Scheduled lazily, like the morning message, so a site that updated
 		// into this feature gets its job without being reactivated.

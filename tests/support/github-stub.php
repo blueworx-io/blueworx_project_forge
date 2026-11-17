@@ -13,7 +13,8 @@
  * may not manage webhooks), `issues_refused` (GitHub will not make an issue),
  * `lose_create_answer` (GitHub makes the issue but its answer never arrives,
  * like a reply that times out), `issues` (each repo's issues as made),
- * `next_issue` (each repo's next issue number) and `calls`, a log of method,
+ * `next_issue` (each repo's next issue number; each issue keeps its `labels`,
+ * starting with `bug`, and its `state` and `state_reason`) and `calls`, a log of method,
  * path and body. `reset` clears the log and starts issue numbers at 1 again.
  *
  * It answers inside the same request rather than over HTTP: the suite blocks
@@ -181,16 +182,101 @@ function bwx_forge_github_stub_issue( array &$state, string $repo, array $sent )
 	$id                           = (int) $state['next_issue_id'];
 	$state['next_issue_id']       = $id + 1;
 	$issue                        = array(
-		'number'   => $number,
-		'id'       => $id,
-		'title'    => (string) ( $sent['title'] ?? '' ),
-		'body'     => (string) ( $sent['body'] ?? '' ),
-		'user'     => array( 'login' => (string) $state['login'] ),
-		'html_url' => 'https://github.com/' . $repo . '/issues/' . $number,
+		'number'       => $number,
+		'id'           => $id,
+		'title'        => (string) ( $sent['title'] ?? '' ),
+		'body'         => (string) ( $sent['body'] ?? '' ),
+		'user'         => array( 'login' => (string) $state['login'] ),
+		'html_url'     => 'https://github.com/' . $repo . '/issues/' . $number,
+		// Someone in GitHub labelled it already (#682): Forge must leave this one alone.
+		'labels'       => array( array( 'name' => 'bug' ) ),
+		'state'        => 'open',
+		'state_reason' => null,
 	);
 	$state['issues'][ $repo ][]   = $issue;
 
 	return bwx_forge_github_stub_response( $issue, 201 );
+}
+
+/**
+ * Where an issue is in a repo's list, or null (#682).
+ *
+ * @param array<string, mixed> $state  The stub's state.
+ * @param string               $repo   owner/name.
+ * @param int                  $number The issue's number.
+ * @return int|null
+ */
+function bwx_forge_github_stub_find( array $state, string $repo, int $number ): ?int {
+	foreach ( (array) ( $state['issues'][ $repo ] ?? array() ) as $index => $issue ) {
+		if ( (int) $issue['number'] === $number ) {
+			return (int) $index;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Answers a call about one issue (#682): read it, change its state, add a
+ * label or take one off. `$label` is the label named in the path, still encoded.
+ *
+ * @param array<string, mixed> $state  The stub's state, changed in place.
+ * @param string               $method The HTTP method.
+ * @param string               $repo   owner/name.
+ * @param int                  $number The issue's number.
+ * @param string               $what   '' for the issue, 'labels' for its labels.
+ * @param string               $label  The label named in the path, or ''.
+ * @param array<string, mixed> $sent   The decoded body.
+ * @return array<string, mixed>
+ */
+function bwx_forge_github_stub_one_issue( array &$state, string $method, string $repo, int $number, string $what, string $label, array $sent ): array {
+	$at = bwx_forge_github_stub_find( $state, $repo, $number );
+
+	if ( null === $at ) {
+		return bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
+	}
+
+	$issue = $state['issues'][ $repo ][ $at ];
+
+	if ( '' === $what && 'GET' === $method ) {
+		return bwx_forge_github_stub_response( $issue );
+	}
+
+	if ( '' === $what && 'PATCH' === $method ) {
+		if ( isset( $sent['state'] ) ) {
+			$issue['state']        = (string) $sent['state'];
+			$issue['state_reason'] = 'closed' === $issue['state'] ? ( $sent['state_reason'] ?? 'completed' ) : null;
+		}
+
+		$state['issues'][ $repo ][ $at ] = $issue;
+
+		return bwx_forge_github_stub_response( $issue );
+	}
+
+	$names = array_map( static fn( $each ): string => (string) $each['name'], (array) ( $issue['labels'] ?? array() ) );
+
+	if ( 'labels' === $what && 'POST' === $method && '' === $label ) {
+		foreach ( (array) ( $sent['labels'] ?? array() ) as $name ) {
+			if ( ! in_array( (string) $name, $names, true ) ) {
+				$names[] = (string) $name;
+			}
+		}
+	} elseif ( 'labels' === $what && 'DELETE' === $method && '' !== $label ) {
+		$name = rawurldecode( $label );
+
+		if ( ! in_array( $name, $names, true ) ) {
+			return bwx_forge_github_stub_response( array( 'message' => 'Label does not exist' ), 404 );
+		}
+
+		$names = array_values( array_diff( $names, array( $name ) ) );
+	} else {
+		return bwx_forge_github_stub_response( array( 'message' => 'Not Found' ), 404 );
+	}
+
+	$issue['labels']                 = array_map( static fn( string $name ): array => array( 'name' => $name ), $names );
+	$state['issues'][ $repo ][ $at ] = $issue;
+
+	return bwx_forge_github_stub_response( $issue['labels'] );
 }
 
 add_filter(
@@ -267,6 +353,9 @@ add_filter(
 			}
 		} elseif ( 'GET' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)/comments\?#', $path, $found ) ) {
 			$answer = bwx_forge_github_stub_response( array_values( (array) ( $state['comments'][ strtolower( $found[1] ) . '#' . $found[2] ] ?? array() ) ) );
+		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)(?:/(labels)(?:/([^/?]+))?)?$#', $path, $found ) ) {
+			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
+			$answer = bwx_forge_github_stub_one_issue( $state, $method, strtolower( $found[1] ), (int) $found[2], (string) ( $found[3] ?? '' ), (string) ( $found[4] ?? '' ), is_array( $sent ) ? $sent : array() );
 		} elseif ( 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/hooks(?:/(\d+))?(?:\?.*)?$#', $path, $found ) ) {
 			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
 			$answer = bwx_forge_github_stub_hooks( $state, $method, strtolower( $found[1] ), (int) ( $found[2] ?? 0 ), is_array( $sent ) ? $sent : array() );
