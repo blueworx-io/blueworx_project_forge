@@ -8,7 +8,7 @@ import { installGitHubStub, removeGitHubStub, githubSays } from './helpers/githu
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 const TOKEN = 'good-token-9876';
-const SECRET = 'whsec-1';
+const SECRET = 'whsec-1%41<x>';
 
 test.describe.configure({ mode: 'serial' });
 

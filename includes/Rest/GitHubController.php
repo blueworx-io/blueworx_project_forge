@@ -61,9 +61,9 @@ final class GitHubController {
 	 */
 	public static function connect( WP_REST_Request $request ) {
 		$body   = (array) $request->get_json_params();
-		$token  = trim( sanitize_text_field( (string) ( $body['token'] ?? '' ) ) );
+		$token  = trim( (string) ( $body['token'] ?? '' ) );
 		$org    = strtolower( trim( sanitize_text_field( (string) ( $body['org'] ?? '' ) ) ) );
-		$secret = trim( sanitize_text_field( (string) ( $body['secret'] ?? '' ) ) );
+		$secret = trim( (string) ( $body['secret'] ?? '' ) );
 
 		$fields = array();
 
