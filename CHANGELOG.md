@@ -12,7 +12,7 @@ commits and pull requests.
 
 ### Added
 
-- Connect GitHub from Settings → Connections and link repos to each client's sites. New issues raised in a linked repo now appear in Forge in Future Idea, ready to triage. Setup steps are in docs/github-setup.md.
+- Connect GitHub from Settings → Connections with just a token, then tick each client's repos on their page. Forge adds its own webhook to each repo you link, so there's nothing to set up in GitHub by hand. New issues raised in a linked repo now appear in Forge in Future Idea, ready to triage. If GitHub stops accepting the token or a webhook can't be added, the GitHub row says so. Setup steps are in docs/github-setup.md.
 
 ## [2.220.1] - 2026-11-13
 

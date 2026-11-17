@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Branch: `github-issue-sync-3`, from `main` after part 2 is merged. Draft pull request linked to #682 (part of #608). Never auto-merge.
+- Messages arrive from the webhook Forge added to each linked repo, not an organisation hook (Luke, 2026-11-17); it already sends every `issues` action, so `edited`, `closed` and `reopened` need no setup change.
 - Minor version bump and changelog entry; `src/rules.ts` updated in the same pull request.
 - No new dependencies.
 - Nothing from GitHub ever moves a task past In review, and the reviewer rule is never worked around.

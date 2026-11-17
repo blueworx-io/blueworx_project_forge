@@ -43,7 +43,7 @@ Not every Forge item needs an issue. Plenty are ordinary work with no code.
 - A GitHub that is down or slow never stops a Forge save. Anything that fails
   is retried, and failures show on the Connections page.
 - The token is never shown back in full, logged or sent to the browser.
-- A message claiming to come from GitHub that is not signed with the shared
+- A message claiming to come from GitHub that is not signed with the hook
   secret is refused.
 - Nothing from GitHub moves an item past In review. Only the reviewer can
   release work, and nothing here works around that rule.
@@ -52,11 +52,15 @@ Not every Forge item needs an issue. Plenty are ordinary work with no code.
 
 Three ways were considered:
 
-- **A token plus one organisation-wide GitHub hook (picked by Luke,
-  2026-11-16).** A token from the blueworx-io account does the writing. One hook
-  on the blueworx-io organisation tells Forge about issue changes in every repo
-  as they happen. It matches how SureCart, Cloudways and Slack are connected.
+- **A token plus a GitHub hook on each linked repo (picked by Luke,
+  2026-11-16; changed 2026-11-17).** A token from the blueworx-io account does
+  the writing. It matches how SureCart, Cloudways and Slack are connected.
   Issues Forge creates show as raised by blueworx-io.
+  - The first plan was one hook on the blueworx-io organisation. blueworx-io
+    turned out to be a personal account, which has no organisation hook. Luke
+    decided on 2026-11-17 to keep the personal account: Forge lists the
+    account's own repos, and when a repo is linked to a site, Forge adds the
+    hook to that repo itself.
 - A GitHub app. Issues would show as raised by "Forge", but it means more setup
   and more to keep running.
 - A token only, with Forge checking GitHub every few minutes. No hook to set
@@ -65,23 +69,25 @@ Three ways were considered:
 ## Connecting
 
 - A GitHub row on the in-app Connections page, administrators only: the token,
-  the organisation name (blueworx-io), and the shared secret for the hook.
-  Saved sealed like the Cloudways token, shown back as the last four
-  characters only.
+  and nothing else. The account the token belongs to is the owner whose repos
+  are listed. Forge makes the hook secret itself. Both are saved sealed like
+  the Cloudways token; the token is shown back as the last four characters
+  only, and the secret never leaves the server (Luke, 2026-11-17).
 - The row shows whether the token works, when the last message from GitHub
-  arrived, and any recent failures.
-- The token needs to read and write issues on the organisation's repos. A
-  fine-grained token with Issues (read and write) and Metadata (read) is
-  enough. *(Claude's call.)*
-- The hook is set up by hand in GitHub, once. A short setup note in `docs/`
-  says where to click, what address to paste and which events to tick (Issues
-  only). *(Claude's call: setting up the hook from Forge would need an admin
-  token, which is more power than Forge should hold.)*
+  arrived, and the last failure.
+- The token needs all the account's repos with Issues (read and write),
+  Webhooks (read and write) and Metadata (read).
+- Forge adds its hook to a repo when the repo is linked to a site, and takes
+  it off when it is unlinked. If GitHub won't let it add the hook, the repo is
+  not linked and Forge says why. Connecting again with a new token makes a new
+  secret and updates the hook on every linked repo (Luke, 2026-11-17). This
+  replaces the first plan of a hand-made organisation hook, which a personal
+  account doesn't have. A short setup note in `docs/` covers the token.
 
 ## Linking repos to sites
 
 - On a client site in Forge, a "GitHub repos" setting: pick one or more repos
-  from the organisation. *(Claude's call.)*
+  the GitHub account owns. *(Claude's call.)*
 - A repo belongs to one site at most. Picking a repo already linked elsewhere
   says which site has it.
 - Issues from repos with no site are ignored.
@@ -122,7 +128,7 @@ When a new issue opens in a linked repo:
   by anyone, and that is fine (Luke, 2026-11-16).
 - A new check on the Documentation period gate, before the reviewer's
   approval: **Repo**. The choices are the repos linked to the item's site,
-  then every other repo in the organisation, then **No repo needed** (Luke,
+  then every other repo the GitHub account owns, then **No repo needed** (Luke,
   2026-11-16). *(Order is Claude's call.)*
 - The item cannot move to Up Next until this is answered.
 - It can be answered at any earlier stage too. It shows on the item's panel

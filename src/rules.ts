@@ -853,8 +853,12 @@ export const RULES: RuleSection[] = [
         why: 'Nothing should land on a site that is no longer worked on.',
       },
       {
-        what: 'Messages that say they are from GitHub are only accepted when signed with the shared secret, and none are accepted until GitHub is connected.',
+        what: 'Messages that say they are from GitHub are only accepted when signed with the secret, and none are accepted until GitHub is connected.',
         why: 'Anyone could otherwise create items in Forge.',
+      },
+      {
+        what: 'Forge makes the secret itself and adds its webhook to each repo you link, and takes it off when you unlink. A repo GitHub won\'t add the webhook to is not linked.',
+        why: 'Nobody has to copy secrets or set up webhooks by hand, and a linked repo is always one Forge can hear from.',
       },
     ],
   },

@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Branch: `github-issue-sync-2`, from `main` after part 1 is merged. Draft pull request linked to #681 (part of #608). Never auto-merge.
+- The GitHub account is personal, not an organisation (Luke, 2026-11-17): repos are the account's own, listed by `Client::repos()`, and each linked repo carries a webhook Forge added itself (`GitHub\Hooks`); there is no organisation hook.
 - Minor version bump from whatever part 1 shipped (expected 2.221.0 → 2.222.0) in `package.json`, both plugin headers and `BWX_FORGE_VERSION`. Changelog entry for the person using Forge.
 - `src/rules.ts` updated in the same pull request.
 - No new dependencies.
@@ -38,15 +39,15 @@
 
 **Interfaces:**
 - Produces: requirement `G-DOCUMENTATION-10`, label "Repo", `self::field( 'G-DOCUMENTATION-10', 'Repo', 'enum', array( 'github_repo' ), 'Choose the repo this work belongs in, or No repo needed.' )` with `work_only => true`, listed before `G-DOCUMENTATION-9`. In `evaluate()`, skip a `work_only` requirement when the item's level is `project` or `milestone` (next to the existing `not_for_projects` / `releases_only` skips).
-- Produces: `GitHub\RepoChoice::check( string $value, bool $connected, array $org_repos ): ?string` — pure; returns an error message or null. `''` and `'none'` always pass; otherwise the normalised value must be in `$org_repos` and GitHub must be connected. Messages: "Connect GitHub before choosing a repo, or choose No repo needed." and "That repo isn't in the organisation GitHub is connected to."
-- `Validate::item()` calls `RepoChoice::check()` for `github_repo` with `Settings::connected()` and `Client::org_repos( Settings::org() )` (empty array on error), and normalises with `Repos::normalise()` (keeping `'none'` as is).
+- Produces: `GitHub\RepoChoice::check( string $value, bool $connected, array $repos ): ?string` — pure; returns an error message or null. `''` and `'none'` always pass; otherwise the normalised value must be in `$repos` and GitHub must be connected. Messages: "Connect GitHub before choosing a repo, or choose No repo needed." and "That repo isn't one of the connected GitHub account's repos."
+- `Validate::item()` calls `RepoChoice::check()` for `github_repo` with `Settings::connected()` and `Client::repos()` (empty array on error), and normalises with `Repos::normalise()` (keeping `'none'` as is).
 
 - [ ] **Step 1: Write failing PHP tests**:
   - `WorkGatesTest::test_documentation_asks_for_a_repo_on_work()` — `Gates::evaluate('G-DOCUMENTATION', item(level 'feature', github_repo ''), [])['unmet']` contains id `G-DOCUMENTATION-10`; with `github_repo` `'none'` it does not.
   - `WorkGatesTest::test_projects_and_releases_are_not_asked_for_a_repo()` — levels `project` and `milestone` with `github_repo` `''` → `G-DOCUMENTATION-10` absent from `all`.
   - `GitHubRepoChoiceTest::test_no_repo_needed_always_passes()` — `check('none', false, [])` null.
   - `GitHubRepoChoiceTest::test_a_repo_needs_github_connected()` — `check('blueworx-io/alpha', false, [])` returns the "Connect GitHub…" message.
-  - `GitHubRepoChoiceTest::test_a_repo_outside_the_organisation_is_refused()` — `check('someone/else', true, ['blueworx-io/alpha'])` returns the second message; `check('blueworx-io/alpha', true, ['blueworx-io/alpha'])` null.
+  - `GitHubRepoChoiceTest::test_a_repo_outside_the_account_is_refused()` — `check('someone/else', true, ['blueworx-io/alpha'])` returns the second message; `check('blueworx-io/alpha', true, ['blueworx-io/alpha'])` null.
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement** the requirement, the flag, the field group, `RepoChoice`, the validation.
 - [ ] **Step 4: Run** → PASS. Update `answerFor()` and the expected rows in `documentation-period.spec.js` to `['G-DOCUMENTATION-1', 'G-DOCUMENTATION-10', 'G-DOCUMENTATION-9']`. Run the whole Playwright suite: any spec walking work past Documentation period should now pass through `satisfy()` answering `'none'`.
@@ -60,9 +61,9 @@
 - Test: `tests/e2e/github-repo-choice.spec.js`
 
 **Interfaces:**
-- Consumes: `Links::for_item()`, `Links::url()`, `Repos::for_site()`, `Client::org_repos()`.
+- Consumes: `Links::for_item()`, `Links::url()`, `Repos::for_site()`, `Client::repos()`.
 - Produces: update refusal `bwx_forge_github_repo_locked` (409) — "This task already has a GitHub issue, so its repo can't change. Move the issue in GitHub if it needs to go elsewhere." — when the item has a link and the sent `github_repo` differs from the link's repo.
-- The picker: staff only, features and sub-features only, in the task panel next to its links (`data-testid="bwx-item-repo"`). A select with three groups in this order: the site's linked repos, every other organisation repo, then "No repo needed" (`value="none"`). Not connected → only "No repo needed". Once a link exists, the select is replaced by the issue link, `blueworx-io/alpha#12`, opening in a new tab (`data-testid="bwx-item-issue"`).
+- The picker: staff only, features and sub-features only, in the task panel next to its links (`data-testid="bwx-item-repo"`). A select with three groups in this order: the site's linked repos, every other repo the account owns, then "No repo needed" (`value="none"`). Not connected → only "No repo needed". Once a link exists, the select is replaced by the issue link, `blueworx-io/alpha#12`, opening in a new tab (`data-testid="bwx-item-issue"`).
 
 - [ ] **Step 1: Write the failing specs**:
   - `the picker lists the site's repos first` — site linked to `alpha`; org has `alpha`, `beta`; the options read `alpha`, then `beta`, then "No repo needed".
