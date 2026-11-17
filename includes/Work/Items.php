@@ -334,7 +334,12 @@ final class Items {
 			return null;
 		}
 
-		return self::get( $id );
+		$after = self::get( $id );
+
+		// #682. Only here, once a write really landed: not for a no-op, not for a stale version.
+		do_action( 'bwx_forge_item_updated', $current, (array) $after );
+
+		return $after;
 	}
 
 	/**

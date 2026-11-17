@@ -1567,6 +1567,9 @@ final class Transition {
 		// failed move.
 		Notify::moved( $moved_item );
 
+		// #682. Told after COMMIT for the same reason: a slow listener must not hold the move open.
+		do_action( 'bwx_forge_item_moved', $item, $moved_item );
+
 		return $moved_item;
 	}
 }
