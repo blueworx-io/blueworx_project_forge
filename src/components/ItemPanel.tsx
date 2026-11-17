@@ -3161,6 +3161,14 @@ function historyLines( events: WorkEvent[], label: ( id: string ) => string ): H
 function describe( event: WorkEvent, label: ( id: string ) => string ): string {
   switch ( event.action ) {
     case 'created':
+      // #680. An issue opened on GitHub: the detail names the repository,
+      // the issue and who opened it.
+      if ( 'github' === event.via ) {
+        return event.detail
+          ? `Created in ${ label( event.to_stage ) }. ${ event.detail }`
+          : `Created in ${ label( event.to_stage ) } from GitHub`;
+      }
+
       return `Created in ${ label( event.to_stage ) }`;
     case 'returned':
       // #391. The client's note is what needs doing, so it is shown.
