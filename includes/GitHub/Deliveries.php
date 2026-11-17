@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\GitHub;
 
 use Blueworx\Forge\Data\Schema;
+use RuntimeException;
 
 /**
  * #680. GitHub sends a message again when it thinks one was missed, and every
@@ -25,6 +26,7 @@ final class Deliveries {
 	 * @param string $event  The event, such as issues.
 	 * @param string $action The action, such as opened.
 	 * @return bool False when the id has been seen before.
+	 * @throws RuntimeException When the database refused it for any other reason.
 	 */
 	public static function claim( string $id, string $event, string $action ): bool {
 		global $wpdb;
@@ -33,13 +35,14 @@ final class Deliveries {
 			return false;
 		}
 
+		$id       = substr( $id, 0, 64 );
 		$suppress = $wpdb->suppress_errors();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table; the duplicate-key refusal is the claim.
 		$inserted = $wpdb->insert(
 			Schema::github_deliveries_table(),
 			array(
-				'id'          => substr( $id, 0, 64 ),
+				'id'          => $id,
 				'event'       => substr( $event, 0, 32 ),
 				'action'      => substr( $action, 0, 32 ),
 				'outcome'     => '',
@@ -50,7 +53,34 @@ final class Deliveries {
 
 		$wpdb->suppress_errors( $suppress );
 
-		return false !== $inserted && 0 < (int) $inserted;
+		if ( false !== $inserted && 0 < (int) $inserted ) {
+			return true;
+		}
+
+		// Refused. A repeat only if the id is really there; anything else is
+		// the database failing, and must not be mistaken for a message already
+		// handled.
+		$table = Schema::github_deliveries_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own table; the name cannot be a placeholder.
+		if ( null !== $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE id = %s", $id ) ) ) {
+			return false;
+		}
+
+		throw new RuntimeException( 'The GitHub delivery could not be recorded.' );
+	}
+
+	/**
+	 * Forgets a claimed delivery that could not be handled, so GitHub can
+	 * send it again under the same id.
+	 *
+	 * @param string $id GitHub's delivery id.
+	 */
+	public static function release( string $id ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->delete( Schema::github_deliveries_table(), array( 'id' => substr( $id, 0, 64 ) ), array( '%s' ) );
 	}
 
 	/**

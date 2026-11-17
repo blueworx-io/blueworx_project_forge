@@ -14,6 +14,8 @@ use Blueworx\Forge\GitHub\Deliveries;
 use Blueworx\Forge\GitHub\Inbound;
 use Blueworx\Forge\GitHub\Repos;
 use Blueworx\Forge\GitHub\Settings;
+use Throwable;
+use WP_Error;
 use WP_REST_Request;
 
 /**
@@ -106,7 +108,13 @@ final class GitHubController {
 			return Errors::rest( 'invalid_github_message', __( 'That message did not say what it was or which one it was.', 'blueworx-forge' ), 400 );
 		}
 
-		if ( ! Deliveries::claim( $delivery, $event, sanitize_key( (string) ( $payload['action'] ?? '' ) ) ) ) {
+		try {
+			$claimed = Deliveries::claim( $delivery, $event, sanitize_key( (string) ( $payload['action'] ?? '' ) ) );
+		} catch ( Throwable ) {
+			return self::not_taken();
+		}
+
+		if ( ! $claimed ) {
 			return rest_ensure_response(
 				array(
 					'ok'      => true,
@@ -117,7 +125,19 @@ final class GitHubController {
 
 		Settings::heard( bwx_forge_now() );
 
-		$outcome = Inbound::handle( $event, $payload );
+		try {
+			$outcome = Inbound::handle( $event, $payload );
+		} catch ( Throwable ) {
+			$outcome = 'failed';
+		}
+
+		// Forgotten rather than kept as failed, so GitHub's Redeliver, which
+		// sends the same delivery id, is handled instead of being a repeat.
+		if ( 'failed' === $outcome ) {
+			Deliveries::release( $delivery );
+
+			return self::not_taken();
+		}
 
 		Deliveries::settle( $delivery, $outcome );
 
@@ -127,6 +147,16 @@ final class GitHubController {
 				'outcome' => $outcome,
 			)
 		);
+	}
+
+	/**
+	 * The answer when a message could not be taken in. A failure, so GitHub
+	 * shows it as one and it can be sent again.
+	 *
+	 * @return WP_Error
+	 */
+	private static function not_taken(): WP_Error {
+		return Errors::rest( 'github_message_failed', __( 'Forge could not take that message in. Nothing was kept; send it again from GitHub.', 'blueworx-forge' ), 500 );
 	}
 
 	/**
