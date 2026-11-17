@@ -108,6 +108,12 @@ final class Module {
 			return;
 		}
 
+		// Where PHP can, hand the answer over now, so a slow GitHub never
+		// holds the person's save open.
+		if ( function_exists( 'fastcgi_finish_request' ) ) {
+			fastcgi_finish_request();
+		}
+
 		ob_start();
 
 		try {

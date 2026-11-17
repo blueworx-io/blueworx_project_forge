@@ -1683,6 +1683,9 @@ final class WorkItemsController {
 		// Anyone given a seat on the new work hears about it in Slack (PR 5).
 		Notify::assigned( array(), $item );
 
+		// #681. Work added with its repo already chosen asks for its issue too.
+		self::queue_issue( array( 'github_repo' => '' ), $item );
+
 		$response = array(
 			'ok'   => true,
 			'item' => $item,

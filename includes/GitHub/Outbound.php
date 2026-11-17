@@ -47,7 +47,7 @@ final class Outbound {
 
 		switch ( (string) ( $job['kind'] ?? '' ) ) {
 			case self::CREATE_ISSUE:
-				return self::create_issue( $item );
+				return self::create_issue( $item, $job );
 			case self::LINK_COMMENT:
 				return self::link_comment( $item );
 			default:
@@ -59,9 +59,10 @@ final class Outbound {
 	 * Makes the item's issue in its repo and links the two.
 	 *
 	 * @param array<string, mixed> $item The item.
+	 * @param array<string, mixed> $job  The job, as claimed.
 	 * @return true|WP_Error
 	 */
-	private static function create_issue( array $item ) {
+	private static function create_issue( array $item, array $job ) {
 		$id = (string) $item['id'];
 
 		if ( null !== Links::for_item( $id ) ) {
@@ -80,7 +81,30 @@ final class Outbound {
 
 		$title = (string) $item['title'];
 		$body  = IssueText::issue_body( $item, Notify::link( $item ) );
-		$made  = Client::request(
+
+		// A try before this one may have made the issue and lost GitHub's
+		// answer: a slow reply times out after GitHub has acted. Look first.
+		// A job given its tries back after a reconnect still has its last error.
+		if ( 0 < (int) ( $job['attempts'] ?? 0 ) || '' !== (string) ( $job['last_error'] ?? '' ) ) {
+			$listed = Client::request(
+				'GET',
+				'/repos/' . $repo . '/issues?state=all&per_page=100&creator=' . rawurlencode( Settings::login() ) . '&since=' . gmdate( 'Y-m-d\TH:i:s\Z', (int) ( $job['created_at'] ?? 0 ) )
+			);
+
+			if ( is_wp_error( $listed ) ) {
+				return $listed;
+			}
+
+			$found = self::marked( $listed, $id );
+
+			if ( null !== $found ) {
+				Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ) );
+
+				return true;
+			}
+		}
+
+		$made = Client::request(
 			'POST',
 			'/repos/' . $repo . '/issues',
 			array(
@@ -104,6 +128,29 @@ final class Outbound {
 		Links::add( $id, $repo, $number, $issue_id, 'forge', $title, hash( 'sha256', $body ) );
 
 		return true;
+	}
+
+	/**
+	 * The issue in a list that Forge made for this item, by its marker.
+	 *
+	 * @param array<mixed> $issues  Issues as GitHub lists them.
+	 * @param string       $item_id The item.
+	 * @return array<string, mixed>|null
+	 */
+	public static function marked( array $issues, string $item_id ): ?array {
+		foreach ( $issues as $issue ) {
+			if (
+				is_array( $issue )
+				&& ! isset( $issue['pull_request'] )
+				&& 0 < (int) ( $issue['number'] ?? 0 )
+				&& 0 < (int) ( $issue['id'] ?? 0 )
+				&& IssueText::marker_in( (string) ( $issue['body'] ?? '' ) ) === $item_id
+			) {
+				return $issue;
+			}
+		}
+
+		return null;
 	}
 
 	/**

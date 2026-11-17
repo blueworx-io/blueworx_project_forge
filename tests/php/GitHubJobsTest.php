@@ -7,7 +7,9 @@
 
 declare( strict_types = 1 );
 
+use Blueworx\Forge\GitHub\Client;
 use Blueworx\Forge\GitHub\Jobs;
+use Blueworx\Forge\GitHub\Outbound;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -30,6 +32,45 @@ final class GitHubJobsTest extends TestCase {
 		self::assertSame( 1920, Jobs::backoff( 5 ) );
 		self::assertSame( 3600, Jobs::backoff( 6 ) );
 		self::assertSame( 3600, Jobs::backoff( 10 ) );
+	}
+
+	/**
+	 * A refused token is the connection's fault, not the job's: it uses up
+	 * no try, so a token that runs out never makes a change give up.
+	 */
+	public function test_a_refused_token_uses_up_no_try(): void {
+		self::assertFalse( Jobs::counts_as_try( new WP_Error( Client::DENIED, 'No.' ) ) );
+		self::assertTrue( Jobs::counts_as_try( new WP_Error( Client::UNREACHABLE, 'Down.' ) ) );
+		self::assertTrue( Jobs::counts_as_try( new WP_Error( Client::REFUSED, 'Gone.' ) ) );
+	}
+
+	/**
+	 * A try that lost GitHub's answer may still have made the issue: the next
+	 * one finds it by the item's marker instead of making another.
+	 */
+	public function test_an_issue_already_made_is_found_by_its_marker(): void {
+		$issues = array(
+			array(
+				'number' => 3,
+				'id'     => 30,
+				'body'   => "Someone else's\n<!-- forge:wrk_other -->",
+			),
+			array(
+				'number'       => 4,
+				'id'           => 40,
+				'body'         => "A pull request\n<!-- forge:wrk_mine -->",
+				'pull_request' => array(),
+			),
+			array(
+				'number' => 5,
+				'id'     => 50,
+				'body'   => "Ours\n<!-- forge:wrk_mine -->",
+			),
+		);
+
+		self::assertSame( 5, Outbound::marked( $issues, 'wrk_mine' )['number'] );
+		self::assertNull( Outbound::marked( $issues, 'wrk_none' ) );
+		self::assertNull( Outbound::marked( array( array( 'body' => null ) ), 'wrk_mine' ) );
 	}
 
 	/**

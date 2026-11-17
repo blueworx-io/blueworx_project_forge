@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
 import { signIn } from '../helpers/sign-in.js';
-import { installGitHubStub, removeGitHubStub, githubSays, githubCalls, runGitHubJobs } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubCalls, githubState, runGitHubJobs, issueJob } from './helpers/github.js';
 
 // #681. Choosing a repo for a task makes its GitHub issue, once, after the
 // save has answered. A GitHub that is down never stops the save: the issue is
@@ -38,19 +38,28 @@ async function createsFor(id) {
   );
 }
 
+/**
+ * The issues GitHub actually made for this item. A call GitHub refused is in
+ * the call log too, so this is what "one issue" is measured by.
+ */
+async function issuesFor(id) {
+  const made = (await githubState(admin.api.request)).issues ?? {};
+  return Object.values(made).flat().filter((issue) => issue.body.includes(`forge:${id}`));
+}
+
 test.beforeAll(async ({ browser, baseURL }) => {
   test.setTimeout(600000);
   installGitHubStub();
   admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
   ({ site } = await Forge.makeSite(admin.api, 'Issue Co', RUN_ID));
 
-  await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, issues_refused: false, reset: true, hooks: {}, repos: [ALPHA, BETA] });
+  await githubSays(admin.api.request, { down: false, denied: false, hooks_denied: false, issues_refused: false, lose_create_answer: false, reset: true, hooks: {}, repos: [ALPHA, BETA] });
   expect((await admin.api.post('/connections/github', { token: 'good-token-4321' })).ok()).toBe(true);
   expect((await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [ALPHA] })).status()).toBe(200);
 });
 
 test.afterAll(async () => {
-  await githubSays(admin.api.request, { down: false });
+  await githubSays(admin.api.request, { down: false, denied: false, issues_refused: false, lose_create_answer: false });
   await admin.api.put(`/client-sites/${site.id}/github-repos`, { repos: [] });
   await admin.api.del('/connections/github');
   await admin?.context.close();
@@ -78,13 +87,18 @@ test('choosing a repo creates one issue that links back', async ({ page }) => {
   expect(sent.body).toContain(`#item=${first.id}`);
   expect(sent.body.trim().endsWith(`<!-- forge:${first.id} -->`)).toBe(true);
 
+  // The number GitHub gave it. Not assumed to be 1: the test site is reused,
+  // and anything a reconnect sends again takes numbers first.
+  const link = (await admin.api.get(`/work-items/${first.id}`)).github.link;
+  expect(link.repo).toBe(ALPHA);
+
   await signIn(page, ADMIN_USER, ADMIN_PASS);
   await page.goto('about:blank');
   await page.goto(`/blueworx-forge/#item=${first.id}`);
 
   const issue = page.getByTestId('bwx-item-issue');
-  await expect(issue).toHaveText(`${ALPHA}#1`, { timeout: 60000 });
-  await expect(issue).toHaveAttribute('href', `https://github.com/${ALPHA}/issues/1`);
+  await expect(issue).toHaveText(`${ALPHA}#${link.number}`, { timeout: 60000 });
+  await expect(issue).toHaveAttribute('href', `https://github.com/${ALPHA}/issues/${link.number}`);
 });
 
 test('saving the repo again makes no second issue', async () => {
@@ -131,11 +145,105 @@ test('a GitHub that is down still saves, and catches up', async ({ page }) => {
   await expect(page.getByTestId('bwx-connection-github-outbox')).toContainText('waiting to be sent to GitHub', { timeout: 60000 });
   await expect(page.getByTestId('bwx-connection-github-outbox')).toContainText('GitHub could not be reached.');
 
-  await githubSays(admin.api.request, { down: false });
+  await githubSays(admin.api.request, { down: false, denied: false, issues_refused: false, lose_create_answer: false });
   await runGitHubJobs(admin.api.request);
 
   expect(await createsFor(item.id)).toHaveLength(1);
   const link = (await admin.api.get(`/work-items/${item.id}`)).github.link;
   expect(link.repo).toBe(ALPHA);
   expect(link.number).toBeGreaterThan(1);
+});
+
+/** The item's link, once its issue is made. */
+async function linkOf(id) {
+  return (await admin.api.get(`/work-items/${id}`)).github.link;
+}
+
+/** Connects again with a good token, as an administrator would. */
+async function reconnect() {
+  expect((await admin.api.post('/connections/github', { token: 'good-token-4321' })).ok()).toBe(true);
+}
+
+test('a token that runs out uses up no tries, and the change goes after reconnecting', async () => {
+  test.slow();
+  const item = await feature('Token runs out');
+
+  await githubSays(admin.api.request, { denied: true });
+  const saved = await chooseRepo(item.id, ALPHA);
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  for (let run = 0; run < 9; run += 1) {
+    await runGitHubJobs(admin.api.request);
+  }
+
+  const job = await issueJob(admin.api.request, item.id);
+  expect(job.status).toBe('pending');
+  expect(Number(job.attempts)).toBe(0);
+  expect(job.last_error).toContain('token');
+
+  await githubSays(admin.api.request, { denied: false });
+  await reconnect();
+
+  // Run once the reconnect has answered.
+  await expect.poll(async () => (await linkOf(item.id))?.repo ?? null, { timeout: 30000 }).toBe(ALPHA);
+  expect(await issuesFor(item.id)).toHaveLength(1);
+});
+
+test('a change that gave up goes again after reconnecting', async () => {
+  test.slow();
+  const item = await feature('Gave up');
+
+  await githubSays(admin.api.request, { issues_refused: true });
+  const saved = await chooseRepo(item.id, ALPHA);
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  for (let run = 0; run < 10 && 'failed' !== (await issueJob(admin.api.request, item.id)).status; run += 1) {
+    await runGitHubJobs(admin.api.request);
+  }
+
+  expect((await issueJob(admin.api.request, item.id)).status).toBe('failed');
+  const row = (await admin.api.get('/connections')).services.find((service) => 'github' === service.id);
+  expect(row.outbox).toContain("couldn't be sent to GitHub");
+  expect(row.error).toContain("couldn't be sent to GitHub");
+
+  await githubSays(admin.api.request, { issues_refused: false });
+  await reconnect();
+
+  await expect.poll(async () => (await linkOf(item.id))?.repo ?? null, { timeout: 30000 }).toBe(ALPHA);
+  expect(await issuesFor(item.id)).toHaveLength(1);
+});
+
+test('an answer GitHub lost makes no second issue', async () => {
+  test.slow();
+  const item = await feature('Lost answer');
+
+  await githubSays(admin.api.request, { lose_create_answer: true });
+  const saved = await chooseRepo(item.id, ALPHA);
+  expect(saved.status(), await saved.text()).toBe(200);
+
+  // GitHub made it, but Forge never heard.
+  await expect.poll(async () => (await createsFor(item.id)).length, { timeout: 30000 }).toBe(1);
+  expect(await linkOf(item.id)).toBeNull();
+  expect(Number((await issueJob(admin.api.request, item.id)).attempts)).toBe(1);
+
+  await githubSays(admin.api.request, { lose_create_answer: false });
+  await runGitHubJobs(admin.api.request);
+  await runGitHubJobs(admin.api.request);
+
+  expect(await createsFor(item.id)).toHaveLength(1);
+  expect(await issuesFor(item.id)).toHaveLength(1);
+  const link = await linkOf(item.id);
+  expect(link.repo).toBe(ALPHA);
+  expect((await issueJob(admin.api.request, item.id)).status).toBe('done');
+});
+
+test('work added with its repo already chosen gets its issue', async () => {
+  test.slow();
+  const made = await Forge.makeItem(admin.api, site.id, { title: `Added with a repo ${RUN_ID}`, level: 'feature', github_repo: ALPHA });
+  expect(made.status(), await made.text()).toBe(200);
+  const item = (await made.json()).item;
+  expect(item.github_repo).toBe(ALPHA);
+
+  await expect.poll(async () => (await linkOf(item.id))?.repo ?? null, { timeout: 30000 }).toBe(ALPHA);
+  expect(await createsFor(item.id)).toHaveLength(1);
 });

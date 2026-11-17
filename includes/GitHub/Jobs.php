@@ -230,6 +230,14 @@ final class Jobs {
 				continue;
 			}
 
+			// The token is refused: every job would be, and none of them is at
+			// fault. They wait, as when GitHub is not connected, and the GitHub
+			// row says to reconnect.
+			if ( ! self::counts_as_try( $result ) ) {
+				self::release( $job, $result->get_error_message() );
+				break;
+			}
+
 			self::tried(
 				$job,
 				is_wp_error( $result ) ? $result->get_error_message() : __( 'GitHub did not take the change.', 'blueworx-forge' )
@@ -240,21 +248,56 @@ final class Jobs {
 	}
 
 	/**
+	 * Whether a job's failure uses up one of its tries. A refused token does
+	 * not: it is the connection that is wrong, not the job.
+	 *
+	 * @param mixed $result What Outbound::perform() gave back.
+	 * @return bool
+	 */
+	public static function counts_as_try( $result ): bool {
+		return ! ( is_wp_error( $result ) && Client::DENIED === $result->get_error_code() );
+	}
+
+	/**
+	 * After a good connect: jobs that gave up get their tries back, and this
+	 * request runs what is waiting once it has answered.
+	 */
+	public static function reopen(): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update(
+			Schema::github_jobs_table(),
+			array(
+				'status'     => self::PENDING,
+				'attempts'   => 0,
+				'run_after'  => bwx_forge_now(),
+				'updated_at' => bwx_forge_now(),
+			),
+			array( 'status' => self::FAILED ),
+			array( '%s', '%d', '%d', '%d' ),
+			array( '%s' )
+		);
+
+		self::$queued = true;
+	}
+
+	/**
 	 * Jobs that gave up, for the Connections page.
 	 *
 	 * @return array{count: int, last_error: string}
 	 */
 	public static function failures(): array {
-		return self::tally( self::FAILED, 0 );
+		return self::tally( self::FAILED );
 	}
 
 	/**
-	 * Jobs that have failed at least once and are still being tried.
+	 * Jobs still waiting that have hit a problem: a failed try, or a refused token.
 	 *
 	 * @return array{count: int, last_error: string}
 	 */
 	public static function waiting(): array {
-		return self::tally( self::PENDING, 1 );
+		return self::tally( self::PENDING );
 	}
 
 	/**
@@ -402,6 +445,32 @@ final class Jobs {
 	}
 
 	/**
+	 * Puts a claimed job back as it was, tries untouched, noting why.
+	 *
+	 * @param array<string, mixed> $job   The job as claimed.
+	 * @param string               $error Why it could not go.
+	 */
+	private static function release( array $job, string $error ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Own table.
+		$wpdb->update(
+			Schema::github_jobs_table(),
+			array(
+				'status'     => self::PENDING,
+				'last_error' => mb_substr( $error, 0, 191 ),
+				'updated_at' => bwx_forge_now(),
+			),
+			array(
+				'id'     => (string) $job['id'],
+				'status' => self::RUNNING,
+			),
+			array( '%s', '%s', '%d' ),
+			array( '%s', '%s' )
+		);
+	}
+
+	/**
 	 * Counts a try that never finished as a failed one, so its job is tried
 	 * again rather than left claimed for good.
 	 */
@@ -421,18 +490,17 @@ final class Jobs {
 	/**
 	 * How many jobs are in a state, and what last went wrong with one.
 	 *
-	 * @param string $status       Which state.
-	 * @param int    $min_attempts Only jobs tried at least this often.
+	 * @param string $status Which state.
 	 * @return array{count: int, last_error: string}
 	 */
-	private static function tally( string $status, int $min_attempts ): array {
+	private static function tally( string $status ): array {
 		global $wpdb;
 
 		$table = Schema::github_jobs_table();
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE status = %s AND attempts >= %d", $status, $min_attempts ) );
-		$last  = 0 === $count ? '' : (string) $wpdb->get_var( $wpdb->prepare( "SELECT last_error FROM {$table} WHERE status = %s AND attempts >= %d ORDER BY updated_at DESC LIMIT 1", $status, $min_attempts ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE status = %s AND last_error <> ''", $status ) );
+		$last  = 0 === $count ? '' : (string) $wpdb->get_var( $wpdb->prepare( "SELECT last_error FROM {$table} WHERE status = %s AND last_error <> '' ORDER BY updated_at DESC LIMIT 1", $status ) );
 		// phpcs:enable
 
 		return array(

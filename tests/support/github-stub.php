@@ -11,6 +11,8 @@
  * account owns), `hooks` (repo to the webhooks on it), `down` (GitHub cannot
  * be reached), `denied` (every token is refused), `hooks_denied` (the token
  * may not manage webhooks), `issues_refused` (GitHub will not make an issue),
+ * `lose_create_answer` (GitHub makes the issue but its answer never arrives,
+ * like a reply that times out), `issues` (each repo's issues as made),
  * `next_issue` (each repo's next issue number) and `calls`, a log of method,
  * path and body. `reset` clears the log and starts issue numbers at 1 again.
  *
@@ -34,18 +36,20 @@ function bwx_forge_github_stub_state(): array {
 
 	return array_merge(
 		array(
-			'login'          => 'blueworx-io',
-			'repos'          => array(),
-			'hooks'          => array(),
-			'next_hook'      => 1000,
-			'down'           => false,
-			'denied'         => false,
-			'hooks_denied'   => false,
-			'issues_refused' => false,
-			'next_issue'     => array(),
+			'login'              => 'blueworx-io',
+			'repos'              => array(),
+			'hooks'              => array(),
+			'next_hook'          => 1000,
+			'down'               => false,
+			'denied'             => false,
+			'hooks_denied'       => false,
+			'issues_refused'     => false,
+			'lose_create_answer' => false,
+			'issues'             => array(),
+			'next_issue'         => array(),
 			// Far above the ids the specs make up for their own links.
-			'next_issue_id'  => 50000000,
-			'calls'          => array(),
+			'next_issue_id'      => 50000000,
+			'calls'              => array(),
 		),
 		is_array( $state ) ? $state : array()
 	);
@@ -159,9 +163,10 @@ function bwx_forge_github_stub_hooks( array &$state, string $method, string $rep
  *
  * @param array<string, mixed> $state The stub's state, changed in place.
  * @param string               $repo  owner/name.
+ * @param array<string, mixed> $sent  The decoded body: title and body.
  * @return array<string, mixed>
  */
-function bwx_forge_github_stub_issue( array &$state, string $repo ): array {
+function bwx_forge_github_stub_issue( array &$state, string $repo, array $sent ): array {
 	if ( $state['issues_refused'] ) {
 		return bwx_forge_github_stub_response( array( 'message' => 'Issues are disabled for this repo' ), 410 );
 	}
@@ -174,15 +179,16 @@ function bwx_forge_github_stub_issue( array &$state, string $repo ): array {
 	$state['next_issue'][ $repo ] = $number + 1;
 	$id                           = (int) $state['next_issue_id'];
 	$state['next_issue_id']       = $id + 1;
-
-	return bwx_forge_github_stub_response(
-		array(
-			'number'   => $number,
-			'id'       => $id,
-			'html_url' => 'https://github.com/' . $repo . '/issues/' . $number,
-		),
-		201
+	$issue                        = array(
+		'number'   => $number,
+		'id'       => $id,
+		'title'    => (string) ( $sent['title'] ?? '' ),
+		'body'     => (string) ( $sent['body'] ?? '' ),
+		'html_url' => 'https://github.com/' . $repo . '/issues/' . $number,
 	);
+	$state['issues'][ $repo ][]   = $issue;
+
+	return bwx_forge_github_stub_response( $issue, 201 );
 }
 
 add_filter(
@@ -232,7 +238,18 @@ add_filter(
 				)
 			);
 		} elseif ( 'POST' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues$#', $path, $found ) ) {
-			$answer = bwx_forge_github_stub_issue( $state, strtolower( $found[1] ) );
+			$sent   = json_decode( (string) ( $args['body'] ?? '' ), true );
+			$answer = bwx_forge_github_stub_issue( $state, strtolower( $found[1] ), is_array( $sent ) ? $sent : array() );
+
+			// Made, but the answer never comes back: a reply that timed out.
+			if ( $state['lose_create_answer'] && 201 === $answer['response']['code'] ) {
+				update_option( BWX_FORGE_GITHUB_STUB_OPTION, $state, false );
+
+				return new WP_Error( 'http_request_failed', 'Operation timed out.' );
+			}
+		} elseif ( 'GET' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues\?#', $path, $found ) ) {
+			// Newest first, as GitHub lists them; the filters are not modelled.
+			$answer = bwx_forge_github_stub_response( array_reverse( (array) ( $state['issues'][ strtolower( $found[1] ) ] ?? array() ) ) );
 		} elseif ( 'POST' === $method && 1 === preg_match( '#^/repos/([^/]+/[^/?]+)/issues/(\d+)/comments$#', $path, $found ) ) {
 			$answer = in_array( strtolower( $found[1] ), (array) $state['repos'], true )
 				? bwx_forge_github_stub_response( array( 'id' => (int) $state['next_issue_id']++ ), 201 )
@@ -265,7 +282,7 @@ add_action(
 					$body  = (array) $request->get_json_params();
 					$state = bwx_forge_github_stub_state();
 
-					foreach ( array( 'login', 'repos', 'hooks', 'down', 'denied', 'hooks_denied', 'issues_refused' ) as $field ) {
+					foreach ( array( 'login', 'repos', 'hooks', 'down', 'denied', 'hooks_denied', 'issues_refused', 'lose_create_answer' ) as $field ) {
 						if ( array_key_exists( $field, $body ) ) {
 							$state[ $field ] = $body[ $field ];
 						}
@@ -274,6 +291,7 @@ add_action(
 					if ( ! empty( $body['reset'] ) ) {
 						$state['calls']      = array();
 						$state['next_issue'] = array();
+						$state['issues']     = array();
 					}
 
 					update_option( BWX_FORGE_GITHUB_STUB_OPTION, $state, false );
@@ -326,6 +344,25 @@ add_action(
 					$wpdb->update( $table, array( 'run_after' => 0 ), array( 'status' => 'pending' ), array( '%d' ), array( '%s' ) );
 
 					return rest_ensure_response( array( 'sent' => Blueworx\Forge\GitHub\Jobs::run() ) );
+				},
+			)
+		);
+
+		// An item's create_issue job as stored, so a spec can see its tries.
+		register_rest_route(
+			'bwx-forge-test/v1',
+			'/github/job',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => '__return_true',
+				'callback'            => static function ( WP_REST_Request $request ) {
+					global $wpdb;
+
+					$table = Blueworx\Forge\Data\Schema::github_jobs_table();
+					$id    = Blueworx\Forge\GitHub\Jobs::id_for( 'create_issue', (string) $request->get_param( 'item_id' ) );
+
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Test-only read.
+					return rest_ensure_response( array( 'job' => $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %s", $id ), ARRAY_A ) ) );
 				},
 			)
 		);
