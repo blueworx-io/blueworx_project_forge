@@ -74,6 +74,18 @@ final class GitHubJobsTest extends TestCase {
 	}
 
 	/**
+	 * The look for an issue already made reaches an hour before the job, so
+	 * neither a post in the same second nor a clock running ahead misses it,
+	 * and it asks for any author: the marker alone says which issue it is.
+	 */
+	public function test_the_look_for_an_issue_reaches_back_an_hour(): void {
+		$path = Outbound::lookup_path( 'blueworx-io/alpha', 1800000000 );
+
+		self::assertSame( '/repos/blueworx-io/alpha/issues?state=all&per_page=100&since=2027-01-15T07:00:00Z', $path );
+		self::assertStringNotContainsString( 'creator', $path );
+	}
+
+	/**
 	 * What the GitHub row on Connections says about changes not yet sent:
 	 * those that gave up, and those still being tried.
 	 */

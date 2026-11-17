@@ -79,6 +79,12 @@ test('choosing a repo creates one issue that links back', async ({ page }) => {
   const [made] = await createsFor(first.id);
   expect(made.path).toBe(`/repos/${ALPHA}/issues`);
 
+  // Even the first try looks for an issue already made, by marker alone.
+  const looked = (await githubCalls(admin.api.request)).filter((call) => 'GET' === call.method && call.path.startsWith(`/repos/${ALPHA}/issues?`));
+  expect(looked.length).toBeGreaterThan(0);
+  expect(looked.at(-1).path).toContain('since=');
+  expect(looked.at(-1).path).not.toContain('creator=');
+
   const sent = JSON.parse(made.body);
   expect(sent.title).toBe(first.title);
   expect(sent.body).toContain('## Description');

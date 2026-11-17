@@ -82,26 +82,21 @@ final class Outbound {
 		$title = (string) $item['title'];
 		$body  = IssueText::issue_body( $item, Notify::link( $item ) );
 
-		// A try before this one may have made the issue and lost GitHub's
-		// answer: a slow reply times out after GitHub has acted. Look first.
-		// A job given its tries back after a reconnect still has its last error.
-		if ( 0 < (int) ( $job['attempts'] ?? 0 ) || '' !== (string) ( $job['last_error'] ?? '' ) ) {
-			$listed = Client::request(
-				'GET',
-				'/repos/' . $repo . '/issues?state=all&per_page=100&creator=' . rawurlencode( Settings::login() ) . '&since=' . gmdate( 'Y-m-d\TH:i:s\Z', (int) ( $job['created_at'] ?? 0 ) )
-			);
+		// An earlier try may have made the issue and lost GitHub's answer: a
+		// slow reply times out after GitHub has acted, perhaps while the repo
+		// was another one for a moment. So every try looks first.
+		$listed = Client::request( 'GET', self::lookup_path( $repo, (int) ( $job['created_at'] ?? 0 ) ) );
 
-			if ( is_wp_error( $listed ) ) {
-				return $listed;
-			}
+		if ( is_wp_error( $listed ) ) {
+			return $listed;
+		}
 
-			$found = self::marked( $listed, $id );
+		$found = self::marked( $listed, $id );
 
-			if ( null !== $found ) {
-				Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ) );
+		if ( null !== $found ) {
+			Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ) );
 
-				return true;
-			}
+			return true;
 		}
 
 		$made = Client::request(
@@ -128,6 +123,21 @@ final class Outbound {
 		Links::add( $id, $repo, $number, $issue_id, 'forge', $title, hash( 'sha256', $body ) );
 
 		return true;
+	}
+
+	/**
+	 * Where to look for an issue already made for a job. GitHub's `since` is
+	 * "updated after", and the issue can be made in the same second as the job
+	 * or by a GitHub whose clock is behind this site's, so it reaches back an
+	 * hour. Any author: the marker alone says which issue it is, whichever
+	 * account made it.
+	 *
+	 * @param string $repo       owner/name.
+	 * @param int    $created_at When the job was first asked for.
+	 * @return string
+	 */
+	public static function lookup_path( string $repo, int $created_at ): string {
+		return '/repos/' . $repo . '/issues?state=all&per_page=100&since=' . gmdate( 'Y-m-d\TH:i:s\Z', max( 0, $created_at - HOUR_IN_SECONDS ) );
 	}
 
 	/**
