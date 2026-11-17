@@ -30,7 +30,8 @@ use Blueworx\Forge\Work\Validate;
  * a description edited there follows into the task when the issue was
  * raised in GitHub (#682). Closing a linked issue moves finished development
  * on to In review and no further; anything else it would change is left
- * alone, with a note to the team.
+ * alone, with a note to the team. A change made by someone who doesn't
+ * belong to the repo is only ever a note.
  *
  * The delivery id stops one message being handled twice, but GitHub's event
  * and delivery headers are not signed, so the issue id is checked as well:
@@ -190,7 +191,7 @@ final class Inbound {
 			return 'failed';
 		}
 
-		$linked = Links::add( (string) $item['id'], $repo, $number, $issue_id, 'github', (string) $item['title'], hash( 'sha256', (string) ( $issue['body'] ?? '' ) ) );
+		$linked = Links::add( (string) $item['id'], $repo, $number, $issue_id, 'github', (string) $item['title'], hash( 'sha256', (string) ( $issue['body'] ?? '' ) ), Links::time_of( $issue ) );
 
 		if ( ! $linked ) {
 			// Another delivery of the same issue got there first, or the link
@@ -216,8 +217,9 @@ final class Inbound {
 			)
 		);
 
-		// One comment with the way to the task, and never an edit to the issue.
+		// One comment with the way to the task, and the stage label.
 		Jobs::queue( Outbound::LINK_COMMENT, (string) $item['id'], array(), true );
+		Sync::linked( $item );
 
 		return 'created';
 	}
@@ -227,7 +229,13 @@ final class Inbound {
 	 *
 	 * A new title renames the task. A new description replaces the task's
 	 * when the issue was raised in GitHub; on an issue Forge made, Forge's
-	 * own stands and the team gets an internal note instead.
+	 * own stands and the team gets an internal note instead. A change by
+	 * someone who doesn't belong to the repo is only ever a note: anyone can
+	 * open an issue on a public repo, and its author can always edit it.
+	 *
+	 * The issue as it is now is compared with what Forge last saw of it, so
+	 * an edit whose message went missing is still caught up with. A message
+	 * older than the last one seen changes nothing.
 	 *
 	 * What is seen is noted before the task is written, so the save's own
 	 * listener knows the change came from GitHub and sends nothing back.
@@ -236,45 +244,52 @@ final class Inbound {
 	 * @return string updated, noted, unchanged, ignored or failed.
 	 */
 	private static function edited( array $payload ): string {
-		$issue   = (array) ( $payload['issue'] ?? array() );
-		$changes = (array) ( $payload['changes'] ?? array() );
-		$link    = Links::for_issue( (int) ( $issue['id'] ?? 0 ) );
-		$item    = null === $link ? null : Items::get( (string) $link['item_id'] );
+		$issue = (array) ( $payload['issue'] ?? array() );
+		$link  = Links::for_issue( (int) ( $issue['id'] ?? 0 ) );
+		$item  = null === $link ? null : Items::get( (string) $link['item_id'] );
 
 		if ( null === $link || null === $item ) {
 			return 'ignored';
 		}
 
-		$id     = (string) $item['id'];
-		$values = array();
-		$seen   = array();
-		$note   = false;
+		if ( self::older( $issue, $link ) ) {
+			return 'unchanged';
+		}
 
-		// An edit counts only when it starts from what Forge last saw: GitHub
-		// may deliver the message about an older rename after a newer one,
-		// and that one must not write the older title back.
-		if ( self::starts_from_seen( 'title', $changes, $link ) ) {
-			$title = IssueText::title( (string) ( $issue['title'] ?? '' ) );
+		$id      = (string) $item['id'];
+		$trusted = self::trusted( $payload, Settings::login() );
+		$values  = array();
+		$seen    = array();
+		$told    = array();
+		$title   = IssueText::title( (string) ( $issue['title'] ?? '' ) );
 
-			if ( '' !== $title && (string) $item['title'] !== $title ) {
-				$values['title']    = $title;
-				$seen['title_seen'] = $title;
+		if ( '' !== $title && (string) $link['title_seen'] !== $title ) {
+			$seen['title_seen'] = $title;
+
+			if ( (string) $item['title'] !== $title && $trusted ) {
+				$values['title'] = $title;
+			} elseif ( (string) $item['title'] !== $title ) {
+				/* translators: 1: who changed it, as their GitHub login, 2: the title they gave it. */
+				$told[] = sprintf( __( 'The issue\'s title was changed in GitHub by %1$s to "%2$s". Forge kept its own.', 'blueworx-forge' ), self::sender( $payload ), $title );
 			}
 		}
 
-		if ( self::starts_from_seen( 'body', $changes, $link ) ) {
+		if ( array_key_exists( 'body', $issue ) ) {
 			$body = (string) ( $issue['body'] ?? '' );
 			$hash = hash( 'sha256', $body );
+
+			// What Forge would write itself is Forge's own edit, come back
+			// before its job noted it as seen: not worth a note.
+			$own = 'forge' === (string) $link['origin'] && hash( 'sha256', IssueText::issue_body( $item, Notify::link( $item ) ) ) === $hash;
 
 			if ( (string) $link['body_hash'] !== $hash ) {
 				$seen['body_hash'] = $hash;
 
-				if ( 'github' === (string) $link['origin'] ) {
+				if ( 'github' === (string) $link['origin'] && $trusted ) {
 					$values['problem'] = IssueText::to_html( $body );
-				} else {
-					// What Forge would write itself is Forge's own edit, come
-					// back before its job noted it as seen: not worth a note.
-					$note = hash( 'sha256', IssueText::issue_body( $item, Notify::link( $item ) ) ) !== $hash;
+				} elseif ( ! $own ) {
+					/* translators: %s: who changed the description, as their GitHub login. */
+					$told[] = sprintf( __( 'The issue\'s description was changed in GitHub by %s. Forge kept its own; copy anything you need across.', 'blueworx-forge' ), self::sender( $payload ) );
 				}
 			}
 		}
@@ -289,10 +304,9 @@ final class Inbound {
 			}
 
 			// Before the write, so the listener it fires sees the title as
-			// GitHub's already. The description is noted after: an issue
-			// raised in GitHub never has one sent back, and a failed write
-			// must leave GitHub's next try something to do.
-			if ( isset( $seen['title_seen'] ) ) {
+			// GitHub's already. The rest is noted after: a failed write must
+			// leave GitHub's next try something to do.
+			if ( isset( $values['title'] ) ) {
 				Links::seen( $id, array( 'title_seen' => $seen['title_seen'] ) );
 			}
 
@@ -303,42 +317,57 @@ final class Inbound {
 			$outcome = 'updated';
 		}
 
-		/* translators: %s: who changed the description, as their GitHub login. */
-		if ( $note && null === self::note( $item, sprintf( __( 'The issue\'s description was changed in GitHub by %s. Forge kept its own; copy anything you need across.', 'blueworx-forge' ), self::sender( $payload ) ) ) ) {
+		if ( array() !== $told && null === self::note( $item, implode( ' ', $told ) ) ) {
 			return 'failed';
 		}
 
-		if ( isset( $seen['body_hash'] ) ) {
-			// The same edit is noted, or taken in, once.
-			Links::seen( $id, array( 'body_hash' => $seen['body_hash'] ) );
-		}
+		// The same edit is taken in, or noted, once.
+		Links::seen( $id, $seen );
+		Links::updated( $id, Links::time_of( $issue ) );
 
-		return $note && 'unchanged' === $outcome ? 'noted' : $outcome;
+		return array() !== $told && 'unchanged' === $outcome ? 'noted' : $outcome;
 	}
 
 	/**
-	 * Whether GitHub's edit to a field starts from the value Forge last saw
-	 * there. A real edit in GitHub always does; the late message about an
-	 * older change does not. Titles are compared as Forge keeps them, cut
-	 * to length, so a long title still matches.
+	 * Whether a message is about an older state of the issue than the last
+	 * one Forge saw. GitHub may deliver messages out of order.
 	 *
-	 * @param string               $field   title or body.
-	 * @param array<string, mixed> $changes GitHub's `changes`.
-	 * @param array<string, mixed> $link    The link, as read.
+	 * @param array<string, mixed> $issue The issue, as GitHub sends it.
+	 * @param array<string, mixed> $link  The link, as read.
 	 * @return bool
 	 */
-	public static function starts_from_seen( string $field, array $changes, array $link ): bool {
-		if ( ! isset( $changes[ $field ] ) || ! is_array( $changes[ $field ] ) || ! array_key_exists( 'from', $changes[ $field ] ) ) {
+	public static function older( array $issue, array $link ): bool {
+		return Links::time_of( $issue ) < (int) ( $link['updated_seen'] ?? 0 );
+	}
+
+	/**
+	 * Whether a change made in GitHub may change the task. Anyone can open
+	 * an issue on a public repo, and its author can always edit, close and
+	 * reopen it, so only the connected account and people who belong to the
+	 * repo count. Only they can change somebody else's issue, so a change
+	 * by anyone other than its author counts too.
+	 *
+	 * @param array<string, mixed> $payload The decoded body.
+	 * @param string               $login   The account Forge is connected as.
+	 * @return bool
+	 */
+	public static function trusted( array $payload, string $login ): bool {
+		$sender = (string) ( $payload['sender']['login'] ?? '' );
+		$author = (string) ( $payload['issue']['user']['login'] ?? '' );
+
+		if ( '' === $sender ) {
 			return false;
 		}
 
-		$from = (string) ( $changes[ $field ]['from'] ?? '' );
-
-		if ( 'title' === $field ) {
-			return IssueText::title( $from ) === (string) ( $link['title_seen'] ?? '' );
+		if ( '' !== $login && 0 === strcasecmp( $login, $sender ) ) {
+			return true;
 		}
 
-		return hash( 'sha256', $from ) === (string) ( $link['body_hash'] ?? '' );
+		if ( 0 !== strcasecmp( $author, $sender ) ) {
+			return true;
+		}
+
+		return in_array( strtoupper( (string) ( $payload['issue']['author_association'] ?? '' ) ), array( 'OWNER', 'MEMBER', 'COLLABORATOR' ), true );
 	}
 
 	/**
@@ -371,11 +400,13 @@ final class Inbound {
 	 *
 	 * The move goes through Transition::move() like anybody's, so the In
 	 * development check and every other rule still decide; when they say no,
-	 * the team gets a note instead. GitHub's state is recorded as seen, so a
-	 * second message about the same close does nothing.
+	 * the team gets a note instead. So does a close by someone who doesn't
+	 * belong to the repo, such as the stranger who opened it. GitHub's state
+	 * is recorded as seen, so a second message about the same close does
+	 * nothing.
 	 *
 	 * @param array<string, mixed> $payload The decoded body.
-	 * @return string moved, noted, nothing, ignored or failed.
+	 * @return string moved, noted, nothing, unchanged, ignored or failed.
 	 */
 	private static function closed( array $payload ): string {
 		$issue = (array) ( $payload['issue'] ?? array() );
@@ -386,6 +417,10 @@ final class Inbound {
 			return 'ignored';
 		}
 
+		if ( self::older( $issue, $link ) ) {
+			return 'unchanged';
+		}
+
 		if ( 'closed' === (string) $link['state_seen'] ) {
 			return 'nothing';
 		}
@@ -394,9 +429,15 @@ final class Inbound {
 		$decision = self::on_close( $item, $reason );
 		$outcome  = 'nothing';
 
+		if ( 'move' === $decision && ! self::trusted( $payload, Settings::login() ) ) {
+			$decision = 'note';
+		}
+
 		// A refusal is a note: GitHub never works round a rule.
 		if ( 'move' === $decision ) {
-			$decision = self::to_review( (string) $item['id'] ) ? 'moved' : 'note';
+			/* translators: %s: who closed the issue, as their GitHub login. */
+			$why      = sprintf( __( 'Closed in GitHub by %s.', 'blueworx-forge' ), self::sender( $payload ) );
+			$decision = self::to_review( (string) $item['id'], $why ) ? 'moved' : 'note';
 		}
 
 		if ( 'moved' === $decision ) {
@@ -418,17 +459,41 @@ final class Inbound {
 		}
 
 		Links::seen( (string) $item['id'], array( 'state_seen' => 'closed' ) );
+		Links::updated( (string) $item['id'], Links::time_of( $issue ) );
 
 		return $outcome;
 	}
 
 	/**
+	 * What reopening a linked issue in GitHub does (#682): never anything to
+	 * the task, and the team is always told, unless it is Forge's own reopen
+	 * coming back.
+	 *
+	 * @param array<string, mixed> $item      The task.
+	 * @param array<string, mixed> $link      Its link, as read.
+	 * @param bool                 $reopening Whether Forge is reopening the issue itself right now.
+	 * @return string note or nothing.
+	 */
+	public static function on_reopen( array $item, array $link, bool $reopening ): string {
+		// Finished in Forge, so whoever reopened it, Forge didn't.
+		if ( 'closed' === Sync::state_for( $item )['state'] ) {
+			return 'note';
+		}
+
+		// Closed in GitHub by a person, and now reopened there.
+		if ( 'closed' === (string) ( $link['state_seen'] ?? '' ) && ! $reopening ) {
+			return 'note';
+		}
+
+		return 'nothing';
+	}
+
+	/**
 	 * A linked issue was reopened in GitHub (#682). Forge never reopens a
-	 * task for it: when the task is finished in Forge the team is told, and
-	 * otherwise this is GitHub answering Forge's own reopen.
+	 * task for it.
 	 *
 	 * @param array<string, mixed> $payload The decoded body.
-	 * @return string noted, nothing, ignored or failed.
+	 * @return string noted, nothing, unchanged, ignored or failed.
 	 */
 	private static function reopened( array $payload ): string {
 		$issue = (array) ( $payload['issue'] ?? array() );
@@ -439,13 +504,18 @@ final class Inbound {
 			return 'ignored';
 		}
 
+		if ( self::older( $issue, $link ) ) {
+			return 'unchanged';
+		}
+
 		if ( 'open' === (string) $link['state_seen'] ) {
 			return 'nothing';
 		}
 
-		$outcome = 'nothing';
+		$outcome   = 'nothing';
+		$reopening = Jobs::RUNNING === Jobs::status( Outbound::SET_STATE, (string) $item['id'] );
 
-		if ( 'closed' === Sync::state_for( $item )['state'] ) {
+		if ( 'note' === self::on_reopen( $item, $link, $reopening ) ) {
 			/* translators: %s: who reopened the issue, as their GitHub login. */
 			$body = sprintf( __( 'The issue was reopened in GitHub by %s. Forge has left this task where it is.', 'blueworx-forge' ), self::sender( $payload ) );
 
@@ -457,6 +527,7 @@ final class Inbound {
 		}
 
 		Links::seen( (string) $item['id'], array( 'state_seen' => 'open' ) );
+		Links::updated( (string) $item['id'], Links::time_of( $issue ) );
 
 		return $outcome;
 	}
@@ -466,10 +537,11 @@ final class Inbound {
 	 * person's move has. Someone may save the task at the same moment, so a
 	 * version that has moved is read again and tried once more.
 	 *
-	 * @param string $id The task.
+	 * @param string $id  The task.
+	 * @param string $why What the history says about the move.
 	 * @return bool Whether it moved.
 	 */
-	private static function to_review( string $id ): bool {
+	private static function to_review( string $id, string $why ): bool {
 		for ( $try = 0; $try < 2; $try++ ) {
 			$item = Items::get( $id );
 
@@ -477,7 +549,7 @@ final class Inbound {
 				return false;
 			}
 
-			$moved = Transition::move( $item, 'in-review', (int) $item['record_version'], Settings::actor(), Events::VIA_GITHUB );
+			$moved = Transition::move( $item, 'in-review', (int) $item['record_version'], Settings::actor(), Events::VIA_GITHUB, '', $why );
 
 			if ( ! is_wp_error( $moved ) ) {
 				return true;
@@ -543,6 +615,13 @@ final class Inbound {
 
 		$body = (string) ( $issue['body'] ?? '' );
 
-		return Links::add( (string) $item['id'], $repo, $number, (int) $issue['id'], 'forge', (string) $item['title'], hash( 'sha256', $body ) ) ? 'linked' : 'duplicate';
+		if ( ! Links::add( (string) $item['id'], $repo, $number, (int) $issue['id'], 'forge', (string) $item['title'], hash( 'sha256', $body ), Links::time_of( $issue ) ) ) {
+			return 'duplicate';
+		}
+
+		// The task may have moved on, or ended, while its issue was made.
+		Sync::linked( $item );
+
+		return 'linked';
 	}
 }

@@ -103,7 +103,7 @@ final class GitHubSyncTest extends TestCase {
 
 	public function test_a_new_title_is_sent(): void {
 		$this->assertSame(
-			array( 'set_title' ),
+			array( 'set_title' => array( 'title' => 'New' ) ),
 			Sync::wanted(
 				array(
 					'id'    => 'itm_1',
@@ -138,7 +138,7 @@ final class GitHubSyncTest extends TestCase {
 	}
 
 	public function test_github_born_issues_never_get_their_body_written(): void {
-		$this->assertNotContains(
+		$this->assertArrayNotHasKey(
 			'set_body',
 			Sync::wanted(
 				array(
@@ -157,7 +157,7 @@ final class GitHubSyncTest extends TestCase {
 	}
 
 	public function test_forge_born_issues_get_their_body_rewritten(): void {
-		$this->assertContains(
+		$this->assertArrayHasKey(
 			'set_body',
 			Sync::wanted(
 				array(
@@ -173,6 +173,80 @@ final class GitHubSyncTest extends TestCase {
 				self::link( 'forge', 'Same' )
 			)
 		);
+	}
+
+	/**
+	 * A save while the job for the last one is running: the runner only puts
+	 * a job back in the queue when what it asks for has changed, so each
+	 * save has to ask for something different.
+	 */
+	public function test_each_save_asks_for_something_different(): void {
+		$link   = self::link( 'forge', 'First' );
+		$first  = Sync::wanted(
+			array(
+				'title'          => 'First',
+				'scope'          => 'a',
+				'record_version' => 1,
+			),
+			array(
+				'title'          => 'Second',
+				'scope'          => 'b',
+				'record_version' => 2,
+			),
+			$link
+		);
+		$second = Sync::wanted(
+			array(
+				'title'          => 'Second',
+				'scope'          => 'b',
+				'record_version' => 2,
+			),
+			array(
+				'title'          => 'Third',
+				'scope'          => 'c',
+				'record_version' => 3,
+			),
+			$link
+		);
+
+		$this->assertNotEquals( $first['set_title'], $second['set_title'] );
+		$this->assertNotEquals( $first['set_body'], $second['set_body'] );
+	}
+
+	/**
+	 * Work sent back from review after GitHub closed its issue: open on both
+	 * sides of the move, but the issue is closed, so it has to reopen.
+	 */
+	public function test_a_task_open_on_both_sides_still_reopens_an_issue_github_closed(): void {
+		$review = array(
+			'stage'            => 'in-review',
+			'terminal_outcome' => '',
+		);
+		$back   = array(
+			'stage'            => 'in-development',
+			'terminal_outcome' => '',
+		);
+
+		$this->assertSame(
+			array(
+				'state'  => 'open',
+				'reason' => '',
+			),
+			Sync::state_wanted( $review, $back, array( 'state_seen' => 'closed' ) )
+		);
+		$this->assertNull( Sync::state_wanted( $review, $back, array( 'state_seen' => 'open' ) ) );
+		$this->assertNull( Sync::state_wanted( $review, $back, array( 'state_seen' => '' ) ) );
+
+		// A move that changes it is sent whatever was seen.
+		$released = Sync::state_wanted(
+			$review,
+			array(
+				'stage'            => 'released',
+				'terminal_outcome' => '',
+			),
+			array( 'state_seen' => '' )
+		);
+		$this->assertSame( 'closed', $released['state'] ?? '' );
 	}
 
 	public function test_the_body_fields_are_the_issue_body_sections(): void {

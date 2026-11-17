@@ -1735,6 +1735,7 @@ final class Schema {
 	title_seen varchar(191) NOT NULL DEFAULT '',
 	body_hash varchar(64) NOT NULL DEFAULT '',
 	state_seen varchar(10) NOT NULL DEFAULT '',
+	updated_seen bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (item_id),
 	UNIQUE KEY issue_id (issue_id)

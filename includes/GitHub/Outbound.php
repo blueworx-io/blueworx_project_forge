@@ -69,18 +69,52 @@ final class Outbound {
 			case self::CREATE_ISSUE:
 				return self::create_issue( $item, $job );
 			case self::LINK_COMMENT:
-				return self::link_comment( $item );
+				$result = self::link_comment( $item );
+				break;
 			case self::SET_LABEL:
-				return self::set_label( $item, self::payload( $job ) );
+				$result = self::set_label( $item, self::payload( $job ) );
+				break;
 			case self::SET_STATE:
-				return self::set_state( $item, self::payload( $job ) );
+				$result = self::set_state( $item, self::payload( $job ) );
+				break;
 			case self::SET_TITLE:
-				return self::set_title( $item );
+				$result = self::set_title( $item );
+				break;
 			case self::SET_BODY:
-				return self::set_body( $item );
+				$result = self::set_body( $item );
+				break;
 			default:
 				return new WP_Error( Client::REFUSED, __( 'Forge doesn\'t know how to send that change to GitHub.', 'blueworx-forge' ) );
 		}
+
+		// The issue was deleted, or moved to another repo: every later try
+		// would fail the same way. The job is done, and the GitHub row on
+		// Connections says which task lost its issue.
+		if ( self::gone( $result ) ) {
+			/* translators: %s: the task's title. */
+			Settings::failed( sprintf( __( 'The GitHub issue for %s is gone.', 'blueworx-forge' ), (string) $item['title'] ) );
+
+			return true;
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Whether GitHub said an issue is no longer there: deleted, or moved to
+	 * another repo.
+	 *
+	 * @param mixed $result What a job gave back.
+	 * @return bool
+	 */
+	public static function gone( $result ): bool {
+		if ( ! is_wp_error( $result ) ) {
+			return false;
+		}
+
+		$data = $result->get_error_data();
+
+		return is_array( $data ) && in_array( (int) ( $data['github_status'] ?? 0 ), array( 404, 410 ), true );
 	}
 
 	/**
@@ -122,7 +156,9 @@ final class Outbound {
 		$found = self::marked( $listed, $id, Settings::login() );
 
 		if ( null !== $found ) {
-			Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ) );
+			if ( Links::add( $id, $repo, (int) $found['number'], (int) $found['id'], 'forge', $title, hash( 'sha256', (string) ( $found['body'] ?? '' ) ), Links::time_of( $found ) ) ) {
+				Sync::linked( $item );
+			}
 
 			return true;
 		}
@@ -147,8 +183,11 @@ final class Outbound {
 			return new WP_Error( Client::REFUSED, __( 'GitHub did not say which issue it made.', 'blueworx-forge' ) );
 		}
 
-		// False when GitHub's own message about this issue linked it first.
-		Links::add( $id, $repo, $number, $issue_id, 'forge', $title, hash( 'sha256', $body ) );
+		// False when GitHub's own message about this issue linked it first,
+		// and that link asked for the label and state itself.
+		if ( Links::add( $id, $repo, $number, $issue_id, 'forge', $title, hash( 'sha256', $body ), Links::time_of( $made ) ) ) {
+			Sync::linked( $item );
+		}
 
 		return true;
 	}
@@ -345,6 +384,7 @@ final class Outbound {
 
 		// GitHub's message about it is then Forge's own, and changes nothing.
 		Links::seen( (string) $item['id'], array( 'state_seen' => $state ) );
+		Links::updated( (string) $item['id'], Links::time_of( $changed ) );
 
 		return true;
 	}
@@ -372,6 +412,7 @@ final class Outbound {
 		}
 
 		Links::seen( (string) $item['id'], array( 'title_seen' => $title ) );
+		Links::updated( (string) $item['id'], Links::time_of( $changed ) );
 
 		return true;
 	}
@@ -405,6 +446,7 @@ final class Outbound {
 		}
 
 		Links::seen( (string) $item['id'], array( 'body_hash' => $hash ) );
+		Links::updated( (string) $item['id'], Links::time_of( $changed ) );
 
 		return true;
 	}

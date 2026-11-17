@@ -126,4 +126,16 @@ final class GitHubJobsTest extends TestCase {
 			)
 		);
 	}
+
+	/**
+	 * A deleted or moved issue answers 404 or 410 for good: trying again
+	 * would only fail again.
+	 */
+	public function test_an_issue_that_is_gone_is_not_tried_again(): void {
+		self::assertTrue( Outbound::gone( new WP_Error( Client::REFUSED, 'Not Found', array( 'github_status' => 404 ) ) ) );
+		self::assertTrue( Outbound::gone( new WP_Error( Client::REFUSED, 'Gone', array( 'github_status' => 410 ) ) ) );
+		self::assertFalse( Outbound::gone( new WP_Error( Client::REFUSED, 'Error', array( 'github_status' => 502 ) ) ) );
+		self::assertFalse( Outbound::gone( new WP_Error( Client::UNREACHABLE, 'Down.' ) ) );
+		self::assertFalse( Outbound::gone( true ) );
+	}
 }

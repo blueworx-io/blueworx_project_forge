@@ -74,9 +74,10 @@ final class Sync {
 	 * @param array<string, mixed> $after  The item after it.
 	 */
 	public static function moved( array $before, array $after ): void {
-		$id = (string) ( $after['id'] ?? '' );
+		$id   = (string) ( $after['id'] ?? '' );
+		$link = '' === $id ? null : Links::for_item( $id );
 
-		if ( '' === $id || null === Links::for_item( $id ) ) {
+		if ( null === $link ) {
 			return;
 		}
 
@@ -86,9 +87,55 @@ final class Sync {
 			Jobs::queue( Outbound::SET_LABEL, $id, array( 'stage' => $stage ) );
 		}
 
-		$state = self::state_for( $after );
+		$state = self::state_wanted( $before, $after, $link );
 
-		if ( self::state_for( $before ) !== $state ) {
+		if ( null !== $state ) {
+			Jobs::queue( Outbound::SET_STATE, $id, $state );
+		}
+	}
+
+	/**
+	 * Whether a move needs the issue opened or closed, and how.
+	 *
+	 * The move itself decides, and so does what GitHub last showed: work
+	 * sent back after its issue was closed in GitHub is open on both sides
+	 * of the move, but its issue still has to reopen.
+	 *
+	 * @param array<string, mixed> $before The item before the move.
+	 * @param array<string, mixed> $after  The item after it.
+	 * @param array<string, mixed> $link   The item's link.
+	 * @return array{state: string, reason: string}|null Null when nothing needs sending.
+	 */
+	public static function state_wanted( array $before, array $after, array $link ): ?array {
+		$state = self::state_for( $after );
+		$seen  = (string) ( $link['state_seen'] ?? '' );
+
+		if ( self::state_for( $before ) !== $state || ( '' !== $seen && $seen !== $state['state'] ) ) {
+			return $state;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Asks for the issue to show the item as it is now, straight after the
+	 * two are linked: the item may have moved on, or ended, while the issue
+	 * was waiting to be made.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 */
+	public static function linked( array $item ): void {
+		$id = (string) ( $item['id'] ?? '' );
+
+		if ( '' === $id ) {
+			return;
+		}
+
+		Jobs::queue( Outbound::SET_LABEL, $id, array( 'stage' => (string) ( $item['stage'] ?? '' ) ) );
+
+		$state = self::state_for( $item );
+
+		if ( 'closed' === $state['state'] ) {
 			Jobs::queue( Outbound::SET_STATE, $id, $state );
 		}
 	}
@@ -106,47 +153,51 @@ final class Sync {
 			return;
 		}
 
-		foreach ( self::wanted( $before, $after, Links::for_item( $id ) ) as $kind ) {
-			Jobs::queue( $kind, $id );
+		foreach ( self::wanted( $before, $after, Links::for_item( $id ) ) as $kind => $payload ) {
+			Jobs::queue( $kind, $id, $payload );
 		}
 	}
 
 	/**
-	 * What an edit needs sent to the issue.
+	 * What an edit needs sent to the issue, and what each job is asked for.
 	 *
 	 * A title is sent only when it is not the one last seen there, so a
 	 * rename that came from GitHub is not sent back. A description is only
 	 * ever written to an issue Forge made: one raised in GitHub is its
 	 * author's, and Forge never edits it.
 	 *
+	 * Each save asks for something different, so a save made while the job
+	 * for the last one is running puts the job back in the queue rather than
+	 * being taken as already sent.
+	 *
 	 * @param array<string, mixed>      $before The item before the edit.
 	 * @param array<string, mixed>      $after  The item after it.
 	 * @param array<string, mixed>|null $link   The item's link, or null.
-	 * @return array<int, string> Job kinds.
+	 * @return array<string, array<string, mixed>> Job kind to what it is asked for.
 	 */
 	public static function wanted( array $before, array $after, ?array $link ): array {
 		if ( null === $link ) {
 			return array();
 		}
 
-		$kinds = array();
+		$jobs  = array();
 		$title = (string) ( $after['title'] ?? '' );
 
 		if ( (string) ( $before['title'] ?? '' ) !== $title && (string) ( $link['title_seen'] ?? '' ) !== $title ) {
-			$kinds[] = Outbound::SET_TITLE;
+			$jobs[ Outbound::SET_TITLE ] = array( 'title' => $title );
 		}
 
 		if ( 'forge' !== (string) ( $link['origin'] ?? '' ) ) {
-			return $kinds;
+			return $jobs;
 		}
 
 		foreach ( self::BODY_FIELDS as $field ) {
 			if ( (string) ( $before[ $field ] ?? '' ) !== (string) ( $after[ $field ] ?? '' ) ) {
-				$kinds[] = Outbound::SET_BODY;
+				$jobs[ Outbound::SET_BODY ] = array( 'version' => (int) ( $after['record_version'] ?? 0 ) );
 				break;
 			}
 		}
 
-		return $kinds;
+		return $jobs;
 	}
 }

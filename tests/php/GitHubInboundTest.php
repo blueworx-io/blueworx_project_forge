@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\GitHub\Inbound;
+use Blueworx\Forge\GitHub\Links;
 use Blueworx\Forge\Work\Validate;
 use PHPUnit\Framework\TestCase;
 
@@ -82,53 +83,79 @@ final class GitHubInboundTest extends TestCase {
 		self::assertSame( 'ignored', Inbound::handle( 'star', array( 'action' => 'created' ) ) );
 	}
 
-	public function test_a_title_edit_counts_only_from_the_title_forge_last_saw(): void {
-		$link = array(
-			'title_seen' => 'Newest',
-			'body_hash'  => '',
-		);
+	/**
+	 * GitHub may deliver the message about an older change after a newer
+	 * one, or lose one altogether. Order comes from the issue's own time.
+	 */
+	public function test_a_message_older_than_the_last_one_seen_changes_nothing(): void {
+		$link = array( 'updated_seen' => strtotime( '2026-11-17T10:00:05Z' ) );
 
-		// GitHub's message about an older rename, arriving late.
-		self::assertFalse( Inbound::starts_from_seen( 'title', array( 'title' => array( 'from' => 'Older' ) ), $link ) );
-		self::assertTrue( Inbound::starts_from_seen( 'title', array( 'title' => array( 'from' => 'Newest' ) ), $link ) );
-		self::assertFalse( Inbound::starts_from_seen( 'title', array(), $link ) );
+		self::assertTrue( Inbound::older( array( 'updated_at' => '2026-11-17T10:00:04Z' ), $link ) );
+		self::assertFalse( Inbound::older( array( 'updated_at' => '2026-11-17T10:00:05Z' ), $link ) );
+
+		// A delivery went missing in between: the next one still counts.
+		self::assertFalse( Inbound::older( array( 'updated_at' => '2026-11-17T10:09:00Z' ), $link ) );
+
+		// A link made before Forge kept the time takes anything.
+		self::assertFalse( Inbound::older( array( 'updated_at' => '2020-01-01T00:00:00Z' ), array( 'updated_seen' => 0 ) ) );
 	}
 
-	public function test_a_long_title_is_compared_as_forge_keeps_it(): void {
-		$long = str_repeat( 'y', 250 );
+	public function test_github_times_are_read_as_seconds(): void {
+		self::assertSame( 1763373605, Links::time_of( array( 'updated_at' => '2025-11-17T10:00:05Z' ) ) );
+		self::assertSame( 0, Links::time_of( array() ) );
+		self::assertSame( 0, Links::time_of( array( 'updated_at' => 'not a time' ) ) );
+	}
 
-		self::assertTrue(
-			Inbound::starts_from_seen(
-				'title',
-				array( 'title' => array( 'from' => $long ) ),
-				array(
-					'title_seen' => str_repeat( 'y', 191 ),
-					'body_hash'  => '',
-				)
-			)
+	/**
+	 * A message about an issue, from someone.
+	 *
+	 * @param string $sender      Who did it.
+	 * @param string $author      Who opened the issue.
+	 * @param string $association What GitHub says the author is to the repo.
+	 * @return array<string, mixed>
+	 */
+	private static function from( string $sender, string $author, string $association ): array {
+		return array(
+			'issue'  => array(
+				'user'               => array( 'login' => $author ),
+				'author_association' => $association,
+			),
+			'sender' => array( 'login' => $sender ),
 		);
 	}
 
-	public function test_a_body_edit_counts_only_from_the_body_forge_last_saw(): void {
-		$link = array(
-			'title_seen' => '',
-			'body_hash'  => hash( 'sha256', 'Current words.' ),
-		);
+	/**
+	 * Anyone can open an issue on a public repo, and its author can always
+	 * edit and close it, so only people who belong to the repo change tasks.
+	 */
+	public function test_only_people_on_the_repo_change_tasks_from_github(): void {
+		self::assertTrue( Inbound::trusted( self::from( 'Blueworx-IO', 'stranger', 'NONE' ), 'blueworx-io' ) );
+		self::assertTrue( Inbound::trusted( self::from( 'octo', 'octo', 'OWNER' ), 'blueworx-io' ) );
+		self::assertTrue( Inbound::trusted( self::from( 'octo', 'octo', 'MEMBER' ), 'blueworx-io' ) );
+		self::assertTrue( Inbound::trusted( self::from( 'octo', 'octo', 'COLLABORATOR' ), 'blueworx-io' ) );
 
-		self::assertTrue( Inbound::starts_from_seen( 'body', array( 'body' => array( 'from' => 'Current words.' ) ), $link ) );
-		self::assertFalse( Inbound::starts_from_seen( 'body', array( 'body' => array( 'from' => 'Old words.' ) ), $link ) );
+		// Only someone on the repo can change another person's issue.
+		self::assertTrue( Inbound::trusted( self::from( 'octo', 'stranger', 'NONE' ), 'blueworx-io' ) );
 
-		// An issue that had no description before.
-		self::assertTrue(
-			Inbound::starts_from_seen(
-				'body',
-				array( 'body' => array( 'from' => null ) ),
-				array(
-					'title_seen' => '',
-					'body_hash'  => hash( 'sha256', '' ),
-				)
-			)
-		);
+		self::assertFalse( Inbound::trusted( self::from( 'stranger', 'stranger', 'NONE' ), 'blueworx-io' ) );
+		self::assertFalse( Inbound::trusted( self::from( 'stranger', 'stranger', 'CONTRIBUTOR' ), 'blueworx-io' ) );
+		self::assertFalse( Inbound::trusted( self::from( 'stranger', 'Stranger', 'FIRST_TIME_CONTRIBUTOR' ), 'blueworx-io' ) );
+		self::assertFalse( Inbound::trusted( self::from( '', 'stranger', 'NONE' ), 'blueworx-io' ) );
+	}
+
+	/**
+	 * A reopen in GitHub always gets a note, unless it is Forge's own.
+	 */
+	public function test_a_reopen_gets_a_note_unless_forge_did_it(): void {
+		$open     = self::at( 'in-review' );
+		$released = self::at( 'released' );
+
+		self::assertSame( 'note', Inbound::on_reopen( $released, array( 'state_seen' => '' ), false ) );
+		self::assertSame( 'note', Inbound::on_reopen( $open, array( 'state_seen' => 'closed' ), false ) );
+
+		// Forge is reopening it itself, and GitHub's message beat the answer.
+		self::assertSame( 'nothing', Inbound::on_reopen( $open, array( 'state_seen' => 'closed' ), true ) );
+		self::assertSame( 'nothing', Inbound::on_reopen( $open, array( 'state_seen' => '' ), false ) );
 	}
 
 	/**
