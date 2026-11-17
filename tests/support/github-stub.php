@@ -264,5 +264,33 @@ add_action(
 				},
 			)
 		);
+
+		// Links an item to an issue without the flow that makes one, so a spec
+		// can show a task that already has its issue (#681).
+		register_rest_route(
+			'bwx-forge-test/v1',
+			'/github/link',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => '__return_true',
+				'callback'            => static function ( WP_REST_Request $request ) {
+					$body = (array) $request->get_json_params();
+
+					return rest_ensure_response(
+						array(
+							'added' => Blueworx\Forge\GitHub\Links::add(
+								(string) ( $body['item_id'] ?? '' ),
+								(string) ( $body['repo'] ?? '' ),
+								(int) ( $body['number'] ?? 0 ),
+								(int) ( $body['issue_id'] ?? 0 ),
+								'forge',
+								'Stubbed',
+								''
+							),
+						)
+					);
+				},
+			)
+		);
 	}
 );

@@ -15,6 +15,10 @@ use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Commerce\WorkLedger;
+use Blueworx\Forge\GitHub\Client as GitHubClient;
+use Blueworx\Forge\GitHub\Links as GitHubLinks;
+use Blueworx\Forge\GitHub\Repos as GitHubRepos;
+use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Recurring\Materialise;
 use Blueworx\Forge\Slack\Notify;
@@ -883,7 +887,40 @@ final class WorkItemsController {
 				 * was noticed — which is the whole of what this list is for.
 				 */
 				'notifications' => Notifications::for_subject( (string) $item['id'] ),
+
+				// #681. Which repo this task goes in, and its issue once it has one.
+				'github'        => Comments::SCOPE_STAFF === $scope ? self::github_view( $item ) : null,
 			)
+		);
+	}
+
+	/**
+	 * What the repo picker needs: whether GitHub is connected, the task's issue,
+	 * the site's linked repos and the account's own.
+	 *
+	 * GitHub being down never fails the item: the list falls back to the repos
+	 * linked to the site.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return array<string, mixed>
+	 */
+	private static function github_view( array $item ): array {
+		$connected = GitHubSettings::connected();
+		$link      = GitHubLinks::for_item( (string) $item['id'] );
+		$site      = GitHubRepos::for_site( (string) $item['client_site_id'] );
+		$repos     = $connected ? GitHubClient::repos() : array();
+
+		return array(
+			'connected'  => $connected,
+			'link'       => null === $link
+				? null
+				: array(
+					'repo'   => (string) $link['repo'],
+					'number' => (int) $link['issue_number'],
+					'url'    => GitHubLinks::url( $link ),
+				),
+			'site_repos' => $site,
+			'repos'      => is_wp_error( $repos ) ? $site : $repos,
 		);
 	}
 
@@ -1686,6 +1723,19 @@ final class WorkItemsController {
 				400,
 				array( 'fields' => $checked['errors'] )
 			);
+		}
+
+		// #681. A task with a GitHub issue stays in that issue's repo.
+		if ( isset( $checked['values']['github_repo'] ) ) {
+			$link = GitHubLinks::for_item( (string) $item['id'] );
+
+			if ( null !== $link && (string) $link['repo'] !== (string) $checked['values']['github_repo'] ) {
+				return Errors::rest(
+					'github_repo_locked',
+					__( 'This task already has a GitHub issue, so its repo can\'t change. Move the issue in GitHub if it needs to go elsewhere.', 'blueworx-forge' ),
+					409
+				);
+			}
 		}
 
 		$refused = self::permit_edit( $item, $checked['values'] );

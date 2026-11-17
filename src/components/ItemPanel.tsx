@@ -3,6 +3,8 @@ import { ExternalLink } from 'lucide-react';
 import { alphabetical } from '../alphabetical.mjs';
 import { CopyLink } from './CopyLink';
 import { SitsUnder } from './SitsUnder';
+import { RepoPicker } from './RepoPicker';
+import type { GitHubView } from './RepoPicker';
 import type { ReactNode } from 'react';
 import type {
   ChecklistRow,
@@ -51,6 +53,8 @@ interface Detail {
   };
   /** Whether the client has a support package (#642). */
   on_support?: boolean;
+  /** #681. The repo choices and the task's issue; for our own people only. */
+  github?: GitHubView | null;
 }
 
 /** One item this one waits on, or one waiting on it. */
@@ -900,6 +904,37 @@ export function ItemPanel( {
         setNotice( messageFor( error, 'That could not be recorded.' ) );
       }
     } );
+  }
+
+  /**
+   * #681. The repo the task goes in, written through the same queue as every
+   * other auto-save (#544) and read again fresh. A refusal is thrown for the
+   * picker to show under itself.
+   */
+  function saveRepo( repo: string ): Promise< void > {
+    const run = queue.current.then( async () => {
+      const current = latest.current;
+
+      if ( ! current || current.item.github_repo === repo ) {
+        return;
+      }
+
+      await api( `/work-items/${ itemId }`, {
+        method: 'PATCH',
+        body: { github_repo: repo, record_version: current.item.record_version },
+      } );
+
+      const loaded = await api< Detail >( `/work-items/${ itemId }`, { cache: 'fresh' } );
+
+      latest.current = loaded;
+      setDetail( loaded );
+      onChanged();
+      setNotice( SAVED, 'ok' );
+    } );
+
+    queue.current = run.catch( () => undefined );
+
+    return run;
   }
 
   /** The links, only when they changed. */
@@ -2578,6 +2613,11 @@ export function ItemPanel( {
                   </div>
                 ) }
               </div>
+
+              { /* #681. Next to the links: the repo, or the issue once there is one. */ }
+              { detail.github && 'feature' === item.work_type && [ 'feature', 'sub-feature' ].includes( item.level ) && (
+                <RepoPicker repo={ item.github_repo } github={ detail.github } save={ saveRepo } />
+              ) }
               </div>
             ) }
 
