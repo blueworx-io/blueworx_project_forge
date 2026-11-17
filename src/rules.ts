@@ -828,4 +828,38 @@ export const RULES: RuleSection[] = [
       },
     ],
   },
+  {
+    id: 'github',
+    title: 'GitHub',
+    rules: [
+      {
+        what: 'A new issue in a linked repo comes in as a loose item in Future Idea, recorded under the administrator who connected GitHub.',
+        why: 'Forge needs a real person on every item, and moving it to Triage needs a primary person and a reviewer.',
+      },
+      {
+        what: 'Only issues opened after a repo is linked come across.',
+        why: 'Old issues would flood Future Idea.',
+      },
+      {
+        what: 'A repo belongs to one site.',
+        why: 'An issue has to land in one place.',
+      },
+      {
+        what: 'Comments never sync.',
+        why: 'Some Forge comments are internal.',
+      },
+      {
+        what: 'An issue for a site that is closed is skipped.',
+        why: 'Nothing should land on a site that is no longer worked on.',
+      },
+      {
+        what: 'Messages that say they are from GitHub are only accepted when signed with the secret, and none are accepted until GitHub is connected.',
+        why: 'Anyone could otherwise create items in Forge.',
+      },
+      {
+        what: 'Forge makes the secret itself and adds its webhook to each repo you link, and takes it off when you unlink. A repo GitHub won\'t add the webhook to is not linked.',
+        why: 'Nobody has to copy secrets or set up webhooks by hand, and a linked repo is always one Forge can hear from.',
+      },
+    ],
+  },
 ];

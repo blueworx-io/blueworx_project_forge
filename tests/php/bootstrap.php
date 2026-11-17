@@ -659,6 +659,36 @@ function wp_remote_post( string $url, array $args = array() ) {
 }
 
 /**
+ * Stub. Where a REST route of this site answers.
+ *
+ * @param string $path Route path.
+ * @return string
+ */
+function rest_url( string $path = '' ): string {
+	return 'https://forge.test/wp-json/' . ltrim( $path, '/' );
+}
+
+/**
+ * Stub. Any method, drawing on the same queue as the pair above.
+ *
+ * @param string               $url  Request URL.
+ * @param array<string, mixed> $args Request arguments.
+ * @return array<string, mixed>|WP_Error
+ */
+function wp_remote_request( string $url, array $args = array() ) {
+	$GLOBALS['bwx_forge_test_http_requests'][] = array(
+		'url'  => $url,
+		'args' => $args,
+	);
+
+	$queued = array_shift( $GLOBALS['bwx_forge_test_http'] );
+
+	return null === $queued
+		? new WP_Error( 'bwx_forge_test_no_response_queued', 'No response queued.' )
+		: $queued;
+}
+
+/**
  * Stub.
  *
  * @param mixed $thing Anything.

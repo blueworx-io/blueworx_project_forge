@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.221.0] - 2026-11-17
+
+### Added
+
+- Connect GitHub from Settings → Connections with just a token, then tick each client's repos on their page. Forge adds its own webhook to each repo you link, so there's nothing to set up in GitHub by hand. New issues raised in a linked repo now appear in Forge in Future Idea, ready to triage. If GitHub stops accepting the token or a webhook can't be added, the GitHub row says so. Setup steps are in docs/github-setup.md.
+
 ## [2.220.1] - 2026-11-13
 
 ### Fixed

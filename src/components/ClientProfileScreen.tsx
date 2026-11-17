@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { ClientRecord, ClientSiteRecord, WorkItem } from '../types';
-import { api, forgeData, isDenied } from '../api';
+import { api, forgeData, isDenied, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { buildTree, summary, topLevel } from '../tree.mjs';
 import { Button, Panel, Select, StageChip, Tag } from '../kit';
@@ -13,6 +13,76 @@ import { CreateSite } from './CreateSite';
 
 /** 3 Nov 2026, from a Y-m-d date, without the timezone moving the day. */
 const day = ( date: string ) => new Date( `${ date }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } );
+
+interface RepoList {
+  connected: boolean;
+  repos: Array< { repo: string; site_id: string; site_name: string } >;
+}
+
+/**
+ * #680. Which of the GitHub account's repositories belong to one site.
+ * Ticking or unticking saves at once, and Forge adds or removes its webhook
+ * on that repo. A repository another site holds is shown but cannot be
+ * ticked here, with that site's name.
+ */
+function SiteRepos( { siteId, list, onChanged }: { siteId: string; list: RepoList; onChanged: () => void } ) {
+  const [ notice, setNotice ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const saved = list.repos.filter( ( one ) => one.site_id === siteId ).map( ( one ) => one.repo );
+  // What is ticked shows at once; the saved list takes over when it comes back.
+  const [ mine, setMine ] = useState( saved );
+  const savedKey = saved.join( ',' );
+
+  useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMine( savedKey ? savedKey.split( ',' ) : [] );
+  }, [ savedKey ] );
+
+  async function toggle( repo: string, on: boolean ) {
+    const next = on ? [ ...mine, repo ] : mine.filter( ( one ) => one !== repo );
+
+    setMine( next );
+    setBusy( true );
+    setNotice( '' );
+    try {
+      await api( `/client-sites/${ siteId }/github-repos`, { method: 'PUT', body: { repos: next } } );
+    } catch ( error ) {
+      setMine( saved );
+      setNotice( messageFor( error, 'The repositories could not be saved. Try again.' ) );
+    }
+    onChanged();
+    setBusy( false );
+  }
+
+  return (
+    <fieldset className="bwx-field bwx-site-repos" data-testid="bwx-site-repos" data-site={ siteId } disabled={ busy }>
+      <legend>GitHub repos</legend>
+      { 0 === list.repos.length && <span className="bwx-hint">The GitHub account has no repositories yet.</span> }
+      { list.repos.map( ( one ) => {
+        const elsewhere = '' !== one.site_id && one.site_id !== siteId;
+
+        return (
+          <label key={ one.repo } className="bwx-recurring-person">
+            <input
+              type="checkbox"
+              data-testid={ `bwx-site-repo-${ siteId }-${ one.repo }` }
+              checked={ mine.includes( one.repo ) }
+              disabled={ elsewhere }
+              onChange={ ( event ) => void toggle( one.repo, event.target.checked ) }
+            />
+            { one.repo }
+            { elsewhere && <span className="bwx-hint">{ ` linked to ${ one.site_name || 'another site' }` }</span> }
+          </label>
+        );
+      } ) }
+      { '' !== notice && (
+        <p className="bwx-notice" role="alert" data-testid="bwx-site-repos-notice">
+          { notice }
+        </p>
+      ) }
+    </fieldset>
+  );
+}
 
 /**
  * One client's page (#561): who they are, who looks after them, their sites,
@@ -35,6 +105,24 @@ export function ClientProfileScreen( {
   const [ work, setWork ] = useState< WorkItem[] >( [] );
   const [ projectSite, setProjectSite ] = useState( '' );
   const [ adding, setAdding ] = useState( '' );
+  const [ github, setGitHub ] = useState< RepoList | null >( null );
+  const [ githubError, setGitHubError ] = useState( '' );
+
+  // #680. Only an administrator links repositories, and only once GitHub is
+  // connected. When GitHub can't list them, the chooser says why instead of
+  // disappearing.
+  function loadRepos() {
+    if ( ! admin ) return;
+    void api< RepoList >( '/github/repos', { cache: 'fresh' } )
+      .then( ( next ) => {
+        setGitHub( next.connected ? next : null );
+        setGitHubError( '' );
+      } )
+      .catch( ( error ) => {
+        setGitHub( null );
+        setGitHubError( messageFor( error, 'The GitHub repos could not be read. Try again.' ) );
+      } );
+  }
 
   async function load() {
     try {
@@ -53,6 +141,7 @@ export function ClientProfileScreen( {
       setSites( theirs.sites );
       setWork( lists.flat().filter( ( one ) => ! one.archived ) );
       setState( found ? 'ready' : 'missing' );
+      loadRepos();
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
     }
@@ -99,6 +188,18 @@ export function ClientProfileScreen( {
                     { site.name }{ 'active' !== site.status && ' (deactivated)' }
                     { /* #621. An administrator can create its WordPress site on the network. */ }
                     { admin && 'active' === site.status && <CreateSite siteId={ site.id } siteName={ site.name } /> }
+                    { /* #680. The GitHub repositories whose issues belong to this site. */ }
+                    { github && 'active' === site.status && (
+                      <SiteRepos siteId={ site.id } list={ github } onChanged={ loadRepos } />
+                    ) }
+                    { '' !== githubError && 'active' === site.status && (
+                      <fieldset className="bwx-field bwx-site-repos" data-site={ site.id }>
+                        <legend>GitHub repos</legend>
+                        <p className="bwx-notice" role="alert" data-testid="bwx-site-repos-error">
+                          { githubError }
+                        </p>
+                      </fieldset>
+                    ) }
                   </li>
                 ) ) }
               </ul>

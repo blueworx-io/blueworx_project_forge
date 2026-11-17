@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
+use Blueworx\Forge\GitHub\Settings as GitHubSettings;
+use Blueworx\Forge\GitHub\Signature as GitHubSignature;
 use Blueworx\Forge\Tenancy\ManagerRole;
 use Blueworx\Forge\Tenancy\Users;
 use SplObjectStorage;
@@ -81,7 +83,7 @@ final class Permissions {
 	 * @return bool
 	 */
 	public static function behind_the_door( $callback ): bool {
-		return ! in_array( $callback, array( array( self::class, 'client_site' ), array( self::class, 'read' ) ), true );
+		return ! in_array( $callback, array( array( self::class, 'client_site' ), array( self::class, 'read' ), array( self::class, 'github' ) ), true );
 	}
 
 	/**
@@ -176,5 +178,29 @@ final class Permissions {
 		$answers[ $request ] = $answer;
 
 		return $answer;
+	}
+
+	/**
+	 * A message from GitHub, proven by its signature (#680).
+	 *
+	 * GitHub is a machine, not a user: it proves the message is its own by
+	 * signing the body with the secret Forge made when it was connected. Nothing else
+	 * is asked, and an unconnected site refuses everything.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public static function github( WP_REST_Request $request ): bool {
+		$secret = GitHubSettings::secret();
+
+		if ( ! GitHubSettings::connected() || null === $secret ) {
+			return false;
+		}
+
+		return GitHubSignature::valid(
+			(string) $request->get_body(),
+			(string) $request->get_header( 'x_hub_signature_256' ),
+			$secret
+		);
 	}
 }

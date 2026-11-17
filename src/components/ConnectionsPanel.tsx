@@ -11,6 +11,9 @@ export interface Service {
   connected_at?: number;
   last_checked?: number;
   link?: string;
+  /** What last went wrong, in plain words; empty when nothing has. */
+  error?: string;
+  error_at?: number;
 }
 
 interface Connections {
@@ -68,6 +71,59 @@ function CloudwaysForm( { onDone, onCancel }: { onDone: ( next: Connections ) =>
       <div className="bwx-moves">
         <Button size="sm" type="submit" disabled={ busy } data-testid="bwx-cloudways-save">
           { busy ? 'Checking with Cloudways…' : 'Connect Cloudways' }
+        </Button>
+        <Button size="sm" variant="ghost" disabled={ busy } onClick={ onCancel }>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * GitHub: a token only, checked with GitHub before it is kept. Forge makes the
+ * webhook secret itself and adds the webhook to each repo it links.
+ */
+function GitHubForm( { onDone, onCancel }: { onDone: ( next: Connections ) => void; onCancel: () => void } ) {
+  const [ token, setToken ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const [ notice, setNotice ] = useState( '' );
+
+  async function save() {
+    setBusy( true );
+    setNotice( '' );
+    try {
+      onDone( await api< Connections >( '/connections/github', { method: 'POST', body: { token } } ) );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'GitHub could not be connected.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  return (
+    <form
+      className="bwx-connection-form"
+      data-testid="bwx-github-form"
+      onSubmit={ ( event ) => {
+        event.preventDefault();
+        void save();
+      } }
+    >
+      <p className="bwx-hint">
+        A fine-grained token from the blueworx-io account with access to all its repositories: Issues (read and write), Webhooks (read and write) and Metadata (read). It is kept sealed and never shown again.
+      </p>
+      <Field label="Token">
+        { ( id ) => <TextInput id={ id } type="password" autoComplete="off" data-testid="bwx-github-token" value={ token } onChange={ ( event ) => setToken( event.target.value ) } /> }
+      </Field>
+      { '' !== notice && (
+        <p className="bwx-notice" role="alert" data-testid="bwx-github-notice">
+          { notice }
+        </p>
+      ) }
+      <div className="bwx-moves">
+        <Button size="sm" type="submit" disabled={ busy } data-testid="bwx-github-save">
+          { busy ? 'Checking with GitHub…' : 'Connect GitHub' }
         </Button>
         <Button size="sm" variant="ghost" disabled={ busy } onClick={ onCancel }>
           Cancel
@@ -204,8 +260,17 @@ export function ConnectionsPanel( { onOpenServers }: { onOpenServers?: () => voi
             { service.connected && 'cloudways' === service.id && '' !== ( service.hint ?? '' ) && (
               <p className="bwx-hint">{ `Access token ${ service.hint }` }</p>
             ) }
+            { service.connected && 'github' === service.id && '' !== ( service.hint ?? '' ) && (
+              <p className="bwx-hint">{ `Token ${ service.hint }` }</p>
+            ) }
+            { 'github' === service.id && '' !== ( service.error ?? '' ) && (
+              <p className="bwx-notice" role="status" data-testid="bwx-connection-github-problem">
+                { `Last problem (${ since( service.error_at ) }): ${ service.error }` }
+              </p>
+            ) }
             { undefined !== service.link && <p className="bwx-hint">Stores and the Slack app are still set up on the WordPress admin Connections screen.</p> }
             { editing === service.id && 'cloudways' === service.id && <CloudwaysForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
+            { editing === service.id && 'github' === service.id && <GitHubForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
             { editing === service.id && 'network' === service.id && <NetworkForm onDone={ landed } onCancel={ () => setEditing( '' ) } /> }
             { 'network' === service.id && service.connected && <p className="bwx-hint">Create a client&apos;s site from their page in Clients, on a site with no WordPress site connected yet.</p> }
           </li>

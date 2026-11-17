@@ -114,5 +114,6 @@ final class Server {
 		SignalsController::register_routes( self::NAMESPACE );
 		GoogleController::register_routes( self::NAMESPACE );
 		ConnectionsController::register_routes( self::NAMESPACE );
+		GitHubController::register_routes( self::NAMESPACE );
 	}
 }

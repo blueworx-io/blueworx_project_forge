@@ -46,7 +46,7 @@ final class SchemaTest extends TestCase {
 	public function test_both_tables_carry_the_common_columns(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertCount( 40, $definitions );
+		$this->assertCount( 43, $definitions );
 
 		// The append-only tables are the exception, for the reason spelled out
 		// in the next test: nothing ever updates a row in them. The dependency
@@ -153,7 +153,19 @@ final class SchemaTest extends TestCase {
 			Schema::google_people_table(),
 		);
 
+		// The GitHub tables (#680) are keyed by what they hold — a repo, an item,
+		// a delivery id — and have no id column of their own.
+		$keyed_otherwise = array(
+			Schema::github_repos_table(),
+			Schema::github_links_table(),
+			Schema::github_deliveries_table(),
+		);
+
 		foreach ( $definitions as $table => $sql ) {
+			if ( in_array( $table, $keyed_otherwise, true ) ) {
+				continue;
+			}
+
 			$this->assertStringContainsString( 'id varchar(32) NOT NULL', $sql );
 			$this->assertStringContainsString( 'PRIMARY KEY  (id)', $sql );
 
@@ -166,6 +178,22 @@ final class SchemaTest extends TestCase {
 			$this->assertStringContainsString( 'updated_at', $sql );
 			$this->assertStringContainsString( 'created_by', $sql );
 		}
+	}
+
+	/**
+	 * The GitHub sync's three tables, and the item's repo column (#680).
+	 */
+	public function test_github_tables_are_defined(): void {
+		$definitions = Schema::definitions();
+
+		$this->assertSame( 54, Schema::VERSION );
+		$this->assertArrayHasKey( Schema::github_repos_table(), $definitions );
+		$this->assertArrayHasKey( Schema::github_links_table(), $definitions );
+		$this->assertArrayHasKey( Schema::github_deliveries_table(), $definitions );
+		$this->assertStringContainsString( "github_repo varchar(191) NOT NULL DEFAULT ''", $definitions[ Schema::work_items_table() ] );
+		$this->assertStringContainsString( 'UNIQUE KEY issue_id (issue_id)', $definitions[ Schema::github_links_table() ] );
+		// The webhook Forge added to each linked repo, so unlinking can take it off.
+		$this->assertStringContainsString( 'hook_id bigint(20) unsigned NOT NULL DEFAULT 0', $definitions[ Schema::github_repos_table() ] );
 	}
 
 	/**

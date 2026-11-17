@@ -79,6 +79,9 @@ final class Items {
 				// naming a release it no longer sits under, which is what
 				// stops it holding that review.
 				'review_of'      => (string) ( $values['review_of'] ?? '' ),
+				// #680. Named only by an issue brought in from GitHub: the
+				// repository it came from. No request body can set it.
+				'github_repo'    => (string) ( $values['github_repo'] ?? '' ),
 				'assignees'      => (string) wp_json_encode( array_values( array_map( 'strval', (array) ( $values['assignees'] ?? array() ) ) ) ),
 				'hours_each'     => (string) (float) ( $values['hours_each'] ?? 0 ),
 				'client_site_id' => $client_site_id,
@@ -821,6 +824,7 @@ final class Items {
 			'duplicate_of'             => '',
 			'archived'                 => 0,
 			'recurring_id'             => '',
+			'github_repo'              => '',
 			'review_attempt'           => 1,
 			'primary_user_id'          => '',
 			'designer_id'              => '',
@@ -898,6 +902,7 @@ final class Items {
 			'duplicate_of'             => (string) $row['duplicate_of'],
 			'archived'                 => (bool) $row['archived'],
 			'recurring_id'             => (string) ( $row['recurring_id'] ?? '' ),
+			'github_repo'              => (string) ( $row['github_repo'] ?? '' ),
 			'assignees'                => self::ids( (string) ( $row['assignees'] ?? '' ) ),
 			'ticks'                    => self::ticks( (string) ( $row['ticks'] ?? '' ) ),
 			'hours_each'               => (float) ( $row['hours_each'] ?? 0 ),
@@ -1044,6 +1049,7 @@ final class Items {
 		$wpdb->delete( Schema::work_events_table(), array( 'item_id' => $id ), array( '%s' ) );
 		$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $id ), array( '%s' ) );
 		$wpdb->delete( Schema::comments_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::github_links_table(), array( 'item_id' => $id ), array( '%s' ) );
 		$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $id ), array( '%s' ), array( '%s' ) );
 
 		// The children move last, read again here so one added a moment ago is not
@@ -1133,6 +1139,8 @@ final class Items {
 			$wpdb->delete( Schema::work_events_table(), array( 'item_id' => $doomed ), array( '%s' ) );
 			$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $doomed ), array( '%s' ) );
 			$wpdb->delete( Schema::comments_table(), array( 'item_id' => $doomed ), array( '%s' ) );
+			// #680. Its GitHub issue is no longer anyone's.
+			$wpdb->delete( Schema::github_links_table(), array( 'item_id' => $doomed ), array( '%s' ) );
 			$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $doomed ), array( '%s' ), array( '%s' ) );
 
 			if ( false !== $wpdb->delete( $table, array( 'id' => $doomed ), array( '%s' ) ) ) {

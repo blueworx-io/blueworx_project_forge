@@ -66,6 +66,8 @@ final class ClientErasure {
 	public static function plan(): array {
 		return array(
 			array( Schema::slack_events_table(), 'subject_id', self::BY_ITEM ),
+			array( Schema::github_links_table(), 'item_id', self::BY_ITEM ),
+			array( Schema::github_repos_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::recurring_occurrences_table(), 'recurring_id', self::BY_SOURCE ),
 			array( Schema::recurring_table(), 'client_site_id', self::BY_SITE ),
 			array( Schema::dependencies_table(), 'client_site_id', self::BY_SITE ),
@@ -122,6 +124,8 @@ final class ClientErasure {
 			// with a client is let go the next time that calendar syncs.
 			Schema::google_connections_table(),
 			Schema::google_people_table(),
+			// #680. Which deliveries GitHub has sent: nobody's client.
+			Schema::github_deliveries_table(),
 		);
 	}
 
