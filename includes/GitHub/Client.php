@@ -128,11 +128,13 @@ final class Client {
 	/**
 	 * Every repository in an organisation, as lower-case owner/name, sorted.
 	 *
-	 * @param string $org The organisation.
+	 * @param string      $org   The organisation.
+	 * @param string|null $token A token to check, or null for the saved one. A token given is
+	 *                           not saved yet, so nothing is read from or kept in the cache.
 	 * @return array<int, string>|WP_Error
 	 */
-	public static function org_repos( string $org ) {
-		$cached = get_transient( Settings::REPOS );
+	public static function org_repos( string $org, ?string $token = null ) {
+		$cached = null === $token ? get_transient( Settings::REPOS ) : false;
 
 		if ( is_array( $cached ) ) {
 			return $cached;
@@ -142,7 +144,7 @@ final class Client {
 		$page  = 1;
 
 		do {
-			$answer = self::request( 'GET', '/orgs/' . rawurlencode( $org ) . '/repos?per_page=100&page=' . $page );
+			$answer = self::request( 'GET', '/orgs/' . rawurlencode( $org ) . '/repos?per_page=100&page=' . $page, array(), $token );
 
 			if ( is_wp_error( $answer ) ) {
 				return $answer;
@@ -161,6 +163,10 @@ final class Client {
 		} while ( $count >= 100 );
 
 		sort( $names );
+
+		if ( null !== $token ) {
+			return $names;
+		}
 
 		set_transient( Settings::REPOS, $names, self::REPOS_TTL );
 

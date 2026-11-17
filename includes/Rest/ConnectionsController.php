@@ -13,6 +13,7 @@ use Blueworx\Forge\Admin\ConnectionsScreen;
 use Blueworx\Forge\Cloudways\Client as Cloudways;
 use Blueworx\Forge\Cloudways\Settings as CloudwaysSettings;
 use Blueworx\Forge\Cloudways\Status;
+use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\Network\Client as NetworkClient;
 use Blueworx\Forge\Network\Deploys;
 use Blueworx\Forge\Network\Settings as NetworkSettings;
@@ -302,7 +303,7 @@ final class ConnectionsController {
 	 *
 	 * @return array<string, mixed>
 	 */
-	private static function answer(): array {
+	public static function answer(): array {
 		$wp_admin = admin_url( 'admin.php?page=' . ConnectionsScreen::SLUG );
 
 		return array(
@@ -323,6 +324,14 @@ final class ConnectionsController {
 					'email'        => NetworkSettings::url(),
 					'hint'         => NetworkSettings::key_hint(),
 					'last_checked' => NetworkSettings::about()['last_ok_at'],
+				),
+				array(
+					'id'           => 'github',
+					'name'         => 'GitHub',
+					'connected'    => GitHubSettings::connected(),
+					'hint'         => GitHubSettings::token_hint(),
+					'connected_at' => GitHubSettings::connected_at(),
+					'last_checked' => GitHubSettings::last_heard(),
 				),
 				array(
 					'id'   => 'surecart',
