@@ -1671,7 +1671,7 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true );
+		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true, $item );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -2798,7 +2798,7 @@ final class WorkItemsController {
 		$groups = array(
 			Capabilities::EDIT_COMMERCIAL     => Fields::COMMERCIAL,
 			Capabilities::EDIT_ACCOUNTABILITY => Fields::ACCOUNTABILITY,
-			Capabilities::EDIT_PLANNING       => Fields::PLANNING,
+			Capabilities::EDIT_PLANNING       => array_merge( Fields::PLANNING, Fields::GITHUB ),
 			Capabilities::EDIT_DEFINITION     => Fields::DEFINITION,
 		);
 
