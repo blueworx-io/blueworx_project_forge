@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 53;
+	public const VERSION = 54;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -479,6 +479,39 @@ final class Schema {
 	}
 
 	/**
+	 * The GitHub repos connected to a client site (#680).
+	 *
+	 * @return string
+	 */
+	public static function github_repos_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_github_repos';
+	}
+
+	/**
+	 * The link between a work item and its GitHub issue (#680).
+	 *
+	 * @return string
+	 */
+	public static function github_links_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_github_links';
+	}
+
+	/**
+	 * Webhook deliveries already seen, so a repeat is ignored (#680).
+	 *
+	 * @return string
+	 */
+	public static function github_deliveries_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_github_deliveries';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -546,6 +579,10 @@ final class Schema {
 		$gcal_meetings = self::google_meetings_table();
 		$gcal_people   = self::google_people_table();
 		$gcal_series   = self::google_series_table();
+
+		$github_repos      = self::github_repos_table();
+		$github_links      = self::github_links_table();
+		$github_deliveries = self::github_deliveries_table();
 
 		return array(
 			$clients          => "CREATE TABLE {$clients} (
@@ -797,6 +834,7 @@ final class Schema {
 	release_method varchar(20) NOT NULL DEFAULT '',
 	release_destination varchar(191) NOT NULL DEFAULT '',
 	recurring_id varchar(32) NOT NULL DEFAULT '',
+	github_repo varchar(191) NOT NULL DEFAULT '',
 	client_confirmed_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	client_confirmed_by bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1659,6 +1697,43 @@ final class Schema {
 	PRIMARY KEY  (id),
 	KEY user_outcome (user_id, outcome),
 	KEY outcome_settled (outcome, settled_at)
+) {$collate};",
+
+			/*
+			 * GitHub issue sync (#680). A repo belongs to one client site; an
+			 * item links to at most one issue and an issue to at most one item
+			 * (the unique key). Deliveries are an id-only seen-list.
+			 */
+			$github_repos     => "CREATE TABLE {$github_repos} (
+	repo varchar(191) NOT NULL,
+	client_site_id varchar(32) NOT NULL,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (repo),
+	KEY client_site_id (client_site_id)
+) {$collate};",
+
+			$github_links     => "CREATE TABLE {$github_links} (
+	item_id varchar(32) NOT NULL,
+	repo varchar(191) NOT NULL,
+	issue_number int(11) unsigned NOT NULL DEFAULT 0,
+	issue_id bigint(20) unsigned NOT NULL DEFAULT 0,
+	origin varchar(10) NOT NULL DEFAULT 'forge',
+	title_seen varchar(191) NOT NULL DEFAULT '',
+	body_hash varchar(64) NOT NULL DEFAULT '',
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (item_id),
+	UNIQUE KEY issue_id (issue_id)
+) {$collate};",
+
+			$github_deliveries => "CREATE TABLE {$github_deliveries} (
+	id varchar(64) NOT NULL,
+	event varchar(32) NOT NULL DEFAULT '',
+	action varchar(32) NOT NULL DEFAULT '',
+	outcome varchar(20) NOT NULL DEFAULT '',
+	received_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY received_at (received_at)
 ) {$collate};",
 
 			/*

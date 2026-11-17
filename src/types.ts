@@ -143,6 +143,8 @@ export interface WorkItem {
   delivered_by_forge: boolean;
   release_method: string;
   release_destination: string;
+  // '' unanswered, 'none' no repo needed, else owner/name lower-cased (#680).
+  github_repo: string;
 
   /*
    * What the children beneath it make it (#101). Filled in by the API on the
