@@ -9,8 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Rest;
 
-use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\GitHub\Client;
+use Blueworx\Forge\GitHub\Repos;
 use Blueworx\Forge\GitHub\Settings;
 use WP_REST_Request;
 
@@ -47,6 +47,28 @@ final class GitHubController {
 					'callback'            => array( self::class, $callback ),
 					'permission_callback' => array( Permissions::class, 'manage' ),
 					'scope'               => $scope,
+				)
+			);
+		}
+
+		$site_scope = array(
+			'kind'   => Boundary::SCOPE_SITE,
+			'param'  => 'site_id',
+			'record' => 'client_site',
+		);
+
+		foreach ( array(
+			'GET' => 'site_repos',
+			'PUT' => 'set_site_repos',
+		) as $method => $callback ) {
+			Server::register_route(
+				$route_namespace,
+				'/client-sites/(?P<site_id>[A-Za-z0-9_-]+)/github-repos',
+				array(
+					'methods'             => $method,
+					'callback'            => array( self::class, $callback ),
+					'permission_callback' => array( Permissions::class, 'manage' ),
+					'scope'               => $site_scope,
 				)
 			);
 		}
@@ -134,16 +156,7 @@ final class GitHubController {
 			return Errors::rest( 'github_unreachable', __( 'GitHub could not be reached, so the repositories could not be listed. Try again.', 'blueworx-forge' ), 502 );
 		}
 
-		global $wpdb;
-
-		$table = Schema::github_repos_table();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
-		$rows  = $wpdb->get_results( "SELECT repo, client_site_id FROM {$table}", ARRAY_A );
-		$sites = array();
-
-		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$sites[ (string) $row['repo'] ] = (string) $row['client_site_id'];
-		}
+		$sites = Repos::all();
 
 		return rest_ensure_response(
 			array(
@@ -158,5 +171,37 @@ final class GitHubController {
 				),
 			)
 		);
+	}
+
+	/**
+	 * The repositories linked to a client site.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function site_repos( WP_REST_Request $request ) {
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'repos' => Repos::for_site( (string) $request['site_id'] ),
+			)
+		);
+	}
+
+	/**
+	 * Replaces the repositories linked to a client site.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function set_site_repos( WP_REST_Request $request ) {
+		$body = (array) $request->get_json_params();
+		$done = Repos::set_for_site( (string) $request['site_id'], array_map( 'strval', (array) ( $body['repos'] ?? array() ) ), get_current_user_id() );
+
+		if ( is_wp_error( $done ) ) {
+			return $done;
+		}
+
+		return self::site_repos( $request );
 	}
 }
