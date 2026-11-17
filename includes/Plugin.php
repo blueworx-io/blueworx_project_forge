@@ -108,6 +108,9 @@ final class Plugin {
 
 		// The one scheduled job: the morning Slack message (PR 5).
 		Slack\Morning::boot();
+
+		// #680. GitHub sync: its own daily clean-up, and the hooks later parts add.
+		GitHub\Module::register();
 	}
 
 	/**
@@ -137,6 +140,7 @@ final class Plugin {
 	 */
 	public function deactivate(): void {
 		Slack\Morning::unschedule();
+		GitHub\Module::unschedule();
 		flush_rewrite_rules();
 	}
 }

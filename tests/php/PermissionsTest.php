@@ -50,4 +50,11 @@ final class PermissionsTest extends TestCase {
 
 		$this->assertFalse( Permissions::manage() );
 	}
+
+	/**
+	 * GitHub's hook proves itself by its signature, so it sits outside the Forge door.
+	 */
+	public function test_the_github_hook_is_outside_the_door(): void {
+		$this->assertFalse( Permissions::behind_the_door( array( Permissions::class, 'github' ) ) );
+	}
 }

@@ -10,6 +10,8 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\GitHub\Client;
+use Blueworx\Forge\GitHub\Deliveries;
+use Blueworx\Forge\GitHub\Inbound;
 use Blueworx\Forge\GitHub\Repos;
 use Blueworx\Forge\GitHub\Settings;
 use WP_REST_Request;
@@ -51,6 +53,20 @@ final class GitHubController {
 			);
 		}
 
+		Server::register_route(
+			$route_namespace,
+			'/github/webhook',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'webhook' ),
+				'permission_callback' => array( Permissions::class, 'github' ),
+				'scope'               => array(
+					'kind'   => Boundary::SCOPE_OPEN,
+					'reason' => 'GitHub\'s organisation hook. Proved by its signature with the shared secret, not by a login.',
+				),
+			)
+		);
+
 		$site_scope = array(
 			'kind'   => Boundary::SCOPE_SITE,
 			'param'  => 'site_id',
@@ -72,6 +88,45 @@ final class GitHubController {
 				)
 			);
 		}
+	}
+
+	/**
+	 * A signed message from GitHub. By the time this runs the signature has
+	 * been checked; a message that failed it never gets here.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function webhook( WP_REST_Request $request ) {
+		$event    = sanitize_key( (string) $request->get_header( 'x_github_event' ) );
+		$delivery = trim( (string) $request->get_header( 'x_github_delivery' ) );
+		$payload  = (array) $request->get_json_params();
+
+		if ( '' === $event || '' === $delivery ) {
+			return Errors::rest( 'invalid_github_message', __( 'That message did not say what it was or which one it was.', 'blueworx-forge' ), 400 );
+		}
+
+		if ( ! Deliveries::claim( $delivery, $event, sanitize_key( (string) ( $payload['action'] ?? '' ) ) ) ) {
+			return rest_ensure_response(
+				array(
+					'ok'      => true,
+					'outcome' => 'duplicate',
+				)
+			);
+		}
+
+		Settings::heard( bwx_forge_now() );
+
+		$outcome = Inbound::handle( $event, $payload );
+
+		Deliveries::settle( $delivery, $outcome );
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'outcome' => $outcome,
+			)
+		);
 	}
 
 	/**

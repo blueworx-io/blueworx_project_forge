@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,4 +34,21 @@ export async function githubSays(request, state) {
 /** Every call Forge has made to the stand-in: `{ method, path, body }`. */
 export async function githubCalls(request) {
   return (await (await request.get(STUB)).json()).calls;
+}
+
+const HOOK = '/wp-json/blueworx-forge/v1/github/webhook';
+
+/**
+ * Sends GitHub's organisation hook as GitHub would: the JSON body signed with the
+ * secret, no login. `secret: null` leaves the signature off altogether.
+ */
+export async function sendHook(request, event, payload, { secret, delivery = `d-${Date.now()}-${Math.random()}` } = {}) {
+  const body = JSON.stringify(payload);
+  const headers = { 'Content-Type': 'application/json', 'X-GitHub-Event': event, 'X-GitHub-Delivery': delivery };
+
+  if (secret !== null && secret !== undefined) {
+    headers['X-Hub-Signature-256'] = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+  }
+
+  return request.post(HOOK, { headers, data: body });
 }
