@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.222.0] - 2026-11-17
+
+### Added
+
+- Tasks now ask which GitHub repo they belong in before they leave Documentation period, or you can choose No repo needed. Choosing a repo creates the GitHub issue and links it to the task.
+- The task shows when its GitHub issue is still being made, or couldn't be made, and repos linked to another client's site are named with that site.
+
 ## [2.221.0] - 2026-11-17
 
 ### Added

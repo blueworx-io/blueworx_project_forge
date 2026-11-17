@@ -193,6 +193,8 @@ final class Gates {
 			),
 			'G-DOCUMENTATION'  => array(
 				self::field( 'G-DOCUMENTATION-1', 'Item description', 'text', array( 'problem' ), 'Write the item description.' ),
+				// #681. Which repo the work goes in; a project or release is never asked.
+				self::work_only( self::field( 'G-DOCUMENTATION-10', 'Repo', 'enum', array( 'github_repo' ), 'Choose the repo this work belongs in, or No repo needed.' ) ),
 				// Not covered, Completed when and Affected sites are not asked (#493, #494, #545); ids stay as they were.
 				self::approval( 'G-DOCUMENTATION-9', 'Documentation approval', 'Approve the documentation, as the reviewer.', self::REV ),
 			),
@@ -402,6 +404,11 @@ final class Gates {
 
 			// #562. A row a project is never asked: its dates come from its releases.
 			if ( $is_project && ! empty( $requirement['not_for_projects'] ) ) {
+				continue;
+			}
+
+			// #681. A row only work is asked: not a project, not a release.
+			if ( ( $is_project || $is_release ) && ! empty( $requirement['work_only'] ) ) {
 				continue;
 			}
 
@@ -944,6 +951,19 @@ final class Gates {
 	 */
 	private static function not_for_projects( array $requirement ): array {
 		$requirement['not_for_projects'] = true;
+
+		return $requirement;
+	}
+
+	/**
+	 * A requirement only work is asked (#681): not a project, not a release.
+	 * Read by evaluate().
+	 *
+	 * @param array<string, mixed> $requirement Requirement.
+	 * @return array<string, mixed>
+	 */
+	private static function work_only( array $requirement ): array {
+		$requirement['work_only'] = true;
 
 		return $requirement;
 	}

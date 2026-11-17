@@ -89,6 +89,11 @@ test('a piece of work can be planned and moved to Up Next without leaving the bo
   test.setTimeout(600_000);
 
   const { admin, site, people, item } = await withWork(browser, baseURL, TO_AUDIT);
+
+  // #681. Leaving Documentation period also asks for a repo; this test is about the planning fields.
+  const current = (await admin.api.get(`/work-items/${item.id}`)).item;
+  expect((await admin.api.patch(`/work-items/${item.id}`, { github_repo: 'none', record_version: current.record_version })).status()).toBe(200);
+
   const page = await openTheItem(admin, site.id);
 
   // Everything Up Next wants, filled in on the screen it is asked for on.

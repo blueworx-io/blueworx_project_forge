@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
 
 // #545. Documentation Period no longer asks which sites the work affects: the
-// description and the reviewer's approval are the whole gate.
+// description, the repo (#681) and the reviewer's approval are the whole gate.
 
 const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ADMIN_USER = process.env.WP_ADMIN_USER || 'admin';
@@ -32,7 +32,7 @@ test('a task leaves Documentation Period with its description and the approval a
   const rows = detail.readiness[next].all.map((row) => row.id);
 
   expect(rows).not.toContain('G-DOCUMENTATION-7');
-  expect(rows).toEqual(['G-DOCUMENTATION-1', 'G-DOCUMENTATION-9']);
+  expect(rows).toEqual(['G-DOCUMENTATION-1', 'G-DOCUMENTATION-10', 'G-DOCUMENTATION-9']);
 
   // The panel shows no Affected sites row either.
   const page = await admin.context.newPage();
@@ -46,7 +46,10 @@ test('a task leaves Documentation Period with its description and the approval a
   await expect(gate.locator('li[data-requirement="G-DOCUMENTATION-9"]')).toBeVisible();
   await expect(gate).not.toContainText('Affected sites');
 
-  // Only the approval stands in the way, and with it the task moves on.
+  // The repo and the approval stand in the way, and with both the task moves on.
+  const filed = await admin.api.patch(`/work-items/${item.id}`, { github_repo: 'none', record_version: (await admin.api.get(`/work-items/${item.id}`)).item.record_version });
+  expect(filed.status(), await filed.text()).toBe(200);
+
   const approved = await admin.api.post(`/work-items/${item.id}/gate`, { requirement: 'G-DOCUMENTATION-9', value: 'approved', evidence: '' });
   expect(approved.status(), await approved.text()).toBe(200);
 

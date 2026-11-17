@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import { signedIn, makeSite, asClientSite } from './helpers/forge.js';
-import { installGitHubStub, removeGitHubStub, githubSays, githubSecret, sendHook } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubSecret, githubCalls, runGitHubJobs, sendHook } from './helpers/github.js';
 
 // #680. A new issue in a repository linked to a client's site comes into Forge
 // as a loose item in Future Idea on that site, once, however often GitHub sends
@@ -188,4 +188,24 @@ test('deleting an item lets its issue come in again', async () => {
   const again = await sendHook(bare, 'issues', issue, { secret: SECRET });
   expect((await again.json()).outcome).toBe('created');
   expect((await items()).filter((one) => one.title === title)).toHaveLength(1);
+});
+
+test('an issue raised in GitHub gets one comment linking to Forge', async () => {
+  const number = 13;
+  const answer = await sendHook(bare, 'issues', opened(number, IDS + number, { title: `Comment once ${RUN}` }), { secret: SECRET });
+  expect((await answer.json()).outcome).toBe('created');
+
+  const mine = (await items()).find((one) => one.title === `Comment once ${RUN}`);
+
+  // Run twice: a job run again, or GitHub's answer lost, must not say it twice.
+  await runGitHubJobs(admin.api.request);
+  await runGitHubJobs(admin.api.request);
+
+  const calls = await githubCalls(admin.api.request);
+  const path = `/repos/${ALPHA}/issues/${number}/comments`;
+  const posted = calls.filter((call) => call.method === 'POST' && call.path === path);
+
+  expect(posted).toHaveLength(1);
+  expect(JSON.parse(posted[0].body).body).toContain(`#item=${mine.id}`);
+  expect(calls.filter((call) => call.method === 'PATCH' && call.path.startsWith(`/repos/${ALPHA}/issues/`))).toHaveLength(0);
 });

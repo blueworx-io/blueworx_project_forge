@@ -22,6 +22,7 @@ final class GitHubClientTest extends TestCase {
 		$GLOBALS['bwx_forge_test_http_requests'] = array();
 		unset( $GLOBALS['bwx_forge_test_options'][ Settings::OPTION ], $GLOBALS['bwx_forge_test_options'][ Settings::STATUS ] );
 		delete_transient( 'bwx_forge_github_repos' );
+		delete_transient( Settings::REPOS_DOWN );
 		Settings::save( 'ghp_abcd1234', 's3cret', 'blueworx-io', 1 );
 	}
 
@@ -124,6 +125,47 @@ final class GitHubClientTest extends TestCase {
 		// Cached: a second read asks nobody.
 		Client::repos();
 		$this->assertCount( 2, $GLOBALS['bwx_forge_test_http_requests'] );
+	}
+
+	public function test_a_list_github_would_not_give_is_not_asked_for_again_for_a_while(): void {
+		$GLOBALS['bwx_forge_test_http'][] = new WP_Error( 'http_request_failed', 'cURL error 28' );
+
+		$this->assertNull( Client::known_repos() );
+		$this->assertNotFalse( get_transient( Settings::REPOS_DOWN ) );
+
+		// Opening a task or saving one now waits on nobody.
+		$GLOBALS['bwx_forge_test_http'][] = $this->answer( 200, array( array( 'full_name' => 'blueworx-io/alpha' ) ) );
+		$this->assertNull( Client::known_repos() );
+		$this->assertCount( 1, $GLOBALS['bwx_forge_test_http_requests'] );
+
+		// Once the pause is over, it asks again, and a good answer ends the pause.
+		delete_transient( Settings::REPOS_DOWN );
+		$this->assertSame( array( 'blueworx-io/alpha' ), Client::known_repos() );
+		$this->assertCount( 2, $GLOBALS['bwx_forge_test_http_requests'] );
+	}
+
+	public function test_an_administrator_asking_for_the_list_still_asks(): void {
+		set_transient( Settings::REPOS_DOWN, Client::UNREACHABLE, 90 );
+		$GLOBALS['bwx_forge_test_http'][] = $this->answer( 200, array( array( 'full_name' => 'blueworx-io/alpha' ) ) );
+
+		$this->assertSame( array( 'blueworx-io/alpha' ), Client::repos() );
+		$this->assertFalse( get_transient( Settings::REPOS_DOWN ) );
+	}
+
+	public function test_a_kept_list_is_used_even_while_github_is_paused(): void {
+		set_transient( Settings::REPOS, array( 'blueworx-io/kept' ), 600 );
+		set_transient( Settings::REPOS_DOWN, Client::UNREACHABLE, 90 );
+
+		$this->assertSame( array( 'blueworx-io/kept' ), Client::known_repos() );
+		$this->assertSame( array(), $GLOBALS['bwx_forge_test_http_requests'] );
+	}
+
+	public function test_disconnecting_ends_the_pause(): void {
+		set_transient( Settings::REPOS_DOWN, Client::UNREACHABLE, 90 );
+
+		Settings::forget();
+
+		$this->assertFalse( get_transient( Settings::REPOS_DOWN ) );
 	}
 
 	public function test_requests_carry_the_api_headers(): void {

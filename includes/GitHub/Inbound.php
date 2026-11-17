@@ -35,7 +35,7 @@ final class Inbound {
 	 *
 	 * @param string               $event   The X-GitHub-Event name.
 	 * @param array<string, mixed> $payload The decoded body.
-	 * @return string The outcome: pong, ignored, duplicate, created or failed.
+	 * @return string The outcome: pong, ignored, duplicate, created, linked or failed.
 	 */
 	public static function handle( string $event, array $payload ): string {
 		if ( 'ping' === $event ) {
@@ -91,6 +91,26 @@ final class Inbound {
 			return 'ignored';
 		}
 
+		// An issue Forge made for an item: GitHub's message can beat Forge's own
+		// create call, and it must link that item, never make another.
+		$own = Items::get( IssueText::marker_in( (string) ( $issue['body'] ?? '' ) ) );
+
+		// Item ids are not secret, so a marker alone proves nothing: it counts
+		// only on an issue the connected account opened, in the item's own
+		// repo, for an item with no issue yet. Anything else is taken in as
+		// any other new issue.
+		$login = Settings::login();
+
+		if (
+			null !== $own
+			&& '' !== $login
+			&& 0 === strcasecmp( $login, (string) ( $issue['user']['login'] ?? '' ) )
+			&& Repos::normalise( (string) $own['github_repo'] ) === $repo
+			&& null === Links::for_item( (string) $own['id'] )
+		) {
+			return self::linked( $own, $issue, $repo, $number );
+		}
+
 		if ( null !== Links::for_issue( $issue_id ) ) {
 			return 'duplicate';
 		}
@@ -103,13 +123,16 @@ final class Inbound {
 			return 'ignored';
 		}
 
-		$checked = Validate::item( self::values_for( $issue, $repo ), false );
+		// The repo is set below, not checked: it is where the issue came from.
+		$sent = self::values_for( $issue, $repo );
+		unset( $sent['github_repo'] );
+
+		$checked = Validate::item( $sent, false );
 
 		if ( array() !== $checked['errors'] || 0 >= $actor || false === get_userdata( $actor ) ) {
 			return 'failed';
 		}
 
-		// Not a field anyone edits, so the rules above never pass it through.
 		$values                = $checked['values'];
 		$values['github_repo'] = $repo;
 
@@ -145,6 +168,28 @@ final class Inbound {
 			)
 		);
 
+		// One comment with the way to the task, and never an edit to the issue.
+		Jobs::queue( Outbound::LINK_COMMENT, (string) $item['id'], array(), true );
+
 		return 'created';
+	}
+
+	/**
+	 * Links an item to the issue Forge made for it.
+	 *
+	 * @param array<string, mixed> $item   The item the marker names.
+	 * @param array<string, mixed> $issue  The issue, as GitHub sends it.
+	 * @param string               $repo   Its repository.
+	 * @param int                  $number Its number there.
+	 * @return string linked or duplicate.
+	 */
+	private static function linked( array $item, array $issue, string $repo, int $number ): string {
+		if ( null !== Links::for_item( (string) $item['id'] ) || null !== Links::for_issue( (int) $issue['id'] ) ) {
+			return 'duplicate';
+		}
+
+		$body = (string) ( $issue['body'] ?? '' );
+
+		return Links::add( (string) $item['id'], $repo, $number, (int) $issue['id'], 'forge', (string) $item['title'], hash( 'sha256', $body ) ) ? 'linked' : 'duplicate';
 	}
 }

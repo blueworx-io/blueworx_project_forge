@@ -139,6 +139,12 @@ final class Fields {
 	);
 
 	/**
+	 * #681. The repo a piece of work belongs in, or 'none'. Written by the
+	 * studio only: it is not in DEFINITION, so a client cannot set it.
+	 */
+	public const GITHUB = array( 'github_repo' );
+
+	/**
 	 * Which stage first requires each field, for #105 to enforce.
 	 *
 	 * Read as: an item may not *leave* this stage without the field. Anything
@@ -253,6 +259,7 @@ final class Fields {
 			self::PLANNING,
 			self::COMMERCIAL,
 			self::DELIVERY,
+			self::GITHUB,
 			array( 'level', 'work_type', 'parent_id', 'checklist' )
 		);
 	}

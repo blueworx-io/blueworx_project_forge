@@ -162,7 +162,7 @@ final class WorkGatesTest extends TestCase {
 		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-6' ) );
 		// Affected sites and data is not asked either (#545): the description and the approval are the gate.
 		$this->assertNull( Gates::requirement( 'G-DOCUMENTATION-7' ) );
-		$this->assertSame( array( 'G-DOCUMENTATION-1', 'G-DOCUMENTATION-9' ), array_column( Gates::requirements( 'G-DOCUMENTATION' ), 'id' ) );
+		$this->assertSame( array( 'G-DOCUMENTATION-1', 'G-DOCUMENTATION-10', 'G-DOCUMENTATION-9' ), array_column( Gates::requirements( 'G-DOCUMENTATION' ), 'id' ) );
 		$this->assertNotContains( 'G-DOCUMENTATION-1', $ids, 'The problem statement was filled in' );
 
 		// The Scope and Requirements checks went with their boxes (2026-09-18).
@@ -733,5 +733,24 @@ final class WorkGatesTest extends TestCase {
 	 */
 	public function test_review_does_not_ask_for_a_post_review_hours_adjustment(): void {
 		$this->assertNotContains( 'G-IN-REVIEW-5', array_column( Gates::requirements( 'G-IN-REVIEW' ), 'id' ) );
+	}
+
+	/**
+	 * #681. Work is asked which repo it belongs in before it leaves Documentation Period.
+	 */
+	public function test_documentation_asks_for_a_repo_on_work(): void {
+		$open = Gates::evaluate( 'G-DOCUMENTATION', $this->item( array( 'level' => 'feature', 'github_repo' => '' ) ), array() );
+		$done = Gates::evaluate( 'G-DOCUMENTATION', $this->item( array( 'level' => 'feature', 'github_repo' => 'none' ) ), array() );
+
+		$this->assertContains( 'G-DOCUMENTATION-10', array_column( $open['unmet'], 'id' ) );
+		$this->assertNotContains( 'G-DOCUMENTATION-10', array_column( $done['unmet'], 'id' ) );
+	}
+
+	public function test_projects_and_releases_are_not_asked_for_a_repo(): void {
+		foreach ( array( 'project', 'milestone' ) as $level ) {
+			$result = Gates::evaluate( 'G-DOCUMENTATION', $this->item( array( 'level' => $level, 'github_repo' => '' ) ), array() );
+
+			$this->assertNotContains( 'G-DOCUMENTATION-10', array_column( $result['all'], 'id' ) );
+		}
 	}
 }

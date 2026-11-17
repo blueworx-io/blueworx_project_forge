@@ -57,17 +57,18 @@ final class GitHubInboundTest extends TestCase {
 	}
 
 	public function test_an_issue_meets_the_rules_for_new_work(): void {
-		$checked = Validate::item(
-			Inbound::values_for(
-				array(
-					'title'  => str_repeat( 'x', 250 ),
-					'body'   => "One\n\n- a",
-					'labels' => array( array( 'name' => 'BUG' ) ),
-				),
-				'blueworx-io/alpha'
+		// The repo is set after validation, as opened() does.
+		$sent = Inbound::values_for(
+			array(
+				'title'  => str_repeat( 'x', 250 ),
+				'body'   => "One\n\n- a",
+				'labels' => array( array( 'name' => 'BUG' ) ),
 			),
-			false
+			'blueworx-io/alpha'
 		);
+		unset( $sent['github_repo'] );
+
+		$checked = Validate::item( $sent, false );
 
 		self::assertSame( array(), $checked['errors'] );
 		self::assertSame( '', $checked['values']['parent_id'] );

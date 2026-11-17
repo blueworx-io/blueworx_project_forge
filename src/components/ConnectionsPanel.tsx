@@ -14,6 +14,8 @@ export interface Service {
   /** What last went wrong, in plain words; empty when nothing has. */
   error?: string;
   error_at?: number;
+  /** GitHub only: changes still waiting to be sent, or that gave up; empty when all went. */
+  outbox?: string;
 }
 
 interface Connections {
@@ -266,6 +268,11 @@ export function ConnectionsPanel( { onOpenServers }: { onOpenServers?: () => voi
             { 'github' === service.id && '' !== ( service.error ?? '' ) && (
               <p className="bwx-notice" role="status" data-testid="bwx-connection-github-problem">
                 { `Last problem (${ since( service.error_at ) }): ${ service.error }` }
+              </p>
+            ) }
+            { 'github' === service.id && '' !== ( service.outbox ?? '' ) && (
+              <p className="bwx-notice" role="status" data-testid="bwx-connection-github-outbox">
+                { service.outbox }
               </p>
             ) }
             { undefined !== service.link && <p className="bwx-hint">Stores and the Slack app are still set up on the WordPress admin Connections screen.</p> }

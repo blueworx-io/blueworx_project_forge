@@ -79,8 +79,9 @@ final class Items {
 				// naming a release it no longer sits under, which is what
 				// stops it holding that review.
 				'review_of'      => (string) ( $values['review_of'] ?? '' ),
-				// #680. Named only by an issue brought in from GitHub: the
-				// repository it came from. No request body can set it.
+				// #680, #681. The repo the work belongs in: the one an issue
+				// brought in from GitHub came from, or the one somebody who may
+				// plan the work chose when adding it.
 				'github_repo'    => (string) ( $values['github_repo'] ?? '' ),
 				'assignees'      => (string) wp_json_encode( array_values( array_map( 'strval', (array) ( $values['assignees'] ?? array() ) ) ) ),
 				'hours_each'     => (string) (float) ( $values['hours_each'] ?? 0 ),
@@ -1050,6 +1051,7 @@ final class Items {
 		$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $id ), array( '%s' ) );
 		$wpdb->delete( Schema::comments_table(), array( 'item_id' => $id ), array( '%s' ) );
 		$wpdb->delete( Schema::github_links_table(), array( 'item_id' => $id ), array( '%s' ) );
+		$wpdb->delete( Schema::github_jobs_table(), array( 'item_id' => $id ), array( '%s' ) );
 		$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $id ), array( '%s' ), array( '%s' ) );
 
 		// The children move last, read again here so one added a moment ago is not
@@ -1139,8 +1141,9 @@ final class Items {
 			$wpdb->delete( Schema::work_events_table(), array( 'item_id' => $doomed ), array( '%s' ) );
 			$wpdb->delete( Schema::gate_records_table(), array( 'item_id' => $doomed ), array( '%s' ) );
 			$wpdb->delete( Schema::comments_table(), array( 'item_id' => $doomed ), array( '%s' ) );
-			// #680. Its GitHub issue is no longer anyone's.
+			// #680. Its GitHub issue is no longer anyone's, and nothing is left to send for it (#681).
 			$wpdb->delete( Schema::github_links_table(), array( 'item_id' => $doomed ), array( '%s' ) );
+			$wpdb->delete( Schema::github_jobs_table(), array( 'item_id' => $doomed ), array( '%s' ) );
 			$wpdb->update( Schema::submissions_table(), array( 'converted_item_id' => '' ), array( 'converted_item_id' => $doomed ), array( '%s' ), array( '%s' ) );
 
 			if ( false !== $wpdb->delete( $table, array( 'id' => $doomed ), array( '%s' ) ) ) {

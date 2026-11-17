@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 54;
+	public const VERSION = 55;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -512,6 +512,17 @@ final class Schema {
 	}
 
 	/**
+	 * What Forge still has to tell GitHub, and how each try went (#681).
+	 *
+	 * @return string
+	 */
+	public static function github_jobs_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'bwx_forge_github_jobs';
+	}
+
+	/**
 	 * Every table this plugin owns, as dbDelta-shaped CREATE statements.
 	 *
 	 * Its formatting is fussy in ways that are silent when broken: dbDelta wants
@@ -583,6 +594,7 @@ final class Schema {
 		$github_repos      = self::github_repos_table();
 		$github_links      = self::github_links_table();
 		$github_deliveries = self::github_deliveries_table();
+		$github_jobs       = self::github_jobs_table();
 
 		return array(
 			$clients           => "CREATE TABLE {$clients} (
@@ -1735,6 +1747,28 @@ final class Schema {
 	received_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	PRIMARY KEY  (id),
 	KEY received_at (received_at)
+) {$collate};",
+
+			/*
+			 * #681. The outbox: one row per kind of change per item, so a newer
+			 * request replaces an older one still waiting. Nothing a person
+			 * saves waits on GitHub; these run after the request and every
+			 * five minutes until they go or run out of tries.
+			 */
+			$github_jobs       => "CREATE TABLE {$github_jobs} (
+	id varchar(32) NOT NULL,
+	item_id varchar(32) NOT NULL DEFAULT '',
+	kind varchar(20) NOT NULL DEFAULT '',
+	payload text NOT NULL,
+	status varchar(10) NOT NULL DEFAULT 'pending',
+	attempts int(11) unsigned NOT NULL DEFAULT 0,
+	last_error varchar(191) NOT NULL DEFAULT '',
+	run_after bigint(20) unsigned NOT NULL DEFAULT 0,
+	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
+	PRIMARY KEY  (id),
+	KEY status_run (status, run_after),
+	KEY item_id (item_id)
 ) {$collate};",
 
 			/*

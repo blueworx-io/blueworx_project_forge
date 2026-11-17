@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\GitHub\Client;
 use Blueworx\Forge\GitHub\Deliveries;
 use Blueworx\Forge\GitHub\Inbound;
+use Blueworx\Forge\GitHub\Jobs;
 use Blueworx\Forge\GitHub\Repos;
 use Blueworx\Forge\GitHub\Settings;
 use Throwable;
@@ -211,10 +212,15 @@ final class GitHubController {
 
 		// A list kept from an earlier connection may be another account's.
 		delete_transient( Settings::REPOS );
+		delete_transient( Settings::REPOS_DOWN );
 
 		// Hooks on repos linked before are still signed with the old secret.
 		// Any that can't be updated are shown on the GitHub row.
 		Repos::refresh_hooks( $secret );
+
+		// #681. Changes that gave up, most often because the old token ran
+		// out, get their tries back and go once this answer has.
+		Jobs::reopen();
 
 		return rest_ensure_response( ConnectionsController::answer() );
 	}

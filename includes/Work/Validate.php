@@ -9,6 +9,9 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Work;
 
+use Blueworx\Forge\GitHub\RepoChoice;
+use Blueworx\Forge\GitHub\Repos;
+
 /**
  * Plain PHP, no WordPress, no database — the same shape as Tenancy\Validate and
  * for the same reason: two doors reach these records and both have to refuse
@@ -166,6 +169,7 @@ final class Validate {
 			$values['review_of'] = trim( (string) ( $input['review_of'] ?? '' ) );
 		}
 
+		self::repo_field( $input, $values, $errors );
 		self::seats( $input, $values, $errors );
 		self::text_fields( $input, $values, $errors );
 
@@ -181,6 +185,33 @@ final class Validate {
 			'values' => $values,
 			'errors' => $errors,
 		);
+	}
+
+	/**
+	 * #681. The repo the work belongs in: nothing, 'none', or owner/name.
+	 *
+	 * Only the shape is checked here. Whether it is one of the connected
+	 * account's repos needs GitHub, so the route that saves it asks
+	 * (RepoChoice::refusal), and only once it knows the caller may set it.
+	 *
+	 * @param array<string, mixed>  $input  Raw input.
+	 * @param array<string, mixed>  $values Cleaned values, by reference.
+	 * @param array<string, string> $errors Errors, by reference.
+	 */
+	private static function repo_field( array $input, array &$values, array &$errors ): void {
+		if ( ! array_key_exists( 'github_repo', $input ) ) {
+			return;
+		}
+
+		$sent  = trim( (string) $input['github_repo'] );
+		$value = RepoChoice::NONE === strtolower( $sent ) ? RepoChoice::NONE : Repos::normalise( $sent );
+
+		if ( '' !== $sent && '' === $value ) {
+			$errors['github_repo'] = 'That is not a repo name. Use owner/name.';
+			return;
+		}
+
+		$values['github_repo'] = $value;
 	}
 
 	/**

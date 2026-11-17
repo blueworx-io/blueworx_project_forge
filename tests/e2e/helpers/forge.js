@@ -133,6 +133,8 @@ export function answerFor(field) {
       return 'software';
     case 'design_url':
       return 'https://example.test/design';
+    case 'github_repo':
+      return 'none';
     case 'test_description':
       return '<p>Open it and look.</p>';
     default:

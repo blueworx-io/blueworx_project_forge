@@ -15,6 +15,13 @@ use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Commerce\Support;
 use Blueworx\Forge\Commerce\WorkHours;
 use Blueworx\Forge\Commerce\WorkLedger;
+use Blueworx\Forge\GitHub\Client as GitHubClient;
+use Blueworx\Forge\GitHub\Jobs as GitHubJobs;
+use Blueworx\Forge\GitHub\Links as GitHubLinks;
+use Blueworx\Forge\GitHub\Outbound as GitHubOutbound;
+use Blueworx\Forge\GitHub\RepoChoice;
+use Blueworx\Forge\GitHub\Repos as GitHubRepos;
+use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Recurring\Materialise;
 use Blueworx\Forge\Slack\Notify;
@@ -883,7 +890,62 @@ final class WorkItemsController {
 				 * was noticed — which is the whole of what this list is for.
 				 */
 				'notifications' => Notifications::for_subject( (string) $item['id'] ),
+
+				// #681. Which repo this task goes in, and its issue once it has one.
+				'github'        => Comments::SCOPE_STAFF === $scope ? self::github_view( $item ) : null,
 			)
+		);
+	}
+
+	/**
+	 * What the repo picker needs: whether GitHub is connected, the task's issue
+	 * or where making it has got to, the site's linked repos, the account's own,
+	 * and which of those are linked to another site.
+	 *
+	 * GitHub being down never fails the item: the list falls back to the repos
+	 * linked to the site.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return array<string, mixed>
+	 */
+	private static function github_view( array $item ): array {
+		$connected = GitHubSettings::connected();
+		$link      = GitHubLinks::for_item( (string) $item['id'] );
+		$site_id   = (string) $item['client_site_id'];
+		$linked    = GitHubRepos::all();
+		$site      = array_keys( array_filter( $linked, static fn( string $id ): bool => $id === $site_id ) );
+		$repos     = $connected ? GitHubClient::known_repos() : array();
+		$repos     = null === $repos ? $site : $repos;
+		$job       = null === $link ? GitHubJobs::status( GitHubOutbound::CREATE_ISSUE, (string) $item['id'] ) : '';
+
+		sort( $site );
+
+		// A repo linked to another client's site is still offered, but named
+		// with that site, so nobody files one client's work under another's.
+		$elsewhere = array();
+
+		foreach ( $repos as $repo ) {
+			if ( isset( $linked[ $repo ] ) && $linked[ $repo ] !== $site_id ) {
+				$elsewhere[ $repo ] = GitHubRepos::site_name( $linked[ $repo ] );
+			}
+		}
+
+		return array(
+			'connected'        => $connected,
+			'link'             => null === $link
+				? null
+				: array(
+					'repo'   => (string) $link['repo'],
+					'number' => (int) $link['issue_number'],
+					'url'    => GitHubLinks::url( $link ),
+				),
+			// Where making the issue has got to, while there is none.
+			'issue'            => GitHubJobs::FAILED === $job
+				? 'failed'
+				: ( in_array( $job, array( GitHubJobs::PENDING, GitHubJobs::RUNNING ), true ) ? 'waiting' : null ),
+			'site_repos'       => $site,
+			'repos'            => $repos,
+			'linked_elsewhere' => (object) $elsewhere,
 		);
 	}
 
@@ -1597,12 +1659,19 @@ final class WorkItemsController {
 		// about the person's grants (AUTH-3), not a field they may send.
 		$body['self_review_permitted'] = ! empty( Access::context( (string) $site['client_id'] )['principal'] );
 
+		// #681. Which repo work belongs in is the studio's to say, so it is
+		// dropped, not refused, when a person without that permission sends it.
+		if ( ! Access::allows( Capabilities::EDIT_PLANNING, (string) $site['client_id'] ) ) {
+			unset( $body['github_repo'] );
+		}
+
 		$checked = Validate::item( $body, false );
 		$errors  = array_merge(
 			$checked['errors'],
 			Validate::dates_in_order( $checked['values'] ),
 			// #393. Nobody goes in a seat who cannot open this client's work.
-			PersonReach::seat_refusals( $checked['values'], (string) $site['client_id'], (string) $site['id'] )
+			PersonReach::seat_refusals( $checked['values'], (string) $site['client_id'], (string) $site['id'] ),
+			self::repo_refusal( $checked['values'], array() )
 		);
 
 		if ( array() !== $errors ) {
@@ -1636,6 +1705,9 @@ final class WorkItemsController {
 
 		// Anyone given a seat on the new work hears about it in Slack (PR 5).
 		Notify::assigned( array(), $item );
+
+		// #681. Work added with its repo already chosen asks for its issue too.
+		self::queue_issue( array( 'github_repo' => '' ), $item );
 
 		$response = array(
 			'ok'   => true,
@@ -1671,7 +1743,19 @@ final class WorkItemsController {
 			return $stale;
 		}
 
-		$checked = Validate::item( self::body( $request, (string) $item['client_id'], $item ), true );
+		$body = self::body( $request, (string) $item['client_id'], $item );
+
+		// #681. Somebody who may not choose the repo is refused before the name
+		// is looked at, so the answer never says which repos the account has.
+		if ( array_key_exists( 'github_repo', $body ) ) {
+			$refused = self::permit_edit( $item, array( 'github_repo' => '' ) );
+
+			if ( null !== $refused ) {
+				return $refused;
+			}
+		}
+
+		$checked = Validate::item( $body, true );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
@@ -1686,6 +1770,19 @@ final class WorkItemsController {
 
 		if ( null !== $refused ) {
 			return $refused;
+		}
+
+		// #681. A task with a GitHub issue stays in that issue's repo.
+		if ( isset( $checked['values']['github_repo'] ) ) {
+			$link = GitHubLinks::for_item( (string) $item['id'] );
+
+			if ( null !== $link && (string) $link['repo'] !== (string) $checked['values']['github_repo'] ) {
+				return Errors::rest(
+					'github_repo_locked',
+					__( 'This task already has a GitHub issue, so its repo can\'t change. Move the issue in GitHub if it needs to go elsewhere.', 'blueworx-forge' ),
+					409
+				);
+			}
 		}
 
 		// #391. Settled here as well as on the write, so the history shows the
@@ -1704,7 +1801,8 @@ final class WorkItemsController {
 				PersonReach::changed_seats( $checked['values'], $item ),
 				(string) $item['client_id'],
 				(string) $item['client_site_id']
-			)
+			),
+			self::repo_refusal( $checked['values'], $item )
 		);
 
 		// #642. A paying client's work is not made free without a reason.
@@ -1794,12 +1892,54 @@ final class WorkItemsController {
 		// undo a save.
 		Notify::assigned( $item, $updated );
 
+		self::queue_issue( $item, $updated );
+
 		return rest_ensure_response(
 			array(
 				'ok'   => true,
 				'item' => $updated,
 			)
 		);
+	}
+
+	/**
+	 * #681. A repo chosen for work that has no issue yet asks for one. It is
+	 * made after the answer has gone, so a slow or broken GitHub never stops
+	 * the save; and it is one job per item, made once, however often the
+	 * repo is saved.
+	 *
+	 * @param array<string, mixed> $before The item before the save.
+	 * @param array<string, mixed> $after  The item as saved.
+	 */
+	private static function queue_issue( array $before, array $after ): void {
+		$repo = (string) ( $after['github_repo'] ?? '' );
+
+		if ( (string) ( $before['github_repo'] ?? '' ) === $repo || '' === $repo || RepoChoice::NONE === $repo ) {
+			return;
+		}
+
+		// The repo goes with the job, so a change made while a try is running
+		// is noticed and the job runs again.
+		if ( null === GitHubLinks::for_item( (string) $after['id'] ) ) {
+			GitHubJobs::queue( GitHubOutbound::CREATE_ISSUE, (string) $after['id'], array( 'repo' => $repo ), true );
+		}
+	}
+
+	/**
+	 * #681. A repo being saved that isn't one of the connected account's.
+	 *
+	 * @param array<string, mixed> $values The values the save would write.
+	 * @param array<string, mixed> $item   The item as stored; empty for new work.
+	 * @return array<string, string> The field error, or nothing.
+	 */
+	private static function repo_refusal( array $values, array $item ): array {
+		if ( ! array_key_exists( 'github_repo', $values ) ) {
+			return array();
+		}
+
+		$error = RepoChoice::refusal( (string) $values['github_repo'], (string) ( $item['github_repo'] ?? '' ) );
+
+		return null === $error ? array() : array( 'github_repo' => $error );
 	}
 
 	/**
@@ -2798,7 +2938,7 @@ final class WorkItemsController {
 		$groups = array(
 			Capabilities::EDIT_COMMERCIAL     => Fields::COMMERCIAL,
 			Capabilities::EDIT_ACCOUNTABILITY => Fields::ACCOUNTABILITY,
-			Capabilities::EDIT_PLANNING       => Fields::PLANNING,
+			Capabilities::EDIT_PLANNING       => array_merge( Fields::PLANNING, Fields::GITHUB ),
 			Capabilities::EDIT_DEFINITION     => Fields::DEFINITION,
 		);
 

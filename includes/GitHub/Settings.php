@@ -42,6 +42,12 @@ final class Settings {
 	public const REPOS = 'bwx_forge_github_repos';
 
 	/**
+	 * #681. Set for a short while after GitHub would not give the list, so
+	 * opening or saving a task does not wait on GitHub again each time.
+	 */
+	public const REPOS_DOWN = 'bwx_forge_github_repos_down';
+
+	/**
 	 * Saves the connection, and clears what last went wrong.
 	 *
 	 * @param string $token  The GitHub token.
@@ -203,6 +209,7 @@ final class Settings {
 		delete_option( self::STATUS );
 		delete_option( self::HEARD );
 		delete_transient( self::REPOS );
+		delete_transient( self::REPOS_DOWN );
 	}
 
 	/**
