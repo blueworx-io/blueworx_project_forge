@@ -310,6 +310,10 @@ add_action(
 
 					update_option( BWX_FORGE_GITHUB_STUB_OPTION, $state, false );
 
+					// GitHub has changed, so the pause Forge keeps after a failed
+					// repo list is over, rather than each spec waiting it out.
+					delete_transient( 'bwx_forge_github_repos_down' );
+
 					return rest_ensure_response( $state );
 				},
 			)

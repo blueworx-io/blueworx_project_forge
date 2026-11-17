@@ -49,6 +49,12 @@ final class Client {
 	private const REPOS_TTL = 600;
 
 	/**
+	 * How long, after GitHub would not give the list, a task waits before
+	 * asking again, in seconds.
+	 */
+	private const REPOS_PAUSE = 90;
+
+	/**
 	 * One call.
 	 *
 	 * @param string               $method GET, POST, PATCH...
@@ -173,6 +179,10 @@ final class Client {
 			$answer = self::request( 'GET', '/user/repos?affiliation=owner&per_page=100&page=' . $page, array(), $token );
 
 			if ( is_wp_error( $answer ) ) {
+				if ( null === $token ) {
+					set_transient( Settings::REPOS_DOWN, $answer->get_error_code(), self::REPOS_PAUSE );
+				}
+
 				return $answer;
 			}
 
@@ -195,7 +205,31 @@ final class Client {
 		}
 
 		set_transient( Settings::REPOS, $names, self::REPOS_TTL );
+		delete_transient( Settings::REPOS_DOWN );
 
 		return $names;
+	}
+
+	/**
+	 * #681. The account's repos for a task being opened or saved, or null when
+	 * they can't be had now. After GitHub would not give the list, nobody asks
+	 * again for a short while, so a slow GitHub holds up one task, not each.
+	 *
+	 * @return array<int, string>|null
+	 */
+	public static function known_repos(): ?array {
+		$cached = get_transient( Settings::REPOS );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		if ( false !== get_transient( Settings::REPOS_DOWN ) ) {
+			return null;
+		}
+
+		$repos = self::repos();
+
+		return is_wp_error( $repos ) ? null : $repos;
 	}
 }

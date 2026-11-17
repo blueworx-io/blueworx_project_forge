@@ -212,6 +212,7 @@ final class GitHubController {
 
 		// A list kept from an earlier connection may be another account's.
 		delete_transient( Settings::REPOS );
+		delete_transient( Settings::REPOS_DOWN );
 
 		// Hooks on repos linked before are still signed with the old secret.
 		// Any that can't be updated are shown on the GitHub row.
