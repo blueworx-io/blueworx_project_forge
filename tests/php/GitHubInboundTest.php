@@ -100,6 +100,34 @@ final class GitHubInboundTest extends TestCase {
 		self::assertFalse( Inbound::older( array( 'updated_at' => '2020-01-01T00:00:00Z' ), array( 'updated_seen' => 0 ) ) );
 	}
 
+	/**
+	 * GitHub's answer to Forge's own change carries the issue's time. It
+	 * only counts as seen when the answer shows nothing Forge hasn't: a
+	 * change someone else made just before must still be taken in when its
+	 * message arrives.
+	 */
+	public function test_an_answer_counts_as_seen_only_when_it_shows_nothing_new(): void {
+		$link = array(
+			'title_seen' => 'Ours',
+			'body_hash'  => hash( 'sha256', 'Our words.' ),
+			'state_seen' => '',
+		);
+		$same = array(
+			'title' => 'Ours',
+			'body'  => 'Our words.',
+			'state' => 'open',
+		);
+
+		self::assertTrue( Links::matches( $link, $same ) );
+		self::assertFalse( Links::matches( $link, array_merge( $same, array( 'title' => 'Theirs' ) ) ) );
+		self::assertFalse( Links::matches( $link, array_merge( $same, array( 'body' => 'Their words.' ) ) ) );
+		self::assertFalse( Links::matches( $link, array_merge( $same, array( 'state' => 'closed' ) ) ) );
+		self::assertTrue( Links::matches( array_merge( $link, array( 'state_seen' => 'closed' ) ), array_merge( $same, array( 'state' => 'closed' ) ) ) );
+
+		// A title is compared as Forge keeps it.
+		self::assertTrue( Links::matches( array_merge( $link, array( 'title_seen' => str_repeat( 'y', 191 ) ) ), array_merge( $same, array( 'title' => str_repeat( 'y', 250 ) ) ) ) );
+	}
+
 	public function test_github_times_are_read_as_seconds(): void {
 		self::assertSame( 1763373605, Links::time_of( array( 'updated_at' => '2025-11-17T10:00:05Z' ) ) );
 		self::assertSame( 0, Links::time_of( array() ) );

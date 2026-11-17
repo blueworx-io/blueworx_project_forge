@@ -99,7 +99,8 @@ final class Sync {
 	 *
 	 * The move itself decides, and so does what GitHub last showed: work
 	 * sent back after its issue was closed in GitHub is open on both sides
-	 * of the move, but its issue still has to reopen.
+	 * of the move, but its issue still has to reopen. Approving it is open
+	 * on both sides too, and leaves the issue closed.
 	 *
 	 * @param array<string, mixed> $before The item before the move.
 	 * @param array<string, mixed> $after  The item after it.
@@ -108,9 +109,22 @@ final class Sync {
 	 */
 	public static function state_wanted( array $before, array $after, array $link ): ?array {
 		$state = self::state_for( $after );
-		$seen  = (string) ( $link['state_seen'] ?? '' );
 
-		if ( self::state_for( $before ) !== $state || ( '' !== $seen && $seen !== $state['state'] ) ) {
+		if ( self::state_for( $before ) !== $state ) {
+			return $state;
+		}
+
+		// Only a send-back to before review reopens an issue GitHub closed. A
+		// pull request closing the issue is how finished work reaches review,
+		// so a move on to review or past it leaves that close alone.
+		$at = Stages::position( (string) ( $after['stage'] ?? '' ) );
+
+		if (
+			'open' === $state['state']
+			&& 'closed' === (string) ( $link['state_seen'] ?? '' )
+			&& 0 <= $at
+			&& $at < Stages::position( 'in-review' )
+		) {
 			return $state;
 		}
 

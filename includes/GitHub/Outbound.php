@@ -90,7 +90,9 @@ final class Outbound {
 		// The issue was deleted, or moved to another repo: every later try
 		// would fail the same way. The job is done, and the GitHub row on
 		// Connections says which task lost its issue.
-		if ( self::gone( $result ) ) {
+		$missing = 404 === self::status_of( $result );
+
+		if ( self::gone( $result, $missing && self::repo_answers( $item ) ) ) {
 			/* translators: %s: the task's title. */
 			Settings::failed( sprintf( __( 'The GitHub issue for %s is gone.', 'blueworx-forge' ), (string) $item['title'] ) );
 
@@ -101,20 +103,65 @@ final class Outbound {
 	}
 
 	/**
-	 * Whether GitHub said an issue is no longer there: deleted, or moved to
-	 * another repo.
+	 * Whether GitHub said an issue is no longer there for good. GitHub
+	 * answers 410 for a deleted issue. It answers 404 both for an issue that
+	 * is gone and for a repo the token can no longer reach, so a 404 only
+	 * counts when the repo itself still answers; otherwise the job waits,
+	 * and reconnecting brings it back.
 	 *
-	 * @param mixed $result What a job gave back.
+	 * @param mixed $result       What a job gave back.
+	 * @param bool  $repo_answers Whether the issue's repo still answers.
 	 * @return bool
 	 */
-	public static function gone( $result ): bool {
+	public static function gone( $result, bool $repo_answers ): bool {
+		$status = self::status_of( $result );
+
+		return 410 === $status || ( 404 === $status && $repo_answers );
+	}
+
+	/**
+	 * The HTTP status GitHub refused with, or 0.
+	 *
+	 * @param mixed $result What a job gave back.
+	 * @return int
+	 */
+	private static function status_of( $result ): int {
 		if ( ! is_wp_error( $result ) ) {
-			return false;
+			return 0;
 		}
 
 		$data = $result->get_error_data();
 
-		return is_array( $data ) && in_array( (int) ( $data['github_status'] ?? 0 ), array( 404, 410 ), true );
+		return is_array( $data ) ? (int) ( $data['github_status'] ?? 0 ) : 0;
+	}
+
+	/**
+	 * Whether the repo of an item's issue still answers.
+	 *
+	 * @param array<string, mixed> $item The item.
+	 * @return bool
+	 */
+	private static function repo_answers( array $item ): bool {
+		$link = Links::for_item( (string) $item['id'] );
+
+		return null !== $link && ! is_wp_error( Client::request( 'GET', '/repos/' . (string) $link['repo'] ) );
+	}
+
+	/**
+	 * Records GitHub's time from its answer to Forge's own change, so a late
+	 * message from before it changes nothing. Only when the answer shows
+	 * nothing Forge hasn't seen: otherwise someone changed the issue just
+	 * before, and the message about that must still be taken in.
+	 *
+	 * @param string               $item_id The item.
+	 * @param array<string, mixed> $issue   The issue, as GitHub answered.
+	 */
+	private static function settled( string $item_id, array $issue ): void {
+		$link = Links::for_item( $item_id );
+
+		if ( null !== $link && Links::matches( $link, $issue ) ) {
+			Links::updated( $item_id, Links::time_of( $issue ) );
+		}
 	}
 
 	/**
@@ -384,7 +431,7 @@ final class Outbound {
 
 		// GitHub's message about it is then Forge's own, and changes nothing.
 		Links::seen( (string) $item['id'], array( 'state_seen' => $state ) );
-		Links::updated( (string) $item['id'], Links::time_of( $changed ) );
+		self::settled( (string) $item['id'], $changed );
 
 		return true;
 	}
@@ -412,7 +459,7 @@ final class Outbound {
 		}
 
 		Links::seen( (string) $item['id'], array( 'title_seen' => $title ) );
-		Links::updated( (string) $item['id'], Links::time_of( $changed ) );
+		self::settled( (string) $item['id'], $changed );
 
 		return true;
 	}
@@ -446,7 +493,7 @@ final class Outbound {
 		}
 
 		Links::seen( (string) $item['id'], array( 'body_hash' => $hash ) );
-		Links::updated( (string) $item['id'], Links::time_of( $changed ) );
+		self::settled( (string) $item['id'], $changed );
 
 		return true;
 	}

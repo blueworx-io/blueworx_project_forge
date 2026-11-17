@@ -29,7 +29,8 @@ export function removeGitHubStub() {
  * Sets what the stand-in answers: `repos`, `hooks`, `down`, `denied`,
  * `hooks_denied`, `issues_refused`, `lose_create_answer`, `rename_during_patch`
  * ({ item_id, title }: rename that task while the next title is being sent),
- * `forget_issue` ({ repo, number }: delete an issue), and `reset` to clear the
+ * `forget_issue` ({ repo, number }: delete an issue), `edit_issue` ({ repo,
+ * number, title, body }: change one as someone in GitHub would), and `reset` to clear the
  * call log and the issues made, and number issues from 1 again.
  */
 export async function githubSays(request, state) {
@@ -57,9 +58,9 @@ export async function runGitHubJobs(request) {
   return (await answer.json()).sent;
 }
 
-/** An item's create_issue job as stored (`status`, `attempts`, `last_error`), or null. */
-export async function issueJob(request, itemId) {
-  return (await (await request.get(`${STUB}/job?item_id=${encodeURIComponent(itemId)}`)).json()).job;
+/** An item's job as stored (`status`, `attempts`, `last_error`), or null: create_issue unless `kind` says. */
+export async function issueJob(request, itemId, kind = 'create_issue') {
+  return (await (await request.get(`${STUB}/job?item_id=${encodeURIComponent(itemId)}&kind=${encodeURIComponent(kind)}`)).json()).job;
 }
 
 /**

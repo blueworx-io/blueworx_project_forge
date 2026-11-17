@@ -149,6 +149,23 @@ final class Links {
 	}
 
 	/**
+	 * Whether an issue, as GitHub sends it, shows nothing Forge hasn't seen:
+	 * its title, description and state are the ones last seen. A link with
+	 * no state seen yet was made with its issue open.
+	 *
+	 * @param array<string, mixed> $link  The link, as read.
+	 * @param array<string, mixed> $issue The issue, as GitHub sends it.
+	 * @return bool
+	 */
+	public static function matches( array $link, array $issue ): bool {
+		$state = (string) ( $link['state_seen'] ?? '' );
+
+		return IssueText::title( (string) ( $issue['title'] ?? '' ) ) === IssueText::title( (string) ( $link['title_seen'] ?? '' ) )
+			&& hash( 'sha256', (string) ( $issue['body'] ?? '' ) ) === (string) ( $link['body_hash'] ?? '' )
+			&& (string) ( $issue['state'] ?? '' ) === ( '' === $state ? 'open' : $state );
+	}
+
+	/**
 	 * When GitHub last changed an issue, in seconds, from the issue as it
 	 * sends it. 0 when it doesn't say.
 	 *

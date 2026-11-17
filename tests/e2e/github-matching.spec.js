@@ -1,6 +1,6 @@
 import { test, expect, request as pwRequest } from '@playwright/test';
 import * as Forge from './helpers/forge.js';
-import { installGitHubStub, removeGitHubStub, githubSays, githubState, githubCalls, githubSecret, runGitHubJobs, sendHook } from './helpers/github.js';
+import { installGitHubStub, removeGitHubStub, githubSays, githubState, githubCalls, githubSecret, runGitHubJobs, sendHook, issueJob } from './helpers/github.js';
 
 // #682. A linked task's issue shows its Forge stage as one `forge:` label, and
 // closes and reopens with the task. Labels that are not Forge's stay put.
@@ -305,6 +305,56 @@ test("a lost message from GitHub doesn't stop the next edit", async () => {
   expect((await current(task.id)).title).toBe(second);
 });
 
+test("a change made in GitHub just before Forge's own still comes in", async () => {
+  test.slow();
+  const task = await linkedTask('Crossed edits');
+  const { link } = (await admin.api.get(`/work-items/${task.id}`)).github;
+  const title = `Renamed there first ${RUN_ID}`;
+
+  // Someone renames the issue, and GitHub's message about it is slow.
+  await githubSays(admin.api.request, { edit_issue: { repo: link.repo, number: link.number, title } });
+  const theirs = await issueOf(task.id);
+
+  // Forge writes to the issue meanwhile.
+  const was = (await githubCalls(admin.api.request)).length;
+  const saved = await admin.api.patch(`/work-items/${task.id}`, { scope: '<p>A wider scope.</p>', record_version: task.record_version });
+  expect(saved.status(), await saved.text()).toBe(200);
+  await runGitHubJobs(admin.api.request);
+  const sent = (await githubCalls(admin.api.request)).slice(was);
+  expect(sent.filter((call) => call.method === 'PATCH' && call.body.includes('"body"')).length).toBeGreaterThan(0);
+
+  // Then the message arrives.
+  expect(await hook(edited(theirs, { title: { from: task.title } }))).toBe('updated');
+  expect((await current(task.id)).title).toBe(title);
+});
+
+test('a repo Forge can no longer reach keeps its changes waiting', async () => {
+  test.slow();
+  const task = await linkedTask('Lost access');
+  const title = `Renamed while locked out ${RUN_ID}`;
+
+  await githubSays(admin.api.request, { repos: [] });
+
+  try {
+    const saved = await admin.api.patch(`/work-items/${task.id}`, { title, record_version: task.record_version });
+    expect(saved.status(), await saved.text()).toBe(200);
+    await runGitHubJobs(admin.api.request);
+
+    const job = await issueJob(admin.api.request, task.id, 'set_title');
+    expect(job.status).toBe('pending');
+    expect(job.last_error).toContain('404');
+
+    const github = (await admin.api.get('/connections')).services.find((one) => one.id === 'github');
+    expect(github.error ?? '').not.toContain(`The GitHub issue for ${title} is gone.`);
+  } finally {
+    await githubSays(admin.api.request, { repos: [ALPHA] });
+  }
+
+  // Access back: the change goes.
+  await runGitHubJobs(admin.api.request);
+  expect((await issueOf(task.id)).title).toBe(title);
+});
+
 test('a save made while the title is being sent still reaches GitHub', async () => {
   test.slow();
   const task = await linkedTask('Busy rename');
@@ -434,6 +484,15 @@ test('closing the issue moves finished development to review', async () => {
   // Nothing from GitHub takes it further, however often it is said.
   expect(await hook(stateChange('closed', issue))).toBe('nothing');
   expect((await current(task.id)).stage).toBe('in-review');
+
+  // Approving it leaves the issue closed.
+  const review = await current(task.id);
+  const approved = await admin.api.post(`/work-items/${task.id}/override`, { to: 'completed', reason: 'Approved for the test.', record_version: review.record_version });
+  expect(approved.status(), await approved.text()).toBe(200);
+  const was = (await githubCalls(admin.api.request)).length;
+  await runGitHubJobs(admin.api.request);
+  const after = (await githubCalls(admin.api.request)).slice(was);
+  expect(after.filter((call) => call.body.includes('"state"'))).toEqual([]);
 });
 
 test('closing the issue early leaves one note', async ({ request }) => {

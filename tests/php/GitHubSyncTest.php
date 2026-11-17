@@ -237,6 +237,25 @@ final class GitHubSyncTest extends TestCase {
 		$this->assertNull( Sync::state_wanted( $review, $back, array( 'state_seen' => 'open' ) ) );
 		$this->assertNull( Sync::state_wanted( $review, $back, array( 'state_seen' => '' ) ) );
 
+		// Approved after a pull request closed the issue: it stays closed.
+		$this->assertNull(
+			Sync::state_wanted(
+				$review,
+				array(
+					'stage'            => 'completed',
+					'terminal_outcome' => '',
+				),
+				array( 'state_seen' => 'closed' )
+			)
+		);
+		$this->assertNull(
+			Sync::state_wanted(
+				$back,
+				$review,
+				array( 'state_seen' => 'closed' )
+			)
+		);
+
 		// A move that changes it is sent whatever was seen.
 		$released = Sync::state_wanted(
 			$review,

@@ -128,14 +128,18 @@ final class GitHubJobsTest extends TestCase {
 	}
 
 	/**
-	 * A deleted or moved issue answers 404 or 410 for good: trying again
-	 * would only fail again.
+	 * A deleted issue is gone for good: trying again would only fail again.
+	 * GitHub also answers 404 for a repo the token can no longer reach, so a
+	 * 404 only counts when the repo itself still answers.
 	 */
 	public function test_an_issue_that_is_gone_is_not_tried_again(): void {
-		self::assertTrue( Outbound::gone( new WP_Error( Client::REFUSED, 'Not Found', array( 'github_status' => 404 ) ) ) );
-		self::assertTrue( Outbound::gone( new WP_Error( Client::REFUSED, 'Gone', array( 'github_status' => 410 ) ) ) );
-		self::assertFalse( Outbound::gone( new WP_Error( Client::REFUSED, 'Error', array( 'github_status' => 502 ) ) ) );
-		self::assertFalse( Outbound::gone( new WP_Error( Client::UNREACHABLE, 'Down.' ) ) );
-		self::assertFalse( Outbound::gone( true ) );
+		$missing = new WP_Error( Client::REFUSED, 'Not Found', array( 'github_status' => 404 ) );
+
+		self::assertTrue( Outbound::gone( $missing, true ) );
+		self::assertFalse( Outbound::gone( $missing, false ) );
+		self::assertTrue( Outbound::gone( new WP_Error( Client::REFUSED, 'Gone', array( 'github_status' => 410 ) ), false ) );
+		self::assertFalse( Outbound::gone( new WP_Error( Client::REFUSED, 'Error', array( 'github_status' => 502 ) ), true ) );
+		self::assertFalse( Outbound::gone( new WP_Error( Client::UNREACHABLE, 'Down.' ), true ) );
+		self::assertFalse( Outbound::gone( true, true ) );
 	}
 }
