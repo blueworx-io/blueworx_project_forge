@@ -47,6 +47,10 @@ final class Plugin {
 		// missing. After Schema, because it writes to the tables Schema makes.
 		Tenancy\Studio::ensure();
 
+		// The launch checklist, once, on sites installed before it was
+		// finished (ONB-1). After Schema, because it writes to its tables.
+		Onboarding\Version1::maybe_seed_after_update();
+
 		// The studio's open ClickUp work, brought across once (#346). After
 		// Studio, because it needs the studio site to put the work on.
 		Work\ClickUpImport::maybe_run();
