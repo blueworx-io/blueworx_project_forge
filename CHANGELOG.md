@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.224.0] - 2026-11-18
+
+### Added
+
+- Every new client gets the full launch checklist: 12 sections covering access, people, brand, content, accounts, search, the design and build sign-offs, and launch. Our team's own steps sit alongside the client's.
+- Sites already running Forge get the checklist on their first visit after updating, unless they've already made their own.
+
 ## [2.223.0] - 2026-11-17
 
 ### Added

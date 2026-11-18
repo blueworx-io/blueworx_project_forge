@@ -13,19 +13,12 @@ use Blueworx\Forge\Onboarding\Version1;
 use PHPUnit\Framework\TestCase;
 
 /**
- * ONB-1 (#159). What the seed is, and — for now — what stops it running.
+ * ONB-1 (#159). What the seed is.
  */
 final class OnboardingVersion1Test extends TestCase {
 
-	public function test_it_does_not_seed_while_the_definition_is_incomplete(): void {
-		/*
-		 * Seven of the twelve categories in §11.2 have not been supplied. A
-		 * version published with five of them would be handed to a client as
-		 * though it were the agreed checklist, so nothing is seeded until the
-		 * list is filled in. When it is, this test is the one to change.
-		 */
-		$this->assertFalse( Version1::READY );
-		$this->assertFalse( Version1::seed() );
+	public function test_the_agreed_definition_is_ready_to_seed(): void {
+		$this->assertTrue( Version1::READY );
 	}
 
 	public function test_the_five_launch_critical_categories_are_the_ones_onb_1_names(): void {
@@ -41,24 +34,53 @@ final class OnboardingVersion1Test extends TestCase {
 		);
 	}
 
-	public function test_every_step_it_does_define_is_launch_critical_and_in_a_real_section(): void {
-		// The only categories known so far are the launch-critical ones, so
-		// every step here must be one — anything else would be invented.
+	public function test_it_covers_the_twelve_agreed_categories_in_order(): void {
+		$this->assertSame(
+			array(
+				'Domain and DNS',
+				'Hosting',
+				'Email and SMTP',
+				'People and sign-off',
+				'Brand',
+				'Content',
+				'Accounts and tools',
+				'Search and your old site',
+				'Design review',
+				'Build review',
+				'Legal and compliance',
+				'Review and launch',
+			),
+			array_values( array_unique( array_column( Version1::steps(), 'category' ) ) )
+		);
+	}
+
+	public function test_every_step_is_in_a_real_section_and_the_sections_run_in_order(): void {
+		$order = array( Sections::FOUNDATIONS, Sections::BUILD_REVIEWS, Sections::LAUNCH );
+		$last  = 0;
+
 		foreach ( Version1::steps() as $step ) {
 			$this->assertTrue( Sections::exists( $step['section'] ) );
-			$this->assertSame( 1, $step['launch_critical'] );
-			$this->assertContains( $step['category'], Version1::LAUNCH_CRITICAL );
+
+			$at = array_search( $step['section'], $order, true );
+			$this->assertGreaterThanOrEqual( $last, $at, $step['title'] . ' is out of section order' );
+			$last = $at;
 		}
 	}
 
-	public function test_every_step_covers_a_launch_critical_category(): void {
-		$covered = array_unique( array_column( Version1::steps(), 'category' ) );
+	public function test_every_step_in_a_launch_critical_category_gates_the_launch(): void {
+		foreach ( Version1::steps() as $step ) {
+			if ( in_array( $step['category'], Version1::LAUNCH_CRITICAL, true ) ) {
+				$this->assertSame( 1, $step['launch_critical'], $step['title'] );
+			}
+		}
+	}
 
-		sort( $covered );
-		$expected = Version1::LAUNCH_CRITICAL;
-		sort( $expected );
-
-		$this->assertSame( $expected, $covered );
+	public function test_an_optional_step_never_gates_the_launch(): void {
+		foreach ( Version1::steps() as $step ) {
+			if ( 1 === $step['optional'] ) {
+				$this->assertSame( 0, $step['launch_critical'], $step['title'] );
+			}
+		}
 	}
 
 	public function test_the_steps_are_ordered(): void {
@@ -80,9 +102,9 @@ final class OnboardingVersion1Test extends TestCase {
 		foreach ( Version1::steps() as $step ) {
 			$text = strtolower( $step['title'] . ' ' . $step['description'] );
 
-			$this->assertStringNotContainsString( 'send us the password', $text );
-			$this->assertStringNotContainsString( 'provide your password', $text );
+			$this->assertStringNotContainsString( 'password', $text );
 			$this->assertStringNotContainsString( 'share your login', $text );
+			$this->assertStringNotContainsString( 'send us your login', $text );
 		}
 	}
 
@@ -90,5 +112,14 @@ final class OnboardingVersion1Test extends TestCase {
 		foreach ( Version1::steps() as $step ) {
 			$this->assertContains( $step['owner_side'], TemplateSteps::SIDES );
 		}
+	}
+
+	public function test_our_team_has_its_own_steps(): void {
+		$internal = array_filter(
+			Version1::steps(),
+			static fn ( array $step ): bool => TemplateSteps::INTERNAL === $step['owner_side']
+		);
+
+		$this->assertNotEmpty( $internal );
 	}
 }
