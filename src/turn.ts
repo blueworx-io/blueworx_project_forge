@@ -66,12 +66,18 @@ function seatAtStage( item: Seated ): Seat | null {
 
 /**
  * Who the work waits on, by name (#420): "Pending" while that seat is empty,
- * the client while they review, and null once there is nobody to wait on.
+ * the client while they review, the Agent while it is the Agent's turn, and
+ * null once there is nobody to wait on.
  */
 export function waitingOn( item: Seated, names: Record< string, string > ): string | null {
   const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
 
   if ( 'in-review' === stage && CLIENT_REVIEWER === item.reviewer_id ) return 'The client';
+
+  // Its deliverer looks after it, but the work waits on the Agent (2026-11-20).
+  const held = seatAtStage( item );
+  const agent = null === held ? '' : item[ SEAT_FIELD[ held ] ] ?? '';
+  if ( isAgent( agent ) ) return names[ agent ] ?? 'Agent';
 
   const seat = responsible( item );
 

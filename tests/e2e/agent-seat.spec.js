@@ -178,6 +178,16 @@ test( 'the Agent’s hours are its own, and the deliverer looks after its task',
   const adminPage = await admin.context.newPage();
   await adminPage.goto( '/blueworx-forge/' );
   await onAgents( adminPage );
+
+  // On the standup it waits on the Agent, not on whoever looks after it.
+  await adminPage.getByTestId( 'bwx-screen-standup' ).click();
+  await expect( adminPage.getByTestId( 'bwx-standup' ) ).toBeVisible( { timeout: 60_000 } );
+  await expect( adminPage.getByTestId( 'bwx-standup-section-toggle' ).first() ).toBeVisible();
+  const folded = adminPage.locator( '[data-testid="bwx-standup-section-toggle"][aria-expanded="false"]' );
+  while ( ( await folded.count() ) > 0 ) await folded.first().click();
+  const onStandup = adminPage.locator( `[data-testid="bwx-standup-card"][data-subject="${ item.id }"]` );
+  await expect( onStandup ).toHaveCount( 1, { timeout: 60_000 } );
+  await expect( onStandup ).toContainText( 'Waiting on Agent' );
   await adminPage.close();
 
   // #695. With the list of people refused, the screen still lists the work,

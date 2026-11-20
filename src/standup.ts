@@ -2,6 +2,7 @@ import type { StandupCard, StandupList } from './types';
 import { ALL_SITES } from './sites';
 import { priorityRank } from './priority';
 import { durationLabel } from './duration.mjs';
+import { oncePerTask } from './standupOnce.mjs';
 
 /**
  * The words and the shape of the day's list (#170).
@@ -246,9 +247,9 @@ function forSite( id: string, siteId: string ): boolean {
   return ALL_SITES === siteId || '' === id || id === siteId;
 }
 
-/** The cards the standup lists for the picked client. */
+/** The cards the standup lists for the picked client, each task once (2026-11-20). */
 export function cardsFor( list: StandupList | undefined, siteId: string ): StandupCard[] {
-  return ( list?.cards ?? [] ).filter( ( card ) => forSite( siteOf( card ), siteId ) );
+  return oncePerTask( ( list?.cards ?? [] ).filter( ( card ) => forSite( siteOf( card ), siteId ) ) ) as StandupCard[];
 }
 
 /** The meetings the standup asks to be settled, for the picked client. */

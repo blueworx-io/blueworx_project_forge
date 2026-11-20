@@ -3316,6 +3316,11 @@ td[ data-band='over' ] {
   align-items: flex-start;
   gap: 4px;
 }
+/* A task's other reasons, under its one chip (2026-11-20). */
+.bwx-standup-also {
+  color: var( --ink-500 );
+  font-size: var( --text-small );
+}
 .bwx-standup-card-head .bwx-header-spacer {
   display: none;
 }

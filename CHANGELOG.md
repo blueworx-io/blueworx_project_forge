@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.228.0] - 2026-11-20
+
+### Changed
+
+- Each task shows once on the Daily standup, under its most pressing reason. Its other reasons are listed on the same row.
+- When it's the Agent's turn on a task, the standup and the task say it's waiting on the Agent, not on the person looking after it.
+
 ## [2.227.0] - 2026-11-20
 
 ### Added

@@ -463,6 +463,10 @@ export const RULES: RuleSection[] = [
         why: 'One screen should answer what needs attention today.',
       },
       {
+        what: 'Each task is on the standup once, under its most pressing reason: overdue, then due today, blocked, waiting on something, to review, ready to ship, then sent back. Its other reasons are listed on the same row. When it moves on, it shows under whatever reason still holds until none does.',
+        why: 'The same task listed three times reads as three problems.',
+      },
+      {
         what: 'Work waiting on the client to review shows only under Requires Client Review on the standup, with no other cards. Work with a team member as reviewer stays under Work needing attention, and so do work waiting to be released and work sent back. A client review that was sent back or is overdue carries that as a tag on its card, and shows whatever its date.',
         why: 'What waits on the client is kept apart from what the team can act on.',
       },
@@ -745,7 +749,7 @@ export const RULES: RuleSection[] = [
         why: 'Some work needs the client\'s own sign-off, and their time isn\'t ours to plan or charge.',
       },
       {
-        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows on the Agents screen, tagged Agent, with them as who looks after it, and never in anyone\'s My tasks, they are told when it is ready, and they can approve for the Agent unless the work is their own. The Agent can\'t be put on recurring tasks or payment checks, or named when a request becomes a task.',
+        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows on the Agents screen, tagged Agent, with them as who looks after it, and never in anyone\'s My tasks; the standup and the task say it waits on the Agent; they are told when it is ready, and they can approve for the Agent unless the work is their own. The Agent can\'t be put on recurring tasks or payment checks, or named when a request becomes a task.',
         why: 'When an AI agent does the work, the hours are the agent\'s, not those of the people who only design or review it, and somebody with a login still has to move it along.',
       },
       {

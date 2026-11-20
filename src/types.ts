@@ -838,6 +838,8 @@ export interface StandupCard {
   subject_type: string;
   subject_id: string;
   detail: Record< string, unknown >;
+  /** The task's other reasons to be on the standup, shown on this one row (2026-11-20). */
+  also?: string[];
 }
 
 export interface StandupList {

@@ -82,11 +82,13 @@ async function unfold(page) {
   }
 }
 
-/** This run's card about the work being held up. */
+/**
+ * This run's card about the work being held up. A task is on the standup
+ * once (2026-11-20), under its most pressing reason, which may not be the
+ * requirement; its outstanding list is on that one row either way.
+ */
 function stuckCard(page, itemId) {
-  return page.locator(
-    `[data-testid="bwx-standup-card"][data-subject="${itemId}"][data-rule="gate-unmet"]`
-  );
+  return page.locator(`[data-testid="bwx-standup-card"][data-subject="${itemId}"]`);
 }
 
 /** One outstanding requirement somebody can answer with a pick, off the item itself. */
