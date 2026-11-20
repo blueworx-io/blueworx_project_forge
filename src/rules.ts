@@ -753,7 +753,7 @@ export const RULES: RuleSection[] = [
         why: 'The client only signs off at review, and the earlier checks still need someone accountable to give them.',
       },
       {
-        what: 'The Agents screen lists every task where it is the Agent\'s turn, for the whole studio, with who looks after each, under the same tabs as My tasks. The Agent\'s work is never on anyone\'s My tasks.',
+        what: 'The Agents screen lists every task where it is the Agent\'s turn on the clients you can see, with who looks after each, named even after they have left, under the same tabs as My tasks. The Agent\'s work is never on anyone\'s My tasks.',
         why: 'My tasks is what you do yourself; the Agent\'s work is watched in one place.',
       },
       {

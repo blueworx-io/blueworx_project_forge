@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bot } from 'lucide-react';
 import type { Person, Stage, WorkItem } from '../types';
 import { api, isDenied, messageFor } from '../api';
@@ -11,6 +11,7 @@ import { Screen } from './States';
 import { ALL_SITES } from '../sites';
 import { agentWork, isUrgent, listed, viewOf } from '../mytasks';
 import { PRIORITY_TONE, priorityRank } from '../priority';
+import { keeperLabels } from '../keepers.mjs';
 import type { Mine, Site, View } from '../mytasks';
 
 /*
@@ -27,6 +28,34 @@ function dueText( one: Mine ): string {
   return new Date( `${ one.item.planned_due || one.item.derived_due }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' } );
 }
 
+/**
+ * #695. Who looks after each row, by name. The studio's people first; anybody
+ * not among them — they have left, or the list could not be read — from one
+ * of their tasks, which names its seats whatever the person's status. Each
+ * name is handed over as it arrives, so one slow read holds up no other. Never
+ * fails: a name that cannot be found is left out, and shows as Somebody.
+ */
+async function namesFor( rows: Mine[], found: ( names: Record< string, string > ) => void ): Promise< void > {
+  const people = await api< { people: Person[] } >( '/people' ).catch( () => ( { people: [] as Person[] } ) );
+  const names: Record< string, string > = Object.fromEntries( people.people.map( ( person ) => [ person.id, person.display_name ] ) );
+  found( names );
+
+  const missing = new Map< string, string >();
+  for ( const one of rows ) {
+    const id = one.item.deliverer_id;
+    if ( id && ! names[ id ] && ! missing.has( id ) ) missing.set( id, one.item.id );
+  }
+
+  for ( const [ id, itemId ] of missing ) {
+    void api< { seat_names?: Record< string, string > } >( `/work-items/${ itemId }` )
+      .then( ( answer ) => {
+        const name = answer.seat_names?.[ id ];
+        if ( name ) found( { [ id ]: name } );
+      } )
+      .catch( () => undefined );
+  }
+}
+
 export function AgentsScreen() {
   const [ state, setState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
   const [ notice, setNotice ] = useState( '' );
@@ -41,16 +70,16 @@ export function AgentsScreen() {
 
   async function load() {
     try {
-      const [ siteList, stageList, loaded, people ] = await Promise.all( [
+      const [ siteList, stageList, loaded ] = await Promise.all( [
         api< { sites: Site[] } >( '/client-sites' ),
         api< { stages: Stage[] } >( '/stages' ),
         api< { items: WorkItem[] } >( '/work-items-all' ),
-        api< { people: Person[] } >( '/people' ),
       ] );
+      const found = agentWork( siteList.sites, loaded.items );
       setStages( stageList.stages );
-      setNames( Object.fromEntries( people.people.map( ( person ) => [ person.id, person.display_name ] ) ) );
-      setRowsAll( agentWork( siteList.sites, loaded.items ) );
+      setRowsAll( found );
       setState( 'ready' );
+      void namesFor( found, ( more ) => setNames( ( known ) => ( { ...known, ...more } ) ) );
     } catch ( error ) {
       setState( isDenied( error ) ? 'denied' : 'error' );
       setNotice( messageFor( error, 'The agent\'s work could not be loaded.' ) );
@@ -60,14 +89,15 @@ export function AgentsScreen() {
   useEffect( () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [] );
 
   useLiveReload( load );
 
-  const keeperOf = ( one: Mine ) => names[ one.item.deliverer_id ] ?? 'Somebody';
-
   const ours = useMemo( () => listed( rowsAll, siteId ), [ rowsAll, siteId ] );
+
+  // #695. One filter choice a person, two of one name told apart.
+  const labels = useMemo( () => keeperLabels( ours.map( ( one ) => one.item.deliverer_id ), names ), [ ours, names ] );
+  const keeperOf = useCallback( ( one: Mine ): string => labels[ one.item.deliverer_id ] ?? 'Somebody', [ labels ] );
 
   const counts = useMemo( () => {
     const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, nodate: 0, done: 0, all: ours.length };
@@ -75,7 +105,7 @@ export function AgentsScreen() {
     return c;
   }, [ ours ] );
 
-  const keepers = useMemo( () => [ ...new Set( ours.map( keeperOf ) ) ].sort(), [ ours, names ] ); // eslint-disable-line react-hooks/exhaustive-deps
+  const keepers = useMemo( () => Object.values( labels ).sort(), [ labels ] );
 
   const rows = useMemo( () => {
     const needle = search.trim().toLowerCase();
@@ -84,7 +114,7 @@ export function AgentsScreen() {
       .filter( ( one ) => ! keeper || keeperOf( one ) === keeper )
       .filter( ( one ) => ! needle || `${ one.item.id } ${ one.item.title } ${ one.site.client_name }`.toLowerCase().includes( needle ) )
       .sort( ( a, b ) => Number( isUrgent( b ) ) - Number( isUrgent( a ) ) || ( a.due ?? 9999 ) - ( b.due ?? 9999 ) || priorityRank( a.item.priority ) - priorityRank( b.item.priority ) );
-  }, [ ours, view, keeper, search, names ] ); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ ours, view, keeper, search, keeperOf ] );
 
   const views: SavedView[] = [
     { id: 'today', label: 'Today', count: counts.today },
@@ -114,8 +144,8 @@ export function AgentsScreen() {
     },
     { key: 'client', label: 'Client', width: 140, sortBy: ( r ) => r.site.client_name, render: ( r ) => r.site.client_name || r.site.name },
     { key: 'stage', label: 'Stage', width: 170, sortBy: ( r ) => r.item.stage_label, render: ( r ) => <StageChip stage={ r.item.stage } dense /> },
-    { key: 'agent', label: 'Who', width: 90, render: () => <Tag tone="neutral">Agent</Tag> },
-    { key: 'keeper', label: 'Looked after by', width: 150, sortBy: keeperOf, render: keeperOf },
+    { key: 'agent', label: 'Who', width: 90, render: () => <span data-testid="bwx-agents-tag"><Tag tone="neutral">Agent</Tag></span> },
+    { key: 'keeper', label: 'Looked after by', width: 150, sortBy: keeperOf, render: ( r ) => <span data-testid="bwx-agents-keeper">{ keeperOf( r ) }</span> },
     {
       key: 'priority',
       label: 'Priority',
