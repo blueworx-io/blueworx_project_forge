@@ -70,7 +70,7 @@ const RAIL: Entry[] = [
   { group: 'My day' },
   { key: 'mytasks', label: 'My tasks', icon: ListChecks, testId: 'bwx-screen-mytasks', primary: true },
   { key: 'standup', label: 'Daily standup', icon: Clock, testId: 'bwx-screen-standup', primary: true },
-  { key: 'agents', label: 'Agents', icon: Bot, testId: 'bwx-screen-agents', primary: true },
+  { key: 'agents', label: 'Agents', icon: Bot, testId: 'bwx-screen-agents' },
   { group: 'Intake' },
   { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests', primary: true },
   { group: 'Delivery' },
