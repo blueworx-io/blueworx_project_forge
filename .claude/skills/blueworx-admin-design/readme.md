@@ -333,7 +333,7 @@ body.toplevel_page_<slug> #wpfooter { display: none; }
 
 Any screen where a site owner edits a record or plugin settings is built by the
 **page editor library** (`editor/` in this skill), never by hand. Page content is not edited
-here at all: an ordinary page is built from standard blocks in WordPress's block editor, and the
+here at all: a page is built from the plugin's own section blocks in WordPress's block editor, and the
 block editor's own UI is outside this system. The library owns the shape;
 the plugin owns only what goes in it.
 
@@ -432,7 +432,8 @@ twice means the two can disagree with no way to tell which is right.
 
 ## Section blocks
 
-Page content is edited in WordPress's block editor. A reusable part of a page — a hero, a team
+Pages are built only from section blocks, edited in WordPress's block editor and locked by the
+shared page lock (blog posts keep WordPress's standard blocks). A reusable part of a page — a hero, a team
 list, an FAQ, a sponsor strip — is a **section block** the plugin ships. One shape, every plugin:
 
 - A folder per block, `blocks/<name>/`, registered with `register_block_type( __DIR__ . '/blocks/<name>' )`.

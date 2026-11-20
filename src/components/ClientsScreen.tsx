@@ -7,6 +7,7 @@ import { Button, DataView, EmptyState, Field, Modal, Panel, Select, Tag, TextInp
 import type { Column } from '../kit';
 import { failed, NOTHING_SAID, Notice, ok, Screen } from './States';
 import type { Said } from './States';
+import { withoutAgents } from '../agents';
 
 /**
  * Who we work for, and their sites (PR 4 of spec 2026-09-16), in the app.
@@ -667,7 +668,7 @@ function ClientForm( {
             <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-clients-form-staff-people">
               <legend>Who works on it</legend>
               { null === people && <span className="bwx-hint">Reading the staff…</span> }
-              { ( people ?? [] ).map( ( person ) => (
+              { withoutAgents( people ?? [] ).map( ( person ) => (
                 <label key={ person.id } className="bwx-recurring-person">
                   <input
                     type="checkbox"
@@ -869,7 +870,7 @@ export function ContactForm( { client, onClose, onSaved }: { client: ClientRecor
             onChange={ ( event ) => setPicked( event.target.value ) }
             options={ [
               { value: '', label: null === people ? 'Reading the people…' : 'Nobody' },
-              ...( people ?? [] ).map( ( one ) => ( { value: one.id, label: one.display_name } ) ),
+              ...withoutAgents( people ?? [] ).map( ( one ) => ( { value: one.id, label: one.display_name } ) ),
             ] }
           />
         ) }

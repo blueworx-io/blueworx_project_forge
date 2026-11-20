@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 56;
+	public const VERSION = 57;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -685,6 +685,7 @@ final class Schema {
 	status varchar(20) NOT NULL DEFAULT 'active',
 	grants varchar(191) NOT NULL DEFAULT '',
 	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+	is_agent tinyint(1) NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,

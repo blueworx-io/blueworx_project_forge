@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Commerce\SureCart;
 use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
 use Blueworx\Forge\Recurring\Sources;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Ids;
 use Blueworx\Forge\Tenancy\Secrets;
 use Blueworx\Forge\Tenancy\Studio;
@@ -282,6 +283,17 @@ final class Connections {
 
 			$values[ $hours ] = (string) round( (float) $raw, 2 );
 		}
+
+		// #689. A payment check is ticked by its own people, so the agent can't be one.
+		$errors = array_merge(
+			Agents::refuse_in(
+				$values,
+				array( 'primary_user_id', 'reviewer_id', 'deliverer_id' ),
+				Agents::ids(),
+				'The agent can\'t check payments: pick a person.'
+			),
+			$errors
+		);
 
 		return array(
 			'values' => $values,

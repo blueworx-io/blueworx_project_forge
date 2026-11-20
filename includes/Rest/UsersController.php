@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Tenancy\Accounts;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Grants;
@@ -622,6 +623,13 @@ final class UsersController {
 			return $stale;
 		}
 
+		// #689. Linking is giving a login, which the agent never has.
+		$no_login = Agents::refuse_change( $user, array( 'make_account' => true ) );
+
+		if ( null !== $no_login ) {
+			return Errors::rest( 'agent_unchanged', $no_login, 400 );
+		}
+
 		$body   = (array) $request->get_json_params();
 		$chosen = (int) ( $body['wp_user_id'] ?? 0 );
 
@@ -707,6 +715,13 @@ final class UsersController {
 				400,
 				array( 'fields' => $checked['errors'] )
 			);
+		}
+
+		// #689. The agent keeps its unreachable address and never gets a login.
+		$agent_refusal = Agents::refuse_change( $user, array_merge( (array) $request->get_json_params(), $checked['values'] ) );
+
+		if ( null !== $agent_refusal ) {
+			return Errors::rest( 'agent_unchanged', $agent_refusal, 400 );
 		}
 
 		if ( array_key_exists( 'email', $checked['values'] ) ) {

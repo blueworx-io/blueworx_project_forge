@@ -4,6 +4,7 @@ import type { ConversionRequest, IntakeState, Person, Submission, WorkItem } fro
 import { api, messageFor } from '../api';
 import { Aside } from '../kit';
 import { everybody } from './ItemPanel';
+import { withoutAgents } from '../agents';
 
 /**
  * One request, the studio's answer to it, and the work it becomes (#131, #132).
@@ -407,7 +408,7 @@ function Conversion( {
                     onChange={ ( event ) => seat.set( event.target.value ) }
                   >
                     <option value="">Choose</option>
-                    { people.map( ( person ) => (
+                    { withoutAgents( people ).map( ( person ) => (
                       <option key={ person.id } value={ person.id }>
                         { person.display_name }
                       </option>

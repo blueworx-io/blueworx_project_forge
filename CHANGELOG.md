@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.225.0] - 2026-11-20
+
+### Added
+
+- You can now put the Agent on a task. Its hours show on its own row in capacity, not yours, and the deliverer looks after the task while the agent has it.
+- The Agent is on the staff list, starting at 12 hours a day Monday to Friday. Change its hours there like anyone else's.
+- The Agent's hours don't count towards the availability clients are shown.
+- On the deliverer's My tasks, the Agent's tasks are marked "Agent's work" and add no hours to their day.
+- The Agent isn't offered where it can't act: delivering, meetings, recurring tasks, reminders, a client's point of contact. It can't be given a login.
+
 ## [2.224.0] - 2026-11-18
 
 ### Added

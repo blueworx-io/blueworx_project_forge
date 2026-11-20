@@ -194,7 +194,7 @@ final class SchemaTest extends TestCase {
 	public function test_github_tables_are_defined(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertSame( 56, Schema::VERSION );
+		$this->assertSame( 57, Schema::VERSION );
 		// #681. The outbox, found by what is due and by item.
 		$this->assertArrayHasKey( Schema::github_jobs_table(), $definitions );
 		$this->assertStringContainsString( 'KEY status_run (status, run_after)', $definitions[ Schema::github_jobs_table() ] );
@@ -554,6 +554,15 @@ final class SchemaTest extends TestCase {
 		update_option( Schema::OPTION, 35 );
 		Schema::maybe_upgrade();
 		$this->assertStringContainsString( 'cross_client', implode( "\n", array_column( $GLOBALS['bwx_forge_test_calls'], 1 ) ) );
+	}
+
+	/**
+	 * #689. A person is marked as the agent by a column of their own. The
+	 * agent itself is made on the first request that finds it missing
+	 * (AgentsTest), not by an upgrade step.
+	 */
+	public function test_a_person_can_be_marked_as_the_agent(): void {
+		$this->assertStringContainsString( 'is_agent tinyint(1) NOT NULL DEFAULT 0', Schema::definitions()[ Schema::users_table() ] );
 	}
 
 	/**

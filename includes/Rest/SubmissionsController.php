@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Notifications\Register as Notifications;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Clients;
@@ -318,7 +319,16 @@ final class SubmissionsController {
 		 * open this client's work. Refused, not dropped: somebody is standing
 		 * at the screen and can pick again.
 		 */
-		$no_access = $links ? array() : PersonReach::seat_refusals( $asked, $client, (string) $row['client_site_id'] );
+		$no_access = $links ? array() : array_merge(
+			PersonReach::seat_refusals( $asked, $client, (string) $row['client_site_id'] ),
+			// #689. Named before the task has a deliverer to act for the agent.
+			Agents::refuse_in(
+				$asked,
+				array( 'primary_user_id', 'reviewer_id' ),
+				Agents::ids(),
+				__( 'Pick a person here. Once the task has somebody to deliver it, you can put the agent on it.', 'blueworx-forge' )
+			)
+		);
 
 		if ( array() !== $no_access ) {
 			return Errors::rest(

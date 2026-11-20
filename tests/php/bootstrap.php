@@ -93,6 +93,13 @@ class BWX_Forge_Test_Wpdb {
 	 * @return string|null The table name, when it "exists"; null otherwise.
 	 */
 	public function get_var( string $query ) {
+		bwx_forge_test_record( 'get_var', $query );
+
+		// #689. Whether the site already has an agent, as a test stages it.
+		if ( false !== strpos( $query, 'is_agent' ) ) {
+			return $GLOBALS['bwx_forge_test_agent_id'] ?? null;
+		}
+
 		if ( 1 !== preg_match( "/LIKE '([^']+)'/", $query, $matches ) ) {
 			return null;
 		}
@@ -134,6 +141,22 @@ class BWX_Forge_Test_Wpdb {
 	 */
 	public function query( string $query ): int {
 		bwx_forge_test_record( 'query', $query );
+
+		return 0;
+	}
+
+	/**
+	 * Stub. Records an insert, as table and row, and reports it as not
+	 * written, so whatever would follow a real insert (#689's agent hours)
+	 * is not reached without a database.
+	 *
+	 * @param string               $table Table.
+	 * @param array<string, mixed> $row   Row.
+	 * @return int
+	 */
+	public function insert( string $table, array $row ): int {
+		bwx_forge_test_record( 'insert', $table );
+		$GLOBALS['bwx_forge_test_inserts'][] = array( $table, $row );
 
 		return 0;
 	}

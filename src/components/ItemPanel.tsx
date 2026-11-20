@@ -20,6 +20,7 @@ import type {
   WorkItem,
 } from '../types';
 import { CLIENT_REVIEWER } from '../types';
+import { isAgent, withoutAgents } from '../agents';
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
 import { waitingOn } from '../turn';
@@ -1134,11 +1135,14 @@ export function ItemPanel( {
       return true;
     }
 
+    // #689. Where the agent holds the seat, its deliverer answers for it.
+    const actsAs = ( holder: string | undefined ) => ( isAgent( holder ) ? it.deliverer_id : holder ) === me;
+
     switch ( requirement.who ) {
       case 'PU':
-        return it.primary_user_id === me;
+        return actsAs( it.primary_user_id );
       case 'REV':
-        return it.reviewer_id === me || it.reviewer_substitute_id === me;
+        return actsAs( it.reviewer_id ) || it.reviewer_substitute_id === me;
       case 'DEL':
         return it.deliverer_id === me || it.deliverer_substitute_id === me;
       default:
@@ -1484,7 +1488,8 @@ export function ItemPanel( {
    * flagged, so the picker shows who is there and why a save is refused.
    */
   const pick = ( field: string, name: string ) => {
-    const offered = siteStaff ?? [];
+    // #689. The agent can sit in any seat but this one.
+    const offered = 'deliverer_id' === field ? withoutAgents( siteStaff ?? [] ) : siteStaff ?? [];
     const current = draft[ field ] ?? '';
     // #391. The client can review, at any stage (#468).
     const reviewing = 'reviewer_id' === field;
@@ -2189,7 +2194,7 @@ export function ItemPanel( {
                   >
                     <option value="">Choose</option>
                     <option value="client">The client</option>
-                    { staffList.map( ( person ) => (
+                    { withoutAgents( staffList ).map( ( person ) => (
                       <option key={ person.id } value={ person.id }>
                         { person.display_name }
                       </option>
@@ -3405,7 +3410,7 @@ export function GateList( {
                       { one.title }
                     </option>
                   ) ) }
-                  { 'people' === requirement.source && people.map( ( person ) => (
+                  { 'people' === requirement.source && withoutAgents( people ).map( ( person ) => (
                     <option key={ person.id } value={ person.id }>
                       { person.display_name }
                     </option>

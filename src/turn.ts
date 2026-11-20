@@ -1,4 +1,5 @@
 import { CLIENT_REVIEWER } from './types';
+import { isAgent } from './agents';
 
 /**
  * Whose turn a piece of work is (2026-09-24), in one place: My tasks lists it
@@ -32,6 +33,23 @@ export interface Seated {
  * is whoever's stage it was blocked from.
  */
 export function responsible( item: Seated ): Seat | null {
+  const seat = seatAtStage( item );
+
+  // #689. The agent cannot act, so its turn is its deliverer's.
+  if ( null !== seat && isAgent( item[ SEAT_FIELD[ seat ] ] ) ) return 'deliverer';
+
+  return seat;
+}
+
+/** Whether it is the agent's turn, so its deliverer is looking after it (#689). */
+export function agentsTurn( item: Seated ): boolean {
+  const seat = seatAtStage( item );
+
+  return null !== seat && isAgent( item[ SEAT_FIELD[ seat ] ] );
+}
+
+/** The seat a stage belongs to, before the agent is allowed for. */
+function seatAtStage( item: Seated ): Seat | null {
   const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
 
   if ( 'released' === stage ) return null;

@@ -25,6 +25,7 @@ use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\Notifications\Register as Notifications;
 use Blueworx\Forge\Recurring\Materialise;
 use Blueworx\Forge\Slack\Notify;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
@@ -1582,12 +1583,13 @@ final class WorkItemsController {
 		$label   = '';
 
 		switch ( $who ) {
+			// #689. Where the agent holds the seat, its deliverer answers for it.
 			case Gates::PU:
-				$holders = array( (string) $item['primary_user_id'] );
+				$holders = array( Agents::stand_in( $item, 'primary_user_id', Agents::ids() ) );
 				$label   = __( 'That is for the person doing the work.', 'blueworx-forge' );
 				break;
 			case Gates::REV:
-				$holders = array( (string) $item['reviewer_id'], (string) $item['reviewer_substitute_id'] );
+				$holders = array( Agents::stand_in( $item, 'reviewer_id', Agents::ids() ), (string) $item['reviewer_substitute_id'] );
 				$label   = __( 'That is for the reviewer.', 'blueworx-forge' );
 				break;
 			case Gates::DEL:
@@ -1671,6 +1673,8 @@ final class WorkItemsController {
 			Validate::dates_in_order( $checked['values'] ),
 			// #393. Nobody goes in a seat who cannot open this client's work.
 			PersonReach::seat_refusals( $checked['values'], (string) $site['client_id'], (string) $site['id'] ),
+			// #689. The agent never delivers, and needs somebody who does.
+			Agents::seat_refusals( $checked['values'], Agents::ids(), ! empty( $body['self_review_permitted'] ) ),
 			self::repo_refusal( $checked['values'], array() )
 		);
 
@@ -1802,6 +1806,9 @@ final class WorkItemsController {
 				(string) $item['client_id'],
 				(string) $item['client_site_id']
 			),
+			// #689. Judged on the task as it would be, and only when this edit
+			// moves a seat, so a rename is never refused over who is seated.
+			array() === PersonReach::changed_seats( $checked['values'], $item ) ? array() : Agents::seat_refusals( array_merge( $item, $checked['values'] ), Agents::ids(), ! empty( $body['self_review_permitted'] ) ),
 			self::repo_refusal( $checked['values'], $item )
 		);
 

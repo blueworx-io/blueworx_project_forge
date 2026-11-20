@@ -55,6 +55,7 @@ final class Users {
 			'status'         => (string) ( $values['status'] ?? 'active' ),
 			'grants'         => Grants::format( (array) ( $values['grants'] ?? array() ) ),
 			'wp_user_id'     => (int) ( $values['wp_user_id'] ?? 0 ),
+			'is_agent'       => empty( $values['is_agent'] ) ? 0 : 1,
 			'created_at'     => $now,
 			'updated_at'     => $now,
 			'created_by'     => $author,
@@ -408,6 +409,8 @@ final class Users {
 			'status'         => (string) $row['status'],
 			'grants'         => (string) ( $row['grants'] ?? '' ),
 			'wp_user_id'     => (int) $row['wp_user_id'],
+			// #689. Read loosely: a site mid-upgrade has no column yet.
+			'is_agent'       => 1 === (int) ( $row['is_agent'] ?? 0 ),
 			'created_at'     => (int) $row['created_at'],
 			'updated_at'     => (int) $row['updated_at'],
 			'created_by'     => (int) $row['created_by'],

@@ -2,7 +2,7 @@ import type { ClientSite, WorkItem } from './types';
 import { ALL_SITES } from './sites';
 import { CLIENT_REVIEWER } from './types';
 // A task is on somebody's list only while it is theirs to act on, and only once.
-import { responsible } from './turn';
+import { agentsTurn, responsible } from './turn';
 import { todayIso } from './calendar';
 
 /*
@@ -12,7 +12,7 @@ import { todayIso } from './calendar';
  */
 
 export type Site = ClientSite & { client_name: string };
-export type Role = 'primary' | 'designer' | 'reviewer' | 'deliverer' | 'assignee';
+export type Role = 'primary' | 'designer' | 'reviewer' | 'deliverer' | 'assignee' | 'agent';
 
 const DAY = 86400000;
 
@@ -92,7 +92,7 @@ export function mineFor( person: { id: string }, siteList: Site[], items: WorkIt
     // One row, for whoever's stage it is (2026-09-24).
     const seat = responsible( item );
     if ( null === seat ) continue;
-    const seats: Record< Exclude< Role, 'assignee' >, [ string, number ] > = {
+    const seats: Record< Exclude< Role, 'assignee' | 'agent' >, [ string, number ] > = {
       primary: [ item.primary_user_id, item.hours_primary ],
       designer: [ item.designer_id ?? '', item.hours_designer ?? 0 ],
       reviewer: [ item.reviewer_id, item.hours_review ],
@@ -108,6 +108,15 @@ export function mineFor( person: { id: string }, siteList: Site[], items: WorkIt
       if ( item.assignees.includes( person.id ) ) {
         const reminder = ( item.recurring_id ?? '' ).startsWith( 'rem_' );
         found.push( { id: `${ item.id }:assignee`, item, role: 'assignee', site, hours: item.hours_each, due, reminder, starts: reminder ? daysUntil( item.planned_start || '' ) : null, ticked: undefined !== ( item.ticks ?? {} )[ person.id ] } );
+      }
+      continue;
+    }
+
+    // #689. The agent's turn, looked after by its deliverer: on their list,
+    // marked as the agent's work, with no hours, since the agent spends them.
+    if ( 'deliverer' === seat && agentsTurn( item ) ) {
+      if ( item.deliverer_id === person.id ) {
+        found.push( { id: item.id, item, role: 'agent', site, hours: 0, due, reminder: false, starts: null, ticked: false } );
       }
       continue;
     }

@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Standup;
 
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Work\ClientReviewer;
 
 /**
@@ -310,7 +311,8 @@ final class Rules {
 		}
 
 		if ( 'in-review' === $stage ) {
-			$waiting = array( 'waiting_on' => (string) ( $item['reviewer_id'] ?? '' ) );
+			// #689. When the agent reviews, it waits on whoever delivers.
+			$waiting = array( 'waiting_on' => Agents::stand_in( $item, 'reviewer_id', Agents::ids() ) );
 
 			$cards[] = self::work_card( self::AWAITING_REVIEW, $item, $waiting );
 		}

@@ -47,6 +47,10 @@ final class Plugin {
 		// missing. After Schema, because it writes to the tables Schema makes.
 		Tenancy\Studio::ensure();
 
+		// #689. The agent, likewise: made on the first request that finds it
+		// missing, and tried again if that fails.
+		Tenancy\Agents::ensure();
+
 		// The launch checklist, once, on sites installed before it was
 		// finished (ONB-1). After Schema, because it writes to its tables.
 		Onboarding\Version1::maybe_seed_after_update();

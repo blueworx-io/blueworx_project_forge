@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Capacity;
 
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Users;
 
 /**
@@ -157,7 +158,8 @@ final class ClientAnswer {
 	public static function for_window( string $from, string $to ): array {
 		$ids = array_map(
 			static fn( array $person ): string => (string) $person['id'],
-			Users::all( 'active' )
+			// #689. The agent only builds, so its hours are no promise to a client.
+			Agents::without( Users::all( 'active' ) )
 		);
 
 		$periods = Periods::weeks( $from, $to );
