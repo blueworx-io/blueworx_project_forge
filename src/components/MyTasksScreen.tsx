@@ -57,25 +57,19 @@ export function MyTasksScreen() {
   const { siteId, label } = useClientChoice();
 
   /*
-   * Today's diary (#386): moved here from the standup, and narrowed to what
-   * is the signed-in person's — an entry for 'all' (a company day) or one
-   * that names them. The same feed the calendar draws, read for one day
-   * rather than the standup's heavier board.
+   * Today's diary (#386): the signed-in person's meetings today, and nothing
+   * else (#693) — chores, reminders and tasks are in the list beneath it.
+   * The same feed the calendar draws, read for one day.
    */
   const day = todayISO();
   const diary = useDiary( day, day );
   const myDiary = useMemo(
-    () => diary.entries.filter( ( entry ) => 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ),
+    () => diary.entries.filter( ( entry ) => 'meeting' === entry.kind && ( 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ) ),
     [ diary.entries, me ]
   );
-  // A finished chore or reminder leaves Today's diary (#412), and so does a
-  // meeting once it has happened (#601); a date or renewal stays regardless.
-  // The calendar screen still shows a done one — it is a record — so this
-  // filter is Today's diary alone.
-  const openDiary = useMemo(
-    () => myDiary.filter( ( entry ) => ! ( ( 'recurring' === entry.kind || 'reminder' === entry.kind || 'meeting' === entry.kind ) && entry.done ) ),
-    [ myDiary ]
-  );
+  // A meeting leaves Today's diary once it has happened (#601). The calendar
+  // screen still shows it — it is a record — so this filter is the diary alone.
+  const openDiary = useMemo( () => myDiary.filter( ( entry ) => ! entry.done ), [ myDiary ] );
 
   async function load() {
     try {

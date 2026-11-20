@@ -149,7 +149,7 @@ test('Meetings follows the picker: one client is its meetings, All is every clie
 });
 
 test.describe('screens that narrow what they load', () => {
-  test('My Tasks, Standup and the diary follow the picker; company dates stay', async ({ browser, baseURL }) => {
+  test('My Tasks and Standup follow the picker; the feed says which client each entry is for', async ({ browser, baseURL }) => {
     test.setTimeout(300_000);
 
     const admin = await signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
@@ -194,9 +194,6 @@ test.describe('screens that narrow what they load', () => {
     await table.getByRole('button', { name: /^Everything/ }).click();
     await expect(table).toContainText(`Late here ${RUN_ID}`);
     await expect(table).not.toContainText(`Late there ${RUN_ID}`);
-    const diary = page.getByTestId('bwx-mytasks-diary');
-    await expect(diary).toContainText(`Company day ${RUN_ID}`);
-    await expect(diary).not.toContainText(`Chore there ${RUN_ID}`);
 
     await page.getByTestId('bwx-screen-standup').click();
     const standup = page.getByTestId('bwx-standup');
