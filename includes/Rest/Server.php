@@ -94,7 +94,6 @@ final class Server {
 		WorkItemsController::register_routes( self::NAMESPACE );
 		CommentsController::register_routes( self::NAMESPACE );
 		SavedViewsController::register_routes( self::NAMESPACE );
-		DayPlanController::register_routes( self::NAMESPACE );
 		SubmissionsController::register_routes( self::NAMESPACE );
 		CapacityController::register_routes( self::NAMESPACE );
 		OnboardingController::register_routes( self::NAMESPACE );

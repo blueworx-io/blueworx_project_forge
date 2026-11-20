@@ -112,13 +112,14 @@ test('a Manager\'s menu on a phone has no administrator screens and no empty hea
   await expect(menu).toBeVisible();
   await expect(menu.getByTestId('bwx-screen-people')).toHaveCount(0);
   await expect(menu.getByTestId('bwx-screen-reports')).toHaveCount(0);
-  // Team and Insight are dropped for a Manager; My day and Intake are all on the bottom bar.
+  // Team and Insight are dropped for a Manager; Intake is all on the bottom bar.
   for (const heading of ['Team', 'Insight']) {
     await expect(menu.locator('.fs-rail-group', { hasText: heading })).toHaveCount(0);
   }
-  for (const heading of ['My day', 'Intake']) {
-    await expect(menu.locator('.fs-rail-group', { hasText: heading })).toBeHidden();
-  }
+  await expect(menu.locator('.fs-rail-group', { hasText: 'Intake' })).toBeHidden();
+  // #693. My day keeps its heading: Agents is under it, and not on the bar.
+  await expect(menu.locator('.fs-rail-group', { hasText: 'My day' })).toBeVisible();
+  await expect(menu.getByTestId('bwx-screen-agents')).toBeVisible();
   await admin.context.close();
 });
 

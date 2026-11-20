@@ -6,7 +6,6 @@ import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { DiaryLine, useDiary } from './Diary';
-import { DayPlanner } from './DayPlanner';
 import { useClientChoice } from '../ClientChoice';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
@@ -28,7 +27,7 @@ import type { Mine, Role, Site, View } from '../mytasks';
  * here from the due dates, the same way the standup does.
  */
 
-const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick', agent: "Agent's work" };
+const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick', agent: 'Agent' };
 const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok', agent: 'neutral' };
 
 /** Today, in the browser's own zone — the same today the due dates below use. */
@@ -54,31 +53,32 @@ export function MyTasksScreen() {
   const [ search, setSearch ] = useState( '' );
   const [ role, setRole ] = useState< string | null >( null );
   const [ opened, setOpened ] = useState( '' );
-  // Where the day planner puts its lists, beneath the tasks' own box (#635).
-  const [ below, setBelow ] = useState< HTMLDivElement | null >( null );
   // The top bar's client (#402) replaces the screen's own Client filter.
   const { siteId, label } = useClientChoice();
 
   /*
-   * Today's diary (#386): moved here from the standup, and narrowed to what
-   * is the signed-in person's — an entry for 'all' (a company day) or one
-   * that names them. The same feed the calendar draws, read for one day
-   * rather than the standup's heavier board.
+   * Today's diary (#386): the signed-in person's meetings today, and nothing
+   * else (#693) — chores, reminders and tasks are in the list beneath it.
+   * The same feed the calendar draws, read for one day.
    */
   const day = todayISO();
   const diary = useDiary( day, day );
+  // A meeting you host or attend. A Google meeting counts only those going,
+  // so one you declined is not yours; a standing one names its host in
+  // people and the rest in attendee_ids.
   const myDiary = useMemo(
-    () => diary.entries.filter( ( entry ) => 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ),
+    () =>
+      diary.entries.filter( ( entry ) => {
+        if ( 'meeting' !== entry.kind || null === me ) return false;
+        const attending = ( entry.attendee_ids ?? [] ).includes( me.id );
+        if ( 'google' === entry.source ) return attending;
+        return attending || 'all' === entry.people || entry.people.includes( me.id );
+      } ),
     [ diary.entries, me ]
   );
-  // A finished chore or reminder leaves Today's diary (#412), and so does a
-  // meeting once it has happened (#601); a date or renewal stays regardless.
-  // The calendar screen still shows a done one — it is a record — so this
-  // filter is Today's diary alone.
-  const openDiary = useMemo(
-    () => myDiary.filter( ( entry ) => ! ( ( 'recurring' === entry.kind || 'reminder' === entry.kind || 'meeting' === entry.kind ) && entry.done ) ),
-    [ myDiary ]
-  );
+  // A meeting leaves Today's diary once it has happened (#601). The calendar
+  // screen still shows it — it is a record — so this filter is the diary alone.
+  const openDiary = useMemo( () => myDiary.filter( ( entry ) => ! entry.done ), [ myDiary ] );
 
   async function load() {
     try {
@@ -115,9 +115,6 @@ export function MyTasksScreen() {
   // Narrowed first, so the counts on the tabs are for the picked client too.
   // Done work is under no view, Everything included (Luke, 2026-09-27).
   const ours = useMemo( () => listed( mine, siteId ), [ mine, siteId ] );
-  // #649. Everything on Today whatever the filters, so the day plan can tell
-  // a finished task from one a filter is hiding.
-  const onToday = useMemo( () => new Set( listed( mine, ALL_SITES ).filter( ( one ) => 'today' === viewOf( one ) ).map( ( one ) => one.id ) ), [ mine ] );
 
   const counts = useMemo( () => {
     const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, nodate: 0, done: 0, all: ours.length };
@@ -225,8 +222,8 @@ export function MyTasksScreen() {
       ) }
 
       { /*
-          Today's diary (#386): the chores, dates, meetings, renewals and
-          absences that are yours today. Shown whenever there is one.
+          Today's diary (#386): the meetings you host or attend today (#693).
+          Shown whenever there is one.
        */ }
       { 'ready' === state && 0 < myDiary.length && (
         <section className="bwx-standup-diary" data-testid="bwx-mytasks-diary">
@@ -254,19 +251,16 @@ export function MyTasksScreen() {
             search={ search }
             onSearch={ setSearch }
             searchPlaceholder="Search your tasks"
-            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Designer', 'Checker', 'Builder', "Agent's work" ] } ] }
+            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Designer', 'Checker', 'Builder' ] } ] }
             onFilter={ ( _id, value ) => setRole( null === value || 'Any role' === value ? null : value ) }
             onClearFilters={ () => setRole( null ) }
             columns={ columns }
             rows={ rows }
-            body={ 'today' === view ? <DayPlanner rows={ rows } onToday={ onToday } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } below={ below } /> : undefined }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
             footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }
             testId="bwx-mytasks-table"
           />
-          { /* The day's lists of what does not fit, in their own box (#635). */ }
-          <div ref={ setBelow } className="bwx-day-below" />
         </div>
       ) }
 

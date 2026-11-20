@@ -211,7 +211,7 @@ export interface SavedView {
 export type ViewName = 'board' | 'list' | 'gantt' | 'calendar';
 
 /** Which screen of the studio is on screen (#131, #139). */
-export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'client' | 'projects' | 'project' | 'leads' | 'support' | 'meetings' | 'profile' | 'settings' | 'servers';
+export type ScreenName = 'mytasks' | 'work' | 'requests' | 'capacity' | 'onboarding' | 'standup' | 'agents' | 'reports' | 'recurring' | 'reminders' | 'subscriptions' | 'availability' | 'packages' | 'people' | 'clients' | 'client' | 'projects' | 'project' | 'leads' | 'support' | 'meetings' | 'profile' | 'settings' | 'servers';
 
 /** What to call a person's position in a period (#139). */
 export type CapacityBand = 'clear' | 'tight' | 'over' | 'unrecorded';
@@ -885,7 +885,7 @@ export interface DiaryEntry {
   ends_at?: number;
   /** #620. An all-day event, which sits above the day rather than at a time. */
   all_day?: boolean;
-  /** #620. The people going, for the day planner. */
+  /** #620. The people going: a standing meeting's attendees, or a Google meeting's people who have not declined. */
   attendee_ids?: string[];
 }
 

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.226.0] - 2026-11-20
+
+### Added
+
+- A new Agents screen, under Daily standup, lists every task where it's the Agent's turn, with who looks after each. It has the same tabs as My tasks and its own count in the sidebar.
+
+### Changed
+
+- The Agent's tasks no longer appear on anyone's My tasks.
+- Today's diary on My tasks shows meetings only. Chores and reminders are in the list beneath it.
+
+### Removed
+
+- The day planner on My tasks' Today tab. Today is a plain list again.
+
 ## [2.225.0] - 2026-11-20
 
 ### Added

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Server, Settings, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Bot, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Server, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
 import { api, background, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
@@ -27,6 +27,7 @@ import { RemindersScreen } from './components/RemindersScreen';
 import { ReportsScreen } from './components/ReportsScreen';
 import { Signals } from './components/Signals';
 import { StandupScreen } from './components/StandupScreen';
+import { AgentsScreen } from './components/AgentsScreen';
 import { SubscriptionsScreen } from './components/SubscriptionsScreen';
 import { SupportScreen } from './components/SupportScreen';
 import { Screen } from './components/States';
@@ -69,6 +70,7 @@ const RAIL: Entry[] = [
   { group: 'My day' },
   { key: 'mytasks', label: 'My tasks', icon: ListChecks, testId: 'bwx-screen-mytasks', primary: true },
   { key: 'standup', label: 'Daily standup', icon: Clock, testId: 'bwx-screen-standup', primary: true },
+  { key: 'agents', label: 'Agents', icon: Bot, testId: 'bwx-screen-agents' },
   { group: 'Intake' },
   { key: 'requests', label: 'Requests review', icon: Inbox, testId: 'bwx-screen-requests', primary: true },
   { group: 'Delivery' },
@@ -198,6 +200,7 @@ const TITLES: Record< ScreenName, string > = {
   capacity: 'Capacity',
   onboarding: 'Onboarding board',
   standup: 'Daily standup',
+  agents: 'Agents',
   reports: 'Reports',
   recurring: 'Recurring tasks',
   reminders: 'Reminders',
@@ -241,6 +244,7 @@ const OPENINGS: Record< ScreenName | 'gantt' | 'calendar', Opening > = {
   requests: { crumbs: [ 'Intake', 'Requests review' ], eyebrow: 'Cross-client intake', tile: Inbox, hue: 'amber' },
   onboarding: { crumbs: [ 'Clients', 'Onboarding board' ], eyebrow: 'New-client setup', tile: FileCheck2, hue: 'blue' },
   standup: { crumbs: [ 'My day', 'Daily standup' ], eyebrow: 'Today', tile: Clock, hue: 'blue' },
+  agents: { crumbs: [ 'My day', 'Agents' ], eyebrow: 'Every task with the agent', tile: Bot, hue: 'blue' },
   reports: { crumbs: [ 'Insight', 'Reports' ], eyebrow: 'How delivery is going', tile: BarChart3, hue: 'slate' },
   recurring: { crumbs: [ 'Delivery', 'Recurring tasks' ], eyebrow: 'Every day, week or month', tile: Repeat, hue: 'teal' },
   reminders: { crumbs: [ 'Delivery', 'Reminders' ], eyebrow: 'On a day, or over a few', tile: Bell, hue: 'teal' },
@@ -623,6 +627,7 @@ export function App() {
         { 'capacity' === screen && <CapacityScreen key={ generation } person={ landing.person } /> }
         { 'onboarding' === screen && <OnboardingScreen key={ generation } /> }
         { 'standup' === screen && <StandupScreen key={ generation } /> }
+        { 'agents' === screen && <AgentsScreen key={ generation } /> }
         { 'reports' === screen && <ReportsScreen key={ generation } /> }
         { 'recurring' === screen && <RecurringScreen key={ generation } /> }
         { 'reminders' === screen && <RemindersScreen key={ generation } /> }

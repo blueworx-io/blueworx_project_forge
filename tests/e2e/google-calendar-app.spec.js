@@ -39,7 +39,8 @@ test.afterAll(async () => {
 });
 
 // #654. First, and with a person of its own, so it stands on its own.
-test('a Google meeting at 1pm sits at 1pm on My tasks (#654)', async ({ browser, baseURL }) => {
+// #693. The day planner is gone: today's meeting is in Today's diary.
+test('a Google meeting today is in Today’s diary on My tasks (#654)', async ({ browser, baseURL }) => {
   test.slow();
 
   const planner = `gp${RUN}`;
@@ -62,11 +63,7 @@ test('a Google meeting at 1pm sits at 1pm on My tasks (#654)', async ({ browser,
   // The app reads its hash once, as it loads.
   await page.goto('/blueworx-forge/#screen=mytasks');
   await page.reload();
-  const meeting = page.getByTestId('bwx-day-meeting').filter({ hasText: `One o'clock ${RUN}` });
-  await expect(meeting).toBeVisible({ timeout: 90000 });
-
-  // 80px an hour from 7am: six hours down.
-  await expect(meeting.locator('xpath=ancestor::div[contains(@class, "bwx-day-item")][1]')).toHaveCSS('top', '480px');
+  await expect(page.getByTestId('bwx-mytasks-diary')).toContainText(`One o'clock ${RUN}`, { timeout: 90000 });
 
   await as.context.close();
 });

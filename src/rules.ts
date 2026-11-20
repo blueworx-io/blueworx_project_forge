@@ -447,28 +447,8 @@ export const RULES: RuleSection[] = [
         why: 'Google owns when a meeting is; Forge owns what it cost.',
       },
       {
-        what: 'The Today tab on My tasks is a planned day from 7am to 7pm, the same for everyone. Meetings you host or attend sit at their times in your own time zone, and your tasks fill the open time from now on, urgent first, then high, normal and low; within a priority, overdue first, then due earliest. A task is as tall as its hours, and a task that runs into a meeting carries on after it.',
-        why: 'A list says what is due but not whether it fits in the day.',
-      },
-      {
-        what: 'Beneath the whole day, each in a box of its own and in this order: Needs attention lists urgent or overdue tasks that are not in the day, because they have no hours or are too long for the time left, in red, most pressing first; Doesn\'t fit today lists the other tasks that would run past 7pm; and No hours set lists the other tasks with no hours, which are never placed. Recurring tasks and reminders are tasks like any other and are planned and listed the same way. On a day you are away there is no open time and every task with hours is under Doesn\'t fit today or Needs attention.',
-        why: 'Everything on Today is somewhere on the screen, and no task looks scheduled when it has nothing to place it by.',
-      },
-      {
-        what: 'Today always shows the whole day, 7am to 7pm, every hour the same height, with each task, meeting and open time across the hours it takes. Today\'s diary shows on Today and every other tab.',
-        why: 'The plan is read as one day, missed slots included.',
-      },
-      {
-        what: 'The day is planned once, the first time you open Today, and each task keeps the time it was given for the rest of the day, even after that time has passed. Nothing moves on its own: a meeting or task that arrives later waits beneath the day, a finished task leaves its time open, a task whose hours change keeps its slot, and a meeting that lands on a planned task leaves the task where it is and shows both as a clash. Schedule, beside Edit plan, plans the day again from now by priority and replaces your changes. The next day is planned afresh. Everything is drawn at its real time and length, so pieces can overlap, and meetings that overlap sit side by side.',
-        why: 'A plan that moved every time the clock or the work did would never say what was missed, or keep the day you arranged.',
-      },
-      {
-        what: 'Edit plan lets you swap a task with the one before or after it, bring one up from the lists beneath into the first open time from now, or send one down and leave its time open. An edit moves only the tasks it touches, never into time already past, and what you set holds for that day on your account until you edit again or press Schedule. The plan never changes a task\'s date, stage, priority or hours.',
-        why: 'The plan is yours to arrange, and it is a view of the work rather than part of it.',
-      },
-      {
-        what: 'Overlapping meetings, and work due today or overdue that sits in Doesn\'t fit today, show in red and are counted at the top of the day.',
-        why: 'These are the days that will not work out, and they are better seen early.',
+        what: 'Today\'s diary on My tasks shows only your meetings for the day, on every tab. Chores, reminders and tasks are in the list beneath it, like any other work.',
+        why: 'The list is where the work is; the diary is for the times you have to be somewhere.',
       },
       {
         what: 'Colleagues see a Google meeting\'s title, time and who is on it; an event marked private in Google shows to them as Busy. Google sign-in details are kept sealed and never shown to anyone, and only an administrator enters the studio\'s Google client.',
@@ -495,7 +475,7 @@ export const RULES: RuleSection[] = [
         why: 'A warning is only useful if it says where the problem is and matches what Capacity shows.',
       },
       {
-        what: 'My tasks and Daily standup show a count in the sidebar: the number on My tasks\' Today tab, and the standup\'s items plus meetings to settle, for the client picked at the top. Nothing shows at zero.',
+        what: 'My tasks, Daily standup and Agents show a count in the sidebar: the number on My tasks\' Today tab, the standup\'s items plus meetings to settle, and the number on Agents\' Today tab, for the client picked at the top. Nothing shows at zero.',
         why: 'You can see what waits for you without opening each screen.',
       },
       {
@@ -761,7 +741,7 @@ export const RULES: RuleSection[] = [
         why: 'Some work needs the client\'s own sign-off, and their time isn\'t ours to plan or charge.',
       },
       {
-        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows in their My tasks marked as the Agent\'s work, with no hours added to their day, they are told when it is ready, and they can approve for the Agent unless the work is their own. The Agent can\'t be put on recurring tasks or payment checks, or named when a request becomes a task.',
+        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows on the Agents screen, tagged Agent, with them as who looks after it, and never in anyone\'s My tasks, they are told when it is ready, and they can approve for the Agent unless the work is their own. The Agent can\'t be put on recurring tasks or payment checks, or named when a request becomes a task.',
         why: 'When an AI agent does the work, the hours are the agent\'s, not those of the people who only design or review it, and somebody with a login still has to move it along.',
       },
       {
@@ -771,6 +751,10 @@ export const RULES: RuleSection[] = [
       {
         what: 'With the client as reviewer, an administrator gives the documentation and design approvals for them; staff can\'t.',
         why: 'The client only signs off at review, and the earlier checks still need someone accountable to give them.',
+      },
+      {
+        what: 'The Agents screen lists every task where it is the Agent\'s turn, for the whole studio, with who looks after each, under the same tabs as My tasks. The Agent\'s work is never on anyone\'s My tasks.',
+        why: 'My tasks is what you do yourself; the Agent\'s work is watched in one place.',
       },
       {
         what: 'A task shows in someone\'s My tasks only while it is their turn: the doer\'s until review, the designer\'s at Design Process, the reviewer\'s in review, and the deliverer\'s once Completed. Recurring tasks, reminders and tasks made from a reminder are their named people\'s until review, then the reviewer\'s and the deliverer\'s like any other work, staying with their people when there is nobody in that seat. While the client reviews it, it is in nobody\'s My tasks and stays on the Daily standup until it comes back. Cancelled work is in nobody\'s My tasks.',

@@ -124,7 +124,7 @@ test( 'an urgent task due next month is at the top of Today, for whoever’s tur
 
   // The owner's turn: both urgent ones in Today, above what is merely due today.
   const owned = await look( owner );
-  const rows = owned.page.locator( '[data-testid="bwx-day-block"]' );
+  const rows = owned.page.locator( '[data-testid="bwx-mytasks-table"] tbody tr.fk-row' );
   await expect( rows ).toHaveCount( 3 );
   await expect( rows.nth( 0 ) ).toContainText( 'Urgent' );
   await expect( rows.nth( 1 ) ).toContainText( 'Urgent' );
@@ -140,9 +140,29 @@ test( 'an urgent task due next month is at the top of Today, for whoever’s tur
   await admin.context.close();
 } );
 
-// #386: Today's diary moved here from the standup, and shows only what is
-// the signed-in person's — a chore named for somebody else is none of theirs.
-test( 'two people with chores today each see only their own in their diary', async ( { browser, baseURL } ) => {
+/** A standing meeting today at 9am, so a diary is known to have loaded. */
+async function standingMeetingToday( admin, siteId, today, host, title, attendees = [] ) {
+  await Forge.onSupport( admin, siteId, 100 );
+  const made = await admin.api.post( `/client-sites/${ siteId }/meetings/series`, {
+    title,
+    frequency: 'weekly',
+    starts_on: today,
+    ends_on: '',
+    time_of_day: '09:00',
+    duration_mins: 30,
+    timezone: 'Europe/London',
+    host_user_id: host.id,
+    attendee_ids: attendees.map( ( one ) => one.id ),
+    attendees: 'The client',
+    planned_hours: 0.5,
+  } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+}
+
+// #693. Today's diary shows meetings only: a chore is in the person's own
+// list, never their diary, and a chore named for somebody else is in neither.
+// A meeting you attend but do not host is in your diary too.
+test( 'a chore today is in its person’s list and not in anyone’s diary', async ( { browser, baseURL } ) => {
   test.slow();
 
   const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
@@ -151,56 +171,43 @@ test( 'two people with chores today each see only their own in their diary', asy
   const one = await Forge.makePerson( admin.api, client.id, 'staff', `d1${ RUN }` );
   const two = await Forge.makePerson( admin.api, client.id, 'staff', `d2${ RUN }` );
 
-  const madeOne = await admin.api.post( '/recurring', {
-    title: `Ones chore ${ RUN }`,
-    description: '<p>Do it.</p>',
-    rule: { every: 'day' },
-    starts_on: today,
-    assignees: [ one.id ],
-    hours_each: '0.5',
-    client_site_id: site.id,
-  } );
-  expect( madeOne.status(), await madeOne.text() ).toBe( 200 );
-
-  const madeTwo = await admin.api.post( '/recurring', {
-    title: `Twos chore ${ RUN }`,
-    description: '<p>Do it too.</p>',
-    rule: { every: 'day' },
-    starts_on: today,
-    assignees: [ two.id ],
-    hours_each: '0.5',
-    client_site_id: site.id,
-  } );
-  expect( madeTwo.status(), await madeTwo.text() ).toBe( 200 );
-
+  for ( const [ who, title ] of [ [ one, `Ones chore ${ RUN }` ], [ two, `Twos chore ${ RUN }` ] ] ) {
+    const made = await admin.api.post( '/recurring', {
+      title,
+      description: '<p>Do it.</p>',
+      rule: { every: 'day' },
+      starts_on: today,
+      assignees: [ who.id ],
+      hours_each: '0.5',
+      client_site_id: site.id,
+    } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+  }
   await admin.api.post( '/recurring/run', {} );
+  await standingMeetingToday( admin, site.id, today, two, `Their sync ${ RUN }`, [ one ] );
 
   const asOne = await Forge.signedIn( browser, baseURL, one.login, Forge.PASSWORD );
-  const pageOne = await asOne.context.newPage();
-  await pageOne.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( pageOne.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( pageOne.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Ones chore ${ RUN }` );
-  await expect( pageOne.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( `Twos chore ${ RUN }` );
-  await pageOne.close();
+  const page = await asOne.context.newPage();
+  await page.goto( '/blueworx-forge/#screen=mytasks' );
+  const table = page.getByTestId( 'bwx-mytasks-table' );
+  await expect( table ).toContainText( `Ones chore ${ RUN }`, { timeout: 60_000 } );
+  await expect( table ).not.toContainText( `Twos chore ${ RUN }` );
+  const diary = page.getByTestId( 'bwx-mytasks-diary' );
+  await expect( diary ).toContainText( `Their sync ${ RUN }`, { timeout: 30_000 } );
+  await expect( diary ).not.toContainText( `Ones chore ${ RUN }` );
+  await page.close();
   await asOne.context.close();
-
-  const asTwo = await Forge.signedIn( browser, baseURL, two.login, Forge.PASSWORD );
-  const pageTwo = await asTwo.context.newPage();
-  await pageTwo.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( pageTwo.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( pageTwo.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Twos chore ${ RUN }` );
-  await expect( pageTwo.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( `Ones chore ${ RUN }` );
-  await pageTwo.close();
-  await asTwo.context.close();
 
   await admin.context.close();
 } );
 
-test( 'a company date for everyone shows in every person’s diary', async ( { browser, baseURL } ) => {
+test( 'a company date is not in Today’s diary', async ( { browser, baseURL } ) => {
+  test.slow();
   const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
-  const { client } = await Forge.makeSite( admin.api, `Diary All Co ${ RUN }`, `${ RUN }a` );
+  const { client, site } = await Forge.makeSite( admin.api, `Diary All Co ${ RUN }`, `${ RUN }a` );
   const today = ( await admin.api.get( '/standup' ) ).today;
   const person = await Forge.makePerson( admin.api, client.id, 'staff', `da${ RUN }` );
+  await standingMeetingToday( admin, site.id, today, person, `Own sync ${ RUN }` );
 
   const made = await admin.api.post( '/calendar-dates', { title: `Studio day ${ RUN }`, kind: 'company-day', on_date: today, people: 'all' } );
   expect( made.status(), await made.text() ).toBe( 200 );
@@ -208,108 +215,11 @@ test( 'a company date for everyone shows in every person’s diary', async ( { b
   const asPerson = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
   const page = await asPerson.context.newPage();
   await page.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( page.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( `Studio day ${ RUN }` );
+  const diary = page.getByTestId( 'bwx-mytasks-diary' );
+  await expect( diary ).toContainText( `Own sync ${ RUN }`, { timeout: 60_000 } );
+  await expect( diary ).not.toContainText( `Studio day ${ RUN }` );
   await page.close();
   await asPerson.context.close();
-  await admin.context.close();
-} );
-
-// #412: a chore leaves Today's diary once everyone on it has ticked; partly
-// done, it stays and says how many.
-test( 'a finished chore leaves Today’s diary and stays gone, and a partly-done one stays with its count', async ( { browser, baseURL } ) => {
-  test.slow();
-
-  const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
-  const { client, site } = await Forge.makeSite( admin.api, `Done Co ${ RUN }`, `${ RUN }f` );
-  const today = ( await admin.api.get( '/standup' ) ).today;
-  const solo = await Forge.makePerson( admin.api, client.id, 'staff', `solo${ RUN }` );
-  const one = await Forge.makePerson( admin.api, client.id, 'staff', `pone${ RUN }` );
-  const two = await Forge.makePerson( admin.api, client.id, 'staff', `ptwo${ RUN }` );
-
-  const soloTitle = `Solo chore ${ RUN }`;
-  const pairTitle = `Pair chore ${ RUN }`;
-
-  const madeSolo = await admin.api.post( '/recurring', {
-    title: soloTitle,
-    description: '<p>Only them.</p>',
-    rule: { every: 'day' },
-    starts_on: today,
-    assignees: [ solo.id ],
-    hours_each: '0.5',
-    client_site_id: site.id,
-  } );
-  expect( madeSolo.status(), await madeSolo.text() ).toBe( 200 );
-  await admin.api.post( '/recurring/run', {} );
-
-  // A chore's own copy carries the day in its title (Materialise's "—
-  // 14 Sep"), so match on the reminder's title, which does not.
-  const soloItem = ( await admin.api.get( `/work-items?client_site_id=${ site.id }` ) ).items.find( ( item ) => item.title.startsWith( soloTitle ) );
-  expect( soloItem, 'solo chore materialised' ).toBeTruthy();
-
-  // Solo's chore, ticked once by the only person on it, leaves their diary
-  // for good.
-  const asSolo = await Forge.signedIn( browser, baseURL, solo.login, Forge.PASSWORD );
-  const soloPage = await asSolo.context.newPage();
-  await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( soloTitle );
-
-  const ticked = await admin.api.post( `/work-items/${ soloItem.id }/tick`, { user_id: solo.id, done: true } );
-  expect( ticked.status(), await ticked.text() ).toBe( 200 );
-
-  await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
-  await soloPage.reload();
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( soloTitle );
-
-  // Stays gone after a further reload (the hash is cleared once read, so
-  // land on My tasks by it again rather than a bare reload).
-  await soloPage.goto( '/blueworx-forge/#screen=mytasks' );
-  await soloPage.reload();
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( soloPage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( soloTitle );
-  await soloPage.close();
-  await asSolo.context.close();
-
-  // A reminder is a chore too (#412), and its copies share one diary entry
-  // with a count, the same as the calendar already shows. Ticked by one of
-  // two, it stays with "1 of 2"; ticked by the second, it leaves.
-  const madePair = await admin.api.post( '/reminders', {
-    client_site_id: site.id,
-    title: pairTitle,
-    assignees: [ one.id, two.id ],
-    starts_on: today,
-  } );
-  expect( madePair.status(), await madePair.text() ).toBe( 200 );
-  const pair = ( await madePair.json() ).reminder;
-  const oneCopy = pair.copies.find( ( copy ) => copy.person === one.id );
-  const twoCopy = pair.copies.find( ( copy ) => copy.person === two.id );
-
-  const asOne = await Forge.signedIn( browser, baseURL, one.login, Forge.PASSWORD );
-  const onePage = await asOne.context.newPage();
-  await onePage.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( pairTitle );
-
-  const oneTicked = await admin.api.post( `/work-items/${ oneCopy.item_id }/tick`, { user_id: one.id, done: true } );
-  expect( oneTicked.status(), await oneTicked.text() ).toBe( 200 );
-
-  await onePage.goto( '/blueworx-forge/#screen=mytasks' );
-  await onePage.reload();
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( pairTitle );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toContainText( '1 of 2 done' );
-
-  const twoTicked = await admin.api.post( `/work-items/${ twoCopy.item_id }/tick`, { user_id: two.id, done: true } );
-  expect( twoTicked.status(), await twoTicked.text() ).toBe( 200 );
-
-  await onePage.goto( '/blueworx-forge/#screen=mytasks' );
-  await onePage.reload();
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).toBeVisible( { timeout: 30_000 } );
-  await expect( onePage.getByTestId( 'bwx-mytasks-diary' ) ).not.toContainText( pairTitle );
-  await onePage.close();
-  await asOne.context.close();
-
   await admin.context.close();
 } );
 

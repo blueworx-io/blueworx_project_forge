@@ -373,8 +373,8 @@ final class Feed {
 							// leaves Today's diary as a finished chore does.
 							Occurrence::settled( (string) ( $meeting['status'] ?? '' ) )
 						),
-						// #620. When it happens, and who else comes, for the day
-						// planner. Added to the entry; nothing else reads them.
+						// #620. When it happens, and who else comes, which Today's
+						// diary on My tasks reads. Added to the entry.
 						array(
 							'starts_at'    => (int) ( $meeting['starts_at'] ?? 0 ),
 							'ends_at'      => (int) ( $meeting['ends_at'] ?? 0 ),
@@ -466,7 +466,7 @@ final class Feed {
 				),
 				array(
 					'source'         => 'google',
-					// #620. For the day planner.
+					// #620. When it happens.
 					'starts_at'      => $meeting['all_day'] ? 0 : (int) $meeting['starts_at'],
 					'ends_at'        => $meeting['all_day'] ? 0 : (int) $meeting['ends_at'],
 					'all_day'        => (bool) $meeting['all_day'],

@@ -220,7 +220,7 @@ test('in My tasks a reminder waits by its start, then sits in Today until ticked
   await expect(table).toBeVisible({ timeout: 60_000 });
 
   // Today (the default): the one that has started, though it is not due for weeks.
-  await expect(page.getByTestId('bwx-mytasks').locator('tbody tr, [data-testid="bwx-day-block"]', { hasText: `Started ${RUN_ID}` })).toHaveCount(1);
+  await expect(page.getByTestId('bwx-mytasks').locator('tbody tr', { hasText: `Started ${RUN_ID}` })).toHaveCount(1);
   await expect(table).not.toContainText(`In five ${RUN_ID}`);
   await expect(table).not.toContainText(`In ten ${RUN_ID}`);
 
@@ -649,7 +649,7 @@ test('a reminder may have no dates, or only an end, and My tasks files it to mat
   await expect(table).toBeVisible({ timeout: 60_000 });
 
   // Only an end: Today until it is ticked. No dates: a No date group of its own.
-  await expect(page.getByTestId('bwx-mytasks').locator('tbody tr, [data-testid="bwx-day-block"]', { hasText: byEnd })).toHaveCount(1);
+  await expect(page.getByTestId('bwx-mytasks').locator('tbody tr', { hasText: byEnd })).toHaveCount(1);
   await expect(table).not.toContainText(undated);
   await table.getByRole('button', { name: /^No date/ }).click();
   await expect(table.locator('tbody tr', { hasText: undated })).toHaveCount(1);
@@ -693,7 +693,7 @@ test('an opened reminder can be edited and turned into a task by its author, and
   const asOther = await Forge.signedIn(browser, baseURL, other.login, Forge.PASSWORD);
   const theirs = await asOther.context.newPage();
   await theirs.goto('/blueworx-forge/#screen=mytasks');
-  await theirs.getByTestId('bwx-mytasks').locator('tbody tr, [data-testid="bwx-day-block"]', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
+  await theirs.getByTestId('bwx-mytasks').locator('tbody tr', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
   await expect(theirs.getByTestId('bwx-reminder-note')).toBeVisible({ timeout: 30_000 });
   await expect(theirs.getByTestId('bwx-task').getByTestId('bwx-reminder-title')).toBeDisabled();
   await expect(theirs.getByTestId('bwx-reminder-convert')).toHaveCount(0);
@@ -702,7 +702,7 @@ test('an opened reminder can be edited and turned into a task by its author, and
   // Its author opens it and changes it right there, as they would a task (#662).
   const page = await asAuthor.context.newPage();
   await page.goto('/blueworx-forge/#screen=mytasks');
-  await page.getByTestId('bwx-mytasks').locator('tbody tr, [data-testid="bwx-day-block"]', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
+  await page.getByTestId('bwx-mytasks').locator('tbody tr', { hasText: title }).getByTestId('bwx-mytasks-open').click({ timeout: 60_000 });
   const foot = page.getByTestId('bwx-panel-foot');
   const task = page.getByTestId('bwx-task');
   await expect(task.getByTestId('bwx-reminder-title')).toHaveValue(title, { timeout: 30_000 });
