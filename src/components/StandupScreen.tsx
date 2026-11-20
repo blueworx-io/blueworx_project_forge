@@ -611,7 +611,12 @@ function Card( {
   onOpen: ( itemId: string ) => void;
   onComplete: Complete;
 } ) {
-  const detail = cardDetail( card );
+  const unmet = Array.isArray( card.detail?.unmet ) ? ( card.detail.unmet as Requirement[] ) : [];
+  // A task shown under another reason still says what is outstanding, so its
+  // list stays one Show away (2026-11-20).
+  const detail = 'gate-unmet' !== card.rule && 0 < unmet.length
+    ? [ cardDetail( card ), cardDetail( { ...card, rule: 'gate-unmet' } ) ].filter( ( part ) => '' !== part ).join( ' · ' )
+    : cardDetail( card );
   const isWork = 'work_item' === card.subject_type;
   // #490. Whose it is, by the name the Client picker uses; a dash for no one client.
   const { label } = useClientChoice();
@@ -629,7 +634,6 @@ function Card( {
   } else if ( isWork && names ) {
     waiting = waitingOn( { stage: String( card.detail?.stage ?? '' ), prior_stage: String( card.detail?.prior_stage ?? '' ), ...( card.detail?.seats as Seated ) }, names );
   }
-  const unmet = Array.isArray( card.detail?.unmet ) ? ( card.detail.unmet as Requirement[] ) : [];
   // #508. The days somebody is over, each with the tasks that fill it.
   const over = overDays( card );
   // The outstanding list starts folded (Luke, 2026-09-20): the card says how
