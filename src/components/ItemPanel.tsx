@@ -1134,11 +1134,15 @@ export function ItemPanel( {
       return true;
     }
 
+    // #689. Where the agent holds the seat, its deliverer answers for it.
+    const agents = forgeData()?.agentIds ?? [];
+    const actsAs = ( holder: string | undefined ) => ( holder && agents.includes( holder ) ? it.deliverer_id : holder ) === me;
+
     switch ( requirement.who ) {
       case 'PU':
-        return it.primary_user_id === me;
+        return actsAs( it.primary_user_id );
       case 'REV':
-        return it.reviewer_id === me || it.reviewer_substitute_id === me;
+        return actsAs( it.reviewer_id ) || it.reviewer_substitute_id === me;
       case 'DEL':
         return it.deliverer_id === me || it.deliverer_substitute_id === me;
       default:

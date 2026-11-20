@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Recurring;
 
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Work\Fields;
 use Blueworx\Forge\Work\Types;
 
@@ -198,6 +199,17 @@ final class Validate {
 				$values['status'] = $status;
 			}
 		}
+
+		// #689. A chore is ticked by its own people, so the agent can't be one.
+		$errors = array_merge(
+			Agents::refuse_in(
+				$values,
+				array( 'primary_user_id', 'reviewer_id', 'deliverer_id', 'assignees' ),
+				Agents::ids(),
+				'The agent can\'t do recurring work: pick a person, who ticks it off.'
+			),
+			$errors
+		);
 
 		return array(
 			'values' => $values,

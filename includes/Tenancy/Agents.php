@@ -121,15 +121,31 @@ final class Agents {
 	 * Why a task, as it would be after a write, cannot be saved with the
 	 * agent where it is. Pure.
 	 *
-	 * @param array<string, mixed> $item      The task as it would be.
-	 * @param array<int, string>   $agent_ids Every agent.
+	 * @param array<string, mixed> $item        The task as it would be.
+	 * @param array<int, string>   $agent_ids   Every agent.
+	 * @param bool                 $self_review Whether the person saving holds
+	 *                                          Principal (AUTH-3) and may review
+	 *                                          their own work.
 	 * @return array<string, string> Field to message; empty when it can be saved.
 	 */
-	public static function seat_refusals( array $item, array $agent_ids ): array {
+	public static function seat_refusals( array $item, array $agent_ids, bool $self_review = false ): array {
 		$deliverer = (string) ( $item['deliverer_id'] ?? '' );
 
 		if ( in_array( $deliverer, $agent_ids, true ) ) {
 			return array( 'deliverer_id' => __( 'The agent can\'t deliver work. Pick a person to deliver it.', 'blueworx-forge' ) );
+		}
+
+		/*
+		 * AUTH-3 through the agent. The deliverer approves for an agent
+		 * reviewer, so a deliverer who also did the work would be approving
+		 * their own — the case the self-review rule exists to stop.
+		 */
+		$reviews_own = '' !== $deliverer
+			&& in_array( (string) ( $item['reviewer_id'] ?? '' ), $agent_ids, true )
+			&& (string) ( $item['primary_user_id'] ?? '' ) === $deliverer;
+
+		if ( $reviews_own && ! $self_review ) {
+			return array( 'reviewer_id' => __( 'With the agent reviewing, the person delivering it would approve their own work. Pick somebody else to deliver it, or to review it.', 'blueworx-forge' ) );
 		}
 
 		if ( '' !== $deliverer ) {
@@ -143,6 +159,32 @@ final class Agents {
 		}
 
 		return array();
+	}
+
+	/**
+	 * Refuses the agent in fields where nobody can act for it: a recurring
+	 * chore's people and a payment check (they tick it themselves, and have
+	 * no deliverer behind them), and the two people named when a request
+	 * becomes a task (named before there is a deliverer). Pure.
+	 *
+	 * @param array<string, mixed> $values    Values; a field may hold an id or a list of them.
+	 * @param array<int, string>   $fields    The fields to look in.
+	 * @param array<int, string>   $agent_ids Every agent.
+	 * @param string               $why       What to say.
+	 * @return array<string, string> Field to message.
+	 */
+	public static function refuse_in( array $values, array $fields, array $agent_ids, string $why ): array {
+		$errors = array();
+
+		foreach ( $fields as $field ) {
+			$held = array_map( 'strval', (array) ( $values[ $field ] ?? array() ) );
+
+			if ( array() !== array_intersect( $held, $agent_ids ) ) {
+				$errors[ $field ] = $why;
+			}
+		}
+
+		return $errors;
 	}
 
 	/**
@@ -174,6 +216,16 @@ final class Agents {
 		$holder = (string) ( $item[ $field ] ?? '' );
 
 		return '' !== $user_id && '' !== $holder && $holder !== $user_id && self::stand_in( $item, $field, $agent_ids ) === $user_id;
+	}
+
+	/**
+	 * The people, leaving out any agent. Pure.
+	 *
+	 * @param array<int, array<string, mixed>> $people People.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function without( array $people ): array {
+		return array_values( array_filter( $people, static fn( array $person ): bool => empty( $person['is_agent'] ) ) );
 	}
 
 	/**

@@ -761,7 +761,7 @@ export const RULES: RuleSection[] = [
         why: 'Some work needs the client\'s own sign-off, and their time isn\'t ours to plan or charge.',
       },
       {
-        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows in their My tasks, they are told when it is ready, and they can approve for the Agent.',
+        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows in their My tasks, they are told when it is ready, and they can approve for the Agent unless the work is their own. The Agent can't be put on recurring tasks or payment checks, or named when a request becomes a task.',
         why: 'When an AI agent does the work, the hours are the agent\'s, not those of the people who only design or review it, and somebody with a login still has to move it along.',
       },
       {

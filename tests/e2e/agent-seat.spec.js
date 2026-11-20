@@ -60,6 +60,36 @@ test( 'a task with the Agent on it needs a person to deliver it', async ( { brow
   expect( fine.status(), await fine.text() ).toBe( 200 );
 } );
 
+test( 'when the Agent reviews, a staff deliverer approves for it, but not their own work', async ( { browser, baseURL } ) => {
+  test.setTimeout( 240_000 );
+
+  const admin = await Forge.signedIn( browser, baseURL, ADMIN_USER, ADMIN_PASS );
+  const agent = await theAgent( admin.api );
+  const { client, site } = await Forge.makeSite( admin.api, `Agent Review Co ${ RUN }`, RUN );
+  const doer = await Forge.makePerson( admin.api, client.id, 'staff', `ardoer${ RUN }` );
+  const builder = await Forge.makePerson( admin.api, client.id, 'staff', `arbld${ RUN }` );
+
+  const made = await Forge.makeItem( admin.api, site.id, { title: `Reviewed by the agent ${ RUN }` } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+  let item = ( await made.json() ).item;
+
+  // The deliverer would be approving their own build: refused, as any self-review is.
+  const ownWork = await admin.api.patch( `/work-items/${ item.id }`, { primary_user_id: builder.id, reviewer_id: agent.id, deliverer_id: builder.id, record_version: item.record_version } );
+  expect( ownWork.status() ).toBe( 400 );
+  expect( ( await ownWork.json() ).data.fields.reviewer_id ).toBeTruthy();
+
+  const seated = await admin.api.patch( `/work-items/${ item.id }`, { primary_user_id: doer.id, reviewer_id: agent.id, deliverer_id: builder.id, record_version: item.record_version } );
+  expect( seated.status(), await seated.text() ).toBe( 200 );
+  item = ( await admin.api.get( `/work-items/${ item.id }` ) ).item;
+  const moved = await admin.api.post( `/work-items/${ item.id }/override`, { to: 'in-review', reason: 'Set up for the test.', record_version: item.record_version } );
+  expect( moved.status(), await moved.text() ).toBe( 200 );
+
+  const asBuilder = await Forge.signedIn( browser, baseURL, builder.login, Forge.PASSWORD );
+  const approved = await asBuilder.api.post( `/work-items/${ item.id }/gate`, { requirement: 'G-IN-REVIEW-4', value: 'Approved.' } );
+  expect( approved.status(), await approved.text() ).toBe( 200 );
+  await asBuilder.context.close();
+} );
+
 test( 'the Agent’s hours are its own, and the deliverer looks after its task', async ( { browser, baseURL } ) => {
   test.setTimeout( 240_000 );
 

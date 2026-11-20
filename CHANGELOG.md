@@ -14,6 +14,7 @@ commits and pull requests.
 
 - You can now put the Agent on a task. Its hours show on its own row in capacity, not yours, and the deliverer looks after the task while the agent has it.
 - The Agent is on the staff list, starting at 12 hours a day Monday to Friday. Change its hours there like anyone else's.
+- The Agent's hours don't count towards the availability clients are shown.
 
 ## [2.224.0] - 2026-11-18
 

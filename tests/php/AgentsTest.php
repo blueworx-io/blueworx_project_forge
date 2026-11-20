@@ -59,6 +59,39 @@ final class AgentsTest extends TestCase {
 		$this->assertSame( array(), Agents::seat_refusals( array( 'primary_user_id' => 'usr_a', 'deliverer_id' => 'usr_b' ), array( 'usr_a' ) ) );
 	}
 
+	public function test_the_agent_cannot_review_work_its_deliverer_did(): void {
+		$item = array( 'primary_user_id' => 'usr_b', 'reviewer_id' => 'usr_a', 'deliverer_id' => 'usr_b' );
+
+		$this->assertSame(
+			array( 'reviewer_id' => 'With the agent reviewing, the person delivering it would approve their own work. Pick somebody else to deliver it, or to review it.' ),
+			Agents::seat_refusals( $item, array( 'usr_a' ) )
+		);
+		// Principal may review their own work, so may approve it for the agent.
+		$this->assertSame( array(), Agents::seat_refusals( $item, array( 'usr_a' ), true ) );
+	}
+
+	public function test_the_agent_is_refused_where_nobody_can_act_for_it(): void {
+		$refused = Agents::refuse_in(
+			array( 'primary_user_id' => 'usr_a', 'reviewer_id' => 'usr_x', 'assignees' => array( 'usr_y', 'usr_a' ) ),
+			array( 'primary_user_id', 'reviewer_id', 'assignees' ),
+			array( 'usr_a' ),
+			'Not here.'
+		);
+
+		$this->assertSame( array( 'primary_user_id' => 'Not here.', 'assignees' => 'Not here.' ), $refused );
+		$this->assertSame( array(), Agents::refuse_in( array( 'primary_user_id' => 'usr_x' ), array( 'primary_user_id' ), array( 'usr_a' ), 'Not here.' ) );
+	}
+
+	public function test_people_without_the_agent(): void {
+		$people = array(
+			array( 'id' => 'usr_x', 'is_agent' => false ),
+			array( 'id' => 'usr_a', 'is_agent' => true ),
+			array( 'id' => 'usr_y' ),
+		);
+
+		$this->assertSame( array( 'usr_x', 'usr_y' ), array_column( Agents::without( $people ), 'id' ) );
+	}
+
 	public function test_no_agent_no_refusal(): void {
 		$this->assertSame( array(), Agents::seat_refusals( array( 'primary_user_id' => 'usr_x', 'deliverer_id' => '' ), array( 'usr_a' ) ) );
 	}
