@@ -147,21 +147,38 @@ test( 'the Agent’s hours are its own, and the deliverer looks after its task',
   expect( await roles( agent.id ), 'the build hours are the agent’s' ).toContain( 'primary' );
   expect( await roles( builder.id ), 'and never the deliverer’s' ).not.toContain( 'primary' );
 
-  // While the agent builds it, it is in the deliverer's My tasks.
+  // #693. While the agent builds it, it is on the Agents screen, never on
+  // the deliverer's My tasks.
   const context = await browser.newContext( { baseURL } );
   const page = await context.newPage();
   await signIn( page, builder.login, Forge.PASSWORD );
   await page.goto( '/blueworx-forge/' );
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
-  await expect( page.getByTestId( 'bwx-mytasks-table' ) ).toBeVisible( { timeout: 60_000 } );
-  await expect( page.getByTestId( 'bwx-mytasks' ) ).toContainText( title, { timeout: 60_000 } );
+  const mine = page.getByTestId( 'bwx-mytasks-table' );
+  await expect( mine ).toBeVisible( { timeout: 60_000 } );
+  await mine.getByRole( 'button', { name: /^Everything/ } ).click();
+  await expect( mine ).not.toContainText( title );
 
-  // Marked as the agent's work, with none of its hours on the deliverer's day.
-  const row = page.getByTestId( 'bwx-mytasks' ).getByTestId( 'bwx-day-block' ).filter( { hasText: title } ).first();
-  await expect( row ).toContainText( 'Agent\'s work' );
-  await expect( row ).not.toContainText( '3.0h' );
-
+  // Tagged Agent, with who looks after it, and none of its hours.
+  const onAgents = async ( where ) => {
+    await where.getByTestId( 'bwx-screen-agents' ).click();
+    const table = where.getByTestId( 'bwx-agents-table' );
+    await expect( table ).toBeVisible( { timeout: 60_000 } );
+    await table.getByRole( 'button', { name: /^Everything/ } ).click();
+    const row = table.locator( 'tr.fk-row' ).filter( { hasText: title } ).first();
+    await expect( row ).toBeVisible( { timeout: 60_000 } );
+    await expect( row ).toContainText( 'Agent' );
+    await expect( row ).toContainText( builder.user.display_name );
+    await expect( row ).not.toContainText( '3.0h' );
+  };
+  await onAgents( page );
   await context.close();
+
+  // The whole studio's agent work, not only what you look after.
+  const adminPage = await admin.context.newPage();
+  await adminPage.goto( '/blueworx-forge/' );
+  await onAgents( adminPage );
+  await adminPage.close();
 
   // The Agent is offered for doing the work, never for delivering it.
   const panelPage = await admin.context.newPage();

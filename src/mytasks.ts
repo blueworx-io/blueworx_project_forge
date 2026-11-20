@@ -112,18 +112,32 @@ export function mineFor( person: { id: string }, siteList: Site[], items: WorkIt
       continue;
     }
 
-    // #689. The agent's turn, looked after by its deliverer: on their list,
-    // marked as the agent's work, with no hours, since the agent spends them.
-    if ( 'deliverer' === seat && agentsTurn( item ) ) {
-      if ( item.deliverer_id === person.id ) {
-        found.push( { id: item.id, item, role: 'agent', site, hours: 0, due, reminder: false, starts: null, ticked: false } );
-      }
-      continue;
-    }
+    // #693. The agent's turn is on the Agents screen, never on anyone's list.
+    if ( 'deliverer' === seat && agentsTurn( item ) ) continue;
 
     if ( seats[ seat ][ 0 ] === person.id ) {
       found.push( { id: item.id, item, role: seat, site, hours: seats[ seat ][ 1 ], due, reminder: false, starts: null, ticked: false } );
     }
+  }
+  return found;
+}
+
+/**
+ * #693. Every task, studio-wide, where it is the agent's turn: the Agents
+ * screen's rows. Over, or with the client for review, is skipped as on My
+ * tasks. No hours: the agent spends them, not a person.
+ */
+export function agentWork( siteList: Site[], items: WorkItem[] ): Mine[] {
+  const sites = new Map( siteList.map( ( site ) => [ site.id, site ] ) );
+  const found: Mine[] = [];
+  for ( const item of items ) {
+    const site = sites.get( item.client_site_id );
+    if ( ! site ) continue;
+    if ( '' !== ( item.terminal_outcome ?? '' ) && 'deferred' !== item.terminal_outcome ) continue;
+    if ( 'in-review' === item.stage && CLIENT_REVIEWER === item.reviewer_id ) continue;
+    if ( ! agentsTurn( item ) ) continue;
+    const due = daysUntil( item.planned_due || item.derived_due || '' );
+    found.push( { id: item.id, item, role: 'agent', site, hours: 0, due, reminder: false, starts: null, ticked: false } );
   }
   return found;
 }

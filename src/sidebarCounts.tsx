@@ -3,7 +3,7 @@ import type { ScreenName, StandupList, WorkItem } from './types';
 import { api, forgeData } from './api';
 import { useClientChoice } from './ClientChoice';
 import { useLiveReload } from './live';
-import { todayCount, mineFor } from './mytasks';
+import { agentWork, todayCount, mineFor } from './mytasks';
 import type { Mine, Site } from './mytasks';
 import { standupCount } from './standup';
 
@@ -37,6 +37,29 @@ function useMyTasksCount( screen: ScreenName ): number | null {
   useLiveReload( load );
 
   return null === mine ? null : todayCount( mine, siteId );
+}
+
+/** #693. The Agents screen's Today count, from the rows it lists. */
+function useAgentsCount( screen: ScreenName ): number | null {
+  const { siteId } = useClientChoice();
+  const [ rows, setRows ] = useState< Mine[] | null >( null );
+
+  const load = useCallback( async () => {
+    try {
+      const [ siteList, loaded ] = await Promise.all( [ api< { sites: Site[] } >( '/client-sites' ), api< { items: WorkItem[] } >( '/work-items-all' ) ] );
+      setRows( agentWork( siteList.sites, loaded.items ) );
+    } catch {
+      setRows( null );
+    }
+  }, [] );
+
+  useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [ load, screen ] );
+  useLiveReload( load );
+
+  return null === rows ? null : todayCount( rows, siteId );
 }
 
 function useStandupCount( screen: ScreenName ): number | null {
@@ -74,11 +97,16 @@ function Count( { count, said }: { count: number | null; said: string } ) {
 export function RailCount( { name, screen }: { name: ScreenName; screen: ScreenName } ) {
   if ( 'mytasks' === name ) return <MyTasksBadge screen={ screen } />;
   if ( 'standup' === name ) return <StandupBadge screen={ screen } />;
+  if ( 'agents' === name ) return <AgentsBadge screen={ screen } />;
   return null;
 }
 
 function MyTasksBadge( { screen }: { screen: ScreenName } ) {
   return <Count count={ useMyTasksCount( screen ) } said="for today" />;
+}
+
+function AgentsBadge( { screen }: { screen: ScreenName } ) {
+  return <Count count={ useAgentsCount( screen ) } said="for today" />;
 }
 
 function StandupBadge( { screen }: { screen: ScreenName } ) {
