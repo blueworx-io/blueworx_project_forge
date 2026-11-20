@@ -38,6 +38,9 @@ test( 'a task due today and ready to ship is on the standup once', async ( { bro
   const rows = page.locator( `[data-testid="bwx-standup-card"][data-subject="${ item.id }"]` );
   await expect( rows ).toHaveCount( 1, { timeout: 60_000 } );
   await expect( rows ).toHaveAttribute( 'data-rule', 'due-today' );
+  // The other reasons sit behind Show, not on the row.
+  await expect( rows.getByTestId( 'bwx-standup-also' ) ).toHaveCount( 0 );
+  await rows.getByTestId( 'bwx-standup-show' ).click();
   await expect( rows.getByTestId( 'bwx-standup-also' ) ).toHaveText( 'Also ready to ship' );
 
   await page.close();
