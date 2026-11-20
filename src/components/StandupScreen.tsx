@@ -649,6 +649,12 @@ function Card( {
         <span className="bwx-chip" data-rule={ card.rule }>
           { 'today' !== view && 'due-today' === card.rule ? 'Due' : ruleWord( card.rule ) }
         </span>
+        { /* The task's other reasons, so showing it once hides nothing (2026-11-20). */ }
+        { 0 < ( card.also?.length ?? 0 ) && (
+          <span className="bwx-standup-also" data-testid="bwx-standup-also">
+            { `Also ${ ( card.also ?? [] ).map( ( rule ) => ruleWord( rule ).toLowerCase() ).join( ', ' ) }` }
+          </span>
+        ) }
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
