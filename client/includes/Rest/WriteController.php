@@ -235,7 +235,7 @@ final class WriteController {
 	}
 
 	/**
-	 * A bug, request, idea or suggestion, with a screenshot if one was sent.
+	 * A bug, request, idea or suggestion, with a screenshot or PDF if one was sent.
 	 *
 	 * @param WP_REST_Request $request The request.
 	 */
@@ -253,19 +253,11 @@ final class WriteController {
 			'submitted_by'    => self::who(),
 		);
 
-		$screenshot = AskActions::screenshot_url();
+		$attached = AskActions::with_attachment( $sent );
 
-		if ( '' !== $screenshot ) {
-			$sent['evidence'] = trim(
-				$sent['evidence'] . "\n\n" . sprintf(
-					/* translators: %s: the uploaded screenshot's URL. */
-					__( 'Screenshot: %s', 'blueworx-forge' ),
-					$screenshot
-				)
-			);
-		}
-
-		return rest_ensure_response( Submission::send( $sent ) );
+		// Whether a file came with it but could not be kept, so the page can
+		// say so: the words went, the file did not.
+		return rest_ensure_response( array_merge( Submission::send( $attached['sent'] ), array( 'file_refused' => $attached['refused'] ) ) );
 	}
 
 	/**

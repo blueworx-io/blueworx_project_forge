@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.226.2] - 2026-11-20
+
+### Fixed
+
+- Clients can now attach a PDF to a bug or request, as well as an image. Before, a PDF was dropped without a word.
+- If a file can't be attached, the client is told to email it instead. What they wrote is still sent.
+
 ## [2.226.1] - 2026-11-20
 
 ### Fixed

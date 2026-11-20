@@ -199,10 +199,11 @@ final class AskScreen {
 		// Tones are the design system's Notice tones, not WordPress's — 'error'
 		// becomes 'danger', the nearest of the five bw-notice carries.
 		$notices = array(
-			'sent'          => array( 'success', __( 'Sent. The studio has it, and will come back to you.', 'blueworx-forge' ) ),
-			'invalid'       => array( 'danger', __( 'That could not be sent. Check the boxes below and try again.', 'blueworx-forge' ) ),
-			'unreachable'   => array( 'danger', __( 'The studio could not be reached, so nothing was sent. What you wrote is still here — try again in a moment.', 'blueworx-forge' ) ),
-			'not_connected' => array( 'warning', __( 'This site is not connected to the studio yet, so there is nowhere to send this.', 'blueworx-forge' ) ),
+			'sent'              => array( 'success', __( 'Sent. The studio has it, and will come back to you.', 'blueworx-forge' ) ),
+			'sent_file_refused' => array( 'warning', __( 'Sent, but the file could not be attached. Only images and PDFs can be sent this way, so please email it to us instead.', 'blueworx-forge' ) ),
+			'invalid'           => array( 'danger', __( 'That could not be sent. Check the boxes below and try again.', 'blueworx-forge' ) ),
+			'unreachable'       => array( 'danger', __( 'The studio could not be reached, so nothing was sent. What you wrote is still here — try again in a moment.', 'blueworx-forge' ) ),
+			'not_connected'     => array( 'warning', __( 'This site is not connected to the studio yet, so there is nowhere to send this.', 'blueworx-forge' ) ),
 		);
 
 		if ( ! isset( $notices[ $result ] ) ) {
@@ -426,10 +427,10 @@ final class AskScreen {
 		printf(
 			'<div class="bw-formrow"><label class="bw-formrow__label" for="bwx-screenshot">%1$s</label>' .
 			'<div class="bw-formrow__control">' .
-			'<input type="file" class="bw-input" id="bwx-screenshot" name="screenshot" accept="image/png,image/jpeg,image/gif,image/webp" data-testid="bwx-ask-screenshot" />' .
+			'<input type="file" class="bw-input" id="bwx-screenshot" name="screenshot" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" data-testid="bwx-ask-screenshot" />' .
 			'<p class="bw-formrow__help">%2$s</p></div></div>',
-			esc_html__( 'A screenshot', 'blueworx-forge' ),
-			esc_html__( 'Optional. A picture of what you are seeing. It is saved to this site\'s media library and we are sent the link.', 'blueworx-forge' )
+			esc_html__( 'A screenshot or PDF', 'blueworx-forge' ),
+			esc_html__( 'Optional. A picture of what you are seeing, or a PDF. It is saved to this site\'s media library and we are sent the link.', 'blueworx-forge' )
 		);
 	}
 }

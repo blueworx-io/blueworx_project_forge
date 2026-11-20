@@ -45,6 +45,8 @@ function NewSubmission( { onSent }: { onSent: () => void } ) {
   const [ screenshot, setScreenshot ] = useState< File | null >( null );
   const [ sending, setSending ] = useState( false );
   const [ problem, setProblem ] = useState< string | null >( null );
+  // Sent, but the file was not kept: said so until the next send.
+  const [ fileRefused, setFileRefused ] = useState( false );
   const [ fields, setFields ] = useState< Record< string, string > >( {} );
   const toast = useToast();
 
@@ -75,6 +77,7 @@ function NewSubmission( { onSent }: { onSent: () => void } ) {
 
     setSending( true );
     setProblem( null );
+    setFileRefused( false );
     try {
       const answer = await api.submit( form );
       if ( ! answer.ok ) {
@@ -83,6 +86,7 @@ function NewSubmission( { onSent }: { onSent: () => void } ) {
         return;
       }
       reset();
+      setFileRefused( true === answer.file_refused );
       toast( `${ typeLabel( type ) } sent — the studio has it` );
       onSent();
     } catch {
@@ -153,17 +157,24 @@ function NewSubmission( { onSent }: { onSent: () => void } ) {
           { ( id ) => <TextArea id={ id } rows={ 2 } value={ evidence } onChange={ ( e ) => setEvidence( e.target.value ) } /> }
         </Field>
 
-        <Field label="Screenshot" help={ screenshot ? screenshot.name : 'One image, optional.' }>
+        <Field label="Screenshot or PDF" help={ screenshot ? screenshot.name : 'One image or PDF, optional.' }>
           { ( id ) => (
             <input
               id={ id }
               className="fk-input"
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
+              data-testid="bwx-submission-file"
               onChange={ ( e ) => setScreenshot( e.target.files?.[ 0 ] ?? null ) }
             />
           ) }
         </Field>
+
+        { fileRefused && (
+          <p className="fc-problem" role="status" data-testid="bwx-submission-file-refused">
+            Sent, but the file could not be attached. Only images and PDFs can be sent this way, so please email it to us instead.
+          </p>
+        ) }
 
         { problem && (
           <p className="fc-problem" role="alert">
