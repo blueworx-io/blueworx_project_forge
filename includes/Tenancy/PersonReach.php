@@ -55,7 +55,9 @@ final class PersonReach {
 
 		// The studio's own administrator reaches everything, as in
 		// Boundary::for_user(), which only answers for the current user.
-		if ( $administrator ) {
+		// #689. So does the agent: it works on every client, and has no login
+		// to see anything with.
+		if ( $administrator || ! empty( $person['is_agent'] ) ) {
 			return true;
 		}
 

@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Rest;
 
 use Blueworx\Forge\Sites\SecurityLog;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Capabilities;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientStaff;
@@ -309,9 +310,12 @@ final class Access {
 			'holds_approver'        => Grants::held( $grants, Grants::APPROVER ),
 
 			// #112. Who the item names, as against who is asking.
-			'assigned_primary_user' => self::is_assigned( $item, 'primary_user_id', $user_id ),
+			// #689. While the agent holds a seat, its deliverer acts in it.
+			'assigned_primary_user' => self::is_assigned( $item, 'primary_user_id', $user_id )
+				|| ( null !== $item && Agents::acts_for( $item, 'primary_user_id', $user_id, Agents::ids() ) ),
 			'assigned_reviewer'     => self::is_assigned( $item, 'reviewer_id', $user_id )
-				|| self::is_assigned( $item, 'reviewer_substitute_id', $user_id ),
+				|| self::is_assigned( $item, 'reviewer_substitute_id', $user_id )
+				|| ( null !== $item && Agents::acts_for( $item, 'reviewer_id', $user_id, Agents::ids() ) ),
 			'assigned_deliverer'    => self::is_assigned( $item, 'deliverer_id', $user_id )
 				|| self::is_assigned( $item, 'deliverer_substitute_id', $user_id ),
 			'acting_as_substitute'  => self::is_assigned( $item, 'reviewer_substitute_id', $user_id )

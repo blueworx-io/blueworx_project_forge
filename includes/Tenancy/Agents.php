@@ -161,6 +161,22 @@ final class Agents {
 	}
 
 	/**
+	 * Whether this person acts for the agent in a seat: the agent holds it
+	 * and they are the deliverer. Pure.
+	 *
+	 * @param array<string, mixed> $item      The task.
+	 * @param string               $field     The seat's field.
+	 * @param string               $user_id   Who is asking.
+	 * @param array<int, string>   $agent_ids Every agent.
+	 * @return bool
+	 */
+	public static function acts_for( array $item, string $field, string $user_id, array $agent_ids ): bool {
+		$holder = (string) ( $item[ $field ] ?? '' );
+
+		return '' !== $user_id && '' !== $holder && $holder !== $user_id && self::stand_in( $item, $field, $agent_ids ) === $user_id;
+	}
+
+	/**
 	 * Whether this id is an agent.
 	 *
 	 * @param string $id A seat value.

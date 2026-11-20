@@ -8,6 +8,7 @@
 declare( strict_types = 1 );
 
 use Blueworx\Forge\Tenancy\Agents;
+use Blueworx\Forge\Tenancy\PersonReach;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -69,6 +70,26 @@ final class AgentsTest extends TestCase {
 		);
 
 		$this->assertSame( array(), Agents::seat_refusals( $item, array( 'usr_a' ) ) );
+	}
+
+	// ---- Acting for the agent -----------------------------------------
+
+	public function test_the_agent_reaches_every_site_without_a_membership(): void {
+		// Review Focus 4: no membership on this client, and still seatable.
+		$agent = array( 'id' => 'usr_a', 'status' => 'active', 'is_agent' => true );
+
+		$this->assertTrue( PersonReach::reaches( $agent, array(), false, 'cli_a', 'cst_1', true ) );
+		$this->assertFalse( PersonReach::reaches( array_merge( $agent, array( 'status' => 'inactive' ) ), array(), false, 'cli_a', 'cst_1', true ) );
+	}
+
+	public function test_the_deliverer_acts_for_the_agent_in_its_seat(): void {
+		// Review Focus 1: the agent reviews, the deliverer can approve.
+		$item = array( 'reviewer_id' => 'usr_a', 'primary_user_id' => 'usr_x', 'deliverer_id' => 'usr_b' );
+
+		$this->assertTrue( Agents::acts_for( $item, 'reviewer_id', 'usr_b', array( 'usr_a' ) ) );
+		$this->assertFalse( Agents::acts_for( $item, 'primary_user_id', 'usr_b', array( 'usr_a' ) ) );
+		$this->assertFalse( Agents::acts_for( $item, 'reviewer_id', 'usr_x', array( 'usr_a' ) ) );
+		$this->assertFalse( Agents::acts_for( $item, 'reviewer_id', '', array( 'usr_a' ) ) );
 	}
 
 	public function test_stand_in_hands_the_agent_seat_to_the_deliverer(): void {
