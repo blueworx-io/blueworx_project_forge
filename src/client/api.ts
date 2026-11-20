@@ -239,7 +239,7 @@ export const api = {
     call< { ok: boolean; result: string; message: string } >( 'POST', `/items/${ item }/discussion`, values ),
   review: ( item: string, values: { decision: 'approve' | 'send_back'; note?: string } ) =>
     call< { ok: boolean; result: string; message: string } >( 'POST', `/items/${ item }/review`, values ),
-  submit: ( form: FormData ) => call< { ok: boolean; result: string; fields?: Record< string, string > } >( 'POST', '/submissions', form ),
+  submit: ( form: FormData ) => call< { ok: boolean; result: string; fields?: Record< string, string >; file_refused?: boolean } >( 'POST', '/submissions', form ),
   answerStep: ( step: string, values: { response: string; intent: 'save' | 'submit' } ) =>
     call< { ok: boolean; result: string } >( 'POST', `/checklist/${ step }/answer`, values ),
   attachToStep: ( step: string, form: FormData ) => call< { ok: boolean; result: string } >( 'POST', `/checklist/${ step }/evidence`, form ),

@@ -78,7 +78,7 @@ final class Guides {
 				'steps' => array(
 					__( 'Under *What is this?* pick one: Something is broken, A request, An idea or A suggestion.', 'blueworx-forge' ),
 					__( 'Fill in *Title* and *What you are asking for*.', 'blueworx-forge' ),
-					__( 'If it helps, add *What good would look like*, *Anything that helps* and *A screenshot*. All three are optional.', 'blueworx-forge' ),
+					__( 'If it helps, add *What good would look like*, *Anything that helps* and *A screenshot or PDF*. All three are optional.', 'blueworx-forge' ),
 					__( 'Press *Send to the studio*. In the workspace, open Bugs & requests, press *New submission* and fill in the same boxes.', 'blueworx-forge' ),
 				),
 				'then'  => __( 'The studio gets it straight away and will reply. It cannot be edited after you send it, so if you change your mind, send another one.', 'blueworx-forge' ),

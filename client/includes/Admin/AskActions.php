@@ -69,26 +69,8 @@ final class AskActions {
 			'submitted_by'    => self::who(),
 		);
 
-		/*
-		 * The screenshot becomes a line of evidence rather than a field of its
-		 * own. It is the client's own file on the client's own site, and what
-		 * the studio is sent is the address — the same thing somebody would
-		 * have pasted in by hand, which is what this form used to ask them to
-		 * do. Nothing on the studio side has to learn a new shape for it.
-		 */
-		$screenshot = self::screenshot_url();
-
-		if ( '' !== $screenshot ) {
-			$sent['evidence'] = trim(
-				$sent['evidence'] . "\n\n" . sprintf(
-					/* translators: %s: the address of an uploaded screenshot. */
-					__( 'Screenshot: %s', 'blueworx-forge' ),
-					$screenshot
-				)
-			);
-		}
-
-		$answer = Submission::send( $sent );
+		$attached = self::with_attachment( $sent );
+		$answer   = Submission::send( $attached['sent'] );
 
 		if ( ! $answer['ok'] ) {
 			// The words come back with the failure. Somebody who has just
@@ -97,43 +79,85 @@ final class AskActions {
 			self::back( $answer['result'], $sent );
 		}
 
-		self::back( 'sent', array() );
+		// Sent, but the file was not: said so, rather than left to be found
+		// out when the studio asks where it is.
+		self::back( $attached['refused'] ? 'sent_file_refused' : 'sent', array() );
 	}
 
 	/**
-	 * The screenshot somebody attached, in this site's own media library.
+	 * A request with the file somebody attached added as a line of evidence.
 	 *
-	 * Empty when nothing was attached, when the person is not allowed to upload,
-	 * or when the file was refused — an upload that failed must not take a
-	 * request down with it. Somebody reporting that their site is broken has
-	 * told us something useful whether or not the picture arrived, and losing
-	 * the words because the picture was a PDF would be the worse failure.
+	 * The file becomes a line of evidence rather than a field of its own. It
+	 * is the client's own file on the client's own site, and what the studio
+	 * is sent is the address — the same thing somebody would have pasted in by
+	 * hand. Nothing on the studio side has to learn a new shape for it.
 	 *
-	 * Images only, checked after the upload rather than on the name it arrived
-	 * under. WordPress decides what a file actually is; the extension is
-	 * whatever the browser was told, and on this route the browser is on the
-	 * other side of the internet.
+	 * Public so the app's route (#298) sends a file through exactly this and
+	 * no second copy of it.
 	 *
-	 * Public so the app's route (#298) sends a screenshot through exactly
-	 * this and no second copy of it.
-	 *
-	 * @return string The address, or ''.
+	 * @param array<string, string> $sent The request as it will be sent.
+	 * @return array{sent: array<string, string>, refused: bool} The request,
+	 *     and whether a file was attached but could not be kept.
 	 */
-	public static function screenshot_url(): string {
-		if ( ! current_user_can( 'upload_files' ) ) {
-			return '';
+	public static function with_attachment( array $sent ): array {
+		$file = self::attachment();
+
+		if ( '' !== $file['url'] ) {
+			$sent['evidence'] = trim(
+				$sent['evidence'] . "\n\n" . sprintf(
+					/* translators: 1: "Screenshot" or "File", 2: the address of the uploaded file. */
+					__( '%1$s: %2$s', 'blueworx-forge' ),
+					$file['image'] ? __( 'Screenshot', 'blueworx-forge' ) : __( 'File', 'blueworx-forge' ),
+					$file['url']
+				)
+			);
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() ran on this request before anything read the form.
+		return array(
+			'sent'    => $sent,
+			'refused' => $file['refused'],
+		);
+	}
+
+	/**
+	 * The file somebody attached, in this site's own media library.
+	 *
+	 * An image or a PDF. Anything else, a failed upload, or somebody not
+	 * allowed to upload, is refused — but a refused file must not take a
+	 * request down with it. Somebody reporting that their site is broken has
+	 * told us something useful whether or not the file arrived, so the words
+	 * still go, and the person is told the file did not.
+	 *
+	 * Checked after the upload rather than on the name it arrived under.
+	 * WordPress decides what a file actually is; the extension is whatever
+	 * the browser was told, and on this route the browser is on the other
+	 * side of the internet.
+	 *
+	 * @return array{url: string, image: bool, refused: bool}
+	 */
+	private static function attachment(): array {
+		$none = array(
+			'url'     => '',
+			'image'   => false,
+			'refused' => false,
+		);
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce, or the REST cookie check, ran on this request before anything read the form.
 		if ( ! isset( $_FILES['screenshot'] ) || ! is_array( $_FILES['screenshot'] ) ) {
-			return '';
+			return $none;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- As above.
 		$error = isset( $_FILES['screenshot']['error'] ) ? (int) $_FILES['screenshot']['error'] : UPLOAD_ERR_NO_FILE;
 
 		if ( UPLOAD_ERR_NO_FILE === $error ) {
-			return '';
+			return $none;
+		}
+
+		$refused = array_merge( $none, array( 'refused' => true ) );
+
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return $refused;
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -151,23 +175,34 @@ final class AskActions {
 					'jpg|jpeg|jpe' => 'image/jpeg',
 					'gif'          => 'image/gif',
 					'webp'         => 'image/webp',
+					'pdf'          => 'application/pdf',
 				),
 			)
 		);
 
 		if ( is_wp_error( $attachment ) ) {
-			return '';
+			return $refused;
 		}
 
-		if ( ! wp_attachment_is_image( $attachment ) ) {
+		$image = wp_attachment_is_image( $attachment );
+
+		if ( ! $image && 'application/pdf' !== get_post_mime_type( $attachment ) ) {
 			wp_delete_attachment( $attachment, true );
 
-			return '';
+			return $refused;
 		}
 
 		$url = wp_get_attachment_url( $attachment );
 
-		return is_string( $url ) ? $url : '';
+		if ( ! is_string( $url ) ) {
+			return $refused;
+		}
+
+		return array(
+			'url'     => $url,
+			'image'   => $image,
+			'refused' => false,
+		);
 	}
 
 	/**

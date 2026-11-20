@@ -629,6 +629,10 @@ export const RULES: RuleSection[] = [
         why: 'A client who can\'t report a problem in Forge tells us by email, and then it isn\'t tracked at all.',
       },
       {
+        what: 'A client can attach one image or PDF to what they send. It is kept on their own site and we are sent the link. Any other file is not attached, the rest is still sent, and the client is told to email the file instead.',
+        why: 'A file that disappears without a word is worse than one that is refused: nobody knows to send it another way.',
+      },
+      {
         what: 'What the client wrote is kept exactly as sent and can never be edited.',
         why: 'What was asked for mustn\'t drift to match what was delivered.',
       },
