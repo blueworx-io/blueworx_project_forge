@@ -7,6 +7,7 @@
 
 declare( strict_types = 1 );
 
+use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\PersonReach;
 use PHPUnit\Framework\TestCase;
@@ -90,6 +91,17 @@ final class AgentsTest extends TestCase {
 		$this->assertFalse( Agents::acts_for( $item, 'primary_user_id', 'usr_b', array( 'usr_a' ) ) );
 		$this->assertFalse( Agents::acts_for( $item, 'reviewer_id', 'usr_x', array( 'usr_a' ) ) );
 		$this->assertFalse( Agents::acts_for( $item, 'reviewer_id', '', array( 'usr_a' ) ) );
+	}
+
+	public function test_slack_never_tells_the_agent_it_was_given_a_seat(): void {
+		// Review Focus 5.
+		$changes = Notify::seat_changes(
+			array(),
+			array( 'primary_user_id' => 'usr_a', 'deliverer_id' => 'usr_b' ),
+			array( 'usr_a' )
+		);
+
+		$this->assertSame( array( 'deliverer_id' => 'usr_b' ), $changes );
 	}
 
 	public function test_stand_in_hands_the_agent_seat_to_the_deliverer(): void {

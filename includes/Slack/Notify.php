@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Slack;
 
 use Blueworx\Forge\Frontend;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\ClientReviewer;
@@ -46,18 +47,20 @@ final class Notify {
 	 * before; clearing a seat, or setting it to the same person, is nothing
 	 * to tell anyone.
 	 *
-	 * @param array<string, mixed> $before The item before the write.
-	 * @param array<string, mixed> $after  The item after.
+	 * @param array<string, mixed>    $before    The item before the write.
+	 * @param array<string, mixed>    $after     The item after.
+	 * @param array<int, string>|null $agent_ids Every agent; read when not given.
 	 * @return array<string, string> Seat field to the person now holding it.
 	 */
-	public static function seat_changes( array $before, array $after ): array {
-		$changes = array();
+	public static function seat_changes( array $before, array $after, ?array $agent_ids = null ): array {
+		$changes   = array();
+		$agent_ids = $agent_ids ?? Agents::ids();
 
 		foreach ( array_keys( self::SEATS ) as $seat ) {
 			$now = (string) ( $after[ $seat ] ?? '' );
 
-			// #391. The client is not somebody Slack can reach.
-			if ( ClientReviewer::ID === $now ) {
+			// #391. The client is not somebody Slack can reach. #689. Nor is the agent.
+			if ( ClientReviewer::ID === $now || in_array( $now, $agent_ids, true ) ) {
 				continue;
 			}
 
@@ -99,11 +102,14 @@ final class Notify {
 	public static function moved( array $item ): void {
 		$stage = (string) ( $item['stage'] ?? '' );
 
-		if ( 'in-review' === $stage && '' !== (string) ( $item['reviewer_id'] ?? '' ) && ! ClientReviewer::is( $item ) ) {
+		// #689. When the agent reviews, the deliverer is told instead.
+		$reviewer = Agents::stand_in( $item, 'reviewer_id', Agents::ids() );
+
+		if ( 'in-review' === $stage && '' !== $reviewer && ! ClientReviewer::is( $item ) ) {
 			self::send(
 				Events::READY,
 				(string) $item['id'],
-				(string) $item['reviewer_id'],
+				$reviewer,
 				'review:' . (int) ( $item['cycle'] ?? 1 ) . ':' . (int) ( $item['review_attempt'] ?? 1 ),
 				'ready',
 				Message::ready( $item, 'review', self::client_name( $item ), self::link( $item ) )
@@ -136,7 +142,7 @@ final class Notify {
 		foreach ( array_keys( self::SEATS ) as $seat ) {
 			$user_id = (string) ( $item[ $seat ] ?? '' );
 
-			if ( '' === $user_id || $user_id === $author_uid || ClientReviewer::ID === $user_id ) {
+			if ( '' === $user_id || $user_id === $author_uid || ClientReviewer::ID === $user_id || Agents::is( $user_id ) ) {
 				continue;
 			}
 

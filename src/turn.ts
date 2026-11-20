@@ -32,6 +32,16 @@ export interface Seated {
  * is whoever's stage it was blocked from.
  */
 export function responsible( item: Seated ): Seat | null {
+  const seat = seatAtStage( item );
+
+  // #689. The agent cannot act, so its turn is its deliverer's.
+  if ( null !== seat && isAgent( item[ SEAT_FIELD[ seat ] ] ) ) return 'deliverer';
+
+  return seat;
+}
+
+/** The seat a stage belongs to, before the agent is allowed for. */
+function seatAtStage( item: Seated ): Seat | null {
   const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
 
   if ( 'released' === stage ) return null;
@@ -44,6 +54,11 @@ export function responsible( item: Seated ): Seat | null {
   if ( 'design-process' === stage && item.designer_id ) return 'designer';
 
   return 'primary';
+}
+
+/** Whether a seat holds the agent (#689), as the page was told. */
+function isAgent( id: string | null | undefined ): boolean {
+  return !! id && ( window.bwxForgeData?.agentIds ?? [] ).includes( id );
 }
 
 /**

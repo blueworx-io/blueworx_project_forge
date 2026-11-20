@@ -761,6 +761,10 @@ export const RULES: RuleSection[] = [
         why: 'Some work needs the client\'s own sign-off, and their time isn\'t ours to plan or charge.',
       },
       {
+        what: 'The Agent can be picked for any seat except deliverer, and its hours count on its own row in capacity, starting at 12 a day Monday to Friday. A task with the Agent on it needs a person as deliverer, who looks after it whenever it is the Agent\'s turn: it shows in their My tasks, they are told when it is ready, and they can approve for the Agent.',
+        why: 'When an AI agent does the work, the hours are the agent\'s, not those of the people who only design or review it, and somebody with a login still has to move it along.',
+      },
+      {
         what: 'When the client reviews, nobody at the studio can approve as them: the client approves or sends back from their Forge page once the task is In Review, they are emailed each time, and an administrator can record their answer for them.',
         why: 'The sign-off has to be genuinely the client\'s, even when they give it by email or phone.',
       },

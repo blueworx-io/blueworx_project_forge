@@ -213,6 +213,8 @@ final class Frontend {
 			'loginUrl'      => wp_login_url( $this->app_page_url() ),
 			'logoutUrl'     => wp_logout_url( $this->app_page_url() ),
 			'version'       => BWX_FORGE_VERSION,
+			// #689. Whose turn the agent's is: its deliverer's.
+			'agentIds'      => Tenancy\Agents::ids(),
 		);
 
 		/*

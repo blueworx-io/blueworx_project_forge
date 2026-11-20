@@ -19,6 +19,8 @@ export interface ForgeData {
   loginUrl: string;
   logoutUrl: string;
   version: string;
+  /** #689. The agents: while one holds the turn, its deliverer does. */
+  agentIds?: string[];
 }
 
 declare global {
