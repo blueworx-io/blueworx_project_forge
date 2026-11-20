@@ -293,7 +293,6 @@ final class UsersController {
 						'id'           => (string) $person['id'],
 						'display_name' => (string) $person['display_name'],
 						'status'       => (string) $person['status'],
-						'is_agent'     => ! empty( $person['is_agent'] ),
 					),
 					$people
 				),
