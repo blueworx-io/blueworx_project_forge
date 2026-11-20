@@ -3316,8 +3316,13 @@ td[ data-band='over' ] {
   align-items: flex-start;
   gap: 4px;
 }
-/* A task's other reasons, under its one chip (2026-11-20). */
+/* What Show opens on a task: its other reasons, then what is outstanding. */
+.bwx-standup-more {
+  grid-area: gate;
+  margin-top: 8px;
+}
 .bwx-standup-also {
+  margin: 0 0 8px;
   color: var( --ink-500 );
   font-size: var( --text-small );
 }

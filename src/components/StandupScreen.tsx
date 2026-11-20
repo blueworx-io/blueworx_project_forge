@@ -618,6 +618,9 @@ function Card( {
     ? [ cardDetail( card ), cardDetail( { ...card, rule: 'gate-unmet' } ) ].filter( ( part ) => '' !== part ).join( ' · ' )
     : cardDetail( card );
   const isWork = 'work_item' === card.subject_type;
+  // The task's other reasons. Pending is left out: the line above already
+  // says what is outstanding, and Show lists it.
+  const also = ( card.also ?? [] ).filter( ( rule ) => 'gate-unmet' !== rule );
   // #490. Whose it is, by the name the Client picker uses; a dash for no one client.
   const { label } = useClientChoice();
   const site = siteOf( card );
@@ -653,12 +656,6 @@ function Card( {
         <span className="bwx-chip" data-rule={ card.rule }>
           { 'today' !== view && 'due-today' === card.rule ? 'Due' : ruleWord( card.rule ) }
         </span>
-        { /* The task's other reasons, so showing it once hides nothing (2026-11-20). */ }
-        { 0 < ( card.also?.length ?? 0 ) && (
-          <span className="bwx-standup-also" data-testid="bwx-standup-also">
-            { `Also ${ ( card.also ?? [] ).map( ( rule ) => ruleWord( rule ).toLowerCase() ).join( ', ' ) }` }
-          </span>
-        ) }
       </div>
 
       <strong className="bwx-standup-card-title">{ cardTitle( card ) }</strong>
@@ -688,10 +685,10 @@ function Card( {
         </span>
       ) }
 
-      { '' !== detail && (
+      { ( '' !== detail || 0 < also.length ) && (
         <span className="bwx-standup-card-detail">
           { detail }
-          { ( 0 < unmet.length || 0 < over.length ) && (
+          { ( 0 < unmet.length || 0 < over.length || 0 < also.length ) && (
             <button
               type="button"
               className="bwx-standup-show"
@@ -711,16 +708,27 @@ function Card( {
          Field requirements come out as instructions rather than controls in
          there, which is what sends somebody to Open — exactly as it should.
        */ }
-      { shown && 0 < unmet.length && (
-        <GateList
-          heading="Outstanding"
-          readiness={ { unmet, checks: [] } }
-          records={ {} }
-          busy={ busy }
-          onComplete={ ( requirement, value, evidence ) =>
-            onComplete( card.subject_id, requirement, value, evidence )
-          }
-        />
+      { shown && ( 0 < also.length || 0 < unmet.length ) && (
+        <div className="bwx-standup-more">
+          { /* The task's other reasons, behind Show with the rest (2026-11-20). */ }
+          { 0 < also.length && (
+            <p className="bwx-standup-also" data-testid="bwx-standup-also">
+              { `Also ${ also.map( ( rule ) => ruleWord( rule ).toLowerCase() ).join( ', ' ) }` }
+            </p>
+          ) }
+
+          { 0 < unmet.length && (
+            <GateList
+              heading="Outstanding"
+              readiness={ { unmet, checks: [] } }
+              records={ {} }
+              busy={ busy }
+              onComplete={ ( requirement, value, evidence ) =>
+                onComplete( card.subject_id, requirement, value, evidence )
+              }
+            />
+          ) }
+        </div>
       ) }
 
       { shown && 0 < over.length && (
