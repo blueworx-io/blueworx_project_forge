@@ -140,8 +140,28 @@ test( 'an urgent task due next month is at the top of Today, for whoever’s tur
   await admin.context.close();
 } );
 
+/** A standing meeting today at 9am, so a diary is known to have loaded. */
+async function standingMeetingToday( admin, siteId, today, host, title, attendees = [] ) {
+  await Forge.onSupport( admin, siteId, 100 );
+  const made = await admin.api.post( `/client-sites/${ siteId }/meetings/series`, {
+    title,
+    frequency: 'weekly',
+    starts_on: today,
+    ends_on: '',
+    time_of_day: '09:00',
+    duration_mins: 30,
+    timezone: 'Europe/London',
+    host_user_id: host.id,
+    attendee_ids: attendees.map( ( one ) => one.id ),
+    attendees: 'The client',
+    planned_hours: 0.5,
+  } );
+  expect( made.status(), await made.text() ).toBe( 200 );
+}
+
 // #693. Today's diary shows meetings only: a chore is in the person's own
 // list, never their diary, and a chore named for somebody else is in neither.
+// A meeting you attend but do not host is in your diary too.
 test( 'a chore today is in its person’s list and not in anyone’s diary', async ( { browser, baseURL } ) => {
   test.slow();
 
@@ -164,6 +184,7 @@ test( 'a chore today is in its person’s list and not in anyone’s diary', asy
     expect( made.status(), await made.text() ).toBe( 200 );
   }
   await admin.api.post( '/recurring/run', {} );
+  await standingMeetingToday( admin, site.id, today, two, `Their sync ${ RUN }`, [ one ] );
 
   const asOne = await Forge.signedIn( browser, baseURL, one.login, Forge.PASSWORD );
   const page = await asOne.context.newPage();
@@ -171,7 +192,9 @@ test( 'a chore today is in its person’s list and not in anyone’s diary', asy
   const table = page.getByTestId( 'bwx-mytasks-table' );
   await expect( table ).toContainText( `Ones chore ${ RUN }`, { timeout: 60_000 } );
   await expect( table ).not.toContainText( `Twos chore ${ RUN }` );
-  await expect( page.locator( '[data-testid="bwx-mytasks-diary"]', { hasText: `Ones chore ${ RUN }` } ) ).toHaveCount( 0 );
+  const diary = page.getByTestId( 'bwx-mytasks-diary' );
+  await expect( diary ).toContainText( `Their sync ${ RUN }`, { timeout: 30_000 } );
+  await expect( diary ).not.toContainText( `Ones chore ${ RUN }` );
   await page.close();
   await asOne.context.close();
 
@@ -181,9 +204,10 @@ test( 'a chore today is in its person’s list and not in anyone’s diary', asy
 test( 'a company date is not in Today’s diary', async ( { browser, baseURL } ) => {
   test.slow();
   const admin = await Forge.signedIn( browser, baseURL, process.env.WP_ADMIN_USER ?? 'admin', process.env.WP_ADMIN_PASS ?? 'admin' );
-  const { client } = await Forge.makeSite( admin.api, `Diary All Co ${ RUN }`, `${ RUN }a` );
+  const { client, site } = await Forge.makeSite( admin.api, `Diary All Co ${ RUN }`, `${ RUN }a` );
   const today = ( await admin.api.get( '/standup' ) ).today;
   const person = await Forge.makePerson( admin.api, client.id, 'staff', `da${ RUN }` );
+  await standingMeetingToday( admin, site.id, today, person, `Own sync ${ RUN }` );
 
   const made = await admin.api.post( '/calendar-dates', { title: `Studio day ${ RUN }`, kind: 'company-day', on_date: today, people: 'all' } );
   expect( made.status(), await made.text() ).toBe( 200 );
@@ -191,8 +215,9 @@ test( 'a company date is not in Today’s diary', async ( { browser, baseURL } )
   const asPerson = await Forge.signedIn( browser, baseURL, person.login, Forge.PASSWORD );
   const page = await asPerson.context.newPage();
   await page.goto( '/blueworx-forge/#screen=mytasks' );
-  await expect( page.getByTestId( 'bwx-mytasks-table' ) ).toBeVisible( { timeout: 60_000 } );
-  await expect( page.locator( '[data-testid="bwx-mytasks-diary"]', { hasText: `Studio day ${ RUN }` } ) ).toHaveCount( 0 );
+  const diary = page.getByTestId( 'bwx-mytasks-diary' );
+  await expect( diary ).toContainText( `Own sync ${ RUN }`, { timeout: 60_000 } );
+  await expect( diary ).not.toContainText( `Studio day ${ RUN }` );
   await page.close();
   await asPerson.context.close();
   await admin.context.close();

@@ -63,8 +63,17 @@ export function MyTasksScreen() {
    */
   const day = todayISO();
   const diary = useDiary( day, day );
+  // A meeting you host or attend. A Google meeting counts only those going,
+  // so one you declined is not yours; a standing one names its host in
+  // people and the rest in attendee_ids.
   const myDiary = useMemo(
-    () => diary.entries.filter( ( entry ) => 'meeting' === entry.kind && ( 'all' === entry.people || ( null !== me && entry.people.includes( me.id ) ) ) ),
+    () =>
+      diary.entries.filter( ( entry ) => {
+        if ( 'meeting' !== entry.kind || null === me ) return false;
+        const attending = ( entry.attendee_ids ?? [] ).includes( me.id );
+        if ( 'google' === entry.source ) return attending;
+        return attending || 'all' === entry.people || entry.people.includes( me.id );
+      } ),
     [ diary.entries, me ]
   );
   // A meeting leaves Today's diary once it has happened (#601). The calendar
@@ -213,8 +222,8 @@ export function MyTasksScreen() {
       ) }
 
       { /*
-          Today's diary (#386): the chores, dates, meetings, renewals and
-          absences that are yours today. Shown whenever there is one.
+          Today's diary (#386): the meetings you host or attend today (#693).
+          Shown whenever there is one.
        */ }
       { 'ready' === state && 0 < myDiary.length && (
         <section className="bwx-standup-diary" data-testid="bwx-mytasks-diary">

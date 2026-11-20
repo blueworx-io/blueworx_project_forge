@@ -885,7 +885,7 @@ export interface DiaryEntry {
   ends_at?: number;
   /** #620. An all-day event, which sits above the day rather than at a time. */
   all_day?: boolean;
-  /** #620. The people going, for the day planner. */
+  /** #620. The people going: a standing meeting's attendees, or a Google meeting's people who have not declined. */
   attendee_ids?: string[];
 }
 
