@@ -167,8 +167,8 @@ test( 'the Agent’s hours are its own, and the deliverer looks after its task',
     await table.getByRole( 'button', { name: /^Everything/ } ).click();
     const row = table.locator( 'tr.fk-row' ).filter( { hasText: title } ).first();
     await expect( row ).toBeVisible( { timeout: 60_000 } );
-    await expect( row ).toContainText( 'Agent' );
-    await expect( row ).toContainText( builder.user.display_name );
+    await expect( row.getByTestId( 'bwx-agents-tag' ) ).toHaveText( 'Agent' );
+    await expect( row.getByTestId( 'bwx-agents-keeper' ) ).toHaveText( builder.user.display_name, { timeout: 30_000 } );
     await expect( row ).not.toContainText( '3.0h' );
   };
   await onAgents( page );
@@ -179,6 +179,23 @@ test( 'the Agent’s hours are its own, and the deliverer looks after its task',
   await adminPage.goto( '/blueworx-forge/' );
   await onAgents( adminPage );
   await adminPage.close();
+
+  // #695. With the list of people refused, the screen still lists the work,
+  // and still names who looks after it.
+  const refusedPage = await admin.context.newPage();
+  await refusedPage.route( ( url ) => url.pathname.endsWith( '/people' ), ( route ) => route.fulfill( { status: 500, body: '{}' } ) );
+  await refusedPage.goto( '/blueworx-forge/' );
+  await onAgents( refusedPage );
+  await refusedPage.close();
+
+  // #695. Once they have left, they are still named.
+  const held = ( await admin.api.get( `/users/${ builder.id }` ) ).memberships[ 0 ];
+  const ended = await admin.api.patch( `/memberships/${ held.id }`, { status: 'inactive', record_version: held.record_version } );
+  expect( ended.status(), await ended.text() ).toBe( 200 );
+  const leftPage = await admin.context.newPage();
+  await leftPage.goto( '/blueworx-forge/' );
+  await onAgents( leftPage );
+  await leftPage.close();
 
   // The Agent is offered for doing the work, never for delivering it.
   const panelPage = await admin.context.newPage();
