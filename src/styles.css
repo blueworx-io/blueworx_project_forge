@@ -4401,6 +4401,10 @@ td[ data-band='over' ] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Sub-tasks: a stage and a title that opens it, with nothing to remove. */
+.bwx-subtask-list { margin-top: 12px; margin-bottom: 0; }
+.bwx-subtask-list li { grid-template-columns: auto minmax( 0, 1fr ); }
+.bwx-subtask-list .bwx-row-open { text-align: left; }
 
 /* The side pane's spacing, brought into line (2026-09-19). */
 .bwx-panel-body .bwx-field > label {

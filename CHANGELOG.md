@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.227.0] - 2026-11-20
+
+### Added
+
+- A task's panel now lists its sub-tasks, each with its stage and how many are completed. Click one to open it.
+
 ## [2.226.2] - 2026-11-20
 
 ### Fixed

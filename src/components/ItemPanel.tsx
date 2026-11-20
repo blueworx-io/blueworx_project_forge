@@ -372,16 +372,30 @@ function forHowLong( seconds: number ): string {
  * the four things still outstanding does those four things; a person who finds
  * out one at a time by being refused does something else instead.
  */
-export function ItemPanel( {
+export function ItemPanel( props: { itemId: string; stages: Stage[]; onClose: () => void; onChanged: () => void } ) {
+  // A sub-task picked from the panel opens in its place, from scratch, so
+  // nothing typed into one task carries over to another.
+  const [ shown, setShown ] = useState( props.itemId );
+  useEffect( () => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShown( props.itemId );
+  }, [ props.itemId ] );
+
+  return <OneItem key={ shown } { ...props } itemId={ shown } onOpenItem={ setShown } />;
+}
+
+function OneItem( {
   itemId,
   stages,
   onClose,
   onChanged,
+  onOpenItem,
 }: {
   itemId: string;
   stages: Stage[];
   onClose: () => void;
   onChanged: () => void;
+  onOpenItem: ( id: string ) => void;
 } ) {
   const [ detail, setDetail ] = useState< Detail | null >( null );
   const [ loadState, setLoadState ] = useState< 'loading' | 'ready' | 'error' | 'denied' >( 'loading' );
@@ -2669,6 +2683,35 @@ export function ItemPanel( {
                   />
                 </div>
                 <LineList name="Test steps" testId="bwx-test-steps" rows={ testSteps } onChange={ setTestSteps } onCommit={ ( rows ) => saveLines( 'test_steps', rows ) } />
+              </div>
+            ) }
+
+            { /*
+                Sub-tasks: what sits under this, with each one's stage, so
+                work that holds this back from release is in plain sight.
+                Picking one opens it here in place of this one.
+             */ }
+            { 0 < detail.children.length && (
+              <div className="bwx-waiting" data-testid="bwx-subtasks">
+                <div className="bwx-switch-row">
+                  <p className="bwx-eyebrow">Sub-tasks</p>
+                  <span className="bwx-hint">
+                    { `${ detail.children.filter( ( one ) => 'completed' === one.stage || 'released' === one.stage ).length } of ${ detail.children.length } completed` }
+                  </span>
+                </div>
+                <ul className="bwx-waiting-list bwx-subtask-list">
+                  { detail.children.map( ( one ) => (
+                    <li key={ one.id } data-testid="bwx-subtask" data-item={ one.id }>
+                      <span className="fk-chip" data-phase={ phaseOf( one.stage ) }>
+                        <span className="fk-dot" aria-hidden="true" />
+                        { label( one.stage ) }
+                      </span>
+                      <button type="button" className="bwx-row-open bwx-waiting-title" onClick={ () => onOpenItem( one.id ) }>
+                        { one.title }
+                      </button>
+                    </li>
+                  ) ) }
+                </ul>
               </div>
             ) }
 
