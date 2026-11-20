@@ -6,7 +6,6 @@ import { useLiveReload } from '../live';
 import { DataView, EmptyState, StageChip, Tag } from '../kit';
 import type { Column, SavedView } from '../kit';
 import { DiaryLine, useDiary } from './Diary';
-import { DayPlanner } from './DayPlanner';
 import { useClientChoice } from '../ClientChoice';
 import { ItemPanel } from './ItemPanel';
 import { Screen } from './States';
@@ -54,8 +53,6 @@ export function MyTasksScreen() {
   const [ search, setSearch ] = useState( '' );
   const [ role, setRole ] = useState< string | null >( null );
   const [ opened, setOpened ] = useState( '' );
-  // Where the day planner puts its lists, beneath the tasks' own box (#635).
-  const [ below, setBelow ] = useState< HTMLDivElement | null >( null );
   // The top bar's client (#402) replaces the screen's own Client filter.
   const { siteId, label } = useClientChoice();
 
@@ -115,9 +112,6 @@ export function MyTasksScreen() {
   // Narrowed first, so the counts on the tabs are for the picked client too.
   // Done work is under no view, Everything included (Luke, 2026-09-27).
   const ours = useMemo( () => listed( mine, siteId ), [ mine, siteId ] );
-  // #649. Everything on Today whatever the filters, so the day plan can tell
-  // a finished task from one a filter is hiding.
-  const onToday = useMemo( () => new Set( listed( mine, ALL_SITES ).filter( ( one ) => 'today' === viewOf( one ) ).map( ( one ) => one.id ) ), [ mine ] );
 
   const counts = useMemo( () => {
     const c: Record< View | 'done', number > = { today: 0, tomorrow: 0, week: 0, later: 0, nodate: 0, done: 0, all: ours.length };
@@ -259,14 +253,11 @@ export function MyTasksScreen() {
             onClearFilters={ () => setRole( null ) }
             columns={ columns }
             rows={ rows }
-            body={ 'today' === view ? <DayPlanner rows={ rows } onToday={ onToday } me={ me } onOpen={ setOpened } filtered={ '' !== search.trim() || null !== role || ALL_SITES !== siteId } below={ below } /> : undefined }
             sortable
             empty={ <EmptyState icon={ ListChecks } dense title={ ALL_SITES === siteId ? EMPTY[ view ] : `Nothing for ${ label() } here.` } body="Counts here are the same records the board and Capacity read, so the four views always add up." /> }
             footer={ `${ rows.length } of ${ counts.all } · Today ${ counts.today } + next seven days ${ counts.week } + further out ${ counts.later } = ${ counts.all }` }
             testId="bwx-mytasks-table"
           />
-          { /* The day's lists of what does not fit, in their own box (#635). */ }
-          <div ref={ setBelow } className="bwx-day-below" />
         </div>
       ) }
 

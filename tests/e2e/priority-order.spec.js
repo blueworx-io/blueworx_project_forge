@@ -39,9 +39,9 @@ test( 'My tasks has a Priority column and runs urgent first, then by date, then 
   await page.goto( '/blueworx-forge/' );
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
 
-  await expect( page.locator( '[data-testid="bwx-day-block"]', { hasText: `Today urgent ${ RUN }` } ) ).toBeVisible( { timeout: 60_000 } );
+  await expect( page.locator( '[data-testid="bwx-mytasks-table"] tbody tr.fk-row', { hasText: `Today urgent ${ RUN }` } ) ).toBeVisible( { timeout: 60_000 } );
 
-  const rows = page.locator( '[data-testid="bwx-day-block"]' );
+  const rows = page.locator( '[data-testid="bwx-mytasks-table"] tbody tr.fk-row' );
   await expect( rows ).toHaveCount( 4 );
   await expect( rows.nth( 0 ) ).toContainText( `Today urgent ${ RUN }` );
   await expect( rows.nth( 1 ) ).toContainText( `Late low ${ RUN }` );
