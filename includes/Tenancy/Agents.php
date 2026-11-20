@@ -118,6 +118,49 @@ final class Agents {
 	}
 
 	/**
+	 * Why a task, as it would be after a write, cannot be saved with the
+	 * agent where it is. Pure.
+	 *
+	 * @param array<string, mixed> $item      The task as it would be.
+	 * @param array<int, string>   $agent_ids Every agent.
+	 * @return array<string, string> Field to message; empty when it can be saved.
+	 */
+	public static function seat_refusals( array $item, array $agent_ids ): array {
+		$deliverer = (string) ( $item['deliverer_id'] ?? '' );
+
+		if ( in_array( $deliverer, $agent_ids, true ) ) {
+			return array( 'deliverer_id' => __( 'The agent can\'t deliver work. Pick a person to deliver it.', 'blueworx-forge' ) );
+		}
+
+		if ( '' !== $deliverer ) {
+			return array();
+		}
+
+		foreach ( array( 'primary_user_id', 'designer_id', 'reviewer_id' ) as $seat ) {
+			if ( in_array( (string) ( $item[ $seat ] ?? '' ), $agent_ids, true ) ) {
+				return array( 'deliverer_id' => __( 'With the agent on this task, pick a person to deliver it. They look after it while the agent has it.', 'blueworx-forge' ) );
+			}
+		}
+
+		return array();
+	}
+
+	/**
+	 * Who acts for a seat: the deliverer when the agent holds it, otherwise
+	 * whoever does. Pure.
+	 *
+	 * @param array<string, mixed> $item      The task.
+	 * @param string               $field     The seat's field.
+	 * @param array<int, string>   $agent_ids Every agent.
+	 * @return string
+	 */
+	public static function stand_in( array $item, string $field, array $agent_ids ): string {
+		$holder = (string) ( $item[ $field ] ?? '' );
+
+		return '' !== $holder && in_array( $holder, $agent_ids, true ) ? (string) ( $item['deliverer_id'] ?? '' ) : $holder;
+	}
+
+	/**
 	 * Whether this id is an agent.
 	 *
 	 * @param string $id A seat value.
