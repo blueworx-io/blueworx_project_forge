@@ -28,8 +28,8 @@ import type { Mine, Role, Site, View } from '../mytasks';
  * here from the due dates, the same way the standup does.
  */
 
-const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick' };
-const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok' };
+const ROLE_LABEL: Record< Role, string > = { primary: 'Owner', designer: 'Designer', reviewer: 'Checker', deliverer: 'Builder', assignee: 'Yours to tick', agent: "Agent's work" };
+const ROLE_TONE: Record< Role, 'brand' | 'info' | 'neutral' | 'ok' > = { primary: 'brand', designer: 'info', reviewer: 'info', deliverer: 'neutral', assignee: 'ok', agent: 'neutral' };
 
 /** Today, in the browser's own zone — the same today the due dates below use. */
 function todayISO(): string {
@@ -254,7 +254,7 @@ export function MyTasksScreen() {
             search={ search }
             onSearch={ setSearch }
             searchPlaceholder="Search your tasks"
-            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Designer', 'Checker', 'Builder' ] } ] }
+            filters={ [ { id: 'role', label: 'Your role', value: role, options: [ 'Any role', 'Owner', 'Designer', 'Checker', 'Builder', "Agent's work" ] } ] }
             onFilter={ ( _id, value ) => setRole( null === value || 'Any role' === value ? null : value ) }
             onClearFilters={ () => setRole( null ) }
             columns={ columns }

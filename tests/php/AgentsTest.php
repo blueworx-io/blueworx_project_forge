@@ -18,6 +18,53 @@ use PHPUnit\Framework\TestCase;
  */
 final class AgentsTest extends TestCase {
 
+	protected function setUp(): void {
+		$GLOBALS['bwx_forge_test_options'] = array();
+		$GLOBALS['bwx_forge_test_inserts'] = array();
+		unset( $GLOBALS['bwx_forge_test_agent_id'] );
+	}
+
+	// ---- Making the agent ----------------------------------------------
+
+	/** @return array<int, array<string, mixed>> */
+	private function agent_inserts(): array {
+		return array_values( array_filter( $GLOBALS['bwx_forge_test_inserts'], static fn( array $insert ): bool => 1 === ( $insert[1]['is_agent'] ?? 0 ) ) );
+	}
+
+	public function test_a_site_with_no_agent_gets_one(): void {
+		Agents::ensure();
+
+		$this->assertCount( 1, $this->agent_inserts() );
+		$this->assertSame( Agents::EMAIL, $this->agent_inserts()[0][1]['email'] );
+	}
+
+	public function test_a_failed_attempt_is_tried_again_on_the_next_load(): void {
+		// The fake database never writes, so every attempt fails.
+		Agents::ensure();
+		Agents::ensure();
+
+		$this->assertCount( 2, $this->agent_inserts() );
+		$this->assertFalse( get_option( Agents::OPTION, false ) );
+	}
+
+	public function test_an_existing_agent_active_or_not_is_never_doubled(): void {
+		$GLOBALS['bwx_forge_test_agent_id'] = 'usr_a';
+
+		Agents::ensure();
+
+		$this->assertSame( array(), $this->agent_inserts() );
+		$this->assertSame( 'usr_a', get_option( Agents::OPTION, false ) );
+	}
+
+	public function test_once_made_nothing_is_asked(): void {
+		update_option( Agents::OPTION, 'usr_a' );
+		$GLOBALS['bwx_forge_test_calls'] = array();
+
+		Agents::ensure();
+
+		$this->assertSame( array(), $GLOBALS['bwx_forge_test_calls'] );
+	}
+
 	public function test_default_hours_are_twelve_on_weekdays_and_none_at_weekends(): void {
 		$hours = Agents::default_hours();
 
@@ -90,6 +137,28 @@ final class AgentsTest extends TestCase {
 		);
 
 		$this->assertSame( array( 'usr_x', 'usr_y' ), array_column( Agents::without( $people ), 'id' ) );
+	}
+
+	public function test_the_agent_cannot_stand_in(): void {
+		foreach ( array( 'reviewer_substitute_id', 'deliverer_substitute_id' ) as $seat ) {
+			$this->assertSame(
+				array( $seat => 'The agent can\'t stand in for anyone. Pick a person.' ),
+				Agents::seat_refusals( array( 'primary_user_id' => 'usr_x', 'deliverer_id' => 'usr_b', $seat => 'usr_a' ), array( 'usr_a' ) ),
+				$seat
+			);
+		}
+	}
+
+	public function test_the_agent_keeps_no_login_and_its_own_address(): void {
+		$agent = array( 'id' => 'usr_a', 'is_agent' => true, 'email' => Agents::EMAIL );
+
+		$this->assertSame( 'The agent can\'t have a login.', Agents::refuse_change( $agent, array( 'wp_user_id' => 7 ) ) );
+		$this->assertSame( 'The agent can\'t have a login.', Agents::refuse_change( $agent, array( 'make_account' => true ) ) );
+		$this->assertSame( 'The agent\'s address can\'t be changed.', Agents::refuse_change( $agent, array( 'email' => 'me@example.com' ) ) );
+		// Its name, hours and status are fine, and so is resending the same address.
+		$this->assertNull( Agents::refuse_change( $agent, array( 'display_name' => 'Claude', 'email' => Agents::EMAIL, 'wp_user_id' => 0 ) ) );
+		// Anybody else is not this rule's business.
+		$this->assertNull( Agents::refuse_change( array( 'id' => 'usr_x' ), array( 'wp_user_id' => 7 ) ) );
 	}
 
 	public function test_no_agent_no_refusal(): void {

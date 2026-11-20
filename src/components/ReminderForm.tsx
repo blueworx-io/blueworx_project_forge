@@ -3,6 +3,7 @@ import type { ClientSite, Person, Reminder } from '../types';
 import { api, ApiError, messageFor } from '../api';
 import { Aside, RichText } from '../kit';
 import { HoursSelect } from '../hours';
+import { withoutAgents } from '../agents';
 
 /**
  * Adding or changing a reminder (2026-09-25). It is added from the Reminders
@@ -246,7 +247,7 @@ export function ReminderFields( {
 
       <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-reminder-people" disabled={ readOnly }>
         <legend>Who</legend>
-        { people.map( ( person ) => (
+        { withoutAgents( people ).map( ( person ) => (
           <label key={ person.id } className="bwx-recurring-person">
             <input
               type="checkbox"

@@ -56,8 +56,29 @@ test( 'a task with the Agent on it needs a person to deliver it', async ( { brow
   expect( agentDelivers.status() ).toBe( 400 );
   expect( ( await agentDelivers.json() ).data.fields.deliverer_id ).toBe( 'The agent can\'t deliver work. Pick a person to deliver it.' );
 
+  const standIn = await admin.api.patch( `/work-items/${ item.id }`, { primary_user_id: builder.id, deliverer_id: builder.id, deliverer_substitute_id: agent.id, record_version: item.record_version } );
+  expect( standIn.status() ).toBe( 400 );
+  expect( ( await standIn.json() ).data.fields.deliverer_substitute_id ).toBe( 'The agent can\'t stand in for anyone. Pick a person.' );
+
   const fine = await admin.api.patch( `/work-items/${ item.id }`, { primary_user_id: agent.id, deliverer_id: builder.id, record_version: item.record_version } );
   expect( fine.status(), await fine.text() ).toBe( 200 );
+} );
+
+test( 'the Agent never gets a login, and keeps its address', async ( { browser, baseURL } ) => {
+  const admin = await Forge.signedIn( browser, baseURL, ADMIN_USER, ADMIN_PASS );
+  const agent = await theAgent( admin.api );
+
+  const login = await admin.api.post( `/users/${ agent.id }/account?record_version=${ agent.record_version }`, {} );
+  expect( login.status() ).toBe( 400 );
+  expect( ( await login.json() ).message ).toBe( 'The agent can\'t have a login.' );
+
+  const address = await admin.api.patch( `/users/${ agent.id }?record_version=${ agent.record_version }`, { email: `agent${ RUN }@example.test` } );
+  expect( address.status() ).toBe( 400 );
+  expect( ( await address.json() ).message ).toBe( 'The agent\'s address can\'t be changed.' );
+
+  // Its name is still the studio's to change.
+  const renamed = await admin.api.patch( `/users/${ agent.id }?record_version=${ agent.record_version }`, { display_name: 'Agent' } );
+  expect( renamed.status(), await renamed.text() ).toBe( 200 );
 } );
 
 test( 'when the Agent reviews, a staff deliverer approves for it, but not their own work', async ( { browser, baseURL } ) => {
@@ -134,5 +155,19 @@ test( 'the Agent’s hours are its own, and the deliverer looks after its task',
   await page.getByTestId( 'bwx-screen-mytasks' ).click();
   await expect( page.getByTestId( 'bwx-mytasks-table' ) ).toBeVisible( { timeout: 60_000 } );
   await expect( page.getByTestId( 'bwx-mytasks' ) ).toContainText( title, { timeout: 60_000 } );
+
+  // Marked as the agent's work, with none of its hours on the deliverer's day.
+  const row = page.getByTestId( 'bwx-mytasks' ).getByTestId( 'bwx-day-block' ).filter( { hasText: title } ).first();
+  await expect( row ).toContainText( 'Agent\'s work' );
+  await expect( row ).not.toContainText( '3.0h' );
+
   await context.close();
+
+  // The Agent is offered for doing the work, never for delivering it.
+  const panelPage = await admin.context.newPage();
+  await panelPage.goto( `/blueworx-forge/#item=${ item.id }` );
+  const assign = panelPage.getByTestId( 'bwx-panel' ).getByTestId( 'bwx-assign' );
+  await expect( assign.locator( `#bwx-primary_user_id option[value="${ agent.id }"]` ) ).toHaveCount( 1, { timeout: 60_000 } );
+  await expect( assign.locator( `#bwx-deliverer_id option[value="${ agent.id }"]` ) ).toHaveCount( 0 );
+  await panelPage.close();
 } );

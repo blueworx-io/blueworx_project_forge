@@ -20,6 +20,7 @@ import type {
   WorkItem,
 } from '../types';
 import { CLIENT_REVIEWER } from '../types';
+import { isAgent, withoutAgents } from '../agents';
 import { api, ApiError, forgeData, GateError, isDenied, messageFor } from '../api';
 import { phaseOf } from '../phases';
 import { waitingOn } from '../turn';
@@ -1135,8 +1136,7 @@ export function ItemPanel( {
     }
 
     // #689. Where the agent holds the seat, its deliverer answers for it.
-    const agents = forgeData()?.agentIds ?? [];
-    const actsAs = ( holder: string | undefined ) => ( holder && agents.includes( holder ) ? it.deliverer_id : holder ) === me;
+    const actsAs = ( holder: string | undefined ) => ( isAgent( holder ) ? it.deliverer_id : holder ) === me;
 
     switch ( requirement.who ) {
       case 'PU':
@@ -1488,7 +1488,8 @@ export function ItemPanel( {
    * flagged, so the picker shows who is there and why a save is refused.
    */
   const pick = ( field: string, name: string ) => {
-    const offered = siteStaff ?? [];
+    // #689. The agent can sit in any seat but this one.
+    const offered = 'deliverer_id' === field ? withoutAgents( siteStaff ?? [] ) : siteStaff ?? [];
     const current = draft[ field ] ?? '';
     // #391. The client can review, at any stage (#468).
     const reviewing = 'reviewer_id' === field;
@@ -2193,7 +2194,7 @@ export function ItemPanel( {
                   >
                     <option value="">Choose</option>
                     <option value="client">The client</option>
-                    { staffList.map( ( person ) => (
+                    { withoutAgents( staffList ).map( ( person ) => (
                       <option key={ person.id } value={ person.id }>
                         { person.display_name }
                       </option>
@@ -3409,7 +3410,7 @@ export function GateList( {
                       { one.title }
                     </option>
                   ) ) }
-                  { 'people' === requirement.source && people.map( ( person ) => (
+                  { 'people' === requirement.source && withoutAgents( people ).map( ( person ) => (
                     <option key={ person.id } value={ person.id }>
                       { person.display_name }
                     </option>

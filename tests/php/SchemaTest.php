@@ -557,30 +557,12 @@ final class SchemaTest extends TestCase {
 	}
 
 	/**
-	 * #689. The agent is made on a fresh site and on one coming from before
-	 * it, and a person is marked as one by a column of their own.
+	 * #689. A person is marked as the agent by a column of their own. The
+	 * agent itself is made on the first request that finds it missing
+	 * (AgentsTest), not by an upgrade step.
 	 */
-	public function test_the_agent_step_runs_on_a_fresh_site_and_one_from_before_it(): void {
+	public function test_a_person_can_be_marked_as_the_agent(): void {
 		$this->assertStringContainsString( 'is_agent tinyint(1) NOT NULL DEFAULT 0', Schema::definitions()[ Schema::users_table() ] );
-
-		$agent_inserts = static fn(): array => array_values(
-			array_filter(
-				$GLOBALS['bwx_forge_test_inserts'] ?? array(),
-				static fn( array $insert ): bool => 1 === ( $insert[1]['is_agent'] ?? 0 )
-			)
-		);
-
-		$GLOBALS['bwx_forge_test_inserts']         = array();
-		$GLOBALS['bwx_forge_test_existing_tables'] = array_keys( Schema::definitions() );
-
-		Schema::maybe_upgrade();
-		$this->assertCount( 1, $agent_inserts() );
-		$this->assertSame( 'agent@blueworx-forge.invalid', $agent_inserts()[0][1]['email'] );
-
-		$GLOBALS['bwx_forge_test_inserts'] = array();
-		update_option( Schema::OPTION, 56 );
-		Schema::maybe_upgrade();
-		$this->assertCount( 1, $agent_inserts() );
 	}
 
 	/**

@@ -10,6 +10,7 @@ import { Aside, DataView, EmptyState, RichText, Tag } from '../kit';
 import type { Column } from '../kit';
 import { everybody, ItemPanel } from './ItemPanel';
 import { Screen } from './States';
+import { withoutAgents } from '../agents';
 
 /**
  * The studio's recurring tasks: what repeats, how often, who does it, and
@@ -524,7 +525,7 @@ function SourceForm( {
          */ }
         <fieldset className="bwx-field bwx-recurring-people" data-testid="bwx-recurring-assignees">
           <legend>Who does it</legend>
-          { people.map( ( person ) => (
+          { withoutAgents( people ).map( ( person ) => (
             <label key={ person.id } className="bwx-recurring-person">
               <input
                 type="checkbox"

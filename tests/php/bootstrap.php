@@ -93,6 +93,13 @@ class BWX_Forge_Test_Wpdb {
 	 * @return string|null The table name, when it "exists"; null otherwise.
 	 */
 	public function get_var( string $query ) {
+		bwx_forge_test_record( 'get_var', $query );
+
+		// #689. Whether the site already has an agent, as a test stages it.
+		if ( false !== strpos( $query, 'is_agent' ) ) {
+			return $GLOBALS['bwx_forge_test_agent_id'] ?? null;
+		}
+
 		if ( 1 !== preg_match( "/LIKE '([^']+)'/", $query, $matches ) ) {
 			return null;
 		}

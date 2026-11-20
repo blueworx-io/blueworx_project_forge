@@ -64,7 +64,15 @@ final class Agents {
 	}
 
 	/**
+	 * Where the agent's id is kept once it exists, so a request that finds it
+	 * there asks nothing more.
+	 */
+	public const OPTION = 'bwx_forge_agent';
+
+	/**
 	 * Creates the agent, with its hours, when the site has never had one.
+	 * Called on every request, like Studio::ensure(): one option read once
+	 * the agent exists, and a failed attempt is simply made again next time.
 	 *
 	 * An agent somebody has since deactivated still counts: that was a
 	 * decision, and this must not quietly undo it.
@@ -72,12 +80,17 @@ final class Agents {
 	public static function ensure(): void {
 		global $wpdb;
 
+		if ( false !== get_option( self::OPTION, false ) ) {
+			return;
+		}
+
 		$table = Schema::users_table();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own table; the name cannot be a placeholder.
 		$found = $wpdb->get_var( "SELECT id FROM {$table} WHERE is_agent = 1 LIMIT 1" );
 
 		if ( null !== $found ) {
+			update_option( self::OPTION, (string) $found );
 			return;
 		}
 
@@ -95,6 +108,8 @@ final class Agents {
 		if ( null === $agent ) {
 			return;
 		}
+
+		update_option( self::OPTION, (string) $agent['id'] );
 
 		Patterns::record( (string) $agent['id'], wp_date( 'Y-m-d' ), self::default_hours(), 0, __( 'The agent\'s starting hours.', 'blueworx-forge' ) );
 	}
@@ -133,6 +148,13 @@ final class Agents {
 
 		if ( in_array( $deliverer, $agent_ids, true ) ) {
 			return array( 'deliverer_id' => __( 'The agent can\'t deliver work. Pick a person to deliver it.', 'blueworx-forge' ) );
+		}
+
+		// A stand-in acts for somebody, and the agent cannot act.
+		foreach ( array( 'reviewer_substitute_id', 'deliverer_substitute_id' ) as $seat ) {
+			if ( in_array( (string) ( $item[ $seat ] ?? '' ), $agent_ids, true ) ) {
+				return array( $seat => __( 'The agent can\'t stand in for anyone. Pick a person.', 'blueworx-forge' ) );
+			}
 		}
 
 		/*
@@ -216,6 +238,30 @@ final class Agents {
 		$holder = (string) ( $item[ $field ] ?? '' );
 
 		return '' !== $user_id && '' !== $holder && $holder !== $user_id && self::stand_in( $item, $field, $agent_ids ) === $user_id;
+	}
+
+	/**
+	 * Why an edit to a person cannot be made, when they are the agent: it
+	 * never gets a login, and keeps the address that can't receive mail. Pure.
+	 *
+	 * @param array<string, mixed> $person The person as stored.
+	 * @param array<string, mixed> $values What the edit asks for.
+	 * @return string|null The refusal, or null when it may go ahead.
+	 */
+	public static function refuse_change( array $person, array $values ): ?string {
+		if ( empty( $person['is_agent'] ) ) {
+			return null;
+		}
+
+		if ( ! empty( $values['make_account'] ) || 0 < (int) ( $values['wp_user_id'] ?? 0 ) ) {
+			return __( 'The agent can\'t have a login.', 'blueworx-forge' );
+		}
+
+		if ( array_key_exists( 'email', $values ) && (string) $values['email'] !== (string) $person['email'] ) {
+			return __( 'The agent\'s address can\'t be changed.', 'blueworx-forge' );
+		}
+
+		return null;
 	}
 
 	/**

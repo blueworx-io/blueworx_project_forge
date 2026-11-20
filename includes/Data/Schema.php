@@ -1970,12 +1970,6 @@ final class Schema {
 				\Blueworx\Forge\Work\ProjectTypeUpgrade::run();
 			}
 
-			// #689. The agent, on every site that has never had one: a fresh
-			// site as well, since it has staff to plan from the start.
-			if ( null === $installed || $installed < 57 ) {
-				\Blueworx\Forge\Tenancy\Agents::ensure();
-			}
-
 			update_option( self::OPTION, self::VERSION );
 		}
 	}

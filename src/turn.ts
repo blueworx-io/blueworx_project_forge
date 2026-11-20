@@ -1,4 +1,5 @@
 import { CLIENT_REVIEWER } from './types';
+import { isAgent } from './agents';
 
 /**
  * Whose turn a piece of work is (2026-09-24), in one place: My tasks lists it
@@ -40,6 +41,13 @@ export function responsible( item: Seated ): Seat | null {
   return seat;
 }
 
+/** Whether it is the agent's turn, so its deliverer is looking after it (#689). */
+export function agentsTurn( item: Seated ): boolean {
+  const seat = seatAtStage( item );
+
+  return null !== seat && isAgent( item[ SEAT_FIELD[ seat ] ] );
+}
+
 /** The seat a stage belongs to, before the agent is allowed for. */
 function seatAtStage( item: Seated ): Seat | null {
   const stage = 'blocked' === item.stage ? item.prior_stage ?? '' : item.stage;
@@ -54,11 +62,6 @@ function seatAtStage( item: Seated ): Seat | null {
   if ( 'design-process' === stage && item.designer_id ) return 'designer';
 
   return 'primary';
-}
-
-/** Whether a seat holds the agent (#689), as the page was told. */
-function isAgent( id: string | null | undefined ): boolean {
-  return !! id && ( window.bwxForgeData?.agentIds ?? [] ).includes( id );
 }
 
 /**

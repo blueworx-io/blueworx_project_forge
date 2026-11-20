@@ -20,6 +20,7 @@ use Blueworx\Forge\Meetings\MeetingHours;
 use Blueworx\Forge\Meetings\Occurrence;
 use Blueworx\Forge\Meetings\Series;
 use Blueworx\Forge\Meetings\Validate;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Tenancy\Reach;
@@ -765,7 +766,8 @@ final class MeetingsController {
 					'id'           => (string) $person['id'],
 					'display_name' => (string) $person['display_name'],
 				),
-				Users::ours()
+				// #689. The agent can't host or attend.
+				Agents::without( Users::ours() )
 			),
 		);
 	}
