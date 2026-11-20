@@ -1003,6 +1003,8 @@ export interface Person {
   status: string;
   /** The WordPress account this person signs in with; 0 when none. */
   wp_user_id?: number;
+  /** #689. The agent: holds seats, never acts; the deliverer acts for it. */
+  is_agent?: boolean;
 }
 
 /* ---- People (PR 3 of spec 2026-09-16) ---- */

@@ -137,6 +137,22 @@ class BWX_Forge_Test_Wpdb {
 
 		return 0;
 	}
+
+	/**
+	 * Stub. Records an insert, as table and row, and reports it as not
+	 * written, so whatever would follow a real insert (#689's agent hours)
+	 * is not reached without a database.
+	 *
+	 * @param string               $table Table.
+	 * @param array<string, mixed> $row   Row.
+	 * @return int
+	 */
+	public function insert( string $table, array $row ): int {
+		bwx_forge_test_record( 'insert', $table );
+		$GLOBALS['bwx_forge_test_inserts'][] = array( $table, $row );
+
+		return 0;
+	}
 }
 
 /**

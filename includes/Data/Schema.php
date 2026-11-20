@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 56;
+	public const VERSION = 57;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -685,6 +685,7 @@ final class Schema {
 	status varchar(20) NOT NULL DEFAULT 'active',
 	grants varchar(191) NOT NULL DEFAULT '',
 	wp_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+	is_agent tinyint(1) NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -1967,6 +1968,12 @@ final class Schema {
 			// feedback item become features, so work can go beneath them.
 			if ( null !== $installed && $installed < 52 ) {
 				\Blueworx\Forge\Work\ProjectTypeUpgrade::run();
+			}
+
+			// #689. The agent, on every site that has never had one: a fresh
+			// site as well, since it has staff to plan from the start.
+			if ( null === $installed || $installed < 57 ) {
+				\Blueworx\Forge\Tenancy\Agents::ensure();
 			}
 
 			update_option( self::OPTION, self::VERSION );

@@ -1,0 +1,129 @@
+<?php
+/**
+ * The agent: a member of staff that does the work and holds no login.
+ *
+ * @package Blueworx\Forge
+ */
+
+declare( strict_types = 1 );
+
+namespace Blueworx\Forge\Tenancy;
+
+use Blueworx\Forge\Capacity\Patterns;
+use Blueworx\Forge\Data\Schema;
+
+/**
+ * #689 (2026-11-20). When Luke's AI agent does the build, it sits in the seat
+ * itself, so the hours land on its own row in capacity rather than on the
+ * person who only designs or reviews.
+ *
+ * It is an ordinary person marked `is_agent`, so the People screen, the seat
+ * pickers and capacity show it with no special case, and its hours are edited
+ * like anyone's. What it cannot do is act: it has no login and no inbox. So
+ * whenever it is the agent's turn on a task, it is the deliverer's turn — the
+ * reviewer is usually the client and cannot look after it. That is why a task
+ * with the agent on it needs a person to deliver it.
+ */
+final class Agents {
+
+	/**
+	 * The agent's address. `.invalid` is reserved and can never receive mail.
+	 */
+	public const EMAIL = 'agent@blueworx-forge.invalid';
+
+	/**
+	 * What the agent is called.
+	 */
+	public const NAME = 'Agent';
+
+	/**
+	 * Its working day, Monday to Friday.
+	 */
+	public const HOURS_PER_DAY = 12.0;
+
+	/**
+	 * The ids of every agent, read once per request.
+	 *
+	 * @var array<int, string>|null
+	 */
+	private static ?array $ids = null;
+
+	/**
+	 * The agent's starting hours, by day column. Pure.
+	 *
+	 * @return array<string, float>
+	 */
+	public static function default_hours(): array {
+		$hours = array();
+
+		foreach ( Patterns::day_columns() as $column ) {
+			$hours[ $column ] = in_array( $column, array( 'hours_sat', 'hours_sun' ), true ) ? 0.0 : self::HOURS_PER_DAY;
+		}
+
+		return $hours;
+	}
+
+	/**
+	 * Creates the agent, with its hours, when the site has never had one.
+	 *
+	 * An agent somebody has since deactivated still counts: that was a
+	 * decision, and this must not quietly undo it.
+	 */
+	public static function ensure(): void {
+		global $wpdb;
+
+		$table = Schema::users_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Own table; the name cannot be a placeholder.
+		$found = $wpdb->get_var( "SELECT id FROM {$table} WHERE is_agent = 1 LIMIT 1" );
+
+		if ( null !== $found ) {
+			return;
+		}
+
+		$agent = Users::create(
+			array(
+				'email'        => self::EMAIL,
+				'display_name' => self::NAME,
+				'is_agent'     => true,
+			),
+			0
+		);
+
+		self::$ids = null;
+
+		if ( null === $agent ) {
+			return;
+		}
+
+		Patterns::record( (string) $agent['id'], wp_date( 'Y-m-d' ), self::default_hours(), 0, __( 'The agent\'s starting hours.', 'blueworx-forge' ) );
+	}
+
+	/**
+	 * The ids of every agent, in any status.
+	 *
+	 * @return array<int, string>
+	 */
+	public static function ids(): array {
+		if ( null === self::$ids ) {
+			self::$ids = array_values(
+				array_map(
+					static fn( array $person ): string => (string) $person['id'],
+					array_filter( Users::all( null ), static fn( array $person ): bool => ! empty( $person['is_agent'] ) )
+				)
+			);
+		}
+
+		return self::$ids;
+	}
+
+	/**
+	 * Whether this id is an agent.
+	 *
+	 * @param string $id A seat value.
+	 * @return bool
+	 */
+	public static function is( string $id ): bool {
+		return '' !== $id && in_array( $id, self::ids(), true );
+	}
+}
