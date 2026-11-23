@@ -26,7 +26,7 @@ final class PermissionsRunnerTest extends TestCase {
 	private string $key;
 
 	/**
-	 * A fresh key, over https, from one address.
+	 * A fresh key, over https.
 	 */
 	protected function setUp(): void {
 		$GLOBALS['bwx_forge_test_options']     = array();
@@ -35,7 +35,6 @@ final class PermissionsRunnerTest extends TestCase {
 		$GLOBALS['bwx_forge_test_ssl']         = true;
 		$GLOBALS['bwx_forge_test_environment'] = 'production';
 		$GLOBALS['bwx_forge_test_home']        = 'https://studio.example.test';
-		$_SERVER['REMOTE_ADDR']                = '203.0.113.5';
 
 		$this->key = RunnerKey::make( 1 );
 	}
@@ -44,7 +43,7 @@ final class PermissionsRunnerTest extends TestCase {
 	 * Clears what this test staged.
 	 */
 	protected function tearDown(): void {
-		unset( $GLOBALS['bwx_forge_test_ssl'], $GLOBALS['bwx_forge_test_environment'], $GLOBALS['bwx_forge_test_home'], $_SERVER['REMOTE_ADDR'] );
+		unset( $GLOBALS['bwx_forge_test_ssl'], $GLOBALS['bwx_forge_test_environment'], $GLOBALS['bwx_forge_test_home'] );
 	}
 
 	/**
@@ -110,7 +109,6 @@ final class PermissionsRunnerTest extends TestCase {
 
 		$this->assertInstanceOf( WP_Error::class, $refused );
 		$this->assertSame( 0, RunnerKey::status()['last_used_at'] );
-		$this->assertSame( array(), $GLOBALS['bwx_forge_test_transients'], 'not counted as a wrong key' );
 	}
 
 	/**
@@ -124,49 +122,34 @@ final class PermissionsRunnerTest extends TestCase {
 	}
 
 	/**
-	 * Ten wrong keys, and the right one is refused too until the window ends.
+	 * Wrong keys write nothing, however many there are, and never shut the
+	 * right key out: there is deliberately no lockout.
 	 */
-	public function test_ten_wrong_keys_shut_the_address_out(): void {
-		for ( $i = 0; $i < 10; $i++ ) {
+	public function test_wrong_keys_write_nothing_and_shut_nobody_out(): void {
+		$options = $GLOBALS['bwx_forge_test_options'];
+
+		for ( $i = 0; $i < 50; $i++ ) {
 			Permissions::runner( $this->request( 'bwxr_guess' . $i ) );
 		}
 
-		$refused = Permissions::runner( $this->request( $this->key ) );
-
-		$this->assertInstanceOf( WP_Error::class, $refused );
-		$this->assertSame( Permissions::runner( $this->request( 'bwxr_other' ) )->get_error_message(), $refused->get_error_message() );
-
-		$GLOBALS['bwx_forge_test_now'] = 1000000 + 601;
+		$this->assertSame( $options, $GLOBALS['bwx_forge_test_options'] );
+		$this->assertSame( array(), $GLOBALS['bwx_forge_test_transients'] );
 		$this->assertTrue( Permissions::runner( $this->request( $this->key ) ) );
 	}
 
 	/**
 	 * WordPress asks the same request twice, the second time for the Allow
-	 * header. One wrong key is one failure, not two.
+	 * header. The first answer stands.
 	 */
-	public function test_one_request_asked_twice_is_one_failure(): void {
-		$request = $this->request( 'bwxr_guess' );
+	public function test_one_request_is_answered_once(): void {
+		$request = $this->request( $this->key );
 
-		for ( $i = 0; $i < 9; $i++ ) {
-			Permissions::runner( $this->request( 'bwxr_guess' . $i ) );
-		}
+		$this->assertTrue( Permissions::runner( $request ) );
 
-		Permissions::runner( $request );
-		Permissions::runner( $request );
+		RunnerKey::forget();
 
-		$this->assertTrue( RunnerKey::throttled( '203.0.113.5', 1000001 ) );
-
-		$GLOBALS['bwx_forge_test_transients'] = array();
-
-		for ( $i = 0; $i < 8; $i++ ) {
-			Permissions::runner( $this->request( 'bwxr_again' . $i ) );
-		}
-
-		$twice = $this->request( 'bwxr_twice' );
-		Permissions::runner( $twice );
-		Permissions::runner( $twice );
-
-		$this->assertFalse( RunnerKey::throttled( '203.0.113.5', 1000001 ), 'nine failures, though one was asked twice' );
+		$this->assertTrue( Permissions::runner( $request ), 'the same request keeps its answer' );
+		$this->assertInstanceOf( WP_Error::class, Permissions::runner( $this->request( $this->key ) ), 'a new request is asked afresh' );
 	}
 
 	/**

@@ -214,14 +214,13 @@ final class Permissions {
 	 * administrator made, in a header. Only the runner's own routes ask this;
 	 * the key is not a login, so every other route's door stays shut to it.
 	 *
-	 * A wrong, missing or turned-off key, or an address that has sent ten
-	 * wrong keys in ten minutes, all get one refusal, word for word, so a
-	 * caller learns nothing from which it was. Plain http on a live site is
-	 * refused first, in its own words: that is a runner set up wrongly, and
-	 * says nothing about the key.
+	 * A wrong, missing or turned-off key all get one refusal, word for word,
+	 * so a caller learns nothing from which it was. Plain http on a live site
+	 * is refused first, in its own words: that is a runner set up wrongly,
+	 * and says nothing about the key.
 	 *
 	 * Asked about the same request twice, as WordPress does for the Allow
-	 * header, the first answer stands, so one wrong key counts once.
+	 * header, the first answer stands.
 	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return true|WP_Error
@@ -256,22 +255,13 @@ final class Permissions {
 			return Errors::rest( 'runner_needs_https', __( 'Forge only takes the runner key over https.', 'blueworx-forge' ), 403 );
 		}
 
-		// The address the connection came from, never a forwarded header a
-		// caller could write themselves.
-		$ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['REMOTE_ADDR'] ) ) : '';
-		$now = bwx_forge_now();
-
-		if ( RunnerKey::throttled( $ip, $now ) ) {
-			return self::runner_refused();
-		}
-
+		// Deliberately no lockout and nothing written for a wrong key: see
+		// RunnerKey.
 		if ( ! RunnerKey::matches( trim( (string) $request->get_header( RunnerKey::HEADER ) ) ) ) {
-			RunnerKey::failed( $ip, $now );
-
 			return self::runner_refused();
 		}
 
-		RunnerKey::used( $now );
+		RunnerKey::used( bwx_forge_now() );
 
 		return true;
 	}

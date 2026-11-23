@@ -370,6 +370,42 @@ final class RunnerCardsTest extends TestCase {
 	}
 
 	/**
+	 * Hand-over records more than 0 hours and at most 8, so a stolen key can't
+	 * book unlimited time against a client's support hours. Anything else is
+	 * refused on that field, and nothing is written.
+	 */
+	public function test_hand_over_hours_are_more_than_0_and_at_most_8(): void {
+		$this->assertSame( 8.0, Runner::MAX_HANDOVER_HOURS );
+
+		foreach ( array( 0, '0', -1, -0.5, 8.1, '8.1', 'lots', '', null, true, array( 2 ) ) as $hours ) {
+			$checked = Runner::handover(
+				array(
+					'hours_primary'    => $hours,
+					'test_description' => 'Open it.',
+				),
+				$this->card()
+			);
+
+			$this->assertArrayHasKey( 'hours_primary', $checked['errors'], (string) wp_json_encode( $hours ) );
+			$this->assertSame( array( 'hours_primary' ), array_keys( $checked['errors'] ), (string) wp_json_encode( $hours ) );
+			$this->assertSame( array(), $checked['values'], 'nothing to write' );
+		}
+
+		foreach ( array( 8, '8', 8.0, 0.25, 3.5 ) as $hours ) {
+			$checked = Runner::handover(
+				array(
+					'hours_primary'    => $hours,
+					'test_description' => 'Open it.',
+				),
+				$this->card()
+			);
+
+			$this->assertSame( array(), $checked['errors'], (string) wp_json_encode( $hours ) );
+			$this->assertSame( (float) $hours, $checked['values']['hours_primary'] );
+		}
+	}
+
+	/**
 	 * Anything else on the card is refused by name, never quietly dropped:
 	 * the seats, the stage, the title, the dates, the checklist's own words.
 	 */

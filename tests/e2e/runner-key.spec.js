@@ -159,6 +159,17 @@ test( 'with the key, the runner lists, reads, claims, hands over and comments on
   expect( untouched.hours_primary ).toBe( 1 );
   expect( untouched.test_description ).toBe( '' );
 
+  // More than 8 hours is refused on that field, and nothing is written.
+  const tooLong = await runner.post( `/runner/cards/${ mine.id }/hand-over`, {
+    record_version: building.record_version,
+    hours_primary: 9,
+    test_description: '<p>Open it and look.</p>',
+    tick: [ 0, 1 ],
+  } );
+  expect( tooLong.status() ).toBe( 400 );
+  expect( ( await tooLong.json() ).data.fields.hours_primary ).toBe( 'The hours have to be more than 0 and no more than 8.' );
+  expect( ( await admin.api.get( `/work-items/${ mine.id }` ) ).item.record_version ).toBe( building.record_version );
+
   // Anything but the four fields is refused by name.
   const tooMuch = await runner.post( `/runner/cards/${ mine.id }/hand-over`, {
     record_version: building.record_version,

@@ -943,16 +943,16 @@ export const RULES: RuleSection[] = [
         why: 'The checks are what make the work fit to move, whoever moves it.',
       },
       {
-        what: 'On hand-over the runner gives the real hours spent and how to test it, and can add test steps and tick checklist lines. Everything is checked before anything is saved, so a hand-over Forge refuses saves nothing.',
-        why: 'The reviewer needs to know how to test the work, and a half-saved hand-over would leave the task saying something that never happened.',
+        what: 'On hand-over the runner gives the real hours spent, more than 0 and no more than 8, and how to test it, and can add test steps and tick checklist lines. Everything is checked before anything is saved, so a hand-over Forge refuses saves nothing.',
+        why: 'The reviewer needs to know how to test the work, a stolen key must not be able to book unlimited time against a client\'s support hours, and a half-saved hand-over would leave the task saying something that never happened.',
       },
       {
         what: 'Everything the runner does shows in the task\'s history as "Agent, by the runner", and its comments as "internal, by the runner". They are never shown to the client.',
         why: 'Anyone looking back can see what the runner did, and the client only sees what the studio chooses to tell them.',
       },
       {
-        what: 'The key is only accepted over a secure (https) connection, and only in a request header. After 10 wrong keys in 10 minutes from one address, that address is refused for the rest of the 10 minutes.',
-        why: 'A key sent in the clear, or in a web address, can end up in logs, and guessing should get nowhere.',
+        what: 'The key is only accepted over a secure (https) connection, and only in a request header. There is no lockout after wrong keys.',
+        why: 'A key sent in the clear, or in a web address, can end up in logs. The key is too long to guess, and a lockout would let anyone stop the runner.',
       },
       {
         what: 'Forge keeps only a fingerprint of the key, never the key itself. A lost key can\'t be shown again, only replaced.',

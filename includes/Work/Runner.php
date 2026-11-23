@@ -39,6 +39,13 @@ final class Runner {
 	public const STAGES = array( 'up-next', 'in-development', 'in-review' );
 
 	/**
+	 * The most hours hand-over may record. A stolen key must not be able to
+	 * book unlimited time against a client's support hours, and the runner
+	 * itself limits one job to far less than this.
+	 */
+	public const MAX_HANDOVER_HOURS = 8.0;
+
+	/**
 	 * What hand-over may be sent. Anything else is refused.
 	 */
 	private const HANDOVER = array( 'hours_primary', 'test_description', 'test_steps', 'tick', 'record_version' );
@@ -224,8 +231,12 @@ final class Runner {
 		$errors = self::refuse_others( $body, self::HANDOVER );
 		$input  = array();
 
-		if ( ! array_key_exists( 'hours_primary', $body ) || ! is_numeric( $body['hours_primary'] ) ) {
+		$hours = $body['hours_primary'] ?? null;
+
+		if ( ! is_int( $hours ) && ! is_float( $hours ) && ! ( is_string( $hours ) && is_numeric( $hours ) ) ) {
 			$errors['hours_primary'] = __( 'Say how many hours the work took.', 'blueworx-forge' );
+		} elseif ( (float) $hours <= 0 || (float) $hours > self::MAX_HANDOVER_HOURS ) {
+			$errors['hours_primary'] = __( 'The hours have to be more than 0 and no more than 8.', 'blueworx-forge' );
 		} else {
 			$input['hours_primary'] = $body['hours_primary'];
 		}

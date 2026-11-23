@@ -1,6 +1,6 @@
 <?php
 /**
- * The runner key: made, kept as a hash, checked, and throttled.
+ * The runner key: made, kept as a hash, and checked.
  *
  * @package Blueworx\Forge
  */
@@ -171,83 +171,13 @@ final class RunnerKeyTest extends TestCase {
 	}
 
 	/**
-	 * Ten wrong keys from one address in ten minutes, and that address is
-	 * refused until the ten minutes are up. Another address is not.
+	 * There is deliberately no lockout: the key is 256 random bits, so it is
+	 * not guessed, and a lockout would let anybody stop the runner. So the key
+	 * keeps nothing about wrong guesses.
 	 */
-	public function test_ten_wrong_keys_in_ten_minutes_shut_the_address_out(): void {
-		$now = 1000000;
-
-		for ( $i = 0; $i < 9; $i++ ) {
-			RunnerKey::failed( '203.0.113.5', $now + $i );
-		}
-
-		$this->assertFalse( RunnerKey::throttled( '203.0.113.5', $now + 10 ) );
-
-		RunnerKey::failed( '203.0.113.5', $now + 20 );
-
-		$this->assertTrue( RunnerKey::throttled( '203.0.113.5', $now + 21 ) );
-		$this->assertTrue( RunnerKey::throttled( '203.0.113.5', $now + 599 ) );
-		$this->assertFalse( RunnerKey::throttled( '198.51.100.9', $now + 21 ), 'another address is not shut out' );
-		$this->assertFalse( RunnerKey::throttled( '203.0.113.5', $now + 600 ), 'the window ends' );
-	}
-
-	/**
-	 * A failure after the window starts a new one rather than adding to the old.
-	 */
-	public function test_a_new_window_starts_after_the_old_one_ends(): void {
-		for ( $i = 0; $i < 9; $i++ ) {
-			RunnerKey::failed( '203.0.113.5', 1000000 );
-		}
-
-		RunnerKey::failed( '203.0.113.5', 1000700 );
-
-		$this->assertFalse( RunnerKey::throttled( '203.0.113.5', 1000701 ) );
-	}
-
-	/**
-	 * The count belongs to the key it was guessing at. Making a new key, which
-	 * only an administrator can, starts every count again.
-	 */
-	public function test_a_new_key_starts_the_count_again(): void {
-		RunnerKey::make( 7 );
-
-		for ( $i = 0; $i < 10; $i++ ) {
-			RunnerKey::failed( '203.0.113.5', 1000000 );
-		}
-
-		$this->assertTrue( RunnerKey::throttled( '203.0.113.5', 1000001 ) );
-
-		$GLOBALS['bwx_forge_test_now'] = 1000001;
-		RunnerKey::make( 7 );
-
-		$this->assertFalse( RunnerKey::throttled( '203.0.113.5', 1000002 ) );
-	}
-
-	/**
-	 * Turning the key off and on does not.
-	 */
-	public function test_turning_the_key_off_and_on_keeps_the_count(): void {
-		RunnerKey::make( 7 );
-
-		for ( $i = 0; $i < 10; $i++ ) {
-			RunnerKey::failed( '203.0.113.5', 1000000 );
-		}
-
-		RunnerKey::set_enabled( false );
-		RunnerKey::set_enabled( true );
-
-		$this->assertTrue( RunnerKey::throttled( '203.0.113.5', 1000001 ) );
-	}
-
-	/**
-	 * The address is never kept as it came: the transient is named by a hash.
-	 */
-	public function test_the_address_is_not_kept_in_the_clear(): void {
-		RunnerKey::failed( '203.0.113.5', 1000000 );
-
-		$names = implode( ' ', array_keys( $GLOBALS['bwx_forge_test_transients'] ) );
-
-		$this->assertStringNotContainsString( '203.0.113.5', $names );
-		$this->assertStringStartsWith( 'bwx_forge_runner_fail_', $names );
+	public function test_there_is_no_lockout(): void {
+		$this->assertFalse( method_exists( RunnerKey::class, 'throttled' ) );
+		$this->assertFalse( method_exists( RunnerKey::class, 'failed' ) );
+		$this->assertFalse( defined( RunnerKey::class . '::LIMIT' ) );
 	}
 }

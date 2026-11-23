@@ -40,20 +40,12 @@ final class RunnerKey {
 	 */
 	public const HEADER = 'x_forge_runner_key';
 
-	/**
-	 * The start of each address's count of wrong keys.
+	/*
+	 * There is deliberately no lockout after wrong keys. The key is 256
+	 * random bits, so guessing it is not a real attack; a lockout would let
+	 * anybody stop the runner by sending a few bad requests, and counting
+	 * them would let anybody write to the database without a key.
 	 */
-	public const FAILURES = 'bwx_forge_runner_fail_';
-
-	/**
-	 * Wrong keys from one address before it is shut out.
-	 */
-	public const LIMIT = 10;
-
-	/**
-	 * How long the count runs, and the shut-out lasts, in seconds.
-	 */
-	public const WINDOW = 600;
 
 	/**
 	 * How stale the last-used time may be before it is written again, so a
@@ -181,72 +173,6 @@ final class RunnerKey {
 		return $ssl
 			|| in_array( $env, array( 'local', 'development' ), true )
 			|| in_array( strtolower( $home_host ), array( '127.0.0.1', 'localhost', '::1', '[::1]' ), true );
-	}
-
-	/**
-	 * Whether an address has sent too many wrong keys lately.
-	 *
-	 * @param string $ip  The address.
-	 * @param int    $now Unix time.
-	 * @return bool
-	 */
-	public static function throttled( string $ip, int $now ): bool {
-		$count = self::count( $ip, $now );
-
-		return null !== $count && $count['count'] >= self::LIMIT;
-	}
-
-	/**
-	 * Counts one wrong key from an address. The first starts a ten-minute
-	 * window; once it ends, the next starts a new one.
-	 *
-	 * @param string $ip  The address.
-	 * @param int    $now Unix time.
-	 */
-	public static function failed( string $ip, int $now ): void {
-		$count = self::count( $ip, $now ) ?? array(
-			'count' => 0,
-			'start' => $now,
-		);
-
-		++$count['count'];
-
-		set_transient( self::bucket( $ip ), $count, max( 1, $count['start'] + self::WINDOW - $now ) );
-	}
-
-	/**
-	 * An address's count, while its window is open.
-	 *
-	 * @param string $ip  The address.
-	 * @param int    $now Unix time.
-	 * @return array{count: int, start: int}|null
-	 */
-	private static function count( string $ip, int $now ): ?array {
-		$count = get_transient( self::bucket( $ip ) );
-
-		if ( ! is_array( $count ) || $now >= (int) ( $count['start'] ?? 0 ) + self::WINDOW ) {
-			return null;
-		}
-
-		return array(
-			'count' => (int) ( $count['count'] ?? 0 ),
-			'start' => (int) $count['start'],
-		);
-	}
-
-	/**
-	 * Where an address's count is kept: named by a hash, so the address
-	 * itself is not written down. The hash takes in when the current key was
-	 * made, so a count belongs to the key it was guessing at, and an
-	 * administrator making a new key starts every count again.
-	 *
-	 * @param string $ip The address.
-	 * @return string
-	 */
-	private static function bucket( string $ip ): string {
-		$made = (int) ( self::stored()['created_at'] ?? 0 );
-
-		return self::FAILURES . substr( hash( 'sha256', $made . '|' . $ip ), 0, 32 );
 	}
 
 	/**

@@ -12,7 +12,7 @@ commits and pull requests.
 
 ### Added
 
-- A runner key, in Settings for administrators. The Forge Runner on your PC uses it instead of a login to pick up the tasks the Agent is doing, hand them over for review and leave notes on them. It can't reach any other task or anything else in Forge.
+- A runner key, in Settings for administrators. The Forge Runner on your PC uses it instead of a login to pick up the tasks the Agent is doing, hand them over for review with the hours spent (up to 8) and leave notes on them. It can't reach any other task or anything else in Forge.
 
 ## [2.228.1] - 2026-11-20
 

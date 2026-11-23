@@ -317,15 +317,16 @@ the key as signed out.
 | List the cards the Agent is doing at Up Next, In development or In review, with a few light fields | See any card the Agent is not the Primary User of, or any archived card — those answer exactly as a card that does not exist |
 | Read one of those cards' own definition, seats, hours, dates, linked GitHub issue, readiness for its next move, and its comments | Read children, parents, dependencies, history, other cards' titles, capacity details or the client's support balance |
 | Move Up Next → In development, through every G-UP-NEXT check | Make any other move, override a gate, or give an over-booking reason |
-| On hand-over, write the real hours, how to test it, test steps and checklist ticks, then move In development → In review through G-IN-DEVELOPMENT | Change any other field: title, definition, seats, dates, priority, commercial class, repo or the checklist's own lines |
+| On hand-over, write the real hours (more than 0 and at most 8), how to test it, test steps and checklist ticks, then move In development → In review through G-IN-DEVELOPMENT | Change any other field: title, definition, seats, dates, priority, commercial class, repo or the checklist's own lines |
 | Leave an internal comment, written as the Agent and marked as the runner's | Write a client-visible comment, a question, evidence or an attachment |
 | | Reach any other route: `/work-items-all`, `/users` and everything else answer as for nobody signed in |
 
 Managing the key — `GET`, `POST`, `PATCH` and `DELETE` on `/runner/key` — is
 behind the door and for administrators only. The key is shown once, in the
 answer that makes it; Forge stores only its SHA-256 hash. It is refused over
-plain http on a live site, and an address that sends ten wrong keys in ten
-minutes is refused until the ten minutes are up. A wrong, missing, turned-off
+plain http on a live site. There is deliberately no lockout after wrong keys:
+the key is 256 random bits, so guessing it is not a real attack, and a lockout
+would let anyone stop the runner with a few bad requests. A wrong, missing, turned-off
 or removed key gets one refusal, word for word.
 
 Everything the runner writes is recorded with no person behind it (actor 0)
