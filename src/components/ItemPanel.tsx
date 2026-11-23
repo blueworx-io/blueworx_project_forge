@@ -3216,7 +3216,8 @@ function historyLines( events: WorkEvent[], label: ( id: string ) => string ): H
   let open: { line: HistoryLine; fields: string[] } | null = null;
 
   // #391. The client's own decision has no studio person behind it.
-  const who = ( event: WorkEvent ) => event.actor_name || ( CLIENT === event.via ? 'The client' : 'Forge' );
+  // The Forge Runner works as the Agent, with a key rather than a login.
+  const who = ( event: WorkEvent ) => event.actor_name || ( CLIENT === event.via ? 'The client' : 'runner' === event.via ? 'Agent, by the runner' : 'Forge' );
   const wording = ( fields: string[] ) => {
     const names = Array.from( new Set( fields.map( ( field ) => FIELD_LABELS[ field ] ?? field.replace( /_/g, ' ' ) ) ) );
     const shown = names.slice( 0, 4 );
@@ -3578,6 +3579,10 @@ function said( entry: Comment ): string {
 
   if ( entry.from_client ) {
     return '' === ( entry.answers ?? '' ) ? 'from the client' : 'the client answered';
+  }
+
+  if ( entry.from_runner ) {
+    return 'internal, by the runner';
   }
 
   return 'internal' === entry.visibility ? 'internal' : 'client can see this';

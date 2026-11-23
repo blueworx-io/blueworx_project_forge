@@ -1856,6 +1856,45 @@ body {
   gap: 16px;
   align-content: start;
 }
+/* The runner key (ARCH-9): what it is, its state, the key itself and its
+   buttons, each a clear step apart rather than run together. */
+.bwx-settings-runner {
+  display: grid;
+  gap: var( --space-16 );
+  justify-items: start;
+}
+.bwx-settings-runner p {
+  margin: 0;
+}
+.bwx-settings-runner > .bwx-hint {
+  max-width: 70ch;
+}
+.bwx-settings-runner > .bwx-moves {
+  align-items: center;
+  gap: var( --space-10 );
+}
+/* The key, shown once: room around it, and the field the width of the box
+   with its Copy button beside it. */
+.bwx-settings-runner > .bwx-notice {
+  display: grid;
+  gap: var( --space-12 );
+  justify-self: stretch;
+  max-width: 720px;
+  padding: var( --space-16 );
+}
+.bwx-settings-runner > .bwx-notice .fk-field .bwx-moves {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.bwx-settings-runner > .bwx-notice .fk-input {
+  flex: 1;
+  min-width: 0;
+}
+@media ( max-width: 480px ) {
+  .bwx-settings-runner > .bwx-notice .fk-field .bwx-moves {
+    flex-wrap: wrap;
+  }
+}
 /* #621. Connections: one row per outside service, its state at a glance. */
 .bwx-connections {
   list-style: none;

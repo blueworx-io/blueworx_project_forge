@@ -473,6 +473,9 @@ export interface Comment {
    */
   from_client?: boolean;
 
+  /** Written by the Forge Runner, as the Agent, with the runner key. */
+  from_runner?: boolean;
+
   /** The question this answers, where it answers one. */
   answers?: string;
 }

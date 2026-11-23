@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.229.0] - 2026-11-23
+
+### Added
+
+- A runner key, in Settings for administrators. The Forge Runner on your PC uses it instead of a login to pick up the tasks the Agent is doing, hand them over for review with the hours spent (up to 8) and leave notes on them. It can't reach any other task or anything else in Forge.
+
 ## [2.228.1] - 2026-11-20
 
 ### Changed

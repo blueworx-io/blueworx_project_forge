@@ -220,6 +220,13 @@ final class Events {
 	public const VIA_GITHUB = 'github';
 
 	/**
+	 * Done by the Forge Runner, with the runner key, on a card the Agent is
+	 * doing. There is no WordPress user behind it — the Agent has no login —
+	 * so the actor is 0, and this is what says who it was.
+	 */
+	public const VIA_RUNNER = 'runner';
+
+	/**
 	 * Appends an entry.
 	 *
 	 * @param array<string, mixed> $entry item_id, client_site_id, action, and
