@@ -495,6 +495,10 @@ export const RULES: RuleSection[] = [
         why: 'The most pressing work of the day is at the top.',
       },
       {
+        what: 'Work in Future idea, Triage, Bug tracking or Documentation period that nothing else puts on the standup (nothing outstanding for its next step, sent back, late or blocked) shows as \'Not triaged\' from the day after it was added, until it reaches Up Next. Recurring tasks and reminders are left out.',
+        why: 'New work gets looked at the next morning instead of sitting out of sight until its date.',
+      },
+      {
         what: 'Unfinished work that nothing else puts on the standup comes back as \'Untouched 30 days\' once nobody has changed it for 30 days, recurring tasks and reminders included.',
         why: 'Work that was triaged and then forgotten gets looked at again rather than sitting there for good.',
       },

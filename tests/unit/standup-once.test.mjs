@@ -21,6 +21,12 @@ test('overdue comes before everything else', () => {
   assert.deepEqual(shown[0].also, ['blocked', 'gate-unmet']);
 });
 
+test('not triaged is the least pressing reason but comes before untouched', () => {
+  const shown = oncePerTask([work('stale', 'w1'), work('untriaged', 'w1'), work('returned', 'w1')]);
+  assert.equal(shown[0].rule, 'returned');
+  assert.deepEqual(shown[0].also, ['untriaged', 'stale']);
+});
+
 test('different tasks each keep their own row, in the order given', () => {
   const shown = oncePerTask([work('due-today', 'w2'), work('overdue', 'w1')]);
   assert.deepEqual(shown.map((one) => one.subject_id), ['w2', 'w1']);

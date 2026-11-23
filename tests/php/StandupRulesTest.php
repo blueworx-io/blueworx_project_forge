@@ -11,7 +11,7 @@ use Blueworx\Forge\Standup\Rules;
 use PHPUnit\Framework\TestCase;
 
 /**
- * #169. The twelve inclusion rules, and the property the whole board rests on.
+ * #169. The fourteen inclusion rules, and the property the whole board rests on.
  *
  * **A card leaves only when the condition actually resolves.** Every test here
  * is really a test of that, from one side or the other: nothing is stored, so
@@ -703,6 +703,102 @@ final class StandupRulesTest extends TestCase {
 		$this->assertSame( array( Rules::STALE ), $this->rules( Rules::for_item( $this->item( $chore ), self::TODAY ) ) );
 	}
 
+	/* ------------------------------------------------------ not triaged (untriaged) */
+
+	/**
+	 * Early work nothing else says anything about, added at a given time.
+	 *
+	 * @param string               $stage     The stage.
+	 * @param string               $added     When it was added, UTC.
+	 * @param array<string, mixed> $overrides Anything else.
+	 * @return array<string, mixed>
+	 */
+	private function early_work( string $stage, string $added, array $overrides = array() ): array {
+		return $this->item(
+			array_merge(
+				array(
+					'stage'      => $stage,
+					'priority'   => 'normal',
+					'created_at' => (int) strtotime( $added . ' UTC' ),
+					'updated_at' => (int) strtotime( $added . ' UTC' ),
+				),
+				$overrides
+			)
+		);
+	}
+
+	public function test_early_work_added_before_today_is_not_triaged(): void {
+		foreach ( array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period' ) as $stage ) {
+			$cards = Rules::for_item( $this->early_work( $stage, '2026-03-09 12:00:00' ), self::TODAY );
+
+			$this->assertSame( array( Rules::UNTRIAGED ), $this->rules( $cards ), $stage );
+			$this->assertSame( '2026-03-09', $cards[0]['detail']['added'], $stage );
+		}
+	}
+
+	public function test_early_work_added_today_waits_until_tomorrow(): void {
+		$this->assertSame( array(), Rules::for_item( $this->early_work( 'triage', '2026-03-10 00:00:00' ), self::TODAY ) );
+		$this->assertSame( array(), Rules::for_item( $this->early_work( 'triage', '2026-03-10 23:59:59' ), self::TODAY ) );
+		$this->assertSame( array( Rules::UNTRIAGED ), $this->rules( Rules::for_item( $this->early_work( 'triage', '2026-03-09 23:59:59' ), self::TODAY ) ) );
+	}
+
+	public function test_the_grace_day_follows_the_day_the_list_is_read_for(): void {
+		$item = $this->early_work( 'triage', '2026-03-10 09:00:00' );
+
+		$this->assertSame( array(), Rules::for_item( $item, self::TODAY ) );
+		$this->assertSame( array( Rules::UNTRIAGED ), $this->rules( Rules::for_item( $item, '2026-03-11' ) ) );
+	}
+
+	public function test_work_from_up_next_on_is_never_not_triaged(): void {
+		foreach ( array( 'up-next', 'design-process', 'in-development', 'in-review', 'completed', 'released' ) as $stage ) {
+			$this->assertSame( array(), Rules::for_item( $this->early_work( $stage, '2026-03-01 12:00:00' ), self::TODAY ), $stage );
+		}
+	}
+
+	public function test_early_work_with_something_outstanding_keeps_its_own_card(): void {
+		$item = $this->early_work( 'triage', '2026-03-01 12:00:00', array( 'unmet' => array( array( 'id' => 'scope-agreed' ) ) ) );
+
+		$this->assertSame( array( Rules::GATE_UNMET ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+	}
+
+	public function test_early_work_sent_back_keeps_its_own_card(): void {
+		$item = $this->early_work( 'triage', '2026-03-01 12:00:00', array( 'was_returned' => true ) );
+
+		$this->assertSame( array( Rules::RETURNED ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+	}
+
+	public function test_early_work_that_is_late_keeps_its_own_card(): void {
+		$item = $this->early_work( 'triage', '2026-03-01 12:00:00', array( 'planned_due' => '2026-03-05' ) );
+
+		$this->assertSame( array( Rules::OVERDUE ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+	}
+
+	public function test_recurring_tasks_and_reminders_are_left_out(): void {
+		$chore    = $this->early_work( 'future-idea', '2026-03-01 12:00:00', array( 'assignees' => array( 'usr_one' ) ) );
+		$reminder = $this->early_work( 'future-idea', '2026-03-01 12:00:00', array( 'recurring_id' => 'rem_one' ) );
+
+		$this->assertSame( array(), Rules::for_item( $chore, self::TODAY ) );
+		$this->assertSame( array(), Rules::for_item( $reminder, self::TODAY ) );
+	}
+
+	public function test_work_whose_added_date_is_unknown_is_not_flagged(): void {
+		$item = $this->early_work( 'triage', '2026-03-01 12:00:00', array( 'created_at' => 0, 'updated_at' => 0 ) );
+
+		$this->assertSame( array(), Rules::for_item( $item, self::TODAY ) );
+	}
+
+	public function test_not_triaged_takes_the_place_of_untouched_for_work_before_up_next(): void {
+		$item = $this->early_work( 'triage', '2026-01-01 12:00:00' );
+
+		$this->assertSame( array( Rules::UNTRIAGED ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+	}
+
+	public function test_not_triaged_is_one_of_the_fourteen_and_about_work(): void {
+		$this->assertCount( 14, Rules::ALL );
+		$this->assertTrue( Rules::exists( 'untriaged' ) );
+		$this->assertContains( Rules::UNTRIAGED, Rules::ABOUT_WORK );
+	}
+
 	/* ----------------------------------------------------------- the whole list */
 
 	public function test_the_list_is_everything_that_is_true(): void {
@@ -840,8 +936,8 @@ final class StandupRulesTest extends TestCase {
 		$this->assertSame( array(), Rules::for_capacity( $position, array( '2026-03-11', '2026-03-11' ) ) );
 	}
 
-	public function test_there_are_thirteen_of_them(): void {
-		$this->assertCount( 13, Rules::ALL );
+	public function test_there_are_fourteen_of_them(): void {
+		$this->assertCount( 14, Rules::ALL );
 		$this->assertSame( Rules::ALL, array_unique( Rules::ALL ) );
 		$this->assertFalse( Rules::exists( 'looks-a-bit-quiet' ) );
 	}
