@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.230.0] - 2026-11-23
+
+### Added
+
+- A "Not triaged" card on the Daily standup. Work in Future idea, Triage, Bug tracking or Documentation period that has nothing outstanding for its next step shows from the day after it was added, until it reaches Up Next. Recurring tasks and reminders are left out.
+
 ## [2.229.0] - 2026-11-23
 
 ### Added

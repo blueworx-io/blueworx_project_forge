@@ -12,7 +12,7 @@
  */
 
 /** The work rules, most pressing first: Standup\Rules::ALL's order. */
-const RANK = ['overdue', 'due-today', 'blocked', 'gate-unmet', 'awaiting-review', 'awaiting-release', 'returned', 'stale'];
+const RANK = ['overdue', 'due-today', 'blocked', 'gate-unmet', 'awaiting-review', 'awaiting-release', 'returned', 'untriaged', 'stale'];
 
 const rankOf = (rule) => {
   const at = RANK.indexOf(rule);

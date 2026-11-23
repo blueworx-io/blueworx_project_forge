@@ -17,8 +17,8 @@ export const SECTIONS = [
   {
     id: 'work',
     title: 'Work needing attention',
-    blurb: 'Late, due, stopped, waiting on a requirement, with a team member to review or release, sent back, or untouched for 30 days.',
-    rules: [ 'overdue', 'due-today', 'blocked', 'gate-unmet', 'stale', 'awaiting-review', 'awaiting-release', 'returned' ],
+    blurb: 'Late, due, stopped, waiting on a requirement, with a team member to review or release, sent back, not yet triaged, or untouched for 30 days.',
+    rules: [ 'overdue', 'due-today', 'blocked', 'gate-unmet', 'untriaged', 'stale', 'awaiting-review', 'awaiting-release', 'returned' ],
   },
   {
     id: 'turn',
@@ -93,6 +93,7 @@ const RULE_WORD: Record< string, string > = {
   'due-today': 'Due today',
   blocked: 'Blocked',
   'gate-unmet': 'Pending',
+  untriaged: 'Not triaged',
   stale: 'Untouched 30 days',
   'awaiting-review': 'To review',
   'awaiting-release': 'Ready to ship',
@@ -190,6 +191,8 @@ export function cardDetail( card: StandupCard ): string {
       return '' === said( 'due' ) ? '' : `Due ${ said( 'due' ) }`;
     case 'onboarding-overdue':
       return '' === said( 'due' ) ? '' : `Wanted by ${ said( 'due' ) }`;
+    case 'untriaged':
+      return '' === said( 'added' ) ? '' : `Added ${ said( 'added' ) }`;
     case 'stale':
       return '' === said( 'last_touched' ) ? '' : `Last touched ${ said( 'last_touched' ) }`;
     case 'gate-unmet': {

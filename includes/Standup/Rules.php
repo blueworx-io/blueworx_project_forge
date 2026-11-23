@@ -13,7 +13,7 @@ use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Work\ClientReviewer;
 
 /**
- * #169. The thirteen inclusion rules, worked out from what is true now.
+ * #169. The fourteen inclusion rules, worked out from what is true now.
  *
  * **Nothing is stored on the item, and that is the whole issue.** The obvious
  * implementation puts a flag on a record when it starts needing attention and
@@ -131,7 +131,22 @@ final class Rules {
 	public const STALE_AFTER_DAYS = 30;
 
 	/**
-	 * The thirteen, in the order a person reads them.
+	 * Work before Up Next that nobody has looked at yet (#688).
+	 *
+	 * Early work with nothing outstanding for its next step, nothing late and
+	 * nothing sent back says nothing for itself, so until now it stayed off the
+	 * board until its date came round — and new work sat out of sight. This
+	 * brings it up the morning after it was added, until it reaches Up Next.
+	 */
+	public const UNTRIAGED = 'untriaged';
+
+	/**
+	 * Days a new piece of work is given before it counts as not triaged (#688).
+	 */
+	public const UNTRIAGED_GRACE_DAYS = 1;
+
+	/**
+	 * The fourteen, in the order a person reads them.
 	 *
 	 * Work first, because most days that is the whole answer. Then the two
 	 * queues that are somebody's turn, then what a client is waiting on us for,
@@ -149,6 +164,7 @@ final class Rules {
 		self::AWAITING_REVIEW,
 		self::AWAITING_RELEASE,
 		self::RETURNED,
+		self::UNTRIAGED,
 		self::STALE,
 		self::REQUEST_WAITING,
 		self::ONBOARDING_WAITING,
@@ -170,11 +186,12 @@ final class Rules {
 		self::AWAITING_REVIEW,
 		self::AWAITING_RELEASE,
 		self::RETURNED,
+		self::UNTRIAGED,
 		self::STALE,
 	);
 
 	/**
-	 * Whether this is one of the thirteen.
+	 * Whether this is one of the fourteen.
 	 *
 	 * @param string $rule Rule name.
 	 * @return bool
@@ -351,10 +368,43 @@ final class Rules {
 		// Only when nothing else is said about it: a card already on the board
 		// for a reason does not need a second one saying it is old.
 		if ( array() === $cards ) {
-			return self::stale_or_nothing( $item, $finished, $today );
+			return self::untriaged_or_stale( $item, $finished, $today );
 		}
 
 		return $cards;
+	}
+
+	/**
+	 * The one card for work still before Up Next that nobody has triaged, or the
+	 * untouched-for-thirty-days one, or none (#688).
+	 *
+	 * Reached only when nothing else is said about the item, so work with
+	 * something outstanding, sent back, late or blocked keeps its own card.
+	 * Recurring tasks and reminders are left out: they are made on a schedule,
+	 * so there is nothing for anyone to triage. Reads `created_at`, and an
+	 * unknown one is left alone for the same reason an unknown age is stale's.
+	 *
+	 * The day it was added is the grace: it shows from the next day, whatever
+	 * time it was made, by the same UTC clock stale uses.
+	 *
+	 * @param array<string, mixed> $item     The work item.
+	 * @param bool                 $finished Whether its stage is a finished one.
+	 * @param string               $today    YYYY-MM-DD.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function untriaged_or_stale( array $item, bool $finished, string $today ): array {
+		$added = (int) ( $item['created_at'] ?? 0 );
+		$chore = array() !== (array) ( $item['assignees'] ?? array() ) || '' !== (string) ( $item['recurring_id'] ?? '' );
+
+		if ( in_array( (string) ( $item['stage'] ?? '' ), self::BEFORE_UP_NEXT, true ) && ! $chore && 0 < $added ) {
+			$first_day = (int) strtotime( $today . ' 00:00:00 UTC' ) - ( self::UNTRIAGED_GRACE_DAYS - 1 ) * DAY_IN_SECONDS;
+
+			if ( $added < $first_day ) {
+				return array( self::work_card( self::UNTRIAGED, $item, array( 'added' => gmdate( 'Y-m-d', $added ) ) ) );
+			}
+		}
+
+		return self::stale_or_nothing( $item, $finished, $today );
 	}
 
 	/**
@@ -553,6 +603,14 @@ final class Rules {
 	 * @var array<int, string>
 	 */
 	private const IN_DELIVERY = array( 'up-next', 'design-process', 'in-development', 'in-review', 'completed' );
+
+	/**
+	 * Stages before Up Next, where work is still waiting to be triaged (#688).
+	 * Blocked is not one of them: it has a card of its own.
+	 *
+	 * @var array<int, string>
+	 */
+	private const BEFORE_UP_NEXT = array( 'future-idea', 'triage', 'bug-tracking', 'documentation-period' );
 
 	/**
 	 * Rules that already account for why an item is not moving (#251).
