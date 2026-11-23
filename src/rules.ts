@@ -922,4 +922,42 @@ export const RULES: RuleSection[] = [
       },
     ],
   },
+  {
+    id: 'runner',
+    title: 'Forge Runner',
+    rules: [
+      {
+        what: 'The Forge Runner builds the tasks the Agent is doing. It signs in with a runner key, not a login. An administrator makes the key in Settings, under Runner key, and sees it once. There is one key per site, and it can be replaced, turned off or removed there at any time.',
+        why: 'The Agent never gets a login, and an administrator\'s login would let the runner reach the whole site.',
+      },
+      {
+        what: 'The key only reaches tasks where the Agent is the person doing the work, and that are not archived. Any other task answers as if it did not exist.',
+        why: 'The runner has no business with anyone else\'s work, and should not learn which other tasks exist.',
+      },
+      {
+        what: 'With the key, the runner can list the Agent\'s tasks in Up Next, In development or In review, read one task\'s own details and comments, move it from Up Next to In development, hand it over from In development to In review, and leave internal comments as the Agent. It can do nothing else: the key opens no other page or screen in Forge, and no other move.',
+        why: 'The runner needs to pick up work, do it and hand it back, and nothing more.',
+      },
+      {
+        what: 'Both moves go through the same checks as anybody\'s. The runner can\'t override them or give a reason for over-booking someone; if a task isn\'t ready, the runner is told what Forge still needs.',
+        why: 'The checks are what make the work fit to move, whoever moves it.',
+      },
+      {
+        what: 'On hand-over the runner gives the real hours spent and how to test it, and can add test steps and tick checklist lines. Everything is checked before anything is saved, so a hand-over Forge refuses saves nothing.',
+        why: 'The reviewer needs to know how to test the work, and a half-saved hand-over would leave the task saying something that never happened.',
+      },
+      {
+        what: 'Everything the runner does shows in the task\'s history as "Agent, by the runner", and its comments as "internal, by the runner". They are never shown to the client.',
+        why: 'Anyone looking back can see what the runner did, and the client only sees what the studio chooses to tell them.',
+      },
+      {
+        what: 'The key is only accepted over a secure (https) connection, and only in a request header. After 10 wrong keys in 10 minutes from one address, that address is refused for the rest of the 10 minutes.',
+        why: 'A key sent in the clear, or in a web address, can end up in logs, and guessing should get nowhere.',
+      },
+      {
+        what: 'Forge keeps only a fingerprint of the key, never the key itself. A lost key can\'t be shown again, only replaced.',
+        why: 'Nobody reading the database or a backup can use the key.',
+      },
+    ],
+  },
 ];

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { api, forgeData, messageFor } from '../api';
-import { Button, Field, Panel, TextInput } from '../kit';
+import { Button, Field, Panel, Tag, TextInput } from '../kit';
 import { RULES } from '../rules';
+import { whenOf } from '../signals';
+import { CopyField } from './ClientsScreen';
 import { ConnectionsPanel } from './ConnectionsPanel';
 
 interface UpdateStatus {
@@ -198,6 +200,126 @@ function GoogleCalendar() {
   );
 }
 
+interface RunnerKeyStatus {
+  exists: boolean;
+  enabled: boolean;
+  created_at: number;
+  last_used_at: number;
+  key?: string;
+}
+
+/**
+ * The Forge Runner's key, for an administrator. The runner on Luke's PC
+ * sends it instead of a login, and it reaches only the cards the Agent is
+ * doing. Shown once when it is made, kept only in this component's state,
+ * and never read back from Forge, which keeps a hash of it and nothing else.
+ */
+function RunnerKeySection() {
+  const [ status, setStatus ] = useState< RunnerKeyStatus | null >( null );
+  const [ shown, setShown ] = useState( '' );
+  const [ busy, setBusy ] = useState( false );
+  const [ notice, setNotice ] = useState( '' );
+
+  useEffect( () => {
+    void api< RunnerKeyStatus >( '/runner/key', { cache: 'fresh' } )
+      .then( setStatus )
+      .catch( ( error ) => setNotice( messageFor( error, 'The runner key could not be read.' ) ) );
+  }, [] );
+
+  async function change( method: 'POST' | 'PATCH' | 'DELETE', body?: unknown, ask?: string ) {
+    if ( ask && ! window.confirm( ask ) ) {
+      return;
+    }
+
+    setBusy( true );
+    setNotice( '' );
+
+    try {
+      const answer = await api< RunnerKeyStatus >( '/runner/key', { method, body } );
+
+      setShown( answer.key ?? '' );
+      setStatus( { ...answer, key: undefined } );
+    } catch ( error ) {
+      setNotice( messageFor( error, 'That could not be done.' ) );
+    } finally {
+      setBusy( false );
+    }
+  }
+
+  const exists = status?.exists ?? false;
+  const used = status && 0 < status.last_used_at ? `Last used ${ whenOf( status.last_used_at ) }.` : 'Not used yet.';
+
+  return (
+    <Panel title="Runner key">
+      <div className="bwx-settings-runner" data-testid="bwx-runner-key">
+        <p className="bwx-hint">
+          The Forge Runner on your PC sends this key instead of signing in. It can only read and move the cards the Agent is doing, comment on them as the Agent, and nothing else in Forge.
+        </p>
+
+        { status && (
+          <p className="bwx-moves" data-testid="bwx-runner-key-status">
+            { exists ? (
+              <>
+                <Tag tone={ status.enabled ? 'ok' : 'warn' } dot>{ status.enabled ? 'On' : 'Off' }</Tag>
+                <span>{ used }</span>
+              </>
+            ) : (
+              <span>There is no runner key yet.</span>
+            ) }
+          </p>
+        ) }
+
+        { '' !== shown && (
+          <div className="bwx-notice" data-tone="warn" role="status" data-testid="bwx-runner-key-shown">
+            <p>Copy this key into the runner now. You will not see it again: Forge keeps only a fingerprint of it.</p>
+            <CopyField label="Runner key" value={ shown } testId="bwx-runner-key-value" copyTestId="bwx-runner-key-copy" />
+          </div>
+        ) }
+
+        { '' !== notice && (
+          <p className="bwx-notice" role="status" data-testid="bwx-runner-key-notice">
+            { notice }
+          </p>
+        ) }
+
+        { status && (
+          <div className="bwx-moves">
+            { exists ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid="bwx-runner-key-replace"
+                  disabled={ busy }
+                  onClick={ () => void change( 'POST', undefined, 'Replace the runner key? The old key stops working straight away.' ) }
+                >
+                  Replace key
+                </Button>
+                <Button size="sm" variant="secondary" data-testid="bwx-runner-key-toggle" disabled={ busy } onClick={ () => void change( 'PATCH', { enabled: ! status.enabled } ) }>
+                  { status.enabled ? 'Turn off' : 'Turn on' }
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  data-testid="bwx-runner-key-remove"
+                  disabled={ busy }
+                  onClick={ () => void change( 'DELETE', undefined, 'Remove the runner key? The runner stops working until you make a new one.' ) }
+                >
+                  Remove key
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" data-testid="bwx-runner-key-make" disabled={ busy } onClick={ () => void change( 'POST' ) }>
+                Make key
+              </Button>
+            ) }
+          </div>
+        ) }
+      </div>
+    </Panel>
+  );
+}
+
 /**
  * Every rule Forge follows, in plain English (#467): what happens, and why.
  * One topic at a time (#528): the topics are tabs, and only the chosen one's
@@ -233,6 +355,7 @@ export function SettingsScreen( { section = '', onOpenServers }: { section?: str
       { forgeData()?.canManage && <ConnectionsPanel onOpenServers={ onOpenServers } /> }
       { forgeData()?.canManage && <Updates /> }
       { forgeData()?.canManage && <GoogleCalendar /> }
+      { forgeData()?.canManage && <RunnerKeySection /> }
 
       <p className="bwx-hint">How Forge behaves, and why. The rules cannot be changed from this page.</p>
 

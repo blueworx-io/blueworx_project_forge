@@ -12,8 +12,10 @@ namespace Blueworx\Forge\Rest;
 use Blueworx\Forge\GitHub\Settings as GitHubSettings;
 use Blueworx\Forge\GitHub\Signature as GitHubSignature;
 use Blueworx\Forge\Tenancy\ManagerRole;
+use Blueworx\Forge\Tenancy\RunnerKey;
 use Blueworx\Forge\Tenancy\Users;
 use SplObjectStorage;
+use WP_Error;
 use WP_REST_Request;
 
 /**
@@ -83,7 +85,7 @@ final class Permissions {
 	 * @return bool
 	 */
 	public static function behind_the_door( $callback ): bool {
-		return ! in_array( $callback, array( array( self::class, 'client_site' ), array( self::class, 'read' ), array( self::class, 'github' ) ), true );
+		return ! in_array( $callback, array( array( self::class, 'client_site' ), array( self::class, 'read' ), array( self::class, 'github' ), array( self::class, 'runner' ) ), true );
 	}
 
 	/**
@@ -202,5 +204,84 @@ final class Permissions {
 			(string) $request->get_header( 'x_hub_signature_256' ),
 			$secret
 		);
+	}
+
+	/**
+	 * The Forge Runner, proven by the runner key.
+	 *
+	 * The runner is a program on Luke's PC that builds the Agent's cards. It
+	 * has no login (the Agent never gets one, #689), so it sends the key an
+	 * administrator made, in a header. Only the runner's own routes ask this;
+	 * the key is not a login, so every other route's door stays shut to it.
+	 *
+	 * A wrong, missing or turned-off key, or an address that has sent ten
+	 * wrong keys in ten minutes, all get one refusal, word for word, so a
+	 * caller learns nothing from which it was. Plain http on a live site is
+	 * refused first, in its own words: that is a runner set up wrongly, and
+	 * says nothing about the key.
+	 *
+	 * Asked about the same request twice, as WordPress does for the Allow
+	 * header, the first answer stands, so one wrong key counts once.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|WP_Error
+	 */
+	public static function runner( WP_REST_Request $request ) {
+		static $answers = null;
+
+		if ( null === $answers ) {
+			$answers = new SplObjectStorage();
+		}
+
+		if ( isset( $answers[ $request ] ) ) {
+			return $answers[ $request ];
+		}
+
+		$answer              = self::runner_answer( $request );
+		$answers[ $request ] = $answer;
+
+		return $answer;
+	}
+
+	/**
+	 * The runner key's answer, asked once per request.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|WP_Error
+	 */
+	private static function runner_answer( WP_REST_Request $request ) {
+		$home = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+
+		if ( ! RunnerKey::transport_allowed( is_ssl(), wp_get_environment_type(), $home ) ) {
+			return Errors::rest( 'runner_needs_https', __( 'Forge only takes the runner key over https.', 'blueworx-forge' ), 403 );
+		}
+
+		// The address the connection came from, never a forwarded header a
+		// caller could write themselves.
+		$ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$now = bwx_forge_now();
+
+		if ( RunnerKey::throttled( $ip, $now ) ) {
+			return self::runner_refused();
+		}
+
+		if ( ! RunnerKey::matches( trim( (string) $request->get_header( RunnerKey::HEADER ) ) ) ) {
+			RunnerKey::failed( $ip, $now );
+
+			return self::runner_refused();
+		}
+
+		RunnerKey::used( $now );
+
+		return true;
+	}
+
+	/**
+	 * The one refusal the runner key gets.
+	 *
+	 * @return WP_Error
+	 */
+	private static function runner_refused(): WP_Error {
+		return Errors::rest( 'runner_refused', __( 'Forge did not accept that runner key.', 'blueworx-forge' ), 401 );
 	}
 }

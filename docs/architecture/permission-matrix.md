@@ -302,3 +302,32 @@ single allowance in `ClientContributionRouteTest`.
 
 Every refusal is logged with user, item, source interface and time, and an
 unresolved pattern of refusals surfaces to the studio.
+
+## The Forge Runner key (ARCH-9)
+
+The Forge Runner is a program on Luke's PC that builds the cards the Agent is
+doing. The Agent has no login (#689), so the runner sends the site's runner key
+in the `X-Forge-Runner-Key` header instead. The key is not a user: it opens the
+runner's own five routes and nothing else, and every other route — including
+the Forge door every studio route sits behind — treats a request carrying only
+the key as signed out.
+
+| The key can | The key cannot |
+|---|---|
+| List the cards the Agent is doing at Up Next, In development or In review, with a few light fields | See any card the Agent is not the Primary User of, or any archived card — those answer exactly as a card that does not exist |
+| Read one of those cards' own definition, seats, hours, dates, linked GitHub issue, readiness for its next move, and its comments | Read children, parents, dependencies, history, other cards' titles, capacity details or the client's support balance |
+| Move Up Next → In development, through every G-UP-NEXT check | Make any other move, override a gate, or give an over-booking reason |
+| On hand-over, write the real hours, how to test it, test steps and checklist ticks, then move In development → In review through G-IN-DEVELOPMENT | Change any other field: title, definition, seats, dates, priority, commercial class, repo or the checklist's own lines |
+| Leave an internal comment, written as the Agent and marked as the runner's | Write a client-visible comment, a question, evidence or an attachment |
+| | Reach any other route: `/work-items-all`, `/users` and everything else answer as for nobody signed in |
+
+Managing the key — `GET`, `POST`, `PATCH` and `DELETE` on `/runner/key` — is
+behind the door and for administrators only. The key is shown once, in the
+answer that makes it; Forge stores only its SHA-256 hash. It is refused over
+plain http on a live site, and an address that sends ten wrong keys in ten
+minutes is refused until the ten minutes are up. A wrong, missing, turned-off
+or removed key gets one refusal, word for word.
+
+Everything the runner writes is recorded with no person behind it (actor 0)
+and `via` / `source_interface` set to `runner`; the task's history shows it as
+"Agent, by the runner".

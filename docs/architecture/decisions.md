@@ -116,6 +116,16 @@ never to change course.
 
 **Consequence if reversed:** The client plugin keeps a second copy of the design system, the foundation's drift check watches only the studio's, and the two interfaces diverge without anything failing.
 
+### ARCH-9 — runner-key
+
+**Question:** How does the Forge Runner, a program on Luke's PC that builds the cards the Agent is doing, read and move those cards when the Agent has no login (#689)?
+
+**Options considered:** Give the Agent a WordPress login, which #689 refused so that nobody can sign in as it; let the runner use an administrator's login or application password, which hands a program on a PC the whole site; give the runner the existing studio routes with a key in front of them, which makes every route's answer depend on two kinds of caller and leaks other cards through the lists and the item view.
+
+**Decision:** One runner key per site, made by an administrator in Settings and shown once. Forge keeps only its SHA-256 hash, compares with `hash_equals`, and takes it only in the `X-Forge-Runner-Key` header, only over https (a site that says it is local or in development, or lives at a loopback address, also takes plain http), and refuses an address for ten minutes after ten wrong keys. The key opens five routes of its own under `/runner/cards` and nothing else: it is not a login, so the Forge door and every existing route stay shut to it. Each of the five loads the card first and answers as absent unless the Agent is its Primary User and it is not archived. The runner may list those cards at Up Next, In development or In review; read one card's own definition, readiness and comments; move Up Next to In development and In development to In review through `Work\Transition` with every gate, and no override or over-booking reason; write the hours, how to test it, test steps and checklist ticks on hand-over, all checked before anything is saved; and leave internal comments as the Agent. Everything it writes is recorded with no person behind it (actor 0) and `via` / `source_interface` set to `runner`. Approved by Luke on 23 November 2026.
+
+**Consequence if reversed:** The runner either needs a login, which either undoes #689 or gives a program the whole site, or its five routes and their tests are removed and it can no longer pick up or hand back the Agent's work.
+
 ## Workflow
 
 ### WF-1 — conditional-and-exception-stages

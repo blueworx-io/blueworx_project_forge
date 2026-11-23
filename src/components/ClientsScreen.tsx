@@ -966,7 +966,7 @@ function SiteForm( {
 }
 
 /** A value shown once, with a button that puts it on the clipboard and says so. */
-function CopyField( { label, value, testId, copyTestId }: { label: string; value: string; testId: string; copyTestId: string } ) {
+export function CopyField( { label, value, testId, copyTestId }: { label: string; value: string; testId: string; copyTestId: string } ) {
   const [ copied, setCopied ] = useState( false );
 
   async function copy() {

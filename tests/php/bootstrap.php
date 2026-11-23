@@ -928,3 +928,32 @@ if ( ! function_exists( 'untrailingslashit' ) ) {
 		return rtrim( $value, '/' );
 	}
 }
+
+/**
+ * Stub. Whether the request came over https, as a test stages it.
+ *
+ * @return bool
+ */
+function is_ssl(): bool {
+	return ! empty( $GLOBALS['bwx_forge_test_ssl'] );
+}
+
+/**
+ * Stub. The site's environment type, as a test stages it; production, as
+ * WordPress itself defaults to, when it does not.
+ *
+ * @return string
+ */
+function wp_get_environment_type(): string {
+	return (string) ( $GLOBALS['bwx_forge_test_environment'] ?? 'production' );
+}
+
+/**
+ * Stub. The site's address, as a test stages it.
+ *
+ * @param string $path Path to append.
+ * @return string
+ */
+function home_url( string $path = '' ): string {
+	return (string) ( $GLOBALS['bwx_forge_test_home'] ?? 'https://studio.example.test' ) . $path;
+}

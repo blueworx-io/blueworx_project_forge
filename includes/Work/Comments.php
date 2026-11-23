@@ -11,6 +11,7 @@ namespace Blueworx\Forge\Work;
 
 use Blueworx\Forge\Data\Formats;
 use Blueworx\Forge\Data\Schema;
+use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Tenancy\Ids;
 
 /**
@@ -141,10 +142,26 @@ final class Comments {
 		$body   = trim( (string) ( $entry['body'] ?? '' ) );
 		$url    = trim( (string) ( $entry['url'] ?? '' ) );
 		$kind   = (string) ( $entry['kind'] ?? self::COMMENT );
+		$runner = ! empty( $entry['runner'] );
 
 		$visibility = self::visibility_of( (string) ( $entry['visibility'] ?? self::INTERNAL ), $scope, $kind );
 
-		if ( ( $author <= 0 && '' === $site ) || ! in_array( $kind, self::KINDS, true ) ) {
+		/*
+		 * The third way to say who wrote it: the Forge Runner, building a card
+		 * the Agent is doing. The Agent has no login (#689), so there is no
+		 * user id to give, and it is nobody's client site either. Written as
+		 * the Agent, as an ordinary internal note and nothing else, and only
+		 * when nothing else claims the words.
+		 */
+		if ( $runner ) {
+			if ( $author > 0 || '' !== $site || self::COMMENT !== $kind ) {
+				return null;
+			}
+
+			$visibility           = self::INTERNAL;
+			$entry['author_name'] = Agents::NAME;
+			$entry['answers']     = '';
+		} elseif ( ( $author <= 0 && '' === $site ) || ! in_array( $kind, self::KINDS, true ) ) {
 			return null;
 		}
 
@@ -384,6 +401,11 @@ final class Comments {
 			 */
 			'author_site' => (string) ( $row['author_site'] ?? '' ),
 			'from_client' => '' !== (string) ( $row['author_site'] ?? '' ),
+
+			// Written by the Forge Runner as the Agent: the one row with
+			// neither a person nor a client site behind it (add() refuses
+			// any other).
+			'from_runner' => 0 === (int) $row['author'] && '' === (string) ( $row['author_site'] ?? '' ),
 			'answers'     => (string) ( $row['answers'] ?? '' ),
 			'created_at'  => (int) $row['created_at'],
 		);

@@ -985,6 +985,34 @@ final class Items {
 	}
 
 	/**
+	 * The cards the Agent is doing at one stage, across every site, in the
+	 * order they are due: what the Forge Runner chooses its work from. One
+	 * query, and only the Agent's own cards, because the runner asks every
+	 * few minutes.
+	 *
+	 * @param array<int, string> $agent_ids Every agent.
+	 * @param string             $stage     The stage.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function done_by_agent( array $agent_ids, string $stage ): array {
+		global $wpdb;
+
+		$agents = array_values( array_unique( array_filter( array_map( 'strval', $agent_ids ) ) ) );
+
+		if ( array() === $agents || '' === $stage ) {
+			return array();
+		}
+
+		$table = Schema::work_items_table();
+		$slots = implode( ', ', array_fill( 0, count( $agents ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the slots are built from the count above and every value is prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE primary_user_id IN ({$slots}) AND stage = %s AND archived = %s ORDER BY planned_due ASC, created_at ASC", array_merge( $agents, array( $stage, '0' ) ) ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * The order to remove an item and everything under it: children first,
 	 * the item itself last.
 	 *
