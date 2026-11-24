@@ -243,6 +243,12 @@ test.describe( 'the schedule', () => {
   } );
 
   test( 'a selection is dropped when its work is released, so nothing is left dimmed (#703)', async ( { page } ) => {
+    // Something to delete from its panel: a change the screen takes in place,
+    // where the header's Refresh would start the whole screen again and lose
+    // the selection whether or not it is handled.
+    const throwaway = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } throwaway`, work_type: 'task' } );
+    expect( throwaway.status(), await throwaway.text() ).toBe( 200 );
+
     let released = false;
 
     await page.route( ( url ) => url.pathname.endsWith( '/work-items' ) && url.search.includes( `client_site_id=${ world.site.id }` ), async ( route ) => {
@@ -250,23 +256,40 @@ test.describe( 'the schedule', () => {
         return route.fallback();
       }
 
-      const response = await route.fetch();
-      const body = await response.json();
+      try {
+        const response = await route.fetch();
+        const body = await response.json();
 
-      body.items = body.items.map( ( item ) => ( item.id === world.second.id ? { ...item, stage: 'released' } : item ) );
-      await route.fulfill( { response, json: body } );
+        body.items = body.items.map( ( item ) => ( item.id === world.second.id ? { ...item, stage: 'released' } : item ) );
+        await route.fulfill( { response, json: body } );
+      } catch {
+        // A read still on its way when the page closes has nobody left to answer.
+      }
     } );
 
     await openSchedule( page );
     await page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ).click();
-    await expect( page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` ) ).toHaveAttribute( 'data-dimmed', 'true' );
+    const late = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` );
+    await expect( late ).toHaveAttribute( 'data-dimmed', 'true' );
 
-    // The selected work is released while the schedule is open.
+    // Marks the screen, to show later that it was never drawn again from scratch.
+    await page.evaluate( () => document.querySelector( '[data-testid="bwx-gantt"]' ).setAttribute( 'data-kept', 'yes' ) );
+
+    // The selected work is released by the time the list is read again.
     released = true;
-    await page.getByRole( 'button', { name: 'Refresh' } ).click();
+    await page.locator( '[data-testid="bwx-gantt-tray-item"]', { hasText: 'throwaway' } ).click();
+    page.once( 'dialog', ( dialog ) => dialog.accept() );
+    await page.getByTestId( 'bwx-item-delete' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden( { timeout: 60_000 } );
 
     await expect( page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ) ).toHaveCount( 0 );
+    await expect( late ).toBeVisible();
+    await expect( late ).not.toHaveAttribute( 'data-dimmed', 'true' );
     await expect( page.locator( '[data-testid="bwx-gantt-row"][data-dimmed="true"]' ) ).toHaveCount( 0 );
+    await expect( page.locator( '[data-testid="bwx-gantt"]' ) ).toHaveAttribute( 'data-kept', 'yes' );
+
+    // Nothing is left reading the list when the page goes.
+    await page.unrouteAll( { behavior: 'ignoreErrors' } );
   } );
 
   test( 'the day view opens with today in view, and a long stretch is a window rather than every day (#703)', async ( { page } ) => {

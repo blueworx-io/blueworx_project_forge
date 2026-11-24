@@ -73,9 +73,10 @@ export function GanttView( {
   const now = placeToday( axis, today );
 
   // A selection only counts while its bar is still drawn. Work released since
-  // it was picked drops off the chart, and without this its rows would stay
-  // dimmed with nothing left to click to put them back.
-  const active = dated.some( ( each ) => each.item.id === selected ) ? selected : '';
+  // it was picked drops off the chart, and so does work the day window has
+  // moved past; without this their rows would stay dimmed with nothing left
+  // to click to put them back.
+  const active = dated.some( ( each ) => each.item.id === selected && null !== placeOn( each.span, axis ) ) ? selected : '';
   const chain = chainFor( items, active );
   const months = monthsOf( axis );
   const windowed = axis.totalWeeks > axis.shownWeeks;
@@ -111,7 +112,14 @@ export function GanttView( {
               data-variant={ level === zoom ? undefined : 'quiet' }
               data-testid={ `bwx-gantt-zoom-${ level }` }
               aria-pressed={ level === zoom }
-              onClick={ () => setZoom( level ) }
+              onClick={ () => {
+                // Opening the days starts at today again, never at a window left behind.
+                if ( 'day' === level ) {
+                  setWindowStart( null );
+                }
+
+                setZoom( level );
+              } }
             >
               { label }
             </button>

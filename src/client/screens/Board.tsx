@@ -29,8 +29,9 @@ import { useView } from '../useView';
 
 type Mode = 'kanban' | 'schedule' | 'dates';
 
+/** The viewer's own date, the one the studio's Gantt marks as today. */
 function today(): string {
-  return new Date().toISOString().slice( 0, 10 );
+  return todayIso();
 }
 
 function isFinished( item: WorkItem ): boolean {
@@ -146,8 +147,7 @@ function Schedule( { board }: { board: BoardView } ) {
   const [ windowStart, setWindowStart ] = useState< number | null >( null );
   const [ jump, setJump ] = useState( 0 );
   const chartRef = useRef< HTMLDivElement >( null );
-  // The viewer's own date, as the studio's Gantt reads it, so both mark the same day.
-  const now = todayIso();
+  const now = today();
   const live = board.items.filter( isLive );
   const planned = live
     .map( ( item ) => ( { item, span: item.planned_start && item.planned_due ? ( { start: item.planned_start, due: item.planned_due, derived: false } as Span ) : null } ) )
@@ -160,8 +160,15 @@ function Schedule( { board }: { board: BoardView } ) {
 
   // Opening the day view, or asking for Today, brings today's column into view.
   useEffect( () => {
-    if ( 'day' === zoom ) {
-      scrollToToday( chartRef.current, 272 );
+    const chart = chartRef.current;
+
+    if ( 'day' === zoom && chart ) {
+      // How far in the days start: the label column beside them, which a phone
+      // stacks above instead, so it is read from the layout rather than assumed.
+      const axis = chart.querySelector( '.fc-schedule-axis' )?.getBoundingClientRect().left ?? 0;
+      const days = chart.querySelector( '.fc-schedule-weeks' )?.getBoundingClientRect().left ?? 0;
+
+      scrollToToday( chart, days - axis );
     }
     // Only when the zoom or the Today button changes, not on every redraw.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,7 +183,10 @@ function Schedule( { board }: { board: BoardView } ) {
           <Button size="sm" variant={ 'week' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'week' === zoom } data-testid="bwx-schedule-zoom-week" onClick={ () => setZoom( 'week' ) }>
             Weeks
           </Button>
-          <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => setZoom( 'day' ) }>
+          <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => {
+            setWindowStart( null );
+            setZoom( 'day' );
+          } }>
             Days
           </Button>
           { 'day' === zoom && windowed && (

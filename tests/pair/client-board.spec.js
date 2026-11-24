@@ -66,7 +66,8 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   const weekColumns = await page.getByTestId( 'bwx-schedule' ).locator( '.fc-schedule-weeks > span' ).count();
   await page.getByTestId( 'bwx-schedule-zoom-day' ).click();
   await expect( page.getByTestId( 'bwx-schedule-chart' ) ).toHaveAttribute( 'data-zoom', 'day' );
-  await expect( page.getByTestId( 'bwx-schedule-day' ) ).toHaveCount( weekColumns * 7 );
+  // Seven columns to a week, and never more than twenty-six weeks of them.
+  await expect( page.getByTestId( 'bwx-schedule-day' ) ).toHaveCount( Math.min( weekColumns, 26 ) * 7 );
   await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toHaveCount( 1 );
   await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toContainText( 'Today' );
   await expect( page.getByTestId( 'bwx-schedule-today-note' ) ).toContainText( 'Today is' );
