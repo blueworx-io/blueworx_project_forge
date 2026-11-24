@@ -3,12 +3,14 @@ import { signIn } from '../helpers/sign-in.js';
 
 // #489. After sign-in the app quietly reads what every screen needs, one
 // request at a time, so the first visit to a screen is as quick as the
-// second. A change forgets everything, and the warming starts again.
+// second. A change forgets everything, but the warming does not go round
+// again after one (#701): every save re-reading every screen overloaded the
+// server. The screen that changed reads itself again.
 
 const ADMIN_USER = process.env.WP_ADMIN_USER ?? 'admin';
 const ADMIN_PASS = process.env.WP_ADMIN_PASS ?? 'admin';
 
-test('once warm, Capacity and Clients open without a wait, and a change warms again', async ({ page }) => {
+test('once warm, Capacity and Clients open without a wait, and a change does not warm again', async ({ page }) => {
   test.setTimeout(600_000);
 
   await signIn(page, ADMIN_USER, ADMIN_PASS);
@@ -27,11 +29,13 @@ test('once warm, Capacity and Clients open without a wait, and a change warms ag
     expect(Date.now() - started, `${screen} showed without a wait`).toBeLessThan(2_000);
   }
 
-  // A change forgets what was kept, so the warming goes round again.
+  // A change forgets what was kept, and only the screen in front of you reads again.
   await page.getByTestId('bwx-screen-leads').click();
   await page.getByTestId('bwx-leads-add').click();
-  await page.getByTestId('bwx-leads-form-name').fill(`Warm lead ${Date.now()}`);
+  const name = `Warm lead ${Date.now()}`;
+  await page.getByTestId('bwx-leads-form-name').fill(name);
   await page.getByTestId('bwx-leads-form-save').click();
-  await expect(page.locator('html')).toHaveAttribute('data-bwx-warm', 'warming', { timeout: 60_000 });
-  await expect(page.locator('html')).toHaveAttribute('data-bwx-warm', 'done', { timeout: 480_000 });
+  await expect(page.getByTestId('bwx-leads-list')).toContainText(name, { timeout: 30_000 });
+  await page.waitForTimeout(5_000);
+  await expect(page.locator('html')).toHaveAttribute('data-bwx-warm', 'done');
 });

@@ -34,7 +34,7 @@ function useMyTasksCount( screen: ScreenName ): number | null {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load, screen ] );
-  useLiveReload( load );
+  useLiveReload( load, [ '/client-sites', '/work-items-all' ] );
 
   return null === mine ? null : todayCount( mine, siteId );
 }
@@ -57,7 +57,7 @@ function useAgentsCount( screen: ScreenName ): number | null {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load, screen ] );
-  useLiveReload( load );
+  useLiveReload( load, [ '/client-sites', '/work-items-all' ] );
 
   return null === rows ? null : todayCount( rows, siteId );
 }
@@ -79,7 +79,7 @@ function useStandupCount( screen: ScreenName ): number | null {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [ load, screen ] );
-  useLiveReload( load );
+  useLiveReload( load, [ '/standup' ] );
 
   return null === list ? null : standupCount( list, siteId );
 }

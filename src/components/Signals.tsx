@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Signal, SignalList } from '../types';
-import { api, messageFor } from '../api';
+import { api, background, forgetOne, messageFor } from '../api';
 import { useLiveReload } from '../live';
 import { signalTone, signalWord, whenOf } from '../signals';
 
@@ -44,7 +44,7 @@ export function Signals() {
     void load();
   }, [ load ] );
 
-  useLiveReload( load );
+  useLiveReload( load, [ '/signals' ] );
 
   // Closing on Escape and on a click elsewhere, because this is a panel over
   // the page rather than a screen: somewhere to glance and leave.
@@ -96,7 +96,10 @@ export function Signals() {
        * anything that has arrived since is not, and the server can only know
        * which is which if it is told where the reader got to.
        */
-      await api( '/signals/seen', { method: 'POST', body: { at: list.generated } } );
+      // Not a change to anybody's work (#701): it forgets only this list,
+      // where a save would forget every answer and have them all read again.
+      await background( '/signals/seen', { at: list.generated } );
+      forgetOne( '/signals' );
       await load();
     } catch ( failure ) {
       setNotice( messageFor( failure, 'That could not be recorded.' ) );

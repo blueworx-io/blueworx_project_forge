@@ -32,13 +32,13 @@ test('a screen comes back from the cache, then picks up what changed', async ({ 
   await page.getByTestId('bwx-screen-work').click();
   await expect(firstCard).toBeVisible();
 
-  // Something changes while the board is not looking; coming back finds it.
+  // Something changes while the board is not looking; coming back finds it,
+  // because moving screen re-checks at once (#701).
   await page.unroute('**/wp-json/blueworx-forge/**');
   const second = (await (await makeItem(admin.api, site.id, { title: `Second ${RUN_ID}` })).json()).item;
   const secondCard = page.locator(`[data-testid="bwx-card"][data-item="${second.id}"]`);
 
   await page.getByTestId('bwx-screen-standup').click();
-  await page.waitForTimeout(5500); // past the re-check throttle
   await page.getByTestId('bwx-screen-work').click();
   await expect(firstCard).toBeVisible();
   await expect(secondCard).toBeVisible({ timeout: 15_000 });

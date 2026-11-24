@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.230.1] - 2026-11-24
+
+### Fixed
+
+- A Forge tab left open no longer keeps asking the server for updates. Screens only reload when something on them has changed, nothing is rechecked while the tab is hidden, and an open tab checks again at most every three minutes or when you move to another screen.
+- Saving something, or opening Updates, no longer makes Forge re-read every screen and every client's board in the background. Other screens read again when you next open them.
+
 ## [2.230.0] - 2026-11-23
 
 ### Added

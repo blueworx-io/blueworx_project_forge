@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { api, onWritten } from '../api';
+import { api } from '../api';
 import { useClientChoice } from '../ClientChoice';
 import { ALL_SITES } from '../sites';
 import { defaultRange } from './CapacityScreen';
@@ -12,15 +12,16 @@ import { defaultRange } from './CapacityScreen';
  * on the board. This asks for those answers quietly, one at a time, once the
  * screen somebody actually opened has had its turn — so by the time they move
  * on, what they move on to is already here. A change forgets every kept
- * answer, so after one it starts again.
+ * answer, and this does not go round again after one (#701): sixteen reads
+ * and every client's board after each save is what overloaded the server.
+ * Each screen reads its own answers again when it is next opened.
  *
  * One request at a time, on purpose: a single-threaded server given ten at
  * once answers the one somebody is waiting for last.
  */
 
-/** How long after the app opens, or after a change, before warming starts. */
+/** How long after the app opens before warming starts. */
 const AFTER_OPEN = 1500;
-const AFTER_WRITE = 3000;
 
 /** Reads every screen shares, then each screen's own first read. */
 function shared( admin: boolean ): string[] {
@@ -103,12 +104,10 @@ export function Warmer( { admin }: { admin: boolean } ) {
     };
 
     later( AFTER_OPEN );
-    const stop = onWritten( () => later( AFTER_WRITE ) );
 
     return () => {
       window.clearTimeout( timer );
       run += 1;
-      stop();
     };
   }, [] );
 

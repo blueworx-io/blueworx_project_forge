@@ -1,5 +1,5 @@
 import type { ForgeData, GateCheck, Requirement } from './types';
-import { announce, clear, newestAt, read, shouldRevalidate, subscribe, touch, write } from './cache.mjs';
+import { announce, clear, forget, newestAt, read, recheckSoon, sameAnswer, shouldRevalidate, subscribe, touch, write } from './cache.mjs';
 import { todayIso } from './calendar';
 
 /**
@@ -106,7 +106,7 @@ export async function api< T >(
     const kept = read( path );
 
     if ( kept ) {
-      if ( shouldRevalidate( path ) ) {
+      if ( shouldRevalidate( path, Date.now(), 'hidden' !== document.visibilityState ) ) {
         const asked = writes;
 
         void fetchJson< T >( path, options )
@@ -116,7 +116,7 @@ export async function api< T >(
               return;
             }
 
-            const changed = JSON.stringify( fresh ) !== JSON.stringify( kept.value );
+            const changed = ! sameAnswer( fresh, kept.value );
 
             if ( changed ) {
               write( path, fresh );
@@ -147,11 +147,6 @@ export async function api< T >(
     writes += 1;
     inFlight.clear();
     clear();
-
-    // Whoever keeps the session warm (#489) hears that everything was forgotten.
-    for ( const listener of written ) {
-      listener();
-    }
 
     return payload;
   }
@@ -198,18 +193,6 @@ const inFlight = new Map< string, Promise< unknown > >();
 /** How many changes have been made this session; a read remembers the count it set off at. */
 let writes = 0;
 
-/** Who hears that a change was made and every kept answer forgotten. */
-const written = new Set< () => void >();
-
-/** Hears every change made through api(), until the returned function is called. */
-export function onWritten( listener: () => void ): () => void {
-  written.add( listener );
-
-  return () => {
-    written.delete( listener );
-  };
-}
-
 /** When the most recent answer arrived from the server, or 0 before any has. */
 export function refreshedAt(): number {
   return newestAt();
@@ -223,6 +206,17 @@ export function onRefreshed( listener: ( path: string, changed: boolean ) => voi
 /** Forgets every kept answer, so the next reads are real ones. */
 export function forgetAll(): void {
   clear();
+}
+
+/** Forgets one kept answer, so the next read of it is a real one. */
+export function forgetOne( path: string ): void {
+  inFlight.delete( path );
+  forget( path );
+}
+
+/** Lets the next read of anything re-check it: somebody has moved screen (#701). */
+export function recheckOnNextRead(): void {
+  recheckSoon();
 }
 
 /** One request to the server, as it was before anything was kept. */

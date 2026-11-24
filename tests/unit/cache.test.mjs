@@ -8,8 +8,12 @@ import assert from 'node:assert/strict';
 import {
   announce,
   clear,
+  forget,
   newestAt,
   read,
+  readsPath,
+  recheckSoon,
+  sameAnswer,
   shouldRevalidate,
   subscribe,
   touch,
@@ -29,10 +33,49 @@ test('an answer older than half an hour is as good as absent', () => {
   assert.equal(read('/a', 30 * 60 * 1000 + 1), undefined);
 });
 
-test('a re-check is due once, then not again for five seconds', () => {
+// #701. A tab left open re-checked a slow answer every five seconds, for ever.
+test('a re-check is due once, then not again for three minutes', () => {
   assert.equal(shouldRevalidate('/a', 1000), true);
-  assert.equal(shouldRevalidate('/a', 4000), false);
-  assert.equal(shouldRevalidate('/a', 6001), true);
+  assert.equal(shouldRevalidate('/a', 6001), false);
+  assert.equal(shouldRevalidate('/a', 1000 + 3 * 60 * 1000 - 1), false);
+  assert.equal(shouldRevalidate('/a', 1000 + 3 * 60 * 1000 + 1), true);
+});
+
+test('nothing is re-checked while the tab is hidden', () => {
+  assert.equal(shouldRevalidate('/a', 1000, false), false);
+  // Not marked as started either, so it is due the moment the tab is back.
+  assert.equal(shouldRevalidate('/a', 2000, true), true);
+});
+
+test('moving to another screen makes the next read re-check at once', () => {
+  assert.equal(shouldRevalidate('/a', 1000), true);
+  recheckSoon();
+  assert.equal(shouldRevalidate('/a', 2000), true);
+});
+
+test('the time an answer was worked out is not a change', () => {
+  assert.equal(sameAnswer({ generated: '10:00', unread: 2 }, { generated: '10:05', unread: 2 }), true);
+  assert.equal(sameAnswer({ generated: '10:00', unread: 2 }, { generated: '10:00', unread: 3 }), false);
+  assert.equal(sameAnswer([1, 2], [1, 2]), true);
+  assert.equal(sameAnswer(null, { generated: 'x' }), false);
+});
+
+test('forgetting one path leaves the rest', () => {
+  write('/a', 1, 1000);
+  write('/b', 2, 1000);
+  forget('/a');
+  assert.equal(read('/a', 1000), undefined);
+  assert.deepEqual(read('/b', 1000), { value: 2, at: 1000 });
+});
+
+test('a screen reads a path, its queries and what sits under it, and nothing else', () => {
+  assert.equal(readsPath(['/standup'], '/standup'), true);
+  assert.equal(readsPath(['/standup'], '/standup?view=week'), true);
+  assert.equal(readsPath(['/work-items'], '/work-items/wi_1'), true);
+  assert.equal(readsPath(['/work-items'], '/work-items-all'), false);
+  assert.equal(readsPath(['/signals'], '/standup'), false);
+  // A screen that has not said what it reads hears everything.
+  assert.equal(readsPath(undefined, '/anything'), true);
 });
 
 test('touching moves the time without changing the answer', () => {
