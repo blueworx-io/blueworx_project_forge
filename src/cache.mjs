@@ -14,8 +14,12 @@
 /** How long an answer is trusted before it is treated as absent. */
 const TTL = 30 * 60 * 1000;
 
-/** How soon the same path may be re-checked again. */
-const REVALIDATE_EVERY = 5 * 1000;
+/**
+ * How soon the same path may be re-checked again (#701). It was five seconds,
+ * and once an answer took longer than that to come back, a tab left open
+ * re-checked it for ever.
+ */
+const REVALIDATE_EVERY = 3 * 60 * 1000;
 
 /** @type {Map<string, { value: unknown, at: number }>} */
 const answers = new Map();
@@ -76,6 +80,68 @@ export function clear() {
 }
 
 /**
+ * Forgets one answer, so the next read of it is a real one.
+ *
+ * @param {string} path
+ */
+export function forget( path ) {
+  answers.delete( path );
+  started.delete( path );
+}
+
+/**
+ * Lets every path be re-checked on its next read. Moving to another screen is
+ * somebody asking to see it as it is now, which a timer is not.
+ */
+export function recheckSoon() {
+  started.clear();
+}
+
+/**
+ * Whether two answers say the same thing (#701).
+ *
+ * Several answers carry the moment they were worked out as `generated`, so
+ * two answers to the same question never matched, every re-check looked like
+ * a change, and every change reloaded every screen open.
+ *
+ * @param {unknown} a
+ * @param {unknown} b
+ * @returns {boolean}
+ */
+export function sameAnswer( a, b ) {
+  return JSON.stringify( withoutWhen( a ) ) === JSON.stringify( withoutWhen( b ) );
+}
+
+/** @param {unknown} value */
+function withoutWhen( value ) {
+  if ( null === value || 'object' !== typeof value || Array.isArray( value ) ) {
+    return value;
+  }
+
+  const rest = { .../** @type {Record<string, unknown>} */ ( value ) };
+  delete rest.generated;
+
+  return rest;
+}
+
+/**
+ * Whether a screen that reads these paths reads this one: the path itself,
+ * with a query, or something under it. A screen that has not said what it
+ * reads is taken to read everything.
+ *
+ * @param {string[] | undefined} reads
+ * @param {string} path
+ * @returns {boolean}
+ */
+export function readsPath( reads, path ) {
+  if ( undefined === reads ) {
+    return true;
+  }
+
+  return reads.some( ( read ) => path === read || path.startsWith( `${ read }?` ) || path.startsWith( `${ read }/` ) );
+}
+
+/**
  * When the most recent answer arrived, or 0 when nothing is kept.
  *
  * @returns {number}
@@ -94,14 +160,20 @@ export function newestAt() {
  * Whether a path is due a re-check, and marks it as started when it is.
  *
  * A screen that reads three paths on mount and again on every update must
- * not send for the same path every few hundred milliseconds; once per five
- * seconds is plenty for a re-check nobody asked for.
+ * not send for the same path every few hundred milliseconds; once every few
+ * minutes is plenty for a re-check nobody asked for, and none at all while
+ * nobody can see the tab.
  *
  * @param {string} path
  * @param {number} [now]
+ * @param {boolean} [visible] Whether the tab can be seen.
  * @returns {boolean}
  */
-export function shouldRevalidate( path, now = Date.now() ) {
+export function shouldRevalidate( path, now = Date.now(), visible = true ) {
+  if ( ! visible ) {
+    return false;
+  }
+
   const last = started.get( path );
 
   if ( undefined !== last && now - last < REVALIDATE_EVERY ) {

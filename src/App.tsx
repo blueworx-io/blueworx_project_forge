@@ -3,7 +3,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, Bell, Bot, Building2, CalendarCheck, CalendarClock, CalendarDays, CircleUser, Clock, Columns3, CreditCard, ExternalLink, FileCheck2, FolderKanban, GanttChart, Gauge, Handshake, Inbox, LifeBuoy, ListChecks, Receipt, RefreshCw, Repeat, Server, Settings, Users, X } from 'lucide-react';
 import type { ScreenName, ViewName } from './types';
-import { api, background, forgeData, forgetAll, isConnected, onRefreshed, refreshedAt } from './api';
+import { api, background, forgeData, forgetAll, isConnected, onRefreshed, recheckOnNextRead, refreshedAt } from './api';
 import { ClientChoiceProvider, ClientPicker, useClientChoice } from './ClientChoice';
 import { AvailabilityScreen } from './components/AvailabilityScreen';
 import { CapacityScreen } from './components/CapacityScreen';
@@ -330,7 +330,13 @@ export function App() {
 
     return { item, screen: allowed ? ( screen as ScreenName ) : null, person, site, rules, client, project, google };
   } );
-  const [ screen, setScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
+  const [ screen, showScreen ] = useState< ScreenName >( landing.screen ?? 'work' );
+  // Moving screen is asking to see it as it is now (#701): its reads re-check
+  // at once, where an idle tab waits minutes between them.
+  const setScreen = ( next: ScreenName ) => {
+    recheckOnNextRead();
+    showScreen( next );
+  };
   const [ view, setView ] = useState< ViewName >( 'board' );
   // #561. Which client the profile screen shows.
   const [ clientId, setClientId ] = useState( landing.client );
