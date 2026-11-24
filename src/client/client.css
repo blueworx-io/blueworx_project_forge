@@ -1092,6 +1092,27 @@ p.fc-muted + p.fc-muted,
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+/* The day zoom (#703): a column a day, wide enough to read, so a long stretch
+   scrolls sideways rather than squeezing. */
+.fc-schedule[ data-zoom='day' ] {
+  overflow-x: auto;
+}
+.fc-schedule[ data-zoom='day' ] .fc-schedule-axis,
+.fc-schedule[ data-zoom='day' ] .fc-schedule-row {
+  min-width: calc( 260px + 12px + var( --fc-cols ) * 44px );
+}
+.fc-schedule[ data-zoom='day' ] .fc-schedule-weeks > span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.fc-schedule-weeks > span[ data-today='true' ] {
+  background: var( --accent-signal );
+  color: var( --color-snow );
+}
 .fc-schedule-label {
   display: flex;
   flex-direction: column;

@@ -7,8 +7,8 @@ import { api, day } from '../api';
 import type { BoardView, Comment, DiscussionView, WorkItem } from '../api';
 import { clientData } from '../data';
 import { phaseOf } from '../../phases';
-import { axisFor, placeOn, placeToday } from '../../gantt';
-import type { Span } from '../../gantt';
+import { axisFor, isLive, placeOn, placeToday } from '../../gantt';
+import type { Span, Zoom } from '../../gantt';
 import { useView } from '../useView';
 
 /*
@@ -136,15 +136,21 @@ function Kanban( { board, onDrag }: { board: BoardView; onDrag: () => void } ) {
  * The planned schedule (#300): one bar per item with both dates, on the same
  * axis the studio's Gantt uses, and everything without a plan listed under
  * it — never hidden, because "not scheduled yet" is the thing to know.
+ *
+ * Released work is left off: it is finished, and this is the plan for what is
+ * still moving (#703). A zoom switches between a column a week and a column a
+ * day, with today's column marked.
  */
 function Schedule( { board }: { board: BoardView } ) {
+  const [ zoom, setZoom ] = useState< Zoom >( 'week' );
   const now = today();
-  const planned = board.items
+  const live = board.items.filter( isLive );
+  const planned = live
     .map( ( item ) => ( { item, span: item.planned_start && item.planned_due ? ( { start: item.planned_start, due: item.planned_due, derived: false } as Span ) : null } ) )
     .filter( ( row ): row is { item: WorkItem; span: Span } => null !== row.span )
     .sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) );
-  const unplanned = board.items.filter( ( item ) => ! ( item.planned_start && item.planned_due ) );
-  const axis = axisFor( planned.map( ( row ) => row.span ), now );
+  const unplanned = live.filter( ( item ) => ! ( item.planned_start && item.planned_due ) );
+  const axis = axisFor( planned.map( ( row ) => row.span ), now, zoom );
   const todayAt = placeToday( axis, now );
 
   return (
@@ -152,15 +158,34 @@ function Schedule( { board }: { board: BoardView } ) {
       <div className="fc-card-head fc-schedule-head">
         <h3>Planned schedule</h3>
         <span className="fc-muted">Same records, same permissions — read-only for workflow movement</span>
+        <span className="fc-toolbar-right" role="group" aria-label="Zoom">
+          <Button size="sm" variant={ 'week' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'week' === zoom } data-testid="bwx-schedule-zoom-week" onClick={ () => setZoom( 'week' ) }>
+            Weeks
+          </Button>
+          <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => setZoom( 'day' ) }>
+            Days
+          </Button>
+        </span>
       </div>
       { planned.length > 0 ? (
-        <div className="fc-schedule">
+        <div
+          className="fc-schedule"
+          data-testid="bwx-schedule-chart"
+          data-zoom={ zoom }
+          style={ { '--fc-cols': axis.columns.length } as React.CSSProperties }
+        >
           <div className="fc-schedule-axis" aria-hidden="true">
             <span />
             <span className="fc-schedule-weeks">
-              { axis.weeks.map( ( week ) => (
-                <span key={ week.start } className="fk-mono">
-                  { week.label }
+              { axis.columns.map( ( column ) => (
+                <span
+                  key={ column.start }
+                  className="fk-mono"
+                  data-testid={ 'day' === axis.zoom ? 'bwx-schedule-day' : undefined }
+                  data-day={ 'day' === axis.zoom ? column.start : undefined }
+                  data-today={ 'day' === axis.zoom && column.start === now ? 'true' : undefined }
+                >
+                  { column.label }
                 </span>
               ) ) }
             </span>

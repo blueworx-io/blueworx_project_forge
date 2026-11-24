@@ -20,6 +20,21 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   const before = ( await pair.studio.get( `/work-items/${ pair.work.id }` ) ).item.stage;
 
   const page = await pair.clientSite.context.newPage();
+
+  // #703. The studio's answer, with one more item in it that has already been
+  // released: shipped work has to stay off the schedule.
+  const shipped = `Shipped last month ${ RUN }`;
+  await page.route( /blueworx-forge-client(\/|%2F)v1(\/|%2F)board/, async ( route ) => {
+    const response = await route.fetch();
+    const body = await response.json();
+
+    if ( body?.items?.length ) {
+      body.items = [ ...body.items, { ...body.items[ 0 ], id: `${ body.items[ 0 ].id }x`, title: shipped, stage: 'released' } ];
+    }
+
+    await route.fulfill( { response, json: body } );
+  } );
+
   await page.goto( PAGE );
 
   const screen = page.getByTestId( 'bwx-board-screen' );
@@ -45,7 +60,18 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   const bar = page.getByTestId( 'bwx-schedule-row' ).filter( { hasText: title } );
   await expect( bar ).toBeVisible();
   await expect( bar ).toContainText( 'due 10 Oct 2026' );
+  await expect( page.getByTestId( 'bwx-schedule' ) ).not.toContainText( shipped );
+
+  // #703. A day view, a column to a day, with today marked.
+  const weekColumns = await page.getByTestId( 'bwx-schedule' ).locator( '.fc-schedule-weeks > span' ).count();
+  await page.getByTestId( 'bwx-schedule-zoom-day' ).click();
+  await expect( page.getByTestId( 'bwx-schedule-chart' ) ).toHaveAttribute( 'data-zoom', 'day' );
+  await expect( page.getByTestId( 'bwx-schedule-day' ) ).toHaveCount( weekColumns * 7 );
+  await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toHaveCount( 1 );
+  await expect( bar ).toBeVisible();
+  await expect( page.getByTestId( 'bwx-schedule' ) ).not.toContainText( shipped );
   await checkAccessibility( page, 'Client schedule', 'app' );
+  await page.getByTestId( 'bwx-schedule-zoom-week' ).click();
   await page.getByRole( 'button', { name: 'Kanban' } ).click();
 
   // Opening the card is a link, so it can be shared and the back button works.

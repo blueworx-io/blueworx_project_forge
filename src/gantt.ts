@@ -28,11 +28,15 @@ export interface Span {
   derived: boolean;
 }
 
-/** The time the chart covers, in whole weeks. */
+/** How closely the chart looks: a column a week, or a column a day. */
+export type Zoom = 'week' | 'day';
+
+/** The time the chart covers, in whole weeks, drawn a column per week or per day. */
 export interface Axis {
   from: string;
   to: string;
-  weeks: Array< { start: string; label: string } >;
+  zoom: Zoom;
+  columns: Array< { start: string; label: string } >;
 }
 
 /** ISO date to a UTC timestamp, so arithmetic never meets a timezone. */
@@ -77,6 +81,15 @@ export function spanOf( item: WorkItem ): Span | null {
   return null;
 }
 
+/**
+ * Whether work is still in play. Released work is finished and shipped, so the
+ * schedule leaves it off: a chart of what is still moving should not carry
+ * everything that ever was.
+ */
+export function isLive( item: WorkItem ): boolean {
+  return 'released' !== item.stage;
+}
+
 /** Whether a span has already run out, for work that is not finished. */
 export function isOverdue( item: WorkItem, span: Span | null, today: string ): boolean {
   if ( null === span || 'completed' === item.stage || 'released' === item.stage ) {
@@ -101,20 +114,28 @@ function weekStart( date: string ): string {
  * that does not show where you are standing is a picture of somebody else's
  * year.
  */
-export function axisFor( spans: Span[], today: string ): Axis {
+export function axisFor( spans: Span[], today: string, zoom: Zoom = 'week' ): Axis {
   const dates = spans.flatMap( ( span ) => [ span.start, span.due ] ).concat( today );
   const from = weekStart( dates.reduce( ( a, b ) => ( a < b ? a : b ) ) );
   const last = dates.reduce( ( a, b ) => ( a > b ? a : b ) );
 
-  const weeks: Axis[ 'weeks' ] = [];
+  // The same whole weeks at either zoom: zooming in cuts the same stretch of
+  // time more finely, it does not change which stretch it is.
+  const weeks = Math.floor( daysBetween( from, last ) / 7 ) + 1;
+  const to = iso( stamp( from ) + weeks * 7 * DAY - DAY );
+  const columns: Axis[ 'columns' ] = [];
 
-  for ( let at = stamp( from ); at <= stamp( last ); at += 7 * DAY ) {
-    weeks.push( { start: iso( at ), label: labelFor( iso( at ), 0 === weeks.length ) } );
+  if ( 'day' === zoom ) {
+    for ( let at = stamp( from ); at <= stamp( to ); at += DAY ) {
+      columns.push( { start: iso( at ), label: dayLabel( iso( at ), 0 === columns.length ) } );
+    }
+  } else {
+    for ( let at = stamp( from ); at <= stamp( to ); at += 7 * DAY ) {
+      columns.push( { start: iso( at ), label: labelFor( iso( at ), 0 === columns.length ) } );
+    }
   }
 
-  const to = iso( stamp( from ) + weeks.length * 7 * DAY - DAY );
-
-  return { from, to, weeks };
+  return { from, to, zoom, columns };
 }
 
 /**
@@ -140,6 +161,18 @@ function labelFor( start: string, first = false ): string {
   return String( day );
 }
 
+/** A day's label: the day of the month, with the month on the first column and on the 1st. */
+function dayLabel( date: string, first: boolean ): string {
+  const at = new Date( stamp( date ) );
+  const day = at.getUTCDate();
+
+  if ( first || 1 === day ) {
+    return `${ day } ${ at.toLocaleDateString( 'en-GB', { month: 'short', timeZone: 'UTC' } ) }`;
+  }
+
+  return String( day );
+}
+
 /** Where a span sits on the axis, as percentages of the whole width. */
 export function placeOn( span: Span, axis: Axis ): { left: number; width: number } {
   const total = daysBetween( axis.from, axis.to ) + 1;
@@ -155,15 +188,20 @@ export function placeOn( span: Span, axis: Axis ): { left: number; width: number
   };
 }
 
-/** Today's position on the axis, or null when today is off the chart. */
+/**
+ * Today's position on the axis, or null when today is off the chart. At the day
+ * zoom it is the middle of today's column, so the line sits in the column it
+ * marks rather than on its edge.
+ */
 export function placeToday( axis: Axis, today: string ): number | null {
   if ( today < axis.from || today > axis.to ) {
     return null;
   }
 
   const total = daysBetween( axis.from, axis.to ) + 1;
+  const offset = 'day' === axis.zoom ? 0.5 : 0;
 
-  return ( daysBetween( axis.from, today ) / total ) * 100;
+  return ( ( daysBetween( axis.from, today ) + offset ) / total ) * 100;
 }
 
 /**
