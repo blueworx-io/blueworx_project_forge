@@ -18,6 +18,13 @@ commits and pull requests.
 
 - Released work no longer appears on the Schedule, in the studio or on the client's site.
 
+## [2.230.3] - 2026-11-24
+
+### Changed
+
+- Opening Forge no longer reads every client's board in the background. A client's board is read when you pick that client, so the first look at each one can take a moment.
+- All work and each client's board answer faster: what work waits on, when it was released and its checks are read once for every client, not once per client.
+
 ## [2.230.2] - 2026-11-24
 
 ### Changed

@@ -1,15 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { api } from '../api';
-import { useClientChoice } from '../ClientChoice';
-import { ALL_SITES } from '../sites';
 import { defaultRange } from './CapacityScreen';
 
 /**
  * Keeps the session warm (#489).
  *
  * api() keeps every answer for the session, so the second visit to a screen is
- * instant; the first is a real wait, and so is the first look at each client
- * on the board. This asks for those answers quietly, one at a time, once the
+ * instant; the first is a real wait. This asks for those answers quietly, one
+ * at a time, once the
  * screen somebody actually opened has had its turn — so by the time they move
  * on, what they move on to is already here. A change forgets every kept
  * answer, and this does not go round again after one (#701): sixteen reads
@@ -46,17 +44,11 @@ function shared( admin: boolean ): string[] {
   return paths;
 }
 
-/** The board's read for one site. */
-function boardFor( siteId: string ): string {
-  return `/work-items?client_site_id=${ encodeURIComponent( siteId ) }`;
-}
-
 export function Warmer( { admin }: { admin: boolean } ) {
-  const { siteId, sites } = useClientChoice();
-  const latest = useRef( { admin, siteId, sites } );
+  const latest = useRef( { admin } );
 
   useEffect( () => {
-    latest.current = { admin, siteId, sites };
+    latest.current = { admin };
   } );
 
   useEffect( () => {
@@ -84,14 +76,9 @@ export function Warmer( { admin }: { admin: boolean } ) {
         await ask( path );
       }
 
-      // The board: the client somebody has picked first, then the rest, so
-      // every switch between clients is instant once this has been round.
-      const picked = latest.current.siteId;
-      const others = latest.current.sites.map( ( site ) => site.id ).filter( ( id ) => id !== picked && ALL_SITES !== id );
-
-      for ( const id of [ ...( '' !== picked && ALL_SITES !== picked ? [ picked ] : [] ), ...others ] ) {
-        await ask( boardFor( id ) );
-      }
+      // Not every client's board (#709): with forty clients that was minutes
+      // of server time each time somebody opened Forge. A board is read when
+      // its client is picked.
 
       if ( mine === run ) mark( 'done' );
     }

@@ -161,6 +161,37 @@ final class Dependencies {
 	}
 
 	/**
+	 * {@see self::chain_on_site()} for many sites in one read (#709). Item ids
+	 * are unique across sites, so one map serves them all.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array<int, string>>
+	 */
+	public static function chain_on_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::dependencies_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, depends_on_id FROM {$table} WHERE client_site_id IN ({$slots})", $wanted ), ARRAY_A );
+
+		$chain = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$chain[ (string) $row['item_id'] ][] = (string) $row['depends_on_id'];
+		}
+
+		return $chain;
+	}
+
+	/**
 	 * Whether one item may be made to wait on another.
 	 *
 	 * @param string                            $item_id       The work that would wait.
