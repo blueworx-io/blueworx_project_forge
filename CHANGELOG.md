@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.230.2] - 2026-11-24
+
+### Changed
+
+- All work, the board, the Daily standup and Updates answer faster. Forge keeps each answer for under a minute and drops it as soon as anything is saved, checks capacity and support hours once per list instead of once per card, and reads every client's work in one go.
+- Recurring tasks are now checked every 15 minutes instead of every minute. A new day's tasks still appear straight away.
+- SureCart subscriptions are refreshed by an hourly background job instead of while someone is loading the board. The Subscriptions screen still refreshes when you open it.
+- A client's daily or weekly email that has nothing in it is no longer rebuilt every time their site checks in. It is looked at again after anything is saved, or after an hour.
+
 ## [2.230.1] - 2026-11-24
 
 ### Fixed

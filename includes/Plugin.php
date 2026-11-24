@@ -63,6 +63,9 @@ final class Plugin {
 
 		add_action( 'rest_api_init', array( Rest\Server::class, 'register_routes' ) );
 
+		// #702. The heavy answers, kept for a moment and dropped on any change.
+		Rest\Answers::register();
+
 		// Sync health is the Forge menu (2026-09-19): the first entry and the
 		// one the menu opens. It has to be registered before anything hangs
 		// off it, which is why it is here and not with the other screens.
@@ -119,6 +122,9 @@ final class Plugin {
 
 		// #680. GitHub sync: its own daily clean-up, and the hooks later parts add.
 		GitHub\Module::register();
+
+		// #702. SureCart renewals, hourly, out of the way of anybody's board.
+		Commerce\SureCart\Sync::register();
 	}
 
 	/**
@@ -149,6 +155,7 @@ final class Plugin {
 	public function deactivate(): void {
 		Slack\Morning::unschedule();
 		GitHub\Module::unschedule();
+		Commerce\SureCart\Sync::unschedule();
 		flush_rewrite_rules();
 	}
 }

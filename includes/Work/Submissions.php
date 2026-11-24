@@ -404,6 +404,42 @@ final class Submissions {
 	}
 
 	/**
+	 * Requests still waiting on the studio — received or in review — newest
+	 * first (#702). The standup only ever shows these, and read every request
+	 * ever made to find them.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function waiting(): array {
+		global $wpdb;
+
+		$table = Schema::submissions_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The table name is this class's own literal; the values are placeholders.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE intake_state IN (%s, %s) ORDER BY created_at DESC", self::RECEIVED, 'in-review' ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * Requests made since a moment, newest first (#702). The bell only shows
+	 * recent ones, and read every request ever made to find them.
+	 *
+	 * @param int $since Unix time; nothing older.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function since( int $since ): array {
+		global $wpdb;
+
+		$table = Schema::submissions_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The table name is this class's own literal; the value is a placeholder.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE created_at >= %d ORDER BY created_at DESC", $since ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
 	 * When a request was answered, given the state it is moving to (#419).
 	 *
 	 * The first answer's time is kept, so a request accepted and then

@@ -12,6 +12,7 @@ namespace Blueworx\Forge\Notifications;
 use Blueworx\Forge\Commerce\Assignments;
 use Blueworx\Forge\Commerce\Ledger;
 use Blueworx\Forge\Onboarding\Steps;
+use Blueworx\Forge\Rest\Answers;
 use Blueworx\Forge\Tenancy\Clients;
 use Blueworx\Forge\Tenancy\ClientSites;
 use Blueworx\Forge\Work\Comments;
@@ -60,11 +61,26 @@ final class DigestRun {
 		}
 
 		foreach ( Digests::due( self::now_for( $client ) ) as $kind => $occurrence ) {
-			if ( null !== Register::get( Events::id_for( $kind, $client_site_id, $occurrence ) ) ) {
+			$id = Events::id_for( $kind, $client_site_id, $occurrence );
+
+			if ( null !== Register::get( $id ) ) {
+				continue;
+			}
+
+			/*
+			 * #702. An email found empty is not built again until something is
+			 * saved in Forge, or for an hour. The site asks whenever somebody
+			 * is using Forge there, and building one reads the site's work,
+			 * comments and hours each time.
+			 */
+			$empty = 'bwx_forge_digest_empty_' . md5( $id . '|' . Answers::generation() );
+
+			if ( false !== get_transient( $empty ) ) {
 				continue;
 			}
 
 			if ( Digests::is_empty( self::build( $kind, $client_site_id, Digests::day_of( $occurrence ), $client ) ) ) {
+				set_transient( $empty, 1, HOUR_IN_SECONDS );
 				continue;
 			}
 

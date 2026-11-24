@@ -20,10 +20,10 @@ use DateTimeImmutable;
  * source: on renewal day, a task on the studio's board, seats from the
  * connection. A subscription that stops being active has its source ended.
  *
- * No cron. The Subscriptions screen refreshes when it opens, and the
- * recurring engine asks for a refresh at most once an hour before it runs,
- * so renewals are never more than an hour behind and never depend on a
- * timer having fired.
+ * The Subscriptions screen refreshes when it opens, and an hourly scheduled
+ * job refreshes the rest of the time (#702). It used to run inside whichever
+ * request listed work first each hour, which made somebody's board wait on
+ * SureCart.
  */
 final class Sync {
 
@@ -36,6 +36,30 @@ final class Sync {
 	 * The transient that says a refresh happened lately.
 	 */
 	private const RAN = 'bwx_forge_surecart_ran';
+
+	/**
+	 * The hourly job.
+	 */
+	public const HOOK = 'bwx_forge_surecart_sync';
+
+	/**
+	 * Hooks up the hourly job, scheduling it lazily like the others, so a site
+	 * that updated into it gets it without being reactivated.
+	 */
+	public static function register(): void {
+		add_action( self::HOOK, array( self::class, 'maybe' ) );
+
+		if ( is_admin() && false === wp_next_scheduled( self::HOOK ) ) {
+			wp_schedule_event( time() + 5 * MINUTE_IN_SECONDS, 'hourly', self::HOOK );
+		}
+	}
+
+	/**
+	 * Clears the hourly job.
+	 */
+	public static function unschedule(): void {
+		wp_clear_scheduled_hook( self::HOOK );
+	}
 
 	/**
 	 * Refreshes every connection, at most once an hour.

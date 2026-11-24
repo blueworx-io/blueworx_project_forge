@@ -78,9 +78,21 @@ final class SignalsController {
 	 * Somebody who reaches nothing is told so rather than shown an empty list
 	 * (#125). The two look identical and want different things done about them.
 	 *
+	 * Kept for a moment and dropped on any change (#702): every open tab asks.
+	 *
+	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response
 	 */
-	public static function index(): WP_REST_Response {
+	public static function index( WP_REST_Request $request ): WP_REST_Response {
+		return Answers::remember( $request, array( self::class, 'fresh' ) );
+	}
+
+	/**
+	 * What has happened lately, worked out now.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function fresh(): WP_REST_Response {
 		$reach = Boundary::current();
 
 		if ( Reach::is_nothing( $reach ) ) {

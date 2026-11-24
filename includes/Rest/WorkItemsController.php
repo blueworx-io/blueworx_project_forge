@@ -44,6 +44,7 @@ use Blueworx\Forge\Work\Filters;
 use Blueworx\Forge\Work\GateRecords;
 use Blueworx\Forge\Work\Gates;
 use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\ListMemo;
 use Blueworx\Forge\Work\Levels;
 use Blueworx\Forge\Work\Outcomes;
 use Blueworx\Forge\Work\Returns;
@@ -549,6 +550,28 @@ final class WorkItemsController {
 	public static function index_all( WP_REST_Request $request ) {
 		Materialise::maybe();
 
+		// #702. Kept for a moment, and each card's checks read once per list.
+		return Answers::remember(
+			$request,
+			static function () use ( $request ) {
+				ListMemo::start();
+
+				try {
+					return self::fresh_all( $request );
+				} finally {
+					ListMemo::stop();
+				}
+			}
+		);
+	}
+
+	/**
+	 * All work, worked out now.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	private static function fresh_all( WP_REST_Request $request ) {
 		$reach = Boundary::current();
 		$sites = Reach::keep_sites( $reach, ClientSites::all( 'active' ), 'id' );
 		$names = array();
@@ -560,10 +583,15 @@ final class WorkItemsController {
 		$narrow = self::narrowing( $request );
 		$items  = array();
 
+		// #702. Every site's work in one read, narrowed here, rather than two
+		// reads of each site.
+		$every = Items::every_on_sites( array_map( 'strval', array_column( $sites, 'id' ) ) );
+
 		foreach ( $sites as $site ) {
 			$site_id = (string) $site['id'];
+			$family  = $every[ $site_id ] ?? array();
 
-			foreach ( self::derive_across( $site_id, Items::for_site( $site_id, $narrow ) ) as $item ) {
+			foreach ( self::derive_across( $site_id, Items::narrow( $family, $narrow ), $family ) as $item ) {
 				$item['client_name'] = $names[ (string) $item['client_id'] ] ?? '';
 				$item['site_name']   = (string) $site['name'];
 				$items[]             = $item;
@@ -649,6 +677,28 @@ final class WorkItemsController {
 		// (PR 3): a due day becomes a task the first time anyone looks.
 		Materialise::maybe();
 
+		// #702. Kept for a moment, and each card's checks read once per list.
+		return Answers::remember(
+			$request,
+			static function () use ( $request ) {
+				ListMemo::start();
+
+				try {
+					return self::fresh_site( $request );
+				} finally {
+					ListMemo::stop();
+				}
+			}
+		);
+	}
+
+	/**
+	 * The work on one site, worked out now.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|\WP_Error
+	 */
+	private static function fresh_site( WP_REST_Request $request ) {
 		$site = ClientSites::get( (string) $request->get_param( 'client_site_id' ) );
 
 		if ( null === $site ) {
@@ -705,12 +755,13 @@ final class WorkItemsController {
 	 * filtered set: a parent's progress is what its children are, and filtering
 	 * the board to one column must not change what a card says about itself.
 	 *
-	 * @param string                           $site_id The site.
-	 * @param array<int, array<string, mixed>> $items   The items being returned.
+	 * @param string                                $site_id The site.
+	 * @param array<int, array<string, mixed>>      $items   The items being returned.
+	 * @param array<int, array<string, mixed>>|null $family  Every item on the site, when already read.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function derive_across( string $site_id, array $items ): array {
-		$family   = Items::for_site( $site_id, array( 'include_archived' => true ) );
+	private static function derive_across( string $site_id, array $items, ?array $family = null ): array {
+		$family   = $family ?? Items::for_site( $site_id, array( 'include_archived' => true ) );
 		$children = Derived::children_of( $family );
 
 		/*
