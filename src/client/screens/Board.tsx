@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DragEvent, FormEvent } from 'react';
 import { Check, Circle, CloudOff, Inbox, X } from 'lucide-react';
 import { Button, Card, cleanHtml, DataView, EmptyState, Eyebrow, Field, Modal, StageChip, Tag, TextArea, TextInput, useToast } from '../../kit';
@@ -7,7 +7,7 @@ import { api, day } from '../api';
 import type { BoardView, Comment, DiscussionView, WorkItem } from '../api';
 import { clientData } from '../data';
 import { phaseOf } from '../../phases';
-import { axisFor, isLive, placeOn, placeToday } from '../../gantt';
+import { axisFor, isLive, placeOn, placeToday, scrollToToday, todayIso } from '../../gantt';
 import type { Span, Zoom } from '../../gantt';
 import { useView } from '../useView';
 
@@ -143,15 +143,29 @@ function Kanban( { board, onDrag }: { board: BoardView; onDrag: () => void } ) {
  */
 function Schedule( { board }: { board: BoardView } ) {
   const [ zoom, setZoom ] = useState< Zoom >( 'week' );
-  const now = today();
+  const [ windowStart, setWindowStart ] = useState< number | null >( null );
+  const [ jump, setJump ] = useState( 0 );
+  const chartRef = useRef< HTMLDivElement >( null );
+  // The viewer's own date, as the studio's Gantt reads it, so both mark the same day.
+  const now = todayIso();
   const live = board.items.filter( isLive );
   const planned = live
     .map( ( item ) => ( { item, span: item.planned_start && item.planned_due ? ( { start: item.planned_start, due: item.planned_due, derived: false } as Span ) : null } ) )
     .filter( ( row ): row is { item: WorkItem; span: Span } => null !== row.span )
     .sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) );
   const unplanned = live.filter( ( item ) => ! ( item.planned_start && item.planned_due ) );
-  const axis = axisFor( planned.map( ( row ) => row.span ), now, zoom );
+  const axis = axisFor( planned.map( ( row ) => row.span ), now, zoom, windowStart );
   const todayAt = placeToday( axis, now );
+  const windowed = axis.totalWeeks > axis.shownWeeks;
+
+  // Opening the day view, or asking for Today, brings today's column into view.
+  useEffect( () => {
+    if ( 'day' === zoom ) {
+      scrollToToday( chartRef.current, 272 );
+    }
+    // Only when the zoom or the Today button changes, not on every redraw.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ zoom, jump, planned.length > 0 ] );
 
   return (
     <Card pad={ 0 } testId="bwx-schedule">
@@ -165,15 +179,46 @@ function Schedule( { board }: { board: BoardView } ) {
           <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => setZoom( 'day' ) }>
             Days
           </Button>
+          { 'day' === zoom && windowed && (
+            <Button size="sm" variant="ghost" data-testid="bwx-schedule-earlier" disabled={ 0 === axis.startWeek } onClick={ () => setWindowStart( Math.max( 0, axis.startWeek - 4 ) ) }>
+              Earlier
+            </Button>
+          ) }
+          { 'day' === zoom && (
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid="bwx-schedule-jump-today"
+              onClick={ () => {
+                setWindowStart( null );
+                setJump( jump + 1 );
+              } }
+            >
+              Today
+            </Button>
+          ) }
+          { 'day' === zoom && windowed && (
+            <Button size="sm" variant="ghost" data-testid="bwx-schedule-later" disabled={ axis.startWeek + axis.shownWeeks >= axis.totalWeeks } onClick={ () => setWindowStart( axis.startWeek + 4 ) }>
+              Later
+            </Button>
+          ) }
         </span>
       </div>
       { planned.length > 0 ? (
         <div
+          ref={ chartRef }
           className="fc-schedule"
           data-testid="bwx-schedule-chart"
           data-zoom={ zoom }
           style={ { '--fc-cols': axis.columns.length } as React.CSSProperties }
         >
+          { /* The axis is decoration for a screen reader (each row says its own
+               due date), so today is said once here, in words. */ }
+          { 'day' === zoom && null !== todayAt && (
+            <p className="fc-sr-only" data-testid="bwx-schedule-today-note">
+              { `Today is ${ day( now ) }.` }
+            </p>
+          ) }
           <div className="fc-schedule-axis" aria-hidden="true">
             <span />
             <span className="fc-schedule-weeks">
@@ -185,6 +230,7 @@ function Schedule( { board }: { board: BoardView } ) {
                   data-day={ 'day' === axis.zoom ? column.start : undefined }
                   data-today={ 'day' === axis.zoom && column.start === now ? 'true' : undefined }
                 >
+                  { 'day' === axis.zoom && column.start === now && <span className="fc-schedule-today-name">Today</span> }
                   { column.label }
                 </span>
               ) ) }
@@ -201,15 +247,19 @@ function Schedule( { board }: { board: BoardView } ) {
                 </a>
                 <span className="fc-schedule-track">
                   { null !== todayAt && <span className="fc-schedule-today" style={ { left: `${ todayAt }%` } } /> }
-                  <span
-                    className="fc-schedule-bar"
-                    data-phase={ phaseOf( item.stage ) }
-                    data-blocked={ 'blocked' === item.stage ? 'true' : undefined }
-                    data-late={ late ? 'true' : undefined }
-                    style={ { left: `${ at.left }%`, width: `${ at.width }%` } }
-                  >
-                    <span className="fk-mono">due { day( span.due ) }</span>
-                  </span>
+                  { null === at ? (
+                    <span className="fc-schedule-outside fk-mono">due { day( span.due ) }, outside these days</span>
+                  ) : (
+                    <span
+                      className="fc-schedule-bar"
+                      data-phase={ phaseOf( item.stage ) }
+                      data-blocked={ 'blocked' === item.stage ? 'true' : undefined }
+                      data-late={ late ? 'true' : undefined }
+                      style={ { left: `${ at.left }%`, width: `${ at.width }%` } }
+                    >
+                      <span className="fk-mono">due { day( span.due ) }</span>
+                    </span>
+                  ) }
                 </span>
               </div>
             );

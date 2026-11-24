@@ -68,6 +68,8 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   await expect( page.getByTestId( 'bwx-schedule-chart' ) ).toHaveAttribute( 'data-zoom', 'day' );
   await expect( page.getByTestId( 'bwx-schedule-day' ) ).toHaveCount( weekColumns * 7 );
   await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toHaveCount( 1 );
+  await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toContainText( 'Today' );
+  await expect( page.getByTestId( 'bwx-schedule-today-note' ) ).toContainText( 'Today is' );
   await expect( bar ).toBeVisible();
   await expect( page.getByTestId( 'bwx-schedule' ) ).not.toContainText( shipped );
   await checkAccessibility( page, 'Client schedule', 'app' );

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarRange } from 'lucide-react';
 import type { WorkItem } from '../types';
 import { PHASE_LABEL, phaseOf } from '../phases';
 import type { Phase } from '../phases';
 import { EmptyState } from '../kit';
-import { axisFor, chainFor, isLive, isOverdue, placeOn, placeToday, spanOf, todayIso } from '../gantt';
+import { axisFor, chainFor, isLive, isOverdue, placeOn, placeToday, scrollToToday, spanOf, todayIso } from '../gantt';
 import type { Axis, Span, Zoom } from '../gantt';
 
 /**
@@ -44,6 +44,9 @@ export function GanttView( {
   const [ open, setOpen ] = useState( true );
   const [ selected, setSelected ] = useState( '' );
   const [ zoom, setZoom ] = useState< Zoom >( 'week' );
+  const [ windowStart, setWindowStart ] = useState< number | null >( null );
+  const [ jump, setJump ] = useState( 0 );
+  const chartRef = useRef< HTMLDivElement >( null );
 
   const items = everything.filter( isLive );
 
@@ -66,10 +69,31 @@ export function GanttView( {
   // Earliest first, so the chart reads top to bottom as the weeks run left to right.
   dated.sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) || a.span.due.localeCompare( b.span.due ) );
 
-  const axis = axisFor( dated.map( ( each ) => each.span ), today, zoom );
+  const axis = axisFor( dated.map( ( each ) => each.span ), today, zoom, windowStart );
   const now = placeToday( axis, today );
-  const chain = chainFor( items, selected );
+
+  // A selection only counts while its bar is still drawn. Work released since
+  // it was picked drops off the chart, and without this its rows would stay
+  // dimmed with nothing left to click to put them back.
+  const active = dated.some( ( each ) => each.item.id === selected ) ? selected : '';
+  const chain = chainFor( items, active );
   const months = monthsOf( axis );
+  const windowed = axis.totalWeeks > axis.shownWeeks;
+
+  // Opening the day view, or asking for Today, brings today's column into view:
+  // the chart starts at the earliest date, which can be weeks behind.
+  useEffect( () => {
+    if ( 'day' !== zoom ) {
+      return;
+    }
+
+    const chart = chartRef.current;
+    const gutter = chart?.querySelector( '.bwx-gantt-axis-gutter' )?.getBoundingClientRect().width ?? 0;
+
+    scrollToToday( chart, gutter );
+    // Only when the zoom or the Today button changes, not on every redraw.
+  }, [ zoom, jump ] );
+
   const phases = [ ...new Set( dated.map( ( each ) => phaseOf( each.item.stage ) ) ) ];
 
   return (
@@ -93,6 +117,46 @@ export function GanttView( {
             </button>
           ) ) }
         </div>
+        { 'day' === zoom && (
+          <div className="bwx-views" role="group" aria-label="Move along the days" data-testid="bwx-gantt-move">
+            { windowed && (
+              <button
+                type="button"
+                className="bwx-button"
+                data-variant="quiet"
+                data-testid="bwx-gantt-earlier"
+                disabled={ 0 === axis.startWeek }
+                onClick={ () => setWindowStart( Math.max( 0, axis.startWeek - 4 ) ) }
+              >
+                Earlier
+              </button>
+            ) }
+            <button
+              type="button"
+              className="bwx-button"
+              data-variant="quiet"
+              data-testid="bwx-gantt-jump-today"
+              onClick={ () => {
+                setWindowStart( null );
+                setJump( jump + 1 );
+              } }
+            >
+              Today
+            </button>
+            { windowed && (
+              <button
+                type="button"
+                className="bwx-button"
+                data-variant="quiet"
+                data-testid="bwx-gantt-later"
+                disabled={ axis.startWeek + axis.shownWeeks >= axis.totalWeeks }
+                onClick={ () => setWindowStart( axis.startWeek + 4 ) }
+              >
+                Later
+              </button>
+            ) }
+          </div>
+        ) }
         { 0 < phases.length && (
           <ul className="bwx-gantt-legend" aria-label="What the colours mean">
             { phases.map( ( phase ) => (
@@ -106,6 +170,7 @@ export function GanttView( {
       </div>
 
       <div
+        ref={ chartRef }
         className="bwx-gantt-chart"
         data-testid="bwx-gantt-chart"
         data-zoom={ zoom }
@@ -164,6 +229,7 @@ export function GanttView( {
 
           { dated.map( ( { item, span } ) => {
             const place = placeOn( span, axis );
+
             const overdue = isOverdue( item, span, today );
             const role = chain[ item.id ] ?? null;
             const phase = phaseOf( item.stage );
@@ -177,7 +243,7 @@ export function GanttView( {
                 data-level={ item.level }
                 data-waiting={ 0 < ( item.waits_on?.length ?? 0 ) ? 'true' : undefined }
                 data-chain={ role ?? undefined }
-                data-dimmed={ '' !== selected && null === role ? 'true' : undefined }
+                data-dimmed={ '' !== active && null === role ? 'true' : undefined }
               >
                 <span className="bwx-gantt-label" title={ item.title }>
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
@@ -185,41 +251,47 @@ export function GanttView( {
                 </span>
 
                 <span className="bwx-gantt-track">
-                  <button
-                    type="button"
-                    className="bwx-gantt-bar"
-                    data-phase={ phase }
-                    data-testid="bwx-gantt-bar"
-                    data-item={ item.id }
-                    data-start={ span.start }
-                    data-due={ span.due }
-                    data-derived={ span.derived ? 'true' : undefined }
-                    data-overdue={ overdue ? 'true' : undefined }
-                    data-milestone={ 'milestone' === item.level ? 'true' : undefined }
-                    style={ {
-                      left: `${ place.left }%`,
-                      width: `${ place.width }%`,
-                      '--bar-phase': `var(--phase-${ phase })`,
-                    } as React.CSSProperties }
-                    title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
-                    aria-pressed={ item.id === selected }
-                    onClick={ () => setSelected( item.id === selected ? '' : item.id ) }
-                    onDoubleClick={ () => onOpen( item ) }
-                  >
-                    { /* The fill is how far its children have got, so a bar says
-                         both when and how far in one mark. Work with nothing
-                         beneath it has no progress to report and gets none. */ }
-                    { 'empty' !== item.derived_state && undefined !== item.derived_state && (
-                      <span
-                        className="bwx-gantt-progress"
-                        style={ { width: `${ item.progress ?? 0 }%` } }
-                      />
-                    ) }
-                    <span className="bwx-gantt-bar-text">
-                      { range( span.start, span.due ) }
-                      { overdue && ' · overdue' }
+                  { null === place ? (
+                    <span className="bwx-gantt-outside">
+                      { `${ range( span.start, span.due ) } is outside these days` }
                     </span>
-                  </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="bwx-gantt-bar"
+                      data-phase={ phase }
+                      data-testid="bwx-gantt-bar"
+                      data-item={ item.id }
+                      data-start={ span.start }
+                      data-due={ span.due }
+                      data-derived={ span.derived ? 'true' : undefined }
+                      data-overdue={ overdue ? 'true' : undefined }
+                      data-milestone={ 'milestone' === item.level ? 'true' : undefined }
+                      style={ {
+                        left: `${ place.left }%`,
+                        width: `${ place.width }%`,
+                        '--bar-phase': `var(--phase-${ phase })`,
+                      } as React.CSSProperties }
+                      title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
+                      aria-pressed={ item.id === active }
+                      onClick={ () => setSelected( item.id === active ? '' : item.id ) }
+                      onDoubleClick={ () => onOpen( item ) }
+                    >
+                      { /* The fill is how far its children have got, so a bar says
+                           both when and how far in one mark. Work with nothing
+                           beneath it has no progress to report and gets none. */ }
+                      { 'empty' !== item.derived_state && undefined !== item.derived_state && (
+                        <span
+                          className="bwx-gantt-progress"
+                          style={ { width: `${ item.progress ?? 0 }%` } }
+                        />
+                      ) }
+                      <span className="bwx-gantt-bar-text">
+                        { range( span.start, span.due ) }
+                        { overdue && ' · overdue' }
+                      </span>
+                    </button>
+                  ) }
                 </span>
               </div>
             );

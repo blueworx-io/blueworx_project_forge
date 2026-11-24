@@ -1162,8 +1162,21 @@ body {
   position: sticky;
   left: 0;
 }
+/* Above the dates that scroll beneath it, so they never paint over the names. */
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis-gutter {
+  z-index: 3;
   background: var( --surface-card );
+}
+/* Work that is dated, but not inside the days drawn: said, not dropped. */
+.bwx-gantt-outside {
+  position: sticky;
+  left: calc( var( --gantt-gutter ) + 12px );
+  display: inline-block;
+  padding: 0 12px;
+  line-height: 40px;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  white-space: nowrap;
 }
 .bwx-gantt-day {
   display: flex;

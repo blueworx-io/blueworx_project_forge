@@ -241,4 +241,71 @@ test.describe( 'the schedule', () => {
     await expect( page.locator( '[data-testid="bwx-gantt-row"]' ) ).toHaveCount( 1 );
     await expect( page.locator( '[data-testid="bwx-gantt-tray-item"]' ) ).toHaveCount( 0 );
   } );
+
+  test( 'a selection is dropped when its work is released, so nothing is left dimmed (#703)', async ( { page } ) => {
+    let released = false;
+
+    await page.route( ( url ) => url.pathname.endsWith( '/work-items' ) && url.search.includes( `client_site_id=${ world.site.id }` ), async ( route ) => {
+      if ( 'GET' !== route.request().method() || ! released ) {
+        return route.fallback();
+      }
+
+      const response = await route.fetch();
+      const body = await response.json();
+
+      body.items = body.items.map( ( item ) => ( item.id === world.second.id ? { ...item, stage: 'released' } : item ) );
+      await route.fulfill( { response, json: body } );
+    } );
+
+    await openSchedule( page );
+    await page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ).click();
+    await expect( page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` ) ).toHaveAttribute( 'data-dimmed', 'true' );
+
+    // The selected work is released while the schedule is open.
+    released = true;
+    await page.getByRole( 'button', { name: 'Refresh' } ).click();
+
+    await expect( page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ) ).toHaveCount( 0 );
+    await expect( page.locator( '[data-testid="bwx-gantt-row"][data-dimmed="true"]' ) ).toHaveCount( 0 );
+  } );
+
+  test( 'the day view opens with today in view, and a long stretch is a window rather than every day (#703)', async ( { page } ) => {
+    // Work that started a long way back, and some that is a mistyped year away.
+    for ( const [ name, from, to ] of [ [ 'old', -120, -110 ], [ 'typo', 1400, 1410 ] ] ) {
+      const made = await makeItem( world.admin.api, world.site.id, {
+        title: `${ RUN } ${ name }`,
+        planned_start: on( from ),
+        planned_due: on( to ),
+      } );
+      expect( made.status(), await made.text() ).toBe( 200 );
+    }
+
+    await openSchedule( page );
+    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
+
+    // Seven columns to the week, at most twenty-six weeks of them.
+    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 26 * 7 );
+
+    // Today is on screen without scrolling to look for it.
+    const today = page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' );
+    await expect( today ).toHaveCount( 1 );
+    await expect( async () => {
+      const at = await today.boundingBox();
+      const chart = await page.locator( '[data-testid="bwx-gantt-chart"]' ).boundingBox();
+
+      expect( at.x ).toBeGreaterThanOrEqual( chart.x );
+      expect( at.x + at.width ).toBeLessThanOrEqual( chart.x + chart.width + 1 );
+    } ).toPass();
+
+    // The work outside the window is named, not dropped.
+    await expect( page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } typo") .bwx-gantt-outside` ) ).toBeVisible();
+
+    // Moving along changes which days are drawn; Today brings them back.
+    const first = page.locator( '[data-testid="bwx-gantt-day"]' ).first();
+    const opening = await first.getAttribute( 'data-day' );
+    await page.locator( '[data-testid="bwx-gantt-earlier"]' ).click();
+    expect( await first.getAttribute( 'data-day' ) ).not.toBe( opening );
+    await page.locator( '[data-testid="bwx-gantt-jump-today"]' ).click();
+    await expect( first ).toHaveAttribute( 'data-day', opening );
+  } );
 } );
