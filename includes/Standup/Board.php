@@ -82,7 +82,7 @@ final class Board {
 
 		return array(
 			'items'            => self::items( $sites ),
-			'submissions'      => Reach::keep_sites( $reach, Submissions::all() ),
+			'submissions'      => Reach::keep_sites( $reach, Submissions::waiting() ),
 			'onboarding_steps' => self::steps( $site_ids ),
 			'capacity'         => self::capacity( $today ),
 			'interventions'    => array_merge(

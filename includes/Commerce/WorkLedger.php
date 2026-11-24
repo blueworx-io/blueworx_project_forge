@@ -9,6 +9,8 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Commerce;
 
+use Blueworx\Forge\Work\ListMemo;
+
 /**
  * #149, COMM-3. The writing half of {@see WorkHours}, and the only thing that
  * puts a work item's hours into the ledger.
@@ -159,11 +161,13 @@ final class WorkLedger {
 
 		$site     = (string) ( $item['client_site_id'] ?? '' );
 		$position = self::position( (string) ( $item['id'] ?? '' ) );
+		$today    = gmdate( 'Y-m-d' );
 
+		// #702. The site's package and balance, once per list rather than per card.
 		return HoursGate::assess(
 			$item,
-			Assignments::entitlement_on( $site, gmdate( 'Y-m-d' ) ),
-			Ledger::balance( $site ),
+			ListMemo::remember( "entitlement|{$site}|{$today}", static fn() => Assignments::entitlement_on( $site, $today ) ),
+			ListMemo::remember( "balance|{$site}", static fn() => Ledger::balance( $site ) ),
 			(float) $position['reserved'],
 			(float) $position['used']
 		);

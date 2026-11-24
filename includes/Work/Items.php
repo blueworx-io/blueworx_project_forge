@@ -183,6 +183,84 @@ final class Items {
 	}
 
 	/**
+	 * Every item on many sites, archived included, in one query, keyed by site
+	 * and newest first within each (#702). All work reads this once and
+	 * narrows it with {@see self::narrow()}, where it used to read each site
+	 * twice.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function every_on_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::work_items_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE client_site_id IN ({$slots}) ORDER BY created_at DESC", $wanted ), ARRAY_A );
+
+		$by_site = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_site[ (string) $row['client_site_id'] ][] = self::hydrate( $row );
+		}
+
+		return $by_site;
+	}
+
+	/**
+	 * What {@see self::for_site()} would have read, from items already read
+	 * (#702): the same four columns, one value or any of several, and archived
+	 * work only when asked for. Pure, so it can be held to the query.
+	 *
+	 * @param array<int, array<string, mixed>> $items   Items, as read.
+	 * @param array<string, mixed>             $filters The narrowing.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function narrow( array $items, array $filters ): array {
+		$kept = array();
+
+		foreach ( $items as $item ) {
+			if ( empty( $filters['include_archived'] ) && ! empty( $item['archived'] ) ) {
+				continue;
+			}
+
+			foreach ( array( 'stage', 'level', 'work_type', 'parent_id' ) as $column ) {
+				if ( ! array_key_exists( $column, $filters ) ) {
+					continue;
+				}
+
+				$value = (string) ( $item[ $column ] ?? '' );
+
+				if ( is_array( $filters[ $column ] ) ) {
+					$wanted = array_values( array_filter( array_map( 'strval', $filters[ $column ] ), 'strlen' ) );
+
+					if ( array() !== $wanted && ! in_array( $value, $wanted, true ) ) {
+						continue 2;
+					}
+
+					continue;
+				}
+
+				if ( (string) $filters[ $column ] !== $value ) {
+					continue 2;
+				}
+			}
+
+			$kept[] = $item;
+		}
+
+		return $kept;
+	}
+
+	/**
 	 * The unarchived items on many sites, in one query, keyed by site and
 	 * newest first within each (2026-09-26, #388) — what {@see self::for_site()}
 	 * answers with no filters, for every site at once. The standup reads its

@@ -16,6 +16,7 @@ use Blueworx\Forge\Standup\Rules;
 use Blueworx\Forge\Tenancy\Reach;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\Comments;
+use Blueworx\Forge\Work\ListMemo;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -119,6 +120,31 @@ final class StandupController {
 	 * @return WP_REST_Response
 	 */
 	public static function index( WP_REST_Request $request ): WP_REST_Response {
+		// Before the kept answer is looked for: making today's tasks drops it.
+		Materialise::maybe();
+
+		// #702. Kept for a moment, and each card's checks read once per list.
+		return Answers::remember(
+			$request,
+			static function () use ( $request ): WP_REST_Response {
+				ListMemo::start();
+
+				try {
+					return self::fresh( $request );
+				} finally {
+					ListMemo::stop();
+				}
+			}
+		);
+	}
+
+	/**
+	 * The day's list, worked out now.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	private static function fresh( WP_REST_Request $request ): WP_REST_Response {
 		$reach = Boundary::current();
 
 		if ( Reach::is_nothing( $reach ) ) {

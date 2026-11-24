@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Capacity;
 
 use Blueworx\Forge\Tenancy\Users;
+use Blueworx\Forge\Work\ListMemo;
 
 /**
  * CAP-E1: the one place that answers "would this over-book anybody?" (#141).
@@ -66,12 +67,15 @@ final class Impact {
 		$to   = (string) max( array_column( $proposed, 'to' ) );
 
 		$user_ids = array_values( array_unique( array_column( $proposed, 'user_id' ) ) );
+		$people   = $user_ids;
+		sort( $people );
 
+		// #702. Read once per list for cards on the same days, not once per card.
 		return self::named(
 			self::assess(
 				$proposed,
-				Commitments::live( $from, $to ),
-				Availability::for_people( $user_ids, $from, $to ),
+				ListMemo::remember( "commitments|{$from}|{$to}", static fn(): array => Commitments::live( $from, $to ) ),
+				ListMemo::remember( 'availability|' . implode( ',', $people ) . "|{$from}|{$to}", static fn(): array => Availability::for_people( $user_ids, $from, $to ) ),
 				$from,
 				$to
 			)

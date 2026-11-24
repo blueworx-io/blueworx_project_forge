@@ -177,7 +177,8 @@ final class Inbox {
 	private static function from_requests( array $reach, int $since ): array {
 		$rows = array();
 
-		foreach ( Reach::keep_sites( $reach, Submissions::all() ) as $submission ) {
+		// #702. Only recent requests are read, not every one ever made.
+		foreach ( Reach::keep_sites( $reach, Submissions::since( $since ) ) as $submission ) {
 			if ( (int) $submission['created_at'] < $since ) {
 				continue;
 			}

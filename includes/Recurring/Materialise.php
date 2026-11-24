@@ -10,7 +10,7 @@ declare( strict_types = 1 );
 namespace Blueworx\Forge\Recurring;
 
 use Blueworx\Forge\Capacity\Unavailability;
-use Blueworx\Forge\Commerce\SureCart\Sync;
+use Blueworx\Forge\Rest\Answers;
 use Blueworx\Forge\Tenancy\PersonReach;
 use Blueworx\Forge\Work\Items;
 use Blueworx\Forge\Work\Stages;
@@ -36,9 +36,11 @@ use DateTimeImmutable;
 final class Materialise {
 
 	/**
-	 * How long a run holds the door before the next one may scan.
+	 * How long a run holds the door before the next one may scan (#702). It
+	 * was a minute, which put a scan of every source into most requests that
+	 * listed work. A new day still runs at once: the transient holds the day.
 	 */
-	private const EVERY = 60;
+	private const EVERY = 15 * MINUTE_IN_SECONDS;
 
 	/**
 	 * The transient that says a run happened lately.
@@ -71,11 +73,16 @@ final class Materialise {
 		self::$done = true;
 		set_transient( self::RAN, $day, self::EVERY );
 
-		// Renewal dates first, so a subscription that renews today has its
-		// source pinned to today before today's tasks are made.
-		Sync::maybe();
+		// SureCart's renewal dates are kept current by their own hourly job
+		// (#702), not refreshed here in the middle of somebody's request.
+		$made = self::run( $day );
 
-		return self::run( $day );
+		// Something new on the board: answers kept for a minute are out of date.
+		if ( 0 < $made ) {
+			Answers::forget();
+		}
+
+		return $made;
 	}
 
 	/**
