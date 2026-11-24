@@ -92,7 +92,8 @@ test.describe( 'the schedule', () => {
     await page.goto( '/blueworx-forge/' );
     await page.selectOption( '[data-testid="bwx-client-choice"]', world.site.id );
     await page.locator( '[data-testid="bwx-view-gantt"]' ).click();
-    await expect( page.locator( '[data-testid="bwx-gantt"]' ) ).toBeVisible();
+    // The first read of a run goes through a single-threaded test server.
+    await expect( page.locator( '[data-testid="bwx-gantt"]' ) ).toBeVisible( { timeout: 60_000 } );
   }
 
   test( 'the list says what each item waits on, so a schedule can draw a sequence', async () => {
@@ -173,11 +174,161 @@ test.describe( 'the schedule', () => {
     await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
   } );
 
+  test( 'released work is left off the schedule, dated or not (#703)', async ( { page } ) => {
+    // Walking real work through every gate to Released is minutes of setup for
+    // a rule about what is drawn, so the list says two items are released.
+    const released = [ world.late.id, world.undated.id ];
+
+    await page.route( ( url ) => url.pathname.endsWith( '/work-items' ) && url.search.includes( `client_site_id=${ world.site.id }` ), async ( route ) => {
+      if ( 'GET' !== route.request().method() ) {
+        return route.fallback();
+      }
+
+      const response = await route.fetch();
+      const body = await response.json();
+
+      body.items = body.items.map( ( item ) => ( released.includes( item.id ) ? { ...item, stage: 'released' } : item ) );
+      await route.fulfill( { response, json: body } );
+    } );
+
+    await openSchedule( page );
+
+    await expect( page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` ) ).toBeVisible();
+    await expect( page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.late.id }"]` ) ).toHaveCount( 0 );
+    await expect( page.locator( `[data-testid="bwx-gantt-tray-item"][data-item="${ world.undated.id }"]` ) ).toHaveCount( 0 );
+    await expect( page.locator( '[data-testid="bwx-gantt-tray-count"]' ) ).toHaveText( '1' );
+  } );
+
+  test( 'the day view gives every day its own column and marks today (#703)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const chart = page.locator( '[data-testid="bwx-gantt-chart"]' );
+    await expect( chart ).toHaveAttribute( 'data-zoom', 'week' );
+    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 0 );
+    const weeks = await page.locator( '.bwx-gantt-week' ).count();
+
+    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
+    await expect( chart ).toHaveAttribute( 'data-zoom', 'day' );
+    await expect( page.locator( '[data-testid="bwx-gantt-zoom-day"]' ) ).toHaveAttribute( 'aria-pressed', 'true' );
+
+    // The same stretch of time, a column to a day instead of a column to a week.
+    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( weeks * 7 );
+
+    // Today is one column, and the line through the chart is still there.
+    const todays = page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' );
+    await expect( todays ).toHaveCount( 1 );
+    await expect( todays ).toHaveAttribute( 'data-day', on( 0 ) );
+    await expect( page.locator( '[data-testid="bwx-gantt-today"]' ) ).toBeVisible();
+
+    // The bars are still drawn, and still say when.
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` );
+    await expect( bar ).toBeVisible();
+    await expect( bar ).toHaveAttribute( 'data-start', on( 2 ) );
+
+    // A day is wide enough to read, so the chart scrolls rather than squeezes.
+    const day = await page.locator( '[data-testid="bwx-gantt-day"]' ).first().boundingBox();
+    expect( day.width ).toBeGreaterThanOrEqual( 40 );
+
+    await page.locator( '[data-testid="bwx-gantt-zoom-week"]' ).click();
+    await expect( chart ).toHaveAttribute( 'data-zoom', 'week' );
+    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 0 );
+  } );
+
   test( 'the filter bar narrows the schedule like any other view', async ( { page } ) => {
     await openSchedule( page );
     await page.fill( '[data-testid="bwx-search"]', 'card form' );
 
     await expect( page.locator( '[data-testid="bwx-gantt-row"]' ) ).toHaveCount( 1 );
     await expect( page.locator( '[data-testid="bwx-gantt-tray-item"]' ) ).toHaveCount( 0 );
+  } );
+
+  test( 'a selection is dropped when its work is released, so nothing is left dimmed (#703)', async ( { page } ) => {
+    // Something to delete from its panel: a change the screen takes in place,
+    // where the header's Refresh would start the whole screen again and lose
+    // the selection whether or not it is handled.
+    const throwaway = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } throwaway`, work_type: 'task' } );
+    expect( throwaway.status(), await throwaway.text() ).toBe( 200 );
+
+    let released = false;
+
+    await page.route( ( url ) => url.pathname.endsWith( '/work-items' ) && url.search.includes( `client_site_id=${ world.site.id }` ), async ( route ) => {
+      if ( 'GET' !== route.request().method() || ! released ) {
+        return route.fallback();
+      }
+
+      try {
+        const response = await route.fetch();
+        const body = await response.json();
+
+        body.items = body.items.map( ( item ) => ( item.id === world.second.id ? { ...item, stage: 'released' } : item ) );
+        await route.fulfill( { response, json: body } );
+      } catch {
+        // A read still on its way when the page closes has nobody left to answer.
+      }
+    } );
+
+    await openSchedule( page );
+    await page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ).click();
+    const late = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` );
+    await expect( late ).toHaveAttribute( 'data-dimmed', 'true' );
+
+    // Marks the screen, to show later that it was never drawn again from scratch.
+    await page.evaluate( () => document.querySelector( '[data-testid="bwx-gantt"]' ).setAttribute( 'data-kept', 'yes' ) );
+
+    // The selected work is released by the time the list is read again.
+    released = true;
+    await page.locator( '[data-testid="bwx-gantt-tray-item"]', { hasText: 'throwaway' } ).click();
+    page.once( 'dialog', ( dialog ) => dialog.accept() );
+    await page.getByTestId( 'bwx-item-delete' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden( { timeout: 60_000 } );
+
+    await expect( page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ) ).toHaveCount( 0 );
+    await expect( late ).toBeVisible();
+    await expect( late ).not.toHaveAttribute( 'data-dimmed', 'true' );
+    await expect( page.locator( '[data-testid="bwx-gantt-row"][data-dimmed="true"]' ) ).toHaveCount( 0 );
+    await expect( page.locator( '[data-testid="bwx-gantt"]' ) ).toHaveAttribute( 'data-kept', 'yes' );
+
+    // Nothing is left reading the list when the page goes.
+    await page.unrouteAll( { behavior: 'ignoreErrors' } );
+  } );
+
+  test( 'the day view opens with today in view, and a long stretch is a window rather than every day (#703)', async ( { page } ) => {
+    // Work that started a long way back, and some that is a mistyped year away.
+    for ( const [ name, from, to ] of [ [ 'old', -120, -110 ], [ 'typo', 1400, 1410 ] ] ) {
+      const made = await makeItem( world.admin.api, world.site.id, {
+        title: `${ RUN } ${ name }`,
+        planned_start: on( from ),
+        planned_due: on( to ),
+      } );
+      expect( made.status(), await made.text() ).toBe( 200 );
+    }
+
+    await openSchedule( page );
+    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
+
+    // Seven columns to the week, at most twenty-six weeks of them.
+    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 26 * 7 );
+
+    // Today is on screen without scrolling to look for it.
+    const today = page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' );
+    await expect( today ).toHaveCount( 1 );
+    await expect( async () => {
+      const at = await today.boundingBox();
+      const chart = await page.locator( '[data-testid="bwx-gantt-chart"]' ).boundingBox();
+
+      expect( at.x ).toBeGreaterThanOrEqual( chart.x );
+      expect( at.x + at.width ).toBeLessThanOrEqual( chart.x + chart.width + 1 );
+    } ).toPass();
+
+    // The work outside the window is named, not dropped.
+    await expect( page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } typo") .bwx-gantt-outside` ) ).toBeVisible();
+
+    // Moving along changes which days are drawn; Today brings them back.
+    const first = page.locator( '[data-testid="bwx-gantt-day"]' ).first();
+    const opening = await first.getAttribute( 'data-day' );
+    await page.locator( '[data-testid="bwx-gantt-earlier"]' ).click();
+    expect( await first.getAttribute( 'data-day' ) ).not.toBe( opening );
+    await page.locator( '[data-testid="bwx-gantt-jump-today"]' ).click();
+    await expect( first ).toHaveAttribute( 'data-day', opening );
   } );
 } );

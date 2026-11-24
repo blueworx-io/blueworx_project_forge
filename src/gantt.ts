@@ -28,12 +28,29 @@ export interface Span {
   derived: boolean;
 }
 
-/** The time the chart covers, in whole weeks. */
+/** How closely the chart looks: a column a week, or a column a day. */
+export type Zoom = 'week' | 'day';
+
+/** The time the chart covers, in whole weeks, drawn a column per week or per day. */
 export interface Axis {
   from: string;
   to: string;
-  weeks: Array< { start: string; label: string } >;
+  zoom: Zoom;
+  columns: Array< { start: string; label: string } >;
+
+  /*
+   * The weeks the axis starts at and covers, out of all the weeks there are.
+   * At the day zoom a long stretch is cut to a window (see DAY_WINDOW_WEEKS),
+   * so the chart is never asked for thousands of columns; the rest is a step
+   * away rather than gone.
+   */
+  startWeek: number;
+  shownWeeks: number;
+  totalWeeks: number;
 }
+
+/** The most weeks the day zoom draws at once: half a year of day columns. */
+export const DAY_WINDOW_WEEKS = 26;
 
 /** ISO date to a UTC timestamp, so arithmetic never meets a timezone. */
 function stamp( date: string ): number {
@@ -77,6 +94,15 @@ export function spanOf( item: WorkItem ): Span | null {
   return null;
 }
 
+/**
+ * Whether work is still in play. Released work is finished and shipped, so the
+ * schedule leaves it off: a chart of what is still moving should not carry
+ * everything that ever was.
+ */
+export function isLive( item: { stage: string } ): boolean {
+  return 'released' !== item.stage;
+}
+
 /** Whether a span has already run out, for work that is not finished. */
 export function isOverdue( item: WorkItem, span: Span | null, today: string ): boolean {
   if ( null === span || 'completed' === item.stage || 'released' === item.stage ) {
@@ -101,20 +127,34 @@ function weekStart( date: string ): string {
  * that does not show where you are standing is a picture of somebody else's
  * year.
  */
-export function axisFor( spans: Span[], today: string ): Axis {
+export function axisFor( spans: Span[], today: string, zoom: Zoom = 'week', startWeek: number | null = null ): Axis {
   const dates = spans.flatMap( ( span ) => [ span.start, span.due ] ).concat( today );
-  const from = weekStart( dates.reduce( ( a, b ) => ( a < b ? a : b ) ) );
+  const first = weekStart( dates.reduce( ( a, b ) => ( a < b ? a : b ) ) );
   const last = dates.reduce( ( a, b ) => ( a > b ? a : b ) );
 
-  const weeks: Axis[ 'weeks' ] = [];
+  // The same whole weeks at either zoom: zooming in cuts the same stretch of
+  // time more finely, it does not change which stretch it is. Unless that
+  // stretch is too long to draw a column a day for: then the day zoom shows a
+  // window of it, by default the one around today.
+  const total = Math.floor( daysBetween( first, last ) / 7 ) + 1;
+  const shown = 'day' === zoom ? Math.min( total, DAY_WINDOW_WEEKS ) : total;
+  const around = Math.floor( daysBetween( first, today ) / 7 ) - 1;
+  const begin = Math.max( 0, Math.min( startWeek ?? around, total - shown ) );
+  const from = iso( stamp( first ) + begin * 7 * DAY );
+  const to = iso( stamp( from ) + shown * 7 * DAY - DAY );
+  const columns: Axis[ 'columns' ] = [];
 
-  for ( let at = stamp( from ); at <= stamp( last ); at += 7 * DAY ) {
-    weeks.push( { start: iso( at ), label: labelFor( iso( at ), 0 === weeks.length ) } );
+  if ( 'day' === zoom ) {
+    for ( let at = stamp( from ); at <= stamp( to ); at += DAY ) {
+      columns.push( { start: iso( at ), label: dayLabel( iso( at ), 0 === columns.length ) } );
+    }
+  } else {
+    for ( let at = stamp( from ); at <= stamp( to ); at += 7 * DAY ) {
+      columns.push( { start: iso( at ), label: labelFor( iso( at ), 0 === columns.length ) } );
+    }
   }
 
-  const to = iso( stamp( from ) + weeks.length * 7 * DAY - DAY );
-
-  return { from, to, weeks };
+  return { from, to, zoom, columns, startWeek: begin, shownWeeks: shown, totalWeeks: total };
 }
 
 /**
@@ -140,30 +180,71 @@ function labelFor( start: string, first = false ): string {
   return String( day );
 }
 
-/** Where a span sits on the axis, as percentages of the whole width. */
-export function placeOn( span: Span, axis: Axis ): { left: number; width: number } {
+/** A day's label: the day of the month, with the month on the first column and on the 1st. */
+function dayLabel( date: string, first: boolean ): string {
+  const at = new Date( stamp( date ) );
+  const day = at.getUTCDate();
+
+  if ( first || 1 === day ) {
+    return `${ day } ${ at.toLocaleDateString( 'en-GB', { month: 'short', timeZone: 'UTC' } ) }`;
+  }
+
+  return String( day );
+}
+
+/**
+ * Where a span sits on the axis, as percentages of the whole width, or null
+ * when it falls wholly outside what the axis covers (only a windowed day
+ * zoom can leave work out). A span that runs past an edge is cut at it.
+ */
+export function placeOn( span: Span, axis: Axis ): { left: number; width: number } | null {
   const total = daysBetween( axis.from, axis.to ) + 1;
-  const left = daysBetween( axis.from, span.start );
 
   // Inclusive of both ends: a piece of work that starts and ends on the same
   // day lasts a day, not nothing.
-  const width = daysBetween( span.start, span.due ) + 1;
+  const first = Math.max( daysBetween( axis.from, span.start ), 0 );
+  const last = Math.min( daysBetween( axis.from, span.due ), total - 1 );
+
+  if ( last < first && ( span.due < axis.from || span.start > axis.to ) ) {
+    return null;
+  }
 
   return {
-    left: ( left / total ) * 100,
-    width: ( Math.max( width, 1 ) / total ) * 100,
+    left: ( first / total ) * 100,
+    width: ( Math.max( last - first + 1, 1 ) / total ) * 100,
   };
 }
 
-/** Today's position on the axis, or null when today is off the chart. */
+/**
+ * Scrolls a chart sideways so today's column is in view, past a pinned gutter
+ * of `gutter` pixels. Does nothing when today is not drawn.
+ */
+export function scrollToToday( chart: HTMLElement | null, gutter: number ): void {
+  const cell = chart?.querySelector< HTMLElement >( '[data-today="true"]' );
+
+  if ( ! chart || ! cell ) {
+    return;
+  }
+
+  const behind = cell.getBoundingClientRect().left - chart.getBoundingClientRect().left;
+
+  chart.scrollLeft += behind - gutter - 96;
+}
+
+/**
+ * Today's position on the axis, or null when today is off the chart. At the day
+ * zoom it is the middle of today's column, so the line sits in the column it
+ * marks rather than on its edge.
+ */
 export function placeToday( axis: Axis, today: string ): number | null {
   if ( today < axis.from || today > axis.to ) {
     return null;
   }
 
   const total = daysBetween( axis.from, axis.to ) + 1;
+  const offset = 'day' === axis.zoom ? 0.5 : 0;
 
-  return ( daysBetween( axis.from, today ) / total ) * 100;
+  return ( ( daysBetween( axis.from, today ) + offset ) / total ) * 100;
 }
 
 /**

@@ -31,6 +31,10 @@ export const RULES: RuleSection[] = [
         why: 'Long columns were hard to scan and slowed the board down, and older work is still one click away.',
       },
       {
+        what: 'The Schedule leaves out released work, here and on the client\'s Schedule. It can be viewed by week or by day: the day view gives every day its own column and marks today.',
+        why: 'The Schedule is for work still in progress, and a day view makes it easier to see what is happening this week.',
+      },
+      {
         what: 'A card dragged to another column settles there straight away, and the board catches up in the background. Several cards can be moved one after another without any of them jumping back.',
         why: 'Waiting for the whole board to reload after every move made moving work slow, and a second quick move could be refused.',
       },

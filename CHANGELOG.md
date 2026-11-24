@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.231.0] - 2026-11-24
+
+### Added
+
+- The Schedule can now be viewed by day as well as by week. The day view gives every day its own column and marks today. It works on the studio Schedule and on the client's Schedule.
+
+### Changed
+
+- Released work no longer appears on the Schedule, in the studio or on the client's site.
+
 ## [2.230.3] - 2026-11-24
 
 ### Changed

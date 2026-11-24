@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarRange } from 'lucide-react';
 import type { WorkItem } from '../types';
 import { PHASE_LABEL, phaseOf } from '../phases';
 import type { Phase } from '../phases';
 import { EmptyState } from '../kit';
-import { axisFor, chainFor, isOverdue, placeOn, placeToday, spanOf, todayIso } from '../gantt';
-import type { Axis, Span } from '../gantt';
+import { axisFor, chainFor, isLive, isOverdue, placeOn, placeToday, scrollToToday, spanOf, todayIso } from '../gantt';
+import type { Axis, Span, Zoom } from '../gantt';
 
 /**
  * The same work, against time.
@@ -29,9 +29,13 @@ import type { Axis, Span } from '../gantt';
  * Redrawn on the kit (2026-09-20): a month band over the weeks, a grid behind
  * the rows, today marked and named, a legend for the colours, and dates on a
  * bar written the way a person says them.
+ *
+ * Two zooms (#703): a column a week, or a column a day with today's column
+ * marked. Released work is left off at both — it is finished, and a chart of
+ * what is still moving should not carry everything that ever shipped.
  */
 export function GanttView( {
-  items,
+  items: everything,
   onOpen,
 }: {
   items: WorkItem[];
@@ -39,6 +43,12 @@ export function GanttView( {
 } ) {
   const [ open, setOpen ] = useState( true );
   const [ selected, setSelected ] = useState( '' );
+  const [ zoom, setZoom ] = useState< Zoom >( 'week' );
+  const [ windowStart, setWindowStart ] = useState< number | null >( null );
+  const [ jump, setJump ] = useState( 0 );
+  const chartRef = useRef< HTMLDivElement >( null );
+
+  const items = everything.filter( isLive );
 
   const today = todayIso();
 
@@ -59,10 +69,32 @@ export function GanttView( {
   // Earliest first, so the chart reads top to bottom as the weeks run left to right.
   dated.sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) || a.span.due.localeCompare( b.span.due ) );
 
-  const axis = axisFor( dated.map( ( each ) => each.span ), today );
+  const axis = axisFor( dated.map( ( each ) => each.span ), today, zoom, windowStart );
   const now = placeToday( axis, today );
-  const chain = chainFor( items, selected );
+
+  // A selection only counts while its bar is still drawn. Work released since
+  // it was picked drops off the chart, and so does work the day window has
+  // moved past; without this their rows would stay dimmed with nothing left
+  // to click to put them back.
+  const active = dated.some( ( each ) => each.item.id === selected && null !== placeOn( each.span, axis ) ) ? selected : '';
+  const chain = chainFor( items, active );
   const months = monthsOf( axis );
+  const windowed = axis.totalWeeks > axis.shownWeeks;
+
+  // Opening the day view, or asking for Today, brings today's column into view:
+  // the chart starts at the earliest date, which can be weeks behind.
+  useEffect( () => {
+    if ( 'day' !== zoom ) {
+      return;
+    }
+
+    const chart = chartRef.current;
+    const gutter = chart?.querySelector( '.bwx-gantt-axis-gutter' )?.getBoundingClientRect().width ?? 0;
+
+    scrollToToday( chart, gutter );
+    // Only when the zoom or the Today button changes, not on every redraw.
+  }, [ zoom, jump ] );
+
   const phases = [ ...new Set( dated.map( ( each ) => phaseOf( each.item.stage ) ) ) ];
 
   return (
@@ -71,6 +103,68 @@ export function GanttView( {
         <span className="bwx-gantt-count bwx-mono">
           { `${ dated.length } dated · ${ undated.length } without dates` }
         </span>
+        <div className="bwx-views" role="group" aria-label="Zoom" data-testid="bwx-gantt-zoom">
+          { ZOOMS.map( ( [ level, label ] ) => (
+            <button
+              key={ level }
+              type="button"
+              className="bwx-button"
+              data-variant={ level === zoom ? undefined : 'quiet' }
+              data-testid={ `bwx-gantt-zoom-${ level }` }
+              aria-pressed={ level === zoom }
+              onClick={ () => {
+                // Opening the days starts at today again, never at a window left behind.
+                if ( 'day' === level ) {
+                  setWindowStart( null );
+                }
+
+                setZoom( level );
+              } }
+            >
+              { label }
+            </button>
+          ) ) }
+        </div>
+        { 'day' === zoom && (
+          <div className="bwx-views" role="group" aria-label="Move along the days" data-testid="bwx-gantt-move">
+            { windowed && (
+              <button
+                type="button"
+                className="bwx-button"
+                data-variant="quiet"
+                data-testid="bwx-gantt-earlier"
+                disabled={ 0 === axis.startWeek }
+                onClick={ () => setWindowStart( Math.max( 0, axis.startWeek - 4 ) ) }
+              >
+                Earlier
+              </button>
+            ) }
+            <button
+              type="button"
+              className="bwx-button"
+              data-variant="quiet"
+              data-testid="bwx-gantt-jump-today"
+              onClick={ () => {
+                setWindowStart( null );
+                setJump( jump + 1 );
+              } }
+            >
+              Today
+            </button>
+            { windowed && (
+              <button
+                type="button"
+                className="bwx-button"
+                data-variant="quiet"
+                data-testid="bwx-gantt-later"
+                disabled={ axis.startWeek + axis.shownWeeks >= axis.totalWeeks }
+                onClick={ () => setWindowStart( axis.startWeek + 4 ) }
+              >
+                Later
+              </button>
+            ) }
+          </div>
+        ) }
         { 0 < phases.length && (
           <ul className="bwx-gantt-legend" aria-label="What the colours mean">
             { phases.map( ( phase ) => (
@@ -83,21 +177,39 @@ export function GanttView( {
         ) }
       </div>
 
-      <div className="bwx-gantt-chart">
+      <div
+        ref={ chartRef }
+        className="bwx-gantt-chart"
+        data-testid="bwx-gantt-chart"
+        data-zoom={ zoom }
+        style={ { '--gantt-cols': axis.columns.length } as React.CSSProperties }
+      >
         <div className="bwx-gantt-axis" data-testid="bwx-gantt-axis">
           <span className="bwx-gantt-axis-gutter" />
           <div className="bwx-gantt-axis-scale">
             <div className="bwx-gantt-months">
               { months.map( ( month ) => (
-                <span key={ month.label } className="bwx-gantt-month" style={ { flex: month.weeks } }>
+                <span key={ month.label } className="bwx-gantt-month" style={ { flex: month.columns } }>
                   { month.label }
                 </span>
               ) ) }
             </div>
             <div className="bwx-gantt-axis-weeks">
-              { axis.weeks.map( ( week ) => (
-                <span key={ week.start } className="bwx-gantt-week" data-week={ week.start }>
-                  { dayOf( week.start ) }
+              { axis.columns.map( ( column ) => 'day' === axis.zoom ? (
+                <span
+                  key={ column.start }
+                  className="bwx-gantt-week bwx-gantt-day"
+                  data-testid="bwx-gantt-day"
+                  data-day={ column.start }
+                  data-today={ column.start === today ? 'true' : undefined }
+                  data-weekend={ isWeekend( column.start ) ? 'true' : undefined }
+                >
+                  <span className="bwx-gantt-day-name">{ weekdayOf( column.start ) }</span>
+                  { column.label }
+                </span>
+              ) : (
+                <span key={ column.start } className="bwx-gantt-week" data-week={ column.start }>
+                  { dayOf( column.start ) }
                 </span>
               ) ) }
             </div>
@@ -109,8 +221,8 @@ export function GanttView( {
           </div>
         </div>
 
-        <div className="bwx-gantt-rows" style={ { '--gantt-weeks': axis.weeks.length } as React.CSSProperties }>
-          { /* One grid behind every row, one line per week. */ }
+        <div className="bwx-gantt-rows">
+          { /* One grid behind every row, one line per column. */ }
           <span className="bwx-gantt-grid" aria-hidden="true" />
 
           { /* Drawn once behind every row rather than per row, so it reads as
@@ -119,12 +231,13 @@ export function GanttView( {
             <span
               className="bwx-gantt-today"
               data-testid="bwx-gantt-today"
-              style={ { left: `calc(var(--gantt-gutter) + ${ now }% * var(--gantt-track))` } }
+              style={ { left: `calc(var(--gantt-gutter) + var(--gantt-track) * ${ now / 100 })` } }
             />
           ) }
 
           { dated.map( ( { item, span } ) => {
             const place = placeOn( span, axis );
+
             const overdue = isOverdue( item, span, today );
             const role = chain[ item.id ] ?? null;
             const phase = phaseOf( item.stage );
@@ -138,7 +251,7 @@ export function GanttView( {
                 data-level={ item.level }
                 data-waiting={ 0 < ( item.waits_on?.length ?? 0 ) ? 'true' : undefined }
                 data-chain={ role ?? undefined }
-                data-dimmed={ '' !== selected && null === role ? 'true' : undefined }
+                data-dimmed={ '' !== active && null === role ? 'true' : undefined }
               >
                 <span className="bwx-gantt-label" title={ item.title }>
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
@@ -146,41 +259,47 @@ export function GanttView( {
                 </span>
 
                 <span className="bwx-gantt-track">
-                  <button
-                    type="button"
-                    className="bwx-gantt-bar"
-                    data-phase={ phase }
-                    data-testid="bwx-gantt-bar"
-                    data-item={ item.id }
-                    data-start={ span.start }
-                    data-due={ span.due }
-                    data-derived={ span.derived ? 'true' : undefined }
-                    data-overdue={ overdue ? 'true' : undefined }
-                    data-milestone={ 'milestone' === item.level ? 'true' : undefined }
-                    style={ {
-                      left: `${ place.left }%`,
-                      width: `${ place.width }%`,
-                      '--bar-phase': `var(--phase-${ phase })`,
-                    } as React.CSSProperties }
-                    title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
-                    aria-pressed={ item.id === selected }
-                    onClick={ () => setSelected( item.id === selected ? '' : item.id ) }
-                    onDoubleClick={ () => onOpen( item ) }
-                  >
-                    { /* The fill is how far its children have got, so a bar says
-                         both when and how far in one mark. Work with nothing
-                         beneath it has no progress to report and gets none. */ }
-                    { 'empty' !== item.derived_state && undefined !== item.derived_state && (
-                      <span
-                        className="bwx-gantt-progress"
-                        style={ { width: `${ item.progress ?? 0 }%` } }
-                      />
-                    ) }
-                    <span className="bwx-gantt-bar-text">
-                      { range( span.start, span.due ) }
-                      { overdue && ' · overdue' }
+                  { null === place ? (
+                    <span className="bwx-gantt-outside">
+                      { `${ range( span.start, span.due ) } is outside these days` }
                     </span>
-                  </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="bwx-gantt-bar"
+                      data-phase={ phase }
+                      data-testid="bwx-gantt-bar"
+                      data-item={ item.id }
+                      data-start={ span.start }
+                      data-due={ span.due }
+                      data-derived={ span.derived ? 'true' : undefined }
+                      data-overdue={ overdue ? 'true' : undefined }
+                      data-milestone={ 'milestone' === item.level ? 'true' : undefined }
+                      style={ {
+                        left: `${ place.left }%`,
+                        width: `${ place.width }%`,
+                        '--bar-phase': `var(--phase-${ phase })`,
+                      } as React.CSSProperties }
+                      title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
+                      aria-pressed={ item.id === active }
+                      onClick={ () => setSelected( item.id === active ? '' : item.id ) }
+                      onDoubleClick={ () => onOpen( item ) }
+                    >
+                      { /* The fill is how far its children have got, so a bar says
+                           both when and how far in one mark. Work with nothing
+                           beneath it has no progress to report and gets none. */ }
+                      { 'empty' !== item.derived_state && undefined !== item.derived_state && (
+                        <span
+                          className="bwx-gantt-progress"
+                          style={ { width: `${ item.progress ?? 0 }%` } }
+                        />
+                      ) }
+                      <span className="bwx-gantt-bar-text">
+                        { range( span.start, span.due ) }
+                        { overdue && ' · overdue' }
+                      </span>
+                    </button>
+                  ) }
                 </span>
               </div>
             );
@@ -248,22 +367,38 @@ export function GanttView( {
   );
 }
 
-/** The month band over the weeks: each month, and how many weeks open in it. */
-function monthsOf( axis: Axis ): Array< { label: string; weeks: number } > {
-  const months: Array< { label: string; weeks: number } > = [];
+const ZOOMS: Array< [ Zoom, string ] > = [
+  [ 'week', 'Weeks' ],
+  [ 'day', 'Days' ],
+];
 
-  for ( const week of axis.weeks ) {
-    const label = new Date( `${ week.start }T00:00:00Z` ).toLocaleDateString( 'en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' } );
+/** The month band over the columns: each month, and how many columns open in it. */
+function monthsOf( axis: Axis ): Array< { label: string; columns: number } > {
+  const months: Array< { label: string; columns: number } > = [];
+
+  for ( const column of axis.columns ) {
+    const label = new Date( `${ column.start }T00:00:00Z` ).toLocaleDateString( 'en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' } );
     const last = months[ months.length - 1 ];
 
     if ( last && last.label === label ) {
-      last.weeks += 1;
+      last.columns += 1;
     } else {
-      months.push( { label, weeks: 1 } );
+      months.push( { label, columns: 1 } );
     }
   }
 
   return months;
+}
+
+/** "Mon", "Tue"…, spelt here for the same reason as the months below. */
+function weekdayOf( date: string ): string {
+  return [ 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat' ][ new Date( `${ date }T00:00:00Z` ).getUTCDay() ];
+}
+
+function isWeekend( date: string ): boolean {
+  const weekday = new Date( `${ date }T00:00:00Z` ).getUTCDay();
+
+  return 0 === weekday || 6 === weekday;
 }
 
 /** The day of the month a week opens on. */

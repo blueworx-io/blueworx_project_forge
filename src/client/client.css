@@ -1092,6 +1092,61 @@ p.fc-muted + p.fc-muted,
   font-size: var( --text-micro );
   color: var( --ink-500 );
 }
+/* The day zoom (#703): a column a day, wide enough to read, so a long stretch
+   scrolls sideways rather than squeezing. */
+.fc-schedule[data-zoom='day'] {
+  overflow-x: auto;
+}
+.fc-schedule[data-zoom='day'] .fc-schedule-axis,
+.fc-schedule[data-zoom='day'] .fc-schedule-row {
+  min-width: calc( 260px + 12px + var( --fc-cols ) * 44px );
+}
+.fc-schedule[data-zoom='day'] .fc-schedule-weeks > span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding: 2px 0;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.fc-schedule-weeks > span[data-today='true'] {
+  background: var( --accent-signal );
+  color: var( --color-snow );
+}
+.fc-schedule-today-name {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* The label column stays put while the days scroll beneath it. */
+.fc-schedule[data-zoom='day'] .fc-schedule-axis > :first-child,
+.fc-schedule[data-zoom='day'] .fc-schedule-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var( --surface-card );
+}
+.fc-schedule-outside {
+  position: sticky;
+  left: 272px;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  white-space: nowrap;
+  line-height: 22px;
+  padding: 0 8px;
+}
+.fc-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect( 0, 0, 0, 0 );
+  white-space: nowrap;
+  border: 0;
+}
 .fc-schedule-label {
   display: flex;
   flex-direction: column;

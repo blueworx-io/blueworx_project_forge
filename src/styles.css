@@ -1147,6 +1147,60 @@ body {
   border-left: 0;
 }
 
+/* The day zoom (#703): a column a day, each wide enough to read, so a long
+   stretch of time scrolls sideways rather than squeezing. The gutter stays put
+   while it does, so a bar is never far from its name. */
+.bwx-gantt-chart[ data-zoom='day' ] {
+  --gantt-day: 44px;
+}
+.bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis,
+.bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-rows {
+  min-width: calc( var( --gantt-gutter ) + var( --gantt-cols ) * var( --gantt-day ) );
+}
+.bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis-gutter,
+.bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-label {
+  position: sticky;
+  left: 0;
+}
+/* Above the dates that scroll beneath it, so they never paint over the names. */
+.bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis-gutter {
+  z-index: 3;
+  background: var( --surface-card );
+}
+/* Work that is dated, but not inside the days drawn: said, not dropped. */
+.bwx-gantt-outside {
+  position: sticky;
+  left: calc( var( --gantt-gutter ) + 12px );
+  display: inline-block;
+  padding: 0 12px;
+  line-height: 40px;
+  font-size: var( --text-micro );
+  color: var( --ink-500 );
+  white-space: nowrap;
+}
+.bwx-gantt-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Room beneath the date for the Today tag to sit in. */
+  padding: 4px 0 20px;
+  line-height: 1.3;
+}
+.bwx-gantt-day-name {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bwx-gantt-day[ data-weekend='true' ] {
+  background: color-mix( in srgb, var( --surface-sunken ) 70%, transparent );
+}
+/* Today's column is named in the signal colour as well as drawn through. */
+.bwx-gantt-day[ data-today='true' ] {
+  background: var( --accent-signal-wash );
+  color: var( --brand-700 );
+  font-weight: var( --weight-medium );
+}
+
 /* Today, named at the top and drawn down the chart. Behind the bars rather
    than over them, so it never hides the work it is there to put in context. */
 .bwx-gantt-today-tag {
@@ -1191,7 +1245,7 @@ body {
   right: 0;
   pointer-events: none;
   background-image: linear-gradient( to right, var( --border-hairline ) 1px, transparent 1px );
-  background-size: calc( 100% / var( --gantt-weeks, 1 ) ) 100%;
+  background-size: calc( 100% / var( --gantt-cols, 1 ) ) 100%;
   background-position: -1px 0;
 }
 
