@@ -14,11 +14,22 @@ test('once warm, Capacity and Clients open without a wait, and a change does not
   test.setTimeout(600_000);
 
   await signIn(page, ADMIN_USER, ADMIN_PASS);
+
+  // #709. Which clients' boards are read while Forge opens.
+  const boards = new Set();
+  page.on('request', (request) => {
+    const site = new URL(request.url()).searchParams.get('client_site_id');
+    if (site && /\/work-items(\?|$)/.test(request.url())) boards.add(site);
+  });
+
   await page.goto('/blueworx-forge/');
   await expect(page.getByTestId('bwx-forge-ready')).toBeVisible({ timeout: 60_000 });
 
   // The warm-up runs after the first screen, and says when it is done.
   await expect(page.locator('html')).toHaveAttribute('data-bwx-warm', 'done', { timeout: 480_000 });
+
+  // At most the board on screen: every other client's board waits until it is picked.
+  expect(boards.size, `boards read on open: ${[...boards].join(', ')}`).toBeLessThanOrEqual(1);
 
   for (const [screen, ready] of [['capacity', 'bwx-capacity-grid'], ['clients', 'bwx-clients-list']]) {
     const started = Date.now();

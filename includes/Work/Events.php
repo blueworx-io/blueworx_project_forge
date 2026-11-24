@@ -463,6 +463,38 @@ final class Events {
 	}
 
 	/**
+	 * {@see self::entered_on_site()} for many sites in one read (#709).
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @param string             $stage           The stage.
+	 * @return array<string, int> Unix time, keyed by item id.
+	 */
+	public static function entered_on_sites( array $client_site_ids, string $stage ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted || '' === $stage ) {
+			return array();
+		}
+
+		$table  = Schema::work_events_table();
+		$slots  = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+		$values = array_merge( $wanted, array( $stage ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name cannot be a placeholder; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT item_id, MAX( occurred_at ) AS entered FROM {$table} WHERE client_site_id IN ({$slots}) AND to_stage = %s GROUP BY item_id", $values ), ARRAY_A );
+
+		$entered = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$entered[ (string) $row['item_id'] ] = (int) $row['entered'];
+		}
+
+		return $entered;
+	}
+
+	/**
 	 * Which of a site's items reached one of some stages between two moments
 	 * (#673), and the stage each reached last.
 	 *

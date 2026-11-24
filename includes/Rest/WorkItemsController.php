@@ -585,13 +585,33 @@ final class WorkItemsController {
 
 		// #702. Every site's work in one read, narrowed here, rather than two
 		// reads of each site.
-		$every = Items::every_on_sites( array_map( 'strval', array_column( $sites, 'id' ) ) );
+		$site_ids = array_map( 'strval', array_column( $sites, 'id' ) );
+		$every    = Items::every_on_sites( $site_ids );
+		$shown    = array();
+		$open     = array();
+
+		foreach ( $site_ids as $site_id ) {
+			$shown[ $site_id ] = Items::narrow( $every[ $site_id ] ?? array(), $narrow );
+
+			foreach ( $shown[ $site_id ] as $item ) {
+				if ( empty( $item['archived'] ) ) {
+					$open[] = (string) $item['id'];
+				}
+			}
+		}
+
+		// #709. What each item waits on, when it was released and its gate
+		// records, for every site in one read each rather than one per site.
+		$shared = array(
+			'waits'    => Dependencies::chain_on_sites( $site_ids ),
+			'released' => Events::entered_on_sites( $site_ids, 'released' ),
+			'records'  => GateRecords::for_items( $open ),
+		);
 
 		foreach ( $sites as $site ) {
 			$site_id = (string) $site['id'];
-			$family  = $every[ $site_id ] ?? array();
 
-			foreach ( self::derive_across( $site_id, Items::narrow( $family, $narrow ), $family ) as $item ) {
+			foreach ( self::derive_across( $site_id, $shown[ $site_id ], $every[ $site_id ] ?? array(), $shared ) as $item ) {
 				$item['client_name'] = $names[ (string) $item['client_id'] ] ?? '';
 				$item['site_name']   = (string) $site['name'];
 				$items[]             = $item;
@@ -713,9 +733,11 @@ final class WorkItemsController {
 		 * second thing deciding what a filter means, and #124 exists because
 		 * two of those disagree.
 		 */
+		// #709. The site's work read once, and narrowed here.
+		$family  = Items::for_site( (string) $site['id'], array( 'include_archived' => true ) );
 		$filters = Filters::sanitise( (array) $request->get_params() );
 		$items   = Filters::apply(
-			self::derive_across( (string) $site['id'], Items::for_site( $site['id'], $narrow ) ),
+			self::derive_across( (string) $site['id'], Items::narrow( $family, $narrow ), $family ),
 			$filters
 		);
 
@@ -758,9 +780,12 @@ final class WorkItemsController {
 	 * @param string                                $site_id The site.
 	 * @param array<int, array<string, mixed>>      $items   The items being returned.
 	 * @param array<int, array<string, mixed>>|null $family  Every item on the site, when already read.
+	 * @param array<string, array<string, mixed>>   $shared  What each item waits on ('waits'), when it was
+	 *                                                       released ('released') and its gate records
+	 *                                                       ('records'), when already read for many sites.
 	 * @return array<int, array<string, mixed>>
 	 */
-	private static function derive_across( string $site_id, array $items, ?array $family = null ): array {
+	private static function derive_across( string $site_id, array $items, ?array $family = null, array $shared = array() ): array {
 		$family   = $family ?? Items::for_site( $site_id, array( 'include_archived' => true ) );
 		$children = Derived::children_of( $family );
 
@@ -771,16 +796,20 @@ final class WorkItemsController {
 		 * request per bar is not a way to draw a chart. Ids only: the titles are
 		 * already in the list the caller is holding.
 		 */
-		$waits = Dependencies::chain_on_site( $site_id );
+		$waits = $shared['waits'] ?? Dependencies::chain_on_site( $site_id );
 
 		// #616. When released work went live, so the board can keep its
 		// Released column to the last two weeks.
-		$released = Events::entered_on_site( $site_id, 'released' );
+		$released = $shared['released'] ?? Events::entered_on_site( $site_id, 'released' );
 
 		// Every open item's gate records in one read, for the ready-to-move icon
 		// (#453), rather than a query per card.
-		$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
-		$records = GateRecords::for_items( $open );
+		if ( isset( $shared['records'] ) ) {
+			$records = $shared['records'];
+		} else {
+			$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
+			$records = GateRecords::for_items( $open );
+		}
 
 		// #565. What each item's children make it, the same way the client board
 		// is filled in.
