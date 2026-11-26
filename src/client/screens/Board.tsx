@@ -185,7 +185,7 @@ function Schedule( { board }: { board: BoardView } ) {
           <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => setZoom( 'day' ) }>
             Days
           </Button>
-          { 'day' === zoom && (
+          { 'day' === zoom && planned.length > 0 && (
             <Button
               size="sm"
               variant="ghost"

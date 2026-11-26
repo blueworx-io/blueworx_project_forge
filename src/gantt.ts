@@ -136,11 +136,15 @@ function weekEnd( date: string ): string {
  */
 export function axisFor( spans: Span[], today: string, zoom: Zoom = 'day' ): Axis {
   const dates = spans.flatMap( ( span ) => [ span.start, span.due ] ).concat( today );
-  const first = weekStart( dates.reduce( ( a, b ) => ( a < b ? a : b ) ) );
-  const last = weekEnd( dates.reduce( ( a, b ) => ( a > b ? a : b ) ) );
-
   const earliest = iso( stamp( today ) - WEEKS_BACK * 7 * DAY );
   const latest = iso( stamp( today ) + WEEKS_AHEAD * 7 * DAY );
+
+  // Held to the limits before they are rounded out to whole weeks: a date at
+  // the far end of the calendar must not be able to push the rounding past them.
+  const lowest = dates.reduce( ( a, b ) => ( a < b ? a : b ) );
+  const highest = dates.reduce( ( a, b ) => ( a > b ? a : b ) );
+  const first = weekStart( lowest < earliest ? earliest : lowest );
+  const last = weekEnd( highest > latest ? latest : highest );
   const floor = 'day' === zoom || weekStart( earliest ) === earliest ? earliest : iso( stamp( weekStart( earliest ) ) + 7 * DAY );
   const ceiling = 'day' === zoom || weekEnd( latest ) === latest ? latest : iso( stamp( weekStart( latest ) ) - DAY );
   const from = first < floor ? floor : first;

@@ -221,7 +221,19 @@ export function GanttView( {
               >
                 <span className="bwx-gantt-label" title={ item.title }>
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
-                  <span className="bwx-gantt-title">{ item.title }</span>
+                  { null === place ? (
+                    // No bar to open it from, so the name opens it, as in the tray.
+                    <button
+                      type="button"
+                      className="bwx-gantt-title bwx-gantt-title-open"
+                      data-testid="bwx-gantt-title-open"
+                      onClick={ () => onOpen( item ) }
+                    >
+                      { item.title }
+                    </button>
+                  ) : (
+                    <span className="bwx-gantt-title">{ item.title }</span>
+                  ) }
                 </span>
 
                 <span className="bwx-gantt-track">

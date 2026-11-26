@@ -370,6 +370,11 @@ test.describe( 'the schedule', () => {
     await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
     await expect( inView ).toPass();
 
+    // A name with no bar still opens its work, as the tray does.
+    await page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } old") [data-testid="bwx-gantt-title-open"]` ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+
     // Nothing to page through: there is no further to go.
     await expect( page.locator( '[data-testid="bwx-gantt-earlier"], [data-testid="bwx-gantt-later"]' ) ).toHaveCount( 0 );
   } );

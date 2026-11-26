@@ -19,8 +19,9 @@ const on = ( offset ) => {
 
   return `${ at.getFullYear() }-${ pad( at.getMonth() + 1 ) }-${ pad( at.getDate() ) }`;
 };
-const MONTHS = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ];
-const spoken = ( iso ) => `${ iso.slice( 8 ) } ${ MONTHS[ Number( iso.slice( 5, 7 ) ) - 1 ] } ${ iso.slice( 0, 4 ) }`;
+// The way the app writes a date (British English, as the browser formats it),
+// so September reads however this browser spells it.
+const spoken = ( iso ) => new Date( `${ iso }T00:00:00Z` ).toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' } );
 
 test.beforeAll( requireEnvironment );
 

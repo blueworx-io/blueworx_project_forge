@@ -56,3 +56,12 @@ test( 'work wholly outside the limits is not placed, and work crossing an edge i
   assert.equal( cut.left, 0 );
   assert.ok( cut.width > 0 && cut.width < 10 );
 } );
+
+test( 'a date at the far end of the calendar cannot push the chart past its limits', () => {
+  for ( const zoom of [ 'day', 'week' ] ) {
+    const axis = axisFor( [ span( '2026-12-01', '9999-12-31' ) ], TODAY, zoom );
+
+    assert.ok( axis.to <= '2027-01-07', `${ zoom } ends by six weeks ahead` );
+    assert.ok( axis.columns.length <= 57 );
+  }
+} );
