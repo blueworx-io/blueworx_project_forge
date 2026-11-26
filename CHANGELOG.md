@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.231.2] - 2026-11-26
+
+### Fixed
+
+- A client site no longer marks its saved copy as taken out of every page's load when it could not confirm that. It tries again on the next page instead.
+
 ## [2.231.1] - 2026-11-26
 
 ### Fixed
@@ -15,7 +21,7 @@ commits and pull requests.
 - Forge's lists of work no longer ask the database about every card on its own. All work, the Daily standup, a site's board and the client's board each checked every card for evidence and open questions with queries of their own, which is what made the Up next view and the pages built on it take tens of seconds and helped take the server down. They now read those once for the whole list, and only for the cards being checked, so the number of queries no longer grows with the number of cards and a small board does not read the history of every other site.
 - All work and a site's board no longer read every word written on old and archived work just to count what a project's children add up to. They read only the few fields that count (stage, outcome, dates, type) from work that is not archived, and the full text only for the cards shown. The client's board no longer reads archived work at all, or the text of the rest.
 - The client's board looks each person up once, not once for every seat they hold.
-- A client's site keeps what it last read from the studio so that it is no longer loaded on every page of the site, only when Forge needs it. A copy saved by an earlier version is taken out of that load the first time the site runs this version, and is not deleted. If the site cannot tell whether that worked, it tries again on the next page.
+- A client's site keeps what it last read from the studio so that it is no longer loaded on every page of the site, only when Forge needs it. A copy saved by an earlier version is taken out of that load the first time the site runs this version, and is not deleted.
 
 ## [2.231.0] - 2026-11-24
 
