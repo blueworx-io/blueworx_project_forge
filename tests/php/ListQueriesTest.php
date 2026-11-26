@@ -299,6 +299,24 @@ final class ListQueriesTest extends TestCase {
 		$this->assertSame( '1', get_option( Cache::LEAN_FLAG ) );
 	}
 
+	public function test_a_database_check_that_is_cancelled_is_tried_again(): void {
+		$this->options_database();
+
+		// Another plugin stopped the check: no answer and no error, though the copy exists.
+		$GLOBALS['bwx_forge_test_options'][ Cache::OPTION ] = array( 'route' => array( 'payload' => array() ) );
+		$GLOBALS['bwx_forge_test_autoload_row']             = null;
+
+		Cache::stop_autoloading();
+
+		$this->assertArrayNotHasKey( Cache::LEAN_FLAG, $GLOBALS['bwx_forge_test_options'], 'Not marked done when it cannot tell.' );
+
+		unset( $GLOBALS['bwx_forge_test_options'][ Cache::OPTION ] );
+
+		Cache::stop_autoloading();
+
+		$this->assertSame( '1', get_option( Cache::LEAN_FLAG ), 'With no copy at all, there is nothing left to do.' );
+	}
+
 	public function test_a_copy_that_was_the_last_to_load_is_still_marked_done(): void {
 		$this->options_database();
 
