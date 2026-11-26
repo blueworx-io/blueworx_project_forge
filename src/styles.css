@@ -1178,6 +1178,16 @@ body {
   color: var( --ink-500 );
   white-space: nowrap;
 }
+/* On a phone the notice wraps inside the room beside the names, rather than
+   running off the screen on one line. */
+@media ( max-width: 640px ) {
+  .bwx-gantt-outside {
+    max-width: calc( 100vw - var( --gantt-gutter ) - 72px );
+    white-space: normal;
+    line-height: 1.3;
+    padding-block: 5px;
+  }
+}
 .bwx-gantt-day {
   display: flex;
   flex-direction: column;

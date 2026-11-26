@@ -139,12 +139,12 @@ function Kanban( { board, onDrag }: { board: BoardView; onDrag: () => void } ) {
  * it — never hidden, because "not scheduled yet" is the thing to know.
  *
  * Released work is left off: it is finished, and this is the plan for what is
- * still moving (#703). A zoom switches between a column a week and a column a
- * day, with today's column marked.
+ * still moving (#703). It opens with a column a day and today's column marked,
+ * and a zoom switches to a column a week. It looks two weeks back and six weeks
+ * ahead and no further, as the studio's does.
  */
 function Schedule( { board }: { board: BoardView } ) {
-  const [ zoom, setZoom ] = useState< Zoom >( 'week' );
-  const [ windowStart, setWindowStart ] = useState< number | null >( null );
+  const [ zoom, setZoom ] = useState< Zoom >( 'day' );
   const [ jump, setJump ] = useState( 0 );
   const chartRef = useRef< HTMLDivElement >( null );
   const now = today();
@@ -154,9 +154,8 @@ function Schedule( { board }: { board: BoardView } ) {
     .filter( ( row ): row is { item: WorkItem; span: Span } => null !== row.span )
     .sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) );
   const unplanned = live.filter( ( item ) => ! ( item.planned_start && item.planned_due ) );
-  const axis = axisFor( planned.map( ( row ) => row.span ), now, zoom, windowStart );
+  const axis = axisFor( planned.map( ( row ) => row.span ), now, zoom );
   const todayAt = placeToday( axis, now );
-  const windowed = axis.totalWeeks > axis.shownWeeks;
 
   // Opening the day view, or asking for Today, brings today's column into view.
   useEffect( () => {
@@ -183,33 +182,17 @@ function Schedule( { board }: { board: BoardView } ) {
           <Button size="sm" variant={ 'week' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'week' === zoom } data-testid="bwx-schedule-zoom-week" onClick={ () => setZoom( 'week' ) }>
             Weeks
           </Button>
-          <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => {
-            setWindowStart( null );
-            setZoom( 'day' );
-          } }>
+          <Button size="sm" variant={ 'day' === zoom ? 'secondary' : 'ghost' } aria-pressed={ 'day' === zoom } data-testid="bwx-schedule-zoom-day" onClick={ () => setZoom( 'day' ) }>
             Days
           </Button>
-          { 'day' === zoom && windowed && (
-            <Button size="sm" variant="ghost" data-testid="bwx-schedule-earlier" disabled={ 0 === axis.startWeek } onClick={ () => setWindowStart( Math.max( 0, axis.startWeek - 4 ) ) }>
-              Earlier
-            </Button>
-          ) }
           { 'day' === zoom && (
             <Button
               size="sm"
               variant="ghost"
               data-testid="bwx-schedule-jump-today"
-              onClick={ () => {
-                setWindowStart( null );
-                setJump( jump + 1 );
-              } }
+              onClick={ () => setJump( jump + 1 ) }
             >
               Today
-            </Button>
-          ) }
-          { 'day' === zoom && windowed && (
-            <Button size="sm" variant="ghost" data-testid="bwx-schedule-later" disabled={ axis.startWeek + axis.shownWeeks >= axis.totalWeeks } onClick={ () => setWindowStart( axis.startWeek + 4 ) }>
-              Later
             </Button>
           ) }
         </span>
@@ -258,7 +241,7 @@ function Schedule( { board }: { board: BoardView } ) {
                 <span className="fc-schedule-track">
                   { null !== todayAt && <span className="fc-schedule-today" style={ { left: `${ todayAt }%` } } /> }
                   { null === at ? (
-                    <span className="fc-schedule-outside fk-mono">due { day( span.due ) }, outside these days</span>
+                    <span className="fc-schedule-outside fk-mono">due { day( span.due ) }, outside the weeks shown</span>
                   ) : (
                     <span
                       className="fc-schedule-bar"

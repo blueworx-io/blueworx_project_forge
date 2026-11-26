@@ -10,13 +10,25 @@ import { checkAccessibility } from '../helpers/accessibility.js';
 const RUN = `board${ Date.now() }`;
 const PAGE = '/forge/#board';
 
+/** A date either side of today in the browser's own calendar, as the schedule marks it. */
+const pad = ( number ) => String( number ).padStart( 2, '0' );
+const on = ( offset ) => {
+  const at = new Date();
+
+  at.setDate( at.getDate() + offset );
+
+  return `${ at.getFullYear() }-${ pad( at.getMonth() + 1 ) }-${ pad( at.getDate() ) }`;
+};
+const MONTHS = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' ];
+const spoken = ( iso ) => `${ iso.slice( 8 ) } ${ MONTHS[ Number( iso.slice( 5, 7 ) ) - 1 ] } ${ iso.slice( 0, 4 ) }`;
+
 test.beforeAll( requireEnvironment );
 
 test( 'a client can read the board and comment on a card, but not move it', async ( { browser } ) => {
   test.setTimeout( 360_000 );
 
   const title = `Rebuild the member area ${ RUN }`;
-  const pair = await connectedPair( browser, 'Board Co', RUN, { title, planned_start: '2026-10-01', planned_due: '2026-10-10' } );
+  const pair = await connectedPair( browser, 'Board Co', RUN, { title, planned_start: on( -3 ), planned_due: on( 5 ) } );
   const before = ( await pair.studio.get( `/work-items/${ pair.work.id }` ) ).item.stage;
 
   const page = await pair.clientSite.context.newPage();
@@ -24,12 +36,18 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   // #703. The studio's answer, with one more item in it that has already been
   // released: shipped work has to stay off the schedule.
   const shipped = `Shipped last month ${ RUN }`;
+  const faraway = `Planned long ago ${ RUN }`;
   await page.route( /blueworx-forge-client(\/|%2F)v1(\/|%2F)board/, async ( route ) => {
     const response = await route.fetch();
     const body = await response.json();
 
     if ( body?.items?.length ) {
       body.items = [ ...body.items, { ...body.items[ 0 ], id: `${ body.items[ 0 ].id }x`, title: shipped, stage: 'released' } ];
+      // Work dated well beyond both limits, and some wholly before them.
+      body.items.push(
+        { ...body.items[ 0 ], id: `${ body.items[ 0 ].id }y`, title: `Long running ${ RUN }`, planned_start: on( -120 ), planned_due: on( 300 ) },
+        { ...body.items[ 0 ], id: `${ body.items[ 0 ].id }z`, title: faraway, planned_start: on( -120 ), planned_due: on( -110 ) }
+      );
     }
 
     await route.fulfill( { response, json: body } );
@@ -45,7 +63,7 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   const card = page.getByTestId( 'bwx-work-card' ).filter( { hasText: title } );
   await expect( card ).toBeVisible();
   await expect( page.locator( `.fc-column[data-stage="${ before }"]` ).getByTestId( 'bwx-work-card' ).filter( { hasText: title } ) ).toBeVisible();
-  await expect( card ).toContainText( 'due 10 Oct 2026' );
+  await expect( card ).toContainText( `due ${ spoken( on( 5 ) ) }` );
 
   // Dragging it is refused, in words, and nothing changes stage.
   await card.dispatchEvent( 'dragstart' );
@@ -59,22 +77,57 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   await page.getByRole( 'button', { name: 'Schedule' } ).click();
   const bar = page.getByTestId( 'bwx-schedule-row' ).filter( { hasText: title } );
   await expect( bar ).toBeVisible();
-  await expect( bar ).toContainText( 'due 10 Oct 2026' );
+  await expect( bar ).toContainText( `due ${ spoken( on( 5 ) ) }` );
   await expect( page.getByTestId( 'bwx-schedule' ) ).not.toContainText( shipped );
 
-  // #703. A day view, a column to a day, with today marked.
-  const weekColumns = await page.getByTestId( 'bwx-schedule' ).locator( '.fc-schedule-weeks > span' ).count();
-  await page.getByTestId( 'bwx-schedule-zoom-day' ).click();
+  // #703. A day view, a column to a day, and it is how the schedule opens. The
+  // chart looks two weeks back and six ahead at most, so the long bar added
+  // above (it runs from long ago to well ahead) is cut at both ends.
   await expect( page.getByTestId( 'bwx-schedule-chart' ) ).toHaveAttribute( 'data-zoom', 'day' );
-  // Seven columns to a week, and never more than twenty-six weeks of them.
-  await expect( page.getByTestId( 'bwx-schedule-day' ) ).toHaveCount( Math.min( weekColumns, 26 ) * 7 );
+  const dayColumns = page.getByTestId( 'bwx-schedule-day' );
+  await expect( dayColumns ).toHaveCount( 57 );
+  await expect( dayColumns.first() ).toHaveAttribute( 'data-day', on( -14 ) );
+  await expect( dayColumns.last() ).toHaveAttribute( 'data-day', on( 42 ) );
   await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toHaveCount( 1 );
+  await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toHaveAttribute( 'data-day', on( 0 ) );
   await expect( page.locator( '[data-testid="bwx-schedule-day"][data-today="true"]' ) ).toContainText( 'Today' );
   await expect( page.getByTestId( 'bwx-schedule-today-note' ) ).toContainText( 'Today is' );
   await expect( bar ).toBeVisible();
   await expect( page.getByTestId( 'bwx-schedule' ) ).not.toContainText( shipped );
+
+  // Work wholly outside those weeks is named, not drawn.
+  const outside = page.getByTestId( 'bwx-schedule-row' ).filter( { hasText: faraway } );
+  await expect( outside.locator( '.fc-schedule-outside' ) ).toContainText( 'outside the weeks shown' );
+  await expect( outside.locator( '.fc-schedule-bar' ) ).toHaveCount( 0 );
   await checkAccessibility( page, 'Client schedule', 'app' );
+
+  // The weeks are one press away, inside the same limits.
   await page.getByTestId( 'bwx-schedule-zoom-week' ).click();
+  await expect( page.getByTestId( 'bwx-schedule-chart' ) ).toHaveAttribute( 'data-zoom', 'week' );
+  await expect( dayColumns ).toHaveCount( 0 );
+  // Whole weeks inside the limits: seven or eight of them, by the day of the week.
+  const weekCount = await page.locator( '.fc-schedule-weeks > span' ).count();
+  expect( weekCount === 7 || weekCount === 8 ).toBe( true );
+
+  // On a phone: the controls wrap inside the card, a name stays beside the days
+  // once Today has scrolled to them, and the notice fits the screen.
+  await page.setViewportSize( { width: 390, height: 844 } );
+  await page.getByTestId( 'bwx-schedule-zoom-day' ).click();
+  await page.getByTestId( 'bwx-schedule-jump-today' ).click();
+  const box = await page.getByTestId( 'bwx-schedule' ).boundingBox();
+  for ( const control of await page.getByTestId( 'bwx-schedule' ).locator( '.fc-schedule-head button' ).all() ) {
+    const at = await control.boundingBox();
+
+    expect( at.x ).toBeGreaterThanOrEqual( box.x );
+    expect( at.x + at.width ).toBeLessThanOrEqual( box.x + box.width );
+  }
+  // The chart is below the fold on a phone, so bring it up first.
+  await bar.scrollIntoViewIfNeeded();
+  await expect( bar.locator( '.fc-schedule-label' ) ).toBeInViewport( { ratio: 1 } );
+  await expect( bar.locator( '.fc-schedule-label .fc-link' ) ).toBeVisible();
+  await outside.scrollIntoViewIfNeeded();
+  await expect( outside.locator( '.fc-schedule-outside' ) ).toBeInViewport( { ratio: 1 } );
+  await page.setViewportSize( { width: 1280, height: 800 } );
   await page.getByRole( 'button', { name: 'Kanban' } ).click();
 
   // Opening the card is a link, so it can be shared and the back button works.

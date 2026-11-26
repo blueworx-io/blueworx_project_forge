@@ -37,20 +37,16 @@ export interface Axis {
   to: string;
   zoom: Zoom;
   columns: Array< { start: string; label: string } >;
-
-  /*
-   * The weeks the axis starts at and covers, out of all the weeks there are.
-   * At the day zoom a long stretch is cut to a window (see DAY_WINDOW_WEEKS),
-   * so the chart is never asked for thousands of columns; the rest is a step
-   * away rather than gone.
-   */
-  startWeek: number;
-  shownWeeks: number;
-  totalWeeks: number;
 }
 
-/** The most weeks the day zoom draws at once: half a year of day columns. */
-export const DAY_WINDOW_WEEKS = 26;
+/*
+ * How far the chart looks, from today. Work dated further out is still in the
+ * records and still listed, it is just not drawn: a chart that stretches to fit
+ * one mistyped year is a chart nobody can read, and a column a day needs a
+ * bounded number of columns.
+ */
+export const WEEKS_BACK = 2;
+export const WEEKS_AHEAD = 6;
 
 /** ISO date to a UTC timestamp, so arithmetic never meets a timezone. */
 function stamp( date: string ): number {
@@ -120,28 +116,35 @@ function weekStart( date: string ): string {
   return iso( at - weekday * DAY );
 }
 
+/** The Sunday that closes the week a date is in. */
+function weekEnd( date: string ): string {
+  return iso( stamp( weekStart( date ) ) + 6 * DAY );
+}
+
 /**
- * The weeks the chart draws, wide enough to hold everything dated and today.
+ * The time the chart draws: the whole weeks that hold everything dated and
+ * today, but never more than WEEKS_BACK weeks before today or WEEKS_AHEAD weeks
+ * after it.
  *
  * Today is included even when nothing is scheduled near it, because a schedule
  * that does not show where you are standing is a picture of somebody else's
  * year.
+ *
+ * Both zooms cover the same stretch of time, cut more or less finely. The week
+ * zoom draws whole Monday-to-Sunday weeks, so it keeps to the whole weeks
+ * inside the limits; the day zoom can use them to the day.
  */
-export function axisFor( spans: Span[], today: string, zoom: Zoom = 'week', startWeek: number | null = null ): Axis {
+export function axisFor( spans: Span[], today: string, zoom: Zoom = 'day' ): Axis {
   const dates = spans.flatMap( ( span ) => [ span.start, span.due ] ).concat( today );
   const first = weekStart( dates.reduce( ( a, b ) => ( a < b ? a : b ) ) );
-  const last = dates.reduce( ( a, b ) => ( a > b ? a : b ) );
+  const last = weekEnd( dates.reduce( ( a, b ) => ( a > b ? a : b ) ) );
 
-  // The same whole weeks at either zoom: zooming in cuts the same stretch of
-  // time more finely, it does not change which stretch it is. Unless that
-  // stretch is too long to draw a column a day for: then the day zoom shows a
-  // window of it, by default the one around today.
-  const total = Math.floor( daysBetween( first, last ) / 7 ) + 1;
-  const shown = 'day' === zoom ? Math.min( total, DAY_WINDOW_WEEKS ) : total;
-  const around = Math.floor( daysBetween( first, today ) / 7 ) - 1;
-  const begin = Math.max( 0, Math.min( startWeek ?? around, total - shown ) );
-  const from = iso( stamp( first ) + begin * 7 * DAY );
-  const to = iso( stamp( from ) + shown * 7 * DAY - DAY );
+  const earliest = iso( stamp( today ) - WEEKS_BACK * 7 * DAY );
+  const latest = iso( stamp( today ) + WEEKS_AHEAD * 7 * DAY );
+  const floor = 'day' === zoom || weekStart( earliest ) === earliest ? earliest : iso( stamp( weekStart( earliest ) ) + 7 * DAY );
+  const ceiling = 'day' === zoom || weekEnd( latest ) === latest ? latest : iso( stamp( weekStart( latest ) ) - DAY );
+  const from = first < floor ? floor : first;
+  const to = last > ceiling ? ceiling : last;
   const columns: Axis[ 'columns' ] = [];
 
   if ( 'day' === zoom ) {
@@ -154,7 +157,7 @@ export function axisFor( spans: Span[], today: string, zoom: Zoom = 'week', star
     }
   }
 
-  return { from, to, zoom, columns, startWeek: begin, shownWeeks: shown, totalWeeks: total };
+  return { from, to, zoom, columns };
 }
 
 /**
@@ -194,8 +197,9 @@ function dayLabel( date: string, first: boolean ): string {
 
 /**
  * Where a span sits on the axis, as percentages of the whole width, or null
- * when it falls wholly outside what the axis covers (only a windowed day
- * zoom can leave work out). A span that runs past an edge is cut at it.
+ * when it falls wholly outside what the axis covers (work dated beyond the
+ * weeks back and ahead that the chart looks). A span that runs past an edge is
+ * cut at it.
  */
 export function placeOn( span: Span, axis: Axis ): { left: number; width: number } | null {
   const total = daysBetween( axis.from, axis.to ) + 1;

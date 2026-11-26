@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.232.0] - 2026-11-26
+
+### Changed
+
+- The Schedule now opens in the day view, with today marked, on the studio and on the client's site. Weeks are one press away.
+- The Schedule shows two weeks back and six weeks ahead at most. Work dated further out is not drawn, and says it is outside the weeks shown. The Earlier and Later buttons are gone, since there is no further to go.
+- On a phone, the client's Schedule buttons wrap instead of running off the card, a task's name stays beside the days when you scroll, and the note for work outside the weeks wraps on the screen.
+- Today on the Schedule is the date on the viewer's own device, not the UTC date.
+
 ## [2.231.0] - 2026-11-24
 
 ### Added
