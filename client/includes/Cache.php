@@ -61,6 +61,12 @@ final class Cache {
 
 		if ( function_exists( 'wp_set_option_autoload' ) ) {
 			wp_set_option_autoload( self::OPTION, false );
+
+			// Done only once the copy is no longer among what loads on every
+			// page. If WordPress could not change it, the next page tries again.
+			if ( function_exists( 'wp_load_alloptions' ) && array_key_exists( self::OPTION, wp_load_alloptions( true ) ) ) {
+				return;
+			}
 		}
 
 		update_option( self::LEAN_FLAG, '1' );

@@ -28,6 +28,18 @@ if ( ! function_exists( 'wp_set_option_autoload' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_load_alloptions' ) ) {
+	/**
+	 * Stub. The options WordPress loads on every page; a test fills it in.
+	 *
+	 * @param bool $force_cache Ignored.
+	 * @return array<string, mixed>
+	 */
+	function wp_load_alloptions( bool $force_cache = false ): array {
+		return $GLOBALS['bwx_forge_test_alloptions'] ?? array();
+	}
+}
+
 /**
  * #712. Every card on a list asked the database, on its own, whether it had
  * open questions and whether it had evidence — about 1,700 queries for 4,000
@@ -42,7 +54,7 @@ final class ListQueriesTest extends TestCase {
 	protected function tearDown(): void {
 		ListMemo::stop();
 
-		unset( $GLOBALS['bwx_forge_test_autoload'], $GLOBALS['bwx_forge_test_options'][ Cache::LEAN_FLAG ] );
+		unset( $GLOBALS['bwx_forge_test_autoload'], $GLOBALS['bwx_forge_test_alloptions'], $GLOBALS['bwx_forge_test_options'][ Cache::LEAN_FLAG ] );
 	}
 
 	/**
@@ -165,6 +177,39 @@ final class ListQueriesTest extends TestCase {
 		Cache::stop_autoloading();
 
 		$this->assertArrayNotHasKey( 'bwx_forge_test_autoload', $GLOBALS, 'It is done once, not on every page.' );
+	}
+
+	public function test_a_failed_change_is_tried_again_on_the_next_page(): void {
+		// WordPress could not change it: the copy still loads on every page.
+		$GLOBALS['bwx_forge_test_alloptions'] = array( Cache::OPTION => 'x' );
+
+		Cache::stop_autoloading();
+
+		$this->assertArrayNotHasKey( Cache::LEAN_FLAG, $GLOBALS['bwx_forge_test_options'] );
+
+		$GLOBALS['bwx_forge_test_alloptions'] = array();
+
+		Cache::stop_autoloading();
+
+		$this->assertSame( '1', get_option( Cache::LEAN_FLAG ) );
+	}
+
+	public function test_uninstalling_the_client_plugin_removes_the_upgrade_flag(): void {
+		$GLOBALS['bwx_forge_test_calls'] = array();
+
+		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+			define( 'WP_UNINSTALL_PLUGIN', 'blueworx-forge-client/blueworx-forge-client.php' );
+		}
+
+		require dirname( __DIR__, 2 ) . '/client/uninstall.php';
+
+		$deleted = array_map(
+			static fn( array $call ): string => (string) $call[1],
+			array_filter( $GLOBALS['bwx_forge_test_calls'], static fn( array $call ): bool => 'delete_option' === $call[0] )
+		);
+
+		$this->assertContains( Cache::OPTION, $deleted );
+		$this->assertContains( Cache::LEAN_FLAG, $deleted );
 	}
 
 	public function test_a_list_reads_a_thing_once(): void {

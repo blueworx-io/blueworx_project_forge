@@ -26,6 +26,9 @@ $bwx_forge_client_options = array(
 	// The read-through cache. It is a copy of studio records, not this site's
 	// own data, so there is nothing to keep once the plugin is gone.
 	'bwx_forge_client_cache',
+	// Says the copy above was taken out of every page's load (#712). Left behind,
+	// an older version reinstalled would rebuild the copy and never have it taken out.
+	'bwx_forge_client_cache_lean',
 );
 
 foreach ( $bwx_forge_client_options as $bwx_forge_client_option ) {
