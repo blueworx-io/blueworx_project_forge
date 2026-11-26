@@ -36,6 +36,9 @@ function bwx_forge_test_record( string $name, $arg ): void {
  */
 function delete_option( string $option ): bool {
 	bwx_forge_test_record( 'delete_option', $option );
+	if ( isset( $GLOBALS['bwx_forge_test_on_delete'] ) ) {
+		( $GLOBALS['bwx_forge_test_on_delete'] )( $option );
+	}
 	// Records the call *and* deletes: a unit that deletes an option and then
 	// reads it back has to see it gone, or a cache that is never really cleared
 	// passes its own test.

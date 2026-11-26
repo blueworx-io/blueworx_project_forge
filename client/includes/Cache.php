@@ -27,8 +27,18 @@ final class Cache {
 
 	/**
 	 * Option holding the cached payloads, keyed by route.
+	 *
+	 * Saved with autoload off (#712): it holds whole boards, and an autoloaded
+	 * option is read into memory on every page of the client's site, whether
+	 * or not the page shows Forge.
 	 */
 	public const OPTION = 'bwx_forge_client_cache';
+
+	/**
+	 * Set once the stored copy has been taken out of what WordPress loads on
+	 * every page (#712).
+	 */
+	public const LEAN_FLAG = 'bwx_forge_client_cache_lean';
 
 	/**
 	 * How old a copy may be before it is refreshed.
@@ -36,6 +46,59 @@ final class Cache {
 	 * ARCH-5 sets acceptable staleness on a client site at 60 seconds.
 	 */
 	public const MAX_AGE = 60;
+
+	/**
+	 * Takes a copy saved before #712 out of what WordPress loads on every page,
+	 * once, without touching what it holds. Saving with autoload off only
+	 * changes the setting when the copy itself changes, so a site that rarely
+	 * opens Forge would otherwise keep loading it. The copy that serves a studio
+	 * outage (ARCH-4) is kept.
+	 */
+	public static function stop_autoloading(): void {
+		if ( get_option( self::LEAN_FLAG ) ) {
+			return;
+		}
+
+		if ( function_exists( 'wp_set_option_autoload' ) ) {
+			wp_set_option_autoload( self::OPTION, false );
+
+			// Done only once the copy is no longer among what loads on every
+			// page. If WordPress could not change it, the next page tries again.
+			if ( self::still_autoloads() ) {
+				return;
+			}
+		}
+
+		update_option( self::LEAN_FLAG, '1' );
+	}
+
+	/**
+	 * Whether the stored copy is still set to load on every page, read from its
+	 * own row. WordPress's list of what loads on every page cannot answer this:
+	 * when nothing is left to load, it hands back every option instead, so a
+	 * copy that was the last one to load would look as if it still loaded.
+	 *
+	 * @return bool False when there is no stored copy.
+	 */
+	private static function still_autoloads(): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the cached list is what cannot be trusted here.
+		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", self::OPTION ) );
+
+		// A check that failed proves nothing: the next page tries again.
+		if ( '' !== (string) $wpdb->last_error ) {
+			return true;
+		}
+
+		if ( null === $autoload ) {
+			return false;
+		}
+
+		$loads = function_exists( 'wp_autoload_values_to_autoload' ) ? wp_autoload_values_to_autoload() : array( 'yes', 'on', 'auto-on', 'auto' );
+
+		return in_array( (string) $autoload, $loads, true );
+	}
 
 	/**
 	 * The stored entry for a route, or null.
@@ -82,7 +145,7 @@ final class Cache {
 			'failed'     => array(),
 		);
 
-		update_option( self::OPTION, $stored );
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**
@@ -108,7 +171,7 @@ final class Cache {
 
 		$stored[ $route ]['failed'] = array_merge( $failure, array( 'at' => bwx_forge_client_now() ) );
 
-		update_option( self::OPTION, $stored );
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**
@@ -135,7 +198,7 @@ final class Cache {
 
 		unset( $stored[ $route ] );
 
-		update_option( self::OPTION, $stored );
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**
