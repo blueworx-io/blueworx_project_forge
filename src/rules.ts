@@ -705,7 +705,7 @@ export const RULES: RuleSection[] = [
         why: 'Keeping Forge up to date should not mean leaving it.',
       },
       {
-        what: 'Forge and the Forge client plugin install their own new releases without anybody pressing Update, on the studio and on every client site. It is not a setting, and it applies to these two plugins only: no other plugin on the site has its update setting changed. A site running an earlier version takes the first of these by hand; every release after it installs itself.',
+        what: 'Forge and the Forge client plugin install their own new releases without anybody pressing Update, on the studio and on every client site. It is not a setting, and it applies to these two plugins only: no other plugin on the site has its update setting changed. A site that has not already turned on automatic updates for Forge installs the first of these by hand; every release after it installs itself.',
         why: 'A release should reach every site on its own; one that waits for a person to press Update can sit unseen on a site nobody opens.',
       },
       {

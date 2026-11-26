@@ -8,7 +8,8 @@ import {
   nextVersion,
   packageOf,
   removeUpdateStub,
-  runUpdater,
+  updaterApi,
+  useDisposableCopy,
 } from './helpers/auto-update.js';
 
 // #713. A release of Forge installs itself: the update checker offers it, and
@@ -17,15 +18,16 @@ import {
 // asks the question the background updater asks (is auto-update forced for this
 // plugin?), so what it says is what a release will do. And the background
 // updater itself is run, offered a release of Forge and of two plugins that are
-// not ours, and asked which it goes to fetch.
+// not ours, and the version on disk changes for Forge and for nobody else.
 //
-// The studio plugin is only fetched, never replaced: on a test site it is a
-// link to this repository, and installing over it would delete the repository.
-// The client plugin is installed for real, in tests/pair/client-auto-updates.
+// On a test site Forge is a link to this repository, and installing over a link
+// would empty the repository. So the install runs on a disposable copy of what
+// ships, swapped in for the length of that one test and swapped back after.
 //
 // The test site has no network, so the update data and the release come from a
 // stand-in (tests/support/auto-update-stub.php) rather than whatever a previous
-// check left behind.
+// check left behind. The client plugin is installed for real in
+// tests/pair/client-auto-updates.
 
 const PLUGINS = '/wp-admin/plugins.php';
 
@@ -59,20 +61,41 @@ test('other plugins keep the update setting they had', async ({ page }) => {
   }
 });
 
-test('the background updater fetches a Forge release, and nobody else\'s', async ({ request }) => {
-  const version = nextVersion('2.0.0');
+test("the background updater installs a Forge release, and nobody else's",async ({ page }) => {
+  await signIn(page);
+  const nonce = await page.evaluate(() => window.wpApiSettings?.nonce);
+  expect(nonce, 'no REST nonce on the admin page').toBeTruthy();
 
-  const run = await runUpdater(request, {
-    [STUDIO_PLUGIN]: version,
-    [AKISMET]: '99.0.0',
-    [HELLO]: '99.0.0',
+  const updater = updaterApi(page.request, nonce);
+  const restore = useDisposableCopy('studio', 'blueworx-forge');
+
+  try {
+    const installed = (await updater.versions())[STUDIO_PLUGIN];
+    const release = nextVersion(installed);
+
+    const run = await updater.run(
+      { [STUDIO_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
+      [STUDIO_PLUGIN]
+    );
+
+    // Forge took its release with nobody pressing Update.
+    expect(run.before[STUDIO_PLUGIN]).toBe(installed);
+    expect(run.after[STUDIO_PLUGIN]).toBe(release);
+
+    // The other two had releases on offer too. Neither was fetched, and
+    // neither changed.
+    expect(run.downloads).toEqual([packageOf(STUDIO_PLUGIN)]);
+    expect(run.after[AKISMET]).toBe(run.before[AKISMET]);
+    expect(run.after[HELLO]).toBe(run.before[HELLO]);
+  } finally {
+    restore();
+  }
+});
+
+test('the test updater takes nobody but an administrator', async ({ request }) => {
+  const asked = await request.post('/wp-json/bwx-forge-test/v1/updates/run', {
+    data: { offers: { [STUDIO_PLUGIN]: '9.9.9' }, build: [] },
   });
 
-  // Forge's release was asked for, with nobody pressing Update. The other two
-  // had releases on offer too, and were not.
-  expect(run.downloads).toEqual([packageOf(STUDIO_PLUGIN)]);
-
-  // And nothing else moved.
-  expect(run.after[AKISMET]).toBe(run.before[AKISMET]);
-  expect(run.after[HELLO]).toBe(run.before[HELLO]);
+  expect([401, 403]).toContain(asked.status());
 });

@@ -17,10 +17,14 @@
  *
  * A package is served from the stub rather than over HTTP. One that has no
  * zip behind it answers the download with an error, so the updater has asked
- * for it, which is the decision to install, and stops there. That is how the
- * studio plugin is proven without being replaced: on a test site it is a
- * link to the repository, and an installed update would delete the folder it
- * points at.
+ * for it, which is the decision to install, and stops there. That is how a
+ * plugin that is offered but not ours is shown to be left alone.
+ *
+ * Nothing leaves the machine, and only the releases a test offers are ever on
+ * offer: whatever WordPress.org or GitHub would offer is dropped.
+ *
+ * The routes install code, so they take an administrator only, and a version
+ * that is a plain number.
  *
  * @package Blueworx\Forge
  */
@@ -90,33 +94,71 @@ function bwx_forge_update_stub_build_zip( string $file, string $version ): strin
 	$work   = trailingslashit( get_temp_dir() ) . 'bwx-release-' . wp_generate_password( 8, false );
 	$copy   = $work . '/' . $slug;
 
-	wp_mkdir_p( $copy );
+	$zip = $work . '.zip';
+
+	try {
+		wp_mkdir_p( $copy );
+
+		$items = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $source, FilesystemIterator::SKIP_DOTS ),
+			RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		foreach ( $items as $item ) {
+			$target = $copy . '/' . substr( $item->getPathname(), strlen( $source ) + 1 );
+
+			if ( $item->isDir() ) {
+				wp_mkdir_p( $target );
+			} else {
+				copy( $item->getPathname(), $target );
+			}
+		}
+
+		$main    = $copy . '/' . basename( $file );
+		$changed = preg_replace( '/^(\s*\*\s*Version:\s*).+$/m', '${1}' . $version, (string) file_get_contents( $main ), 1 );
+
+		file_put_contents( $main, $changed );
+
+		$archive = new PclZip( $zip );
+		$archive->create( $copy, PCLZIP_OPT_REMOVE_PATH, $work );
+	} catch ( Throwable $failure ) {
+		if ( file_exists( $zip ) ) {
+			unlink( $zip ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		}
+
+		throw $failure;
+	} finally {
+		// The copy is only there to be zipped.
+		bwx_forge_update_stub_remove_tree( $work );
+	}
+
+	return $zip;
+}
+
+/**
+ * Removes a folder and everything in it.
+ *
+ * @param string $dir The folder.
+ */
+function bwx_forge_update_stub_remove_tree( string $dir ): void {
+	if ( ! is_dir( $dir ) ) {
+		return;
+	}
 
 	$items = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $source, FilesystemIterator::SKIP_DOTS ),
-		RecursiveIteratorIterator::SELF_FIRST
+		new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ),
+		RecursiveIteratorIterator::CHILD_FIRST
 	);
 
 	foreach ( $items as $item ) {
-		$target = $copy . '/' . substr( $item->getPathname(), strlen( $source ) + 1 );
-
-		if ( $item->isDir() ) {
-			wp_mkdir_p( $target );
+		if ( $item->isDir() && ! $item->isLink() ) {
+			rmdir( $item->getPathname() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
 		} else {
-			copy( $item->getPathname(), $target );
+			unlink( $item->getPathname() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 		}
 	}
 
-	$main    = $copy . '/' . basename( $file );
-	$changed = preg_replace( '/^(\s*\*\s*Version:\s*).+$/m', '${1}' . $version, (string) file_get_contents( $main ), 1 );
-
-	file_put_contents( $main, $changed );
-
-	$zip     = $work . '.zip';
-	$archive = new PclZip( $zip );
-	$archive->create( $copy, PCLZIP_OPT_REMOVE_PATH, $work );
-
-	return $zip;
+	rmdir( $dir ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
 }
 
 /**
@@ -126,7 +168,12 @@ function bwx_forge_update_stub_build_zip( string $file, string $version ): strin
  * @return bool
  */
 function bwx_forge_update_stub_may_replace( string $file ): bool {
-	$dir  = WP_PLUGIN_DIR . '/' . bwx_forge_update_stub_slug( $file );
+	$dir = WP_PLUGIN_DIR . '/' . bwx_forge_update_stub_slug( $file );
+
+	// A link swapped for a real folder between requests must not be answered
+	// from the path cache of an earlier one.
+	clearstatcache( true );
+
 	$real = realpath( $dir );
 
 	if ( false === $real ) {
@@ -154,7 +201,9 @@ add_filter(
 			$value = new stdClass();
 		}
 
-		$value->response  = isset( $value->response ) ? (array) $value->response : array();
+		// Whatever WordPress.org or GitHub offered is dropped: a test must
+		// never install a live release.
+		$value->response  = array();
 		$value->no_update = isset( $value->no_update ) ? (array) $value->no_update : array();
 		$offers           = (array) get_option( BWX_FORGE_UPDATE_STUB_OFFERS, array() );
 
@@ -187,6 +236,14 @@ add_filter(
 		return $value;
 	},
 	99
+);
+
+add_filter(
+	'pre_http_request',
+	static function () {
+		return new WP_Error( 'bwx_forge_test_offline', 'Outbound HTTP is blocked during the test run.' );
+	},
+	0
 );
 
 add_filter(
@@ -224,14 +281,38 @@ add_action(
 	static function (): void {
 		register_rest_route(
 			'bwx-forge-test/v1',
+			'/updates/versions',
+			array(
+				'methods'             => 'GET',
+				'permission_callback' => static function () {
+					return current_user_can( 'manage_options' );
+				},
+				'callback'            => static function () {
+					return new WP_REST_Response( bwx_forge_update_stub_versions(), 200 );
+				},
+			)
+		);
+
+		register_rest_route(
+			'bwx-forge-test/v1',
 			'/updates/run',
 			array(
 				'methods'             => 'POST',
-				'permission_callback' => '__return_true',
+				'permission_callback' => static function () {
+					return current_user_can( 'manage_options' );
+				},
 				'callback'            => static function ( WP_REST_Request $request ) {
 					$offers = (array) $request->get_param( 'offers' );
 					$build  = (array) $request->get_param( 'build' );
 					$zips   = array();
+
+					// A version is written into a plugin file that is then installed,
+					// so only a plain version number, for a plugin under test, goes in.
+					foreach ( $offers as $file => $version ) {
+						if ( ! in_array( $file, bwx_forge_update_stub_plugins(), true ) || ! is_string( $version ) || 1 !== preg_match( '/^\d+\.\d+\.\d+$/', $version ) ) {
+							return new WP_REST_Response( array( 'error' => 'not a plugin under test, or not a version' ), 400 );
+						}
+					}
 
 					foreach ( $build as $file ) {
 						$file = (string) $file;
@@ -297,6 +378,13 @@ add_action(
 					wp_clean_plugins_cache();
 					delete_option( BWX_FORGE_UPDATE_STUB_OFFERS );
 					delete_option( BWX_FORGE_UPDATE_STUB_ZIPS );
+
+					// An installed zip is deleted by WordPress; one that was refused is not.
+					foreach ( $zips as $zip ) {
+						if ( file_exists( $zip ) ) {
+							unlink( $zip ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+						}
+					}
 
 					return new WP_REST_Response(
 						array(

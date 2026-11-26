@@ -10,7 +10,8 @@ import {
   nextVersion,
   packageOf,
   removeUpdateStub,
-  runUpdater,
+  updaterApi,
+  useDisposableCopy,
 } from '../e2e/helpers/auto-update.js';
 
 // #713, on the client plugin. A client site is somebody else's WordPress that
@@ -20,8 +21,9 @@ import {
 // a release of the client plugin and of two plugins that are not ours, and the
 // version on disk changes for ours and for no other.
 //
-// The client site's own copy of the plugin is a staged one, so it can be
-// installed over for real — the studio's, on the other site, cannot.
+// The harness links the client site's plugin to a staged copy, and installing
+// over a link would empty what it points at, so the install runs on a copy of
+// what ships, swapped in for that one test and swapped back after.
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const CLIENT_WP = process.env.BWX_CLIENT_WP_DIR || join(ROOT, '.wp-test-client', 'wp');
@@ -57,28 +59,35 @@ test.describe('a client site installing its own releases', () => {
     await context.close();
   });
 
-  test('installs a new release of the client plugin by itself, and touches nothing else', async ({ playwright }) => {
-    const request = await playwright.request.newContext({ baseURL: CLIENT_URL });
+  test('installs a new release of the client plugin by itself, and touches nothing else', async ({ browser }) => {
+    const { context, nonce } = await signedIn(browser, CLIENT_URL);
+    const updater = updaterApi(context.request, nonce);
 
-    const first = await runUpdater(request, {}, []);
-    const installed = first.before[CLIENT_PLUGIN];
-    const release = nextVersion(installed);
+    // The harness links this plugin to the staged copy; installing over a link
+    // would empty what it points at, so the update lands on a copy of its own
+    // and the link goes back afterwards.
+    const restore = useDisposableCopy('client', 'blueworx-forge-client', CLIENT_WP);
 
-    const run = await runUpdater(
-      request,
-      { [CLIENT_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
-      [CLIENT_PLUGIN]
-    );
+    try {
+      const installed = (await updater.versions())[CLIENT_PLUGIN];
+      const release = nextVersion(installed);
 
-    expect(run.before[CLIENT_PLUGIN]).toBe(installed);
-    expect(run.after[CLIENT_PLUGIN]).toBe(release);
+      const run = await updater.run(
+        { [CLIENT_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
+        [CLIENT_PLUGIN]
+      );
 
-    // The other two had a release on offer as well. Neither was fetched, and
-    // neither changed.
-    expect(run.downloads).toEqual([packageOf(CLIENT_PLUGIN)]);
-    expect(run.after[AKISMET]).toBe(run.before[AKISMET]);
-    expect(run.after[HELLO]).toBe(run.before[HELLO]);
+      expect(run.before[CLIENT_PLUGIN]).toBe(installed);
+      expect(run.after[CLIENT_PLUGIN]).toBe(release);
 
-    await request.dispose();
+      // The other two had a release on offer as well. Neither was fetched, and
+      // neither changed.
+      expect(run.downloads).toEqual([packageOf(CLIENT_PLUGIN)]);
+      expect(run.after[AKISMET]).toBe(run.before[AKISMET]);
+      expect(run.after[HELLO]).toBe(run.before[HELLO]);
+    } finally {
+      restore();
+      await context.close();
+    }
   });
 });
