@@ -54,6 +54,16 @@ final class ListMemo {
 	}
 
 	/**
+	 * Whether a list is being drawn, so a read may be made for every card at
+	 * once instead of one card at a time (#712).
+	 *
+	 * @return bool
+	 */
+	public static function is_on(): bool {
+		return self::$on;
+	}
+
+	/**
 	 * A read, once per list.
 	 *
 	 * @param string   $key  What is being read, and for what.

@@ -27,6 +27,10 @@ final class Cache {
 
 	/**
 	 * Option holding the cached payloads, keyed by route.
+	 *
+	 * Saved with autoload off (#712): it holds whole boards, and an autoloaded
+	 * option is read into memory on every page of the client's site, whether
+	 * or not the page shows Forge.
 	 */
 	public const OPTION = 'bwx_forge_client_cache';
 
@@ -82,7 +86,7 @@ final class Cache {
 			'failed'     => array(),
 		);
 
-		update_option( self::OPTION, $stored );
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**
@@ -108,7 +112,7 @@ final class Cache {
 
 		$stored[ $route ]['failed'] = array_merge( $failure, array( 'at' => bwx_forge_client_now() ) );
 
-		update_option( self::OPTION, $stored );
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**
@@ -135,7 +139,7 @@ final class Cache {
 
 		unset( $stored[ $route ] );
 
-		update_option( self::OPTION, $stored );
+		update_option( self::OPTION, $stored, false );
 	}
 
 	/**

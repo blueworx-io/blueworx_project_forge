@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.231.1] - 2026-11-26
+
+### Fixed
+
+- Forge's lists of work no longer ask the database about every card on its own. All work, the Daily standup, a site's board and the client's board each checked every card for evidence and open questions with queries of their own, which is what made the Up next view and the pages built on it take tens of seconds and helped take the server down. They now read those once for the whole list, so the number of queries no longer grows with the number of cards.
+- All work, a site's board and the client's board no longer read every word written on old and archived work just to count what a project's children add up to. They read that work without its text and fetch the full text only for the cards shown.
+- The client's board looks each person up once, not once for every seat they hold.
+- A client's site keeps what it last read from the studio so that it is no longer loaded on every page of the site, only when Forge needs it.
+
 ## [2.231.0] - 2026-11-24
 
 ### Added

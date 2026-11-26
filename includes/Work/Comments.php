@@ -412,6 +412,95 @@ final class Comments {
 	}
 
 	/**
+	 * How many questions to the client are open on each item, from the rows of
+	 * question and answering comments the client can see (#712).
+	 *
+	 * The same rule as {@see self::outstanding()}, which looks at one item's
+	 * comments: an answer only closes a question on its own item. Pure, so the
+	 * rule can be held to the one-card reading.
+	 *
+	 * @param array<int, array<string, mixed>> $rows id, item_id, kind and answers of each comment.
+	 * @return array<string, int> Count keyed by item id; items with none are absent.
+	 */
+	public static function open_questions_by_item( array $rows ): array {
+		$answered = array();
+
+		foreach ( $rows as $row ) {
+			$answers = (string) ( $row['answers'] ?? '' );
+
+			if ( '' !== $answers ) {
+				$answered[ (string) $row['item_id'] ][ $answers ] = true;
+			}
+		}
+
+		$counts = array();
+
+		foreach ( $rows as $row ) {
+			$item = (string) $row['item_id'];
+
+			if ( self::QUESTION === (string) $row['kind'] && empty( $answered[ $item ][ (string) $row['id'] ] ) ) {
+				$counts[ $item ] = ( $counts[ $item ] ?? 0 ) + 1;
+			}
+		}
+
+		return $counts;
+	}
+
+	/**
+	 * Open questions to the client on every item, in one read (#712). A list
+	 * asks this once instead of once per card.
+	 *
+	 * @return array<string, int> Count keyed by item id; items with none are absent.
+	 */
+	public static function open_questions_everywhere(): array {
+		global $wpdb;
+
+		$table = Schema::comments_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder; the values are.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, item_id, kind, answers FROM {$table} WHERE visibility = %s AND ( kind = %s OR answers <> '' )", self::CLIENT, self::QUESTION ), ARRAY_A );
+
+		return self::open_questions_by_item( is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * How many questions to the client are open on one item, reading the whole
+	 * list's at once while a list is being drawn (#712).
+	 *
+	 * @param string $item_id Item id.
+	 * @return int
+	 */
+	public static function open_question_count( string $item_id ): int {
+		if ( ! ListMemo::is_on() ) {
+			return count( self::outstanding( $item_id ) );
+		}
+
+		$counts = ListMemo::remember( 'open-questions', array( self::class, 'open_questions_everywhere' ) );
+
+		return (int) ( $counts[ $item_id ] ?? 0 );
+	}
+
+	/**
+	 * Every item with a comment holding a link added since it entered the
+	 * stage it is at, in one read (#712). An item with no history of entering
+	 * its stage counts from the beginning of time, as in the one-card reading.
+	 *
+	 * @return array<string, bool> Keyed by item id.
+	 */
+	public static function evidence_everywhere(): array {
+		global $wpdb;
+
+		$comments = Schema::comments_table();
+		$events   = Schema::work_events_table();
+		$items    = Schema::work_items_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table names cannot be placeholders; there are no values.
+		$ids = $wpdb->get_col( "SELECT DISTINCT i.id FROM {$items} i INNER JOIN {$comments} c ON c.item_id = i.id WHERE c.url <> '' AND c.created_at >= COALESCE( ( SELECT MAX( e.occurred_at ) FROM {$events} e WHERE e.item_id = i.id AND e.to_stage = i.stage ), 0 )" );
+
+		return array_fill_keys( array_map( 'strval', is_array( $ids ) ? $ids : array() ), true );
+	}
+
+	/**
 	 * How many questions to the client are unanswered on each of a site's
 	 * items (#673), in one read.
 	 *

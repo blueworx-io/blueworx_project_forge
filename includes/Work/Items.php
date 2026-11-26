@@ -147,6 +147,25 @@ final class Items {
 		$where  = array( 'client_site_id = %s' );
 		$values = array( $client_site_id );
 
+		self::narrowing_clauses( $filters, $where, $values );
+
+		$clause = implode( ' AND ', $where );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and the WHERE columns are this class's own literals; the placeholders are counted by the loop above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$clause} ORDER BY created_at DESC", $values ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * The WHERE clauses a narrowing adds, and their values (#712). One place
+	 * for one site and for many, so the two cannot mean different things.
+	 *
+	 * @param array<string, mixed> $filters stage, level, work_type, parent_id, include_archived.
+	 * @param array<int, string>   $where   Clauses so far; added to.
+	 * @param array<int, string>   $values  Values so far; added to.
+	 */
+	private static function narrowing_clauses( array $filters, array &$where, array &$values ): void {
 		foreach ( array( 'stage', 'level', 'work_type', 'parent_id' ) as $column ) {
 			if ( ! array_key_exists( $column, $filters ) ) {
 				continue;
@@ -173,13 +192,138 @@ final class Items {
 			$where[]  = 'archived = %s';
 			$values[] = '0';
 		}
+	}
+
+	/**
+	 * The columns that hold a person's writing. A list only needs these on the
+	 * cards it shows, never on the rest of a site's work that it reads to work
+	 * out what children make a parent (#712).
+	 */
+	public const LONG_TEXT = array(
+		'problem',
+		'scope',
+		'non_goals',
+		'requirements',
+		'acceptance_criteria',
+		'references_text',
+		'test_description',
+		'test_steps',
+		'links',
+		'images',
+		'documents',
+		'checklist',
+	);
+
+	/**
+	 * Every column of the table but the long text, read as nothing instead
+	 * (#712). The select list for a read whose rows are only counted, grouped
+	 * and checked, never shown.
+	 *
+	 * @param array<int, string> $columns Every column of the table.
+	 * @return string
+	 */
+	public static function lean_select( array $columns ): string {
+		return implode(
+			', ',
+			array_map(
+				static fn( string $column ): string => in_array( $column, self::LONG_TEXT, true ) ? "'' AS {$column}" : $column,
+				$columns
+			)
+		);
+	}
+
+	/**
+	 * The work on many sites with the narrowing done by the database, keyed by
+	 * site and newest first within each (#712). What
+	 * {@see self::every_on_sites()} followed by {@see self::narrow()} gives,
+	 * without reading what is then thrown away.
+	 *
+	 * @param array<int, string>   $client_site_ids The sites.
+	 * @param array<string, mixed> $filters         stage, level, work_type, parent_id, include_archived.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function on_sites( array $client_site_ids, array $filters = array() ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table  = Schema::work_items_table();
+		$where  = array( 'client_site_id IN (' . implode( ', ', array_fill( 0, count( $wanted ), '%s' ) ) . ')' );
+		$values = $wanted;
+
+		self::narrowing_clauses( $filters, $where, $values );
 
 		$clause = implode( ' AND ', $where );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and the WHERE columns are this class's own literals; the placeholders are counted by the loop above.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and the WHERE columns are this class's own literals; the placeholders are counted above.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$clause} ORDER BY created_at DESC", $values ), ARRAY_A );
 
-		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+		$by_site = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_site[ (string) $row['client_site_id'] ][] = self::hydrate( $row );
+		}
+
+		return $by_site;
+	}
+
+	/**
+	 * Every item on many sites, archived included, without its long text, in
+	 * one query and keyed by site (#712): what a list reads to work out what
+	 * each parent's children make it and what each card still needs, which is
+	 * stages, dates and outcomes and never a person's writing.
+	 *
+	 * @param array<int, string> $client_site_ids The sites.
+	 * @return array<string, array<int, array<string, mixed>>>
+	 */
+	public static function family_on_sites( array $client_site_ids ): array {
+		global $wpdb;
+
+		$wanted = array_values( array_unique( array_filter( array_map( 'strval', $client_site_ids ) ) ) );
+
+		if ( array() === $wanted ) {
+			return array();
+		}
+
+		$table = Schema::work_items_table();
+		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
+		$list  = self::lean_select( self::columns() );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and columns are this class's own literals; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT {$list} FROM {$table} WHERE client_site_id IN ({$slots}) ORDER BY created_at DESC", $wanted ), ARRAY_A );
+
+		$by_site = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$by_site[ (string) $row['client_site_id'] ][] = self::hydrate( $row );
+		}
+
+		return $by_site;
+	}
+
+	/**
+	 * Every column of the work table, read once from the database.
+	 *
+	 * @return array<int, string>
+	 */
+	private static function columns(): array {
+		global $wpdb;
+
+		static $columns = null;
+
+		if ( null === $columns ) {
+			$table = Schema::work_items_table();
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name cannot be a placeholder.
+			$found   = $wpdb->get_col( "SHOW COLUMNS FROM {$table}" );
+			$columns = array_values( array_map( 'strval', is_array( $found ) ? $found : array() ) );
+		}
+
+		return array() === $columns ? array( '*' ) : $columns;
 	}
 
 	/**
