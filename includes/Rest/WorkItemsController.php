@@ -603,6 +603,9 @@ final class WorkItemsController {
 			}
 		}
 
+		// #712. The cards whose evidence and open questions are read in one go.
+		ListMemo::cover( $open );
+
 		// #709. What each item waits on, when it was released and its gate
 		// records, for every site in one read each rather than one per site.
 		$shared = array(
@@ -816,6 +819,10 @@ final class WorkItemsController {
 			$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
 			$records = GateRecords::for_items( $open );
 		}
+
+		// #712. The cards checked below, so their evidence and open questions are
+		// read in one go and for these cards only.
+		ListMemo::cover( array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' ) );
 
 		// #565. What each item's children make it, the same way the client board
 		// is filled in.

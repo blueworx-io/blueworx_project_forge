@@ -272,10 +272,36 @@ final class Items {
 	}
 
 	/**
-	 * Every item on many sites, archived included, without its long text, in
-	 * one query and keyed by site (#712): what a list reads to work out what
-	 * each parent's children make it and what each card still needs, which is
-	 * stages, dates and outcomes and never a person's writing.
+	 * One site's unarchived work, newest first, with the long text read as
+	 * nothing (#712): what the client's board draws is titles, stages, dates and
+	 * who is on it. The archived rows are left out by the database, not read
+	 * and thrown away.
+	 *
+	 * @param string $client_site_id The site.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function board_for_site( string $client_site_id ): array {
+		global $wpdb;
+
+		$table = Schema::work_items_table();
+		$list  = self::lean_select( self::columns() );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name and columns are this class's own literals; the values are placeholders.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT {$list} FROM {$table} WHERE client_site_id = %s AND archived = %s ORDER BY created_at DESC", $client_site_id, '0' ), ARRAY_A );
+
+		return array_map( array( self::class, 'hydrate' ), is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * The unarchived work on many sites, keyed by site, and only the fields that
+	 * say what children make a parent (#712): which parent, which stage, what
+	 * outcome, which dates, which type and which release's review raised it.
+	 *
+	 * A list reads this to fill in each parent's progress and to check what a
+	 * card still needs, and for that neither a person's writing nor archived work
+	 * is wanted: archived children never count towards a parent. The rows are
+	 * small on purpose, so this second reading of a site costs little next to the
+	 * cards the list shows whole.
 	 *
 	 * @param array<int, string> $client_site_ids The sites.
 	 * @return array<string, array<int, array<string, mixed>>>
@@ -291,15 +317,26 @@ final class Items {
 
 		$table = Schema::work_items_table();
 		$slots = implode( ', ', array_fill( 0, count( $wanted ), '%s' ) );
-		$list  = self::lean_select( self::columns() );
+		$args  = array_merge( $wanted, array( '0' ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name and columns are this class's own literals; the slots are built from the count above.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT {$list} FROM {$table} WHERE client_site_id IN ({$slots}) ORDER BY created_at DESC", $wanted ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name is this class's own literal; the slots are built from the count above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, client_site_id, parent_id, review_of, work_type, stage, terminal_outcome, planned_start, planned_due FROM {$table} WHERE client_site_id IN ({$slots}) AND archived = %s", $args ), ARRAY_A );
 
 		$by_site = array();
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$by_site[ (string) $row['client_site_id'] ][] = self::hydrate( $row );
+			$by_site[ (string) $row['client_site_id'] ][] = array(
+				'id'               => (string) $row['id'],
+				'client_site_id'   => (string) $row['client_site_id'],
+				'parent_id'        => (string) $row['parent_id'],
+				'review_of'        => (string) $row['review_of'],
+				'work_type'        => (string) $row['work_type'],
+				'stage'            => (string) $row['stage'],
+				'terminal_outcome' => (string) $row['terminal_outcome'],
+				'archived'         => false,
+				'planned_start'    => (string) $row['planned_start'],
+				'planned_due'      => (string) $row['planned_due'],
+			);
 		}
 
 		return $by_site;

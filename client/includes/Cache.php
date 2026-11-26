@@ -35,11 +35,36 @@ final class Cache {
 	public const OPTION = 'bwx_forge_client_cache';
 
 	/**
+	 * Set once the stored copy has been taken out of what WordPress loads on
+	 * every page (#712).
+	 */
+	public const LEAN_FLAG = 'bwx_forge_client_cache_lean';
+
+	/**
 	 * How old a copy may be before it is refreshed.
 	 *
 	 * ARCH-5 sets acceptable staleness on a client site at 60 seconds.
 	 */
 	public const MAX_AGE = 60;
+
+	/**
+	 * Takes a copy saved before #712 out of what WordPress loads on every page,
+	 * once, without touching what it holds. Saving with autoload off only
+	 * changes the setting when the copy itself changes, so a site that rarely
+	 * opens Forge would otherwise keep loading it. The copy that serves a studio
+	 * outage (ARCH-4) is kept.
+	 */
+	public static function stop_autoloading(): void {
+		if ( get_option( self::LEAN_FLAG ) ) {
+			return;
+		}
+
+		if ( function_exists( 'wp_set_option_autoload' ) ) {
+			wp_set_option_autoload( self::OPTION, false );
+		}
+
+		update_option( self::LEAN_FLAG, '1' );
+	}
 
 	/**
 	 * The stored entry for a route, or null.

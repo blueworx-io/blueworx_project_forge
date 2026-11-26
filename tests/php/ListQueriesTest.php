@@ -8,9 +8,25 @@
 
 declare( strict_types = 1 );
 
+use Blueworx\Forge\Client\Cache;
 use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\ListMemo;
 use PHPUnit\Framework\TestCase;
+
+if ( ! function_exists( 'wp_set_option_autoload' ) ) {
+	/**
+	 * Stub. Records which options were taken out of the load on every page.
+	 *
+	 * @param string $option   Option name.
+	 * @param bool   $autoload Whether it loads on every page.
+	 * @return bool
+	 */
+	function wp_set_option_autoload( string $option, bool $autoload ): bool {
+		$GLOBALS['bwx_forge_test_autoload'][ $option ] = $autoload;
+
+		return true;
+	}
+}
 
 /**
  * #712. Every card on a list asked the database, on its own, whether it had
@@ -25,6 +41,8 @@ final class ListQueriesTest extends TestCase {
 	 */
 	protected function tearDown(): void {
 		ListMemo::stop();
+
+		unset( $GLOBALS['bwx_forge_test_autoload'], $GLOBALS['bwx_forge_test_options'][ Cache::LEAN_FLAG ] );
 	}
 
 	/**
@@ -105,6 +123,48 @@ final class ListQueriesTest extends TestCase {
 
 		ListMemo::stop();
 		$this->assertFalse( ListMemo::is_on() );
+	}
+
+	public function test_a_list_only_covers_the_cards_it_names(): void {
+		ListMemo::start();
+		ListMemo::cover( array( 'a', 'b' ) );
+
+		$this->assertTrue( ListMemo::covers( 'a' ) );
+		$this->assertFalse( ListMemo::covers( 'c' ) );
+		$this->assertSame( array( 'a', 'b' ), ListMemo::covered() );
+	}
+
+	public function test_nothing_is_covered_when_no_list_is_being_drawn(): void {
+		ListMemo::cover( array( 'a' ) );
+
+		$this->assertFalse( ListMemo::covers( 'a' ) );
+		$this->assertSame( array(), ListMemo::covered() );
+	}
+
+	public function test_a_read_made_for_fewer_cards_is_not_reused_for_more(): void {
+		ListMemo::start();
+		ListMemo::cover( array( 'a' ) );
+		$first = ListMemo::key_for_covered( 'evidence' );
+
+		ListMemo::cover( array( 'a' ) );
+		$this->assertSame( $first, ListMemo::key_for_covered( 'evidence' ), 'Naming a card again changes nothing.' );
+
+		ListMemo::cover( array( 'b' ) );
+		$this->assertNotSame( $first, ListMemo::key_for_covered( 'evidence' ) );
+	}
+
+	public function test_a_stored_copy_is_taken_out_of_the_load_once(): void {
+		$GLOBALS['bwx_forge_test_options'][ Cache::OPTION ] = array( 'route' => array( 'payload' => array() ) );
+
+		Cache::stop_autoloading();
+
+		$this->assertFalse( $GLOBALS['bwx_forge_test_autoload'][ Cache::OPTION ] );
+		$this->assertSame( array( 'route' => array( 'payload' => array() ) ), get_option( Cache::OPTION ), 'The copy itself is kept.' );
+
+		unset( $GLOBALS['bwx_forge_test_autoload'] );
+		Cache::stop_autoloading();
+
+		$this->assertArrayNotHasKey( 'bwx_forge_test_autoload', $GLOBALS, 'It is done once, not on every page.' );
 	}
 
 	public function test_a_list_reads_a_thing_once(): void {

@@ -866,10 +866,9 @@ final class ClientController {
 
 		// #565. Progress and dates for the client's projects and releases. Read
 		// from the same unarchived rows: archived children never count anyway.
-		// #712. Read without anybody's writing, which a client's board never
-		// shows: what it draws is titles, stages, dates and who is on it.
-		$every = Items::family_on_sites( array( (string) $integration['client_site_id'] ) )[ (string) $integration['client_site_id'] ] ?? array();
-		$rows  = Derived::across( array_values( array_filter( $every, static fn( array $row ): bool => empty( $row['archived'] ) ) ) );
+		// #712. The unarchived rows alone, from the database, without a person's
+		// writing, which a client's board never shows.
+		$rows = Derived::across( Items::board_for_site( (string) $integration['client_site_id'] ) );
 
 		return rest_ensure_response(
 			array(

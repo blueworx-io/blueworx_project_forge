@@ -1120,9 +1120,9 @@ final class Transition {
 	private static function evidence_since_entry( array $item ): bool {
 		global $wpdb;
 
-		// #712. A list reads every card's at once.
-		if ( ListMemo::is_on() ) {
-			$with = ListMemo::remember( 'evidence', array( Comments::class, 'evidence_everywhere' ) );
+		// #712. A list reads the checked cards' at once.
+		if ( ListMemo::covers( (string) $item['id'] ) ) {
+			$with = ListMemo::remember( ListMemo::key_for_covered( 'evidence' ), static fn(): array => Comments::evidence_among( ListMemo::covered() ) );
 
 			return isset( $with[ (string) $item['id'] ] );
 		}
