@@ -41,7 +41,7 @@ test( 'work inside the limits is drawn in both zooms', () => {
     assert.notEqual( placeOn( early, axis ), null, `${ zoom } draws it` );
   }
 
-  const before = span( '2026-11-10', '2026-11-11' );
+  const before = span( '2026-11-12', '2026-11-13' );
 
   assert.notEqual( placeOn( before, axisFor( [ before ], TODAY, 'week' ) ), null );
 } );
@@ -80,4 +80,26 @@ test( 'a date at the far end of the calendar cannot push the chart past its limi
     assert.ok( axis.to <= ( 'day' === zoom ? '2027-01-07' : '2027-01-10' ), `${ zoom } ends by six weeks ahead` );
     assert.ok( axis.columns.length <= ( 'day' === zoom ? 57 : 9 ) );
   }
+} );
+
+test( 'work just past a limit is not drawn in either zoom, even where the weeks view runs past the limit', () => {
+  // 8 Jan is the day after six weeks ahead; 9 and 10 Jan are in the Sunday-ending week the weeks view draws.
+  const late = span( '2027-01-08', '2027-01-10' );
+  const early = span( '2026-11-09', '2026-11-11' );
+  const edge = span( '2027-01-06', '2027-01-09' );
+
+  for ( const zoom of [ 'day', 'week' ] ) {
+    const axis = axisFor( [ late, early, edge ], TODAY, zoom );
+
+    assert.equal( placeOn( late, axis ), null, `${ zoom }: after the limit` );
+    assert.equal( placeOn( early, axis ), null, `${ zoom }: before the limit` );
+    assert.notEqual( placeOn( edge, axis ), null, `${ zoom }: crossing the limit is cut, not dropped` );
+  }
+
+  const week = axisFor( [ edge ], TODAY, 'week' );
+  const cut = placeOn( edge, week );
+  const total = daysBetween( week.from, week.to ) + 1;
+
+  // Cut at 7 Jan: it ends there, not at 9 Jan.
+  assert.ok( Math.abs( cut.left + cut.width - ( ( daysBetween( week.from, '2027-01-07' ) + 1 ) / total ) * 100 ) < 1e-9 );
 } );

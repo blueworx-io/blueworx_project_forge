@@ -36,6 +36,9 @@ export interface Axis {
   from: string;
   to: string;
   zoom: Zoom;
+  /** The limits work is drawn within, the same in both zooms: the weeks view's edge weeks run past them. */
+  earliest: string;
+  latest: string;
   columns: Array< { start: string; label: string } >;
 }
 
@@ -131,8 +134,10 @@ function weekEnd( date: string ): string {
  * year.
  *
  * Both zooms cover the same stretch of time, cut more or less finely. The week
- * zoom draws whole Monday-to-Sunday weeks, so it keeps to the whole weeks
- * inside the limits; the day zoom can use them to the day.
+ * zoom draws whole Monday-to-Sunday weeks, so the weeks at each limit are drawn
+ * whole and the axis can run up to six days past one; the day zoom keeps to
+ * them to the day. Work is placed within the limits in both, so the same work
+ * is drawn whichever zoom is open.
  */
 export function axisFor( spans: Span[], today: string, zoom: Zoom = 'day' ): Axis {
   const dates = spans.flatMap( ( span ) => [ span.start, span.due ] ).concat( today );
@@ -162,7 +167,7 @@ export function axisFor( spans: Span[], today: string, zoom: Zoom = 'day' ): Axi
     }
   }
 
-  return { from, to, zoom, columns };
+  return { from, to, zoom, earliest, latest, columns };
 }
 
 /**
@@ -208,15 +213,19 @@ function dayLabel( date: string, first: boolean ): string {
  */
 export function placeOn( span: Span, axis: Axis ): { left: number; width: number } | null {
   const total = daysBetween( axis.from, axis.to ) + 1;
+  // Work is drawn within the limits in both zooms, so the same work is drawn
+  // whichever one is open, even where the weeks view runs past them.
+  const lowest = axis.earliest > axis.from ? axis.earliest : axis.from;
+  const highest = axis.latest < axis.to ? axis.latest : axis.to;
+
+  if ( span.due < lowest || span.start > highest ) {
+    return null;
+  }
 
   // Inclusive of both ends: a piece of work that starts and ends on the same
   // day lasts a day, not nothing.
-  const first = Math.max( daysBetween( axis.from, span.start ), 0 );
-  const last = Math.min( daysBetween( axis.from, span.due ), total - 1 );
-
-  if ( last < first && ( span.due < axis.from || span.start > axis.to ) ) {
-    return null;
-  }
+  const first = Math.max( daysBetween( axis.from, span.start < lowest ? lowest : span.start ), 0 );
+  const last = Math.min( daysBetween( axis.from, span.due > highest ? highest : span.due ), total - 1 );
 
   return {
     left: ( first / total ) * 100,

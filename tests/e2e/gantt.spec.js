@@ -327,11 +327,17 @@ test.describe( 'the schedule', () => {
 
   test( 'work outside the two weeks back and six ahead is named, not drawn, and Today stays in view (#703)', async ( { page } ) => {
     // Work that finished long ago, and some that is a mistyped year away.
+    // Each date is worked out once and the same one is saved and checked, so a
+    // run that crosses midnight cannot disagree with itself.
+    const outsideDue = {};
+
     for ( const [ name, from, to ] of [ [ 'old', -120, -110 ], [ 'typo', 1400, 1410 ] ] ) {
+      outsideDue[ name ] = on( to );
+
       const made = await makeItem( world.admin.api, world.site.id, {
         title: `${ RUN } ${ name }`,
         planned_start: on( from ),
-        planned_due: on( to ),
+        planned_due: outsideDue[ name ],
       } );
       expect( made.status(), await made.text() ).toBe( 200 );
     }
@@ -355,7 +361,7 @@ test.describe( 'the schedule', () => {
 
       await expect( row.locator( '.bwx-gantt-outside' ) ).toBeVisible();
       // The year is said, so a mistyped one can be seen without opening the work.
-      await expect( row.locator( '.bwx-gantt-outside' ) ).toContainText( on( 'old' === name ? -110 : 1410 ).slice( 0, 4 ) );
+      await expect( row.locator( '.bwx-gantt-outside' ) ).toContainText( outsideDue[ name ].slice( 0, 4 ) );
       await expect( row.locator( '[data-testid="bwx-gantt-bar"]' ) ).toHaveCount( 0 );
     }
 

@@ -60,6 +60,9 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
     await route.fulfill( { response, json: body } );
   } );
 
+  // The browser's clock is the one the dates above were worked out on, so a
+  // run that crosses midnight still sees the chart it was written for.
+  await page.clock.setFixedTime( TODAY );
   await page.goto( PAGE );
 
   const screen = page.getByTestId( 'bwx-board-screen' );
