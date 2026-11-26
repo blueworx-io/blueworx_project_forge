@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Parent Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: Product planning and release management for WordPress.
- * Version:     2.231.1
+ * Version:     2.232.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_VERSION', '2.231.1' );
+define( 'BWX_FORGE_VERSION', '2.232.0' );
 define( 'BWX_FORGE_SLUG', 'blueworx-forge' );
 define( 'BWX_FORGE_FILE', __FILE__ );
 define( 'BWX_FORGE_PATH', plugin_dir_path( __FILE__ ) );
@@ -92,3 +92,10 @@ $bwx_forge_update_api->enableReleaseAssets(
 	'/^blueworx-forge-\d+\.\d+\.\d+\.zip$/',
 	$bwx_forge_update_api::REQUIRE_RELEASE_ASSETS
 );
+
+/*
+ * The checker above tells WordPress a release exists; this has WordPress
+ * install it without anybody pressing Update. For this plugin only — every
+ * other plugin's auto-update setting passes through untouched.
+ */
+add_filter( 'auto_update_plugin', array( \Blueworx\Forge\Updates::class, 'force_own_auto_update' ), 10, 2 );

@@ -60,6 +60,44 @@ final class Updates {
 	}
 
 	/**
+	 * This plugin's own entry in WordPress's plugin list: its folder, then its
+	 * main file. Keep equal to the folder name given to the update checker in
+	 * blueworx-forge.php. The match is whole, never a prefix, because this
+	 * plugin's name is the first half of the client plugin's.
+	 */
+	public const PLUGIN_FILE = 'blueworx-forge/blueworx-forge.php';
+
+	/**
+	 * Turns automatic updates on for this plugin, and this plugin only.
+	 *
+	 * The update checker tells WordPress a newer release exists; this is what
+	 * tells WordPress to go ahead and install it rather than leave the offer on
+	 * the Plugins screen for somebody to press. It is forced rather than a
+	 * setting, as it is for every BlueWorx plugin: a release reaches every site
+	 * within about twelve hours, and a bad one is answered by a better release.
+	 *
+	 * Every plugin on the site passes through this filter, so the decision
+	 * comes back untouched for all the others, including a deliberate "no"
+	 * somebody else has set.
+	 *
+	 * @param bool|null $update Whether to update, as decided so far.
+	 * @param mixed     $item   The update offer. Plugins carry a `plugin`
+	 *                          property holding folder/main-file.php.
+	 * @return bool|null True for this plugin, otherwise the decision as it arrived.
+	 */
+	public static function force_own_auto_update( $update, $item ) {
+		if ( ! is_object( $item ) || ! isset( $item->plugin ) ) {
+			return $update;
+		}
+
+		if ( self::PLUGIN_FILE !== $item->plugin ) {
+			return $update;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Whether updates can currently be fetched, proven by asking GitHub.
 	 *
 	 * @return array{state: string, message: string, release: string}
