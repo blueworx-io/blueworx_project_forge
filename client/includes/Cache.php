@@ -64,12 +64,35 @@ final class Cache {
 
 			// Done only once the copy is no longer among what loads on every
 			// page. If WordPress could not change it, the next page tries again.
-			if ( function_exists( 'wp_load_alloptions' ) && array_key_exists( self::OPTION, wp_load_alloptions( true ) ) ) {
+			if ( self::still_autoloads() ) {
 				return;
 			}
 		}
 
 		update_option( self::LEAN_FLAG, '1' );
+	}
+
+	/**
+	 * Whether the stored copy is still set to load on every page, read from its
+	 * own row. WordPress's list of what loads on every page cannot answer this:
+	 * when nothing is left to load, it hands back every option instead, so a
+	 * copy that was the last one to load would look as if it still loaded.
+	 *
+	 * @return bool False when there is no stored copy.
+	 */
+	private static function still_autoloads(): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the cached list is what cannot be trusted here.
+		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", self::OPTION ) );
+
+		if ( null === $autoload ) {
+			return false;
+		}
+
+		$loads = function_exists( 'wp_autoload_values_to_autoload' ) ? wp_autoload_values_to_autoload() : array( 'yes', 'on', 'auto-on', 'auto' );
+
+		return in_array( (string) $autoload, $loads, true );
 	}
 
 	/**

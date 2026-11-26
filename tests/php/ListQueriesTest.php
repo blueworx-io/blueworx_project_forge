@@ -13,6 +13,20 @@ use Blueworx\Forge\Work\Comments;
 use Blueworx\Forge\Work\ListMemo;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/support/multisite-stubs.php';
+
+if ( ! function_exists( 'get_sites' ) ) {
+	/**
+	 * Stub. The ids of the sites on the stub network.
+	 *
+	 * @param array<string, mixed> $args Ignored but for the shape.
+	 * @return array<int, int>
+	 */
+	function get_sites( array $args = array() ): array {
+		return array_keys( $GLOBALS['bwx_forge_test_net']['sites'] );
+	}
+}
+
 if ( ! function_exists( 'wp_set_option_autoload' ) ) {
 	/**
 	 * Stub. Records which options were taken out of the load on every page.
@@ -54,7 +68,70 @@ final class ListQueriesTest extends TestCase {
 	protected function tearDown(): void {
 		ListMemo::stop();
 
-		unset( $GLOBALS['bwx_forge_test_autoload'], $GLOBALS['bwx_forge_test_alloptions'], $GLOBALS['bwx_forge_test_options'][ Cache::LEAN_FLAG ] );
+		unset( $GLOBALS['bwx_forge_test_autoload'], $GLOBALS['bwx_forge_test_alloptions'], $GLOBALS['bwx_forge_test_autoload_row'], $GLOBALS['bwx_forge_test_options'][ Cache::LEAN_FLAG ] );
+
+		if ( isset( $this->database ) ) {
+			$GLOBALS['wpdb'] = $this->database;
+		}
+
+		bwx_forge_test_network();
+	}
+
+	/**
+	 * The database the other tests use, put back after each test here.
+	 *
+	 * @var object|null
+	 */
+	private $database = null;
+
+	/**
+	 * A database whose options table answers what the cache's own row says:
+	 * the value a test set, else off once WordPress was told to stop loading
+	 * it, else on while the copy exists.
+	 */
+	private function options_database(): void {
+		$this->database  = $GLOBALS['wpdb'];
+		$GLOBALS['wpdb'] = new class() {
+			/**
+			 * Options table.
+			 *
+			 * @var string
+			 */
+			public string $options = 'wp_options';
+
+			/**
+			 * Stub.
+			 *
+			 * @param string $query Query.
+			 * @param mixed  ...$args Values.
+			 * @return string
+			 */
+			public function prepare( string $query, ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", $query ), $args );
+			}
+
+			/**
+			 * Stub.
+			 *
+			 * @param string $query Query.
+			 * @return string|null
+			 */
+			public function get_var( string $query ) {
+				if ( ! str_contains( $query, Cache::OPTION ) ) {
+					return null;
+				}
+
+				if ( array_key_exists( 'bwx_forge_test_autoload_row', $GLOBALS ) ) {
+					return $GLOBALS['bwx_forge_test_autoload_row'];
+				}
+
+				if ( ! array_key_exists( Cache::OPTION, $GLOBALS['bwx_forge_test_options'] ?? array() ) ) {
+					return null;
+				}
+
+				return false === ( $GLOBALS['bwx_forge_test_autoload'][ Cache::OPTION ] ?? true ) ? 'off' : 'on';
+			}
+		};
 	}
 
 	/**
@@ -166,6 +243,7 @@ final class ListQueriesTest extends TestCase {
 	}
 
 	public function test_a_stored_copy_is_taken_out_of_the_load_once(): void {
+		$this->options_database();
 		$GLOBALS['bwx_forge_test_options'][ Cache::OPTION ] = array( 'route' => array( 'payload' => array() ) );
 
 		Cache::stop_autoloading();
@@ -180,21 +258,37 @@ final class ListQueriesTest extends TestCase {
 	}
 
 	public function test_a_failed_change_is_tried_again_on_the_next_page(): void {
-		// WordPress could not change it: the copy still loads on every page.
-		$GLOBALS['bwx_forge_test_alloptions'] = array( Cache::OPTION => 'x' );
+		$this->options_database();
+
+		// WordPress could not change it: the copy's row still says it loads.
+		$GLOBALS['bwx_forge_test_autoload_row'] = 'on';
 
 		Cache::stop_autoloading();
 
 		$this->assertArrayNotHasKey( Cache::LEAN_FLAG, $GLOBALS['bwx_forge_test_options'] );
 
-		$GLOBALS['bwx_forge_test_alloptions'] = array();
+		$GLOBALS['bwx_forge_test_autoload_row'] = 'off';
 
 		Cache::stop_autoloading();
 
 		$this->assertSame( '1', get_option( Cache::LEAN_FLAG ) );
 	}
 
+	public function test_a_copy_that_was_the_last_to_load_is_still_marked_done(): void {
+		$this->options_database();
+
+		// Nothing is left to load, so WordPress's list hands back every option,
+		// the copy among them. Its own row says it no longer loads.
+		$GLOBALS['bwx_forge_test_alloptions']   = array( Cache::OPTION => 'x', 'siteurl' => 'x' );
+		$GLOBALS['bwx_forge_test_autoload_row'] = 'off';
+
+		Cache::stop_autoloading();
+
+		$this->assertSame( '1', get_option( Cache::LEAN_FLAG ), 'Done once, not tried on every page.' );
+	}
+
 	public function test_uninstalling_the_client_plugin_removes_the_upgrade_flag(): void {
+		bwx_forge_test_network( false );
 		$GLOBALS['bwx_forge_test_calls'] = array();
 
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -210,6 +304,35 @@ final class ListQueriesTest extends TestCase {
 
 		$this->assertContains( Cache::OPTION, $deleted );
 		$this->assertContains( Cache::LEAN_FLAG, $deleted );
+	}
+
+	public function test_uninstalling_from_a_network_removes_the_flag_from_every_site(): void {
+		bwx_forge_test_network();
+		$GLOBALS['bwx_forge_test_net']['sites'][2] = array( 'domain' => 'two.network.test', 'path' => '/', 'title' => 'Two', 'options' => array() );
+		$GLOBALS['bwx_forge_test_net']['sites'][3] = array( 'domain' => 'three.network.test', 'path' => '/', 'title' => 'Three', 'options' => array() );
+		$GLOBALS['bwx_forge_test_calls']           = array();
+		$seen                                      = array();
+
+		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+			define( 'WP_UNINSTALL_PLUGIN', 'blueworx-forge-client/blueworx-forge-client.php' );
+		}
+
+		// Which site each deletion happened on.
+		$GLOBALS['bwx_forge_test_on_delete'] = static function ( string $option ) use ( &$seen ): void {
+			if ( Cache::LEAN_FLAG === $option ) {
+				$seen[] = $GLOBALS['bwx_forge_test_net']['blog'];
+			}
+		};
+
+		require dirname( __DIR__, 2 ) . '/client/uninstall.php';
+
+		unset( $GLOBALS['bwx_forge_test_on_delete'] );
+
+		$flags = array_filter( $GLOBALS['bwx_forge_test_calls'], static fn( array $call ): bool => 'delete_option' === $call[0] && Cache::LEAN_FLAG === $call[1] );
+
+		$this->assertCount( 3, $flags, 'Once on each of the three sites.' );
+		$this->assertSame( array( 1, 2, 3 ), $seen );
+		$this->assertSame( 1, $GLOBALS['bwx_forge_test_net']['blog'], 'Back on the site it started from.' );
 	}
 
 	public function test_a_list_reads_a_thing_once(): void {
