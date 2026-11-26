@@ -86,6 +86,11 @@ final class Cache {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the cached list is what cannot be trusted here.
 		$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", self::OPTION ) );
 
+		// A check that failed proves nothing: the next page tries again.
+		if ( '' !== (string) $wpdb->last_error ) {
+			return true;
+		}
+
 		if ( null === $autoload ) {
 			return false;
 		}

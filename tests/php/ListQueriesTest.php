@@ -100,6 +100,13 @@ final class ListQueriesTest extends TestCase {
 			public string $options = 'wp_options';
 
 			/**
+			 * The last error, as $wpdb keeps it.
+			 *
+			 * @var string
+			 */
+			public string $last_error = '';
+
+			/**
 			 * Stub.
 			 *
 			 * @param string $query Query.
@@ -267,6 +274,24 @@ final class ListQueriesTest extends TestCase {
 
 		$this->assertArrayNotHasKey( Cache::LEAN_FLAG, $GLOBALS['bwx_forge_test_options'] );
 
+		$GLOBALS['bwx_forge_test_autoload_row'] = 'off';
+
+		Cache::stop_autoloading();
+
+		$this->assertSame( '1', get_option( Cache::LEAN_FLAG ) );
+	}
+
+	public function test_a_database_check_that_fails_is_tried_again(): void {
+		$this->options_database();
+
+		$GLOBALS['bwx_forge_test_autoload_row'] = null;
+		$GLOBALS['wpdb']->last_error          = 'MySQL server has gone away';
+
+		Cache::stop_autoloading();
+
+		$this->assertArrayNotHasKey( Cache::LEAN_FLAG, $GLOBALS['bwx_forge_test_options'], 'Not marked done on a failed check.' );
+
+		$GLOBALS['wpdb']->last_error          = '';
 		$GLOBALS['bwx_forge_test_autoload_row'] = 'off';
 
 		Cache::stop_autoloading();
