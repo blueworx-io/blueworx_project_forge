@@ -241,7 +241,7 @@ function Schedule( { board }: { board: BoardView } ) {
                 <span className="fc-schedule-track">
                   { null !== todayAt && <span className="fc-schedule-today" style={ { left: `${ todayAt }%` } } /> }
                   { null === at ? (
-                    <span className="fc-schedule-outside fk-mono">due { day( span.due ) }, outside the weeks shown</span>
+                    <span className="fc-schedule-outside fk-mono">due { day( span.due ) }, outside the weeks shown{ late ? ' · overdue' : '' }</span>
                   ) : (
                     <span
                       className="fc-schedule-bar"

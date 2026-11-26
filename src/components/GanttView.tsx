@@ -239,7 +239,7 @@ export function GanttView( {
                 <span className="bwx-gantt-track">
                   { null === place ? (
                     <span className="bwx-gantt-outside">
-                      { `${ range( span.start, span.due ) } is outside the weeks shown` }
+                      { `${ rangeWithYear( span.start, span.due ) } is outside the weeks shown${ overdue ? ' · overdue' : '' }` }
                     </span>
                   ) : (
                     <button
@@ -402,6 +402,13 @@ function range( start: string, due: string ): string {
   return start.slice( 0, 7 ) === due.slice( 0, 7 )
     ? `${ dayOf( start ) } – ${ spoken( due ) }`
     : `${ spoken( start ) } – ${ spoken( due ) }`;
+}
+
+/** The same with the year, for work the chart does not draw: "28 Nov 2027" is not "28 Nov" of this year. */
+function rangeWithYear( start: string, due: string ): string {
+  const full = ( date: string ) => `${ spoken( date ) } ${ date.slice( 0, 4 ) }`;
+
+  return start === due ? full( start ) : `${ full( start ) } – ${ full( due ) }`;
 }
 
 export type { Phase };

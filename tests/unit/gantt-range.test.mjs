@@ -19,15 +19,31 @@ test( 'the day view runs from two weeks back to six weeks ahead when work is dat
   assert.equal( axis.columns.length, 57 );
 } );
 
-test( 'the week view keeps to whole weeks inside the same limits', () => {
+test( 'the week view draws the weeks that hold the limits whole, so nothing inside them is dropped', () => {
   const axis = axisFor( [ span( '2026-01-05', '2026-01-09' ), span( '2028-03-01', '2028-03-05' ) ], TODAY, 'week' );
 
-  // Monday on or after 12 Nov, Sunday on or before 7 Jan.
-  assert.equal( axis.from, '2026-11-16' );
-  assert.equal( axis.to, '2027-01-03' );
-  assert.equal( axis.columns.length, 7 );
-  assert.ok( daysBetween( axis.from, TODAY ) <= 14 );
-  assert.ok( daysBetween( TODAY, axis.to ) <= 42 );
+  // Monday of the week holding 12 Nov, Sunday of the week holding 7 Jan.
+  assert.equal( axis.from, '2026-11-09' );
+  assert.equal( axis.to, '2027-01-10' );
+  assert.equal( axis.columns.length, 9 );
+  assert.ok( axis.from <= '2026-11-12' && axis.to >= '2027-01-07' );
+  assert.ok( daysBetween( axis.from, TODAY ) < 14 + 7 );
+  assert.ok( daysBetween( TODAY, axis.to ) < 42 + 7 );
+} );
+
+test( 'work inside the limits is drawn in both zooms', () => {
+  // 5 Jan 2027 is five weeks and a bit ahead: inside the six, in a week the limit cuts.
+  const early = span( '2027-01-05', '2027-01-06' );
+
+  for ( const zoom of [ 'day', 'week' ] ) {
+    const axis = axisFor( [ early ], TODAY, zoom );
+
+    assert.notEqual( placeOn( early, axis ), null, `${ zoom } draws it` );
+  }
+
+  const before = span( '2026-11-10', '2026-11-11' );
+
+  assert.notEqual( placeOn( before, axisFor( [ before ], TODAY, 'week' ) ), null );
 } );
 
 test( 'today is always on the chart, and is the default view', () => {
@@ -61,7 +77,7 @@ test( 'a date at the far end of the calendar cannot push the chart past its limi
   for ( const zoom of [ 'day', 'week' ] ) {
     const axis = axisFor( [ span( '2026-12-01', '9999-12-31' ) ], TODAY, zoom );
 
-    assert.ok( axis.to <= '2027-01-07', `${ zoom } ends by six weeks ahead` );
-    assert.ok( axis.columns.length <= 57 );
+    assert.ok( axis.to <= ( 'day' === zoom ? '2027-01-07' : '2027-01-10' ), `${ zoom } ends by six weeks ahead` );
+    assert.ok( axis.columns.length <= ( 'day' === zoom ? 57 : 9 ) );
   }
 } );

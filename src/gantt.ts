@@ -145,10 +145,11 @@ export function axisFor( spans: Span[], today: string, zoom: Zoom = 'day' ): Axi
   const highest = dates.reduce( ( a, b ) => ( a > b ? a : b ) );
   const first = weekStart( lowest < earliest ? earliest : lowest );
   const last = weekEnd( highest > latest ? latest : highest );
-  const floor = 'day' === zoom || weekStart( earliest ) === earliest ? earliest : iso( stamp( weekStart( earliest ) ) + 7 * DAY );
-  const ceiling = 'day' === zoom || weekEnd( latest ) === latest ? latest : iso( stamp( weekStart( latest ) ) - DAY );
-  const from = first < floor ? floor : first;
-  const to = last > ceiling ? ceiling : last;
+  // The day zoom keeps to the limits to the day. The week zoom draws whole
+  // weeks, so the weeks that hold the limits are drawn whole too: work inside
+  // the limits is never dropped just because its week is cut by one.
+  const from = 'day' === zoom && first < earliest ? earliest : first;
+  const to = 'day' === zoom && last > latest ? latest : last;
   const columns: Axis[ 'columns' ] = [];
 
   if ( 'day' === zoom ) {

@@ -241,12 +241,12 @@ test.describe( 'the schedule', () => {
     const day = await days.first().boundingBox();
     expect( day.width ).toBeGreaterThanOrEqual( 40 );
 
-    // The weeks cover the same stretch, held to the same limits.
+    // The weeks cover the same stretch, the weeks that hold the limits drawn whole.
     await page.locator( '[data-testid="bwx-gantt-zoom-week"]' ).click();
     await expect( chart ).toHaveAttribute( 'data-zoom', 'week' );
     await expect( days ).toHaveCount( 0 );
     const weeks = page.locator( '.bwx-gantt-week' );
-    expect( ( await weeks.first().getAttribute( 'data-week' ) ) >= on( -14 ) ).toBe( true );
+    expect( ( await weeks.first().getAttribute( 'data-week' ) ) >= on( -20 ) ).toBe( true );
     expect( ( await weeks.last().getAttribute( 'data-week' ) ) <= on( 42 ) ).toBe( true );
 
     await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
@@ -336,6 +336,11 @@ test.describe( 'the schedule', () => {
       expect( made.status(), await made.text() ).toBe( 200 );
     }
 
+    // Work on the last day inside the limit, in a week the limit cuts in two.
+    const edge = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } edge`, planned_start: on( 41 ), planned_due: on( 42 ) } );
+    expect( edge.status(), await edge.text() ).toBe( 200 );
+    const edgeBar = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } edge") [data-testid="bwx-gantt-bar"]` );
+
     await openSchedule( page );
 
     // Fifty-seven days at most: two weeks back to six weeks ahead.
@@ -349,8 +354,13 @@ test.describe( 'the schedule', () => {
       const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } ${ name }")` );
 
       await expect( row.locator( '.bwx-gantt-outside' ) ).toBeVisible();
+      // The year is said, so a mistyped one can be seen without opening the work.
+      await expect( row.locator( '.bwx-gantt-outside' ) ).toContainText( on( 'old' === name ? -110 : 1410 ).slice( 0, 4 ) );
       await expect( row.locator( '[data-testid="bwx-gantt-bar"]' ) ).toHaveCount( 0 );
     }
+
+    // Unfinished work that ran out long ago still says it is overdue.
+    await expect( page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } old") .bwx-gantt-outside` ) ).toContainText( 'overdue' );
 
     // Today is on screen without scrolling to look for it, and again after
     // going to the weeks and back.
@@ -366,7 +376,9 @@ test.describe( 'the schedule', () => {
     await expect( today ).toHaveCount( 1 );
     await expect( inView ).toPass();
 
+    await expect( edgeBar ).toHaveCount( 1 );
     await page.locator( '[data-testid="bwx-gantt-zoom-week"]' ).click();
+    await expect( edgeBar ).toHaveCount( 1 );
     await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
     await expect( inView ).toPass();
 

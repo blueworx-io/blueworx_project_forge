@@ -10,10 +10,16 @@ import { checkAccessibility } from '../helpers/accessibility.js';
 const RUN = `board${ Date.now() }`;
 const PAGE = '/forge/#board';
 
-/** A date either side of today in the browser's own calendar, as the schedule marks it. */
+/**
+ * A date either side of today in the browser's own calendar, as the schedule
+ * marks it. Today is read once, when the file loads, so the dates saved on a
+ * task and the dates asserted afterwards cannot disagree if the run crosses
+ * midnight.
+ */
+const TODAY = new Date();
 const pad = ( number ) => String( number ).padStart( 2, '0' );
 const on = ( offset ) => {
-  const at = new Date();
+  const at = new Date( TODAY );
 
   at.setDate( at.getDate() + offset );
 
@@ -106,9 +112,9 @@ test( 'a client can read the board and comment on a card, but not move it', asyn
   await page.getByTestId( 'bwx-schedule-zoom-week' ).click();
   await expect( page.getByTestId( 'bwx-schedule-chart' ) ).toHaveAttribute( 'data-zoom', 'week' );
   await expect( dayColumns ).toHaveCount( 0 );
-  // Whole weeks inside the limits: seven or eight of them, by the day of the week.
+  // The whole weeks that hold the limits: eight or nine of them, by the day of the week.
   const weekCount = await page.locator( '.fc-schedule-weeks > span' ).count();
-  expect( weekCount === 7 || weekCount === 8 ).toBe( true );
+  expect( weekCount === 8 || weekCount === 9 ).toBe( true );
 
   // On a phone: the controls wrap inside the card, a name stays beside the days
   // once Today has scrolled to them, and the notice fits the screen.
