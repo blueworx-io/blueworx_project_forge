@@ -1,26 +1,42 @@
 import { test, expect } from '@playwright/test';
 import { signIn } from '../helpers/sign-in.js';
+import {
+  AKISMET,
+  HELLO,
+  STUDIO_PLUGIN,
+  installUpdateStub,
+  nextVersion,
+  packageOf,
+  removeUpdateStub,
+  runUpdater,
+} from './helpers/auto-update.js';
 
 // #713. A release of Forge installs itself: the update checker offers it, and
 // this is the other half — WordPress being told to take the offer without
-// anybody pressing Update. WordPress's own Plugins screen asks the same
-// question the background updater does (is auto-update forced for this
-// plugin?), so what that screen says is what a release will do.
+// anybody pressing Update. Two things are proven. WordPress's own Plugins screen
+// asks the question the background updater asks (is auto-update forced for this
+// plugin?), so what it says is what a release will do. And the background
+// updater itself is run, offered a release of Forge and of two plugins that are
+// not ours, and asked which it goes to fetch.
 //
-// And only for Forge. Every other plugin keeps the setting it has, which on a
-// plugin nobody has opted in is the "Enable auto-updates" control.
+// The studio plugin is only fetched, never replaced: on a test site it is a
+// link to this repository, and installing over it would delete the repository.
+// The client plugin is installed for real, in tests/pair/client-auto-updates.
+//
+// The test site has no network, so the update data and the release come from a
+// stand-in (tests/support/auto-update-stub.php) rather than whatever a previous
+// check left behind.
 
 const PLUGINS = '/wp-admin/plugins.php';
-const OWN = 'blueworx-forge/blueworx-forge.php';
 
-test.beforeEach(async ({ page }) => {
-  await signIn(page);
-});
+test.beforeAll(() => installUpdateStub());
+test.afterAll(() => removeUpdateStub());
 
 test('Forge updates itself, with no switch for anybody to leave off', async ({ page }) => {
+  await signIn(page);
   await page.goto(PLUGINS);
 
-  const row = page.locator(`tr[data-plugin="${OWN}"]`);
+  const row = page.locator(`tr[data-plugin="${STUDIO_PLUGIN}"]`);
   await expect(row).toHaveCount(1);
 
   const cell = row.locator('td.column-auto-updates');
@@ -31,19 +47,32 @@ test('Forge updates itself, with no switch for anybody to leave off', async ({ p
 });
 
 test('other plugins keep the update setting they had', async ({ page }) => {
+  await signIn(page);
   await page.goto(PLUGINS);
 
-  // Nobody else has been switched on: nothing but Forge says so.
-  const enabled = page.locator('#the-list tr[data-plugin] td.column-auto-updates', { hasText: 'Auto-updates enabled' });
-  await expect(enabled).toHaveCount(1);
-  await expect(page.locator(`tr[data-plugin="${OWN}"] td.column-auto-updates`)).toContainText('Auto-updates enabled');
-
-  // And the ones that were a choice still are: a control to turn it on, left
-  // alone. Akismet and Hello Dolly ship with every WordPress the harness
-  // installs.
-  for (const plugin of ['akismet/akismet.php', 'hello.php']) {
+  // Still a choice somebody makes, and still not made: a control to turn it on.
+  for (const plugin of [AKISMET, HELLO]) {
     const cell = page.locator(`tr[data-plugin="${plugin}"] td.column-auto-updates`);
 
     await expect(cell.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
+    await expect(cell).not.toContainText('Auto-updates enabled');
   }
+});
+
+test('the background updater fetches a Forge release, and nobody else\'s', async ({ request }) => {
+  const version = nextVersion('2.0.0');
+
+  const run = await runUpdater(request, {
+    [STUDIO_PLUGIN]: version,
+    [AKISMET]: '99.0.0',
+    [HELLO]: '99.0.0',
+  });
+
+  // Forge's release was asked for, with nobody pressing Update. The other two
+  // had releases on offer too, and were not.
+  expect(run.downloads).toEqual([packageOf(STUDIO_PLUGIN)]);
+
+  // And nothing else moved.
+  expect(run.after[AKISMET]).toBe(run.before[AKISMET]);
+  expect(run.after[HELLO]).toBe(run.before[HELLO]);
 });
