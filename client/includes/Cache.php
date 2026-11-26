@@ -78,7 +78,7 @@ final class Cache {
 	 * when nothing is left to load, it hands back every option instead, so a
 	 * copy that was the last one to load would look as if it still loaded.
 	 *
-	 * @return bool False when there is no stored copy.
+	 * @return bool False when there is no stored copy; true when it cannot tell.
 	 */
 	private static function still_autoloads(): bool {
 		global $wpdb;
@@ -91,8 +91,10 @@ final class Cache {
 			return true;
 		}
 
+		// No answer: either there is no copy, or the check was stopped before it
+		// ran (another plugin can cancel a query). Only the first is done.
 		if ( null === $autoload ) {
-			return false;
+			return null !== get_option( self::OPTION, null );
 		}
 
 		$loads = function_exists( 'wp_autoload_values_to_autoload' ) ? wp_autoload_values_to_autoload() : array( 'yes', 'on', 'auto-on', 'auto' );

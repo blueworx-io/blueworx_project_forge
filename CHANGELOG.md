@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.231.2] - 2026-11-26
+
+### Fixed
+
+- A client site no longer marks its saved copy as taken out of every page's load when it could not confirm that. It tries again on the next page instead.
+
 ## [2.231.1] - 2026-11-26
 
 ### Fixed
