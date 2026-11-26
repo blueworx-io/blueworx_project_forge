@@ -50,6 +50,8 @@ final class Plugin {
 		// Who may use Forge here is decided by Access, not by whether somebody
 		// happens to be an Administrator.
 		Access::boot();
+		// #712. A copy saved before it was kept out of every page's load is taken out once.
+		add_action( 'init', array( Cache::class, 'stop_autoloading' ) );
 		add_action( 'rest_api_init', array( Rest\ConnectionController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Rest\WorkspaceController::class, 'register_routes' ) );
 		add_action( 'rest_api_init', array( Rest\ReadController::class, 'register_routes' ) );

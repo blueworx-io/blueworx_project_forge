@@ -20,6 +20,7 @@ use Blueworx\Forge\Tenancy\Sync;
 use Blueworx\Forge\Tenancy\Users;
 use Blueworx\Forge\Work\GateRecords;
 use Blueworx\Forge\Work\Items;
+use Blueworx\Forge\Work\ListMemo;
 use Blueworx\Forge\Work\Stages;
 use Blueworx\Forge\Work\Submissions;
 use Blueworx\Forge\Work\Transition;
@@ -124,6 +125,10 @@ final class Board {
 
 		$records = GateRecords::for_items( array_column( $open, 'id' ) );
 		$items   = array();
+
+		// #712. The cards checked below, whose evidence and open questions are
+		// read in one go and for these cards only.
+		ListMemo::cover( array_column( $open, 'id' ) );
 
 		foreach ( $open as $item ) {
 			$item['unmet'] = self::unmet( $item, $records[ (string) $item['id'] ] ?? array() );

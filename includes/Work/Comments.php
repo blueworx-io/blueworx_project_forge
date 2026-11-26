@@ -412,6 +412,114 @@ final class Comments {
 	}
 
 	/**
+	 * How many questions to the client are open on each item, from the rows of
+	 * question and answering comments the client can see (#712).
+	 *
+	 * The same rule as {@see self::outstanding()}, which looks at one item's
+	 * comments: an answer only closes a question on its own item. Pure, so the
+	 * rule can be held to the one-card reading.
+	 *
+	 * @param array<int, array<string, mixed>> $rows id, item_id, kind and answers of each comment.
+	 * @return array<string, int> Count keyed by item id; items with none are absent.
+	 */
+	public static function open_questions_by_item( array $rows ): array {
+		$answered = array();
+
+		foreach ( $rows as $row ) {
+			$answers = (string) ( $row['answers'] ?? '' );
+
+			if ( '' !== $answers ) {
+				$answered[ (string) $row['item_id'] ][ $answers ] = true;
+			}
+		}
+
+		$counts = array();
+
+		foreach ( $rows as $row ) {
+			$item = (string) $row['item_id'];
+
+			if ( self::QUESTION === (string) $row['kind'] && empty( $answered[ $item ][ (string) $row['id'] ] ) ) {
+				$counts[ $item ] = ( $counts[ $item ] ?? 0 ) + 1;
+			}
+		}
+
+		return $counts;
+	}
+
+	/**
+	 * Open questions to the client on the given items, in one read (#712). A
+	 * list asks this once, for the cards it checks, instead of once per card.
+	 *
+	 * @param array<int, string> $ids Item ids.
+	 * @return array<string, int> Count keyed by item id; items with none are absent.
+	 */
+	public static function open_questions_among( array $ids ): array {
+		global $wpdb;
+
+		$table = Schema::comments_table();
+		$rows  = array();
+
+		foreach ( array_chunk( array_values( array_unique( array_map( 'strval', $ids ) ) ), 1000 ) as $chunk ) {
+			$slots = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
+			$args  = array_merge( array( self::CLIENT, self::QUESTION ), $chunk );
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table name cannot be a placeholder; the slots are built from the count above and the values are placeholders.
+			$found = $wpdb->get_results( $wpdb->prepare( "SELECT id, item_id, kind, answers FROM {$table} WHERE visibility = %s AND ( kind = %s OR answers <> '' ) AND item_id IN ({$slots})", $args ), ARRAY_A );
+			$rows  = array_merge( $rows, is_array( $found ) ? $found : array() );
+		}
+
+		return self::open_questions_by_item( $rows );
+	}
+
+	/**
+	 * How many questions to the client are open on one item, reading the list's
+	 * cards at once while a list is being drawn (#712).
+	 *
+	 * @param string $item_id Item id.
+	 * @return int
+	 */
+	public static function open_question_count( string $item_id ): int {
+		if ( ! ListMemo::covers( $item_id ) ) {
+			return count( self::outstanding( $item_id ) );
+		}
+
+		$counts = ListMemo::remember( ListMemo::key_for_covered( 'open-questions' ), static fn(): array => self::open_questions_among( ListMemo::covered() ) );
+
+		return (int) ( $counts[ $item_id ] ?? 0 );
+	}
+
+	/**
+	 * Which of the given items have a comment holding a link added since the
+	 * item entered the stage it is at, in one read (#712). An item with no
+	 * history of entering its stage counts from the beginning of time, as in the
+	 * one-card reading.
+	 *
+	 * @param array<int, string> $ids Item ids.
+	 * @return array<string, bool> Keyed by item id.
+	 */
+	public static function evidence_among( array $ids ): array {
+		global $wpdb;
+
+		$comments = Schema::comments_table();
+		$events   = Schema::work_events_table();
+		$items    = Schema::work_items_table();
+		$with     = array();
+
+		foreach ( array_chunk( array_values( array_unique( array_map( 'strval', $ids ) ) ), 1000 ) as $chunk ) {
+			$slots = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Table names cannot be placeholders; the slots are built from the count above and the values are placeholders.
+			$found = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT i.id FROM {$items} i INNER JOIN {$comments} c ON c.item_id = i.id WHERE i.id IN ({$slots}) AND c.url <> '' AND c.created_at >= COALESCE( ( SELECT MAX( e.occurred_at ) FROM {$events} e WHERE e.item_id = i.id AND e.to_stage = i.stage ), 0 )", $chunk ) );
+
+			foreach ( is_array( $found ) ? $found : array() as $id ) {
+				$with[ (string) $id ] = true;
+			}
+		}
+
+		return $with;
+	}
+
+	/**
 	 * How many questions to the client are unanswered on each of a site's
 	 * items (#673), in one read.
 	 *

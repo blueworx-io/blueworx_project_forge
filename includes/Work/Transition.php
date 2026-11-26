@@ -1083,7 +1083,7 @@ final class Transition {
 		}
 
 		if ( self::asks_about( $gates, 'feedback' ) ) {
-			$context['outstanding_questions'] = count( Comments::outstanding( (string) $item['id'] ) );
+			$context['outstanding_questions'] = Comments::open_question_count( (string) $item['id'] );
 		}
 
 		if ( self::asks_about( $gates, 'dependencies' ) || self::asks_about( $gates, 'dependencies_ready' ) ) {
@@ -1119,6 +1119,13 @@ final class Transition {
 	 */
 	private static function evidence_since_entry( array $item ): bool {
 		global $wpdb;
+
+		// #712. A list reads the checked cards' at once.
+		if ( ListMemo::covers( (string) $item['id'] ) ) {
+			$with = ListMemo::remember( ListMemo::key_for_covered( 'evidence' ), static fn(): array => Comments::evidence_among( ListMemo::covered() ) );
+
+			return isset( $with[ (string) $item['id'] ] );
+		}
 
 		$comments = Schema::comments_table();
 		$events   = Schema::work_events_table();

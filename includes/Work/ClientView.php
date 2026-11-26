@@ -57,6 +57,18 @@ final class ClientView {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public static function items( array $rows, callable $lookup ): array {
+		// #712. A person sits in seats on many rows; they are looked up once.
+		$known  = array();
+		$lookup = static function ( $id ) use ( &$known, $lookup ) {
+			$key = (string) $id;
+
+			if ( ! array_key_exists( $key, $known ) ) {
+				$known[ $key ] = $lookup( $id );
+			}
+
+			return $known[ $key ];
+		};
+
 		return array_values(
 			array_map(
 				static fn( array $row ): array => self::item( $row, $lookup ),

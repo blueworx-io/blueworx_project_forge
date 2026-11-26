@@ -583,15 +583,18 @@ final class WorkItemsController {
 		$narrow = self::narrowing( $request );
 		$items  = array();
 
-		// #702. Every site's work in one read, narrowed here, rather than two
-		// reads of each site.
+		// #712. The cards shown are read whole, narrowed by the database. The
+		// rest of each site, which only says what children make a parent, is
+		// read without anybody's writing: most of a site's work is old and
+		// archived, and none of it is sent.
 		$site_ids = array_map( 'strval', array_column( $sites, 'id' ) );
-		$every    = Items::every_on_sites( $site_ids );
+		$every    = Items::family_on_sites( $site_ids );
+		$read     = Items::on_sites( $site_ids, $narrow );
 		$shown    = array();
 		$open     = array();
 
 		foreach ( $site_ids as $site_id ) {
-			$shown[ $site_id ] = Items::narrow( $every[ $site_id ] ?? array(), $narrow );
+			$shown[ $site_id ] = $read[ $site_id ] ?? array();
 
 			foreach ( $shown[ $site_id ] as $item ) {
 				if ( empty( $item['archived'] ) ) {
@@ -599,6 +602,9 @@ final class WorkItemsController {
 				}
 			}
 		}
+
+		// #712. The cards whose evidence and open questions are read in one go.
+		ListMemo::cover( $open );
 
 		// #709. What each item waits on, when it was released and its gate
 		// records, for every site in one read each rather than one per site.
@@ -733,11 +739,14 @@ final class WorkItemsController {
 		 * second thing deciding what a filter means, and #124 exists because
 		 * two of those disagree.
 		 */
-		// #709. The site's work read once, and narrowed here.
-		$family  = Items::for_site( (string) $site['id'], array( 'include_archived' => true ) );
+		// #712. The cards shown are read whole; the rest of the site, which only
+		// says what children make a parent, is read without anybody's writing.
+		$site_id = (string) $site['id'];
+		$family  = Items::family_on_sites( array( $site_id ) )[ $site_id ] ?? array();
+		$shown   = Items::on_sites( array( $site_id ), $narrow )[ $site_id ] ?? array();
 		$filters = Filters::sanitise( (array) $request->get_params() );
 		$items   = Filters::apply(
-			self::derive_across( (string) $site['id'], Items::narrow( $family, $narrow ), $family ),
+			self::derive_across( $site_id, $shown, $family ),
 			$filters
 		);
 
@@ -810,6 +819,10 @@ final class WorkItemsController {
 			$open    = array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' );
 			$records = GateRecords::for_items( $open );
 		}
+
+		// #712. The cards checked below, so their evidence and open questions are
+		// read in one go and for these cards only.
+		ListMemo::cover( array_column( array_filter( $items, static fn( array $item ): bool => empty( $item['archived'] ) ), 'id' ) );
 
 		// #565. What each item's children make it, the same way the client board
 		// is filled in.
