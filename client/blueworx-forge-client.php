@@ -3,7 +3,7 @@
  * Plugin Name: BlueWorx Labs | Forge Client Site
  * Plugin URI:  https://github.com/blueworx-io/blueworx_project_forge
  * Description: The client-side workspace for Blueworx Forge.
- * Version:     2.232.0
+ * Version:     2.233.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author:      Blueworx
@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The plugin version. Must equal the Version: header above and the version in
  * package.json — CI fails the build if any two disagree.
  */
-define( 'BWX_FORGE_CLIENT_VERSION', '2.232.0' );
+define( 'BWX_FORGE_CLIENT_VERSION', '2.233.0' );
 define( 'BWX_FORGE_CLIENT_SLUG', 'blueworx-forge-client' );
 define( 'BWX_FORGE_CLIENT_FILE', __FILE__ );
 define( 'BWX_FORGE_CLIENT_PATH', plugin_dir_path( __FILE__ ) );
@@ -95,6 +95,13 @@ $bwx_forge_client_update_api->enableReleaseAssets(
 	'/^blueworx-forge-client-\d+\.\d+\.\d+\.zip$/',
 	$bwx_forge_client_update_api::REQUIRE_RELEASE_ASSETS
 );
+
+/*
+ * The checker above tells WordPress a release exists; this has WordPress
+ * install it without anybody pressing Update. For this plugin only — every
+ * other plugin's auto-update setting passes through untouched.
+ */
+add_filter( 'auto_update_plugin', array( \Blueworx\Forge\Client\Updates::class, 'force_own_auto_update' ), 10, 2 );
 
 register_activation_hook( BWX_FORGE_CLIENT_FILE, array( \Blueworx\Forge\Client\Plugin::instance(), 'activate' ) );
 register_deactivation_hook( BWX_FORGE_CLIENT_FILE, array( \Blueworx\Forge\Client\Plugin::instance(), 'deactivate' ) );

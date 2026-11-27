@@ -701,8 +701,12 @@ export const RULES: RuleSection[] = [
     title: 'Who can do what',
     rules: [
       {
-        what: 'An administrator can check for a newer Forge and install it from Settings, without going into WordPress admin. It installs the same release WordPress would offer under Plugins, and only when it is newer. Client sites still update the way they always have.',
+        what: 'An administrator can check for a newer Forge and install it from Settings, without going into WordPress admin. It installs the same release WordPress would offer under Plugins, and only when it is newer.',
         why: 'Keeping Forge up to date should not mean leaving it.',
+      },
+      {
+        what: 'Forge and the Forge client plugin install their own new releases without anybody pressing Update, on the studio and on every client site. It is not a setting, and it applies to these two plugins only: no other plugin on the site has its update setting changed. It relies on the background updates built into WordPress, so a site that blocks them, or never runs its scheduled tasks, still needs its updates pressed by hand. A site that has not already turned on automatic updates for Forge installs the first of these by hand; every release after it installs itself.',
+        why: 'A release should reach every site on its own; one that waits for a person to press Update can sit unseen on a site nobody opens.',
       },
       {
         what: 'A lead is a business we are talking to, kept on the Leads page under Clients. Only administrators add, edit, move or archive leads. A lead moves Lead → Opportunity → Client, or into the archive, from where it can be restored.',
