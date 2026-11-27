@@ -799,6 +799,53 @@ final class StandupRulesTest extends TestCase {
 		$this->assertContains( Rules::UNTRIAGED, Rules::ABOUT_WORK );
 	}
 
+	/* ---------------------------------------- over is over (cancelled, ticked) */
+
+	public function test_cancelled_rejected_or_duplicate_work_is_not_on_the_list(): void {
+		foreach ( array( 'cancelled', 'rejected', 'duplicate' ) as $outcome ) {
+			$item = $this->item( array( 'planned_due' => '2026-03-01', 'terminal_outcome' => $outcome, 'assignees' => array( 'usr_one' ) ) );
+
+			$this->assertSame( array(), Rules::for_item( $item, self::TODAY ), $outcome );
+			$this->assertSame( array(), Rules::evaluate( array( 'items' => array( $item ) ), self::TODAY ), $outcome );
+		}
+	}
+
+	public function test_deferred_work_stays_on_the_list(): void {
+		$item = $this->item( array( 'planned_due' => '2026-03-01', 'terminal_outcome' => 'deferred' ) );
+
+		$this->assertSame( array( Rules::OVERDUE ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+	}
+
+	public function test_a_reminder_everyone_has_ticked_is_not_on_the_list(): void {
+		$item = $this->item(
+			array(
+				'planned_due'  => '2026-03-01',
+				'recurring_id' => 'rem_one',
+				'assignees'    => array( 'usr_one', 'usr_two' ),
+				'ticks'        => array( 'usr_one' => 1_770_000_000, 'usr_two' => 1_770_000_100 ),
+			)
+		);
+
+		$this->assertSame( array(), Rules::for_item( $item, self::TODAY ) );
+	}
+
+	public function test_a_reminder_with_someone_still_to_tick_stays_on_the_list(): void {
+		$item = $this->item(
+			array(
+				'planned_due'  => '2026-03-01',
+				'recurring_id' => 'rem_one',
+				'assignees'    => array( 'usr_one', 'usr_two' ),
+				'ticks'        => array( 'usr_one' => 1_770_000_000 ),
+			)
+		);
+
+		$this->assertSame( array( Rules::OVERDUE ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+
+		$item['ticks'] = array();
+
+		$this->assertSame( array( Rules::OVERDUE ), $this->rules( Rules::for_item( $item, self::TODAY ) ) );
+	}
+
 	/* ----------------------------------------------------------- the whole list */
 
 	public function test_the_list_is_everything_that_is_true(): void {
