@@ -30,9 +30,11 @@ import type { Axis, Span, Zoom } from '../gantt';
  * the rows, today marked and named, a legend for the colours, and dates on a
  * bar written the way a person says them.
  *
- * Two zooms (#703): a column a week, or a column a day with today's column
- * marked. Released work is left off at both — it is finished, and a chart of
- * what is still moving should not carry everything that ever shipped.
+ * Two zooms (#703): a column a day with today's column marked, which is how it
+ * opens, or a column a week. Released work is left off at both — it is
+ * finished, and a chart of what is still moving should not carry everything
+ * that ever shipped. Neither looks further than two weeks back or six weeks
+ * ahead, so there is never more to read than that.
  */
 export function GanttView( {
   items: everything,
@@ -43,8 +45,7 @@ export function GanttView( {
 } ) {
   const [ open, setOpen ] = useState( true );
   const [ selected, setSelected ] = useState( '' );
-  const [ zoom, setZoom ] = useState< Zoom >( 'week' );
-  const [ windowStart, setWindowStart ] = useState< number | null >( null );
+  const [ zoom, setZoom ] = useState< Zoom >( 'day' );
   const [ jump, setJump ] = useState( 0 );
   const chartRef = useRef< HTMLDivElement >( null );
 
@@ -69,20 +70,19 @@ export function GanttView( {
   // Earliest first, so the chart reads top to bottom as the weeks run left to right.
   dated.sort( ( a, b ) => a.span.start.localeCompare( b.span.start ) || a.span.due.localeCompare( b.span.due ) );
 
-  const axis = axisFor( dated.map( ( each ) => each.span ), today, zoom, windowStart );
+  const axis = axisFor( dated.map( ( each ) => each.span ), today, zoom );
   const now = placeToday( axis, today );
 
   // A selection only counts while its bar is still drawn. Work released since
-  // it was picked drops off the chart, and so does work the day window has
-  // moved past; without this their rows would stay dimmed with nothing left
+  // it was picked drops off the chart, and so does work dated outside the
+  // weeks shown; without this their rows would stay dimmed with nothing left
   // to click to put them back.
   const active = dated.some( ( each ) => each.item.id === selected && null !== placeOn( each.span, axis ) ) ? selected : '';
   const chain = chainFor( items, active );
   const months = monthsOf( axis );
-  const windowed = axis.totalWeeks > axis.shownWeeks;
 
   // Opening the day view, or asking for Today, brings today's column into view:
-  // the chart starts at the earliest date, which can be weeks behind.
+  // the chart starts up to two weeks behind, which on a phone is off screen.
   useEffect( () => {
     if ( 'day' !== zoom ) {
       return;
@@ -112,14 +112,7 @@ export function GanttView( {
               data-variant={ level === zoom ? undefined : 'quiet' }
               data-testid={ `bwx-gantt-zoom-${ level }` }
               aria-pressed={ level === zoom }
-              onClick={ () => {
-                // Opening the days starts at today again, never at a window left behind.
-                if ( 'day' === level ) {
-                  setWindowStart( null );
-                }
-
-                setZoom( level );
-              } }
+              onClick={ () => setZoom( level ) }
             >
               { label }
             </button>
@@ -127,42 +120,15 @@ export function GanttView( {
         </div>
         { 'day' === zoom && (
           <div className="bwx-views" role="group" aria-label="Move along the days" data-testid="bwx-gantt-move">
-            { windowed && (
-              <button
-                type="button"
-                className="bwx-button"
-                data-variant="quiet"
-                data-testid="bwx-gantt-earlier"
-                disabled={ 0 === axis.startWeek }
-                onClick={ () => setWindowStart( Math.max( 0, axis.startWeek - 4 ) ) }
-              >
-                Earlier
-              </button>
-            ) }
             <button
               type="button"
               className="bwx-button"
               data-variant="quiet"
               data-testid="bwx-gantt-jump-today"
-              onClick={ () => {
-                setWindowStart( null );
-                setJump( jump + 1 );
-              } }
+              onClick={ () => setJump( jump + 1 ) }
             >
               Today
             </button>
-            { windowed && (
-              <button
-                type="button"
-                className="bwx-button"
-                data-variant="quiet"
-                data-testid="bwx-gantt-later"
-                disabled={ axis.startWeek + axis.shownWeeks >= axis.totalWeeks }
-                onClick={ () => setWindowStart( axis.startWeek + 4 ) }
-              >
-                Later
-              </button>
-            ) }
           </div>
         ) }
         { 0 < phases.length && (
@@ -255,13 +221,25 @@ export function GanttView( {
               >
                 <span className="bwx-gantt-label" title={ item.title }>
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
-                  <span className="bwx-gantt-title">{ item.title }</span>
+                  { null === place ? (
+                    // No bar to open it from, so the name opens it, as in the tray.
+                    <button
+                      type="button"
+                      className="bwx-gantt-title bwx-gantt-title-open"
+                      data-testid="bwx-gantt-title-open"
+                      onClick={ () => onOpen( item ) }
+                    >
+                      { item.title }
+                    </button>
+                  ) : (
+                    <span className="bwx-gantt-title">{ item.title }</span>
+                  ) }
                 </span>
 
                 <span className="bwx-gantt-track">
                   { null === place ? (
                     <span className="bwx-gantt-outside">
-                      { `${ range( span.start, span.due ) } is outside these days` }
+                      { `${ rangeWithYear( span.start, span.due ) } is outside the weeks shown${ overdue ? ' · overdue' : '' }` }
                     </span>
                   ) : (
                     <button
@@ -424,6 +402,13 @@ function range( start: string, due: string ): string {
   return start.slice( 0, 7 ) === due.slice( 0, 7 )
     ? `${ dayOf( start ) } – ${ spoken( due ) }`
     : `${ spoken( start ) } – ${ spoken( due ) }`;
+}
+
+/** The same with the year, for work the chart does not draw: "28 Nov 2027" is not "28 Nov" of this year. */
+function rangeWithYear( start: string, due: string ): string {
+  const full = ( date: string ) => `${ spoken( date ) } ${ date.slice( 0, 4 ) }`;
+
+  return start === due ? full( start ) : `${ full( start ) } – ${ full( due ) }`;
 }
 
 export type { Phase };

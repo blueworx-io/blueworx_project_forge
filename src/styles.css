@@ -1178,6 +1178,16 @@ body {
   color: var( --ink-500 );
   white-space: nowrap;
 }
+/* On a phone the notice wraps inside the room beside the names, rather than
+   running off the screen on one line. */
+@media ( max-width: 640px ) {
+  .bwx-gantt-outside {
+    max-width: calc( 100vw - var( --gantt-gutter ) - 72px );
+    white-space: normal;
+    line-height: 1.3;
+    padding-block: 5px;
+  }
+}
 .bwx-gantt-day {
   display: flex;
   flex-direction: column;
@@ -1278,7 +1288,8 @@ body {
   gap: 8px;
   min-width: 0;
   padding: 0 12px;
-  height: 40px;
+  min-height: 40px;
+  align-self: stretch;
   background: var( --surface-card );
   border-right: 1px solid var( --border-hairline );
   font-size: var( --text-small );
@@ -1295,6 +1306,22 @@ body {
 .bwx-gantt-dot[data-phase='pipeline'] { --bar-fill: var( --phase-pipeline ); }
 .bwx-gantt-dot[data-phase='done'] { --bar-fill: var( --phase-done ); }
 .bwx-gantt-dot[data-phase='exception'] { --bar-fill: var( --phase-exception ); }
+/* A name that opens its work: for rows with no bar to open it from. */
+.bwx-gantt-title-open {
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.bwx-gantt-title-open:hover {
+  text-decoration: underline;
+}
+.bwx-gantt-title-open:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
 .bwx-gantt-title {
   flex: 1;
   min-width: 0;
@@ -1320,7 +1347,8 @@ body {
 .bwx-gantt-track {
   position: relative;
   flex: 1;
-  height: 40px;
+  /* At least a row tall, and taller when a notice beside it wraps. */
+  min-height: 40px;
 }
 
 /* A bar is the stage's wash with its edge, and the ink for the label — the

@@ -31,8 +31,8 @@ export const RULES: RuleSection[] = [
         why: 'Long columns were hard to scan and slowed the board down, and older work is still one click away.',
       },
       {
-        what: 'The Schedule leaves out released work, here and on the client\'s Schedule. It can be viewed by week or by day: the day view gives every day its own column and marks today.',
-        why: 'The Schedule is for work still in progress, and a day view makes it easier to see what is happening this week.',
+        what: 'The Schedule leaves out released work, here and on the client\'s Schedule. It opens by the day, with every day in its own column and today marked, and can be switched to weeks. It shows two weeks back and six weeks ahead at most (the weeks view draws the week at each end whole); work dated outside that is named, with its year and whether it is overdue, but not drawn. On the client\'s Schedule, today is marked once there is work with both a start and a due date to draw; until then there is no chart.',
+        why: 'The Schedule is for work still in progress, and a chart that stretches to fit one distant date is too wide to read.',
       },
       {
         what: 'A card dragged to another column settles there straight away, and the board catches up in the background. Several cards can be moved one after another without any of them jumping back.',

@@ -1073,6 +1073,11 @@ p.fc-muted + p.fc-muted,
   margin: 0;
   border-bottom: 1px solid var( --border-hairline );
 }
+/* The zoom and Today buttons wrap beneath the title on a narrow screen
+   instead of running off the edge of the card. */
+.fc-schedule-head .fc-toolbar-right {
+  flex-wrap: wrap;
+}
 .fc-schedule {
   display: flex;
   flex-direction: column;
@@ -1229,6 +1234,34 @@ p.fc-muted + p.fc-muted,
   .fc-schedule-axis,
   .fc-schedule-row {
     grid-template-columns: 1fr;
+  }
+  /* The label sits above the days here, not beside them, so the days alone set
+     how wide a scrolling chart is. */
+  .fc-schedule[data-zoom='day'] .fc-schedule-axis,
+  .fc-schedule[data-zoom='day'] .fc-schedule-row {
+    min-width: calc( var( --fc-cols ) * 44px );
+  }
+  /* A name stays on screen while the days scroll beneath it: held to the width
+     of the phone rather than stretched across every day, which is what lets it
+     stay put. */
+  .fc-schedule[data-zoom='day'] .fc-schedule-label {
+    left: 12px;
+    width: min( 260px, calc( 100vw - 96px ) );
+    justify-self: start;
+  }
+  /* The notice for work outside the weeks shown wraps within the screen and
+     follows the scroll, rather than sitting on one line off to the side. */
+  .fc-schedule-track {
+    height: auto;
+    min-height: 22px;
+  }
+  .fc-schedule-outside {
+    left: 20px;
+    display: inline-block;
+    max-width: calc( 100vw - 96px );
+    white-space: normal;
+    line-height: 1.35;
+    padding: 3px 8px;
   }
 }
 

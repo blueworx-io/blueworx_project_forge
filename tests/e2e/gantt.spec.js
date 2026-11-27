@@ -12,9 +12,23 @@ import { signIn } from '../helpers/sign-in.js';
 
 const RUN = `gt${Date.now()}`;
 
-/** Dates either side of today, so overdue means overdue rather than "in 2019". */
-const DAY = 86400000;
-const on = ( offset ) => new Date( Date.now() + offset * DAY ).toISOString().slice( 0, 10 );
+/**
+ * Dates either side of today, so overdue means overdue rather than "in 2019".
+ * Today is the machine's own calendar date, which is what the browser the tests
+ * drive uses, not the UTC date `toISOString` would give: near midnight the two
+ * are a day apart, and the chart marks the viewer's day.
+ */
+const pad = ( number ) => String( number ).padStart( 2, '0' );
+const on = ( offset ) => {
+  const at = new Date();
+
+  at.setDate( at.getDate() + offset );
+
+  return `${ at.getFullYear() }-${ pad( at.getMonth() + 1 ) }-${ pad( at.getDate() ) }`;
+};
+
+/** The date in a named timezone, worked out apart from anything the app does. */
+const inZone = ( timeZone ) => new Intl.DateTimeFormat( 'en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' } ).format( new Date() );
 
 test.describe( 'the schedule', () => {
   test.describe.configure( { mode: 'serial' } );
@@ -199,20 +213,18 @@ test.describe( 'the schedule', () => {
     await expect( page.locator( '[data-testid="bwx-gantt-tray-count"]' ) ).toHaveText( '1' );
   } );
 
-  test( 'the day view gives every day its own column and marks today (#703)', async ( { page } ) => {
+  test( 'the chart opens by the day, with today marked, and the weeks are one click away (#703)', async ( { page } ) => {
     await openSchedule( page );
 
     const chart = page.locator( '[data-testid="bwx-gantt-chart"]' );
-    await expect( chart ).toHaveAttribute( 'data-zoom', 'week' );
-    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 0 );
-    const weeks = await page.locator( '.bwx-gantt-week' ).count();
-
-    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
     await expect( chart ).toHaveAttribute( 'data-zoom', 'day' );
     await expect( page.locator( '[data-testid="bwx-gantt-zoom-day"]' ) ).toHaveAttribute( 'aria-pressed', 'true' );
 
-    // The same stretch of time, a column to a day instead of a column to a week.
-    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( weeks * 7 );
+    // Never further back than two weeks, and a column to a day.
+    const days = page.locator( '[data-testid="bwx-gantt-day"]' );
+    await expect( days.first() ).toHaveAttribute( 'data-day', on( -14 ) );
+    const last = await days.last().getAttribute( 'data-day' );
+    expect( last >= on( 20 ) && last <= on( 42 ) ).toBe( true );
 
     // Today is one column, and the line through the chart is still there.
     const todays = page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' );
@@ -226,13 +238,34 @@ test.describe( 'the schedule', () => {
     await expect( bar ).toHaveAttribute( 'data-start', on( 2 ) );
 
     // A day is wide enough to read, so the chart scrolls rather than squeezes.
-    const day = await page.locator( '[data-testid="bwx-gantt-day"]' ).first().boundingBox();
+    const day = await days.first().boundingBox();
     expect( day.width ).toBeGreaterThanOrEqual( 40 );
 
+    // The weeks cover the same stretch, the weeks that hold the limits drawn whole.
     await page.locator( '[data-testid="bwx-gantt-zoom-week"]' ).click();
     await expect( chart ).toHaveAttribute( 'data-zoom', 'week' );
-    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 0 );
+    await expect( days ).toHaveCount( 0 );
+    const weeks = page.locator( '.bwx-gantt-week' );
+    expect( ( await weeks.first().getAttribute( 'data-week' ) ) >= on( -20 ) ).toBe( true );
+    expect( ( await weeks.last().getAttribute( 'data-week' ) ) <= on( 42 ) ).toBe( true );
+
+    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
+    await expect( todays ).toHaveCount( 1 );
   } );
+
+  // Today is the viewer's own date. A browser a day ahead of UTC and one a day
+  // behind it cannot both agree with it, so one of the two always checks it.
+  for ( const zone of [ 'Pacific/Kiritimati', 'Pacific/Pago_Pago' ] ) {
+    test.describe( `in ${ zone }`, () => {
+      test.use( { timezoneId: zone } );
+
+      test( 'today is the date there, not the UTC date (#703)', async ( { page } ) => {
+        await openSchedule( page );
+
+        await expect( page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' ) ).toHaveAttribute( 'data-day', inZone( zone ) );
+      } );
+    } );
+  }
 
   test( 'the filter bar narrows the schedule like any other view', async ( { page } ) => {
     await openSchedule( page );
@@ -292,43 +325,105 @@ test.describe( 'the schedule', () => {
     await page.unrouteAll( { behavior: 'ignoreErrors' } );
   } );
 
-  test( 'the day view opens with today in view, and a long stretch is a window rather than every day (#703)', async ( { page } ) => {
-    // Work that started a long way back, and some that is a mistyped year away.
+  test( 'work outside the two weeks back and six ahead is named, not drawn, and Today stays in view (#703)', async ( { page } ) => {
+    // Work that finished long ago, and some that is a mistyped year away.
+    // Each date is worked out once and the same one is saved and checked, so a
+    // run that crosses midnight cannot disagree with itself.
+    const outsideDue = {};
+
     for ( const [ name, from, to ] of [ [ 'old', -120, -110 ], [ 'typo', 1400, 1410 ] ] ) {
+      outsideDue[ name ] = on( to );
+
       const made = await makeItem( world.admin.api, world.site.id, {
         title: `${ RUN } ${ name }`,
         planned_start: on( from ),
-        planned_due: on( to ),
+        planned_due: outsideDue[ name ],
       } );
       expect( made.status(), await made.text() ).toBe( 200 );
     }
 
+    // Work on the last day inside the limit, in a week the limit cuts in two.
+    const edge = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } edge`, planned_start: on( 41 ), planned_due: on( 42 ) } );
+    expect( edge.status(), await edge.text() ).toBe( 200 );
+    const edgeBar = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } edge") [data-testid="bwx-gantt-bar"]` );
+
     await openSchedule( page );
-    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
 
-    // Seven columns to the week, at most twenty-six weeks of them.
-    await expect( page.locator( '[data-testid="bwx-gantt-day"]' ) ).toHaveCount( 26 * 7 );
+    // Fifty-seven days at most: two weeks back to six weeks ahead.
+    const days = page.locator( '[data-testid="bwx-gantt-day"]' );
+    expect( await days.count() ).toBeLessThanOrEqual( 57 );
+    await expect( days.first() ).toHaveAttribute( 'data-day', on( -14 ) );
+    expect( ( await days.last().getAttribute( 'data-day' ) ) <= on( 42 ) ).toBe( true );
 
-    // Today is on screen without scrolling to look for it.
+    // The work outside is named, not dropped, and its bar is not drawn.
+    for ( const name of [ 'old', 'typo' ] ) {
+      const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } ${ name }")` );
+
+      await expect( row.locator( '.bwx-gantt-outside' ) ).toBeVisible();
+      // The year is said, so a mistyped one can be seen without opening the work.
+      await expect( row.locator( '.bwx-gantt-outside' ) ).toContainText( outsideDue[ name ].slice( 0, 4 ) );
+      await expect( row.locator( '[data-testid="bwx-gantt-bar"]' ) ).toHaveCount( 0 );
+    }
+
+    // Unfinished work that ran out long ago still says it is overdue.
+    await expect( page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } old") .bwx-gantt-outside` ) ).toContainText( 'overdue' );
+
+    // Today is on screen without scrolling to look for it, and again after
+    // going to the weeks and back.
     const today = page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' );
-    await expect( today ).toHaveCount( 1 );
-    await expect( async () => {
+    const inView = async () => {
       const at = await today.boundingBox();
       const chart = await page.locator( '[data-testid="bwx-gantt-chart"]' ).boundingBox();
 
       expect( at.x ).toBeGreaterThanOrEqual( chart.x );
       expect( at.x + at.width ).toBeLessThanOrEqual( chart.x + chart.width + 1 );
-    } ).toPass();
+    };
 
-    // The work outside the window is named, not dropped.
-    await expect( page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } typo") .bwx-gantt-outside` ) ).toBeVisible();
+    await expect( today ).toHaveCount( 1 );
+    await expect( inView ).toPass();
 
-    // Moving along changes which days are drawn; Today brings them back.
-    const first = page.locator( '[data-testid="bwx-gantt-day"]' ).first();
-    const opening = await first.getAttribute( 'data-day' );
-    await page.locator( '[data-testid="bwx-gantt-earlier"]' ).click();
-    expect( await first.getAttribute( 'data-day' ) ).not.toBe( opening );
-    await page.locator( '[data-testid="bwx-gantt-jump-today"]' ).click();
-    await expect( first ).toHaveAttribute( 'data-day', opening );
+    await expect( edgeBar ).toHaveCount( 1 );
+    await page.locator( '[data-testid="bwx-gantt-zoom-week"]' ).click();
+    await expect( edgeBar ).toHaveCount( 1 );
+    await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
+    await expect( inView ).toPass();
+
+    // A name with no bar still opens its work, as the tray does.
+    await page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } old") [data-testid="bwx-gantt-title-open"]` ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+
+    // Nothing to page through: there is no further to go.
+    await expect( page.locator( '[data-testid="bwx-gantt-earlier"], [data-testid="bwx-gantt-later"]' ) ).toHaveCount( 0 );
+  } );
+
+  test.describe( 'on a phone', () => {
+    test.use( { viewport: { width: 390, height: 844 } } );
+
+    test( 'task names stay visible in the day view, and notices fit the screen (#703)', async ( { page } ) => {
+      const made = await makeItem( world.admin.api, world.site.id, {
+        title: `${ RUN } phone old`,
+        planned_start: on( -120 ),
+        planned_due: on( -110 ),
+      } );
+      expect( made.status(), await made.text() ).toBe( 200 );
+
+      await openSchedule( page );
+      await page.locator( '[data-testid="bwx-gantt-jump-today"]' ).click();
+
+      const chart = await page.locator( '[data-testid="bwx-gantt-chart"]' ).boundingBox();
+
+      // Scrolled to today, a name is still beside the days, not scrolled away.
+      const label = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.first.id }"] .bwx-gantt-label` );
+      await expect( label ).toBeInViewport( { ratio: 1 } );
+      await expect( label.locator( '.bwx-gantt-title' ) ).toBeVisible();
+      expect( ( await label.boundingBox() ).x ).toBeGreaterThanOrEqual( chart.x );
+
+      // The notice for work outside the weeks wraps on the screen rather than running off it.
+      const notice = page.locator( '[data-testid="bwx-gantt-row"]:has-text("phone old") .bwx-gantt-outside' );
+      await expect( notice ).toBeInViewport( { ratio: 1 } );
+      const box = await notice.boundingBox();
+      expect( box.x + box.width ).toBeLessThanOrEqual( 390 );
+    } );
   } );
 } );
