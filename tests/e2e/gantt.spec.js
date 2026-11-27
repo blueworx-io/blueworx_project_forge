@@ -183,6 +183,7 @@ test.describe( 'the schedule', () => {
     // And the chain is readable from the schedule rather than only from the
     // panel: selecting it marks both ends.
     await row.locator( '[data-testid="bwx-gantt-bar"]' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
     await expect( page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.first.id }"]` ) )
       .toHaveAttribute( 'data-chain', 'upstream' );
     await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
@@ -237,9 +238,11 @@ test.describe( 'the schedule', () => {
     await expect( bar ).toBeVisible();
     await expect( bar ).toHaveAttribute( 'data-start', on( 2 ) );
 
-    // A day is wide enough to read, so the chart scrolls rather than squeezes.
-    const day = await days.first().boundingBox();
-    expect( day.width ).toBeGreaterThanOrEqual( 40 );
+    // A day is six times what it was, 264px, so the chart scrolls rather than squeezes.
+    // Measured from one day to the next after the first, which has no hairline of its own.
+    const first = await days.nth( 1 ).boundingBox();
+    const second = await days.nth( 2 ).boundingBox();
+    expect( Math.round( second.x - first.x ) ).toBe( 264 );
 
     // The weeks cover the same stretch, the weeks that hold the limits drawn whole.
     await page.locator( '[data-testid="bwx-gantt-zoom-week"]' ).click();
@@ -251,6 +254,40 @@ test.describe( 'the schedule', () => {
 
     await page.locator( '[data-testid="bwx-gantt-zoom-day"]' ).click();
     await expect( todays ).toHaveCount( 1 );
+  } );
+
+  test( 'one click on a bar opens the item (Luke, 27 Nov)', async ( { page } ) => {
+    await openSchedule( page );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toHaveCount( 0 );
+
+    await page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` ).click();
+
+    const panel = page.getByTestId( 'bwx-panel' );
+    await expect( panel ).toBeVisible();
+    await expect( panel ).toContainText( 'guest checkout' );
+  } );
+
+  test( 'hovering a name, or focusing it, shows the full name (Luke, 27 Nov)', async ( { page } ) => {
+    const long = `${ RUN } a name long enough to be cut short by the left column of the chart`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("a name long enough")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await expect( tip ).toBeHidden();
+    await row.locator( '.bwx-gantt-title' ).hover();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toHaveText( long );
+
+    // Away again, it goes; focus brings it back for the keyboard.
+    await page.mouse.move( 0, 0 );
+    await expect( tip ).toBeHidden();
+    await row.locator( '.bwx-gantt-title' ).focus();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toHaveText( long );
   } );
 
   // Today is the viewer's own date. A browser a day ahead of UTC and one a day
@@ -302,6 +339,10 @@ test.describe( 'the schedule', () => {
 
     await openSchedule( page );
     await page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ).click();
+    // The click opens the item; put its panel away to get at the chart again.
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
     const late = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` );
     await expect( late ).toHaveAttribute( 'data-dimmed', 'true' );
 

@@ -219,7 +219,7 @@ export function GanttView( {
                 data-chain={ role ?? undefined }
                 data-dimmed={ '' !== active && null === role ? 'true' : undefined }
               >
-                <span className="bwx-gantt-label" title={ item.title }>
+                <span className="bwx-gantt-label">
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
                   { null === place ? (
                     // No bar to open it from, so the name opens it, as in the tray.
@@ -232,8 +232,12 @@ export function GanttView( {
                       { item.title }
                     </button>
                   ) : (
-                    <span className="bwx-gantt-title">{ item.title }</span>
+                    // Focusable, so the full name shows from the keyboard too.
+                    <span className="bwx-gantt-title" tabIndex={ 0 }>{ item.title }</span>
                   ) }
+                  <span className="bwx-gantt-name-tip" data-testid="bwx-gantt-name-tip" aria-hidden="true">
+                    { item.title }
+                  </span>
                 </span>
 
                 <span className="bwx-gantt-track">
@@ -260,8 +264,12 @@ export function GanttView( {
                       } as React.CSSProperties }
                       title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
                       aria-pressed={ item.id === active }
-                      onClick={ () => setSelected( item.id === active ? '' : item.id ) }
-                      onDoubleClick={ () => onOpen( item ) }
+                      onClick={ () => {
+                        // One click opens it, as the name does, and still marks
+                        // what it waits on and what waits on it.
+                        setSelected( item.id === active ? '' : item.id );
+                        onOpen( item );
+                      } }
                     >
                       { /* The fill is how far its children have got, so a bar says
                            both when and how far in one mark. Work with nothing

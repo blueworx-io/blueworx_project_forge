@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.233.1] - 2026-11-27
+
+### Fixed
+
+- The Gantt chart is easier to read and to use. In the Days view each day is now 264 pixels wide, six times what it was, and the chart still scrolls sideways with Today bringing today into view. Hovering a name in the left column, or tabbing onto it, shows the full name. One click on a bar now opens the item, as clicking its name does; it also still marks what the item waits on and what waits on it.
+
 ## [2.233.0] - 2026-11-27
 
 ### Added

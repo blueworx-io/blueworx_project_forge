@@ -1151,7 +1151,7 @@ body {
    stretch of time scrolls sideways rather than squeezing. The gutter stays put
    while it does, so a bar is never far from its name. */
 .bwx-gantt-chart[ data-zoom='day' ] {
-  --gantt-day: 44px;
+  --gantt-day: 264px;
 }
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis,
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-rows {
@@ -1319,6 +1319,35 @@ body {
   text-decoration: underline;
 }
 .bwx-gantt-title-open:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+/* The full name, over the label it is cut off in: on hover, and when the name has focus. */
+.bwx-gantt-name-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px 10px 28px;
+  background: var( --surface-card );
+  box-shadow: var( --shadow-raised );
+  color: var( --ink-900 );
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  visibility: hidden;
+}
+.bwx-gantt-label:hover,
+.bwx-gantt-label:focus-within {
+  z-index: 4;
+}
+.bwx-gantt-label:hover .bwx-gantt-name-tip,
+.bwx-gantt-label:focus-within .bwx-gantt-name-tip {
+  visibility: visible;
+}
+.bwx-gantt-title:focus-visible {
   outline: 2px solid var( --brand-600 );
   outline-offset: 2px;
 }
