@@ -71,6 +71,39 @@ test('work past its date is on the list, and leaves when it is done', async ({
   await admin.context.close();
 });
 
+test('cancelled work is off the list', async ({ browser, baseURL }) => {
+  test.slow();
+
+  const admin = await Forge.signedIn(browser, baseURL, ADMIN_USER, ADMIN_PASS);
+  const { site } = await Forge.makeSite(admin.api, `Standup Cancel Co ${RUN_ID}`, RUN_ID);
+
+  const made = await Forge.makeItem(admin.api, site.id, {
+    title: `Cancelled thing ${RUN_ID}`,
+    planned_start: '2020-01-01',
+    planned_due: '2020-01-02',
+  });
+
+  expect(made.status(), await made.text()).toBe(200);
+
+  const item = (await made.json()).item;
+
+  await expect
+    .poll(async () => rulesOf(await cardsAbout(admin.api, item.id)))
+    .toContain('overdue');
+
+  const ended = await admin.api.post(`/work-items/${item.id}/outcome`, {
+    outcome: 'cancelled',
+    reason: 'Not needed.',
+    record_version: item.record_version,
+  });
+
+  expect(ended.status(), await ended.text()).toBe(200);
+
+  await expect.poll(async () => rulesOf(await cardsAbout(admin.api, item.id))).toEqual([]);
+
+  await admin.context.close();
+});
+
 test('a client request sits on the list until somebody answers it', async ({
   browser,
   baseURL,
