@@ -290,6 +290,35 @@ test.describe( 'the schedule', () => {
     await expect( tip ).toHaveText( long );
   } );
 
+  test( 'a name still shows in full over a dimmed row (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    // Picking a bar dims every row it is not linked to, and stays after the panel closes.
+    await page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+
+    const late = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` );
+    await expect( late ).toHaveAttribute( 'data-dimmed', 'true' );
+
+    await late.locator( '.bwx-gantt-title' ).hover();
+    const tip = late.locator( '[data-testid="bwx-gantt-name-tip"]' );
+    await expect( tip ).toBeVisible();
+
+    // Nothing from the tip up to the page fades it, so it is as readable as on any other row.
+    const faded = await tip.evaluate( ( node ) => {
+      let opacity = 1;
+
+      for ( let at = node; at; at = at.parentElement ) {
+        opacity *= Number( getComputedStyle( at ).opacity );
+      }
+
+      return opacity;
+    } );
+    expect( faded ).toBe( 1 );
+  } );
+
   // Today is the viewer's own date. A browser a day ahead of UTC and one a day
   // behind it cannot both agree with it, so one of the two always checks it.
   for ( const zone of [ 'Pacific/Kiritimati', 'Pacific/Pago_Pago' ] ) {
@@ -458,6 +487,10 @@ test.describe( 'the schedule', () => {
       const label = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.first.id }"] .bwx-gantt-label` );
       await expect( label ).toBeInViewport( { ratio: 1 } );
       await expect( label.locator( '.bwx-gantt-title' ) ).toBeVisible();
+
+      // A day is wider than the room beside the names, and today is still on screen.
+      await expect( page.locator( '[data-testid="bwx-gantt-today"]' ) ).toBeInViewport();
+      await expect( page.locator( '[data-testid="bwx-gantt-day"][data-today="true"]' ) ).toBeInViewport();
       expect( ( await label.boundingBox() ).x ).toBeGreaterThanOrEqual( chart.x );
 
       // The notice for work outside the weeks wraps on the screen rather than running off it.

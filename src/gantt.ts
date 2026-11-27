@@ -246,7 +246,12 @@ export function scrollToToday( chart: HTMLElement | null, gutter: number ): void
 
   const behind = cell.getBoundingClientRect().left - chart.getBoundingClientRect().left;
 
-  chart.scrollLeft += behind - gutter - 96;
+  // Up to 96px of the days before today, but never so many that today's column
+  // is pushed off a narrow screen: a day is wider than a phone's timeline can spare.
+  const room = ( chart.clientWidth - gutter - cell.getBoundingClientRect().width ) / 2;
+  const before = Math.min( 96, Math.max( 0, room ) );
+
+  chart.scrollLeft += behind - gutter - before;
 }
 
 /**

@@ -1274,7 +1274,10 @@ body {
   background: color-mix( in srgb, var( --surface-sunken ) 55%, transparent );
 }
 
-.bwx-gantt-row[ data-dimmed='true' ] {
+/* Dimmed on what is inside the row, not the row itself, so a full name shown over
+   the label stays whole and above the rows beneath it. */
+.bwx-gantt-row[ data-dimmed='true' ] > .bwx-gantt-track,
+.bwx-gantt-row[ data-dimmed='true' ] > .bwx-gantt-label > :not( .bwx-gantt-name-tip ) {
   opacity: 0.28;
 }
 
