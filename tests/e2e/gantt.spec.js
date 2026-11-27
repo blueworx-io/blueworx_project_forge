@@ -302,6 +302,46 @@ test.describe( 'the schedule', () => {
     await expect( chart ).toBeFocused();
   } );
 
+  test( 'the full name of the last row fits inside the chart, not cut off below it (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } zz the very last row has a name so long that it runs over several lines of the left column before it ends`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const row = page.locator( '[data-testid="bwx-gantt-row"]:has-text("the very last row")' );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.scrollIntoViewIfNeeded();
+    await row.locator( '.bwx-gantt-title' ).hover();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toHaveText( long );
+
+    await expect( async () => {
+      const inner = await tip.boundingBox();
+      const frame = await page.getByTestId( 'bwx-gantt-chart' ).evaluate( ( node ) => {
+        const box = node.getBoundingClientRect();
+        return { top: box.top, bottom: box.top + node.clientHeight };
+      } );
+
+      expect( inner.y ).toBeGreaterThanOrEqual( frame.top - 1 );
+      expect( inner.y + inner.height ).toBeLessThanOrEqual( frame.bottom + 1 );
+    } ).toPass();
+  } );
+
+  test( 'closing the item a bar opened puts focus back on the bar (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` );
+    await bar.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    await expect( bar ).toBeFocused();
+  } );
+
   test( 'a name still shows in full over a dimmed row (review of #720)', async ( { page } ) => {
     await openSchedule( page );
 
@@ -505,6 +545,30 @@ test.describe( 'the schedule', () => {
 
   test.describe( 'on a phone', () => {
     test.use( { viewport: { width: 390, height: 844 } } );
+
+    test( 'a date stays readable beside the names however the days are scrolled (review of #720)', async ( { page } ) => {
+      await openSchedule( page );
+      await page.locator( '[data-testid="bwx-gantt-jump-today"]' ).click();
+
+      const chart = page.getByTestId( 'bwx-gantt-chart' );
+
+      // Across a run of scroll positions, so the view straddles two days at some of them.
+      for ( const step of [ 0, 60, 130, 200, 264, 330 ] ) {
+        await chart.evaluate( ( node, by ) => { node.scrollLeft += by; }, step );
+
+        const seen = await page.evaluate( () => {
+          const frame = document.querySelector( '[data-testid="bwx-gantt-chart"]' ).getBoundingClientRect();
+          const names = document.querySelector( '.bwx-gantt-axis-gutter' ).getBoundingClientRect();
+
+          return [ ...document.querySelectorAll( '.bwx-gantt-day-label' ) ].filter( ( label ) => {
+            const box = label.getBoundingClientRect();
+            return box.left >= names.right - 1 && box.right <= frame.right + 1;
+          } ).length;
+        } );
+
+        expect( seen, `a date shows after scrolling ${ step }px more` ).toBeGreaterThan( 0 );
+      }
+    } );
 
     test( 'task names stay visible in the day view, and notices fit the screen (#703)', async ( { page } ) => {
       const made = await makeItem( world.admin.api, world.site.id, {

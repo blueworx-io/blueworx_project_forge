@@ -39,15 +39,20 @@ import type { Axis, Span, Zoom } from '../gantt';
 export function GanttView( {
   items: everything,
   onOpen,
+  panelOpen = false,
 }: {
   items: WorkItem[];
   onOpen: ( item: WorkItem ) => void;
+  /** Whether an item's panel is open over the chart, so focus can come back when it closes. */
+  panelOpen?: boolean;
 } ) {
   const [ open, setOpen ] = useState( true );
   const [ selected, setSelected ] = useState( '' );
   const [ zoom, setZoom ] = useState< Zoom >( 'day' );
   const [ jump, setJump ] = useState( 0 );
   const chartRef = useRef< HTMLDivElement >( null );
+  const opener = useRef< HTMLElement | null >( null );
+  const wasOpen = useRef( false );
 
   const items = everything.filter( isLive );
 
@@ -94,6 +99,43 @@ export function GanttView( {
     scrollToToday( chart, gutter );
     // Only when the zoom or the Today button changes, not on every redraw.
   }, [ zoom, jump ] );
+
+  // When the panel a bar opened closes, focus goes back to that bar, or to the
+  // chart if the bar has gone, so a keyboard user keeps their place.
+  useEffect( () => {
+    if ( wasOpen.current && ! panelOpen ) {
+      const bar = opener.current;
+
+      ( bar?.isConnected ? bar : chartRef.current )?.focus();
+      opener.current = null;
+    }
+
+    wasOpen.current = panelOpen;
+  }, [ panelOpen ] );
+
+  /**
+   * Opens the full name upward from its row when downward would run out of the
+   * chart, so the whole name can always be read.
+   */
+  const fitTip = ( label: HTMLElement ) => {
+    const chart = chartRef.current;
+    const tip = label.querySelector< HTMLElement >( '.bwx-gantt-name-tip' );
+
+    if ( ! chart || ! tip ) {
+      return;
+    }
+
+    tip.removeAttribute( 'data-flip' );
+
+    const box = chart.getBoundingClientRect();
+    const seen = box.top + chart.clientHeight;
+    const own = tip.getBoundingClientRect();
+    const row = label.getBoundingClientRect();
+
+    if ( own.bottom > seen && row.bottom - own.height >= box.top ) {
+      tip.setAttribute( 'data-flip', 'true' );
+    }
+  };
 
   const phases = [ ...new Set( dated.map( ( each ) => phaseOf( each.item.stage ) ) ) ];
 
@@ -174,8 +216,11 @@ export function GanttView( {
                   data-today={ column.start === today ? 'true' : undefined }
                   data-weekend={ isWeekend( column.start ) ? 'true' : undefined }
                 >
-                  <span className="bwx-gantt-day-name">{ weekdayOf( column.start ) }</span>
-                  { column.label }
+                  { /* Slides to stay in the room beside the names, so a date is always readable. */ }
+                  <span className="bwx-gantt-day-label">
+                    <span className="bwx-gantt-day-name">{ weekdayOf( column.start ) }</span>
+                    { column.label }
+                  </span>
                 </span>
               ) : (
                 <span key={ column.start } className="bwx-gantt-week" data-week={ column.start }>
@@ -223,7 +268,11 @@ export function GanttView( {
                 data-chain={ role ?? undefined }
                 data-dimmed={ '' !== active && null === role ? 'true' : undefined }
               >
-                <span className="bwx-gantt-label">
+                <span
+                  className="bwx-gantt-label"
+                  onMouseEnter={ ( event ) => fitTip( event.currentTarget ) }
+                  onFocus={ ( event ) => fitTip( event.currentTarget ) }
+                >
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
                   { null === place ? (
                     // No bar to open it from, so the name opens it, as in the tray.
@@ -231,7 +280,10 @@ export function GanttView( {
                       type="button"
                       className="bwx-gantt-title bwx-gantt-title-open"
                       data-testid="bwx-gantt-title-open"
-                      onClick={ () => onOpen( item ) }
+                      onClick={ ( event ) => {
+                        opener.current = event.currentTarget;
+                        onOpen( item );
+                      } }
                     >
                       { item.title }
                     </button>
@@ -268,7 +320,8 @@ export function GanttView( {
                       } as React.CSSProperties }
                       title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
                       aria-pressed={ item.id === active }
-                      onClick={ () => {
+                      onClick={ ( event ) => {
+                        opener.current = event.currentTarget;
                         // One click opens it, as the name does, and still marks
                         // what it waits on and what waits on it.
                         setSelected( item.id === active ? '' : item.id );

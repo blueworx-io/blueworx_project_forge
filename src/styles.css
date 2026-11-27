@@ -1194,12 +1194,24 @@ body {
   }
 }
 .bwx-gantt-day {
+  /* Not clipped, or the date could not slide along the column. */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
   /* Room beneath the date for the Today tag to sit in. */
   padding: 4px 0 20px;
   line-height: 1.3;
+}
+/* The date slides along its column, clear of the pinned names and the right
+   edge, so on a phone one is always in view and a bar's day can be told. */
+.bwx-gantt-day-label {
+  position: sticky;
+  left: calc( var( --gantt-gutter ) + 6px );
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .bwx-gantt-day-name {
   font-size: 10px;
@@ -1347,6 +1359,11 @@ body {
   pointer-events: none;
   visibility: hidden;
 }
+/* Opens upward from the row when downward would run out of the chart. */
+.bwx-gantt-name-tip[ data-flip='true' ] {
+  top: auto;
+  bottom: 0;
+}
 .bwx-gantt-label:hover {
   z-index: 4;
 }
@@ -1357,6 +1374,11 @@ body {
 .bwx-gantt-label:hover .bwx-gantt-name-tip,
 .bwx-gantt-label:focus-within .bwx-gantt-name-tip {
   visibility: visible;
+}
+/* The tip covers the name, so the ring is drawn around the tip while focus is on the name. */
+.bwx-gantt-label:has( :focus-visible ) .bwx-gantt-name-tip {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: -2px;
 }
 .bwx-gantt-title:focus-visible {
   outline: 2px solid var( --brand-600 );

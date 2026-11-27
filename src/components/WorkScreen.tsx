@@ -545,7 +545,7 @@ export function WorkScreen( {
           ) }
 
           { 'gantt' === view && (
-            <GanttView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+            <GanttView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } panelOpen={ '' !== openId } />
           ) }
 
           { 'calendar' === view && (
