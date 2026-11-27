@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, unlinkSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readlinkSync, renameSync, rmSync, unlinkSync } from 'node:fs';
 import { platform } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,6 +61,8 @@ export function updaterApi(request, nonce) {
 
   return {
     versions: async () => answer(await request.get(`${API}/versions`, { headers })),
+    /** Sets which of Akismet and Hello Dolly update themselves; returns what it was. */
+    others: async (enabled) => (await answer(await request.post(`${API}/others`, { headers, data: { enabled } }))).enabled,
     run: async (offers, build = []) => answer(await request.post(`${API}/run`, { headers, data: { offers, build } })),
   };
 }
@@ -88,28 +90,44 @@ function link(target, dest) {
 }
 
 /**
- * Swaps a plugin the harness linked into the site for a copy of what ships,
+ * Swaps a plugin the harness installed into the site for a copy of what ships,
  * so a real update can replace it. Installing over a link would empty the
  * folder it points at — this repository, for the studio plugin.
  *
- * Returns what puts the link back. Only ever unlinks: nothing is removed
- * through it.
+ * The original is kept, not rebuilt: a link is only unlinked, and a real
+ * folder is moved aside and moved back, so the site comes back exactly as it
+ * was. It comes back if setting the copy up fails too.
+ *
+ * Returns what puts the original back. Only ever unlinks or moves: nothing of
+ * the original is removed through it.
  *
  * @param {'studio' | 'client'} artifact Which plugin in bin/artifacts.json.
  */
 export function useDisposableCopy(artifact, slug, wpDir = DEFAULT_WP()) {
   const plugin = join(wpDir, 'wp-content', 'plugins', slug);
-  const target = lstatSync(plugin).isSymbolicLink() ? readlinkSync(plugin) : null;
+  // Beside plugins/, not in it, so WordPress never lists it as a second plugin.
+  const aside = join(wpDir, `bwx-original-${slug}`);
 
-  if (target) {
-    unlinkSync(plugin);
-  } else {
-    rmSync(plugin, { recursive: true, force: true });
+  // A run that died before it could restore leaves the original here. It is
+  // still the original; whatever is in the plugin's place is the leftover copy.
+  const leftover = existsSync(aside);
+  const exists = leftover || existsSync(plugin) || isLink(plugin);
+
+  if (!exists) {
+    throw new Error(`${slug} is not installed in ${wpDir}; bring the site up with --slug ${slug}`);
   }
 
-  stageArtifact(artifact, plugin);
+  const target = !leftover && isLink(plugin) ? readlinkSync(plugin) : null;
 
-  return () => {
+  if (leftover) {
+    rmSync(plugin, { recursive: true, force: true });
+  } else if (target) {
+    unlinkSync(plugin);
+  } else {
+    renameSync(plugin, aside);
+  }
+
+  const restore = () => {
     // An update replaces the folder with a real one, and a failed run can leave
     // it half there; either way it is a copy, and the copy goes.
     rmSync(plugin, { recursive: true, force: true });
@@ -117,7 +135,24 @@ export function useDisposableCopy(artifact, slug, wpDir = DEFAULT_WP()) {
     if (target) {
       link(target, plugin);
     } else {
-      stageArtifact(artifact, plugin);
+      renameSync(aside, plugin);
     }
   };
+
+  try {
+    stageArtifact(artifact, plugin);
+  } catch (error) {
+    restore();
+    throw error;
+  }
+
+  return restore;
+}
+
+function isLink(path) {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
+  }
 }

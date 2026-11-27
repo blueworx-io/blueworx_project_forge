@@ -50,14 +50,25 @@ test('Forge updates itself, with no switch for anybody to leave off', async ({ p
 
 test('other plugins keep the update setting they had', async ({ page }) => {
   await signIn(page);
-  await page.goto(PLUGINS);
+  const nonce = await page.evaluate(() => window.wpApiSettings?.nonce);
+  expect(nonce, 'no REST nonce on the admin page').toBeTruthy();
 
-  // Still a choice somebody makes, and still not made: a control to turn it on.
-  for (const plugin of [AKISMET, HELLO]) {
-    const cell = page.locator(`tr[data-plugin="${plugin}"] td.column-auto-updates`);
+  // A choice each way, set here rather than assumed: a reused site may have
+  // either one already on.
+  const updater = updaterApi(page.request, nonce);
+  const original = await updater.others([AKISMET]);
 
-    await expect(cell.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
-    await expect(cell).not.toContainText('Auto-updates enabled');
+  try {
+    await page.goto(PLUGINS);
+
+    const on = page.locator(`tr[data-plugin="${AKISMET}"] td.column-auto-updates`);
+    const off = page.locator(`tr[data-plugin="${HELLO}"] td.column-auto-updates`);
+
+    await expect(on.locator('.toggle-auto-update[data-wp-action="disable"]')).toHaveCount(1);
+    await expect(off.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
+    await expect(off).not.toContainText('Auto-updates enabled');
+  } finally {
+    await updater.others(original);
   }
 });
 

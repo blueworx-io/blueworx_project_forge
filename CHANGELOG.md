@@ -12,7 +12,7 @@ commits and pull requests.
 
 ### Added
 
-- Forge and the Forge client plugin now install their own new releases. Until now WordPress saw a release and waited for somebody to press Update, so one could sit unnoticed on a site nobody opens. Both plugins now tell WordPress to go ahead, the same way the BlueWorx Labs theme does, on the studio and on every client site. It is not a setting, and it covers these two plugins only: every other plugin keeps its own update setting. A site that has not already turned on WordPress's automatic updates for Forge has to install this release by hand once, because the switch only exists from this version on; every release after it installs itself.
+- Forge and the Forge client plugin now install their own new releases. Until now WordPress saw a release and waited for somebody to press Update, so one could sit unnoticed on a site nobody opens. Both plugins now tell WordPress to go ahead, the same way the BlueWorx Labs theme does, on the studio and on every client site. It is not a setting, and it covers these two plugins only: every other plugin keeps its own update setting. A site that has not already turned on WordPress's automatic updates for Forge has to install this release by hand once, because the switch only exists from this version on; every release after it installs itself. It uses the background updates built into WordPress, so a site that blocks them, or that never runs its scheduled tasks, still has to press Update by hand.
 
 ## [2.232.0] - 2026-11-26
 

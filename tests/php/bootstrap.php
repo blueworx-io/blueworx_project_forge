@@ -12,6 +12,8 @@ declare( strict_types = 1 );
 
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'BWX_FORGE_PATH', dirname( __DIR__, 2 ) . '/' );
+define( 'BWX_FORGE_FILE', dirname( __DIR__, 2 ) . '/blueworx-forge.php' );
+define( 'BWX_FORGE_CLIENT_FILE', dirname( __DIR__, 2 ) . '/client/blueworx-forge-client.php' );
 
 // Core's own, and the units under test do date arithmetic with it.
 define( 'DAY_IN_SECONDS', 86400 );
@@ -550,6 +552,19 @@ function update_option( string $option, $value ): bool {
  */
 function do_action( string $hook, ...$args ): void {
 	$GLOBALS['bwx_forge_test_actions'][] = array( $hook, $args );
+}
+
+/**
+ * Stub. A plugin's folder and main file, as WordPress lists it. A test can
+ * rename the folder with $GLOBALS['bwx_forge_test_plugin_folders'][ <file> ].
+ *
+ * @param string $file A plugin's main file.
+ * @return string
+ */
+function plugin_basename( string $file ): string {
+	$folder = $GLOBALS['bwx_forge_test_plugin_folders'][ $file ] ?? basename( $file, '.php' );
+
+	return $folder . '/' . basename( $file );
 }
 
 /**

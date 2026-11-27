@@ -37,7 +37,7 @@ test.afterAll(() => removeUpdateStub(CLIENT_WP));
 
 test.describe('a client site installing its own releases', () => {
   test('shows the client plugin updating itself, with no switch to leave off', async ({ browser }) => {
-    const { context } = await signedIn(browser, CLIENT_URL);
+    const { context, nonce } = await signedIn(browser, CLIENT_URL);
     const page = await context.newPage();
 
     await page.goto('/wp-admin/plugins.php');
@@ -47,13 +47,22 @@ test.describe('a client site installing its own releases', () => {
     await expect(own).toContainText('Auto-updates enabled');
     await expect(own.locator('.toggle-auto-update')).toHaveCount(0);
 
-    // Akismet and Hello Dolly ship with every WordPress the harness installs,
-    // and still offer the choice they always did.
-    for (const plugin of [AKISMET, HELLO]) {
-      const cell = page.locator(`tr[data-plugin="${plugin}"] td.column-auto-updates`);
+    // Akismet and Hello Dolly ship with every WordPress the harness installs.
+    // Each keeps the choice somebody made, set here rather than assumed.
+    const updater = updaterApi(context.request, nonce);
+    const original = await updater.others([AKISMET]);
 
-      await expect(cell.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
-      await expect(cell).not.toContainText('Auto-updates enabled');
+    try {
+      await page.reload();
+
+      const on = page.locator(`tr[data-plugin="${AKISMET}"] td.column-auto-updates`);
+      const off = page.locator(`tr[data-plugin="${HELLO}"] td.column-auto-updates`);
+
+      await expect(on.locator('.toggle-auto-update[data-wp-action="disable"]')).toHaveCount(1);
+      await expect(off.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
+      await expect(off).not.toContainText('Auto-updates enabled');
+    } finally {
+      await updater.others(original);
     }
 
     await context.close();

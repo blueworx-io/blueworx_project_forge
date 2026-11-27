@@ -146,23 +146,27 @@ final class AutoUpdateTest extends TestCase {
 	}
 
 	/**
-	 * What each plugin recognises itself by is the folder it installs into.
+	 * Each plugin recognises itself by where WordPress lists it, not by a
+	 * folder name written into the code.
 	 *
-	 * The update checker is told that folder in the main file, and WordPress
-	 * files the plugin under it. If the two disagree the plugin would be
-	 * offered updates it never agrees to install.
+	 * A copy installed in a renamed folder is offered its releases under that
+	 * folder, so that is the name it has to say yes to.
 	 */
-	public function test_each_plugin_recognises_the_folder_the_checker_is_given(): void {
-		$cases = array(
-			array( self::STUDIO, Blueworx\Forge\Updates::PLUGIN_FILE ),
-			array( self::CLIENT, Blueworx\Forge\Client\Updates::PLUGIN_FILE ),
+	public function test_a_plugin_in_a_renamed_folder_still_installs_its_release(): void {
+		$GLOBALS['bwx_forge_test_plugin_folders'] = array(
+			BWX_FORGE_FILE        => 'forge-copy',
+			BWX_FORGE_CLIENT_FILE => 'forge-client-copy',
 		);
 
-		foreach ( $cases as list( $file, $own ) ) {
-			$found = preg_match( "/buildUpdateChecker\(.*?,\s*[A-Z_]+FILE,\s*'([^']+)'\s*\)/s", (string) file_get_contents( $file ), $matches );
+		try {
+			$this->assertTrue( Blueworx\Forge\Updates::force_own_auto_update( null, $this->offer( 'forge-copy/blueworx-forge.php' ) ) );
+			$this->assertTrue( Blueworx\Forge\Client\Updates::force_own_auto_update( null, $this->offer( 'forge-client-copy/blueworx-forge-client.php' ) ) );
 
-			$this->assertSame( 1, $found, basename( $file ) . ' does not name its folder to the update checker' );
-			$this->assertSame( $matches[1] . '/' . basename( $file ), $own );
+			// The usual folder is somebody else's now.
+			$this->assertNull( Blueworx\Forge\Updates::force_own_auto_update( null, $this->offer( 'blueworx-forge/blueworx-forge.php' ) ) );
+			$this->assertNull( Blueworx\Forge\Client\Updates::force_own_auto_update( null, $this->offer( 'blueworx-forge-client/blueworx-forge-client.php' ) ) );
+		} finally {
+			unset( $GLOBALS['bwx_forge_test_plugin_folders'] );
 		}
 	}
 }

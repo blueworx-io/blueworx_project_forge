@@ -60,14 +60,6 @@ final class Updates {
 	}
 
 	/**
-	 * This plugin's own entry in WordPress's plugin list: its folder, then its
-	 * main file. Keep equal to the folder name given to the update checker in
-	 * blueworx-forge.php. The match is whole, never a prefix, because this
-	 * plugin's name is the first half of the client plugin's.
-	 */
-	public const PLUGIN_FILE = 'blueworx-forge/blueworx-forge.php';
-
-	/**
 	 * Turns automatic updates on for this plugin, and this plugin only.
 	 *
 	 * The update checker tells WordPress a newer release exists; this is what
@@ -80,6 +72,11 @@ final class Updates {
 	 * comes back untouched for all the others, including a deliberate "no"
 	 * somebody else has set.
 	 *
+	 * This plugin is recognised by where WordPress actually lists it, the
+	 * folder it is installed in and its main file, so a copy in a renamed folder
+	 * still updates itself. The match is whole, never a prefix, because the
+	 * studio plugin's name is the first half of the client plugin's.
+	 *
 	 * @param bool|null $update Whether to update, as decided so far.
 	 * @param mixed     $item   The update offer. Plugins carry a `plugin`
 	 *                          property holding folder/main-file.php.
@@ -90,7 +87,7 @@ final class Updates {
 			return $update;
 		}
 
-		if ( self::PLUGIN_FILE !== $item->plugin ) {
+		if ( plugin_basename( BWX_FORGE_FILE ) !== $item->plugin ) {
 			return $update;
 		}
 
