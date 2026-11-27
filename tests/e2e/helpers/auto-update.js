@@ -61,10 +61,29 @@ export function updaterApi(request, nonce) {
 
   return {
     versions: async () => answer(await request.get(`${API}/versions`, { headers })),
-    /** Sets which of Akismet and Hello Dolly update themselves; returns what it was. */
+    /** Which of Akismet and Hello Dolly update themselves now. */
+    othersNow: async () => (await answer(await request.get(`${API}/others`, { headers }))).enabled,
+    /** Sets which of them do; returns what it was. */
     others: async (enabled) => (await answer(await request.post(`${API}/others`, { headers, data: { enabled } }))).enabled,
     run: async (offers, build = []) => answer(await request.post(`${API}/run`, { headers, data: { offers, build } })),
   };
+}
+
+/**
+ * Runs `body` with exactly the plugins in `enabled` (of Akismet and Hello
+ * Dolly) updating themselves, then puts the site's own choice back — which was
+ * read first, in a request of its own, so a change that went through but whose
+ * answer never came back is still undone.
+ */
+export async function withOtherPlugins(updater, enabled, body) {
+  const original = await updater.othersNow();
+
+  try {
+    await updater.others(enabled);
+    await body();
+  } finally {
+    await updater.others(original);
+  }
 }
 
 /** The package address the stub gives a plugin's release. */
@@ -108,20 +127,20 @@ export function useDisposableCopy(artifact, slug, wpDir = DEFAULT_WP()) {
   // Beside plugins/, not in it, so WordPress never lists it as a second plugin.
   const aside = join(wpDir, `bwx-original-${slug}`);
 
-  // A run that died before it could restore leaves the original here. It is
-  // still the original; whatever is in the plugin's place is the leftover copy.
-  const leftover = existsSync(aside);
-  const exists = leftover || existsSync(plugin) || isLink(plugin);
+  // A run that died before it could restore leaves the original here. Which of
+  // the two is the real plugin now is not something to guess at: whoever
+  // reinstalled in the meantime has the newer one. Stop and say so.
+  if (existsSync(aside)) {
+    throw new Error(`${aside} is left from an interrupted run. Put it back as ${slug} if it is the plugin you want, or delete it, then run again.`);
+  }
 
-  if (!exists) {
+  if (!existsSync(plugin) && !isLink(plugin)) {
     throw new Error(`${slug} is not installed in ${wpDir}; bring the site up with --slug ${slug}`);
   }
 
-  const target = !leftover && isLink(plugin) ? readlinkSync(plugin) : null;
+  const target = isLink(plugin) ? readlinkSync(plugin) : null;
 
-  if (leftover) {
-    rmSync(plugin, { recursive: true, force: true });
-  } else if (target) {
+  if (target) {
     unlinkSync(plugin);
   } else {
     renameSync(plugin, aside);

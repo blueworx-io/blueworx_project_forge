@@ -10,6 +10,7 @@ import {
   removeUpdateStub,
   updaterApi,
   useDisposableCopy,
+  withOtherPlugins,
 } from './helpers/auto-update.js';
 
 // #713. A release of Forge installs itself: the update checker offers it, and
@@ -56,9 +57,7 @@ test('other plugins keep the update setting they had', async ({ page }) => {
   // A choice each way, set here rather than assumed: a reused site may have
   // either one already on.
   const updater = updaterApi(page.request, nonce);
-  const original = await updater.others([AKISMET]);
-
-  try {
+  await withOtherPlugins(updater, [AKISMET], async () => {
     await page.goto(PLUGINS);
 
     const on = page.locator(`tr[data-plugin="${AKISMET}"] td.column-auto-updates`);
@@ -67,9 +66,7 @@ test('other plugins keep the update setting they had', async ({ page }) => {
     await expect(on.locator('.toggle-auto-update[data-wp-action="disable"]')).toHaveCount(1);
     await expect(off.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
     await expect(off).not.toContainText('Auto-updates enabled');
-  } finally {
-    await updater.others(original);
-  }
+  });
 });
 
 test("the background updater installs a Forge release, and nobody else's",async ({ page }) => {
@@ -84,10 +81,14 @@ test("the background updater installs a Forge release, and nobody else's",async 
     const installed = (await updater.versions())[STUDIO_PLUGIN];
     const release = nextVersion(installed);
 
-    const run = await updater.run(
-      { [STUDIO_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
-      [STUDIO_PLUGIN]
-    );
+    // Neither of the others has automatic updates on, whatever this site had.
+    let run;
+    await withOtherPlugins(updater, [], async () => {
+      run = await updater.run(
+        { [STUDIO_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
+        [STUDIO_PLUGIN]
+      );
+    });
 
     // Forge took its release with nobody pressing Update.
     expect(run.before[STUDIO_PLUGIN]).toBe(installed);

@@ -12,6 +12,7 @@ import {
   removeUpdateStub,
   updaterApi,
   useDisposableCopy,
+  withOtherPlugins,
 } from '../e2e/helpers/auto-update.js';
 
 // #713, on the client plugin. A client site is somebody else's WordPress that
@@ -50,9 +51,7 @@ test.describe('a client site installing its own releases', () => {
     // Akismet and Hello Dolly ship with every WordPress the harness installs.
     // Each keeps the choice somebody made, set here rather than assumed.
     const updater = updaterApi(context.request, nonce);
-    const original = await updater.others([AKISMET]);
-
-    try {
+    await withOtherPlugins(updater, [AKISMET], async () => {
       await page.reload();
 
       const on = page.locator(`tr[data-plugin="${AKISMET}"] td.column-auto-updates`);
@@ -61,9 +60,7 @@ test.describe('a client site installing its own releases', () => {
       await expect(on.locator('.toggle-auto-update[data-wp-action="disable"]')).toHaveCount(1);
       await expect(off.locator('.toggle-auto-update[data-wp-action="enable"]')).toHaveCount(1);
       await expect(off).not.toContainText('Auto-updates enabled');
-    } finally {
-      await updater.others(original);
-    }
+    });
 
     await context.close();
   });
@@ -81,10 +78,14 @@ test.describe('a client site installing its own releases', () => {
       const installed = (await updater.versions())[CLIENT_PLUGIN];
       const release = nextVersion(installed);
 
-      const run = await updater.run(
-        { [CLIENT_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
-        [CLIENT_PLUGIN]
-      );
+      // Neither of the others has automatic updates on, whatever this site had.
+      let run;
+      await withOtherPlugins(updater, [], async () => {
+        run = await updater.run(
+          { [CLIENT_PLUGIN]: release, [AKISMET]: '99.0.0', [HELLO]: '99.0.0' },
+          [CLIENT_PLUGIN]
+        );
+      });
 
       expect(run.before[CLIENT_PLUGIN]).toBe(installed);
       expect(run.after[CLIENT_PLUGIN]).toBe(release);

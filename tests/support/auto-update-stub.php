@@ -293,14 +293,14 @@ add_action(
 			)
 		);
 
-		// Sets which of the two plugins that are not ours have automatic updates
+		// Reads (GET) or sets (POST) which of the two plugins that are not ours have automatic updates
 		// on, and says what they were, so a test starts from a known choice and
 		// puts the site's own back. Nothing else in the option is touched.
 		register_rest_route(
 			'bwx-forge-test/v1',
 			'/updates/others',
 			array(
-				'methods'             => 'POST',
+				'methods'             => array( 'GET', 'POST' ),
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
 				},
@@ -311,7 +311,10 @@ add_action(
 					$before  = array_values( array_intersect( $others, $current ) );
 					$kept    = array_values( array_diff( $current, $others ) );
 
-					update_site_option( 'auto_update_plugins', array_merge( $kept, $wanted ) );
+					// A GET only reads.
+					if ( 'POST' === $request->get_method() ) {
+						update_site_option( 'auto_update_plugins', array_merge( $kept, $wanted ) );
+					}
 
 					return new WP_REST_Response( array( 'enabled' => $before ), 200 );
 				},
