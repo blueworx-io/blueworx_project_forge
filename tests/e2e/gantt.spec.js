@@ -467,6 +467,30 @@ test.describe( 'the schedule', () => {
     await expect( page.locator( '[data-testid="bwx-gantt-earlier"], [data-testid="bwx-gantt-later"]' ) ).toHaveCount( 0 );
   } );
 
+  test.describe( 'on the narrowest phone', () => {
+    test.use( { viewport: { width: 320, height: 640 } } );
+
+    test( 'the word Today on the line is whole on screen (review of #720)', async ( { page } ) => {
+      await openSchedule( page );
+      await page.locator( '[data-testid="bwx-gantt-jump-today"]' ).click();
+
+      const tag = page.locator( '.bwx-gantt-today-tag' );
+      await expect( tag ).toBeVisible();
+
+      const chart = page.locator( '[data-testid="bwx-gantt-chart"]' );
+
+      await expect( async () => {
+        const box = await tag.boundingBox();
+        const frame = await chart.boundingBox();
+        const names = await page.locator( '.bwx-gantt-axis-gutter' ).boundingBox();
+
+        // Clear of the pinned names on the left and of the edge on the right.
+        expect( box.x ).toBeGreaterThanOrEqual( names.x + names.width );
+        expect( box.x + box.width ).toBeLessThanOrEqual( frame.x + frame.width );
+      } ).toPass();
+    } );
+  } );
+
   test.describe( 'on a phone', () => {
     test.use( { viewport: { width: 390, height: 844 } } );
 

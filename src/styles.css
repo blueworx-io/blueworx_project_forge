@@ -1342,9 +1342,12 @@ body {
   pointer-events: none;
   visibility: hidden;
 }
-.bwx-gantt-label:hover,
-.bwx-gantt-label:focus-within {
+.bwx-gantt-label:hover {
   z-index: 4;
+}
+/* Above a row the pointer is resting on, so a name focused from the keyboard is never covered. */
+.bwx-gantt-label:focus-within {
+  z-index: 5;
 }
 .bwx-gantt-label:hover .bwx-gantt-name-tip,
 .bwx-gantt-label:focus-within .bwx-gantt-name-tip {

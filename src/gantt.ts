@@ -233,6 +233,9 @@ export function placeOn( span: Span, axis: Axis ): { left: number; width: number
   };
 }
 
+/** Room kept right of today's line for half the word "Today" written on it. */
+const TODAY_TAG_CLEARANCE = 36;
+
 /**
  * Scrolls a chart sideways so today's column is in view, past a pinned gutter
  * of `gutter` pixels. Does nothing when today is not drawn.
@@ -248,8 +251,12 @@ export function scrollToToday( chart: HTMLElement | null, gutter: number ): void
 
   // Up to 96px of the days before today, but never so many that today's column
   // is pushed off a narrow screen: a day is wider than a phone's timeline can spare.
-  const room = ( chart.clientWidth - gutter - cell.getBoundingClientRect().width ) / 2;
-  const before = Math.min( 96, Math.max( 0, room ) );
+  // Today's line, and the word on it, stay clear of the right edge, so on the
+  // narrowest screens the column may slide a little under the pinned names.
+  const width = cell.getBoundingClientRect().width;
+  const centred = ( chart.clientWidth - gutter - width ) / 2;
+  const clear = chart.clientWidth - gutter - width / 2 - TODAY_TAG_CLEARANCE;
+  const before = Math.max( TODAY_TAG_CLEARANCE - width / 2, Math.min( 96, centred, clear ) );
 
   chart.scrollLeft += behind - gutter - before;
 }
