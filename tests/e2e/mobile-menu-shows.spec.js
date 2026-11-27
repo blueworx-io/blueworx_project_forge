@@ -37,7 +37,10 @@ test('on a phone the bottom bar is on screen, and its menu opens, closes and rea
   await expect(menu).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
-  // The menu slides in; its close button is tappable once it has arrived.
+  // The menu slides in over 200ms, and its close button can already be hit
+  // part-way, at a spot it has left by the time the tap lands (#719). Wait for
+  // the menu to stop at the screen's edge, then read where the button is.
+  await expect.poll(() => menu.evaluate((el) => el.getBoundingClientRect().left)).toBe(0);
   await expect.poll(async () => (await tapPoint(page, 'bwx-menu-close'))?.hits).toBe(true);
   const closeAt = await tapPoint(page, 'bwx-menu-close');
   await page.mouse.click(closeAt.x, closeAt.y);
