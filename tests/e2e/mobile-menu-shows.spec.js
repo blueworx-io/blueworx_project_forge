@@ -39,8 +39,20 @@ test('on a phone the bottom bar is on screen, and its menu opens, closes and rea
 
   // The menu slides in over 200ms, and its close button can already be hit
   // part-way, at a spot it has left by the time the tap lands (#719). Wait for
-  // the menu to stop at the screen's edge, then read where the button is.
-  await expect.poll(() => menu.evaluate((el) => el.getBoundingClientRect().left)).toBe(0);
+  // the menu to stop moving (on whichever edge the site's reading direction
+  // puts it), then read where the button is.
+  await menu.evaluate((el) => new Promise((resolve) => {
+    let last = null;
+    let still = 0;
+    const look = () => {
+      const left = el.getBoundingClientRect().left;
+      still = left === last ? still + 1 : 0;
+      last = left;
+      if (still >= 5) resolve();
+      else requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+  }));
   await expect.poll(async () => (await tapPoint(page, 'bwx-menu-close'))?.hits).toBe(true);
   const closeAt = await tapPoint(page, 'bwx-menu-close');
   await page.mouse.click(closeAt.x, closeAt.y);
