@@ -290,6 +290,18 @@ test.describe( 'the schedule', () => {
     await expect( tip ).toHaveText( long );
   } );
 
+  test( 'the chart scrolls sideways, so the keyboard can reach it and it has a name (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const chart = page.getByTestId( 'bwx-gantt-chart' );
+    await expect( chart ).toHaveAttribute( 'tabindex', '0' );
+    await expect( chart ).toHaveAttribute( 'role', 'region' );
+    await expect( chart ).toHaveAttribute( 'aria-label', /schedule/i );
+
+    await chart.focus();
+    await expect( chart ).toBeFocused();
+  } );
+
   test( 'a name still shows in full over a dimmed row (review of #720)', async ( { page } ) => {
     await openSchedule( page );
 

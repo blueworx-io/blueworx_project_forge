@@ -1087,6 +1087,11 @@ body {
   border-radius: 12px;
 }
 
+.bwx-gantt-chart:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
 .bwx-gantt-axis {
   display: flex;
   position: sticky;

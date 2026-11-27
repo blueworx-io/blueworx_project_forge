@@ -147,6 +147,10 @@ export function GanttView( {
         ref={ chartRef }
         className="bwx-gantt-chart"
         data-testid="bwx-gantt-chart"
+        // It scrolls sideways, so the keyboard needs a way in to move it.
+        role="region"
+        aria-label="Schedule, scrolls sideways"
+        tabIndex={ 0 }
         data-zoom={ zoom }
         style={ { '--gantt-cols': axis.columns.length } as React.CSSProperties }
       >
