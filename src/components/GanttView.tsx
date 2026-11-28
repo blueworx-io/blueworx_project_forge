@@ -176,8 +176,6 @@ export function GanttView( {
 
     tip.removeAttribute( 'data-flip' );
     tip.removeAttribute( 'style' );
-    label.removeAttribute( 'data-dismissed' );
-
     // Hidden names take no room (a long one in the last row would otherwise add
     // blank scroll below it), so it is laid out only while it is measured.
     tip.style.display = 'block';
@@ -185,7 +183,10 @@ export function GanttView( {
     // Only what the person can see counts: the chart may run on below the
     // bottom of the screen, or begin above the top of it.
     const box = chart.getBoundingClientRect();
-    const seen = Math.min( box.top + chart.clientHeight, window.innerHeight );
+    // On a phone the navigation bar floats over the bottom of the page: names stay above it.
+    const bar = document.querySelector< HTMLElement >( '[data-testid="bwx-menu-toggle"]' )?.parentElement;
+    const floor = bar && 'fixed' === getComputedStyle( bar ).position ? Math.min( window.innerHeight, bar.getBoundingClientRect().top ) : window.innerHeight;
+    const seen = Math.min( box.top + chart.clientHeight, floor );
     const top = Math.max( box.top, 0 );
     const own = tip.getBoundingClientRect();
     const row = label.getBoundingClientRect();
@@ -199,7 +200,7 @@ export function GanttView( {
         tip.setAttribute( 'data-flip', 'screen' );
         tip.style.left = `${ row.left }px`;
         tip.style.width = `${ row.width }px`;
-        tip.style.top = `${ Math.max( 8, Math.min( row.top, window.innerHeight - own.height - 8 ) ) }px`;
+        tip.style.top = `${ Math.max( 8, Math.min( row.top, floor - own.height - 8 ) ) }px`;
       }
     }
 
@@ -356,9 +357,24 @@ export function GanttView( {
               >
                 <span
                   className="bwx-gantt-label"
-                  onMouseEnter={ ( event ) => fitTip( event.currentTarget ) }
-                  onFocus={ ( event ) => fitTip( event.currentTarget ) }
-                  onMouseLeave={ ( event ) => event.currentTarget.removeAttribute( 'data-dismissed' ) }
+                  onMouseEnter={ ( event ) => {
+                    // Put away from the keyboard, it stays put away while focus is on the name.
+                    if ( ! event.currentTarget.contains( document.activeElement ) ) {
+                      event.currentTarget.removeAttribute( 'data-dismissed' );
+                    }
+
+                    fitTip( event.currentTarget );
+                  } }
+                  onFocus={ ( event ) => {
+                    event.currentTarget.removeAttribute( 'data-dismissed' );
+                    fitTip( event.currentTarget );
+                  } }
+                  onMouseLeave={ ( event ) => {
+                    // Focus is still on the name, so it stays put away until focus leaves.
+                    if ( ! event.currentTarget.contains( document.activeElement ) ) {
+                      event.currentTarget.removeAttribute( 'data-dismissed' );
+                    }
+                  } }
                   onBlur={ ( event ) => event.currentTarget.removeAttribute( 'data-dismissed' ) }
                 >
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />

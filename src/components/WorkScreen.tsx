@@ -82,12 +82,27 @@ export function WorkScreen( {
   const [ items, setItems ] = useState< WorkItem[] >( [] );
   const [ openId, setOpenId ] = useState( openItem ?? '' );
   const [ adding, setAdding ] = useState( false );
+  // The Blocked strip button that opened the panel, so closing it puts focus
+  // back there and a keyboard user keeps their place in the strip.
+  const blockedFrom = useRef< HTMLElement | null >( null );
   const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
 
   /** A refusal reads as a warning, a failure as a failure, a confirmation as green. */
   const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
   const notice = said.text;
+
+  useEffect( () => {
+    if ( '' === openId && blockedFrom.current ) {
+      const from = blockedFrom.current;
+
+      blockedFrom.current = null;
+
+      if ( from.isConnected ) {
+        from.focus();
+      }
+    }
+  }, [ openId ] );
 
   /*
    * The filter set and the view are separate pieces of state on purpose (#123).
@@ -568,7 +583,10 @@ export function WorkScreen( {
                     className="bwx-button"
                     data-testid="bwx-blocked-item"
                     data-item={ each.id }
-                    onClick={ () => setOpenId( each.id ) }
+                    onClick={ ( event ) => {
+                      blockedFrom.current = event.currentTarget;
+                      setOpenId( each.id );
+                    } }
                   >
                     { each.title }
                     <span className="bwx-mono">

@@ -422,6 +422,7 @@ test.describe( 'the schedule', () => {
     await page.keyboard.press( 'Escape' );
     await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
     await expect( bar ).not.toBeFocused();
+    await expect( strip ).toBeFocused();
   } );
 
   test( 'a long name stays while the pointer moves onto it, and Escape puts it away (review of #720)', async ( { page } ) => {
@@ -458,6 +459,18 @@ test.describe( 'the schedule', () => {
     await title.focus();
     await expect( tip ).toBeVisible();
     await page.keyboard.press( 'Escape' );
+    await expect( tip ).toBeHidden();
+    await expect( title ).toBeFocused();
+
+    // Hovered as well as focused, then the pointer leaves: focus is still on the
+    // name, so it stays put away rather than coming back.
+    await title.blur();
+    await title.focus();
+    await label.hover();
+    await expect( tip ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( tip ).toBeHidden();
+    await page.mouse.move( 0, 0 );
     await expect( tip ).toBeHidden();
     await expect( title ).toBeFocused();
   } );
@@ -498,6 +511,28 @@ test.describe( 'the schedule', () => {
     await row.locator( '.bwx-gantt-label' ).hover();
     await expect( tip ).toBeVisible();
     await expect( tip ).toBeInViewport( { ratio: 1 } );
+  } );
+
+  test( 'on a phone a long name stays above the navigation bar (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } nav ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 32 ), planned_due: on( 34 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 390, height: 700 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } nav")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.scrollIntoViewIfNeeded();
+    await row.locator( '.bwx-gantt-label' ).hover();
+    await expect( tip ).toBeVisible();
+
+    const bar = await page.getByTestId( 'bwx-menu-toggle' ).evaluate( ( node ) => node.parentElement.getBoundingClientRect().top );
+    await expect( async () => {
+      const box = await tip.boundingBox();
+      expect( box.y + box.height ).toBeLessThanOrEqual( bar + 1 );
+    } ).toPass();
   } );
 
   test( 'a name still shows in full over a dimmed row (review of #720)', async ( { page } ) => {
