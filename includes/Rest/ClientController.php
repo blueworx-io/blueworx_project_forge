@@ -704,7 +704,21 @@ final class ClientController {
 	 */
 	public static function report( WP_REST_Request $request ) {
 		$site_id = (string) $request->get_header( Signature::HEADER_SITE );
-		$checked = Validate::report( (array) $request->get_json_params() );
+		$params  = (array) $request->get_json_params();
+
+		/*
+		 * WordPress decodes a JSON object and an empty list to the same empty PHP
+		 * array, and an empty list means "no plugins", which clears the stored
+		 * inventory. A body that sent `plugins` as an object is not a list, so it is
+		 * read from the raw body and left out, and the last list stays.
+		 */
+		$raw = json_decode( (string) $request->get_body() );
+
+		if ( is_object( $raw ) && isset( $raw->plugins ) && is_object( $raw->plugins ) ) {
+			unset( $params['plugins'] );
+		}
+
+		$checked = Validate::report( $params );
 
 		if ( array() !== $checked['errors'] ) {
 			return Errors::rest(
