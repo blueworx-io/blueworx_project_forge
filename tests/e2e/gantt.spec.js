@@ -687,6 +687,31 @@ test.describe( 'the schedule', () => {
     await expect.poll( () => tip.evaluate( ( node ) => node.style.top ) ).not.toBe( '1234px' );
   } );
 
+  test( 'a focused name on a row half cut off by the chart still shows whole (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } halfcut ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 31 ), planned_due: on( 33 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 1000, height: 560 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } halfcut")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+    const chart = page.getByTestId( 'bwx-gantt-chart' );
+
+    // Scrolled so the bottom of the row is 12 pixels below the chart's edge.
+    await row.scrollIntoViewIfNeeded();
+    await chart.evaluate( ( node, id ) => {
+      const mine = node.querySelector( `[data-item="${ id }"]` );
+      const over = mine.getBoundingClientRect().bottom - ( node.getBoundingClientRect().top + node.clientHeight );
+      node.scrollTop += over - 12;
+    }, ( await made.json() ).item.id );
+
+    await row.locator( '.bwx-gantt-title' ).evaluate( ( node ) => node.focus( { preventScroll: true } ) );
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toBeInViewport( { ratio: 1 } );
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );

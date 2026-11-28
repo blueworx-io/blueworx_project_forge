@@ -193,7 +193,9 @@ export function GanttView( {
     const row = label.getBoundingClientRect();
 
     if ( own.bottom > seen ) {
-      if ( row.bottom - own.height >= top ) {
+      // Opened upward it ends at the bottom of its row, so that must be in view too:
+      // a row cut off by the chart's edge would cut the last line off with it.
+      if ( row.bottom <= seen && row.bottom - own.height >= top ) {
         tip.setAttribute( 'data-flip', 'true' );
       } else {
         // Taller than the room either way up (a few rows on a phone): drawn
