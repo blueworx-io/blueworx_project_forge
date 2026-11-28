@@ -85,13 +85,16 @@ final class Report {
 	 * Every active plugin, as its folder name and its version (#718), so the
 	 * studio can see which release a site is really running.
 	 *
+	 * Versions come from the plugin files' own headers, not WordPress's cached
+	 * plugin list.
+	 *
 	 * A plugin that is one file in the plugins folder has no folder, so its
 	 * file name without .php stands in. Network-active plugins count too.
 	 *
 	 * @return array<int, array{slug: string, version: string}>
 	 */
 	public static function plugins(): array {
-		if ( ! function_exists( 'get_plugins' ) ) {
+		if ( ! function_exists( 'get_plugin_data' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 
@@ -101,20 +104,26 @@ final class Report {
 			$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
 		}
 
-		$installed = get_plugins();
-		$list      = array();
+		$list = array();
 
 		foreach ( array_unique( $active ) as $file ) {
-			if ( ! isset( $installed[ $file ] ) ) {
+			$path = WP_PLUGIN_DIR . '/' . $file;
+
+			if ( ! is_file( $path ) ) {
 				continue;
 			}
+
+			// The header is read from the file itself. get_plugins() can hand back
+			// an old version from a persistent cache after a deploy that did not go
+			// through the updater, and the studio would take that as the release.
+			$data = get_plugin_data( $path, false, false );
 
 			$folder = dirname( $file );
 			$slug   = '.' === $folder ? basename( $file, '.php' ) : $folder;
 
 			$list[] = array(
 				'slug'    => $slug,
-				'version' => (string) $installed[ $file ]['Version'],
+				'version' => (string) $data['Version'],
 			);
 
 			if ( count( $list ) >= self::MAX_PLUGINS ) {

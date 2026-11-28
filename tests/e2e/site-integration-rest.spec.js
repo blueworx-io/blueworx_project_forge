@@ -288,6 +288,10 @@ test("a client's sites carry their connection in the one listing", async ({ brow
   expect(listedSite.integration.health).toBe('never_connected');
   expect(listedSite.integration.key_state).toBe('active');
 
+  // #718. The plugin inventory is the runner's to read, not the site list's.
+  expect(listedSite.integration).not.toHaveProperty('plugins');
+  expect(listedSite.integration).not.toHaveProperty('plugins_reported_at');
+
   await context.close();
 });
 
