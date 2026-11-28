@@ -745,6 +745,91 @@ test.describe( 'the schedule', () => {
     await expect( tip ).toBeVisible();
   } );
 
+  test( 'deleting an item opened from the Blocked strip leaves focus in the strip, not on the page (review of #720)', async ( { page } ) => {
+    const make = async ( name ) => {
+      const made = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } ${ name }`, planned_start: on( 4 ), planned_due: on( 6 ) } );
+      expect( made.status(), await made.text() ).toBe( 200 );
+      const item = ( await made.json() ).item;
+      const blocked = await world.admin.api.post( `/work-items/${ item.id }/block`, { owner: 'The client', record_version: item.record_version } );
+      expect( blocked.status(), await blocked.text() ).toBe( 200 );
+      return item;
+    };
+
+    const one = await make( 'strip doomed' );
+    await make( 'strip kept' );
+
+    await openSchedule( page );
+
+    const strip = page.locator( `[data-testid="bwx-blocked-item"][data-item="${ one.id }"]` );
+    await strip.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+
+    page.once( 'dialog', ( dialog ) => dialog.accept() );
+    await page.getByTestId( 'bwx-item-delete' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden( { timeout: 60_000 } );
+    await expect( strip ).toHaveCount( 0, { timeout: 60_000 } );
+    await expect( page.getByTestId( 'bwx-blocked-item' ).first() ).toBeFocused();
+  } );
+
+  test( 'a click on blank chart clears the marks, the strip after the last day included (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` );
+    const row = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.second.id }"]` );
+
+    await bar.click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
+    await page.locator( '.bwx-panel-head .bwx-icon-button[aria-label="Close"]' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+
+    // The blank strip is the chart's own, not a row's.
+    await page.getByTestId( 'bwx-gantt-chart' ).dispatchEvent( 'click' );
+    await expect( row ).not.toHaveAttribute( 'data-chain', /.+/ );
+  } );
+
+  test( 'a name on show is fitted again when the screen is resized (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } resize ${ 'a name that goes on and on '.repeat( 5 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 390, height: 640 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } resize")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.locator( '.bwx-gantt-title' ).focus();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toBeInViewport( { ratio: 1 } );
+
+    // The screen gets shorter with no scroll at all, so only the resize can refit the name.
+    await page.setViewportSize( { width: 390, height: 580 } );
+    await expect( async () => {
+      const box = await tip.boundingBox();
+      const bar = await page.getByTestId( 'bwx-menu-toggle' ).evaluate( ( node ) => node.parentElement.getBoundingClientRect().top );
+      expect( box.y + box.height ).toBeLessThanOrEqual( bar + 1 );
+    } ).toPass();
+  } );
+
+  test( 'a Blocked title with no spaces wraps inside its button on a phone (review of #720)', async ( { page } ) => {
+    const item = await makeItem( world.admin.api, world.site.id, { title: `${ RUN }-${ 'unbroken'.repeat( 12 ) }`, planned_start: on( 4 ), planned_due: on( 6 ) } );
+    expect( item.status(), await item.text() ).toBe( 200 );
+    const made = ( await item.json() ).item;
+    const blocked = await world.admin.api.post( `/work-items/${ made.id }/block`, { owner: 'The client', record_version: made.record_version } );
+    expect( blocked.status(), await blocked.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 390, height: 700 } );
+    await openSchedule( page );
+
+    const button = page.locator( `[data-testid="bwx-blocked-item"][data-item="${ made.id }"]` );
+    await expect( button ).toBeVisible();
+    // The words wrap inside the button, rather than running past it.
+    expect( await button.evaluate( ( node ) => node.scrollWidth - node.clientWidth ) ).toBeLessThanOrEqual( 1 );
+    expect( await page.evaluate( () => document.documentElement.scrollWidth ) ).toBeLessThanOrEqual( 390 );
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );

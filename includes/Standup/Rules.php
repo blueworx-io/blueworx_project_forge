@@ -9,6 +9,7 @@ declare( strict_types = 1 );
 
 namespace Blueworx\Forge\Standup;
 
+use Blueworx\Forge\Recurring\Reminders;
 use Blueworx\Forge\Tenancy\Agents;
 use Blueworx\Forge\Work\ClientReviewer;
 
@@ -273,6 +274,15 @@ final class Rules {
 		$through  = null === $through || $through < $today ? $today : $through;
 
 		/*
+		 * Over is over. Cancelled, rejected or a duplicate is nobody's to do, and
+		 * a reminder everyone on it has ticked is done, which is how My tasks
+		 * already reads both. Deferred is still open, back at Future idea.
+		 */
+		if ( self::is_over( $item ) ) {
+			return array();
+		}
+
+		/*
 		 * Work in delivery, or waiting to be released, is off the standup
 		 * until it is due today or late, unless it is Urgent (2026-09-29).
 		 * Once it is back, everything about it shows. Blocked work keeps its
@@ -372,6 +382,33 @@ final class Rules {
 		}
 
 		return $cards;
+	}
+
+	/**
+	 * Whether a piece of work is finished with, whatever its stage says.
+	 *
+	 * Two kinds, both already treated as done on My tasks: work with a final
+	 * outcome other than deferred (cancelled, rejected, duplicate), and a
+	 * reminder whose every person has ticked it. A reminder with someone still
+	 * to tick stays, and so does any other chore.
+	 *
+	 * @param array<string, mixed> $item The work item.
+	 * @return bool
+	 */
+	private static function is_over( array $item ): bool {
+		$outcome = (string) ( $item['terminal_outcome'] ?? '' );
+
+		if ( '' !== $outcome && 'deferred' !== $outcome ) {
+			return true;
+		}
+
+		$people = array_map( 'strval', (array) ( $item['assignees'] ?? array() ) );
+
+		if ( array() === $people || ! Reminders::is_reminder( (string) ( $item['recurring_id'] ?? '' ) ) ) {
+			return false;
+		}
+
+		return array() === array_diff( $people, array_map( 'strval', array_keys( (array) ( $item['ticks'] ?? array() ) ) ) );
 	}
 
 	/**

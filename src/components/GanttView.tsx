@@ -174,13 +174,21 @@ export function GanttView( {
       return;
     }
 
+    const box = chart.getBoundingClientRect();
+    // On a phone the navigation bar sits below the page, fixed or in the flow:
+    // names stay above it. Where it is hidden or beside the page it takes no room.
+    const bar = document.querySelector< HTMLElement >( '[data-testid="bwx-menu-toggle"]' )?.parentElement?.getBoundingClientRect();
+    const floor = bar && 0 < bar.height && bar.top >= box.top ? Math.min( window.innerHeight, bar.top ) : window.innerHeight;
+    // Only what the person can see counts: the chart may run on below the
+    // bottom of the screen (or behind the bar), or begin above the top of it.
+    const seen = Math.min( box.top + chart.clientTop + chart.clientHeight, floor );
+
     // A row that has scrolled out of view takes its name with it: otherwise a
     // name left on show (focused, or under a pointer that has not moved) would
     // hang in the chart, or over the screen, with no row beside it.
-    const edge = chart.getBoundingClientRect();
     const head = chart.querySelector< HTMLElement >( '.bwx-gantt-axis' )?.getBoundingClientRect().height ?? 0;
     const place = label.getBoundingClientRect();
-    const away = place.bottom <= edge.top + head || place.top >= Math.min( edge.top + chart.clientTop + chart.clientHeight, window.innerHeight );
+    const away = place.bottom <= box.top + head || place.top >= seen;
 
     if ( away ) {
       label.setAttribute( 'data-away', 'true' );
@@ -194,14 +202,6 @@ export function GanttView( {
     // blank scroll below it), so it is laid out only while it is measured.
     tip.style.display = 'block';
 
-    // Only what the person can see counts: the chart may run on below the
-    // bottom of the screen, or begin above the top of it.
-    const box = chart.getBoundingClientRect();
-    // On a phone the navigation bar sits below the page, fixed or in the flow:
-    // names stay above it. Where it is hidden or beside the page it takes no room.
-    const bar = document.querySelector< HTMLElement >( '[data-testid="bwx-menu-toggle"]' )?.parentElement?.getBoundingClientRect();
-    const floor = bar && 0 < bar.height && bar.top >= box.top ? Math.min( window.innerHeight, bar.top ) : window.innerHeight;
-    const seen = Math.min( box.top + chart.clientTop + chart.clientHeight, floor );
     const top = Math.max( box.top, 0 );
     const own = tip.getBoundingClientRect();
     const row = label.getBoundingClientRect();
@@ -215,9 +215,16 @@ export function GanttView( {
         // Taller than the room either way up (a few rows on a phone): drawn
         // over the screen instead, kept inside it, so the whole name still reads.
         tip.setAttribute( 'data-flip', 'screen' );
-        tip.style.left = `${ row.left }px`;
-        tip.style.width = `${ row.width }px`;
-        tip.style.top = `${ Math.max( 8, Math.min( row.top, floor - own.height - 8 ) ) }px`;
+        // The whole width of the screen, so a name too tall for the narrow
+        // column still fits above the bar; past that it scrolls inside itself.
+        tip.style.left = '8px';
+        tip.style.width = `${ Math.max( row.width, window.innerWidth - 16 ) }px`;
+        tip.style.maxHeight = `${ Math.max( 0, floor - 16 ) }px`;
+        tip.style.overflowY = 'auto';
+
+        const height = tip.getBoundingClientRect().height;
+
+        tip.style.top = `${ Math.max( 8, Math.min( row.top, floor - height - 8 ) ) }px`;
       }
     }
 
@@ -259,8 +266,20 @@ export function GanttView( {
     };
 
     document.addEventListener( 'scroll', follow, { capture: true, passive: true } );
+    // Turning a phone or resizing the window changes the room without scrolling.
+    window.addEventListener( 'resize', follow );
 
-    return () => document.removeEventListener( 'scroll', follow, { capture: true } );
+    const watching = 'undefined' !== typeof ResizeObserver ? new ResizeObserver( follow ) : null;
+
+    if ( chartRef.current ) {
+      watching?.observe( chartRef.current );
+    }
+
+    return () => {
+      document.removeEventListener( 'scroll', follow, { capture: true } );
+      window.removeEventListener( 'resize', follow );
+      watching?.disconnect();
+    };
     // fitTip reads only the chart ref, which does not change.
   }, [] );
 
@@ -321,6 +340,12 @@ export function GanttView( {
         aria-label="Schedule, scrolls sideways"
         tabIndex={ 0 }
         data-zoom={ zoom }
+        // A click on blank chart, the strip after the last day included, clears the marks.
+        onClick={ ( event ) => {
+          if ( ! ( event.target as HTMLElement ).closest( 'button, .bwx-gantt-name-tip' ) ) {
+            setSelected( '' );
+          }
+        } }
         style={ { '--gantt-cols': axis.columns.length } as React.CSSProperties }
       >
         <div className="bwx-gantt-axis" data-testid="bwx-gantt-axis">
@@ -363,14 +388,7 @@ export function GanttView( {
           </div>
         </div>
 
-        <div
-          className="bwx-gantt-rows"
-          onClick={ ( event ) => {
-            if ( ! ( event.target as HTMLElement ).closest( 'button, .bwx-gantt-name-tip' ) ) {
-              setSelected( '' );
-            }
-          } }
-        >
+        <div className="bwx-gantt-rows">
           { /* One grid behind every row, one line per column. */ }
           <span className="bwx-gantt-grid" aria-hidden="true" />
 

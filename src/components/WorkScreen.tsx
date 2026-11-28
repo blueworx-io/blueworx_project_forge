@@ -98,6 +98,14 @@ export function WorkScreen( {
   const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
   const notice = said.text;
 
+  // Where to put focus when the strip button it was handed to goes.
+  const strayFocus = () =>
+    document.querySelector< HTMLElement >( '[data-testid="bwx-blocked-item"]' ) ??
+    document.querySelector< HTMLElement >( '[data-testid^="bwx-view-"][aria-pressed="true"]' );
+  // The button focus was handed back to, kept until the list has refreshed: an
+  // item deleted from its panel closes the panel first, and its button goes after.
+  const handedBack = useRef< HTMLElement | null >( null );
+
   useEffect( () => {
     if ( '' === openId && blockedFrom.current ) {
       const from = blockedFrom.current;
@@ -106,14 +114,38 @@ export function WorkScreen( {
 
       // Unblocked while the panel was open, the button is gone: focus goes to
       // another one in the strip, or failing that to the view that is showing.
-      const target = from.isConnected
-        ? from
-        : document.querySelector< HTMLElement >( '[data-testid="bwx-blocked-item"]' ) ??
-          document.querySelector< HTMLElement >( '[data-testid^="bwx-view-"][aria-pressed="true"]' );
+      const target = from.isConnected ? from : strayFocus();
 
       target?.focus();
+      handedBack.current = from.isConnected ? from : null;
     }
   }, [ openId ] );
+
+  // Once the list refreshes: if the button focus went back to is gone and focus
+  // fell to the page, it moves on; if focus has gone elsewhere, tracking stops.
+  useEffect( () => {
+    const last = handedBack.current;
+
+    if ( ! last ) {
+      return;
+    }
+
+    const active = document.activeElement;
+
+    if ( last.isConnected ) {
+      if ( active !== last ) {
+        handedBack.current = null;
+      }
+
+      return;
+    }
+
+    handedBack.current = null;
+
+    if ( ! active || active === document.body ) {
+      strayFocus()?.focus();
+    }
+  }, [ items ] );
 
   /*
    * The filter set and the view are separate pieces of state on purpose (#123).

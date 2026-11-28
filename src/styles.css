@@ -4938,5 +4938,6 @@ select.bwx-select,
   white-space: normal;
   text-align: left;
   max-width: 100%;
+  overflow-wrap: anywhere;
   border-radius: var( --radius-card, 16px );
 }
