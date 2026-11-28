@@ -85,6 +85,12 @@ export function WorkScreen( {
   // The Blocked strip button that opened the panel, so closing it puts focus
   // back there and a keyboard user keeps their place in the strip.
   const blockedFrom = useRef< HTMLElement | null >( null );
+  // Any other way of opening an item forgets the strip button, so closing the
+  // panel returns focus to what opened the item last, never to an earlier one.
+  const openFromView = ( id: string ) => {
+    blockedFrom.current = null;
+    setOpenId( id );
+  };
   const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
 
@@ -550,21 +556,21 @@ export function WorkScreen( {
               stages={ stages }
               columns={ columns }
               items={ items }
-              onOpen={ ( item ) => setOpenId( item.id ) }
+              onOpen={ ( item ) => openFromView( item.id ) }
               onMove={ ( itemId, to ) => void move( itemId, to ) }
             />
           ) }
 
           { 'list' === view && (
-            <ListView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+            <ListView items={ items } onOpen={ ( item ) => openFromView( item.id ) } />
           ) }
 
           { 'gantt' === view && (
-            <GanttView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } panelOpen={ '' !== openId } />
+            <GanttView items={ items } onOpen={ ( item ) => openFromView( item.id ) } panelOpen={ '' !== openId } />
           ) }
 
           { 'calendar' === view && (
-            <CalendarView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } onOpenId={ setOpenId } />
+            <CalendarView items={ items } onOpen={ ( item ) => openFromView( item.id ) } onOpenId={ openFromView } />
           ) }
 
           { /*

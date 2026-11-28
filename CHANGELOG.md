@@ -11,7 +11,7 @@ commits and pull requests.
 ## [2.233.1] - 2026-11-27
 
 ### Fixed
- The chart can be reached and scrolled from the keyboard (it takes focus and is named "Schedule, scrolls sideways"). A long name stays whole inside the chart even on the last row, a dated column always keeps a date in view while scrolling, the name keeps a visible focus ring, and closing an item opened from a bar puts focus back on that bar. A name taller than the chart is shown whole over the screen, and focus lands on the chart or the tray when the item it came from is deleted.
+ The chart can be reached and scrolled from the keyboard (it takes focus and is named "Schedule, scrolls sideways"). A long name stays whole inside the chart even on the last row, a dated column always keeps a date in view while scrolling, the name keeps a visible focus ring, and closing an item opened from a bar puts focus back on that bar. A name taller than the chart is shown whole over the screen, and focus lands on the chart or the tray when the item it came from is deleted. On a phone a long name stays above the bottom bar, and closing an item with Escape returns focus to the item opened last, whether it came from a bar or the Blocked strip.
 - The Gantt chart is easier to read and to use. In the Days view each day is now 264 pixels wide, six times what it was, and the chart still scrolls sideways with Today bringing today into view. Hovering a name in the left column, or tabbing onto it, shows the full name. One click on a bar now opens the item, as clicking its name does; it also still marks what the item waits on and what waits on it.
 
 ## [2.233.0] - 2026-11-27

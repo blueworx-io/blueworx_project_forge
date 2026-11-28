@@ -425,6 +425,32 @@ test.describe( 'the schedule', () => {
     await expect( strip ).toBeFocused();
   } );
 
+  test( 'opening a bar while another item is open sends focus back to that bar, not the Blocked strip (review of #720)', async ( { page } ) => {
+    const made = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } stuck again`, planned_start: on( 4 ), planned_due: on( 6 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+    const stuck = ( await made.json() ).item;
+    const blocked = await world.admin.api.post( `/work-items/${ stuck.id }/block`, { owner: 'The client', record_version: stuck.record_version } );
+    expect( blocked.status(), await blocked.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const strip = page.locator( `[data-testid="bwx-blocked-item"][data-item="${ stuck.id }"]` );
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` );
+
+    await strip.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+
+    // A different item from the chart, with the first panel still open.
+    await bar.dispatchEvent( 'click' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toContainText( `${ RUN } guest checkout` );
+
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    await expect( bar ).toBeFocused();
+    await expect( strip ).not.toBeFocused();
+  } );
+
   test( 'a long name stays while the pointer moves onto it, and Escape puts it away (review of #720)', async ( { page } ) => {
     const long = `${ RUN } esc ${ 'a name that goes on and on '.repeat( 4 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
