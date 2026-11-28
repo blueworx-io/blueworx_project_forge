@@ -471,6 +471,10 @@ export const RULES: RuleSection[] = [
         why: 'The same task listed three times reads as three problems.',
       },
       {
+        what: 'Cancelled, rejected and duplicate work is not on the standup, and neither is a reminder everyone on it has ticked. Deferred work stays, and so does a reminder with someone still to tick.',
+        why: 'The standup reads done work the same way My tasks does, so the two never disagree.',
+      },
+      {
         what: 'Work waiting on the client to review shows only under Requires Client Review on the standup, with no other cards. Work with a team member as reviewer stays under Work needing attention, and so do work waiting to be released and work sent back. A client review that was sent back or is overdue carries that as a tag on its card, and shows whatever its date.',
         why: 'What waits on the client is kept apart from what the team can act on.',
       },
