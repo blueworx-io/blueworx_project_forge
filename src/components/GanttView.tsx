@@ -222,14 +222,21 @@ export function GanttView( {
         // Taller than the room either way up (a few rows on a phone): drawn
         // over the screen instead, kept inside it, so the whole name still reads.
         tip.setAttribute( 'data-flip', 'screen' );
-        // The whole width of the screen, so a name too tall for the narrow
-        // column still fits above the bar; past that it scrolls inside itself.
-        tip.style.left = '8px';
-        tip.style.width = `${ Math.max( row.width, window.innerWidth - 16 ) }px`;
+        // Over its own column, so it never covers the navigation beside it.
         const lowest = Math.max( 8, ceiling );
+        const room = Math.max( 0, floor - lowest - 8 );
 
-        tip.style.maxHeight = `${ Math.max( 0, floor - lowest - 8 ) }px`;
+        tip.style.left = `${ row.left }px`;
+        tip.style.width = `${ row.width }px`;
+        tip.style.maxHeight = `${ room }px`;
         tip.style.overflowY = 'auto';
+
+        // A name too tall for the narrow column takes the width of the screen so
+        // it still fits above the bar; past that it scrolls inside itself.
+        if ( tip.scrollHeight > room ) {
+          tip.style.left = '8px';
+          tip.style.width = `${ Math.max( row.width, window.innerWidth - 16 ) }px`;
+        }
 
         const height = tip.getBoundingClientRect().height;
 

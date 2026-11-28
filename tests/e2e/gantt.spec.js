@@ -870,13 +870,16 @@ test.describe( 'the schedule', () => {
     }, ( await made.json() ).item.id );
     expect( bar.top, 'the row is part behind the bar' ).toBeLessThan( bar.ceiling );
 
-    // The pointer goes straight to the part of the row the bar leaves showing (hover() would scroll it clear).
+    // Focus, not the pointer, so what is under the pointer cannot matter, and nothing scrolls it clear.
     const at = await row.locator( '.bwx-gantt-label' ).boundingBox();
-    await page.mouse.move( at.x + 60, bar.ceiling + 6 );
+    await row.locator( '.bwx-gantt-title' ).evaluate( ( node ) => node.focus( { preventScroll: true } ) );
     await expect( tip ).toBeVisible();
     await expect( async () => {
       const box = await tip.boundingBox();
       expect( box.y ).toBeGreaterThanOrEqual( bar.ceiling - 1 );
+      // Over its own column, not across the navigation beside it.
+      expect( box.x ).toBeGreaterThanOrEqual( at.x - 1 );
+      expect( box.x + box.width ).toBeLessThanOrEqual( at.x + at.width + 1 );
     } ).toPass();
   } );
 
