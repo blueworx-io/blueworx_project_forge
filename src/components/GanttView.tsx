@@ -216,6 +216,11 @@ export function GanttView( {
         return;
       }
 
+      // From the chart, it also clears the marks a bar left, so the keyboard can.
+      if ( chartRef.current?.contains( event.target as Node | null ) ) {
+        setSelected( '' );
+      }
+
       const shown = chartRef.current?.querySelectorAll< HTMLElement >( '.bwx-gantt-label:hover, .bwx-gantt-label:focus-within' );
 
       shown?.forEach( ( label ) => label.setAttribute( 'data-dismissed', 'true' ) );
@@ -226,17 +231,15 @@ export function GanttView( {
     return () => document.removeEventListener( 'keydown', dismiss );
   }, [] );
 
-  // A name drawn over the screen is fixed to it, so it follows its row when the
-  // page or the chart scrolls rather than staying where it first opened.
+  // A name is placed for where its row is, so it is placed again when the page
+  // or the chart scrolls (one drawn over the screen is fixed to it).
   useEffect( () => {
     const follow = () => {
+      // Every name on show, whichever way it was last placed: scrolling can give
+      // one room it lacked, and scrolling back must not find it clipped.
       chartRef.current
-        ?.querySelectorAll< HTMLElement >( '.bwx-gantt-name-tip[data-flip="screen"]' )
-        .forEach( ( tip ) => {
-          if ( tip.parentElement?.matches( ':hover, :focus-within' ) ) {
-            fitTip( tip.parentElement );
-          }
-        } );
+        ?.querySelectorAll< HTMLElement >( '.bwx-gantt-label:hover, .bwx-gantt-label:focus-within' )
+        .forEach( ( label ) => fitTip( label ) );
     };
 
     document.addEventListener( 'scroll', follow, { capture: true, passive: true } );

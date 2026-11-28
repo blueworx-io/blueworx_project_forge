@@ -16,12 +16,13 @@ test('an unlabelled value in a phone card sits on the right with the rest (#440)
   const studio = (await admin.api.get('/client-sites')).sites.find((one) => one.studio);
   const today = (await admin.api.get('/standup')).today;
   const person = await Forge.makePerson(admin.api, studio.client_id, 'staff', `card${Date.now()}`);
+  const title = `Card chore ${Date.now()}`;
   const made = await admin.api.post('/recurring', {
-    title: `Card chore ${Date.now()}`,
+    title,
     description: '<p>For the phone card spec.</p>',
     rule: { every: 'day' },
+    // Every day with no end, so it is still listed however the list is refreshed.
     starts_on: today,
-    ends_on: today,
     assignees: [person.id],
     hours_each: '0.25',
     client_site_id: studio.id,
@@ -32,7 +33,7 @@ test('an unlabelled value in a phone card sits on the right with the rest (#440)
   await page.getByRole('navigation', { name: 'Screens', exact: true }).getByTestId('bwx-screen-recurring').click();
   await settled(page);
 
-  const row = page.locator('.fk-table[data-stack="true"] tr.fk-row:has(td:not([data-label]) button)').first();
+  const row = page.locator('.fk-table[data-stack="true"] tr.fk-row:has(td:not([data-label]) button)').filter({ hasText: title }).first();
   await expect(row).toBeVisible();
   const card = await row.boundingBox();
   const content = await row.locator('td:not([data-label]) button').last().boundingBox();

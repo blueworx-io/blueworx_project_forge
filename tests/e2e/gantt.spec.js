@@ -648,6 +648,45 @@ test.describe( 'the schedule', () => {
     await expect( tip ).toBeInViewport( { ratio: 1 } );
   } );
 
+  test( 'Escape on the chart clears the marks a bar left, so the keyboard can (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` );
+    const row = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.second.id }"]` );
+
+    await bar.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
+
+    // The first Escape closes the panel and leaves the marks; the next, from the bar, clears them.
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    await expect( bar ).toBeFocused();
+    await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
+    await page.keyboard.press( 'Escape' );
+    await expect( row ).not.toHaveAttribute( 'data-chain', /.+/ );
+  } );
+
+  test( 'a name on show is placed again whenever the chart scrolls, not only when it was drawn over the screen (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } back ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } back")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.locator( '.bwx-gantt-label' ).hover();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).not.toHaveAttribute( 'data-flip', 'screen' );
+
+    await tip.evaluate( ( node ) => { node.style.top = '1234px'; } );
+    await page.getByTestId( 'bwx-gantt-chart' ).evaluate( ( node ) => { node.scrollLeft += 40; } );
+    await expect.poll( () => tip.evaluate( ( node ) => node.style.top ) ).not.toBe( '1234px' );
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );
