@@ -70,9 +70,85 @@ final class Report {
 			'wp_version'     => get_bloginfo( 'version' ),
 			'php_version'    => PHP_VERSION,
 			'plugin_version' => defined( 'BWX_FORGE_CLIENT_VERSION' ) ? BWX_FORGE_CLIENT_VERSION : '',
+			'plugins'        => self::plugins(),
 			'mail_capable'   => $mail['capable'],
 			'mail_detail'    => $mail['detail'],
 		);
+	}
+
+	/**
+	 * The most plugins one report lists. The studio keeps no more than this.
+	 */
+	public const MAX_PLUGINS = 200;
+
+	/**
+	 * Every active plugin, as its folder name and its version (#718), so the
+	 * studio can see which release a site is really running.
+	 *
+	 * Versions come from the plugin files' own headers, not WordPress's cached
+	 * plugin list.
+	 *
+	 * A plugin that is one file in the plugins folder has no folder, so its
+	 * file name without .php stands in. Network-active plugins count too.
+	 *
+	 * @return array<int, array{slug: string, version: string}>
+	 */
+	public static function plugins(): array {
+		if ( ! function_exists( 'get_plugin_data' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$active = (array) get_option( 'active_plugins', array() );
+
+		if ( is_multisite() ) {
+			$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+		}
+
+		$list = array();
+
+		foreach ( array_unique( $active ) as $file ) {
+			$file = (string) $file;
+			$path = WP_PLUGIN_DIR . '/' . $file;
+
+			// The same test WordPress applies before it loads an active plugin: a
+			// path that stays in the plugins folder, is a .php file, and is there.
+			if ( 0 !== validate_file( $file ) || '.php' !== substr( $file, -4 ) || ! is_file( $path ) ) {
+				continue;
+			}
+
+			// The header is read from the file itself. get_plugins() can hand back
+			// an old version from a persistent cache after a deploy that did not go
+			// through the updater, and the studio would take that as the release.
+			$data = get_plugin_data( $path, false, false );
+
+			$folder = dirname( $file );
+			$slug   = '.' === $folder ? basename( $file, '.php' ) : $folder;
+
+			$list[] = array(
+				'slug'    => $slug,
+				'version' => (string) $data['Version'],
+			);
+
+			if ( count( $list ) >= self::MAX_PLUGINS ) {
+				break;
+			}
+		}
+
+		return $list;
+	}
+
+	/**
+	 * Sends it once WordPress has saved this plugin as active (#718).
+	 *
+	 * Hooked to activated_plugin, which fires for every plugin activated in the
+	 * request; only this one's own activation is the occasion.
+	 *
+	 * @param string $plugin The plugin file just activated, relative to the plugins folder.
+	 */
+	public static function send_when_activated( $plugin ): void {
+		if ( defined( 'BWX_FORGE_CLIENT_FILE' ) && plugin_basename( BWX_FORGE_CLIENT_FILE ) === $plugin ) {
+			self::send();
+		}
 	}
 
 	/**

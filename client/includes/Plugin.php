@@ -110,7 +110,9 @@ final class Plugin {
 		// A site that has just been updated or reactivated is exactly the one
 		// whose recorded version is wrong, so it says so immediately rather
 		// than waiting up to a day for the cron.
-		Report::send();
+		// WordPress runs this hook before it saves the plugin as active, so the
+		// report waits for the save: sent now, it would leave this plugin out (#718).
+		add_action( 'activated_plugin', array( Report::class, 'send_when_activated' ) );
 	}
 
 	/**

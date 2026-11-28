@@ -270,7 +270,15 @@ final class ClientSitesController {
 		$steps    = Steps::for_sites( array_column( $sites, 'id' ) );
 
 		foreach ( $sites as $index => $site ) {
-			$sites[ $index ]['integration'] = $integrations[ $site['id'] ] ?? null;
+			// The plugin inventory (#718) is for the runner's card route. Anybody
+			// who can see the site list can see this, so it is left off.
+			$integration = $integrations[ $site['id'] ] ?? null;
+
+			if ( null !== $integration ) {
+				unset( $integration['plugins'], $integration['plugins_reported_at'] );
+			}
+
+			$sites[ $index ]['integration'] = $integration;
 			$sites[ $index ]['onboarding']  = self::onboarding_of( (string) $site['id'], $template, $steps[ (string) $site['id'] ] ?? array() );
 		}
 

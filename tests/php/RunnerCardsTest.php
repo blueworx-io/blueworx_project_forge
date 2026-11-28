@@ -175,13 +175,65 @@ final class RunnerCardsTest extends TestCase {
 	public function test_the_definition_is_the_cards_own(): void {
 		$definition = Runner::definition( $this->card() );
 
-		foreach ( array( 'problem', 'scope', 'non_goals', 'requirements', 'acceptance_criteria', 'references', 'design_url', 'test_description', 'test_steps', 'checklist', 'links', 'github_repo', 'primary_user_id', 'reviewer_id', 'deliverer_id', 'hours_primary', 'planned_due', 'stage', 'record_version' ) as $field ) {
+		foreach ( array( 'problem', 'scope', 'non_goals', 'requirements', 'acceptance_criteria', 'references', 'design_url', 'test_description', 'test_steps', 'checklist', 'links', 'github_repo', 'primary_user_id', 'reviewer_id', 'deliverer_id', 'hours_primary', 'planned_due', 'stage', 'terminal_outcome', 'record_version' ) as $field ) {
 			$this->assertArrayHasKey( $field, $definition, $field );
 		}
 
 		foreach ( array( 'parent_id', 'client_id', 'client_site_id', 'commercial_class', 'capacity_override_reason', 'override_reason', 'archived' ) as $field ) {
 			$this->assertArrayNotHasKey( $field, $definition, $field );
 		}
+	}
+
+	/**
+	 * A card that has been cancelled says so, and an open one says nothing
+	 * (#718).
+	 */
+	public function test_the_definition_carries_the_terminal_outcome(): void {
+		$this->assertSame( 'cancelled', Runner::definition( $this->card( array( 'terminal_outcome' => 'cancelled' ) ) )['terminal_outcome'] );
+		$this->assertSame( '', Runner::definition( $this->card() )['terminal_outcome'] );
+	}
+
+	/**
+	 * What the card's site last reported is its plugins and the time, and
+	 * nothing else of the connection. A card with no site integration gets an
+	 * empty list rather than an error (#718).
+	 */
+	public function test_the_site_view_is_only_plugins_and_when(): void {
+		$site = Runner::site(
+			array(
+				'plugins'             => array(
+					array(
+						'slug'    => 'blueworx-forge-client',
+						'version' => '2.234.0',
+					),
+					'junk',
+				),
+				'plugins_reported_at' => 1700000000,
+				'registry_site_id'    => 'sit_secret',
+				'last_error_code'     => 'bad',
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'site_plugins'     => array(
+					array(
+						'slug'    => 'blueworx-forge-client',
+						'version' => '2.234.0',
+					),
+				),
+				'site_reported_at' => 1700000000,
+			),
+			$site
+		);
+
+		$none = array(
+			'site_plugins'     => array(),
+			'site_reported_at' => 0,
+		);
+
+		$this->assertSame( $none, Runner::site( null ) );
+		$this->assertSame( $none, Runner::site( array( 'plugins' => array() ) ) );
 	}
 
 	/**

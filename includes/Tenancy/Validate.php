@@ -39,6 +39,22 @@ final class Validate {
 	public const MAIL_STATES = array( 'unknown', 'yes', 'no' );
 
 	/**
+	 * The most plugins one report may list. A site with more is cut here, so a
+	 * report cannot grow the record without limit.
+	 */
+	public const MAX_PLUGINS = 200;
+
+	/**
+	 * What a plugin's slug (its folder name) must look like.
+	 */
+	public const PLUGIN_SLUG = '/^[a-z0-9_-]{1,100}$/D';
+
+	/**
+	 * Longest a plugin's version may be.
+	 */
+	public const MAX_PLUGIN_VERSION = 32;
+
+	/**
 	 * Checks a client.
 	 *
 	 * @param array<string, mixed> $input   Raw input.
@@ -405,10 +421,57 @@ final class Validate {
 			}
 		}
 
+		if ( array_key_exists( 'plugins', $input ) && is_array( $input['plugins'] ) && array_is_list( $input['plugins'] ) ) {
+			$values['plugins'] = self::plugins( $input['plugins'] );
+		}
+
 		return array(
 			'values' => $values,
 			'errors' => $errors,
 		);
+	}
+
+	/**
+	 * Cleans the list of plugins a site says it runs (#718).
+	 *
+	 * An entry that is not a slug and a version is dropped, not refused: one odd
+	 * plugin must not bounce the rest of the report. The same slug and version
+	 * seen twice is kept once; two different versions of one slug are both kept,
+	 * since two active plugin files can share a folder. The list stops at
+	 * MAX_PLUGINS. Something that is not a list is not a report of plugins at all
+	 * and is ignored by the caller.
+	 *
+	 * @param array<mixed> $raw What arrived in the field.
+	 * @return array<int, array{slug: string, version: string}>
+	 */
+	private static function plugins( array $raw ): array {
+		$clean = array();
+		$seen  = array();
+
+		foreach ( $raw as $entry ) {
+			if ( count( $clean ) >= self::MAX_PLUGINS ) {
+				break;
+			}
+
+			if ( ! is_array( $entry ) || ! is_string( $entry['slug'] ?? null ) || ! is_string( $entry['version'] ?? null ) ) {
+				continue;
+			}
+
+			$slug    = $entry['slug'];
+			$version = trim( $entry['version'] );
+
+			if ( 1 !== preg_match( self::PLUGIN_SLUG, $slug ) || mb_strlen( $version ) > self::MAX_PLUGIN_VERSION || isset( $seen[ $slug . ' ' . $version ] ) ) {
+				continue;
+			}
+
+			$seen[ $slug . ' ' . $version ] = true;
+			$clean[]                        = array(
+				'slug'    => $slug,
+				'version' => $version,
+			);
+		}
+
+		return $clean;
 	}
 
 	/**

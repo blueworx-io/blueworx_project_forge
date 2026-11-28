@@ -194,7 +194,7 @@ final class SchemaTest extends TestCase {
 	public function test_github_tables_are_defined(): void {
 		$definitions = Schema::definitions();
 
-		$this->assertSame( 57, Schema::VERSION );
+		$this->assertSame( 58, Schema::VERSION );
 		// #681. The outbox, found by what is due and by item.
 		$this->assertArrayHasKey( Schema::github_jobs_table(), $definitions );
 		$this->assertStringContainsString( 'KEY status_run (status, run_after)', $definitions[ Schema::github_jobs_table() ] );

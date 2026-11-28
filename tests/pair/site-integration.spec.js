@@ -123,6 +123,16 @@ test('a connected client site fills in its own connection record', async ({ brow
   expect(record.php_version).not.toBe('');
   expect(record.home_url).toContain('127.0.0.1');
 
+  // #718. It also said which plugins it runs, by folder name, and when.
+  expect(record.plugins_reported_at).toBeGreaterThan(0);
+  const connector = record.plugins.find((plugin) => plugin.slug === 'blueworx-forge-client');
+  expect(connector, 'the connector lists itself').toBeTruthy();
+  expect(connector.version).toBe(record.plugin_version);
+  for (const plugin of record.plugins) {
+    expect(plugin.slug).toMatch(/^[a-z0-9_-]{1,100}$/);
+    expect(plugin.version.length).toBeLessThanOrEqual(32);
+  }
+
   await studio.context.close();
   await client.context.close();
 });
