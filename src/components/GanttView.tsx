@@ -231,15 +231,16 @@ export function GanttView( {
         tip.style.maxHeight = `${ room }px`;
         tip.style.overflowY = 'auto';
 
-        // A name too tall for the narrow column takes the width of the screen to
-        // its right, so it still fits above the bar (the whole screen on a phone,
-        // where nothing is beside it, and never across navigation to its left);
-        // past that it scrolls inside itself.
+        // A name too tall for the narrow column takes the width of the chart, so it
+        // still fits above the bar (on a phone that is the screen); never wider, so it
+        // cannot cover navigation beside the chart, whichever side that is on.
+        // Past that it scrolls inside itself.
         if ( tip.scrollHeight > room ) {
-          const left = Math.max( 8, row.left );
+          const left = Math.max( 8, row.left, box.left );
+          const right = Math.min( window.innerWidth - 8, box.right );
 
           tip.style.left = `${ left }px`;
-          tip.style.width = `${ Math.max( row.width, window.innerWidth - left - 8 ) }px`;
+          tip.style.width = `${ Math.max( row.width, right - left ) }px`;
         }
 
         const height = tip.getBoundingClientRect().height;

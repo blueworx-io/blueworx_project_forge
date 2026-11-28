@@ -911,7 +911,7 @@ test.describe( 'the schedule', () => {
     expect( await tip.evaluate( ( node ) => node.scrollTop ) ).toBeGreaterThan( 20 );
   } );
 
-  test( 'a name too tall for its column never spreads across the navigation beside the chart (review of #720)', async ( { page } ) => {
+  test( 'a name too tall for its column never spreads across the navigation beside the chart, on either side (review of #720)', async ( { page } ) => {
     const long = `${ RUN } wide ${ 'a name that goes on and on '.repeat( 4 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
     expect( made.status(), await made.text() ).toBe( 200 );
@@ -933,7 +933,9 @@ test.describe( 'the schedule', () => {
     const label = await row.locator( '.bwx-gantt-label' ).boundingBox();
     const box = await tip.boundingBox();
     expect( box.x, 'it stays clear of the navigation to the left of the chart' ).toBeGreaterThanOrEqual( label.x - 1 );
-    expect( box.x + box.width ).toBeLessThanOrEqual( 1000 );
+    // Nor across whatever is beside the chart on its other side (a right-to-left site has its navigation there).
+    const chart = await page.getByTestId( 'bwx-gantt-chart' ).boundingBox();
+    expect( box.x + box.width ).toBeLessThanOrEqual( chart.x + chart.width + 1 );
   } );
 
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
