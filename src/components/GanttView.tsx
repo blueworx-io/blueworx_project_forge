@@ -211,7 +211,8 @@ export function GanttView( {
   // Escape puts a full name away while the pointer or focus stays where it is.
   useEffect( () => {
     const dismiss = ( event: KeyboardEvent ) => {
-      if ( 'Escape' !== event.key ) {
+      // Escape inside an item's panel closes the panel, and puts nothing away.
+      if ( 'Escape' !== event.key || ( event.target as HTMLElement | null )?.closest?.( '[role="dialog"]' ) ) {
         return;
       }
 
@@ -223,6 +224,25 @@ export function GanttView( {
     document.addEventListener( 'keydown', dismiss );
 
     return () => document.removeEventListener( 'keydown', dismiss );
+  }, [] );
+
+  // A name drawn over the screen is fixed to it, so it follows its row when the
+  // page or the chart scrolls rather than staying where it first opened.
+  useEffect( () => {
+    const follow = () => {
+      chartRef.current
+        ?.querySelectorAll< HTMLElement >( '.bwx-gantt-name-tip[data-flip="screen"]' )
+        .forEach( ( tip ) => {
+          if ( tip.parentElement?.matches( ':hover, :focus-within' ) ) {
+            fitTip( tip.parentElement );
+          }
+        } );
+    };
+
+    document.addEventListener( 'scroll', follow, { capture: true, passive: true } );
+
+    return () => document.removeEventListener( 'scroll', follow, { capture: true } );
+    // fitTip reads only the chart ref, which does not change.
   }, [] );
 
   const phases = [ ...new Set( dated.map( ( each ) => phaseOf( each.item.stage ) ) ) ];
@@ -324,7 +344,14 @@ export function GanttView( {
           </div>
         </div>
 
-        <div className="bwx-gantt-rows">
+        <div
+          className="bwx-gantt-rows"
+          onClick={ ( event ) => {
+            if ( ! ( event.target as HTMLElement ).closest( 'button, .bwx-gantt-name-tip' ) ) {
+              setSelected( '' );
+            }
+          } }
+        >
           { /* One grid behind every row, one line per column. */ }
           <span className="bwx-gantt-grid" aria-hidden="true" />
 
@@ -449,9 +476,9 @@ export function GanttView( {
                         opener.current = event.currentTarget;
                         origin.current = 'chart';
                         mine.current = true;
-                        // One click opens it, as the name does, and still marks
-                        // what it waits on and what waits on it.
-                        setSelected( item.id === active ? '' : item.id );
+                        // One click opens it, as the name does, and marks what it waits
+                        // on and what waits on it. A click on the empty chart clears the marks.
+                        setSelected( item.id );
                         onOpen( item );
                       } }
                     >

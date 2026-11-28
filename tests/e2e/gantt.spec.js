@@ -574,6 +574,80 @@ test.describe( 'the schedule', () => {
     await expect( page.getByTestId( 'bwx-blocked-item' ).first() ).toBeFocused();
   } );
 
+  test( 'clicking a bar again keeps its marks; clicking the empty chart clears them (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.second.id }"]` );
+    const row = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.second.id }"]` );
+    const close = page.locator( '.bwx-panel-head .bwx-icon-button[aria-label="Close"]' );
+
+    await bar.click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
+    await close.click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+
+    // The same bar again opens it again and the marks stay.
+    await bar.click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await expect( row ).toHaveAttribute( 'data-chain', 'selected' );
+    await close.click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+
+    await page.locator( '.bwx-gantt-rows' ).dispatchEvent( 'click' );
+    await expect( row ).not.toHaveAttribute( 'data-chain', /.+/ );
+  } );
+
+  test( 'closing an item with Escape from a row with no bar leaves its full name showing (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } far ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 100 ), planned_due: on( 102 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } far")` );
+    const open = row.getByTestId( 'bwx-gantt-title-open' );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await open.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    await expect( open ).toBeFocused();
+    await expect( tip ).toBeVisible();
+
+    // It sorts last on the chart and would change which row is the last for the
+    // tests after it, so it goes again.
+    await tip.click();
+    page.once( 'dialog', ( dialog ) => dialog.accept() );
+    await page.getByTestId( 'bwx-item-delete' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden( { timeout: 60_000 } );
+    await expect( row ).toHaveCount( 0 );
+  } );
+
+  test( 'a name drawn over the screen follows its row when the chart scrolls (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } follow ${ 'a name that goes on and on '.repeat( 5 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 390, height: 520 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } follow")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.locator( '.bwx-gantt-label' ).hover();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toHaveAttribute( 'data-flip', 'screen' );
+
+    // Stand in for where it was first drawn, then scroll: it is placed again.
+    await tip.evaluate( ( node ) => { node.style.top = '1234px'; } );
+    await page.getByTestId( 'bwx-gantt-chart' ).evaluate( ( node ) => { node.scrollLeft += 40; } );
+    await expect.poll( () => tip.evaluate( ( node ) => node.style.top ) ).not.toBe( '1234px' );
+    await expect( tip ).toBeInViewport( { ratio: 1 } );
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );

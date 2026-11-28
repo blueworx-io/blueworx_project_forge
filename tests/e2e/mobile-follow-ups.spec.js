@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { onPhone, PHONE } from './helpers/phone.js';
+import * as Forge from './helpers/forge.js';
 
 // Follow-ups from the phone review (2026-09-28, #440–#444).
 
@@ -10,6 +11,23 @@ async function settled(page) {
 
 test('an unlabelled value in a phone card sits on the right with the rest (#440)', async ({ browser, baseURL }) => {
   const { page, admin } = await onPhone(browser, baseURL);
+
+  // A recurring task of its own to look at, rather than whichever one an earlier spec left behind.
+  const studio = (await admin.api.get('/client-sites')).sites.find((one) => one.studio);
+  const today = (await admin.api.get('/standup')).today;
+  const person = await Forge.makePerson(admin.api, studio.client_id, 'staff', `card${Date.now()}`);
+  const made = await admin.api.post('/recurring', {
+    title: `Card chore ${Date.now()}`,
+    description: '<p>For the phone card spec.</p>',
+    rule: { every: 'day' },
+    starts_on: today,
+    ends_on: today,
+    assignees: [person.id],
+    hours_each: '0.25',
+    client_site_id: studio.id,
+  });
+  expect(made.status(), await made.text()).toBe(200);
+
   await page.getByTestId('bwx-menu-toggle').click();
   await page.getByRole('navigation', { name: 'Screens', exact: true }).getByTestId('bwx-screen-recurring').click();
   await settled(page);
