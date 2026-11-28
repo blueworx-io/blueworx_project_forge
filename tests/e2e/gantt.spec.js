@@ -712,6 +712,39 @@ test.describe( 'the schedule', () => {
     await expect( tip ).toBeInViewport( { ratio: 1 } );
   } );
 
+  test( 'a name goes when its row scrolls out of view, and comes back with the row (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } leaves ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+    const id = ( await made.json() ).item.id;
+
+    // A short screen, so the chart is short and its rows scroll well out of view.
+    await page.setViewportSize( { width: 1000, height: 440 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ id }"]` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+    const chart = page.getByTestId( 'bwx-gantt-chart' );
+
+    await row.scrollIntoViewIfNeeded();
+    await row.locator( '.bwx-gantt-title' ).evaluate( ( node ) => node.focus( { preventScroll: true } ) );
+    await expect( tip ).toBeVisible();
+
+    // Scrolled until the row is wholly above the chart's edge: the name must not stay hanging there.
+    const moved = await chart.evaluate( ( node, item ) => {
+      const mine = node.querySelector( `[data-item="${ item }"]` );
+      const before = node.scrollTop;
+      node.scrollTop += mine.getBoundingClientRect().bottom - node.getBoundingClientRect().top + 4;
+      return [ before, node.scrollTop ];
+    }, id );
+    expect( moved[ 1 ], 'the chart scrolls up and down' ).toBeGreaterThan( moved[ 0 ] );
+    await expect( tip ).toBeHidden();
+
+    // And back: the row is in view again, so is its name (focus is still on it).
+    await chart.evaluate( ( node, top ) => { node.scrollTop = top; }, moved[ 0 ] );
+    await expect( tip ).toBeVisible();
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );

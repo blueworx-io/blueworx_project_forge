@@ -174,6 +174,20 @@ export function GanttView( {
       return;
     }
 
+    // A row that has scrolled out of view takes its name with it: otherwise a
+    // name left on show (focused, or under a pointer that has not moved) would
+    // hang in the chart, or over the screen, with no row beside it.
+    const edge = chart.getBoundingClientRect();
+    const head = chart.querySelector< HTMLElement >( '.bwx-gantt-axis' )?.getBoundingClientRect().height ?? 0;
+    const place = label.getBoundingClientRect();
+    const away = place.bottom <= edge.top + head || place.top >= Math.min( edge.top + chart.clientTop + chart.clientHeight, window.innerHeight );
+
+    if ( away ) {
+      label.setAttribute( 'data-away', 'true' );
+      return;
+    }
+
+    label.removeAttribute( 'data-away' );
     tip.removeAttribute( 'data-flip' );
     tip.removeAttribute( 'style' );
     // Hidden names take no room (a long one in the last row would otherwise add
@@ -187,7 +201,7 @@ export function GanttView( {
     // names stay above it. Where it is hidden or beside the page it takes no room.
     const bar = document.querySelector< HTMLElement >( '[data-testid="bwx-menu-toggle"]' )?.parentElement?.getBoundingClientRect();
     const floor = bar && 0 < bar.height && bar.top >= box.top ? Math.min( window.innerHeight, bar.top ) : window.innerHeight;
-    const seen = Math.min( box.top + chart.clientHeight, floor );
+    const seen = Math.min( box.top + chart.clientTop + chart.clientHeight, floor );
     const top = Math.max( box.top, 0 );
     const own = tip.getBoundingClientRect();
     const row = label.getBoundingClientRect();

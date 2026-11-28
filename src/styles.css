@@ -1389,7 +1389,8 @@ body {
 .bwx-gantt-name-tip[ data-opens='true' ] {
   cursor: pointer;
 }
-.bwx-gantt-label[ data-dismissed ] .bwx-gantt-name-tip {
+.bwx-gantt-label[ data-dismissed ] .bwx-gantt-name-tip,
+.bwx-gantt-label[ data-away ] .bwx-gantt-name-tip {
   display: none;
 }
 /* The tip covers the name, so the ring is drawn around the tip while focus is on the name. */
