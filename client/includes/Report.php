@@ -126,6 +126,20 @@ final class Report {
 	}
 
 	/**
+	 * Sends it once WordPress has saved this plugin as active (#718).
+	 *
+	 * Hooked to activated_plugin, which fires for every plugin activated in the
+	 * request; only this one's own activation is the occasion.
+	 *
+	 * @param string $plugin The plugin file just activated, relative to the plugins folder.
+	 */
+	public static function send_when_activated( $plugin ): void {
+		if ( defined( 'BWX_FORGE_CLIENT_FILE' ) && plugin_basename( BWX_FORGE_CLIENT_FILE ) === $plugin ) {
+			self::send();
+		}
+	}
+
+	/**
 	 * Sends it.
 	 *
 	 * A site that is not connected yet reports nothing rather than failing: on
