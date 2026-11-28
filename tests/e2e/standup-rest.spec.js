@@ -21,7 +21,12 @@ const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 async function cardsAbout(api, subjectId) {
   const list = await api.get('/standup');
 
-  return (list.cards ?? []).filter((card) => card.subject_id === subjectId);
+  // An error body has no cards: fail loudly rather than read it as an empty list.
+  if (!Array.isArray(list.cards)) {
+    throw new Error(`/standup returned no cards: ${JSON.stringify(list)}`);
+  }
+
+  return list.cards.filter((card) => card.subject_id === subjectId);
 }
 
 /** Which rules those cards name. */
