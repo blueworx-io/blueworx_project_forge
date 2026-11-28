@@ -830,6 +830,84 @@ test.describe( 'the schedule', () => {
     expect( await page.evaluate( () => document.documentElement.scrollWidth ) ).toBeLessThanOrEqual( 390 );
   } );
 
+  test( 'a name on a row part behind the top bar starts below the bar, so no first line is lost (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } behind ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 1000, height: 460 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } behind")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    // Room under the chart, as a long list below it would give, so the page can scroll the row up under the bar.
+    await page.getByTestId( 'bwx-gantt' ).evaluate( ( node ) => { node.style.paddingBottom = '900px'; } );
+
+    await row.scrollIntoViewIfNeeded();
+    // Whatever scrolls the page is moved until the row is partly under the bar.
+    const bar = await page.evaluate( ( id ) => {
+      const mine = document.querySelector( `[data-testid="bwx-gantt-row"][data-item="${ id }"]` );
+      const ceiling = document.querySelector( '.fs-topbar' ).getBoundingClientRect().bottom;
+      // The row just below the chart's own header, not scrolled up under it.
+      const chart = mine.closest( '[data-testid="bwx-gantt-chart"]' );
+      chart.scrollTop += mine.getBoundingClientRect().top - ( chart.getBoundingClientRect().top + chart.querySelector( '.bwx-gantt-axis' ).getBoundingClientRect().height );
+
+      let node = mine.parentElement;
+
+      while ( node ) {
+        const flow = getComputedStyle( node ).overflowY;
+
+        if ( ( 'auto' === flow || 'scroll' === flow ) && node.scrollHeight > node.clientHeight && ! node.matches( '[data-testid="bwx-gantt-chart"]' ) ) {
+          node.scrollTop += mine.getBoundingClientRect().top - ( ceiling - 14 );
+        }
+
+        node = node.parentElement;
+      }
+
+      window.scrollBy( 0, mine.getBoundingClientRect().top - ( ceiling - 14 ) );
+      return { ceiling, top: mine.getBoundingClientRect().top };
+    }, ( await made.json() ).item.id );
+    expect( bar.top, 'the row is part behind the bar' ).toBeLessThan( bar.ceiling );
+
+    // The pointer goes straight to the part of the row the bar leaves showing (hover() would scroll it clear).
+    const at = await row.locator( '.bwx-gantt-label' ).boundingBox();
+    await page.mouse.move( at.x + 60, bar.ceiling + 6 );
+    await expect( tip ).toBeVisible();
+    await expect( async () => {
+      const box = await tip.boundingBox();
+      expect( box.y ).toBeGreaterThanOrEqual( bar.ceiling - 1 );
+    } ).toPass();
+  } );
+
+  test( 'scrolling inside a tall name keeps its place (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } scrolled ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 390, height: 520 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } scrolled")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.locator( '.bwx-gantt-title' ).focus();
+    await expect( tip ).toBeVisible();
+
+    // A name longer than the title limit allows, as the room above the bar can be shorter than any name:
+    // the name is made taller than its room, then placed again by the chart moving.
+    await tip.evaluate( ( node ) => { node.textContent = 'a name that goes on and on '.repeat( 60 ); } );
+    await page.getByTestId( 'bwx-gantt-chart' ).evaluate( ( node ) => { node.scrollLeft += 30; } );
+    await expect( tip ).toHaveAttribute( 'data-flip', 'screen' );
+    await expect.poll( () => tip.evaluate( ( node ) => node.scrollHeight > node.clientHeight ) ).toBe( true );
+
+    const at = await tip.boundingBox();
+    await page.mouse.move( at.x + 40, at.y + 40 );
+    await page.mouse.wheel( 0, 60 );
+    await page.waitForTimeout( 500 );
+    expect( await tip.evaluate( ( node ) => node.scrollTop ) ).toBeGreaterThan( 20 );
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );

@@ -182,13 +182,15 @@ export function GanttView( {
     // Only what the person can see counts: the chart may run on below the
     // bottom of the screen (or behind the bar), or begin above the top of it.
     const seen = Math.min( box.top + chart.clientTop + chart.clientHeight, floor );
+    // The page's sticky top bar covers whatever scrolls up under it: nothing there can be read.
+    const ceiling = Math.max( 0, document.querySelector< HTMLElement >( '.fs-topbar' )?.getBoundingClientRect().bottom ?? 0 );
 
     // A row that has scrolled out of view takes its name with it: otherwise a
     // name left on show (focused, or under a pointer that has not moved) would
     // hang in the chart, or over the screen, with no row beside it.
     const head = chart.querySelector< HTMLElement >( '.bwx-gantt-axis' )?.getBoundingClientRect().height ?? 0;
     const place = label.getBoundingClientRect();
-    const away = place.bottom <= box.top + head || place.top >= seen;
+    const away = place.bottom <= Math.max( box.top + head, ceiling ) || place.top >= seen;
 
     if ( away ) {
       label.setAttribute( 'data-away', 'true' );
@@ -196,20 +198,25 @@ export function GanttView( {
     }
 
     label.removeAttribute( 'data-away' );
+    // Scrolling inside a tall name is kept, though the name is placed again.
+    const kept = tip.scrollTop;
+
     tip.removeAttribute( 'data-flip' );
     tip.removeAttribute( 'style' );
     // Hidden names take no room (a long one in the last row would otherwise add
     // blank scroll below it), so it is laid out only while it is measured.
     tip.style.display = 'block';
 
-    const top = Math.max( box.top, 0 );
+    const top = Math.max( box.top, ceiling );
     const own = tip.getBoundingClientRect();
     const row = label.getBoundingClientRect();
+    // Opened downward it starts at the top of its row: a row part behind the bar would lose its first lines.
+    const covered = row.top < ceiling;
 
-    if ( own.bottom > seen ) {
+    if ( own.bottom > seen || covered ) {
       // Opened upward it ends at the bottom of its row, so that must be in view too:
       // a row cut off by the chart's edge would cut the last line off with it.
-      if ( row.bottom <= seen && row.bottom - own.height >= top ) {
+      if ( ! covered && row.bottom <= seen && row.bottom - own.height >= top ) {
         tip.setAttribute( 'data-flip', 'true' );
       } else {
         // Taller than the room either way up (a few rows on a phone): drawn
@@ -219,14 +226,18 @@ export function GanttView( {
         // column still fits above the bar; past that it scrolls inside itself.
         tip.style.left = '8px';
         tip.style.width = `${ Math.max( row.width, window.innerWidth - 16 ) }px`;
-        tip.style.maxHeight = `${ Math.max( 0, floor - 16 ) }px`;
+        const lowest = Math.max( 8, ceiling );
+
+        tip.style.maxHeight = `${ Math.max( 0, floor - lowest - 8 ) }px`;
         tip.style.overflowY = 'auto';
 
         const height = tip.getBoundingClientRect().height;
 
-        tip.style.top = `${ Math.max( 8, Math.min( row.top, floor - height - 8 ) ) }px`;
+        tip.style.top = `${ Math.max( lowest, Math.min( row.top, floor - height - 8 ) ) }px`;
       }
     }
+
+    tip.scrollTop = kept;
 
     tip.style.removeProperty( 'display' );
   };
@@ -257,7 +268,14 @@ export function GanttView( {
   // A name is placed for where its row is, so it is placed again when the page
   // or the chart scrolls (one drawn over the screen is fixed to it).
   useEffect( () => {
-    const follow = () => {
+    const follow = ( event?: unknown ) => {
+      // Scrolling inside a tall name is not the page moving: leave it be.
+      const from = event instanceof Event ? event.target : null;
+
+      if ( from instanceof Element && from.closest( '.bwx-gantt-name-tip' ) ) {
+        return;
+      }
+
       // Every name on show, whichever way it was last placed: scrolling can give
       // one room it lacked, and scrolling back must not find it clipped.
       chartRef.current
