@@ -21,9 +21,9 @@ const RUN_ID = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 async function cardsAbout(api, subjectId) {
   const list = await api.get('/standup');
 
-  // An error body has no cards: fail loudly rather than read it as an empty list.
-  if (!Array.isArray(list.cards)) {
-    throw new Error(`/standup returned no cards: ${JSON.stringify(list)}`);
+  // An error body has no cards: a denied or error reply must not read as an empty list.
+  if (list.denied === true || !Array.isArray(list.cards)) {
+    throw new Error(`/standup gave no usable list: ${JSON.stringify(list)}`);
   }
 
   return list.cards.filter((card) => card.subject_id === subjectId);
