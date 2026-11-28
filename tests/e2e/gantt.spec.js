@@ -342,6 +342,62 @@ test.describe( 'the schedule', () => {
     await expect( bar ).toBeFocused();
   } );
 
+  test( 'a name taller than the chart still shows whole, over the screen (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } tall ${ 'a name that goes on and on '.repeat( 5 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 390, height: 520 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } tall")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.locator( '.bwx-gantt-title' ).hover();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toHaveText( long );
+    await expect( tip ).toBeInViewport( { ratio: 1 } );
+  } );
+
+  test( 'deleting an item from its panel leaves focus on the chart, not nowhere (review of #720)', async ( { page } ) => {
+    const made = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } doomed bar`, planned_start: on( 4 ), planned_due: on( 6 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+    const doomed = ( await made.json() ).item;
+
+    await openSchedule( page );
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ doomed.id }"]` );
+    await bar.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+
+    page.once( 'dialog', ( dialog ) => dialog.accept() );
+    await page.getByTestId( 'bwx-item-delete' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden( { timeout: 60_000 } );
+    await expect( bar ).toHaveCount( 0 );
+    await expect( page.getByTestId( 'bwx-gantt-chart' ) ).toBeFocused();
+  } );
+
+  test( 'closing an item opened from the Without dates tray keeps focus in the tray (review of #720)', async ( { page } ) => {
+    const made = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } doomed tray`, work_type: 'task' } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+    const entry = page.locator( '[data-testid="bwx-gantt-tray-item"]', { hasText: `${ RUN } doomed tray` } );
+    await entry.click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    await expect( entry ).toBeFocused();
+
+    // And when the work is gone, focus stays at the tray rather than jumping up to the chart.
+    await entry.click();
+    page.once( 'dialog', ( dialog ) => dialog.accept() );
+    await page.getByTestId( 'bwx-item-delete' ).click();
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden( { timeout: 60_000 } );
+    await expect( entry ).toHaveCount( 0 );
+    await expect( page.getByTestId( 'bwx-gantt-tray-toggle' ) ).toBeFocused();
+  } );
+
   test( 'a name still shows in full over a dimmed row (review of #720)', async ( { page } ) => {
     await openSchedule( page );
 

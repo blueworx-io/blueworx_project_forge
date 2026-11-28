@@ -1364,6 +1364,11 @@ body {
   top: auto;
   bottom: 0;
 }
+/* Taller than the chart either way: over the screen, placed by the script. */
+.bwx-gantt-name-tip[ data-flip='screen' ] {
+  position: fixed;
+  min-height: 0;
+}
 .bwx-gantt-label:hover {
   z-index: 4;
 }

@@ -53,6 +53,11 @@ export function GanttView( {
   const chartRef = useRef< HTMLDivElement >( null );
   const opener = useRef< HTMLElement | null >( null );
   const wasOpen = useRef( false );
+  // Where the opener lives, and the last thing focus was handed back to, so that
+  // work deleted from its panel does not leave focus on a control that is gone.
+  const origin = useRef< 'chart' | 'tray' >( 'chart' );
+  const returned = useRef< HTMLElement | null >( null );
+  const trayToggle = useRef< HTMLButtonElement >( null );
 
   const items = everything.filter( isLive );
 
@@ -100,18 +105,55 @@ export function GanttView( {
     // Only when the zoom or the Today button changes, not on every redraw.
   }, [ zoom, jump ] );
 
-  // When the panel a bar opened closes, focus goes back to that bar, or to the
-  // chart if the bar has gone, so a keyboard user keeps their place.
+  // When the panel closes, focus goes back to what opened it, so a keyboard
+  // user keeps their place. If that is gone, it goes to the chart, or to the
+  // tray when the work came from there, so the page does not jump.
+  const landing = (): HTMLElement | null => {
+    const from = opener.current;
+
+    if ( from?.isConnected ) {
+      return from;
+    }
+
+    return 'tray' === origin.current ? trayToggle.current : chartRef.current;
+  };
+
   useEffect( () => {
     if ( wasOpen.current && ! panelOpen ) {
-      const bar = opener.current;
+      const target = landing();
 
-      ( bar?.isConnected ? bar : chartRef.current )?.focus();
-      opener.current = null;
+      target?.focus();
+      returned.current = target;
     }
 
     wasOpen.current = panelOpen;
   }, [ panelOpen ] );
+
+  // Work deleted from its panel leaves the chart a moment after the panel
+  // closes: if focus was handed to its bar and the bar went, hand it on.
+  useEffect( () => {
+    const last = returned.current;
+
+    if ( ! last ) {
+      return;
+    }
+
+    const active = document.activeElement;
+
+    if ( last.isConnected ) {
+      if ( active !== last ) {
+        returned.current = null;
+      }
+
+      return;
+    }
+
+    returned.current = null;
+
+    if ( ! active || active === document.body ) {
+      landing()?.focus();
+    }
+  }, [ everything ] );
 
   /**
    * Opens the full name upward from its row when downward would run out of the
@@ -126,15 +168,28 @@ export function GanttView( {
     }
 
     tip.removeAttribute( 'data-flip' );
+    tip.removeAttribute( 'style' );
 
     const box = chart.getBoundingClientRect();
     const seen = box.top + chart.clientHeight;
     const own = tip.getBoundingClientRect();
     const row = label.getBoundingClientRect();
 
-    if ( own.bottom > seen && row.bottom - own.height >= box.top ) {
-      tip.setAttribute( 'data-flip', 'true' );
+    if ( own.bottom <= seen ) {
+      return;
     }
+
+    if ( row.bottom - own.height >= box.top ) {
+      tip.setAttribute( 'data-flip', 'true' );
+      return;
+    }
+
+    // Taller than the chart either way up (a few rows on a phone): drawn over
+    // the screen instead, kept inside it, so the whole name still reads.
+    tip.setAttribute( 'data-flip', 'screen' );
+    tip.style.left = `${ row.left }px`;
+    tip.style.width = `${ row.width }px`;
+    tip.style.top = `${ Math.max( 8, Math.min( row.top, window.innerHeight - own.height - 8 ) ) }px`;
   };
 
   const phases = [ ...new Set( dated.map( ( each ) => phaseOf( each.item.stage ) ) ) ];
@@ -282,6 +337,7 @@ export function GanttView( {
                       data-testid="bwx-gantt-title-open"
                       onClick={ ( event ) => {
                         opener.current = event.currentTarget;
+                        origin.current = 'chart';
                         onOpen( item );
                       } }
                     >
@@ -322,6 +378,7 @@ export function GanttView( {
                       aria-pressed={ item.id === active }
                       onClick={ ( event ) => {
                         opener.current = event.currentTarget;
+                        origin.current = 'chart';
                         // One click opens it, as the name does, and still marks
                         // what it waits on and what waits on it.
                         setSelected( item.id === active ? '' : item.id );
@@ -369,6 +426,7 @@ export function GanttView( {
        */ }
       <section className="bwx-gantt-tray" data-testid="bwx-gantt-tray" data-open={ open ? 'true' : 'false' }>
         <button
+          ref={ trayToggle }
           type="button"
           className="bwx-gantt-tray-toggle"
           data-testid="bwx-gantt-tray-toggle"
@@ -393,7 +451,11 @@ export function GanttView( {
                   style={
                     { '--bar-phase': `var(--phase-${ phaseOf( item.stage ) })` } as React.CSSProperties
                   }
-                  onClick={ () => onOpen( item ) }
+                  onClick={ ( event ) => {
+                    opener.current = event.currentTarget;
+                    origin.current = 'tray';
+                    onOpen( item );
+                  } }
                 >
                   { item.title }
                 </button>
