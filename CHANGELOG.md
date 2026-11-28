@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
+
+## [2.233.2] - 2026-11-28
+
+### Fixed
+
+- The daily standup no longer lists a reminder that everyone on it has ticked, or work that was cancelled, rejected or marked a duplicate, under Work needing attention. My tasks already treated both as done. Deferred work still shows, and so does a reminder with someone still to tick.
+
 ## [2.233.1] - 2026-11-27
 
 ### Fixed
 
 - The phone menu test no longer fails now and then. It tapped the menu's close button while the menu was still sliding in, so the tap landed where the button had been a moment before. It now waits for the menu to settle first. The menu itself was fine, and the test still fails if the close button is really broken (#719).
-
 
 ## [2.233.0] - 2026-11-27
 
