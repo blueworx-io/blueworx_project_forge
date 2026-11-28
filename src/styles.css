@@ -4930,3 +4930,12 @@ select.bwx-select,
   display: grid;
   gap: 8px;
 }
+
+/* A blocked item's name and where it came from can be longer than a phone is
+   wide: the button wraps instead of running off the side of the page. */
+.bwx-blocked-lane .bwx-button {
+  white-space: normal;
+  text-align: left;
+  max-width: 100%;
+  border-radius: var( --radius-card, 16px );
+}

@@ -104,9 +104,14 @@ export function WorkScreen( {
 
       blockedFrom.current = null;
 
-      if ( from.isConnected ) {
-        from.focus();
-      }
+      // Unblocked while the panel was open, the button is gone: focus goes to
+      // another one in the strip, or failing that to the view that is showing.
+      const target = from.isConnected
+        ? from
+        : document.querySelector< HTMLElement >( '[data-testid="bwx-blocked-item"]' ) ??
+          document.querySelector< HTMLElement >( '[data-testid^="bwx-view-"][aria-pressed="true"]' );
+
+      target?.focus();
     }
   }, [ openId ] );
 
@@ -579,7 +584,7 @@ export function WorkScreen( {
              pretending it is queued somewhere.
            */ }
           { 0 < blocked.length && (
-            <section style={ { padding: '0 20px 12px' } } data-testid="bwx-blocked-lane">
+            <section className="bwx-blocked-lane" style={ { padding: '0 20px 12px' } } data-testid="bwx-blocked-lane">
               <p className="bwx-eyebrow">Blocked · { blocked.length }</p>
               <div className="bwx-moves">
                 { blocked.map( ( each ) => (

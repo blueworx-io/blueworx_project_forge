@@ -183,9 +183,10 @@ export function GanttView( {
     // Only what the person can see counts: the chart may run on below the
     // bottom of the screen, or begin above the top of it.
     const box = chart.getBoundingClientRect();
-    // On a phone the navigation bar floats over the bottom of the page: names stay above it.
-    const bar = document.querySelector< HTMLElement >( '[data-testid="bwx-menu-toggle"]' )?.parentElement;
-    const floor = bar && 'fixed' === getComputedStyle( bar ).position ? Math.min( window.innerHeight, bar.getBoundingClientRect().top ) : window.innerHeight;
+    // On a phone the navigation bar sits below the page, fixed or in the flow:
+    // names stay above it. Where it is hidden or beside the page it takes no room.
+    const bar = document.querySelector< HTMLElement >( '[data-testid="bwx-menu-toggle"]' )?.parentElement?.getBoundingClientRect();
+    const floor = bar && 0 < bar.height && bar.top >= box.top ? Math.min( window.innerHeight, bar.top ) : window.innerHeight;
     const seen = Math.min( box.top + chart.clientHeight, floor );
     const top = Math.max( box.top, 0 );
     const own = tip.getBoundingClientRect();
@@ -306,7 +307,7 @@ export function GanttView( {
                   { /* Slides to stay in the room beside the names, so a date is always readable. */ }
                   <span className="bwx-gantt-day-label">
                     <span className="bwx-gantt-day-name">{ weekdayOf( column.start ) }</span>
-                    { column.label }
+                    { spoken( column.start ) }
                   </span>
                 </span>
               ) : (
@@ -375,7 +376,12 @@ export function GanttView( {
                       event.currentTarget.removeAttribute( 'data-dismissed' );
                     }
                   } }
-                  onBlur={ ( event ) => event.currentTarget.removeAttribute( 'data-dismissed' ) }
+                  onBlur={ ( event ) => {
+                    // Still under the pointer, it stays put away until the pointer leaves too.
+                    if ( ! event.currentTarget.matches( ':hover' ) ) {
+                      event.currentTarget.removeAttribute( 'data-dismissed' );
+                    }
+                  } }
                 >
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
                   { null === place ? (
@@ -437,6 +443,7 @@ export function GanttView( {
                         '--bar-phase': `var(--phase-${ phase })`,
                       } as React.CSSProperties }
                       title={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
+                      aria-label={ `${ item.title }: ${ spoken( span.start ) } to ${ spoken( span.due ) }${ span.derived ? ' (from the work beneath it)' : '' }${ overdue ? ' · overdue' : '' }` }
                       aria-pressed={ item.id === active }
                       onClick={ ( event ) => {
                         opener.current = event.currentTarget;

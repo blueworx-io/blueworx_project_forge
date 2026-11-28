@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
-## [2.233.1] - 2026-11-27
+## [2.233.2] - 2026-11-28
 
 ### Fixed
- The chart can be reached and scrolled from the keyboard (it takes focus and is named "Schedule, scrolls sideways"). A long name stays whole inside the chart even on the last row, a dated column always keeps a date in view while scrolling, the name keeps a visible focus ring, and closing an item opened from a bar puts focus back on that bar. A name taller than the chart is shown whole over the screen, and focus lands on the chart or the tray when the item it came from is deleted. On a phone a long name stays above the bottom bar, and closing an item with Escape returns focus to the item opened last, whether it came from a bar or the Blocked strip.
+ The chart can be reached and scrolled from the keyboard (it takes focus and is named "Schedule, scrolls sideways"). A long name stays whole inside the chart even on the last row, a dated column always keeps a date in view while scrolling, the name keeps a visible focus ring, and closing an item opened from a bar puts focus back on that bar. A name taller than the chart is shown whole over the screen, and focus lands on the chart or the tray when the item it came from is deleted. On a phone a long name stays above the bottom bar, and closing an item with Escape returns focus to the item opened last, whether it came from a bar or the Blocked strip. Each day names its month, a bar is named after its item for screen readers, and a name put away with Escape stays away while the pointer is still on it. If the Blocked button you opened an item from has gone (the item was unblocked), Escape puts focus on the next Blocked item or the current view. A long Blocked item no longer pushes the work screen sideways on a phone.
 - The Gantt chart is easier to read and to use. In the Days view each day is now 264 pixels wide, six times what it was, and the chart still scrolls sideways with Today bringing today into view. Hovering a name in the left column, or tabbing onto it, shows the full name. One click on a bar now opens the item, as clicking its name does; it also still marks what the item waits on and what waits on it.
 
 ## [2.233.0] - 2026-11-27

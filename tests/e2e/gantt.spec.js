@@ -501,6 +501,79 @@ test.describe( 'the schedule', () => {
     await expect( title ).toBeFocused();
   } );
 
+  test( 'a name put away with Escape stays away while the pointer is on it, even after focus moves on (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } hov ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } hov")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+    const title = row.locator( '.bwx-gantt-title' );
+
+    await title.focus();
+    await row.locator( '.bwx-gantt-label' ).hover();
+    await expect( tip ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( tip ).toBeHidden();
+
+    // Focus moves on to the bar; the pointer has not left the name.
+    await page.keyboard.press( 'Tab' );
+    await expect( title ).not.toBeFocused();
+    await expect( tip ).toBeHidden();
+  } );
+
+  test( 'every day names its month, so a day is never a bare number while scrolling (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const labels = await page.locator( '.bwx-gantt-day-label' ).evaluateAll( ( nodes ) => nodes.map( ( node ) => node.textContent ) );
+    expect( labels.length ).toBeGreaterThan( 20 );
+
+    for ( const label of labels ) {
+      expect( label ).toMatch( /^[A-Z][a-z]{2}\d{1,2} [A-Z][a-z]{2}$/ );
+    }
+  } );
+
+  test( 'a bar is named after its item, not only its dates (review of #720)', async ( { page } ) => {
+    await openSchedule( page );
+
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` );
+    await expect( bar ).toHaveAttribute( 'aria-label', new RegExp( `^${ RUN } guest checkout: ` ) );
+    await expect( page.getByRole( 'button', { name: new RegExp( `^${ RUN } guest checkout: ` ) } ) ).toHaveCount( 1 );
+  } );
+
+  test( 'unblocking an item from its panel and pressing Escape leaves focus in the strip or the view, not nowhere (review of #720)', async ( { page } ) => {
+    const make = async ( name ) => {
+      const made = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } ${ name }`, planned_start: on( 4 ), planned_due: on( 6 ) } );
+      expect( made.status(), await made.text() ).toBe( 200 );
+      const item = ( await made.json() ).item;
+      const blocked = await world.admin.api.post( `/work-items/${ item.id }/block`, { owner: 'The client', record_version: item.record_version } );
+      expect( blocked.status(), await blocked.text() ).toBe( 200 );
+      return item;
+    };
+
+    const one = await make( 'unblock one' );
+    await make( 'unblock two' );
+
+    await openSchedule( page );
+
+    const strip = page.locator( `[data-testid="bwx-blocked-item"][data-item="${ one.id }"]` );
+    await strip.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.getByTestId( 'bwx-resolution' ).fill( 'Sorted.' );
+    await page.getByTestId( 'bwx-unblock' ).click();
+    await expect( strip ).toHaveCount( 0, { timeout: 60_000 } );
+
+    // The Unblock button went with the state, so focus is put back inside the panel to press Escape there.
+    await page.locator( '.bwx-panel-head .bwx-icon-button[aria-label="Close"]' ).focus();
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    // The button it came from is gone, so focus goes to what is left in the strip.
+    await expect( page.getByTestId( 'bwx-blocked-item' ).first() ).toBeFocused();
+  } );
+
   test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
     const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
     const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );
