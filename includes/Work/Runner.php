@@ -67,6 +67,7 @@ final class Runner {
 		'id',
 		'title',
 		'stage',
+		'terminal_outcome',
 		'level',
 		'work_type',
 		'priority',
@@ -171,6 +172,34 @@ final class Runner {
 	 */
 	public static function definition( array $item ): array {
 		return self::pick( $item, self::DEFINITION );
+	}
+
+	/**
+	 * What the card's client site last said it runs, so the runner can tell
+	 * whether a release has reached it (#718). Pure.
+	 *
+	 * Only the plugin list and when it was reported: nothing else about the
+	 * site's connection is the runner's to read.
+	 *
+	 * @param array<string, mixed>|null $integration The card's client site integration, if it has one.
+	 * @return array{site_plugins: array<int, array{slug: string, version: string}>, site_reported_at: int}
+	 */
+	public static function site( ?array $integration ): array {
+		$plugins = array();
+
+		foreach ( (array) ( $integration['plugins'] ?? array() ) as $plugin ) {
+			if ( is_array( $plugin ) && isset( $plugin['slug'], $plugin['version'] ) ) {
+				$plugins[] = array(
+					'slug'    => (string) $plugin['slug'],
+					'version' => (string) $plugin['version'],
+				);
+			}
+		}
+
+		return array(
+			'site_plugins'     => $plugins,
+			'site_reported_at' => (int) ( $integration['plugins_reported_at'] ?? 0 ),
+		);
 	}
 
 	/**

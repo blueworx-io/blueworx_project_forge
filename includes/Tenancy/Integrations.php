@@ -340,6 +340,13 @@ final class Integrations {
 			}
 		}
 
+		// A site on an older connector sends no list. That is not a site with no
+		// plugins, so the last list stays.
+		if ( isset( $report['plugins'] ) && is_array( $report['plugins'] ) ) {
+			$changes['plugins']             = (string) wp_json_encode( array_values( $report['plugins'] ) );
+			$changes['plugins_reported_at'] = bwx_forge_now();
+		}
+
 		if ( array_key_exists( 'mail_capable', $report ) ) {
 			$changes['mail_capable']    = (string) $report['mail_capable'];
 			$changes['mail_checked_at'] = bwx_forge_now();
@@ -393,6 +400,18 @@ final class Integrations {
 	}
 
 	/**
+	 * The stored plugin list, as a list of slug and version.
+	 *
+	 * @param mixed $stored The column: JSON, or null before any report.
+	 * @return array<int, array{slug: string, version: string}>
+	 */
+	private static function plugins( $stored ): array {
+		$list = is_string( $stored ) && '' !== $stored ? json_decode( $stored, true ) : array();
+
+		return is_array( $list ) ? array_values( $list ) : array();
+	}
+
+	/**
 	 * Turns a database row into the record the rest of the plugin uses, with the
 	 * derived health state on it — nothing should ever have to work that out for
 	 * itself.
@@ -402,29 +421,31 @@ final class Integrations {
 	 */
 	private static function hydrate( array $row ): array {
 		$record = array(
-			'id'               => (string) $row['id'],
-			'client_site_id'   => (string) $row['client_site_id'],
-			'client_id'        => (string) $row['client_id'],
-			'registry_site_id' => (string) $row['registry_site_id'],
-			'key_state'        => (string) $row['key_state'],
-			'key_issued_at'    => (int) $row['key_issued_at'],
-			'key_rotated_at'   => (int) $row['key_rotated_at'],
-			'key_revoked_at'   => (int) $row['key_revoked_at'],
-			'last_seen_at'     => (int) $row['last_seen_at'],
-			'last_report_at'   => (int) $row['last_report_at'],
-			'last_error_code'  => (string) $row['last_error_code'],
-			'last_error_at'    => (int) $row['last_error_at'],
-			'mail_capable'     => (string) $row['mail_capable'],
-			'mail_checked_at'  => (int) $row['mail_checked_at'],
-			'mail_detail'      => (string) $row['mail_detail'],
-			'home_url'         => (string) $row['home_url'],
-			'wp_version'       => (string) $row['wp_version'],
-			'php_version'      => (string) $row['php_version'],
-			'plugin_version'   => (string) $row['plugin_version'],
-			'created_at'       => (int) $row['created_at'],
-			'updated_at'       => (int) $row['updated_at'],
-			'created_by'       => (int) $row['created_by'],
-			'record_version'   => (int) $row['record_version'],
+			'id'                  => (string) $row['id'],
+			'client_site_id'      => (string) $row['client_site_id'],
+			'client_id'           => (string) $row['client_id'],
+			'registry_site_id'    => (string) $row['registry_site_id'],
+			'key_state'           => (string) $row['key_state'],
+			'key_issued_at'       => (int) $row['key_issued_at'],
+			'key_rotated_at'      => (int) $row['key_rotated_at'],
+			'key_revoked_at'      => (int) $row['key_revoked_at'],
+			'last_seen_at'        => (int) $row['last_seen_at'],
+			'last_report_at'      => (int) $row['last_report_at'],
+			'last_error_code'     => (string) $row['last_error_code'],
+			'last_error_at'       => (int) $row['last_error_at'],
+			'mail_capable'        => (string) $row['mail_capable'],
+			'mail_checked_at'     => (int) $row['mail_checked_at'],
+			'mail_detail'         => (string) $row['mail_detail'],
+			'home_url'            => (string) $row['home_url'],
+			'wp_version'          => (string) $row['wp_version'],
+			'php_version'         => (string) $row['php_version'],
+			'plugin_version'      => (string) $row['plugin_version'],
+			'plugins'             => self::plugins( $row['plugins'] ?? null ),
+			'plugins_reported_at' => (int) ( $row['plugins_reported_at'] ?? 0 ),
+			'created_at'          => (int) $row['created_at'],
+			'updated_at'          => (int) $row['updated_at'],
+			'created_by'          => (int) $row['created_by'],
+			'record_version'      => (int) $row['record_version'],
 		);
 
 		$record['health']       = Health::state( $record );

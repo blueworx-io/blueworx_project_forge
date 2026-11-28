@@ -128,6 +128,10 @@ test( 'with the key, the runner lists, reads, claims, hands over and comments on
   expect( card.problem ).toBe( 'Something needs doing.' );
   expect( card.checklist.map( ( line ) => line.text ) ).toEqual( [ 'Build it', 'Check it' ] );
   expect( card.next.to ).toBe( 'in-development' );
+  // #718. Open, so no outcome; and a site that has reported nothing.
+  expect( card.terminal_outcome ).toBe( '' );
+  expect( card.site_plugins ).toEqual( [] );
+  expect( card.site_reported_at ).toBe( 0 );
   expect( Array.isArray( card.comments ) ).toBe( true );
   for ( const leak of [ 'children', 'history', 'dependencies', 'parent_id', 'client_id', 'commercial_class' ] ) {
     expect( card, leak ).not.toHaveProperty( leak );

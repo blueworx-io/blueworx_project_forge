@@ -86,6 +86,109 @@ final class ValidateReportTest extends TestCase {
 	}
 
 	/**
+	 * The plugin list keeps what is well formed and drops the rest, without
+	 * refusing the report (#718).
+	 */
+	public function test_bad_plugin_entries_are_dropped_not_refused(): void {
+		$checked = Validate::report(
+			array(
+				'plugins' => array(
+					array(
+						'slug'    => 'blueworx-forge-client',
+						'version' => '2.234.0',
+					),
+					array(
+						'slug'    => 'Upper_Case',
+						'version' => '1',
+					),
+					array(
+						'slug'    => '../etc',
+						'version' => '1',
+					),
+					array(
+						'slug'    => "trailing-newline
+",
+						'version' => '1',
+					),
+					array(
+						'slug'    => str_repeat( 'a', 101 ),
+						'version' => '1',
+					),
+					array(
+						'slug'    => '',
+						'version' => '1',
+					),
+					array(
+						'slug'    => 'long-version',
+						'version' => str_repeat( '1', 33 ),
+					),
+					array(
+						'slug'    => 'no-version',
+					),
+					array(
+						'slug'    => array( 'x' ),
+						'version' => '1',
+					),
+					'not-an-entry',
+					array(
+						'slug'    => 'blueworx-forge-client',
+						'version' => '9.9.9',
+					),
+					array(
+						'slug'    => 'edge',
+						'version' => str_repeat( '1', 32 ),
+					),
+					array(
+						'slug'    => str_repeat( 'a', 100 ),
+						'version' => '',
+					),
+				),
+			)
+		);
+
+		$this->assertSame( array(), $checked['errors'] );
+		$this->assertSame(
+			array(
+				array(
+					'slug'    => 'blueworx-forge-client',
+					'version' => '2.234.0',
+				),
+				array(
+					'slug'    => 'edge',
+					'version' => str_repeat( '1', 32 ),
+				),
+				array(
+					'slug'    => str_repeat( 'a', 100 ),
+					'version' => '',
+				),
+			),
+			$checked['values']['plugins']
+		);
+	}
+
+	/**
+	 * No more than 200 plugins are kept, and a report with no list, or a list
+	 * that is not a list, leaves the stored one alone (#718).
+	 */
+	public function test_the_plugin_list_is_capped_and_optional(): void {
+		$many = array();
+
+		for ( $i = 0; $i < 250; $i++ ) {
+			$many[] = array(
+				'slug'    => 'plugin-' . $i,
+				'version' => '1.0',
+			);
+		}
+
+		$checked = Validate::report( array( 'plugins' => $many ) );
+
+		$this->assertCount( 200, $checked['values']['plugins'] );
+		$this->assertArrayNotHasKey( 'plugins', Validate::report( array( 'wp_version' => '6.7' ) )['values'] );
+		$this->assertArrayNotHasKey( 'plugins', Validate::report( array( 'plugins' => 'nope' ) )['values'] );
+		$this->assertSame( array(), Validate::report( array( 'plugins' => array() ) )['values']['plugins'] );
+	}
+
+	/**
 	 * An empty report is not an error. A site with nothing new to say still
 	 * proves it is alive by asking, and that sighting is worth recording.
 	 */

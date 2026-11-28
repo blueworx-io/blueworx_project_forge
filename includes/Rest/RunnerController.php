@@ -13,6 +13,7 @@ use Blueworx\Forge\Commerce\WorkLedger;
 use Blueworx\Forge\GitHub\Links as GitHubLinks;
 use Blueworx\Forge\Slack\Notify;
 use Blueworx\Forge\Tenancy\Agents;
+use Blueworx\Forge\Tenancy\Integrations;
 use Blueworx\Forge\Tenancy\RunnerKey;
 use Blueworx\Forge\Work\Changelog;
 use Blueworx\Forge\Work\Comments;
@@ -463,6 +464,7 @@ final class RunnerController {
 
 		return array_merge(
 			Runner::definition( $item ),
+			Runner::site( '' === (string) ( $item['client_site_id'] ?? '' ) ? null : Integrations::for_site( (string) $item['client_site_id'] ) ),
 			array(
 				'github_issue' => null === $link ? null : array(
 					'repo'   => (string) $link['repo'],

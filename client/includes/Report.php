@@ -70,9 +70,59 @@ final class Report {
 			'wp_version'     => get_bloginfo( 'version' ),
 			'php_version'    => PHP_VERSION,
 			'plugin_version' => defined( 'BWX_FORGE_CLIENT_VERSION' ) ? BWX_FORGE_CLIENT_VERSION : '',
+			'plugins'        => self::plugins(),
 			'mail_capable'   => $mail['capable'],
 			'mail_detail'    => $mail['detail'],
 		);
+	}
+
+	/**
+	 * The most plugins one report lists. The studio keeps no more than this.
+	 */
+	public const MAX_PLUGINS = 200;
+
+	/**
+	 * Every active plugin, as its folder name and its version (#718), so the
+	 * studio can see which release a site is really running.
+	 *
+	 * A plugin that is one file in the plugins folder has no folder, so its
+	 * file name without .php stands in. Network-active plugins count too.
+	 *
+	 * @return array<int, array{slug: string, version: string}>
+	 */
+	public static function plugins(): array {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$active = (array) get_option( 'active_plugins', array() );
+
+		if ( is_multisite() ) {
+			$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+		}
+
+		$installed = get_plugins();
+		$list      = array();
+
+		foreach ( array_unique( $active ) as $file ) {
+			if ( ! isset( $installed[ $file ] ) ) {
+				continue;
+			}
+
+			$folder = dirname( $file );
+			$slug   = '.' === $folder ? basename( $file, '.php' ) : $folder;
+
+			$list[] = array(
+				'slug'    => $slug,
+				'version' => (string) $installed[ $file ]['Version'],
+			);
+
+			if ( count( $list ) >= self::MAX_PLUGINS ) {
+				break;
+			}
+		}
+
+		return $list;
 	}
 
 	/**

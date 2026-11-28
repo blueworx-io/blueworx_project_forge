@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.37.0 predate this file; their history is in the repository's
 commits and pull requests.
 
+## [2.234.0] - 2026-11-28
+
+### Added
+
+- Sites now tell Forge which plugin versions they run.
+
 ## [2.233.0] - 2026-11-27
 
 ### Added

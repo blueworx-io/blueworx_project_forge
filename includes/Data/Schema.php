@@ -24,7 +24,7 @@ final class Schema {
 	/**
 	 * The schema's own version. Bump on any change to definitions().
 	 */
-	public const VERSION = 57;
+	public const VERSION = 58;
 
 	/**
 	 * Option holding the version a site has actually built.
@@ -661,6 +661,8 @@ final class Schema {
 	wp_version varchar(32) NOT NULL DEFAULT '',
 	php_version varchar(32) NOT NULL DEFAULT '',
 	plugin_version varchar(32) NOT NULL DEFAULT '',
+	plugins longtext DEFAULT NULL,
+	plugins_reported_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	updated_at bigint(20) unsigned NOT NULL DEFAULT 0,
 	created_by bigint(20) unsigned NOT NULL DEFAULT 0,
