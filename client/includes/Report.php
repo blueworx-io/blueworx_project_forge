@@ -107,9 +107,12 @@ final class Report {
 		$list = array();
 
 		foreach ( array_unique( $active ) as $file ) {
+			$file = (string) $file;
 			$path = WP_PLUGIN_DIR . '/' . $file;
 
-			if ( ! is_file( $path ) ) {
+			// The same test WordPress applies before it loads an active plugin: a
+			// path that stays in the plugins folder, is a .php file, and is there.
+			if ( 0 !== validate_file( $file ) || '.php' !== substr( $file, -4 ) || ! is_file( $path ) ) {
 				continue;
 			}
 
