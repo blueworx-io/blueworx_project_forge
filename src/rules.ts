@@ -947,7 +947,7 @@ export const RULES: RuleSection[] = [
         why: 'The runner has no business with anyone else\'s work, and should not learn which other tasks exist.',
       },
       {
-        what: 'With the key, the runner can list the Agent\'s tasks in Up Next, In development or In review, read one task\'s own details and comments, move it from Up Next to In development, hand it over from In development to In review, and leave internal comments as the Agent. It can do nothing else: the key opens no other page or screen in Forge, and no other move.',
+        what: 'With the key, the runner can list the Agent\'s tasks in Up Next, In development or In review, read one task\'s own details and comments, see which plugin versions the task\'s client site last reported running, move it from Up Next to In development, hand it over from In development to In review, and leave internal comments as the Agent. It can do nothing else: the key opens no other page or screen in Forge, and no other move.',
         why: 'The runner needs to pick up work, do it and hand it back, and nothing more.',
       },
       {

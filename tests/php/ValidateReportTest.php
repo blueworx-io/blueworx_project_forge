@@ -132,7 +132,7 @@ final class ValidateReportTest extends TestCase {
 					'not-an-entry',
 					array(
 						'slug'    => 'blueworx-forge-client',
-						'version' => '9.9.9',
+						'version' => '2.234.0',
 					),
 					array(
 						'slug'    => 'edge',
@@ -185,6 +185,35 @@ final class ValidateReportTest extends TestCase {
 		$this->assertCount( 200, $checked['values']['plugins'] );
 		$this->assertArrayNotHasKey( 'plugins', Validate::report( array( 'wp_version' => '6.7' ) )['values'] );
 		$this->assertArrayNotHasKey( 'plugins', Validate::report( array( 'plugins' => 'nope' ) )['values'] );
+		// A JSON object is not a list: it must not clear what is stored.
+		$this->assertArrayNotHasKey( 'plugins', Validate::report( array( 'plugins' => array( 'slug' => 'x' ) ) )['values'] );
+		// Two active plugin files in one folder are two plugins.
+		$this->assertSame(
+			array(
+				array(
+					'slug'    => 'suite',
+					'version' => '1.0',
+				),
+				array(
+					'slug'    => 'suite',
+					'version' => '2.0',
+				),
+			),
+			Validate::report(
+				array(
+					'plugins' => array(
+						array(
+							'slug'    => 'suite',
+							'version' => '1.0',
+						),
+						array(
+							'slug'    => 'suite',
+							'version' => '2.0',
+						),
+					),
+				)
+			)['values']['plugins']
+		);
 		$this->assertSame( array(), Validate::report( array( 'plugins' => array() ) )['values']['plugins'] );
 	}
 

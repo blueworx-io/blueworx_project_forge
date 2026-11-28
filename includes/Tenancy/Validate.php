@@ -421,7 +421,7 @@ final class Validate {
 			}
 		}
 
-		if ( array_key_exists( 'plugins', $input ) && is_array( $input['plugins'] ) ) {
+		if ( array_key_exists( 'plugins', $input ) && is_array( $input['plugins'] ) && array_is_list( $input['plugins'] ) ) {
 			$values['plugins'] = self::plugins( $input['plugins'] );
 		}
 
@@ -435,8 +435,11 @@ final class Validate {
 	 * Cleans the list of plugins a site says it runs (#718).
 	 *
 	 * An entry that is not a slug and a version is dropped, not refused: one odd
-	 * plugin must not bounce the rest of the report. A slug seen twice is kept
-	 * once, and the list stops at MAX_PLUGINS.
+	 * plugin must not bounce the rest of the report. The same slug and version
+	 * seen twice is kept once; two different versions of one slug are both kept,
+	 * since two active plugin files can share a folder. The list stops at
+	 * MAX_PLUGINS. Something that is not a list is not a report of plugins at all
+	 * and is ignored by the caller.
 	 *
 	 * @param array<mixed> $raw What arrived in the field.
 	 * @return array<int, array{slug: string, version: string}>
@@ -457,12 +460,12 @@ final class Validate {
 			$slug    = $entry['slug'];
 			$version = trim( $entry['version'] );
 
-			if ( 1 !== preg_match( self::PLUGIN_SLUG, $slug ) || mb_strlen( $version ) > self::MAX_PLUGIN_VERSION || isset( $seen[ $slug ] ) ) {
+			if ( 1 !== preg_match( self::PLUGIN_SLUG, $slug ) || mb_strlen( $version ) > self::MAX_PLUGIN_VERSION || isset( $seen[ $slug . ' ' . $version ] ) ) {
 				continue;
 			}
 
-			$seen[ $slug ] = true;
-			$clean[]       = array(
+			$seen[ $slug . ' ' . $version ] = true;
+			$clean[]                        = array(
 				'slug'    => $slug,
 				'version' => $version,
 			);
