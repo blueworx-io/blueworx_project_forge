@@ -278,7 +278,7 @@ test.describe( 'the schedule', () => {
     const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
 
     await expect( tip ).toBeHidden();
-    await row.locator( '.bwx-gantt-title' ).hover();
+    await row.locator( '.bwx-gantt-label' ).hover();
     await expect( tip ).toBeVisible();
     await expect( tip ).toHaveText( long );
 
@@ -313,7 +313,7 @@ test.describe( 'the schedule', () => {
     const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
 
     await row.scrollIntoViewIfNeeded();
-    await row.locator( '.bwx-gantt-title' ).hover();
+    await row.locator( '.bwx-gantt-label' ).hover();
     await expect( tip ).toBeVisible();
     await expect( tip ).toHaveText( long );
 
@@ -353,7 +353,7 @@ test.describe( 'the schedule', () => {
     const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } tall")` );
     const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
 
-    await row.locator( '.bwx-gantt-title' ).hover();
+    await row.locator( '.bwx-gantt-label' ).hover();
     await expect( tip ).toBeVisible();
     await expect( tip ).toHaveText( long );
     await expect( tip ).toBeInViewport( { ratio: 1 } );
@@ -398,6 +398,108 @@ test.describe( 'the schedule', () => {
     await expect( page.getByTestId( 'bwx-gantt-tray-toggle' ) ).toBeFocused();
   } );
 
+  test( 'focus goes back only to what opened the item: a bar, then the Blocked strip (review of #720)', async ( { page } ) => {
+    const made = await makeItem( world.admin.api, world.site.id, { title: `${ RUN } stuck`, planned_start: on( 4 ), planned_due: on( 6 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+    const stuck = ( await made.json() ).item;
+    const blocked = await world.admin.api.post( `/work-items/${ stuck.id }/block`, { owner: 'The client', record_version: stuck.record_version } );
+    expect( blocked.status(), await blocked.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const bar = page.locator( `[data-testid="bwx-gantt-bar"][data-item="${ world.first.id }"]` );
+    await bar.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( bar ).toBeFocused();
+
+    // Opened from the strip under the chart, the bar it was last on is not where focus belongs.
+    const strip = page.locator( `[data-testid="bwx-blocked-item"][data-item="${ stuck.id }"]` );
+    await strip.focus();
+    await page.keyboard.press( 'Enter' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( page.getByTestId( 'bwx-panel' ) ).toBeHidden();
+    await expect( bar ).not.toBeFocused();
+  } );
+
+  test( 'a long name stays while the pointer moves onto it, and Escape puts it away (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } esc ${ 'a name that goes on and on '.repeat( 4 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 3 ), planned_due: on( 5 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } esc")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+    const title = row.locator( '.bwx-gantt-title' );
+    const label = row.locator( '.bwx-gantt-label' );
+
+    await label.hover();
+    await expect( tip ).toBeVisible();
+
+    // Down onto the part that runs over the next row: still there.
+    const at = await tip.boundingBox();
+    const own = await row.boundingBox();
+    expect( at.y + at.height, 'the name runs below its own row' ).toBeGreaterThan( own.y + own.height + 4 );
+    await page.mouse.move( at.x + 20, at.y + at.height - 4 );
+    await expect( tip ).toBeVisible();
+
+    // Escape closes it with the pointer where it is, and it comes back on the next visit.
+    await page.keyboard.press( 'Escape' );
+    await expect( tip ).toBeHidden();
+    await page.mouse.move( 0, 0 );
+    await label.hover();
+    await expect( tip ).toBeVisible();
+
+    // From the keyboard, focus stays where it is.
+    await page.mouse.move( 0, 0 );
+    await title.focus();
+    await expect( tip ).toBeVisible();
+    await page.keyboard.press( 'Escape' );
+    await expect( tip ).toBeHidden();
+    await expect( title ).toBeFocused();
+  } );
+
+  test( 'hidden names add no blank scroll space, and the days leave room after the last (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } zzz ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 30 ), planned_due: on( 32 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await openSchedule( page );
+    await expect( page.locator( '[data-testid="bwx-gantt-row"]:has-text("zzz")' ) ).toBeVisible();
+
+    const room = await page.getByTestId( 'bwx-gantt-chart' ).evaluate( ( chart ) => {
+      const frame = chart.getBoundingClientRect();
+      const rows = chart.querySelector( '.bwx-gantt-rows' ).getBoundingClientRect();
+
+      return {
+        below: chart.scrollHeight - ( rows.bottom - frame.top + chart.scrollTop ),
+        after: chart.scrollWidth - ( rows.right - frame.left + chart.scrollLeft ),
+      };
+    } );
+
+    expect( room.below, 'nothing to scroll to below the last row' ).toBeLessThanOrEqual( 2 );
+    expect( room.after, 'room after the last day' ).toBeGreaterThanOrEqual( 90 );
+  } );
+
+  test( 'a long name is fitted to what is on the screen, not to the whole chart (review of #720)', async ( { page } ) => {
+    const long = `${ RUN } yyy ${ 'the last row has a name so long that it wraps ' .repeat( 3 ) }end`;
+    const made = await makeItem( world.admin.api, world.site.id, { title: long, planned_start: on( 31 ), planned_due: on( 33 ) } );
+    expect( made.status(), await made.text() ).toBe( 200 );
+
+    await page.setViewportSize( { width: 1000, height: 560 } );
+    await openSchedule( page );
+
+    const row = page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } yyy")` );
+    const tip = row.locator( '[data-testid="bwx-gantt-name-tip"]' );
+
+    await row.locator( '.bwx-gantt-label' ).hover();
+    await expect( tip ).toBeVisible();
+    await expect( tip ).toBeInViewport( { ratio: 1 } );
+  } );
+
   test( 'a name still shows in full over a dimmed row (review of #720)', async ( { page } ) => {
     await openSchedule( page );
 
@@ -410,7 +512,7 @@ test.describe( 'the schedule', () => {
     const late = page.locator( `[data-testid="bwx-gantt-row"][data-item="${ world.late.id }"]` );
     await expect( late ).toHaveAttribute( 'data-dimmed', 'true' );
 
-    await late.locator( '.bwx-gantt-title' ).hover();
+    await late.locator( '.bwx-gantt-label' ).hover();
     const tip = late.locator( '[data-testid="bwx-gantt-name-tip"]' );
     await expect( tip ).toBeVisible();
 
@@ -567,7 +669,7 @@ test.describe( 'the schedule', () => {
     await expect( inView ).toPass();
 
     // A name with no bar still opens its work, as the tray does.
-    await page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } old") [data-testid="bwx-gantt-title-open"]` ).click();
+    await page.locator( `[data-testid="bwx-gantt-row"]:has-text("${ RUN } old") .bwx-gantt-label` ).click();
     await expect( page.getByTestId( 'bwx-panel' ) ).toBeVisible();
     await page.keyboard.press( 'Escape' );
 

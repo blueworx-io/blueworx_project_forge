@@ -1157,6 +1157,9 @@ body {
    while it does, so a bar is never far from its name. */
 .bwx-gantt-chart[ data-zoom='day' ] {
   --gantt-day: 264px;
+  /* Room after the last day, so Today can be scrolled clear of the pinned names
+     and the edge even when it is the last day drawn. */
+  padding-right: 96px;
 }
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis,
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-rows {
@@ -1356,8 +1359,9 @@ body {
   color: var( --ink-900 );
   white-space: normal;
   overflow-wrap: anywhere;
-  pointer-events: none;
-  visibility: hidden;
+  /* Out of the layout until shown, so a long name in the last row cannot add
+     blank space to scroll into. */
+  display: none;
 }
 /* Opens upward from the row when downward would run out of the chart. */
 .bwx-gantt-name-tip[ data-flip='true' ] {
@@ -1376,9 +1380,17 @@ body {
 .bwx-gantt-label:focus-within {
   z-index: 5;
 }
+/* The pointer can rest on the full name, so moving down onto the part of it
+   that sits over the next row does not close it; Escape puts it away. */
 .bwx-gantt-label:hover .bwx-gantt-name-tip,
 .bwx-gantt-label:focus-within .bwx-gantt-name-tip {
-  visibility: visible;
+  display: block;
+}
+.bwx-gantt-name-tip[ data-opens='true' ] {
+  cursor: pointer;
+}
+.bwx-gantt-label[ data-dismissed ] .bwx-gantt-name-tip {
+  display: none;
 }
 /* The tip covers the name, so the ring is drawn around the tip while focus is on the name. */
 .bwx-gantt-label:has( :focus-visible ) .bwx-gantt-name-tip {

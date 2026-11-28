@@ -57,6 +57,9 @@ export function GanttView( {
   // work deleted from its panel does not leave focus on a control that is gone.
   const origin = useRef< 'chart' | 'tray' >( 'chart' );
   const returned = useRef< HTMLElement | null >( null );
+  // Whether the panel now open was opened from the chart or its tray, so focus
+  // goes back here only for those, never for one opened from somewhere else.
+  const mine = useRef( false );
   const trayToggle = useRef< HTMLButtonElement >( null );
 
   const items = everything.filter( isLive );
@@ -120,10 +123,14 @@ export function GanttView( {
 
   useEffect( () => {
     if ( wasOpen.current && ! panelOpen ) {
-      const target = landing();
+      if ( mine.current ) {
+        const target = landing();
 
-      target?.focus();
-      returned.current = target;
+        target?.focus();
+        returned.current = target;
+      }
+
+      mine.current = false;
     }
 
     wasOpen.current = panelOpen;
@@ -169,28 +176,52 @@ export function GanttView( {
 
     tip.removeAttribute( 'data-flip' );
     tip.removeAttribute( 'style' );
+    label.removeAttribute( 'data-dismissed' );
 
+    // Hidden names take no room (a long one in the last row would otherwise add
+    // blank scroll below it), so it is laid out only while it is measured.
+    tip.style.display = 'block';
+
+    // Only what the person can see counts: the chart may run on below the
+    // bottom of the screen, or begin above the top of it.
     const box = chart.getBoundingClientRect();
-    const seen = box.top + chart.clientHeight;
+    const seen = Math.min( box.top + chart.clientHeight, window.innerHeight );
+    const top = Math.max( box.top, 0 );
     const own = tip.getBoundingClientRect();
     const row = label.getBoundingClientRect();
 
-    if ( own.bottom <= seen ) {
-      return;
+    if ( own.bottom > seen ) {
+      if ( row.bottom - own.height >= top ) {
+        tip.setAttribute( 'data-flip', 'true' );
+      } else {
+        // Taller than the room either way up (a few rows on a phone): drawn
+        // over the screen instead, kept inside it, so the whole name still reads.
+        tip.setAttribute( 'data-flip', 'screen' );
+        tip.style.left = `${ row.left }px`;
+        tip.style.width = `${ row.width }px`;
+        tip.style.top = `${ Math.max( 8, Math.min( row.top, window.innerHeight - own.height - 8 ) ) }px`;
+      }
     }
 
-    if ( row.bottom - own.height >= box.top ) {
-      tip.setAttribute( 'data-flip', 'true' );
-      return;
-    }
-
-    // Taller than the chart either way up (a few rows on a phone): drawn over
-    // the screen instead, kept inside it, so the whole name still reads.
-    tip.setAttribute( 'data-flip', 'screen' );
-    tip.style.left = `${ row.left }px`;
-    tip.style.width = `${ row.width }px`;
-    tip.style.top = `${ Math.max( 8, Math.min( row.top, window.innerHeight - own.height - 8 ) ) }px`;
+    tip.style.removeProperty( 'display' );
   };
+
+  // Escape puts a full name away while the pointer or focus stays where it is.
+  useEffect( () => {
+    const dismiss = ( event: KeyboardEvent ) => {
+      if ( 'Escape' !== event.key ) {
+        return;
+      }
+
+      const shown = chartRef.current?.querySelectorAll< HTMLElement >( '.bwx-gantt-label:hover, .bwx-gantt-label:focus-within' );
+
+      shown?.forEach( ( label ) => label.setAttribute( 'data-dismissed', 'true' ) );
+    };
+
+    document.addEventListener( 'keydown', dismiss );
+
+    return () => document.removeEventListener( 'keydown', dismiss );
+  }, [] );
 
   const phases = [ ...new Set( dated.map( ( each ) => phaseOf( each.item.stage ) ) ) ];
 
@@ -327,6 +358,8 @@ export function GanttView( {
                   className="bwx-gantt-label"
                   onMouseEnter={ ( event ) => fitTip( event.currentTarget ) }
                   onFocus={ ( event ) => fitTip( event.currentTarget ) }
+                  onMouseLeave={ ( event ) => event.currentTarget.removeAttribute( 'data-dismissed' ) }
+                  onBlur={ ( event ) => event.currentTarget.removeAttribute( 'data-dismissed' ) }
                 >
                   <span className="bwx-gantt-dot" data-phase={ phase } aria-hidden="true" />
                   { null === place ? (
@@ -338,6 +371,7 @@ export function GanttView( {
                       onClick={ ( event ) => {
                         opener.current = event.currentTarget;
                         origin.current = 'chart';
+                        mine.current = true;
                         onOpen( item );
                       } }
                     >
@@ -347,7 +381,19 @@ export function GanttView( {
                     // Focusable, so the full name shows from the keyboard too.
                     <span className="bwx-gantt-title" tabIndex={ 0 }>{ item.title }</span>
                   ) }
-                  <span className="bwx-gantt-name-tip" data-testid="bwx-gantt-name-tip" aria-hidden="true">
+                  { /* It sits over the name, so a click on it does what a click on the name does. */ }
+                  <span
+                    className="bwx-gantt-name-tip"
+                    data-testid="bwx-gantt-name-tip"
+                    aria-hidden="true"
+                    data-opens={ null === place ? 'true' : undefined }
+                    onClick={ null === place ? ( event ) => {
+                      opener.current = event.currentTarget.parentElement?.querySelector< HTMLElement >( '.bwx-gantt-title-open' ) ?? null;
+                      origin.current = 'chart';
+                      mine.current = true;
+                      onOpen( item );
+                    } : undefined }
+                  >
                     { item.title }
                   </span>
                 </span>
@@ -379,6 +425,7 @@ export function GanttView( {
                       onClick={ ( event ) => {
                         opener.current = event.currentTarget;
                         origin.current = 'chart';
+                        mine.current = true;
                         // One click opens it, as the name does, and still marks
                         // what it waits on and what waits on it.
                         setSelected( item.id === active ? '' : item.id );
@@ -454,6 +501,7 @@ export function GanttView( {
                   onClick={ ( event ) => {
                     opener.current = event.currentTarget;
                     origin.current = 'tray';
+                    mine.current = true;
                     onOpen( item );
                   } }
                 >
