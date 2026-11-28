@@ -82,12 +82,70 @@ export function WorkScreen( {
   const [ items, setItems ] = useState< WorkItem[] >( [] );
   const [ openId, setOpenId ] = useState( openItem ?? '' );
   const [ adding, setAdding ] = useState( false );
+  // The Blocked strip button that opened the panel, so closing it puts focus
+  // back there and a keyboard user keeps their place in the strip.
+  const blockedFrom = useRef< HTMLElement | null >( null );
+  // Any other way of opening an item forgets the strip button, so closing the
+  // panel returns focus to what opened the item last, never to an earlier one.
+  const openFromView = ( id: string ) => {
+    blockedFrom.current = null;
+    setOpenId( id );
+  };
   const [ said, setSaid ] = useState< Said >( NOTHING_SAID );
   const [ unmet, setUnmet ] = useState< Requirement[] >( [] );
 
   /** A refusal reads as a warning, a failure as a failure, a confirmation as green. */
   const setNotice = ( text: string, tone: SaidTone = 'danger' ) => setSaid( '' === text ? NOTHING_SAID : { text, tone } );
   const notice = said.text;
+
+  // Where to put focus when the strip button it was handed to goes.
+  const strayFocus = () =>
+    document.querySelector< HTMLElement >( '[data-testid="bwx-blocked-item"]' ) ??
+    document.querySelector< HTMLElement >( '[data-testid^="bwx-view-"][aria-pressed="true"]' );
+  // The button focus was handed back to, kept until the list has refreshed: an
+  // item deleted from its panel closes the panel first, and its button goes after.
+  const handedBack = useRef< HTMLElement | null >( null );
+
+  useEffect( () => {
+    if ( '' === openId && blockedFrom.current ) {
+      const from = blockedFrom.current;
+
+      blockedFrom.current = null;
+
+      // Unblocked while the panel was open, the button is gone: focus goes to
+      // another one in the strip, or failing that to the view that is showing.
+      const target = from.isConnected ? from : strayFocus();
+
+      target?.focus();
+      handedBack.current = from.isConnected ? from : null;
+    }
+  }, [ openId ] );
+
+  // Once the list refreshes: if the button focus went back to is gone and focus
+  // fell to the page, it moves on; if focus has gone elsewhere, tracking stops.
+  useEffect( () => {
+    const last = handedBack.current;
+
+    if ( ! last ) {
+      return;
+    }
+
+    const active = document.activeElement;
+
+    if ( last.isConnected ) {
+      if ( active !== last ) {
+        handedBack.current = null;
+      }
+
+      return;
+    }
+
+    handedBack.current = null;
+
+    if ( ! active || active === document.body ) {
+      strayFocus()?.focus();
+    }
+  }, [ items ] );
 
   /*
    * The filter set and the view are separate pieces of state on purpose (#123).
@@ -535,21 +593,21 @@ export function WorkScreen( {
               stages={ stages }
               columns={ columns }
               items={ items }
-              onOpen={ ( item ) => setOpenId( item.id ) }
+              onOpen={ ( item ) => openFromView( item.id ) }
               onMove={ ( itemId, to ) => void move( itemId, to ) }
             />
           ) }
 
           { 'list' === view && (
-            <ListView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+            <ListView items={ items } onOpen={ ( item ) => openFromView( item.id ) } />
           ) }
 
           { 'gantt' === view && (
-            <GanttView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } />
+            <GanttView items={ items } onOpen={ ( item ) => openFromView( item.id ) } panelOpen={ '' !== openId } />
           ) }
 
           { 'calendar' === view && (
-            <CalendarView items={ items } onOpen={ ( item ) => setOpenId( item.id ) } onOpenId={ setOpenId } />
+            <CalendarView items={ items } onOpen={ ( item ) => openFromView( item.id ) } onOpenId={ openFromView } />
           ) }
 
           { /*
@@ -558,7 +616,7 @@ export function WorkScreen( {
              pretending it is queued somewhere.
            */ }
           { 0 < blocked.length && (
-            <section style={ { padding: '0 20px 12px' } } data-testid="bwx-blocked-lane">
+            <section className="bwx-blocked-lane" style={ { padding: '0 20px 12px' } } data-testid="bwx-blocked-lane">
               <p className="bwx-eyebrow">Blocked · { blocked.length }</p>
               <div className="bwx-moves">
                 { blocked.map( ( each ) => (
@@ -568,7 +626,10 @@ export function WorkScreen( {
                     className="bwx-button"
                     data-testid="bwx-blocked-item"
                     data-item={ each.id }
-                    onClick={ () => setOpenId( each.id ) }
+                    onClick={ ( event ) => {
+                      blockedFrom.current = event.currentTarget;
+                      setOpenId( each.id );
+                    } }
                   >
                     { each.title }
                     <span className="bwx-mono">

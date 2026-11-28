@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { makeSite, asClientSite, makeSubmission } from './helpers/forge.js';
+import { makeSite, makeItem, asClientSite, makeSubmission } from './helpers/forge.js';
 import { onPhone, spillsSideways, PHONE } from './helpers/phone.js';
 import { checkAccessibility } from '../helpers/accessibility.js';
 
@@ -138,10 +138,24 @@ test('on a phone a Kanban column and the Gantt timeline both get room, and a tas
     await page.keyboard.press('Escape');
   }
 
+  // A fresh site has no dated work, and then there is no row to measure.
+  const RUN = `gnt${Date.now()}`;
+  const { site } = await makeSite(admin.api, `Phone gantt ${RUN}`, RUN);
+  const day = (offset) => {
+    const at = new Date();
+    at.setDate(at.getDate() + offset);
+    return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
+  };
+  const made = await makeItem(admin.api, site.id, { title: `Phone gantt ${RUN}`, work_type: 'task', planned_start: day(1), planned_due: day(4) });
+  expect(made.status(), await made.text()).toBe(200);
+  await page.reload();
+  await expect(page.getByTestId('bwx-forge-ready')).toBeVisible();
+
   await page.getByTestId('bwx-menu-toggle').click();
   await menu.getByTestId('bwx-screen-gantt').click();
   await settled(page);
-  const gantt = await page.getByTestId('bwx-gantt').boundingBox();
+  await expect(page.getByTestId('bwx-gantt-row').first()).toBeVisible();
+  const gantt =await page.getByTestId('bwx-gantt').boundingBox();
   const label = await page.getByTestId('bwx-gantt-row').first().locator(':scope > *').first().boundingBox();
   if (label) {
     expect(label.width, 'the names leave the timeline most of the screen').toBeLessThanOrEqual(gantt.width * 0.4);

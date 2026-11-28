@@ -1087,6 +1087,11 @@ body {
   border-radius: 12px;
 }
 
+.bwx-gantt-chart:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+
 .bwx-gantt-axis {
   display: flex;
   position: sticky;
@@ -1151,7 +1156,10 @@ body {
    stretch of time scrolls sideways rather than squeezing. The gutter stays put
    while it does, so a bar is never far from its name. */
 .bwx-gantt-chart[ data-zoom='day' ] {
-  --gantt-day: 44px;
+  --gantt-day: 264px;
+  /* Room after the last day, so Today can be scrolled clear of the pinned names
+     and the edge even when it is the last day drawn. */
+  padding-right: 96px;
 }
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-axis,
 .bwx-gantt-chart[ data-zoom='day' ] .bwx-gantt-rows {
@@ -1189,12 +1197,24 @@ body {
   }
 }
 .bwx-gantt-day {
+  /* Not clipped, or the date could not slide along the column. */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
   /* Room beneath the date for the Today tag to sit in. */
   padding: 4px 0 20px;
   line-height: 1.3;
+}
+/* The date slides along its column, clear of the pinned names and the right
+   edge, so on a phone one is always in view and a bar's day can be told. */
+.bwx-gantt-day-label {
+  position: sticky;
+  left: calc( var( --gantt-gutter ) + 6px );
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .bwx-gantt-day-name {
   font-size: 10px;
@@ -1274,7 +1294,10 @@ body {
   background: color-mix( in srgb, var( --surface-sunken ) 55%, transparent );
 }
 
-.bwx-gantt-row[ data-dimmed='true' ] {
+/* Dimmed on what is inside the row, not the row itself, so a full name shown over
+   the label stays whole and above the rows beneath it. */
+.bwx-gantt-row[ data-dimmed='true' ] > .bwx-gantt-track,
+.bwx-gantt-row[ data-dimmed='true' ] > .bwx-gantt-label > :not( .bwx-gantt-name-tip ) {
   opacity: 0.28;
 }
 
@@ -1319,6 +1342,63 @@ body {
   text-decoration: underline;
 }
 .bwx-gantt-title-open:focus-visible {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: 2px;
+}
+/* The full name, over the label it is cut off in: on hover, and when the name has focus. */
+.bwx-gantt-name-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px 10px 28px;
+  background: var( --surface-card );
+  box-shadow: var( --shadow-raised );
+  color: var( --ink-900 );
+  white-space: normal;
+  overflow-wrap: anywhere;
+  /* Out of the layout until shown, so a long name in the last row cannot add
+     blank space to scroll into. */
+  display: none;
+}
+/* Opens upward from the row when downward would run out of the chart. */
+.bwx-gantt-name-tip[ data-flip='true' ] {
+  top: auto;
+  bottom: 0;
+}
+/* Taller than the chart either way: over the screen, placed by the script. */
+.bwx-gantt-name-tip[ data-flip='screen' ] {
+  position: fixed;
+  min-height: 0;
+}
+.bwx-gantt-label:hover {
+  z-index: 4;
+}
+/* Above a row the pointer is resting on, so a name focused from the keyboard is never covered. */
+.bwx-gantt-label:focus-within {
+  z-index: 5;
+}
+/* The pointer can rest on the full name, so moving down onto the part of it
+   that sits over the next row does not close it; Escape puts it away. */
+.bwx-gantt-label:hover .bwx-gantt-name-tip,
+.bwx-gantt-label:focus-within .bwx-gantt-name-tip {
+  display: block;
+}
+.bwx-gantt-name-tip[ data-opens='true' ] {
+  cursor: pointer;
+}
+.bwx-gantt-label[ data-dismissed ] .bwx-gantt-name-tip,
+.bwx-gantt-label[ data-away ] .bwx-gantt-name-tip {
+  display: none;
+}
+/* The tip covers the name, so the ring is drawn around the tip while focus is on the name. */
+.bwx-gantt-label:has( :focus-visible ) .bwx-gantt-name-tip {
+  outline: 2px solid var( --brand-600 );
+  outline-offset: -2px;
+}
+.bwx-gantt-title:focus-visible {
   outline: 2px solid var( --brand-600 );
   outline-offset: 2px;
 }
@@ -4850,4 +4930,14 @@ select.bwx-select,
 .bwx-google-meeting-settle {
   display: grid;
   gap: 8px;
+}
+
+/* A blocked item's name and where it came from can be longer than a phone is
+   wide: the button wraps instead of running off the side of the page. */
+.bwx-blocked-lane .bwx-button {
+  white-space: normal;
+  text-align: left;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border-radius: var( --radius-card, 16px );
 }
